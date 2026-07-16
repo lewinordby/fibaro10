@@ -29835,6 +29835,17 @@ ENERGY_NODE_TYPES = {"zwave_device", "output", "child_device", "meter", "logical
 ENERGY_LOAD_POWER_PROFILES = {"unknown", "fixed", "variable"}
 
 
+def validate_energy_node_profile_values(values: Dict[str, Any]) -> None:
+    node_type = str(values.get("node_type") or "zwave_device")
+    if node_type in {"output", "child_device"} and values.get("parent_node_id") is None:
+        label = "Utgang" if node_type == "output" else "Underenhet"
+        raise HTTPException(status_code=400, detail=f"{label} må ha en overordnet enhet.")
+    if node_type == "output" and not str(values.get("endpoint_key") or "").strip():
+        raise HTTPException(status_code=400, detail="Utgang må ha kanal eller utgangsnummer.")
+    if node_type == "meter" and values.get("hc3_power_device_id") is None:
+        raise HTTPException(status_code=400, detail="Målepunkt må kobles til en HC3-enhet som rapporterer watt.")
+
+
 def clean_energy_load_values(values: Dict[str, Any]) -> Dict[str, Any]:
     cleaned = dict(values)
     for key in ("name", "load_type", "area", "note"):
@@ -30057,6 +30068,7 @@ async def api_v2_energy_node_create(request: Request, data: V2EnergyNodeIn):
     name = str(values.get("name") or "").strip()
     if not name:
         name = default_energy_node_name(circuit_no, values.get("hc3_power_device_id") or values.get("hc3_device_id"), [])
+    validate_energy_node_profile_values(values)
     await validate_energy_node_hc3_values(values)
     now_value = datetime.utcnow()
     async with async_session() as session:
@@ -30099,6 +30111,12 @@ async def api_v2_energy_node_update(request: Request, node_id: int, data: V2Ener
             "has_meter": values.get("has_meter", node.has_meter),
             "has_switch": values.get("has_switch", node.has_switch),
         }
+        validate_energy_node_profile_values({
+            "node_type": values.get("node_type", node.node_type),
+            "parent_node_id": parent_node_id,
+            "endpoint_key": values.get("endpoint_key", node.endpoint_key),
+            "hc3_power_device_id": power_id,
+        })
         await validate_energy_node_hc3_values(effective_hc3_values)
         await validate_energy_node_link_uniqueness(
             session,

@@ -19,6 +19,7 @@ from main import (  # noqa: E402
     hc3_energy_nodes_live,
     validate_energy_load_power_values,
     validate_energy_node_hc3_values,
+    validate_energy_node_profile_values,
 )
 
 
@@ -168,6 +169,21 @@ class EnergyTopologyTests(unittest.TestCase):
         self.assertEqual(clean_energy_node_values({"node_type": "zwave_point"})["node_type"], "zwave_device")
         with self.assertRaisesRegex(Exception, "Ugyldig type"):
             clean_energy_node_values({"node_type": "tilfeldig"})
+
+    def test_energy_node_profiles_require_relevant_parameters(self):
+        with self.assertRaisesRegex(Exception, "overordnet enhet"):
+            validate_energy_node_profile_values({"node_type": "output", "endpoint_key": "Q1"})
+        with self.assertRaisesRegex(Exception, "kanal eller utgangsnummer"):
+            validate_energy_node_profile_values({"node_type": "output", "parent_node_id": 4})
+        with self.assertRaisesRegex(Exception, "rapporterer watt"):
+            validate_energy_node_profile_values({"node_type": "meter"})
+
+        validate_energy_node_profile_values({
+            "node_type": "output",
+            "parent_node_id": 4,
+            "endpoint_key": "Q1",
+        })
+        validate_energy_node_profile_values({"node_type": "meter", "hc3_power_device_id": 530})
 
     def test_energy_node_branch_contains_all_descendants_only(self):
         nodes = [

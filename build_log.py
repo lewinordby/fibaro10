@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1573")
+APP_BUILD = os.getenv("APP_BUILD", "1574")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1574",
+        "date": "16.07.2026",
+        "headline": "Dynamiske enhetsparametre",
+        "title": "Registreringsskjemaet tilpasses typen enhet som legges til",
+        "description": (
+            "Kurs/last bruker nå egne parameterprofiler for fysisk Z-Wave-enhet, underenhet, utgang, "
+            "målepunkt og logisk punkt. Bare relevante identitets-, kanal- og HC3-felt vises, og "
+            "påkrevde koblinger valideres både i grensesnittet og API-et."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/EnergyCircuitLoadsPage.tsx: dynamiske formularprofiler og trygg normalisering ved lagring.",
+            "desktop_v2/src/styles/energy.css: kompakt profilforklaring og fjerning av ubrukt skjemastil.",
+            "main.py: validerer påkrevde parametre for målepunkt, utgang og underenhet.",
+            "tests/test_energy_topology.py: tester profilreglene.",
+        ],
+        "request": "Burde ikke parameter på enhetene endres i forhold til hva som legges til?",
+        "work_duration": "ca. 35 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Målepunkt krever en HC3-effekt-ID og viser ikke bryterfelt.",
+            "Utgang krever overordnet enhet og kanal, men kan ha valgfri måling og bryterstatus.",
+            "Fysiske enheter viser merke, modell og valgfrie HC3-funksjoner.",
+            "Underenheter må plasseres under en eksisterende enhet.",
+            "Logiske punkter viser ingen irrelevante HC3-parametre.",
+            "Valgt HC3-hovedenhet fyller automatisk inn funksjoner den faktisk støtter.",
+        ],
+    },
     {
         "version": "1",
         "build": "1573",

@@ -353,344 +353,6 @@
   background: var(--surface);
 }
 
-.energy-circuit-row.tone-ok {
-  border-left-color: var(--green);
-}
-
-.energy-circuit-row.tone-partial {
-  border-left-color: var(--amber);
-}
-
-.energy-circuit-row.tone-warn {
-  border-left-color: var(--orange);
-}
-
-.energy-circuit-row.tone-empty {
-  border-left-color: var(--border-panel);
-}
-
-.energy-circuit-row-main {
-  min-height: 48px;
-  padding: 7px 14px 7px 11px;
-  background: var(--panel-surface);
-}
-
-.energy-circuit-row.is-empty .energy-circuit-row-main {
-  background: color-mix(in srgb, var(--panel-surface) 68%, var(--surface-muted));
-}
-
-.energy-circuit-row-no {
-  display: inline-grid;
-  width: 42px;
-  height: 28px;
-  place-items: center;
-  color: var(--domain-energy);
-  font-size: 12px;
-  font-weight: 850;
-  background: color-mix(in srgb, var(--domain-energy) 10%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--domain-energy) 22%, var(--border-panel));
-  border-radius: var(--radius-md);
-}
-
-.energy-circuit-row-name {
-  min-width: 0;
-}
-
-.energy-circuit-row-name strong {
-  display: block;
-  overflow: hidden;
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 760;
-  line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.energy-circuit-row-name span {
-  display: block;
-  overflow: hidden;
-  margin-top: 2px;
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.energy-circuit-row-status {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  min-width: 0;
-}
-
-.energy-row-action {
-  min-height: 20px;
-  padding: 2px 8px;
-  color: var(--domain-energy);
-  font-size: 10px;
-  font-weight: 800;
-  line-height: 1;
-  white-space: nowrap;
-  cursor: pointer;
-  background: color-mix(in srgb, var(--domain-energy) 8%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--domain-energy) 24%, var(--border-panel));
-  border-radius: var(--radius-pill);
-}
-
-.energy-row-action:hover {
-  color: var(--surface);
-  background: var(--domain-energy);
-  border-color: var(--domain-energy);
-}
-
-.energy-circuit-row-count {
-  display: grid;
-  gap: 1px;
-  min-width: 0;
-}
-
-.energy-circuit-row-count strong,
-.energy-circuit-row-watts {
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 780;
-}
-
-.energy-circuit-row-count span,
-.energy-circuit-row-coverage small {
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.energy-circuit-row-coverage {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.energy-circuit-row-detail {
-  display: grid;
-  gap: 8px;
-  padding: 0 14px 10px 85px;
-  background: color-mix(in srgb, var(--panel-surface) 76%, var(--surface-muted));
-}
-
-.energy-circuit-row-detail p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.35;
-}
-
-.energy-meter-line-list {
-  display: grid;
-  gap: 6px;
-}
-
-.energy-meter-line {
-  overflow: hidden;
-  border: 1px solid var(--border-panel-soft);
-  border-left-width: 3px;
-  border-radius: var(--radius-md);
-  background: var(--panel-surface);
-}
-
-.energy-meter-line.circuit_meter {
-  border-left-color: var(--green);
-}
-
-.energy-meter-line.shared_meter {
-  border-left-color: var(--blue);
-}
-
-.energy-meter-line.direct_meter {
-  border-left-color: var(--cyan);
-}
-
-.energy-meter-line.unmetered {
-  border-left-color: var(--orange);
-}
-
-.energy-meter-line-head {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-  padding: 6px 8px;
-  background: var(--panel-muted-bg);
-  border-bottom: 1px solid var(--border-panel-soft);
-}
-
-.energy-meter-line-title {
-  display: grid;
-  min-width: 0;
-}
-
-.energy-meter-line-title span {
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 720;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.energy-meter-line-title strong {
-  overflow: hidden;
-  color: var(--ink);
-  font-size: 11px;
-  font-weight: 720;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.energy-meter-line-actions {
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: flex-end;
-  min-width: 0;
-}
-
-.energy-meter-line-actions em {
-  color: var(--ink);
-  font-size: 12px;
-  font-style: normal;
-  font-weight: 760;
-}
-
-.energy-meter-line-actions button {
-  min-height: 22px;
-  padding: 3px 8px;
-  color: var(--blue);
-  font-size: 10px;
-  font-weight: 800;
-  line-height: 1;
-  white-space: nowrap;
-  cursor: pointer;
-  background: color-mix(in srgb, var(--blue) 8%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--blue) 22%, var(--border-panel));
-  border-radius: var(--radius-pill);
-}
-
-.energy-meter-line-actions button:hover {
-  color: var(--surface);
-  background: var(--blue);
-  border-color: var(--blue);
-}
-
-.energy-meter-line-loads {
-  display: grid;
-}
-
-.energy-load-line {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 108px 96px minmax(180px, 0.55fr);
-  gap: 8px;
-  align-items: center;
-  min-height: 35px;
-  padding: 6px 8px;
-  border-top: 1px solid var(--border-panel-soft);
-}
-
-.energy-load-line:first-child {
-  border-top: 0;
-}
-
-.energy-load-line.inactive {
-  opacity: 0.58;
-}
-
-.energy-load-line-name {
-  min-width: 0;
-}
-
-.energy-load-line-name strong {
-  display: block;
-  overflow: hidden;
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 760;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.energy-load-line-name span,
-.energy-load-line small {
-  display: block;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.energy-load-line-meta {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 7px;
-  align-items: center;
-  min-width: 0;
-}
-
-.energy-load-line > span {
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 760;
-  text-align: right;
-}
-
-.energy-load-line .energy-load-measure {
-  justify-self: end;
-}
-
-.energy-load-line .energy-load-measure.ok {
-  color: var(--green);
-}
-
-.energy-load-line .energy-load-measure.warn {
-  color: var(--orange);
-}
-
-.energy-load-actions {
-  display: inline-flex;
-  gap: 4px;
-  justify-content: flex-end;
-}
-
-.energy-load-actions button {
-  min-height: 22px;
-  padding: 3px 7px;
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 760;
-  line-height: 1;
-  white-space: nowrap;
-  cursor: pointer;
-  background: var(--surface);
-  border: 1px solid var(--border-panel);
-  border-radius: var(--radius-pill);
-}
-
-.energy-load-actions button:hover {
-  color: var(--domain-energy);
-  border-color: color-mix(in srgb, var(--domain-energy) 36%, var(--border-panel));
-}
-
-.energy-circuit-empty {
-  padding: 18px;
-  color: var(--muted);
-  font-size: 13px;
-  text-align: center;
-}
-
 .energy-tag {
   display: inline-flex;
   align-items: center;
@@ -737,196 +399,13 @@
   border-color: color-mix(in srgb, var(--orange) 25%, var(--border-panel));
 }
 
-.energy-add-load-modal .ant-modal-content {
-  background: var(--panel-surface);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-lg);
-}
-
-.energy-add-load-form {
-  display: grid;
-  gap: 12px;
-}
-
-.energy-add-load-context {
-  display: grid;
-  gap: 3px;
-  padding: 10px 12px;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--domain-energy) 10%, var(--surface)), var(--panel-muted-bg));
-  border: 1px solid color-mix(in srgb, var(--domain-energy) 20%, var(--border-panel));
-  border-radius: var(--radius-md);
-}
-
-.energy-add-load-context span {
-  color: var(--domain-energy);
-  font-size: 10px;
-  font-weight: 850;
-  line-height: 1.1;
-  text-transform: uppercase;
-}
-
-.energy-add-load-context strong {
-  color: var(--ink);
-  font-size: 14px;
-  font-weight: 780;
-  line-height: 1.2;
-}
-
-.energy-add-load-context small,
-.energy-add-load-help span {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.energy-add-load-grid {
-  display: grid;
-  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
-  gap: 14px;
-  align-items: start;
-}
-
-.energy-add-load-grid section {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-  padding: 12px;
-  background: var(--panel-muted-bg);
-  border: 1px solid var(--border-panel-soft);
-  border-radius: var(--radius-md);
-}
-
-.energy-add-load-grid h4 {
-  margin: 0 0 2px;
-  color: var(--text-panel-strong);
-  font-size: 12px;
-  font-weight: 850;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.energy-add-load-form .ant-form-item {
-  margin-bottom: 0;
-}
-
-.energy-add-load-help {
-  display: grid;
-  gap: 3px;
-  padding: 9px 10px;
-  background: var(--surface);
-  border: 1px solid var(--border-panel-soft);
-  border-radius: var(--radius-md);
-}
-
-.energy-add-load-help strong {
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.energy-add-load-warning {
-  padding: 8px 10px;
-  color: color-mix(in srgb, var(--amber) 78%, var(--ink));
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.35;
-  background: color-mix(in srgb, var(--amber) 10%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--amber) 28%, var(--border-panel));
-  border-radius: var(--radius-md);
-}
-
-.energy-add-load-two,
-.energy-add-load-three {
-  display: grid;
-  gap: 8px;
-}
-
-.energy-add-load-two {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.energy-add-load-three {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.energy-add-load-checks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  padding: 3px 0;
-}
-
 @media (max-width: 1280px) {
   .energy-sunbeds-method .ant-card-body {
     grid-template-columns: 1fr;
   }
 
-  .energy-circuit-dashboard-main,
-  .energy-circuit-summary-strip {
-    grid-template-columns: 1fr;
-  }
-
-  .energy-circuit-board-title {
-    display: grid;
-  }
-
-  .energy-circuit-board-actions {
-    justify-content: flex-start;
-  }
-
   .energy-circuit-filter {
     flex-wrap: wrap;
-  }
-
-  .energy-circuit-board-header {
-    display: none;
-  }
-
-  .energy-circuit-row-main {
-    grid-template-columns: 52px minmax(0, 1fr) 118px;
-  }
-
-  .energy-circuit-row-status,
-  .energy-circuit-row-count,
-  .energy-circuit-row-watts,
-  .energy-circuit-row-coverage {
-    grid-column: 2 / -1;
-  }
-
-  .energy-circuit-row-detail {
-    padding-left: 66px;
-  }
-
-  .energy-meter-line-head,
-  .energy-load-line {
-    grid-template-columns: 1fr;
-  }
-
-  .energy-meter-line-actions {
-    justify-content: flex-start;
-  }
-
-  .energy-load-line > span {
-    text-align: left;
-  }
-
-  .energy-load-line .energy-load-measure {
-    justify-self: start;
-  }
-
-  .energy-load-line-meta {
-    grid-template-columns: 1fr;
-  }
-
-  .energy-load-actions {
-    justify-content: flex-start;
-  }
-
-  .energy-add-load-grid,
-  .energy-add-load-two,
-  .energy-add-load-three {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -1516,6 +995,45 @@
   font-size: 11px;
 }
 
+.energy-node-profile-summary {
+  display: grid;
+  grid-template-columns: 27px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+  padding: 6px 8px;
+  background: color-mix(in srgb, var(--domain-energy) 5%, var(--panel-surface));
+  border-left: 3px solid var(--domain-energy);
+}
+
+.energy-node-profile-summary > span:first-child {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  color: var(--domain-energy);
+  background: color-mix(in srgb, var(--domain-energy) 10%, var(--surface));
+  border-radius: var(--radius-sm);
+}
+
+.energy-node-profile-summary > div:nth-child(2) {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.energy-node-profile-summary strong {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 790;
+}
+
+.energy-node-profile-summary small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.3;
+}
+
 .energy-node-form,
 .energy-load-form {
   display: grid;
@@ -1817,4 +1335,5 @@
     border-right: 0;
     border-bottom: 1px solid var(--border-panel-soft);
   }
+
 }

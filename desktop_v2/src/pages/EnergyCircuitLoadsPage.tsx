@@ -36,6 +36,24 @@ import "../styles/energy.css";
 
 type CircuitFilter = "without-sunbeds" | "all" | "sunbeds";
 type CircuitMappingFilter = "all" | "mapped" | "needs-work" | "empty";
+type EnergyNodeType = "zwave_device" | "output" | "child_device" | "meter" | "logical";
+type NodeCapabilityMode = "none" | "optional" | "required";
+
+type NodeProfile = {
+  label: string;
+  description: string;
+  showIdentity: boolean;
+  showDeviceType: boolean;
+  showEndpoint: boolean;
+  requireParent: boolean;
+  requireEndpoint: boolean;
+  allowHc3: boolean;
+  mainDeviceLabel: string;
+  power: NodeCapabilityMode;
+  powerLabel: string;
+  switch: NodeCapabilityMode;
+  switchLabel: string;
+};
 
 type NodeFormValues = {
   circuitNo?: number | null;
@@ -50,8 +68,6 @@ type NodeFormValues = {
   hc3DeviceId?: number | null;
   hc3PowerDeviceId?: number | null;
   hc3SwitchDeviceId?: number | null;
-  hasMeter?: boolean;
-  hasSwitch?: boolean;
   active?: boolean;
   note?: string;
 };
@@ -99,13 +115,91 @@ const mappingFilters: Array<{ key: CircuitMappingFilter; label: string }> = [
   { key: "empty", label: "Ikke kartlagt" },
 ];
 
-const nodeTypes = [
+const nodeTypes: Array<{ value: EnergyNodeType; label: string }> = [
   { value: "zwave_device", label: "Z-Wave-enhet" },
   { value: "output", label: "Utgang" },
   { value: "child_device", label: "Underenhet" },
   { value: "meter", label: "Målepunkt" },
   { value: "logical", label: "Logisk punkt" },
 ];
+
+const nodeProfiles: Record<EnergyNodeType, NodeProfile> = {
+  zwave_device: {
+    label: "Fysisk Z-Wave-enhet",
+    description: "En enhet direkte på kurset. Den kan ha innebygd måling, bryter eller begge deler.",
+    showIdentity: true,
+    showDeviceType: true,
+    showEndpoint: false,
+    requireParent: false,
+    requireEndpoint: false,
+    allowHc3: true,
+    mainDeviceLabel: "HC3 hovedenhet",
+    power: "optional",
+    powerLabel: "Effektmåling",
+    switch: "optional",
+    switchLabel: "Bryterstatus",
+  },
+  child_device: {
+    label: "Fysisk underenhet",
+    description: "En egen Z-Wave-enhet som er koblet etter en annen enhet i samme kursgren.",
+    showIdentity: true,
+    showDeviceType: true,
+    showEndpoint: false,
+    requireParent: true,
+    requireEndpoint: false,
+    allowHc3: true,
+    mainDeviceLabel: "HC3 underenhet",
+    power: "optional",
+    powerLabel: "Effektmåling",
+    switch: "optional",
+    switchLabel: "Bryterstatus",
+  },
+  output: {
+    label: "Utgang eller kanal",
+    description: "En kanal på en overordnet enhet. Kanalen kan ha bryterstatus, egen effektmåling eller begge deler.",
+    showIdentity: false,
+    showDeviceType: true,
+    showEndpoint: true,
+    requireParent: true,
+    requireEndpoint: true,
+    allowHc3: true,
+    mainDeviceLabel: "HC3 utgang",
+    power: "optional",
+    powerLabel: "Effektmåling på utgangen",
+    switch: "optional",
+    switchLabel: "Bryterstatus på utgangen",
+  },
+  meter: {
+    label: "Målepunkt",
+    description: "Et dedikert målepunkt. Det må kobles til en HC3-enhet som rapporterer watt akkurat nå.",
+    showIdentity: true,
+    showDeviceType: true,
+    showEndpoint: true,
+    requireParent: false,
+    requireEndpoint: false,
+    allowHc3: true,
+    mainDeviceLabel: "HC3 hovedenhet",
+    power: "required",
+    powerLabel: "HC3 effektmåler",
+    switch: "none",
+    switchLabel: "Bryterstatus",
+  },
+  logical: {
+    label: "Logisk samling",
+    description: "Et rent grupperingspunkt for struktur. Det har ingen egen HC3-enhet eller levende verdi.",
+    showIdentity: false,
+    showDeviceType: false,
+    showEndpoint: false,
+    requireParent: false,
+    requireEndpoint: false,
+    allowHc3: false,
+    mainDeviceLabel: "HC3-enhet",
+    power: "none",
+    powerLabel: "Effektmåling",
+    switch: "none",
+    switchLabel: "Bryterstatus",
+  },
+};
 
 const loadTypeSuggestions = ["Avfukter", "Belysning", "Elektronikk", "Kremautomat", "Lading", "Motor", "Solseng", "Varmepumpe", "Varme", "Ventilasjon"]
   .map((value) => ({ value }));
@@ -115,6 +209,11 @@ const powerProfiles = [
   { value: "fixed", label: "Fast effekt" },
   { value: "variable", label: "Variabel effekt" },
 ];
+
+function nodeProfileFor(value?: string | null): { type: EnergyNodeType; profile: NodeProfile } {
+  const type = value && value in nodeProfiles ? value as EnergyNodeType : "zwave_device";
+  return { type, profile: nodeProfiles[type] };
+}
 
 function cleanText(value?: string | null): string | null {
   const text = String(value ?? "").trim();
@@ -205,12 +304,16 @@ function nodeTypeLabel(nodeType?: string | null): string {
   return nodeTypes.find((item) => item.value === nodeType)?.label ?? "Tilkoblingspunkt";
 }
 
-function nodeIcon(node: EnergyConnectionNode): ReactNode {
-  if (node.nodeType === "output") return <BranchesOutlined />;
-  if (node.nodeType === "meter") return <ThunderboltOutlined />;
-  if (node.nodeType === "child_device") return <ApartmentOutlined />;
-  if (node.nodeType === "logical") return <LinkOutlined />;
+function nodeTypeIcon(nodeType?: string | null): ReactNode {
+  if (nodeType === "output") return <BranchesOutlined />;
+  if (nodeType === "meter") return <ThunderboltOutlined />;
+  if (nodeType === "child_device") return <ApartmentOutlined />;
+  if (nodeType === "logical") return <LinkOutlined />;
   return <GatewayOutlined />;
+}
+
+function nodeIcon(node: EnergyConnectionNode): ReactNode {
+  return nodeTypeIcon(node.nodeType);
 }
 
 function StatusTag({ tone = "default", children }: { tone?: string; children: ReactNode }) {
@@ -531,10 +634,12 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
   }), { nodes: 0, loads: 0, activeLoads: 0, measuredLoads: 0, unmeasuredLoads: 0, expectedPowerW: 0 }), [visibleCircuits]);
   const selectedNodeCircuitNo = Form.useWatch("circuitNo", nodeForm);
   const selectedLoadCircuitNo = Form.useWatch("circuitNo", loadForm);
+  const selectedNodeTypeValue = Form.useWatch("nodeType", nodeForm);
   const selectedMainDeviceId = Form.useWatch("hc3DeviceId", nodeForm);
   const selectedPowerDeviceId = Form.useWatch("hc3PowerDeviceId", nodeForm);
   const selectedSwitchDeviceId = Form.useWatch("hc3SwitchDeviceId", nodeForm);
   const selectedPowerProfile = Form.useWatch("powerProfile", loadForm) ?? "unknown";
+  const selectedNodeProfile = nodeProfileFor(selectedNodeTypeValue);
 
   const allNodes = useMemo(() => circuits.flatMap((circuit) => flattenNodes(circuit.nodes)), [circuits]);
   const devicesById = useMemo(() => new Map(devices.map((device) => [device.id, device])), [devices]);
@@ -652,8 +757,6 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
       hc3DeviceId: node?.hc3DeviceId ?? undefined,
       hc3PowerDeviceId: node?.hc3PowerDeviceId ?? undefined,
       hc3SwitchDeviceId: node?.hc3SwitchDeviceId ?? undefined,
-      hasMeter: node?.hasMeter ?? false,
-      hasSwitch: node?.hasSwitch ?? false,
       active: node?.active ?? true,
       note: node?.note ?? undefined,
     });
@@ -687,35 +790,55 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
     const device = devicesById.get(deviceId);
     if (!device) return;
     const current = nodeForm.getFieldsValue();
+    const { profile } = nodeProfileFor(current.nodeType);
+    if (!profile.allowHc3) return;
+    const previousMainId = selectedMainDeviceId == null ? null : Number(selectedMainDeviceId);
+    const currentPowerId = cleanNumber(current.hc3PowerDeviceId);
+    const currentSwitchId = cleanNumber(current.hc3SwitchDeviceId);
+    const powerDeviceId = profile.power === "none"
+      ? undefined
+      : device.hasPower
+        ? device.id
+        : currentPowerId === previousMainId
+          ? undefined
+          : currentPowerId ?? undefined;
+    const switchDeviceId = profile.switch === "none"
+      ? undefined
+      : device.hasSwitch
+        ? device.id
+        : currentSwitchId === previousMainId
+          ? undefined
+          : currentSwitchId ?? undefined;
     nodeForm.setFieldsValue({
       name: cleanText(current.name) ? current.name : device.name ?? "",
-      manufacturer: cleanText(current.manufacturer) ? current.manufacturer : device.manufacturer ?? undefined,
-      model: cleanText(current.model) ? current.model : device.model ?? undefined,
-      deviceType: cleanText(current.deviceType) ? current.deviceType : device.type ?? undefined,
-      hc3PowerDeviceId: current.hc3PowerDeviceId ?? (device.hasPower ? device.id : undefined),
-      hc3SwitchDeviceId: current.hc3SwitchDeviceId ?? (device.hasSwitch ? device.id : undefined),
-      hasMeter: Boolean(current.hasMeter || device.hasPower),
-      hasSwitch: Boolean(current.hasSwitch || device.hasSwitch),
+      manufacturer: profile.showIdentity && !cleanText(current.manufacturer) ? device.manufacturer ?? undefined : current.manufacturer,
+      model: profile.showIdentity && !cleanText(current.model) ? device.model ?? undefined : current.model,
+      deviceType: profile.showDeviceType && !cleanText(current.deviceType) ? device.type ?? undefined : current.deviceType,
+      hc3PowerDeviceId: powerDeviceId,
+      hc3SwitchDeviceId: switchDeviceId,
     });
   }
 
   async function saveNode() {
     if (!nodeEditor || saving) return;
     const values = await nodeForm.validateFields();
+    const { type, profile } = nodeProfileFor(values.nodeType);
+    const powerDeviceId = profile.power === "none" ? null : cleanNumber(values.hc3PowerDeviceId);
+    const switchDeviceId = profile.switch === "none" ? null : cleanNumber(values.hc3SwitchDeviceId);
     const payload: EnergyNodeInput = {
       name: cleanText(values.name) ?? "",
       circuit_no: Number(values.circuitNo),
       parent_node_id: cleanNumber(values.parentNodeId),
-      node_type: cleanText(values.nodeType),
-      manufacturer: cleanText(values.manufacturer),
-      model: cleanText(values.model),
-      device_type: cleanText(values.deviceType),
-      hc3_device_id: cleanNumber(values.hc3DeviceId),
-      hc3_power_device_id: cleanNumber(values.hc3PowerDeviceId),
-      hc3_switch_device_id: cleanNumber(values.hc3SwitchDeviceId),
-      endpoint_key: cleanText(values.endpointKey),
-      has_meter: Boolean(values.hasMeter),
-      has_switch: Boolean(values.hasSwitch),
+      node_type: type,
+      manufacturer: profile.showIdentity ? cleanText(values.manufacturer) : null,
+      model: profile.showIdentity ? cleanText(values.model) : null,
+      device_type: profile.showDeviceType ? cleanText(values.deviceType) : null,
+      hc3_device_id: profile.allowHc3 ? cleanNumber(values.hc3DeviceId) : null,
+      hc3_power_device_id: powerDeviceId,
+      hc3_switch_device_id: switchDeviceId,
+      endpoint_key: profile.showEndpoint ? cleanText(values.endpointKey) : null,
+      has_meter: powerDeviceId != null,
+      has_switch: switchDeviceId != null,
       area: cleanText(values.area),
       active: values.active !== false,
       note: cleanText(values.note),
@@ -889,7 +1012,7 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
       <Modal
         centered
         rootClassName="energy-topology-modal"
-        title={nodeEditor?.mode === "edit" ? "Rediger enhet eller utgang" : nodeEditor?.parent ? "Ny utgang eller underenhet" : "Ny enhet på kurs"}
+        title={nodeEditor?.mode === "edit" ? `Rediger ${selectedNodeProfile.profile.label.toLowerCase()}` : `Ny ${selectedNodeProfile.profile.label.toLowerCase()}`}
         open={Boolean(nodeEditor)}
         width={980}
         confirmLoading={saving}
@@ -923,34 +1046,55 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
                     onChange={() => nodeForm.setFieldValue("parentNodeId", null)}
                   />
                 </Form.Item>
-                <Form.Item name="parentNodeId" label="Overordnet enhet">
+                <Form.Item
+                  name="parentNodeId"
+                  label="Overordnet enhet"
+                  rules={selectedNodeProfile.profile.requireParent ? [{ required: true, message: "Velg en overordnet enhet" }] : undefined}
+                >
                   <Select allowClear options={selectedNodeOptions} placeholder="Direkte på kurs" showSearch optionFilterProp="label" />
                 </Form.Item>
               </div>
               <Form.Item name="nodeType" label="Hva registreres" rules={[{ required: true, message: "Velg type" }]}>
                 <Segmented block options={nodeTypes} />
               </Form.Item>
+              <div className={`energy-node-profile-summary type-${selectedNodeProfile.type}`}>
+                <span>{nodeTypeIcon(selectedNodeProfile.type)}</span>
+                <div>
+                  <strong>{selectedNodeProfile.profile.label}</strong>
+                  <small>{selectedNodeProfile.profile.description}</small>
+                </div>
+              </div>
               <Form.Item name="name" label="Navn" rules={[{ required: true, message: "Navn må fylles ut" }]}>
                 <Input autoFocus placeholder="For eksempel Fibaro Double Switch loft" />
               </Form.Item>
-              <div className="energy-form-two">
-                <Form.Item name="manufacturer" label="Merke">
-                  <Input list="energy-manufacturer-suggestions" placeholder="Fibaro, Aeotec, Qubino ..." />
+              {selectedNodeProfile.profile.showIdentity ? (
+                <div className="energy-form-two">
+                  <Form.Item name="manufacturer" label="Merke">
+                    <Input list="energy-manufacturer-suggestions" placeholder="Fibaro, Aeotec, Qubino ..." />
+                  </Form.Item>
+                  <Form.Item name="model" label="Modell / typebetegnelse">
+                    <Input list="energy-model-suggestions" placeholder="FGS-223, Smart Switch 7 ..." />
+                  </Form.Item>
+                </div>
+              ) : null}
+              {selectedNodeProfile.profile.showDeviceType ? (
+                <Form.Item name="deviceType" label={selectedNodeProfile.type === "output" ? "Utgangstype" : "Enhetstype"}>
+                  <Input placeholder={selectedNodeProfile.type === "output" ? "Reléutgang, dimmerutgang ..." : "HC3-type eller teknisk betegnelse"} />
                 </Form.Item>
-                <Form.Item name="model" label="Modell / typebetegnelse">
-                  <Input list="energy-model-suggestions" placeholder="FGS-223, Smart Switch 7 ..." />
-                </Form.Item>
-              </div>
-              <div className="energy-form-three">
-                <Form.Item name="deviceType" label="Enhetstype">
-                  <Input placeholder="HC3-type eller teknisk betegnelse" />
-                </Form.Item>
+              ) : null}
+              <div className={selectedNodeProfile.profile.showEndpoint ? "energy-form-two" : undefined}>
                 <Form.Item name="area" label="Område">
                   <Input list="energy-area-suggestions" placeholder="Loft, 1.etg, VIP ..." />
                 </Form.Item>
-                <Form.Item name="endpointKey" label="Utgang / kanal">
-                  <Input placeholder="1, Q1 eller 123.1" />
-                </Form.Item>
+                {selectedNodeProfile.profile.showEndpoint ? (
+                  <Form.Item
+                    name="endpointKey"
+                    label="Utgang / kanal"
+                    rules={selectedNodeProfile.profile.requireEndpoint ? [{ required: true, message: "Fyll inn kanal eller utgang" }] : undefined}
+                  >
+                    <Input placeholder="1, Q1 eller 123.1" />
+                  </Form.Item>
+                ) : null}
               </div>
               <Form.Item name="note" label="Teknisk notat">
                 <Input.TextArea rows={3} placeholder="Kobling, plassering eller annet som er nyttig senere" />
@@ -962,59 +1106,73 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
                 <h4>HC3-kobling</h4>
                 <small>{loadingDevices ? "Henter enheter ..." : devicesSource || "HC3"}</small>
               </div>
-              {devicesError ? <div className="energy-form-warning">{devicesError}</div> : null}
-              <Form.Item name="hc3DeviceId" label="HC3 hovedenhet">
-                <Select
-                  allowClear
-                  showSearch
-                  loading={loadingDevices}
-                  options={deviceOptions}
-                  optionFilterProp="search"
-                  placeholder="Søk på ID, navn, merke eller type"
-                  onChange={(value) => applyMainDevice(value)}
-                />
-              </Form.Item>
-              <Form.Item name="hc3PowerDeviceId" label="HC3 effektmåler">
-                <Select
-                  allowClear
-                  showSearch
-                  loading={loadingDevices}
-                  options={powerDeviceOptions}
-                  optionFilterProp="search"
-                  placeholder="Enheten som gir W akkurat nå"
-                  onChange={(value) => nodeForm.setFieldValue("hasMeter", value != null)}
-                />
-              </Form.Item>
-              <Form.Item name="hc3SwitchDeviceId" label="HC3 bryter">
-                <Select
-                  allowClear
-                  showSearch
-                  loading={loadingDevices}
-                  options={switchDeviceOptions}
-                  optionFilterProp="search"
-                  placeholder="Enheten som gir av/på-status"
-                  onChange={(value) => nodeForm.setFieldValue("hasSwitch", value != null)}
-                />
-              </Form.Item>
-              <div className="energy-hc3-selected">
-                <Hc3DeviceFact label="Hovedenhet" device={devicesById.get(Number(selectedMainDeviceId))} />
-                <Hc3DeviceFact label="Effekt" device={devicesById.get(Number(selectedPowerDeviceId))} />
-                <Hc3DeviceFact label="Bryter" device={devicesById.get(Number(selectedSwitchDeviceId))} />
-              </div>
-              {!selectedMainDeviceId && !selectedPowerDeviceId && !selectedSwitchDeviceId ? (
-                <div className="energy-form-warning">Ingen HC3-enhet er valgt. Punktet lagres uten levende verdier.</div>
-              ) : null}
-              {selectedPowerDeviceId && !devicesById.get(Number(selectedPowerDeviceId))?.hasPower ? (
-                <div className="energy-form-warning">Valgt effekt-ID rapporterer ikke sanntidseffekt i HC3-inventaret.</div>
-              ) : null}
-              {selectedSwitchDeviceId && !devicesById.get(Number(selectedSwitchDeviceId))?.hasSwitch ? (
-                <div className="energy-form-warning">Valgt bryter-ID rapporterer ikke av/på-status i HC3-inventaret.</div>
-              ) : null}
+              {selectedNodeProfile.profile.allowHc3 ? (
+                <>
+                  {devicesError ? <div className="energy-form-warning">{devicesError}</div> : null}
+                  <Form.Item name="hc3DeviceId" label={selectedNodeProfile.profile.mainDeviceLabel}>
+                    <Select
+                      allowClear
+                      showSearch
+                      loading={loadingDevices}
+                      options={deviceOptions}
+                      optionFilterProp="search"
+                      placeholder="Søk på ID, navn, merke eller type"
+                      onChange={(value) => applyMainDevice(value)}
+                    />
+                  </Form.Item>
+                  {selectedNodeProfile.profile.power !== "none" ? (
+                    <Form.Item
+                      name="hc3PowerDeviceId"
+                      label={selectedNodeProfile.profile.powerLabel}
+                      rules={selectedNodeProfile.profile.power === "required" ? [{ required: true, message: "Velg en HC3-enhet som rapporterer watt" }] : undefined}
+                    >
+                      <Select
+                        allowClear
+                        showSearch
+                        loading={loadingDevices}
+                        options={powerDeviceOptions}
+                        optionFilterProp="search"
+                        placeholder={selectedNodeProfile.profile.power === "required" ? "Påkrevd: enheten som gir W akkurat nå" : "Valgfritt: enheten som gir W akkurat nå"}
+                      />
+                    </Form.Item>
+                  ) : null}
+                  {selectedNodeProfile.profile.switch !== "none" ? (
+                    <Form.Item name="hc3SwitchDeviceId" label={selectedNodeProfile.profile.switchLabel}>
+                      <Select
+                        allowClear
+                        showSearch
+                        loading={loadingDevices}
+                        options={switchDeviceOptions}
+                        optionFilterProp="search"
+                        placeholder="Valgfritt: enheten som gir av/på-status"
+                      />
+                    </Form.Item>
+                  ) : null}
+                  <div className="energy-hc3-selected">
+                    <Hc3DeviceFact label="Hovedenhet" device={devicesById.get(Number(selectedMainDeviceId))} />
+                    {selectedNodeProfile.profile.power !== "none" ? <Hc3DeviceFact label="Effekt" device={devicesById.get(Number(selectedPowerDeviceId))} /> : null}
+                    {selectedNodeProfile.profile.switch !== "none" ? <Hc3DeviceFact label="Bryter" device={devicesById.get(Number(selectedSwitchDeviceId))} /> : null}
+                  </div>
+                  {!selectedMainDeviceId && !selectedPowerDeviceId && !selectedSwitchDeviceId ? (
+                    <div className={selectedNodeProfile.profile.power === "required" ? "energy-form-warning" : "energy-form-neutral"}>
+                      {selectedNodeProfile.profile.power === "required"
+                        ? "Målepunktet må kobles til en effekt-ID før det kan lagres."
+                        : "Ingen HC3-enhet valgt. Punktet kan lagres uten levende verdier."}
+                    </div>
+                  ) : null}
+                  {selectedPowerDeviceId && !devicesById.get(Number(selectedPowerDeviceId))?.hasPower ? (
+                    <div className="energy-form-warning">Valgt effekt-ID rapporterer ikke sanntidseffekt i HC3-inventaret.</div>
+                  ) : null}
+                  {selectedSwitchDeviceId && !devicesById.get(Number(selectedSwitchDeviceId))?.hasSwitch ? (
+                    <div className="energy-form-warning">Valgt bryter-ID rapporterer ikke av/på-status i HC3-inventaret.</div>
+                  ) : null}
+                </>
+              ) : (
+                <div className="energy-form-neutral">Logiske punkter brukes bare til struktur og får derfor ingen HC3-parametre.</div>
+              )}
               <div className="energy-form-switches">
                 <Form.Item name="active" label="Aktiv" valuePropName="checked"><Switch /></Form.Item>
               </div>
-              <Form.Item name="hasMeter" hidden valuePropName="checked"><Checkbox /></Form.Item>
-              <Form.Item name="hasSwitch" hidden valuePropName="checked"><Checkbox /></Form.Item>
             </section>
           </div>
         </Form>
