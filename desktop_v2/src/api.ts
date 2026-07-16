@@ -1695,6 +1695,15 @@ export type EnergyAggregateMeter = {
   description?: string | null;
   special?: boolean;
   mappedNodeCount?: number;
+  memberPowerIds?: number[];
+};
+
+export type EnergyAggregateLive = {
+  key: string;
+  status: string;
+  currentPowerW?: number | null;
+  currentEnergyKwh?: number | null;
+  error?: string | null;
 };
 
 export type EnergyConnectionNode = {
@@ -1845,6 +1854,7 @@ export type EnergyNodesLiveResponse = {
   checkedAt: string;
   configured: boolean;
   nodes: Record<string, EnergyNodeLive>;
+  aggregateMeters?: Record<string, EnergyAggregateLive>;
 };
 
 export type ModuleResponse = {
@@ -2248,7 +2258,7 @@ export async function fetchEnergyNodesLive(): Promise<EnergyNodesLiveResponse> {
     const errorPayload = payload as unknown as JsonRecord | null;
     throw new Error(String(errorPayload?.message || errorPayload?.detail || `${response.status} ${response.statusText}`));
   }
-  return payload ?? { checkedAt: "", configured: false, nodes: {} };
+  return payload ?? { checkedAt: "", configured: false, nodes: {}, aggregateMeters: {} };
 }
 
 export async function updateKobleCandidate(candidateId: number, values: JsonRecord): Promise<JsonRecord> {

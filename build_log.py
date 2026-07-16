@@ -5,8 +5,40 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1577")
+APP_BUILD = os.getenv("APP_BUILD", "1578")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1578",
+        "date": "16.07.2026",
+        "headline": "Live samlemålere i Kurs/last",
+        "title": "Alle fem HC3-samlemålere vises samlet med effekt, energi og kartleggingsgrad",
+        "description": (
+            "Energi > Kurs/last viser nå Varmepumper, Belysning, Massasje, Annet og Differanse i en kompakt "
+            "oversiktsrad. Hver samling viser levende watt, akkumulert kWh, HC3-ID-ene for realtime og "
+            "akkumulert verdi, samt hvor mange av HC3-medlemmene som allerede er kartlagt i kursmodellen. "
+            "Verdiene hentes i den eksisterende 15-sekunders liveoppdateringen uten et ekstra API-kall."
+        ),
+        "applications": [
+            "main.py: henter de fem samlemålerparene sammen med øvrige levende HC3-verdier.",
+            "desktop_v2/src/pages/EnergyCircuitLoadsPage.tsx: viser kompakt liveoversikt over samlingene.",
+            "desktop_v2/src/api.ts: beskriver liveverdier og kjente HC3-medlemmer per samling.",
+            "tests/test_energy_topology.py: kontrollerer alle fem samlinger og frakoblet HC3.",
+            "docs/desktop-v2.md og docs/hc3-energi-oppsamlinger.md: forklarer visning og tallgrunnlag.",
+        ],
+        "request": (
+            "Alle målere skal kunne inngå i en samle strømmåler. Vi har vel 5 slike i HC3? "
+            "Sørg for at dette kan gjenspeiles på kurs/last."
+        ),
+        "work_duration": "ca. 35 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser live watt og akkumulert kWh for alle fem HC3-samlinger.",
+            "Viser realtime- og akkumulert HC3-ID direkte i oversikten.",
+            "Skiller tydelig mellom antall kartlagte Fibaro10-målepunkter og faktiske HC3-medlemmer.",
+            "Gjenbruker samme oppdateringskall og intervall som resten av Kurs/last.",
+        ],
+    },
     {
         "version": "1",
         "build": "1577",

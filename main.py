@@ -309,6 +309,10 @@ ENERGY_AGGREGATE_POWER_MEMBERS = {
     "massage": (309, 314, 319, 324, 399),
     "other": (269, 247, 368, 373, 378, 405, 406, 160, 449, 530),
 }
+ENERGY_AGGREGATE_HC3_MEMBERS = {
+    **ENERGY_AGGREGATE_POWER_MEMBERS,
+    "difference": (221, 237, 305, 333, 332),
+}
 ENERGY_AGGREGATE_GROUP_BY_POWER_ID = {
     device_id: group_key
     for group_key, device_ids in ENERGY_AGGREGATE_POWER_MEMBERS.items()
@@ -10737,6 +10741,7 @@ async def hc3_energy_nodes_live(nodes: list[EnergyNode]) -> Dict[str, Any]:
                 for node in nodes
                 if node.id is not None
             },
+            "aggregateMeters": {},
         }
 
     device_ids = {
@@ -10750,6 +10755,11 @@ async def hc3_energy_nodes_live(nodes: list[EnergyNode]) -> Dict[str, Any]:
         )
         if device_id is not None
     }
+    device_ids.update(
+        int(device_id)
+        for group in ENERGY_AGGREGATE_METERS
+        for device_id in (group["realtimeId"], group["accumulatedId"])
+    )
     semaphore = asyncio.Semaphore(8)
 
     async def fetch_one(device_id: int) -> tuple[int, Optional[Dict[str, Any]], Optional[str]]:
@@ -10816,7 +10826,31 @@ async def hc3_energy_nodes_live(nodes: list[EnergyNode]) -> Dict[str, Any]:
             "enabled": all(item.get("enabled") is not False for item in (identity, power, energy, switch) if item),
             "error": " · ".join(dict.fromkeys([*configuration_errors, *node_errors])) if configuration_errors or node_errors else None,
         }
-    return {"checkedAt": checked_at, "configured": True, "nodes": live_nodes}
+    aggregate_live = {}
+    for group in ENERGY_AGGREGATE_METERS:
+        power_id = int(group["realtimeId"])
+        energy_id = int(group["accumulatedId"])
+        power = devices.get(power_id)
+        energy = devices.get(energy_id)
+        group_errors = [errors[device_id] for device_id in (power_id, energy_id) if device_id in errors]
+        if power is not None and not power.get("hasPower"):
+            group_errors.append(f"HC3-enhet {power_id} rapporterer ikke watt.")
+        if energy is not None and not energy.get("hasEnergy"):
+            group_errors.append(f"HC3-enhet {energy_id} rapporterer ikke akkumulert kWh.")
+        if group_errors and not power and not energy:
+            status = "error"
+        elif group_errors or not power or not energy:
+            status = "partial"
+        else:
+            status = "ok"
+        aggregate_live[group["key"]] = {
+            "key": group["key"],
+            "status": status,
+            "currentPowerW": power.get("powerW") if power else None,
+            "currentEnergyKwh": energy.get("energyKwh") if energy else None,
+            "error": " · ".join(dict.fromkeys(group_errors)) if group_errors else None,
+        }
+    return {"checkedAt": checked_at, "configured": True, "nodes": live_nodes, "aggregateMeters": aggregate_live}
 
 
 def hc3_door_status_from_device(config: Dict[str, Any], device: Dict[str, Any]) -> Dict[str, Any]:
@@ -22961,7 +22995,11 @@ def build_energy_circuit_loads_payload(
         for group in ENERGY_AGGREGATE_METERS
     }
     aggregate_meters = [
-        {**group, "mappedNodeCount": aggregate_counts[group["key"]]}
+        {
+            **group,
+            "mappedNodeCount": aggregate_counts[group["key"]],
+            "memberPowerIds": list(ENERGY_AGGREGATE_HC3_MEMBERS.get(group["key"], ())),
+        }
         for group in ENERGY_AGGREGATE_METERS
     ]
     loads_by_circuit: Dict[Optional[int], list[EnergyLoad]] = defaultdict(list)

@@ -24,6 +24,7 @@ import {
   updateEnergyNode,
   type EnergyCircuitLoadCircuit,
   type EnergyCircuitLoadItem,
+  type EnergyAggregateLive,
   type EnergyConnectionNode,
   type EnergyLoadCreateInput,
   type EnergyNodeInput,
@@ -229,6 +230,10 @@ function cleanNumber(value?: number | null): number | null {
 function wattText(value?: number | null): string {
   if (value == null || Number.isNaN(Number(value))) return "–";
   return `${decimal(Number(value), 0)} W`;
+}
+
+function kwhText(value?: number | null): string {
+  return value == null || Number.isNaN(Number(value)) ? "–" : `${decimal(Number(value), 1)} kWh`;
 }
 
 function loadPowerText(load: EnergyCircuitLoadItem, coveredByMeter = false): string {
@@ -607,6 +612,7 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
   const [saving, setSaving] = useState(false);
   const [liveRefreshing, setLiveRefreshing] = useState(false);
   const [live, setLive] = useState<Record<string, EnergyNodeLive>>({});
+  const [aggregateLive, setAggregateLive] = useState<Record<string, EnergyAggregateLive>>({});
   const [liveCheckedAt, setLiveCheckedAt] = useState<string | null>(null);
   const [liveError, setLiveError] = useState<string | null>(null);
   const [devices, setDevices] = useState<Hc3EnergyDevice[]>([]);
@@ -621,21 +627,14 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
   const visibleCircuits = useMemo(() => circuits.filter((circuit) => {
     if (filter !== "all" && circuit.isSunbed !== (filter === "sunbeds")) return false;
     if (!circuitMatchesMapping(circuit, mappingFilter)) return false;
+    const flatNodes = flattenNodes(circuit.nodes);
     if (!normalizedSearch) return true;
-    const nodeText = flattenNodes(circuit.nodes).map((node) => `${node.name} ${node.manufacturer || ""} ${node.model || ""} ${node.area || ""}`).join(" ");
-    const loadText = [...circuit.directLoads, ...flattenNodes(circuit.nodes).flatMap((node) => node.loads)]
+    const nodeText = flatNodes.map((node) => `${node.name} ${node.manufacturer || ""} ${node.model || ""} ${node.area || ""}`).join(" ");
+    const loadText = [...circuit.directLoads, ...flatNodes.flatMap((node) => node.loads)]
       .map((load) => `${load.name} ${load.loadType || ""} ${load.area || ""}`)
       .join(" ");
     return `${circuit.circuitNo ?? ""} ${circuit.description || ""} ${nodeText} ${loadText}`.toLowerCase().includes(normalizedSearch);
   }), [circuits, filter, mappingFilter, normalizedSearch]);
-  const visibleSummary = useMemo(() => visibleCircuits.reduce((summary, circuit) => ({
-    nodes: summary.nodes + circuit.nodeCount,
-    loads: summary.loads + circuit.loadCount,
-    activeLoads: summary.activeLoads + circuit.activeLoadCount,
-    measuredLoads: summary.measuredLoads + circuit.measuredLoadCount,
-    unmeasuredLoads: summary.unmeasuredLoads + circuit.unmeasuredLoadCount,
-    expectedPowerW: summary.expectedPowerW + Number(circuit.expectedPowerW || 0),
-  }), { nodes: 0, loads: 0, activeLoads: 0, measuredLoads: 0, unmeasuredLoads: 0, expectedPowerW: 0 }), [visibleCircuits]);
   const selectedNodeCircuitNo = Form.useWatch("circuitNo", nodeForm);
   const selectedLoadCircuitNo = Form.useWatch("circuitNo", loadForm);
   const selectedNodeTypeValue = Form.useWatch("nodeType", nodeForm);
@@ -691,6 +690,7 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
     try {
       const result = await fetchEnergyNodesLive();
       setLive(result.nodes ?? {});
+      setAggregateLive(result.aggregateMeters ?? {});
       setLiveCheckedAt(result.checkedAt || null);
       setLiveError(result.configured ? null : "HC3-tilgang er ikke konfigurert");
     } catch (error) {
@@ -928,10 +928,6 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
     }
   }
 
-  const measuredPercent = visibleSummary.activeLoads
-    ? Math.round((visibleSummary.measuredLoads / visibleSummary.activeLoads) * 100)
-    : 0;
-
   return (
     <div className="page-stack energy-topology-page">
       <datalist id="energy-area-suggestions">
@@ -960,12 +956,17 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
         </div>
       </section>
 
-      <section className="energy-topology-summary" aria-label="Oppsummering">
-        <div><span>Kurser</span><strong>{visibleCircuits.length}</strong><small>{circuits.length} totalt</small></div>
-        <div><span>Enheter/utganger</span><strong>{visibleSummary.nodes}</strong><small>i viste kurser</small></div>
-        <div><span>Aktive laster</span><strong>{visibleSummary.activeLoads}</strong><small>{visibleSummary.loads} registrert</small></div>
-        <div><span>Måledekning</span><strong>{measuredPercent}%</strong><small>{visibleSummary.unmeasuredLoads} uten dekning</small></div>
-        <div><span>Teoretisk effekt</span><strong>{wattText(visibleSummary.expectedPowerW)}</strong><small>i viste kurser</small></div>
+      <section className="energy-topology-summary" aria-label="HC3-samlemålere">
+        {circuitLoads.aggregateMeters.map((meter) => {
+          const current = aggregateLive[meter.key];
+          return (
+            <div key={meter.key}>
+              <span>{meter.label}</span>
+              <strong>{wattText(current?.currentPowerW)}</strong>
+              <small>{kwhText(current?.currentEnergyKwh)} · R{meter.realtimeId}/A{meter.accumulatedId} · {meter.mappedNodeCount || 0}/{meter.memberPowerIds?.length || 0} koblet</small>
+            </div>
+          );
+        })}
       </section>
 
       <section className="work-card energy-topology-board">

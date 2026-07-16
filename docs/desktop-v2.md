@@ -1,6 +1,6 @@
 # Fibaro10 Desktop V2
 
-Oppdatert 10.07.2026.
+Oppdatert 16.07.2026.
 
 `desktop_v2` er primært desktop-grensesnitt for Fibaro10. React-appen ligger på rene hovedruter uten separat URL-prefix, for eksempel `/status/omsetning`, `/parkering/parkeringer`, `/soling/dagslinje` og `/admin/datakilder`.
 
@@ -92,7 +92,7 @@ Koble bruker sideappen `parking_sun_linker`, men all styring, status og manuell 
 - `/energi/elvia`
 - `/energi/verktoy`
 
-`/energi/kurs-last` bruker modellen `kurs -> enhet/utgang -> last`. En last kan også ligge direkte på kurset. Enheten kan ha flere utganger og underenheter, mens realtime watt, akkumulert kWh og bryter er egenskaper med egne HC3-ID-er. Målepunkter kan knyttes til en av fem HC3-samlinger uten at den fysiske topologien dupliseres. Siden henter levende effekt, energi og av/på-status hvert 15. sekund uten å laste hele modulen på nytt.
+`/energi/kurs-last` bruker modellen `kurs -> enhet/utgang -> last`. En last kan også ligge direkte på kurset. Enheten kan ha flere utganger og underenheter, mens realtime watt, akkumulert kWh og bryter er egenskaper med egne HC3-ID-er. Målepunkter kan knyttes til en av fem HC3-samlinger uten at den fysiske topologien dupliseres. En kompakt oversiktsrad viser levende watt, akkumulert kWh, realtime-/akkumulert-ID og kartlagte Fibaro10-målepunkter mot faktiske HC3-medlemmer for alle fem samlinger. Siden henter levende effekt, energi og av/på-status hvert 15. sekund uten å laste hele modulen på nytt eller utføre et ekstra kall for samlemålerne.
 
 ### Ventilasjon og lys
 

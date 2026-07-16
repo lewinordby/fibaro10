@@ -10,6 +10,7 @@ from main import (  # noqa: E402
     EnergyCircuit,
     ENERGY_ACCUMULATED_ID_BY_POWER_ID,
     ENERGY_AGGREGATE_GROUP_BY_POWER_ID,
+    ENERGY_AGGREGATE_METERS,
     EnergyLoad,
     EnergyNode,
     build_energy_circuit_loads_payload,
@@ -217,6 +218,7 @@ class EnergyTopologyTests(unittest.TestCase):
 
         self.assertEqual(len(payload["aggregateMeters"]), 5)
         self.assertEqual(next(row for row in payload["aggregateMeters"] if row["key"] == "other")["mappedNodeCount"], 1)
+        self.assertEqual(next(row for row in payload["aggregateMeters"] if row["key"] == "other")["memberPowerIds"][-1], 530)
         self.assertEqual(serialized["hc3EnergyDeviceId"], 529)
         self.assertEqual(serialized["aggregateMeter"]["realtimeId"], 332)
 
@@ -254,6 +256,15 @@ class EnergyTopologyTests(unittest.TestCase):
     def test_hc3_link_validation_requires_id_for_meter_flag(self):
         with self.assertRaisesRegex(Exception, "må kobles til"):
             asyncio.run(validate_energy_node_hc3_values({"has_meter": True}))
+
+    def test_live_status_returns_empty_aggregate_map_without_hc3(self):
+        node = EnergyNode(id=8, name="Frakoblet", active=True)
+
+        with patch("main.hc3_api_is_configured", return_value=False):
+            payload = asyncio.run(hc3_energy_nodes_live([node]))
+
+        self.assertFalse(payload["configured"])
+        self.assertEqual(payload["aggregateMeters"], {})
 
     def test_live_status_rejects_accumulated_energy_as_power(self):
         node = EnergyNode(
@@ -303,9 +314,20 @@ class EnergyTopologyTests(unittest.TestCase):
             },
         }
 
+        realtime_ids = {int(row["realtimeId"]) for row in ENERGY_AGGREGATE_METERS}
+        def device_response(device_id, *_):
+            if device_id in devices:
+                return devices[device_id]
+            return {
+                "id": device_id,
+                "name": f"Samler {device_id}",
+                "type": "com.fibaro.powerMeter" if device_id in realtime_ids else "com.fibaro.energyMeter",
+                "properties": {"value": 10.0, "dead": False, "enabled": True},
+            }
+
         with (
             patch("main.hc3_api_is_configured", return_value=True),
-            patch("main.hc3_cached_device_request", side_effect=lambda device_id, *_: devices[device_id]),
+            patch("main.hc3_cached_device_request", side_effect=device_response),
         ):
             payload = asyncio.run(hc3_energy_nodes_live([node]))
 
@@ -314,6 +336,8 @@ class EnergyTopologyTests(unittest.TestCase):
         self.assertEqual(row["currentPowerW"], 742.5)
         self.assertEqual(row["currentEnergyKwh"], 123.4)
         self.assertEqual(row["energyDeviceName"], "Kurs 6 energi")
+        self.assertEqual(len(payload["aggregateMeters"]), 5)
+        self.assertTrue(all(item["status"] == "ok" for item in payload["aggregateMeters"].values()))
 
     def test_live_status_keeps_legacy_combined_power_and_energy_device(self):
         node = EnergyNode(id=11, name="Kombimåler", hc3_power_device_id=201, has_meter=True, active=True)
