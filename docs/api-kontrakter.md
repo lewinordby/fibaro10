@@ -23,8 +23,8 @@ Når et API-endepunkt endrer struktur, skal begge filene oppdateres i samme buil
 | `GET /api/*/year-comparison` | årssammenligning | egne year comparison-typer | Omsetning, parkering og soling. |
 | `GET /api/energy/hc3-devices` | HC3-enhetsliste | `Hc3EnergyDevicesResponse` | Live HC3-inventar med fallback til siste snapshot. |
 | `GET /api/energy/nodes/live` | liveverdier per energipunkt | `EnergyNodesLiveResponse` | Effekt og bryterstatus for registrerte HC3-ID-er. |
-| `POST/PATCH /api/energy/nodes` | `V2EnergyNodeIn` | `EnergyNodeInput` | Oppretter og redigerer enhet, utgang eller underenhet. |
-| `POST/PATCH /api/energy/loads` | `V2EnergyLoadIn` | `EnergyLoadCreateInput` | Oppretter og redigerer last direkte på kurs eller under energipunkt. |
+| `POST/PATCH /api/energy/nodes` | `V2EnergyNodeIn` | `EnergyNodeInput` | Oppretter og redigerer enhet, utgang eller underenhet. HC3-ID-er og egenskaper valideres før lagring. |
+| `POST/PATCH /api/energy/loads` | `V2EnergyLoadIn` | `EnergyLoadCreateInput` | Oppretter og redigerer last direkte på kurs eller under energipunkt. Støtter ukjent, fast og variabel effektprofil. |
 
 ## Buildlogg
 

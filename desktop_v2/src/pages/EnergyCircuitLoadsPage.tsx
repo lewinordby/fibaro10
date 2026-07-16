@@ -4,20 +4,22 @@ import {
   BranchesOutlined,
   CaretDownOutlined,
   CaretRightOutlined,
-  CheckCircleOutlined,
   EditOutlined,
   GatewayOutlined,
   LinkOutlined,
   PlusOutlined,
   PoweroffOutlined,
   ReloadOutlined,
+  SearchOutlined,
   ThunderboltOutlined,
 } from "@ant-design/icons";
-import { App as AntApp, Button, Checkbox, Empty, Form, Input, InputNumber, Modal, Select, Switch, Tooltip } from "antd";
+import { App as AntApp, Button, Checkbox, Empty, Form, Input, InputNumber, Modal, Segmented, Select, Switch, Tooltip } from "antd";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   createEnergyLoad,
   createEnergyNode,
+  fetchCurrentUser,
   fetchEnergyNodesLive,
   fetchHc3EnergyDevices,
   updateEnergyLoad,
@@ -32,9 +34,11 @@ import {
   type ModuleResponse,
 } from "../api";
 import { decimal } from "../format";
+import { queryKeys } from "../queryKeys";
 import "../styles/energy.css";
 
 type CircuitFilter = "without-sunbeds" | "all" | "sunbeds";
+type CircuitMappingFilter = "all" | "mapped" | "needs-work" | "empty";
 
 type NodeFormValues = {
   circuitNo?: number | null;
@@ -61,7 +65,10 @@ type LoadFormValues = {
   name?: string;
   loadType?: string;
   area?: string;
+  powerProfile?: "unknown" | "fixed" | "variable";
   expectedPowerW?: number | null;
+  minPowerW?: number | null;
+  maxPowerW?: number | null;
   controllable?: boolean;
   critical?: boolean;
   active?: boolean;
@@ -88,12 +95,28 @@ const circuitFilters: Array<{ key: CircuitFilter; label: string }> = [
   { key: "sunbeds", label: "Kun solsenger" },
 ];
 
+const mappingFilters: Array<{ key: CircuitMappingFilter; label: string }> = [
+  { key: "all", label: "Alle statuser" },
+  { key: "mapped", label: "Kartlagt" },
+  { key: "needs-work", label: "Mangler måling" },
+  { key: "empty", label: "Ikke kartlagt" },
+];
+
 const nodeTypes = [
   { value: "zwave_device", label: "Z-Wave-enhet" },
-  { value: "output", label: "Utgang / kanal" },
-  { value: "child_device", label: "Underordnet enhet" },
-  { value: "meter", label: "Frittstående målepunkt" },
-  { value: "logical", label: "Logisk tilkoblingspunkt" },
+  { value: "output", label: "Utgang" },
+  { value: "child_device", label: "Underenhet" },
+  { value: "meter", label: "Målepunkt" },
+  { value: "logical", label: "Logisk punkt" },
+];
+
+const loadTypeSuggestions = ["Avfukter", "Belysning", "Elektronikk", "Kremautomat", "Lading", "Motor", "Solseng", "Varmepumpe", "Varme", "Ventilasjon"]
+  .map((value) => ({ value }));
+
+const powerProfiles = [
+  { value: "unknown", label: "Ikke kjent" },
+  { value: "fixed", label: "Fast effekt" },
+  { value: "variable", label: "Variabel effekt" },
 ];
 
 function cleanText(value?: string | null): string | null {
@@ -108,6 +131,23 @@ function cleanNumber(value?: number | null): number | null {
 function wattText(value?: number | null): string {
   if (value == null || Number.isNaN(Number(value))) return "–";
   return `${decimal(Number(value), 0)} W`;
+}
+
+function loadPowerText(load: EnergyCircuitLoadItem): string {
+  if (load.powerProfile === "variable") {
+    const minimum = load.minPowerW != null ? decimal(Number(load.minPowerW), 0) : "–";
+    const maximum = load.maxPowerW != null ? decimal(Number(load.maxPowerW), 0) : "–";
+    return `${minimum}–${maximum} W`;
+  }
+  return wattText(load.expectedPowerW);
+}
+
+function loadPowerDetail(load: EnergyCircuitLoadItem): string {
+  if (load.powerProfile === "variable") {
+    return load.expectedPowerW != null ? `${wattText(load.expectedPowerW)} normalt` : "Variabel effekt";
+  }
+  if (load.powerProfile === "fixed" || load.expectedPowerW != null) return "Fast effekt";
+  return "Effekt ikke registrert";
 }
 
 function circuitNoText(value?: number | null): string {
@@ -125,6 +165,13 @@ function flattenNodes(nodes: EnergyConnectionNode[]): EnergyConnectionNode[] {
   return nodes.flatMap((node) => [node, ...flattenNodes(node.children ?? [])]);
 }
 
+function nodePlacementOptions(nodes: EnergyConnectionNode[], depth = 0): Array<{ value: number; label: string }> {
+  return nodes.flatMap((node) => [
+    { value: node.id, label: `${"— ".repeat(depth)}${node.name} · ${nodeTypeLabel(node.nodeType)}` },
+    ...nodePlacementOptions(node.children ?? [], depth + 1),
+  ]);
+}
+
 function branchPower(node: EnergyConnectionNode, live: Record<string, EnergyNodeLive>): number | null {
   const own = live[String(node.id)]?.currentPowerW;
   if (own != null && Number.isFinite(Number(own))) return Number(own);
@@ -139,6 +186,13 @@ function circuitLivePower(circuit: EnergyCircuitLoadCircuit, live: Record<string
 
 function coveragePercent(circuit: EnergyCircuitLoadCircuit): number {
   return circuit.activeLoadCount ? Math.round((circuit.measuredLoadCount / circuit.activeLoadCount) * 100) : 0;
+}
+
+function circuitMatchesMapping(circuit: EnergyCircuitLoadCircuit, filter: CircuitMappingFilter): boolean {
+  if (filter === "mapped") return circuit.activeLoadCount > 0 && circuit.unmeasuredLoadCount === 0;
+  if (filter === "needs-work") return circuit.activeLoadCount > 0 && circuit.unmeasuredLoadCount > 0;
+  if (filter === "empty") return circuit.activeLoadCount === 0 && circuit.nodeCount === 0;
+  return true;
 }
 
 function nodeTypeLabel(nodeType?: string | null): string {
@@ -174,7 +228,12 @@ function Hc3DeviceFact({ label, device }: { label: string; device?: Hc3EnergyDev
       <span>{label}</span>
       <strong>{device.id} · {device.name || "Uten navn"}</strong>
       <small>
-        {[device.type, device.powerW != null ? wattText(device.powerW) : null, device.hasSwitch ? (device.switchState ? "På" : "Av") : null]
+        {[
+          device.type,
+          device.powerW != null ? wattText(device.powerW) : null,
+          device.hasSwitch ? (device.switchState ? "På" : "Av") : null,
+          device.dead ? "Ikke tilgjengelig" : device.enabled === false ? "Deaktivert" : "Klar",
+        ]
           .filter(Boolean)
           .join(" · ")}
       </small>
@@ -185,24 +244,28 @@ function Hc3DeviceFact({ label, device }: { label: string; device?: Hc3EnergyDev
 function LoadLine({
   load,
   onEdit,
+  canManage,
 }: {
   load: EnergyCircuitLoadItem;
   onEdit: (load: EnergyCircuitLoadItem) => void;
+  canManage: boolean;
 }) {
   return (
     <div className={`energy-topology-load ${load.active === false ? "inactive" : ""}`}>
       <span className="energy-topology-load-mark" />
       <div>
         <strong>{load.name}</strong>
-        <small>{[load.loadType, load.area].filter(Boolean).join(" · ") || "Last"}</small>
+        <small>{[load.loadType, load.area, loadPowerDetail(load)].filter(Boolean).join(" · ") || "Last"}</small>
       </div>
-      <span>{wattText(load.expectedPowerW)}</span>
+      <span>{loadPowerText(load)}</span>
       {load.controllable ? <StatusTag tone="info">Styrbar</StatusTag> : <span />}
-      <Tooltip title="Rediger last">
-        <button type="button" className="energy-icon-action" aria-label={`Rediger ${load.name}`} onClick={() => onEdit(load)}>
-          <EditOutlined />
-        </button>
-      </Tooltip>
+      {canManage ? (
+        <Tooltip title="Rediger last">
+          <button type="button" className="energy-icon-action" aria-label={`Rediger ${load.name}`} onClick={() => onEdit(load)}>
+            <EditOutlined />
+          </button>
+        </Tooltip>
+      ) : <span aria-hidden="true" />}
     </div>
   );
 }
@@ -215,6 +278,7 @@ function NodeTree({
   onAddChild,
   onAddLoad,
   onEditLoad,
+  canManage,
 }: {
   node: EnergyConnectionNode;
   live: Record<string, EnergyNodeLive>;
@@ -223,6 +287,7 @@ function NodeTree({
   onAddChild: (node: EnergyConnectionNode) => void;
   onAddLoad: (node: EnergyConnectionNode) => void;
   onEditLoad: (node: EnergyConnectionNode, load: EnergyCircuitLoadItem) => void;
+  canManage: boolean;
 }) {
   const current = live[String(node.id)];
   const power = current?.currentPowerW;
@@ -262,23 +327,25 @@ function NodeTree({
           </span>
           <small>{current?.checkedAt ? `lest ${checkedTime(current.checkedAt)}` : wattText(node.expectedPowerW) + " teori"}</small>
         </div>
-        <div className="energy-topology-node-actions">
-          <Tooltip title="Ny last på denne enheten">
-            <button type="button" className="energy-icon-action" aria-label="Ny last" onClick={() => onAddLoad(node)}><PlusOutlined /></button>
-          </Tooltip>
-          <Tooltip title="Ny utgang eller underenhet">
-            <button type="button" className="energy-icon-action" aria-label="Ny underenhet" onClick={() => onAddChild(node)}><BranchesOutlined /></button>
-          </Tooltip>
-          <Tooltip title="Rediger enhet">
-            <button type="button" className="energy-icon-action" aria-label="Rediger enhet" onClick={() => onEditNode(node)}><EditOutlined /></button>
-          </Tooltip>
-        </div>
+        {canManage ? (
+          <div className="energy-topology-node-actions">
+            <Tooltip title="Legg til last på denne enheten">
+              <button type="button" className="energy-icon-action" aria-label="Ny last" onClick={() => onAddLoad(node)}><PlusOutlined /></button>
+            </Tooltip>
+            <Tooltip title="Legg til utgang eller underenhet">
+              <button type="button" className="energy-icon-action" aria-label="Ny underenhet" onClick={() => onAddChild(node)}><BranchesOutlined /></button>
+            </Tooltip>
+            <Tooltip title="Rediger enhet">
+              <button type="button" className="energy-icon-action" aria-label="Rediger enhet" onClick={() => onEditNode(node)}><EditOutlined /></button>
+            </Tooltip>
+          </div>
+        ) : null}
       </div>
       {current?.error ? <div className="energy-topology-live-error">{current.error}</div> : null}
       {node.topologyWarning ? <div className="energy-topology-live-error">{node.topologyWarning}</div> : null}
       {node.loads.length ? (
         <div className="energy-topology-load-list">
-          {node.loads.map((load) => <LoadLine key={load.id} load={load} onEdit={(item) => onEditLoad(node, item)} />)}
+          {node.loads.map((load) => <LoadLine key={load.id} load={load} canManage={canManage} onEdit={(item) => onEditLoad(node, item)} />)}
         </div>
       ) : null}
       {node.children.length ? (
@@ -293,6 +360,7 @@ function NodeTree({
               onAddChild={onAddChild}
               onAddLoad={onAddLoad}
               onEditLoad={onEditLoad}
+              canManage={canManage}
             />
           ))}
         </div>
@@ -312,6 +380,7 @@ function CourseCard({
   onAddChild,
   onAddLoad,
   onEditLoad,
+  canManage,
 }: {
   circuit: EnergyCircuitLoadCircuit;
   live: Record<string, EnergyNodeLive>;
@@ -323,6 +392,7 @@ function CourseCard({
   onAddChild: (node: EnergyConnectionNode) => void;
   onAddLoad: (node: EnergyConnectionNode) => void;
   onEditLoad: (node: EnergyConnectionNode | null, load: EnergyCircuitLoadItem) => void;
+  canManage: boolean;
 }) {
   const livePower = circuitLivePower(circuit, live);
   const coverage = coveragePercent(circuit);
@@ -348,10 +418,12 @@ function CourseCard({
           <strong>{wattText(livePower)}</strong>
           <small>{wattText(circuit.expectedPowerW)} registrert</small>
         </div>
-        <div className="energy-course-card-actions">
-          <Button size="small" icon={<PlusOutlined />} onClick={onAddDirectLoad}>Last direkte</Button>
-          <Button size="small" type="primary" icon={<GatewayOutlined />} onClick={onAddNode}>Ny enhet</Button>
-        </div>
+        {canManage ? (
+          <div className="energy-course-card-actions">
+            <Button size="small" icon={<PlusOutlined />} onClick={onAddDirectLoad}>Direkte last</Button>
+            <Button size="small" type="primary" icon={<GatewayOutlined />} onClick={onAddNode}>Legg til enhet</Button>
+          </div>
+        ) : null}
       </header>
       {expanded ? (
         <div className="energy-course-card-body">
@@ -362,7 +434,7 @@ function CourseCard({
           {circuit.directLoads.length ? (
             <section className="energy-direct-loads">
               <div className="energy-topology-section-label"><ApiOutlined /> Direkte på kurs</div>
-              {circuit.directLoads.map((load) => <LoadLine key={load.id} load={load} onEdit={(item) => onEditLoad(null, item)} />)}
+              {circuit.directLoads.map((load) => <LoadLine key={load.id} load={load} canManage={canManage} onEdit={(item) => onEditLoad(null, item)} />)}
             </section>
           ) : null}
           {circuit.nodes.length ? (
@@ -378,6 +450,7 @@ function CourseCard({
                   onAddChild={onAddChild}
                   onAddLoad={onAddLoad}
                   onEditLoad={(selectedNode, load) => onEditLoad(selectedNode, load)}
+                  canManage={canManage}
                 />
               ))}
             </section>
@@ -391,9 +464,17 @@ function CourseCard({
 
 export default function EnergyCircuitLoadsPage({ data, onReload }: { data: ModuleResponse; onReload: () => Promise<unknown> | unknown }) {
   const { message } = AntApp.useApp();
+  const { data: currentUser = null } = useQuery({
+    queryKey: queryKeys.auth.currentUser(),
+    queryFn: fetchCurrentUser,
+    retry: false,
+    staleTime: 60_000,
+  });
   const [nodeForm] = Form.useForm<NodeFormValues>();
   const [loadForm] = Form.useForm<LoadFormValues>();
   const [filter, setFilter] = useState<CircuitFilter>("without-sunbeds");
+  const [mappingFilter, setMappingFilter] = useState<CircuitMappingFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [nodeEditor, setNodeEditor] = useState<NodeEditorState | null>(null);
   const [loadEditor, setLoadEditor] = useState<LoadEditorState | null>(null);
@@ -407,17 +488,42 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
   const [loadingDevices, setLoadingDevices] = useState(false);
   const circuitLoads = data.energyCircuitLoads;
   const circuits = circuitLoads?.circuits ?? [];
-  const visibleCircuits = circuits.filter((circuit) => filter === "all" || circuit.isSunbed === (filter === "sunbeds"));
+  const canManage = Boolean(currentUser?.canSettings);
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const visibleCircuits = circuits.filter((circuit) => {
+    if (filter !== "all" && circuit.isSunbed !== (filter === "sunbeds")) return false;
+    if (!circuitMatchesMapping(circuit, mappingFilter)) return false;
+    if (!normalizedSearch) return true;
+    const nodeText = flattenNodes(circuit.nodes).map((node) => `${node.name} ${node.manufacturer || ""} ${node.model || ""} ${node.area || ""}`).join(" ");
+    const loadText = [...circuit.directLoads, ...flattenNodes(circuit.nodes).flatMap((node) => node.loads)]
+      .map((load) => `${load.name} ${load.loadType || ""} ${load.area || ""}`)
+      .join(" ");
+    return `${circuit.circuitNo ?? ""} ${circuit.description || ""} ${nodeText} ${loadText}`.toLowerCase().includes(normalizedSearch);
+  });
   const selectedNodeCircuitNo = Form.useWatch("circuitNo", nodeForm);
   const selectedLoadCircuitNo = Form.useWatch("circuitNo", loadForm);
   const selectedMainDeviceId = Form.useWatch("hc3DeviceId", nodeForm);
   const selectedPowerDeviceId = Form.useWatch("hc3PowerDeviceId", nodeForm);
   const selectedSwitchDeviceId = Form.useWatch("hc3SwitchDeviceId", nodeForm);
+  const selectedPowerProfile = Form.useWatch("powerProfile", loadForm) ?? "unknown";
 
   const allNodes = useMemo(() => circuits.flatMap((circuit) => flattenNodes(circuit.nodes)), [circuits]);
-  const nodeById = useMemo(() => new Map(allNodes.map((node) => [node.id, node])), [allNodes]);
   const devicesById = useMemo(() => new Map(devices.map((device) => [device.id, device])), [devices]);
   const deviceOptions = useMemo(() => devices.map(hc3Option), [devices]);
+  const powerDeviceOptions = useMemo(
+    () => devices.filter((device) => device.hasPower || device.id === Number(selectedPowerDeviceId)).map(hc3Option),
+    [devices, selectedPowerDeviceId],
+  );
+  const switchDeviceOptions = useMemo(
+    () => devices.filter((device) => device.hasSwitch || device.id === Number(selectedSwitchDeviceId)).map(hc3Option),
+    [devices, selectedSwitchDeviceId],
+  );
+  const areaSuggestions = useMemo(() => Array.from(new Set([
+    ...allNodes.map((node) => node.area),
+    ...circuits.flatMap((circuit) => [...circuit.directLoads, ...flattenNodes(circuit.nodes).flatMap((node) => node.loads)]).map((load) => load.area),
+  ].filter((value): value is string => Boolean(value)))).sort().map((value) => ({ value })), [allNodes, circuits]);
+  const manufacturerSuggestions = useMemo(() => Array.from(new Set(devices.map((device) => device.manufacturer).filter((value): value is string => Boolean(value)))).sort().map((value) => ({ value })), [devices]);
+  const modelSuggestions = useMemo(() => Array.from(new Set(devices.map((device) => device.model).filter((value): value is string => Boolean(value)))).sort().map((value) => ({ value })), [devices]);
   const circuitOptions = useMemo(
     () => circuits.filter((circuit) => circuit.circuitNo != null).map((circuit) => ({
       value: Number(circuit.circuitNo),
@@ -428,16 +534,19 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
   const selectedNodeCircuit = circuits.find((circuit) => circuit.circuitNo === selectedNodeCircuitNo) ?? nodeEditor?.circuit ?? null;
   const selectedLoadCircuit = circuits.find((circuit) => circuit.circuitNo === selectedLoadCircuitNo) ?? loadEditor?.circuit ?? null;
   const selectedNodeOptions = useMemo(
-    () => flattenNodes(selectedNodeCircuit?.nodes ?? []).filter((node) => node.id !== nodeEditor?.node?.id).map((node) => ({
-      value: node.id,
-      label: `${node.name}${node.endpointKey ? ` · ${node.endpointKey}` : ""}`,
-    })),
+    () => {
+      const excludedIds = new Set(nodeEditor?.node ? flattenNodes([nodeEditor.node]).map((node) => node.id) : []);
+      return flattenNodes(selectedNodeCircuit?.nodes ?? []).filter((node) => !excludedIds.has(node.id)).map((node) => ({
+        value: node.id,
+        label: `${node.name}${node.endpointKey ? ` · ${node.endpointKey}` : ""}`,
+      }));
+    },
     [nodeEditor?.node?.id, selectedNodeCircuit],
   );
   const selectedLoadNodeOptions = useMemo(
     () => [
       { value: "direct" as const, label: "Direkte på kurs" },
-      ...flattenNodes(selectedLoadCircuit?.nodes ?? []).map((node) => ({ value: node.id, label: node.name })),
+      ...nodePlacementOptions(selectedLoadCircuit?.nodes ?? []),
     ],
     [selectedLoadCircuit],
   );
@@ -523,7 +632,10 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
       name: load?.name ?? "",
       loadType: load?.loadType ?? undefined,
       area: load?.area ?? node?.area ?? undefined,
+      powerProfile: (load?.powerProfile as LoadFormValues["powerProfile"]) ?? (load?.expectedPowerW != null ? "fixed" : "unknown"),
       expectedPowerW: load?.expectedPowerW ?? undefined,
+      minPowerW: load?.minPowerW ?? undefined,
+      maxPowerW: load?.maxPowerW ?? undefined,
       controllable: Boolean(load?.controllable),
       critical: Boolean(load?.critical),
       active: load?.active !== false,
@@ -590,13 +702,37 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
   async function saveLoad() {
     if (!loadEditor || saving) return;
     const values = await loadForm.validateFields();
+    if (values.powerProfile === "fixed" && values.expectedPowerW == null) {
+      message.error("Fyll inn effekt for en fast last.");
+      return;
+    }
+    if (values.powerProfile === "variable" && values.minPowerW == null && values.expectedPowerW == null && values.maxPowerW == null) {
+      message.error("Fyll inn minst én effektverdi for en variabel last.");
+      return;
+    }
+    if (values.minPowerW != null && values.maxPowerW != null && values.minPowerW > values.maxPowerW) {
+      message.error("Minimum effekt kan ikke være høyere enn maksimum effekt.");
+      return;
+    }
+    if (values.expectedPowerW != null && values.minPowerW != null && values.expectedPowerW < values.minPowerW) {
+      message.error("Normal effekt kan ikke være lavere enn minimum effekt.");
+      return;
+    }
+    if (values.expectedPowerW != null && values.maxPowerW != null && values.expectedPowerW > values.maxPowerW) {
+      message.error("Normal effekt kan ikke være høyere enn maksimum effekt.");
+      return;
+    }
     const nodeId = values.energyNodeId === "direct" ? null : cleanNumber(values.energyNodeId as number | null);
+    const powerProfile = values.powerProfile ?? "unknown";
     const payload: EnergyLoadCreateInput = {
       name: cleanText(values.name) ?? "",
       load_type: cleanText(values.loadType),
       area: cleanText(values.area),
       circuit_no: cleanNumber(values.circuitNo),
-      expected_power_w: cleanNumber(values.expectedPowerW),
+      power_profile: powerProfile,
+      expected_power_w: powerProfile === "unknown" ? null : cleanNumber(values.expectedPowerW),
+      min_power_w: powerProfile === "variable" ? cleanNumber(values.minPowerW) : null,
+      max_power_w: powerProfile === "variable" ? cleanNumber(values.maxPowerW) : null,
       energy_node_id: nodeId,
       measured_direct: false,
       controllable: Boolean(values.controllable),
@@ -626,13 +762,25 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
 
   return (
     <div className="page-stack energy-topology-page">
+      <datalist id="energy-area-suggestions">
+        {areaSuggestions.map((item) => <option key={item.value} value={item.value} />)}
+      </datalist>
+      <datalist id="energy-manufacturer-suggestions">
+        {manufacturerSuggestions.map((item) => <option key={item.value} value={item.value} />)}
+      </datalist>
+      <datalist id="energy-model-suggestions">
+        {modelSuggestions.map((item) => <option key={item.value} value={item.value} />)}
+      </datalist>
+      <datalist id="energy-load-type-suggestions">
+        {loadTypeSuggestions.map((item) => <option key={item.value} value={item.value} />)}
+      </datalist>
       <section className="work-card energy-topology-toolbar">
         <div>
           <span className="energy-circuit-eyebrow">Energi</span>
           <h2>Kurs, enheter og laster</h2>
-          <p>Elektrisk struktur med direkte laster, Z-Wave-enheter, utganger, underenheter og levende HC3-verdier.</p>
         </div>
         <div className="energy-topology-toolbar-actions">
+          {!canManage ? <span className="energy-live-state">Lesevisning</span> : null}
           <span className={liveError ? "energy-live-state warn" : "energy-live-state ok"}>
             {liveError ? liveError : `HC3 lest ${checkedTime(liveCheckedAt)}`}
           </span>
@@ -650,12 +798,30 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
 
       <section className="work-card energy-topology-board">
         <div className="energy-topology-board-head">
-          <div className="energy-circuit-filter" role="group" aria-label="Filtrer kursliste">
-            {circuitFilters.map((item) => (
-              <button type="button" key={item.key} className={filter === item.key ? "active" : ""} onClick={() => setFilter(item.key)}>{item.label}</button>
-            ))}
+          <div className="energy-topology-board-controls">
+            <Input
+              allowClear
+              className="energy-topology-search"
+              prefix={<SearchOutlined />}
+              placeholder="Søk etter kurs, enhet eller last"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+            <div className="energy-circuit-filter" role="group" aria-label="Filtrer kursliste">
+              {circuitFilters.map((item) => (
+                <button type="button" key={item.key} className={filter === item.key ? "active" : ""} onClick={() => setFilter(item.key)}>{item.label}</button>
+              ))}
+            </div>
+            <Select
+              aria-label="Kartleggingsstatus"
+              className="energy-mapping-filter"
+              value={mappingFilter}
+              options={mappingFilters.map((item) => ({ value: item.key, label: item.label }))}
+              onChange={(value) => setMappingFilter(value)}
+            />
           </div>
           <div className="energy-topology-board-actions">
+            <span>{visibleCircuits.length} vist</span>
             <Button size="small" onClick={() => setExpanded(new Set())}>Lukk alle</Button>
             <Button size="small" onClick={() => setExpanded(new Set(visibleCircuits.map((circuit) => circuit.key)))}>Åpne alle</Button>
           </div>
@@ -674,8 +840,10 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
               onAddChild={(node) => openNodeEditor(circuit, null, node)}
               onAddLoad={(node) => openLoadEditor(circuit, node)}
               onEditLoad={(node, load) => openLoadEditor(circuit, node, load)}
+              canManage={canManage}
             />
           ))}
+          {!visibleCircuits.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Ingen kurser passer med filtrene" /> : null}
         </div>
       </section>
 
@@ -709,37 +877,36 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
                     showSearch
                     optionFilterProp="label"
                     disabled={nodeEditor?.mode === "edit"}
+                    onChange={() => nodeForm.setFieldValue("parentNodeId", null)}
                   />
                 </Form.Item>
                 <Form.Item name="parentNodeId" label="Overordnet enhet">
                   <Select allowClear options={selectedNodeOptions} placeholder="Direkte på kurs" showSearch optionFilterProp="label" />
                 </Form.Item>
               </div>
-              <div className="energy-form-two">
-                <Form.Item name="nodeType" label="Hva slags punkt" rules={[{ required: true, message: "Velg type" }]}>
-                  <Select options={nodeTypes} />
-                </Form.Item>
-                <Form.Item name="endpointKey" label="Utgang / kanal">
-                  <Input placeholder="For eksempel 1, Q1 eller 123.1" />
-                </Form.Item>
-              </div>
+              <Form.Item name="nodeType" label="Hva registreres" rules={[{ required: true, message: "Velg type" }]}>
+                <Segmented block options={nodeTypes} />
+              </Form.Item>
               <Form.Item name="name" label="Navn" rules={[{ required: true, message: "Navn må fylles ut" }]}>
                 <Input autoFocus placeholder="For eksempel Fibaro Double Switch loft" />
               </Form.Item>
               <div className="energy-form-two">
                 <Form.Item name="manufacturer" label="Merke">
-                  <Input placeholder="Fibaro, Aeotec, Qubino ..." />
+                  <Input list="energy-manufacturer-suggestions" placeholder="Fibaro, Aeotec, Qubino ..." />
                 </Form.Item>
                 <Form.Item name="model" label="Modell / typebetegnelse">
-                  <Input placeholder="FGS-223, Smart Switch 7 ..." />
+                  <Input list="energy-model-suggestions" placeholder="FGS-223, Smart Switch 7 ..." />
                 </Form.Item>
               </div>
-              <div className="energy-form-two">
+              <div className="energy-form-three">
                 <Form.Item name="deviceType" label="Enhetstype">
                   <Input placeholder="HC3-type eller teknisk betegnelse" />
                 </Form.Item>
                 <Form.Item name="area" label="Område">
-                  <Input placeholder="Loft, 1.etg, VIP ..." />
+                  <Input list="energy-area-suggestions" placeholder="Loft, 1.etg, VIP ..." />
+                </Form.Item>
+                <Form.Item name="endpointKey" label="Utgang / kanal">
+                  <Input placeholder="1, Q1 eller 123.1" />
                 </Form.Item>
               </div>
               <Form.Item name="note" label="Teknisk notat">
@@ -769,7 +936,7 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
                   allowClear
                   showSearch
                   loading={loadingDevices}
-                  options={deviceOptions}
+                  options={powerDeviceOptions}
                   optionFilterProp="search"
                   placeholder="Enheten som gir W akkurat nå"
                   onChange={(value) => nodeForm.setFieldValue("hasMeter", value != null)}
@@ -780,7 +947,7 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
                   allowClear
                   showSearch
                   loading={loadingDevices}
-                  options={deviceOptions}
+                  options={switchDeviceOptions}
                   optionFilterProp="search"
                   placeholder="Enheten som gir av/på-status"
                   onChange={(value) => nodeForm.setFieldValue("hasSwitch", value != null)}
@@ -791,15 +958,20 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
                 <Hc3DeviceFact label="Effekt" device={devicesById.get(Number(selectedPowerDeviceId))} />
                 <Hc3DeviceFact label="Bryter" device={devicesById.get(Number(selectedSwitchDeviceId))} />
               </div>
+              {!selectedMainDeviceId && !selectedPowerDeviceId && !selectedSwitchDeviceId ? (
+                <div className="energy-form-warning">Ingen HC3-enhet er valgt. Punktet lagres uten levende verdier.</div>
+              ) : null}
+              {selectedPowerDeviceId && !devicesById.get(Number(selectedPowerDeviceId))?.hasPower ? (
+                <div className="energy-form-warning">Valgt effekt-ID rapporterer ikke sanntidseffekt i HC3-inventaret.</div>
+              ) : null}
+              {selectedSwitchDeviceId && !devicesById.get(Number(selectedSwitchDeviceId))?.hasSwitch ? (
+                <div className="energy-form-warning">Valgt bryter-ID rapporterer ikke av/på-status i HC3-inventaret.</div>
+              ) : null}
               <div className="energy-form-switches">
-                <Form.Item name="hasMeter" label="Har måling" valuePropName="checked"><Switch /></Form.Item>
-                <Form.Item name="hasSwitch" label="Har bryter" valuePropName="checked"><Switch /></Form.Item>
                 <Form.Item name="active" label="Aktiv" valuePropName="checked"><Switch /></Form.Item>
               </div>
-              <div className="energy-form-help">
-                <CheckCircleOutlined />
-                <span>Effekt leses fra valgt effektmåler. Av/på leses fra valgt bryter. De kan være samme HC3-enhet eller ulike underenheter.</span>
-              </div>
+              <Form.Item name="hasMeter" hidden valuePropName="checked"><Checkbox /></Form.Item>
+              <Form.Item name="hasSwitch" hidden valuePropName="checked"><Checkbox /></Form.Item>
             </section>
           </div>
         </Form>
@@ -827,7 +999,12 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
           </div>
           <div className="energy-form-two">
             <Form.Item name="circuitNo" label="Kurs" rules={[{ required: true, message: "Velg kurs" }]}>
-              <Select options={circuitOptions} showSearch optionFilterProp="label" />
+              <Select
+                options={circuitOptions}
+                showSearch
+                optionFilterProp="label"
+                onChange={() => loadForm.setFieldValue("energyNodeId", "direct")}
+              />
             </Form.Item>
             <Form.Item name="energyNodeId" label="Tilkoblet til" rules={[{ required: true, message: "Velg plassering" }]}>
               <Select options={selectedLoadNodeOptions} showSearch optionFilterProp="label" />
@@ -838,15 +1015,38 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
           </Form.Item>
           <div className="energy-form-three">
             <Form.Item name="loadType" label="Type">
-              <Input placeholder="Lys, vifte, varme ..." />
+              <Input list="energy-load-type-suggestions" placeholder="Lys, vifte, varme ..." />
             </Form.Item>
             <Form.Item name="area" label="Område">
-              <Input placeholder="Loft, VIP ..." />
+              <Input list="energy-area-suggestions" placeholder="Loft, VIP ..." />
             </Form.Item>
-            <Form.Item name="expectedPowerW" label="Teoretisk effekt">
-              <InputNumber min={0} precision={0} addonAfter="W" className="edit-number" />
+            <Form.Item name="powerProfile" label="Effektprofil">
+              <Select options={powerProfiles} />
             </Form.Item>
           </div>
+          {selectedPowerProfile === "fixed" ? (
+            <div className="energy-power-fields fixed">
+              <Form.Item name="expectedPowerW" label="Fast effekt" rules={[{ required: true, message: "Fyll inn effekt" }]}>
+                <InputNumber min={0} precision={0} addonAfter="W" className="edit-number" />
+              </Form.Item>
+            </div>
+          ) : null}
+          {selectedPowerProfile === "variable" ? (
+            <div className="energy-power-fields variable">
+              <Form.Item name="minPowerW" label="Minimum">
+                <InputNumber min={0} precision={0} addonAfter="W" className="edit-number" />
+              </Form.Item>
+              <Form.Item name="expectedPowerW" label="Normal effekt">
+                <InputNumber min={0} precision={0} addonAfter="W" className="edit-number" />
+              </Form.Item>
+              <Form.Item name="maxPowerW" label="Maksimum">
+                <InputNumber min={0} precision={0} addonAfter="W" className="edit-number" />
+              </Form.Item>
+            </div>
+          ) : null}
+          {selectedPowerProfile === "unknown" ? (
+            <div className="energy-form-neutral">Effekt ikke registrert.</div>
+          ) : null}
           <div className="energy-form-checkboxes">
             <Form.Item name="active" valuePropName="checked"><Checkbox>Aktiv</Checkbox></Form.Item>
             <Form.Item name="controllable" valuePropName="checked"><Checkbox>Styrbar</Checkbox></Form.Item>
@@ -855,10 +1055,6 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
           <Form.Item name="note" label="Notat">
             <Input.TextArea rows={3} placeholder="Kort beskrivelse av lasten eller koblingen" />
           </Form.Item>
-          <div className="energy-form-help">
-            <LinkOutlined />
-            <span>HC3-ID og sanntidsmåling registreres på enheten eller utgangen over lasten. Da kan samme måler dekke flere laster uten dobbeltelling.</span>
-          </div>
         </Form>
       </Modal>
     </div>

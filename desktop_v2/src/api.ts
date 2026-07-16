@@ -1656,7 +1656,10 @@ export type EnergyCircuitLoadItem = {
   name: string;
   loadType?: string | null;
   area?: string | null;
+  powerProfile?: "unknown" | "fixed" | "variable" | string | null;
   expectedPowerW?: number | null;
+  minPowerW?: number | null;
+  maxPowerW?: number | null;
   measuredDirect?: boolean | null;
   energyNodeId?: number | null;
   fibaroDeviceId?: number | null;
@@ -1756,7 +1759,10 @@ export type EnergyLoadCreateInput = {
   load_type?: string | null;
   area?: string | null;
   circuit_no?: number | null;
+  power_profile?: "unknown" | "fixed" | "variable" | string | null;
   expected_power_w?: number | null;
+  min_power_w?: number | null;
+  max_power_w?: number | null;
   measured_direct?: boolean | null;
   energy_node_id?: number | null;
   fibaro_device_id?: number | null;

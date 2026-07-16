@@ -5,8 +5,46 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1569")
+APP_BUILD = os.getenv("APP_BUILD", "1570")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1570",
+        "date": "16.07.2026",
+        "headline": "Profesjonell registrering av kurs og last",
+        "title": "Energitopologien får veiledet HC3-kobling og presise effektprofiler",
+        "description": (
+            "Build 1570 gjør Energi > Kurs/last til en ryddigere administrasjonsflate. Kurs kan søkes og "
+            "filtreres etter kartleggingsstatus, vanlige brukere får en ren lesevisning, og registrering av "
+            "enheter begrenses til kompatible HC3-målere og brytere. Laster kan nå beskrives med ukjent, "
+            "fast eller variabel teoretisk effekt med validerte minimums-, normal- og maksimumsverdier."
+        ),
+        "applications": [
+            "main.py: utvider energilaster med effektprofil og validerer både wattintervall og HC3-koblinger.",
+            "desktop_v2/src/api.ts: utvider kontraktene for fast og variabel teoretisk effekt.",
+            "desktop_v2/src/pages/EnergyCircuitLoadsPage.tsx: forbedrer søk, filtre, tilgangsstyring og registreringsdialoger.",
+            "desktop_v2/src/styles/energy.css: strammer opp kursstruktur, skjemahierarki og responsiv visning.",
+            "migrations/versions/20260716_1330_add_energy_load_power_profile.sql: migrerer effektprofil og effektintervall.",
+            "tests/test_energy_topology.py: tester effektprofil og avvisning av feil HC3-målertype.",
+            "docs: oppdaterer funksjonsstruktur, energidokumentasjon og API-kontrakter.",
+        ],
+        "request": (
+            "Gjør kurs/last så pent og seriøst som mulig, sikre at alt fungerer og lag gode grensesnitt "
+            "for å legge inn laster og enheter."
+        ),
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Søk dekker kurs, enheter, merke, modell, område og laster.",
+            "Kartleggingsfilter skiller ferdige kurser, manglende måling og tomme kurser.",
+            "Redigeringshandlinger vises bare for master- og innstillingsbrukere.",
+            "HC3-effektfeltet viser bare wattmålere og bryterfeltet bare reelle brytere.",
+            "Valgte HC3-enheter forhåndsvises med nåverdi, status og teknisk type.",
+            "Samme effektmåler kan ikke registreres på flere tilkoblingspunkter.",
+            "Laster støtter ukjent, fast og variabel teoretisk effekt.",
+            "Skjema og API avviser negative verdier og ugyldige effektintervaller.",
+        ],
+    },
     {
         "version": "1",
         "build": "1569",

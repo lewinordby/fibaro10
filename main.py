@@ -1228,7 +1228,10 @@ class EnergyLoad(Base):
     load_type = Column(String, index=True, nullable=True)
     area = Column(String, index=True, nullable=True)
     circuit_no = Column(Integer, index=True, nullable=True)
+    power_profile = Column(String, index=True, nullable=True)
     expected_power_w = Column(Float, nullable=True)
+    min_power_w = Column(Float, nullable=True)
+    max_power_w = Column(Float, nullable=True)
     measured_direct = Column(Boolean, nullable=True)
     energy_node_id = Column(Integer, ForeignKey("energy_nodes.id", ondelete="SET NULL"), index=True, nullable=True)
     fibaro_device_id = Column(Integer, index=True, nullable=True)
@@ -2105,7 +2108,10 @@ class V2EnergyLoadIn(BaseModel):
     load_type: Optional[str] = None
     area: Optional[str] = None
     circuit_no: Optional[int] = None
+    power_profile: Optional[str] = None
     expected_power_w: Optional[float] = None
+    min_power_w: Optional[float] = None
+    max_power_w: Optional[float] = None
     measured_direct: Optional[bool] = None
     energy_node_id: Optional[int] = None
     fibaro_device_id: Optional[int] = None
@@ -3781,6 +3787,9 @@ STARTUP_COLUMNS = {
     ],
     "energy_loads": [
         ("energy_node_id", "INTEGER"),
+        ("power_profile", "VARCHAR"),
+        ("min_power_w", "DOUBLE PRECISION"),
+        ("max_power_w", "DOUBLE PRECISION"),
     ],
     "energy_nodes": [
         ("parent_node_id", "INTEGER"),
@@ -3798,6 +3807,11 @@ STARTUP_COLUMNS = {
 }
 
 PERFORMANCE_INDEXES = [
+    (
+        "ix_energy_loads_power_profile",
+        "CREATE INDEX IF NOT EXISTS ix_energy_loads_power_profile "
+        "ON energy_loads (power_profile)",
+    ),
     (
         "ix_energy_loads_energy_node_id",
         "CREATE INDEX IF NOT EXISTS ix_energy_loads_energy_node_id "
@@ -21710,7 +21724,19 @@ def api_energy_load_edit() -> Dict[str, Any]:
             {"key": "load_type", "label": "Type", "type": "text"},
             {"key": "area", "label": "Område", "type": "text"},
             {"key": "circuit_no", "label": "Kurs", "type": "number"},
-            {"key": "expected_power_w", "label": "Forventet W", "type": "number"},
+            {
+                "key": "power_profile",
+                "label": "Effektprofil",
+                "type": "select",
+                "options": [
+                    {"label": "Ikke kjent", "value": "unknown"},
+                    {"label": "Fast effekt", "value": "fixed"},
+                    {"label": "Variabel effekt", "value": "variable"},
+                ],
+            },
+            {"key": "min_power_w", "label": "Minimum W", "type": "number"},
+            {"key": "expected_power_w", "label": "Normal/fast W", "type": "number"},
+            {"key": "max_power_w", "label": "Maksimum W", "type": "number"},
             {"key": "measured_direct", "label": "Direktemålt", "type": "boolean"},
             {"key": "fibaro_device_id", "label": "HC3 enhet", "type": "number"},
             {"key": "fibaro_meter_id", "label": "HC3 måler", "type": "number"},
@@ -22278,7 +22304,10 @@ def load_row_api(row: EnergyLoad) -> Dict[str, Any]:
         "load_type": row.load_type,
         "area": row.area,
         "circuit_no": row.circuit_no,
+        "power_profile": row.power_profile,
         "expected_power_w": row.expected_power_w,
+        "min_power_w": row.min_power_w,
+        "max_power_w": row.max_power_w,
         "measured_direct": row.measured_direct,
         "energy_node_id": row.energy_node_id,
         "fibaro_device_id": row.fibaro_device_id,
@@ -22297,7 +22326,10 @@ def energy_load_hierarchy_item(row: EnergyLoad) -> Dict[str, Any]:
         "name": row.name,
         "loadType": row.load_type,
         "area": row.area,
+        "powerProfile": row.power_profile or ("fixed" if row.expected_power_w is not None else "unknown"),
         "expectedPowerW": row.expected_power_w,
+        "minPowerW": row.min_power_w,
+        "maxPowerW": row.max_power_w,
         "measuredDirect": row.measured_direct,
         "energyNodeId": row.energy_node_id,
         "fibaroDeviceId": row.fibaro_device_id,
@@ -27796,7 +27828,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             api_card("Effekt vist", format_short_number(sum(float_or_zero(row.expected_power_w) for row in loads)), "W", "For viste rader", "energy", href="/energi/laster"),
                         ],
                         "charts": [],
-                        "tables": [api_table("Laster", ["name", "load_type", "area", "circuit_no", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads], edit=api_energy_load_edit())],
+                        "tables": [api_table("Laster", ["name", "load_type", "area", "circuit_no", "power_profile", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads], edit=api_energy_load_edit())],
                         "filters": [
                             api_filter("q", "Søk", "text", energy_q_value, "Navn, område, type eller notat"),
                             api_filter("circuit", "Kurs", "select", energy_circuit_value, options=circuit_options),
@@ -28014,7 +28046,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             tables = [
                 api_table("Energisamples valgt dag", ["bucket_start", "inntak_w", "varmepumper_w", "belysning_w", "massasje_w", "annet_w", "avfukter_w", "differanse_beregnet_w"], [api_pick(row, ENERGY_FIBARO_COLUMNS) for row in selected_energy_rows[:500]]),
                 api_table("Kurser", ["circuit_no", "description", "breaker", "breaker_type", "is_sunbed", "status"], [circuit_row_api(row) for row in circuits], edit=api_energy_circuit_edit()),
-                api_table("Laster", ["name", "load_type", "area", "circuit_no", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads], edit=api_energy_load_edit()),
+                api_table("Laster", ["name", "load_type", "area", "circuit_no", "power_profile", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads], edit=api_energy_load_edit()),
             ]
             filters = []
             energy_cards = [
@@ -28055,7 +28087,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     api_card("Direktemålt", sum(1 for row in loads if row.measured_direct), "stk", "I tabellen", "energy", href="/energi/laster"),
                     api_card("Effekt vist", format_short_number(sum(float_or_zero(row.expected_power_w) for row in loads)), "W", "For viste rader", "energy", href="/energi/laster"),
                 ]
-                tables = [api_table("Laster", ["name", "load_type", "area", "circuit_no", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads], edit=api_energy_load_edit())]
+                tables = [api_table("Laster", ["name", "load_type", "area", "circuit_no", "power_profile", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads], edit=api_energy_load_edit())]
             elif view == "elvia":
                 summaries = await get_energy_summaries(session)
                 elvia_status = (
@@ -28107,7 +28139,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     api_table("Estimert effekt per seng", ["label", "estimate_w", "avg_w", "p25_w", "p75_w", "samples_count", "sessions_count", "kwh_15_min", "estimated_kwh", "confidence"], energy_sunbeds_data["rooms"]),
                     api_table("Siste rene solinger", ["start", "label", "duration_minutes", "samples_count", "avg_w", "avg_observed_w", "avg_baseline_w", "estimated_kwh"], energy_sunbeds_data["observations"]),
                     api_table("Solrelaterte kurser", ["circuit_no", "description", "breaker", "status", "note"], [circuit_row_api(row) for row in circuits if row.circuit_no in sunbed_circuits]),
-                    api_table("Solrelaterte laster", ["name", "load_type", "area", "circuit_no", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads if row.circuit_no in sunbed_circuits or (row.load_type or "").lower().find("sol") >= 0]),
+                    api_table("Solrelaterte laster", ["name", "load_type", "area", "circuit_no", "power_profile", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads if row.circuit_no in sunbed_circuits or (row.load_type or "").lower().find("sol") >= 0]),
                 ]
             elif view == "verktoy":
                 tables = [
@@ -29779,6 +29811,85 @@ def clean_energy_node_values(values: Dict[str, Any]) -> Dict[str, Any]:
     return cleaned
 
 
+ENERGY_LOAD_POWER_PROFILES = {"unknown", "fixed", "variable"}
+
+
+def clean_energy_load_values(values: Dict[str, Any]) -> Dict[str, Any]:
+    cleaned = dict(values)
+    for key in ("name", "load_type", "area", "note"):
+        if key in cleaned:
+            cleaned[key] = str(cleaned.get(key) or "").strip() or None
+    if "power_profile" in cleaned:
+        profile = str(cleaned.get("power_profile") or "unknown").strip().lower()
+        if profile not in ENERGY_LOAD_POWER_PROFILES:
+            raise HTTPException(status_code=400, detail="Effektprofil må være ukjent, fast eller variabel.")
+        cleaned["power_profile"] = profile
+    for key in ("expected_power_w", "min_power_w", "max_power_w"):
+        if key not in cleaned or cleaned.get(key) is None:
+            continue
+        value = float(cleaned[key])
+        if value < 0:
+            raise HTTPException(status_code=400, detail="Effektverdier kan ikke være negative.")
+        cleaned[key] = value
+    return cleaned
+
+
+def validate_energy_load_power_values(values: Dict[str, Any], existing: Optional[EnergyLoad] = None) -> Dict[str, Any]:
+    profile = values.get("power_profile", existing.power_profile if existing else None)
+    expected = values.get("expected_power_w", existing.expected_power_w if existing else None)
+    minimum = values.get("min_power_w", existing.min_power_w if existing else None)
+    maximum = values.get("max_power_w", existing.max_power_w if existing else None)
+    if not profile:
+        profile = "fixed" if expected is not None else "unknown"
+        values["power_profile"] = profile
+    if minimum is not None and maximum is not None and minimum > maximum:
+        raise HTTPException(status_code=400, detail="Minimum effekt kan ikke være høyere enn maksimum effekt.")
+    if profile == "fixed" and expected is None:
+        raise HTTPException(status_code=400, detail="Fast last må ha en registrert effekt.")
+    if profile == "variable" and minimum is None and expected is None and maximum is None:
+        raise HTTPException(status_code=400, detail="Variabel last må ha minst én effektverdi.")
+    if expected is not None and minimum is not None and expected < minimum:
+        raise HTTPException(status_code=400, detail="Normal effekt kan ikke være lavere enn minimum effekt.")
+    if expected is not None and maximum is not None and expected > maximum:
+        raise HTTPException(status_code=400, detail="Normal effekt kan ikke være høyere enn maksimum effekt.")
+    return values
+
+
+async def validate_energy_node_hc3_values(values: Dict[str, Any]) -> None:
+    configured = {
+        "hc3_device_id": ("hovedenhet", False, False),
+        "hc3_power_device_id": ("effektmåler", True, False),
+        "hc3_switch_device_id": ("bryter", False, True),
+    }
+    selected = {key: int(values[key]) for key in configured if values.get(key) is not None}
+    if values.get("has_meter") and values.get("hc3_power_device_id") is None:
+        raise HTTPException(status_code=400, detail="Enhet med måling må kobles til en HC3-enhet som rapporterer watt.")
+    if values.get("has_switch") and values.get("hc3_switch_device_id") is None:
+        raise HTTPException(status_code=400, detail="Enhet med bryter må kobles til en HC3-enhet som rapporterer av/på-status.")
+    if not selected:
+        return
+    if not hc3_api_is_configured():
+        raise HTTPException(status_code=503, detail="HC3-tilgang er ikke konfigurert. Koblingen kan ikke kontrolleres.")
+    summaries: Dict[int, Dict[str, Any]] = {}
+    for device_id in sorted(set(selected.values())):
+        try:
+            device = await asyncio.to_thread(hc3_cached_device_request, device_id, HC3_ENERGY_LIVE_TIMEOUT_SECONDS)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"HC3-enhet {device_id} kunne ikke kontrolleres: {exc}") from exc
+        summaries[device_id] = hc3_energy_device_summary(device)
+    for key, device_id in selected.items():
+        label, requires_power, requires_switch = configured[key]
+        summary = summaries[device_id]
+        if requires_power and not summary.get("hasPower"):
+            raise HTTPException(status_code=400, detail=f"HC3-enhet {device_id} kan ikke brukes som effektmåler fordi den ikke rapporterer watt.")
+        if requires_switch and not summary.get("hasSwitch"):
+            raise HTTPException(status_code=400, detail=f"HC3-enhet {device_id} kan ikke brukes som bryter fordi den ikke rapporterer av/på-status.")
+        if summary.get("dead") is True:
+            raise HTTPException(status_code=400, detail=f"Valgt HC3-{label} {device_id} er markert som utilgjengelig.")
+        if summary.get("enabled") is False:
+            raise HTTPException(status_code=400, detail=f"Valgt HC3-{label} {device_id} er deaktivert.")
+
+
 async def find_or_create_energy_node_for_load(session, values: Dict[str, Any]) -> Optional[EnergyNode]:
     if "energy_node_id" in values:
         energy_node_id = values.get("energy_node_id")
@@ -29843,18 +29954,16 @@ async def api_v2_energy_node_create(request: Request, data: V2EnergyNodeIn):
     name = str(values.get("name") or "").strip()
     if not name:
         name = default_energy_node_name(circuit_no, values.get("hc3_power_device_id") or values.get("hc3_device_id"), [])
+    await validate_energy_node_hc3_values(values)
     now_value = datetime.utcnow()
     async with async_session() as session:
         await validate_energy_node_parent(session, circuit_no, values.get("parent_node_id"))
         power_id = values.get("hc3_power_device_id")
-        endpoint_key = values.get("endpoint_key")
         if power_id is not None:
             duplicate = (
                 await session.execute(
                     select(EnergyNode)
-                    .where(EnergyNode.circuit_no == circuit_no)
                     .where(EnergyNode.hc3_power_device_id == int(power_id))
-                    .where(EnergyNode.endpoint_key == endpoint_key)
                     .limit(1)
                 )
             ).scalars().first()
@@ -29908,15 +30017,20 @@ async def api_v2_energy_node_update(request: Request, node_id: int, data: V2Ener
         if "name" in values and not values.get("name"):
             raise HTTPException(status_code=400, detail="Navn må fylles ut.")
         power_id = values.get("hc3_power_device_id", node.hc3_power_device_id)
-        endpoint_key = values.get("endpoint_key", node.endpoint_key)
+        effective_hc3_values = {
+            "hc3_device_id": values.get("hc3_device_id", node.hc3_device_id),
+            "hc3_power_device_id": power_id,
+            "hc3_switch_device_id": values.get("hc3_switch_device_id", node.hc3_switch_device_id),
+            "has_meter": values.get("has_meter", node.has_meter),
+            "has_switch": values.get("has_switch", node.has_switch),
+        }
+        await validate_energy_node_hc3_values(effective_hc3_values)
         if power_id is not None:
             duplicate = (
                 await session.execute(
                     select(EnergyNode)
                     .where(EnergyNode.id != node_id)
-                    .where(EnergyNode.circuit_no == circuit_no)
                     .where(EnergyNode.hc3_power_device_id == int(power_id))
-                    .where(EnergyNode.endpoint_key == endpoint_key)
                     .limit(1)
                 )
             ).scalars().first()
@@ -29989,7 +30103,7 @@ async def api_v2_energy_load_create(request: Request, data: V2EnergyLoadIn):
     forbidden = require_settings_access(request)
     if forbidden:
         return forbidden
-    values = data.dict(exclude_unset=True)
+    values = validate_energy_load_power_values(clean_energy_load_values(data.dict(exclude_unset=True)))
     name = str(values.get("name") or "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="Navn må fylles ut.")
@@ -30016,11 +30130,12 @@ async def api_v2_energy_load_update(request: Request, load_id: int, data: V2Ener
     forbidden = require_settings_access(request)
     if forbidden:
         return forbidden
-    values = data.dict(exclude_unset=True)
+    values = clean_energy_load_values(data.dict(exclude_unset=True))
     async with async_session() as session:
         load = await session.get(EnergyLoad, load_id)
         if not load:
             raise HTTPException(status_code=404, detail="Last ikke funnet")
+        validate_energy_load_power_values(values, existing=load)
         if "name" in values and not str(values.get("name") or "").strip():
             raise HTTPException(status_code=400, detail="Navn må fylles ut.")
         await find_or_create_energy_node_for_load(session, values)

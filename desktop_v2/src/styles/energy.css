@@ -1121,8 +1121,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 12px 14px;
-  border-top: 3px solid var(--domain-energy);
+  min-height: 58px;
+  padding: 10px 14px;
+  border-left: 4px solid var(--domain-energy);
 }
 
 .energy-topology-toolbar h2 {
@@ -1131,12 +1132,6 @@
   font-size: 18px;
   font-weight: 780;
   letter-spacing: 0;
-}
-
-.energy-topology-toolbar p {
-  margin: 4px 0 0;
-  color: var(--muted);
-  font-size: 12px;
 }
 
 .energy-topology-toolbar-actions {
@@ -1223,14 +1218,40 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 9px 12px;
+  padding: 10px 12px;
   background: var(--panel-header-bg);
   border-bottom: 1px solid var(--border-panel-soft);
 }
 
+.energy-topology-board-controls {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.energy-topology-search {
+  width: min(310px, 100%);
+}
+
+.energy-mapping-filter {
+  width: 158px;
+}
+
 .energy-topology-board-actions {
   display: flex;
+  align-items: center;
   gap: 6px;
+}
+
+.energy-topology-board-actions > span {
+  margin-right: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .energy-course-card-list {
@@ -1240,6 +1261,11 @@
 .energy-course-card {
   background: var(--panel-surface);
   border-bottom: 1px solid var(--border-panel);
+  transition: background-color 140ms ease;
+}
+
+.energy-course-card:hover > .energy-course-card-head {
+  background: color-mix(in srgb, var(--domain-energy) 3%, var(--panel-surface));
 }
 
 .energy-course-card:last-child {
@@ -1357,7 +1383,8 @@
   display: grid;
   gap: 10px;
   padding: 0 12px 12px 82px;
-  background: color-mix(in srgb, var(--panel-surface) 76%, var(--surface-muted));
+  background: color-mix(in srgb, var(--panel-surface) 82%, var(--surface-muted));
+  border-top: 1px solid var(--border-panel-soft);
 }
 
 .energy-course-coverage {
@@ -1409,7 +1436,7 @@
   background: var(--panel-surface);
   border: 1px solid var(--border-panel-soft);
   border-left: 3px solid color-mix(in srgb, var(--domain-energy) 70%, var(--border-panel));
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
 }
 
 .energy-topology-node.inactive,
@@ -1424,7 +1451,7 @@
   align-items: center;
   min-height: 58px;
   padding: 7px 9px;
-  background: var(--panel-muted-bg);
+  background: color-mix(in srgb, var(--panel-muted-bg) 88%, var(--panel-surface));
 }
 
 .energy-topology-node-icon {
@@ -1504,7 +1531,7 @@
 
 .energy-topology-load {
   display: grid;
-  grid-template-columns: 14px minmax(220px, 1fr) 92px 84px 34px;
+  grid-template-columns: 14px minmax(220px, 1fr) 120px 84px 34px;
   gap: 8px;
   align-items: center;
   min-height: 39px;
@@ -1547,6 +1574,7 @@
   font-size: 12px;
   font-weight: 760;
   text-align: right;
+  white-space: nowrap;
 }
 
 .energy-topology-children {
@@ -1618,11 +1646,17 @@
 .energy-node-form,
 .energy-load-form {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .energy-topology-modal .ant-modal-content {
   background: var(--surface);
+}
+
+.energy-topology-modal .ant-modal-body {
+  max-height: calc(100vh - 190px);
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .energy-node-form .ant-form-item-label > label,
@@ -1633,7 +1667,7 @@
 .energy-node-form-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(330px, .95fr);
-  gap: 12px;
+  gap: 0;
 }
 
 .energy-node-form-grid > section {
@@ -1641,10 +1675,19 @@
   align-content: start;
   gap: 8px;
   min-width: 0;
-  padding: 11px;
-  background: color-mix(in srgb, var(--domain-energy) 3%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--domain-energy) 18%, var(--surface));
-  border-radius: var(--radius-md);
+  padding: 5px 14px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.energy-node-form-grid > section:first-child {
+  padding-left: 0;
+  border-right: 1px solid var(--border-panel-soft);
+}
+
+.energy-node-form-grid > section:last-child {
+  padding-right: 0;
 }
 
 .energy-node-form-grid h4,
@@ -1673,6 +1716,20 @@
   margin-bottom: 0;
 }
 
+.energy-node-form .ant-segmented {
+  width: 100%;
+  padding: 2px;
+  background: var(--panel-muted-bg);
+  border: 1px solid var(--border-panel-soft);
+}
+
+.energy-node-form .ant-segmented-item-label {
+  min-height: 28px;
+  padding-inline: 6px;
+  font-size: 10px;
+  line-height: 28px;
+}
+
 .energy-form-two,
 .energy-form-three {
   display: grid;
@@ -1685,6 +1742,32 @@
 
 .energy-form-three {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.energy-power-fields {
+  display: grid;
+  gap: 8px;
+  align-items: end;
+  padding: 9px 10px;
+  background: color-mix(in srgb, var(--domain-energy) 5%, var(--surface));
+  border-left: 3px solid var(--domain-energy);
+}
+
+.energy-power-fields.fixed {
+  grid-template-columns: minmax(180px, 240px);
+  align-items: center;
+}
+
+.energy-power-fields.variable {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.energy-form-neutral {
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: 11px;
+  background: var(--panel-muted-bg);
+  border-left: 3px solid var(--border-panel);
 }
 
 .energy-form-switches,
@@ -1711,23 +1794,6 @@
   padding: 0;
 }
 
-.energy-form-help {
-  display: flex;
-  align-items: flex-start;
-  gap: 7px;
-  padding: 8px 9px;
-  color: var(--muted);
-  font-size: 11px;
-  background: var(--surface);
-  border: 1px solid var(--border-panel-soft);
-  border-radius: var(--radius-md);
-}
-
-.energy-form-help > .anticon {
-  margin-top: 2px;
-  color: var(--domain-energy);
-}
-
 .energy-form-warning {
   padding: 7px 8px;
   color: color-mix(in srgb, var(--amber) 78%, var(--ink));
@@ -1749,7 +1815,7 @@
   padding: 6px 7px;
   background: var(--surface);
   border: 1px solid var(--border-panel-soft);
-  border-radius: var(--radius-sm);
+  border-radius: 3px;
 }
 
 .energy-hc3-device-fact span {
@@ -1812,6 +1878,21 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .energy-topology-board-controls,
+  .energy-topology-board-actions {
+    width: 100%;
+  }
+
+  .energy-topology-search,
+  .energy-mapping-filter {
+    flex: 1 1 220px;
+    width: auto;
+  }
+
+  .energy-topology-board-actions {
+    justify-content: flex-end;
+  }
+
   .energy-course-card-head {
     grid-template-columns: 26px 44px minmax(0, 1fr);
   }
@@ -1845,7 +1926,18 @@
 
   .energy-node-form-grid,
   .energy-form-two,
-  .energy-form-three {
+  .energy-form-three,
+  .energy-power-fields.fixed,
+  .energy-power-fields.variable {
     grid-template-columns: 1fr;
+  }
+
+  .energy-node-form-grid > section {
+    padding: 10px 0;
+  }
+
+  .energy-node-form-grid > section:first-child {
+    border-right: 0;
+    border-bottom: 1px solid var(--border-panel-soft);
   }
 }
