@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1567")
+APP_BUILD = os.getenv("APP_BUILD", "1568")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1568",
+        "date": "16.07.2026",
+        "headline": "Energiskjema i mørkt tema",
+        "title": "Registreringsdialogene for kurs/last får riktig kontrast og plassering",
+        "description": (
+            "Build 1568 finjusterer registreringsdialogene etter visuell kontroll av den deployede løsningen. "
+            "Skjemaflater, ledetekster og kontekstfelt bruker nå sammenhengende temafarger, og høye dialoger "
+            "sentreres slik at handlingene forblir tilgjengelige i lavere nettleservinduer."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/EnergyCircuitLoadsPage.tsx: sentrerer enhets- og lastdialogene og gir dem egen temaklasse.",
+            "desktop_v2/src/styles/energy.css: korrigerer bakgrunn, kontrast, rammer og ledetekster i begge temaer.",
+        ],
+        "request": "Komplett grensesnitt med høy visuell kvalitet og levende HC3-verdier.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Mørkt tema har nå lesbar tekst mot mørke skjemaflater.",
+            "Dialogene er vertikalt sentrert og holder handlingene nærmere synlig område.",
+            "Lyst tema bruker de samme semantiske variablene uten egne spesialregler.",
+        ],
+    },
     {
         "version": "1",
         "build": "1567",

@@ -680,6 +680,8 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
       </section>
 
       <Modal
+        centered
+        rootClassName="energy-topology-modal"
         title={nodeEditor?.mode === "edit" ? "Rediger enhet eller utgang" : nodeEditor?.parent ? "Ny utgang eller underenhet" : "Ny enhet på kurs"}
         open={Boolean(nodeEditor)}
         width={980}
@@ -804,6 +806,8 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
       </Modal>
 
       <Modal
+        centered
+        rootClassName="energy-topology-modal"
         title={loadEditor?.mode === "edit" ? "Rediger last" : "Ny last"}
         open={Boolean(loadEditor)}
         width={760}

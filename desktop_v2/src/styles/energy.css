@@ -1589,8 +1589,8 @@
   align-items: center;
   gap: 10px;
   padding: 9px 10px;
-  background: color-mix(in srgb, var(--domain-energy) 9%, var(--panel-muted-bg));
-  border: 1px solid color-mix(in srgb, var(--domain-energy) 20%, var(--border-panel));
+  background: color-mix(in srgb, var(--domain-energy) 7%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--domain-energy) 26%, var(--surface));
   border-radius: var(--radius-md);
 }
 
@@ -1621,6 +1621,15 @@
   gap: 12px;
 }
 
+.energy-topology-modal .ant-modal-content {
+  background: var(--surface);
+}
+
+.energy-node-form .ant-form-item-label > label,
+.energy-load-form .ant-form-item-label > label {
+  color: var(--ink);
+}
+
 .energy-node-form-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(330px, .95fr);
@@ -1633,15 +1642,15 @@
   gap: 8px;
   min-width: 0;
   padding: 11px;
-  background: var(--panel-muted-bg);
-  border: 1px solid var(--border-panel-soft);
+  background: color-mix(in srgb, var(--domain-energy) 3%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--domain-energy) 18%, var(--surface));
   border-radius: var(--radius-md);
 }
 
 .energy-node-form-grid h4,
 .energy-form-section-title h4 {
   margin: 0;
-  color: var(--text-panel-strong);
+  color: var(--ink);
   font-size: 11px;
   font-weight: 850;
   text-transform: uppercase;
