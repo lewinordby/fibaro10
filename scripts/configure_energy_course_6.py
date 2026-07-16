@@ -55,6 +55,7 @@ async def upsert_node(
     hc3_values = {
         "hc3_device_id": hc3_device_id,
         "hc3_power_device_id": values.get("hc3_power_device_id"),
+        "hc3_energy_device_id": values.get("hc3_energy_device_id"),
         "hc3_switch_device_id": values.get("hc3_switch_device_id"),
         "has_meter": values.get("has_meter", False),
         "has_switch": values.get("has_switch", False),
@@ -63,6 +64,7 @@ async def upsert_node(
     await validate_energy_node_link_uniqueness(
         session,
         hc3_values["hc3_power_device_id"],
+        hc3_values["hc3_energy_device_id"],
         hc3_values["hc3_switch_device_id"],
         node_id=node.id,
     )
@@ -147,12 +149,14 @@ async def configure(*, apply: bool) -> dict[str, Any]:
                 "model": "QMEM-0A1PC16EU",
                 "device_type": "Z-Wave kursmåler",
                 "hc3_power_device_id": 530,
+                "hc3_energy_device_id": 529,
                 "hc3_switch_device_id": None,
+                "aggregate_group_key": "other",
                 "endpoint_key": "126.0",
                 "has_meter": True,
                 "has_switch": False,
                 "area": "VIP-loft",
-                "note": "Måler samlet realtime-effekt. Akkumulert HC3-måler er 529.",
+                "note": "Måler samlet realtime-effekt. Akkumulert HC3-måler er 529. Inngår i samlemåleren Annet.",
             },
         )
         relay = await upsert_node(

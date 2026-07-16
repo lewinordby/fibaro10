@@ -8,6 +8,8 @@ os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://example:example@127.
 
 from main import (  # noqa: E402
     EnergyCircuit,
+    ENERGY_ACCUMULATED_ID_BY_POWER_ID,
+    ENERGY_AGGREGATE_GROUP_BY_POWER_ID,
     EnergyLoad,
     EnergyNode,
     build_energy_circuit_loads_payload,
@@ -185,6 +187,45 @@ class EnergyTopologyTests(unittest.TestCase):
         })
         validate_energy_node_profile_values({"node_type": "meter", "hc3_power_device_id": 530})
 
+    def test_aggregate_meter_requires_realtime_power_and_known_group(self):
+        with self.assertRaisesRegex(Exception, "Ugyldig HC3-samlemåler"):
+            clean_energy_node_values({"hc3_power_device_id": 530, "aggregate_group_key": "ukjent"})
+
+        values = clean_energy_node_values({
+            "hc3_power_device_id": 530,
+            "hc3_energy_device_id": 529,
+            "aggregate_group_key": "other",
+        })
+        self.assertEqual(values["hc3_energy_device_id"], 529)
+        self.assertEqual(values["aggregate_group_key"], "other")
+
+    def test_payload_exposes_all_aggregate_meters_and_node_membership(self):
+        circuit = EnergyCircuit(circuit_no=6, description="Loft")
+        node = EnergyNode(
+            id=1,
+            name="Kursmåler",
+            circuit_no=6,
+            hc3_power_device_id=530,
+            hc3_energy_device_id=529,
+            aggregate_group_key="other",
+            has_meter=True,
+            active=True,
+        )
+
+        payload = build_energy_circuit_loads_payload([circuit], [], [node])
+        serialized = payload["circuits"][0]["nodes"][0]
+
+        self.assertEqual(len(payload["aggregateMeters"]), 5)
+        self.assertEqual(next(row for row in payload["aggregateMeters"] if row["key"] == "other")["mappedNodeCount"], 1)
+        self.assertEqual(serialized["hc3EnergyDeviceId"], 529)
+        self.assertEqual(serialized["aggregateMeter"]["realtimeId"], 332)
+
+    def test_known_hc3_members_have_aggregate_and_accumulated_defaults(self):
+        self.assertEqual(ENERGY_AGGREGATE_GROUP_BY_POWER_ID[530], "other")
+        self.assertEqual(ENERGY_ACCUMULATED_ID_BY_POWER_ID[530], 529)
+        self.assertEqual(ENERGY_AGGREGATE_GROUP_BY_POWER_ID[399], "massage")
+        self.assertEqual(ENERGY_ACCUMULATED_ID_BY_POWER_ID[399], 398)
+
     def test_energy_node_branch_contains_all_descendants_only(self):
         nodes = [
             EnergyNode(id=1, name="Rot"),
@@ -237,6 +278,61 @@ class EnergyTopologyTests(unittest.TestCase):
 
         self.assertEqual(payload["nodes"]["9"]["status"], "error")
         self.assertIn("rapporterer ikke watt", payload["nodes"]["9"]["error"])
+
+    def test_live_status_reads_power_and_accumulated_energy_from_separate_devices(self):
+        node = EnergyNode(
+            id=10,
+            name="Kurs 6",
+            hc3_power_device_id=530,
+            hc3_energy_device_id=529,
+            has_meter=True,
+            active=True,
+        )
+        devices = {
+            530: {
+                "id": 530,
+                "name": "Kurs 6 effekt",
+                "type": "com.fibaro.powerMeter",
+                "properties": {"value": 742.5, "dead": False, "enabled": True},
+            },
+            529: {
+                "id": 529,
+                "name": "Kurs 6 energi",
+                "type": "com.fibaro.energyMeter",
+                "properties": {"value": 123.4, "dead": False, "enabled": True},
+            },
+        }
+
+        with (
+            patch("main.hc3_api_is_configured", return_value=True),
+            patch("main.hc3_cached_device_request", side_effect=lambda device_id, *_: devices[device_id]),
+        ):
+            payload = asyncio.run(hc3_energy_nodes_live([node]))
+
+        row = payload["nodes"]["10"]
+        self.assertEqual(row["status"], "ok")
+        self.assertEqual(row["currentPowerW"], 742.5)
+        self.assertEqual(row["currentEnergyKwh"], 123.4)
+        self.assertEqual(row["energyDeviceName"], "Kurs 6 energi")
+
+    def test_live_status_keeps_legacy_combined_power_and_energy_device(self):
+        node = EnergyNode(id=11, name="Kombimåler", hc3_power_device_id=201, has_meter=True, active=True)
+        device = {
+            "id": 201,
+            "name": "Kombimåler",
+            "type": "com.fibaro.multilevelSensor",
+            "properties": {"power": 52.0, "energy": 18.5, "dead": False, "enabled": True},
+        }
+
+        with (
+            patch("main.hc3_api_is_configured", return_value=True),
+            patch("main.hc3_cached_device_request", return_value=device),
+        ):
+            payload = asyncio.run(hc3_energy_nodes_live([node]))
+
+        row = payload["nodes"]["11"]
+        self.assertEqual(row["currentPowerW"], 52.0)
+        self.assertEqual(row["currentEnergyKwh"], 18.5)
 
 
 if __name__ == "__main__":

@@ -12,7 +12,9 @@ Webrapporten i Fibaro10 viser nå både:
 - Alle energi-/effektfølere som ikke er direkte med.
 - Komplett HC3-enhetsliste fra `/api/devices`, med status per enhet.
 
-Energi -> Kurs/last har i tillegg en redigerbar topologi per kurs. Hver fysisk enhet eller utgang kan lagre merke, modell, enhetstype, hoved-ID i HC3, effektmåler-ID, bryter-ID og kanal. Livevisningen leser disse ID-ene direkte fra HC3 hvert 15. sekund mens siden er synlig. Effektvelgeren viser bare HC3-enheter som rapporterer watt, og brytervelgeren viser bare enheter som rapporterer av/på-status. Deaktiverte eller døde HC3-enheter kan ikke velges. Serveren kontrollerer ID, egenskap, tilgjengelighet og at samme effekt- eller bryter-ID ikke brukes på flere punkter før lagring. Dersom en overordnet måler dekker en gren, summeres ikke underordnede målere en gang til i kurstotalen.
+Energi -> Kurs/last har i tillegg en redigerbar topologi per kurs. Hver fysisk enhet eller utgang kan lagre merke, modell, enhetstype, hoved-ID i HC3, separat effektmåler-ID, separat akkumulert energi-ID, bryter-ID og kanal. Et målepunkt kan samtidig knyttes til én av HC3-samlingene uten å flyttes eller gjentas i den fysiske kursstrukturen. Livevisningen leser disse ID-ene direkte fra HC3 hvert 15. sekund mens siden er synlig. Velgerne viser bare HC3-enheter som leverer riktig egenskap: watt, akkumulert kWh eller av/på-status. Deaktiverte eller døde HC3-enheter kan ikke velges. Serveren kontrollerer ID, egenskap, tilgjengelighet og at samme effekt-, energi- eller bryter-ID ikke brukes på flere punkter før lagring. Dersom en overordnet måler dekker en gren, summeres ikke underordnede målere en gang til i kurstotalen.
+
+Kurs/last viser fem HC3-samlinger: Varmepumper, Belysning, Massasje, Annet og Differanse. De fire første er ordinære kategorisamlinger. Differanse er en kontrollsamling som kombinerer hovedinntaket og de fire kategoriene, og er derfor tydelig merket som en særskilt samling i grensesnittet.
 
 En registrert enhet kan flyttes til en annen kurs. Hele grenen følger da med, inkludert underenheter, utganger og laster, slik at kursnummeret ikke blir inkonsistent. Effektprofiler normaliseres ved lagring: ukjent effekt fjerner gamle wattverdier, fast effekt fjerner gammelt minimum/maksimum, og variabel effekt validerer intervallet.
 
@@ -41,6 +43,7 @@ python scripts/export_hc3_energy_inventory.py
 | 305 | Belysning R | 201, 208, 213, 275, 280, 286, 287, 292, 293, 299, 303, 207, 298, 143, 186, 424, 425, 440 |
 | 333 | Massasje R | 309, 314, 319, 324, 399 |
 | 332 | Annet R | 269, 247, 368, 373, 378, 405, 406, 160, 449, 530 |
+| 331 | Differanse R | 221, 237, 305, 333, 332 |
 
 ## Akkumulert kWh
 
@@ -50,6 +53,7 @@ python scripts/export_hc3_energy_inventory.py
 | 336 | Lys A | 201, 208, 213, 275, 280, 286, 287, 292, 293, 299, 303, 207, 298, 143, 186, 424, 425, 440 |
 | 337 | Massasje A | 398, 308, 313, 318, 323 |
 | 328 | Annet A | 269, 247, 367, 372, 377, 405, 406, 160, 529, 449 |
+| 334 | Differanse A | 220, 335, 336, 337, 328 |
 
 ## Siste kontroll 14.07.2026
 
@@ -63,7 +67,7 @@ Faktisk HC3-inventar viser 301 enheter totalt og 101 energi-/effektrelaterte enh
 
 VIP-vifte er byttet fra gammel dod bryter `130` til ny styringsbryter `511 123.1 Vifte VIP`. `511` brukes til styring/status i ventilasjonen, men er ikke lagt inn direkte i energioppsamling fordi enheten ikke rapporterer `power`/`energy`. Forbruket dekkes i stedet av Kurs 6-måleren sammen med `512 123.2 Lys loft massasje` og bredbandsruter.
 
-Kurs 6 er modellert som et fysisk hierarki i Kurs/last: `527/530 Kurs 6 strømmåler` dekker en direkte tilkoblet bredbåndsruter og `509 Nexa / Everspring AN196-0`. Nexa-enheten har to separate utganger uten egne målere: `511 / 123.1 Innluft VIP` og `512 / 123.2 Lys loft massasje`. Realtime-effekten leses bare fra `530`, slik at lasten ikke dobbelttelles. Oppsettet kan gjenopprettes idempotent med `python scripts/configure_energy_course_6.py --apply`.
+Kurs 6 er modellert som et fysisk hierarki i Kurs/last: `527/530 Kurs 6 strømmåler` dekker en direkte tilkoblet bredbåndsruter og `509 Nexa / Everspring AN196-0`. Nexa-enheten har to separate utganger uten egne målere: `511 / 123.1 Innluft VIP` og `512 / 123.2 Lys loft massasje`. Realtime-effekten leses fra `530`, akkumulert kontrollverdi fra `529`, og målepunktet er knyttet til samlingen Annet. Oppsettet kan gjenopprettes idempotent med `python scripts/configure_energy_course_6.py --apply`.
 
 Vurdering:
 
@@ -89,7 +93,7 @@ Lagt inn i Lys/Belysning:
 
 Fibaro10 logger fortsatt avfukter separat som `avfukter_w` og `avfukter_kwh`, men beregnet differanse trekker ikke avfukter separat etter denne endringen siden avfukter inngar i Annet.
 
-QuickApp 331 `Differanse R` og 334 `Differanse A` finnes i HC3, men sendes ikke lenger til Fibaro10. Differanse har ingen hensikt aa logge separat fordi Fibaro10 beregner den fra realtime-verdiene.
+QuickApp 331 `Differanse R` og 334 `Differanse A` finnes i HC3 og vises som kontrollsamling i Kurs/last, men sendes ikke som eget historisk grunnlag til Fibaro10. Historisk differanse beregnes fra realtime-verdiene.
 
 Forbruksdelta og dagsforbruk i Fibaro10 beregnes fra realtime W-samples hvert 30. sekund. Fibaro10 lagrer energisamples i 30-sekunders bucket, slik at to samples i samme minutt ikke overskriver hverandre. Akkumulerte kWh-verdier fra HC3 logges som kontrollverdier, men brukes ikke som grunnlag for dagsforbruket. Dette er valgt fordi reset i en akkumulerende undermaler kan skjules i en samlet QuickApp-verdi.
 

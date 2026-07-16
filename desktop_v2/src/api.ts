@@ -1680,10 +1680,21 @@ export type EnergyNodeLive = {
   switchState?: boolean | null;
   deviceName?: string | null;
   powerDeviceName?: string | null;
+  energyDeviceName?: string | null;
   switchDeviceName?: string | null;
   dead?: boolean | null;
   enabled?: boolean | null;
   error?: string | null;
+};
+
+export type EnergyAggregateMeter = {
+  key: string;
+  label: string;
+  realtimeId: number;
+  accumulatedId: number;
+  description?: string | null;
+  special?: boolean;
+  mappedNodeCount?: number;
 };
 
 export type EnergyConnectionNode = {
@@ -1697,7 +1708,10 @@ export type EnergyConnectionNode = {
   deviceType?: string | null;
   hc3DeviceId?: number | null;
   hc3PowerDeviceId?: number | null;
+  hc3EnergyDeviceId?: number | null;
   hc3SwitchDeviceId?: number | null;
+  aggregateGroupKey?: string | null;
+  aggregateMeter?: EnergyAggregateMeter | null;
   endpointKey?: string | null;
   hasMeter: boolean;
   hasSwitch: boolean;
@@ -1752,6 +1766,7 @@ export type EnergyCircuitLoadsData = {
     directMeterLoadCount: number;
     unmeteredLoadCount: number;
   };
+  aggregateMeters: EnergyAggregateMeter[];
   circuits: EnergyCircuitLoadCircuit[];
 };
 
@@ -1787,7 +1802,9 @@ export type EnergyNodeInput = {
   device_type?: string | null;
   hc3_device_id?: number | null;
   hc3_power_device_id?: number | null;
+  hc3_energy_device_id?: number | null;
   hc3_switch_device_id?: number | null;
+  aggregate_group_key?: string | null;
   endpoint_key?: string | null;
   has_meter?: boolean | null;
   has_switch?: boolean | null;

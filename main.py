@@ -260,6 +260,69 @@ HC3_SWITCH_POLL_TIMEOUT_SECONDS = max(2, int(os.getenv("HC3_SWITCH_POLL_TIMEOUT_
 HC3_SWITCH_STATUS_CACHE_SECONDS = max(0.0, env_float("HC3_SWITCH_STATUS_CACHE_SECONDS", "5"))
 HC3_ENERGY_DEVICE_LIST_CACHE_SECONDS = max(5.0, env_float("HC3_ENERGY_DEVICE_LIST_CACHE_SECONDS", "60"))
 HC3_ENERGY_LIVE_TIMEOUT_SECONDS = max(2, int(os.getenv("HC3_ENERGY_LIVE_TIMEOUT_SECONDS", "4")))
+ENERGY_AGGREGATE_METERS = (
+    {
+        "key": "heat_pumps",
+        "label": "Varmepumper",
+        "realtimeId": 237,
+        "accumulatedId": 335,
+        "description": "Samler varmepumpemalere i HC3.",
+        "special": False,
+    },
+    {
+        "key": "lighting",
+        "label": "Belysning",
+        "realtimeId": 305,
+        "accumulatedId": 336,
+        "description": "Samler belysningsmalere i HC3.",
+        "special": False,
+    },
+    {
+        "key": "massage",
+        "label": "Massasje",
+        "realtimeId": 333,
+        "accumulatedId": 337,
+        "description": "Samler massasjerom og tilhorende laster i HC3.",
+        "special": False,
+    },
+    {
+        "key": "other",
+        "label": "Annet",
+        "realtimeId": 332,
+        "accumulatedId": 328,
+        "description": "Samler andre malte laster i HC3.",
+        "special": False,
+    },
+    {
+        "key": "difference",
+        "label": "Differanse",
+        "realtimeId": 331,
+        "accumulatedId": 334,
+        "description": "Kontrollsamling: hovedinntak minus de fire ordinare samlingene.",
+        "special": True,
+    },
+)
+ENERGY_AGGREGATE_METERS_BY_KEY = {row["key"]: row for row in ENERGY_AGGREGATE_METERS}
+ENERGY_AGGREGATE_POWER_MEMBERS = {
+    "heat_pumps": (226, 230, 234),
+    "lighting": (201, 208, 213, 275, 280, 286, 287, 292, 293, 299, 303, 207, 298, 143, 186, 424, 425, 440),
+    "massage": (309, 314, 319, 324, 399),
+    "other": (269, 247, 368, 373, 378, 405, 406, 160, 449, 530),
+}
+ENERGY_AGGREGATE_GROUP_BY_POWER_ID = {
+    device_id: group_key
+    for group_key, device_ids in ENERGY_AGGREGATE_POWER_MEMBERS.items()
+    for device_id in device_ids
+}
+ENERGY_ACCUMULATED_ID_BY_POWER_ID = {
+    226: 226, 230: 230, 234: 234,
+    201: 201, 208: 208, 213: 213, 275: 275, 280: 280, 286: 286,
+    287: 287, 292: 292, 293: 293, 299: 299, 303: 303, 207: 207,
+    298: 298, 143: 143, 186: 186, 424: 424, 425: 425, 440: 440,
+    309: 308, 314: 313, 319: 318, 324: 323, 399: 398,
+    269: 269, 247: 247, 368: 367, 373: 372, 378: 377, 405: 405,
+    406: 406, 160: 160, 449: 449, 530: 529,
+}
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 SUN2_AXIS_SNAPSHOT_ROOT = Path(
     os.getenv("SUN2_AXIS_SNAPSHOT_ROOT", os.getenv("AXIS_SNAPSHOT_DIR", "/axis_snapshots"))
@@ -1208,7 +1271,9 @@ class EnergyNode(Base):
     device_type = Column(String, index=True, nullable=True)
     hc3_device_id = Column(Integer, index=True, nullable=True)
     hc3_power_device_id = Column(Integer, index=True, nullable=True)
+    hc3_energy_device_id = Column(Integer, index=True, nullable=True)
     hc3_switch_device_id = Column(Integer, index=True, nullable=True)
+    aggregate_group_key = Column(String, index=True, nullable=True)
     endpoint_key = Column(String, index=True, nullable=True)
     has_meter = Column(Boolean, nullable=True)
     has_switch = Column(Boolean, nullable=True)
@@ -2094,7 +2159,9 @@ class V2EnergyNodeIn(BaseModel):
     device_type: Optional[str] = None
     hc3_device_id: Optional[int] = None
     hc3_power_device_id: Optional[int] = None
+    hc3_energy_device_id: Optional[int] = None
     hc3_switch_device_id: Optional[int] = None
+    aggregate_group_key: Optional[str] = None
     endpoint_key: Optional[str] = None
     has_meter: Optional[bool] = None
     has_switch: Optional[bool] = None
@@ -3799,7 +3866,9 @@ STARTUP_COLUMNS = {
         ("device_type", "VARCHAR"),
         ("hc3_device_id", "INTEGER"),
         ("hc3_power_device_id", "INTEGER"),
+        ("hc3_energy_device_id", "INTEGER"),
         ("hc3_switch_device_id", "INTEGER"),
+        ("aggregate_group_key", "VARCHAR"),
         ("endpoint_key", "VARCHAR"),
         ("has_meter", "BOOLEAN"),
         ("has_switch", "BOOLEAN"),
@@ -3831,6 +3900,16 @@ PERFORMANCE_INDEXES = [
         "ix_energy_nodes_hc3",
         "CREATE INDEX IF NOT EXISTS ix_energy_nodes_hc3 "
         "ON energy_nodes (hc3_device_id, hc3_power_device_id, hc3_switch_device_id)",
+    ),
+    (
+        "ix_energy_nodes_energy",
+        "CREATE INDEX IF NOT EXISTS ix_energy_nodes_energy "
+        "ON energy_nodes (hc3_energy_device_id)",
+    ),
+    (
+        "ix_energy_nodes_aggregate_group",
+        "CREATE INDEX IF NOT EXISTS ix_energy_nodes_aggregate_group "
+        "ON energy_nodes (aggregate_group_key, circuit_no)",
     ),
     (
         "ix_sun2_sessions_stat_started",
@@ -10663,7 +10742,12 @@ async def hc3_energy_nodes_live(nodes: list[EnergyNode]) -> Dict[str, Any]:
     device_ids = {
         int(device_id)
         for node in nodes
-        for device_id in (node.hc3_device_id, node.hc3_power_device_id, node.hc3_switch_device_id)
+        for device_id in (
+            node.hc3_device_id,
+            node.hc3_power_device_id,
+            node.hc3_energy_device_id,
+            node.hc3_switch_device_id,
+        )
         if device_id is not None
     }
     semaphore = asyncio.Semaphore(8)
@@ -10684,19 +10768,25 @@ async def hc3_energy_nodes_live(nodes: list[EnergyNode]) -> Dict[str, Any]:
         if node.id is None:
             continue
         power_id = node.hc3_power_device_id or (node.hc3_device_id if node.has_meter else None)
+        energy_id = node.hc3_energy_device_id
         switch_id = node.hc3_switch_device_id or (node.hc3_device_id if node.has_switch else None)
         identity = devices.get(int(node.hc3_device_id)) if node.hc3_device_id is not None else None
         power = devices.get(int(power_id)) if power_id is not None else None
+        energy = devices.get(int(energy_id)) if energy_id is not None else None
+        if energy is None and power is not None and power.get("hasEnergy"):
+            energy = power
         switch = devices.get(int(switch_id)) if switch_id is not None else None
-        configured_ids = [value for value in (node.hc3_device_id, power_id, switch_id) if value is not None]
+        configured_ids = [value for value in (node.hc3_device_id, power_id, energy_id, switch_id) if value is not None]
         node_errors = [errors[int(value)] for value in configured_ids if int(value) in errors]
         configuration_errors: list[str] = []
         if power_id is not None and power is not None and not power.get("hasPower"):
             configuration_errors.append(f"HC3-enhet {power_id} rapporterer ikke watt.")
+        if energy_id is not None and energy is not None and not energy.get("hasEnergy"):
+            configuration_errors.append(f"HC3-enhet {energy_id} rapporterer ikke akkumulert kWh.")
         if switch_id is not None and switch is not None and not switch.get("hasSwitch"):
             configuration_errors.append(f"HC3-enhet {switch_id} rapporterer ikke av/på-status.")
-        unavailable = [item for item in (identity, power, switch) if item and item.get("dead") is True]
-        disabled = [item for item in (identity, power, switch) if item and item.get("enabled") is False]
+        unavailable = [item for item in (identity, power, energy, switch) if item and item.get("dead") is True]
+        disabled = [item for item in (identity, power, energy, switch) if item and item.get("enabled") is False]
         if unavailable:
             configuration_errors.append("En eller flere HC3-enheter er utilgjengelige.")
         if disabled:
@@ -10705,7 +10795,7 @@ async def hc3_energy_nodes_live(nodes: list[EnergyNode]) -> Dict[str, Any]:
             status = "unconfigured"
         elif configuration_errors:
             status = "error"
-        elif node_errors and not any((identity, power, switch)):
+        elif node_errors and not any((identity, power, energy, switch)):
             status = "error"
         elif node_errors:
             status = "partial"
@@ -10716,13 +10806,14 @@ async def hc3_energy_nodes_live(nodes: list[EnergyNode]) -> Dict[str, Any]:
             "status": status,
             "checkedAt": checked_at,
             "currentPowerW": power.get("powerW") if power else None,
-            "currentEnergyKwh": power.get("energyKwh") if power else None,
+            "currentEnergyKwh": energy.get("energyKwh") if energy else None,
             "switchState": switch.get("switchState") if switch else None,
             "deviceName": identity.get("name") if identity else None,
             "powerDeviceName": power.get("name") if power else None,
+            "energyDeviceName": energy.get("name") if energy else None,
             "switchDeviceName": switch.get("name") if switch else None,
-            "dead": any(item.get("dead") is True for item in (identity, power, switch) if item),
-            "enabled": all(item.get("enabled") is not False for item in (identity, power, switch) if item),
+            "dead": any(item.get("dead") is True for item in (identity, power, energy, switch) if item),
+            "enabled": all(item.get("enabled") is not False for item in (identity, power, energy, switch) if item),
             "error": " · ".join(dict.fromkeys([*configuration_errors, *node_errors])) if configuration_errors or node_errors else None,
         }
     return {"checkedAt": checked_at, "configured": True, "nodes": live_nodes}
@@ -13683,7 +13774,7 @@ async def startup():
         await conn.execute(delete(VentilationEvent).where(VentilationEvent.source == "CODEX TEST"))
     async with async_session() as session:
         node_backfill = await ensure_energy_node_backfill(session)
-        if node_backfill.get("created") or node_backfill.get("linked"):
+        if node_backfill.get("created") or node_backfill.get("linked") or node_backfill.get("updated"):
             logger.info("Energy node backfill: %s", node_backfill)
         master_rows = (
             await session.execute(
@@ -22766,6 +22857,26 @@ def default_energy_node_name(circuit_no: Optional[int], hc3_power_device_id: Opt
 
 async def ensure_energy_node_backfill(session) -> Dict[str, int]:
     nodes = (await session.execute(select(EnergyNode))).scalars().all()
+    now_value = datetime.utcnow()
+    updated = 0
+    for node in nodes:
+        changed = False
+        if node.circuit_no == 29 and node.hc3_power_device_id == 398:
+            node.hc3_power_device_id = 399
+            changed = True
+        power_id = int(node.hc3_power_device_id) if node.hc3_power_device_id is not None else None
+        if power_id is not None:
+            expected_energy_id = ENERGY_ACCUMULATED_ID_BY_POWER_ID.get(power_id)
+            expected_group_key = ENERGY_AGGREGATE_GROUP_BY_POWER_ID.get(power_id)
+            if node.hc3_energy_device_id is None and expected_energy_id is not None:
+                node.hc3_energy_device_id = expected_energy_id
+                changed = True
+            if node.aggregate_group_key is None and expected_group_key is not None:
+                node.aggregate_group_key = expected_group_key
+                changed = True
+        if changed:
+            node.updated_at = now_value
+            updated += 1
     node_by_id = {row.id: row for row in nodes if row.id is not None}
     node_by_key = {
         (row.circuit_no, int(row.hc3_power_device_id)): row
@@ -22787,11 +22898,12 @@ async def ensure_energy_node_backfill(session) -> Dict[str, int]:
             node = node_by_id[load.energy_node_id]
             if load.fibaro_meter_id is None and node.hc3_power_device_id is not None:
                 load.fibaro_meter_id = node.hc3_power_device_id
+            elif node.circuit_no == 29 and node.hc3_power_device_id == 399 and load.fibaro_meter_id == 398:
+                load.fibaro_meter_id = 399
             continue
         if load.fibaro_meter_id is not None:
             grouped[(load.circuit_no, int(load.fibaro_meter_id))].append(load)
 
-    now_value = datetime.utcnow()
     for key, group_loads in grouped.items():
         circuit_no, hc3_power_device_id = key
         node = node_by_key.get(key)
@@ -22804,7 +22916,9 @@ async def ensure_energy_node_backfill(session) -> Dict[str, int]:
                 node_type="zwave_device",
                 hc3_device_id=next(iter(device_ids)) if len(device_ids) == 1 else None,
                 hc3_power_device_id=hc3_power_device_id,
+                hc3_energy_device_id=ENERGY_ACCUMULATED_ID_BY_POWER_ID.get(hc3_power_device_id),
                 hc3_switch_device_id=next(iter(switch_ids)) if len(switch_ids) == 1 else None,
+                aggregate_group_key=ENERGY_AGGREGATE_GROUP_BY_POWER_ID.get(hc3_power_device_id),
                 has_meter=True,
                 has_switch=bool(switch_ids),
                 active=True,
@@ -22821,7 +22935,7 @@ async def ensure_energy_node_backfill(session) -> Dict[str, int]:
             if load.energy_node_id != node.id:
                 load.energy_node_id = node.id
                 linked += 1
-    return {"created": created, "linked": linked}
+    return {"created": created, "linked": linked, "updated": updated}
 
 
 def build_energy_circuit_loads_payload(
@@ -22830,6 +22944,18 @@ def build_energy_circuit_loads_payload(
     nodes: Optional[list[EnergyNode]] = None,
 ) -> Dict[str, Any]:
     nodes = nodes or []
+    aggregate_counts = {
+        group["key"]: sum(
+            1
+            for node in nodes
+            if node.active is not False and node.aggregate_group_key == group["key"]
+        )
+        for group in ENERGY_AGGREGATE_METERS
+    }
+    aggregate_meters = [
+        {**group, "mappedNodeCount": aggregate_counts[group["key"]]}
+        for group in ENERGY_AGGREGATE_METERS
+    ]
     loads_by_circuit: Dict[Optional[int], list[EnergyLoad]] = defaultdict(list)
     nodes_by_circuit: Dict[Optional[int], list[EnergyNode]] = defaultdict(list)
     for load in loads:
@@ -22895,7 +23021,10 @@ def build_energy_circuit_loads_payload(
                 "deviceType": node.device_type,
                 "hc3DeviceId": node.hc3_device_id,
                 "hc3PowerDeviceId": node.hc3_power_device_id,
+                "hc3EnergyDeviceId": node.hc3_energy_device_id,
                 "hc3SwitchDeviceId": node.hc3_switch_device_id,
+                "aggregateGroupKey": node.aggregate_group_key,
+                "aggregateMeter": ENERGY_AGGREGATE_METERS_BY_KEY.get(node.aggregate_group_key),
                 "endpointKey": node.endpoint_key,
                 "hasMeter": bool(node.has_meter or node.hc3_power_device_id is not None),
                 "hasSwitch": bool(node.has_switch or node.hc3_switch_device_id is not None),
@@ -22985,6 +23114,7 @@ def build_energy_circuit_loads_payload(
             "sharedMeterCount": sum(1 for row in nodes if row.active is not False and row.has_meter),
             "directMeterLoadCount": sum(1 for row in loads if row.active is not False and row.measured_direct),
         },
+        "aggregateMeters": aggregate_meters,
         "circuits": circuit_rows,
     }
 
@@ -29810,8 +29940,14 @@ async def validate_energy_node_parent(
 
 def clean_energy_node_values(values: Dict[str, Any]) -> Dict[str, Any]:
     cleaned = dict(values)
-    text_fields = {"name", "node_type", "manufacturer", "model", "device_type", "endpoint_key", "area", "note"}
-    number_fields = {"circuit_no", "parent_node_id", "hc3_device_id", "hc3_power_device_id", "hc3_switch_device_id"}
+    text_fields = {
+        "name", "node_type", "manufacturer", "model", "device_type",
+        "endpoint_key", "aggregate_group_key", "area", "note",
+    }
+    number_fields = {
+        "circuit_no", "parent_node_id", "hc3_device_id", "hc3_power_device_id",
+        "hc3_energy_device_id", "hc3_switch_device_id",
+    }
     for key in text_fields:
         if key in cleaned:
             cleaned[key] = str(cleaned.get(key) or "").strip() or None
@@ -29828,6 +29964,9 @@ def clean_energy_node_values(values: Dict[str, Any]) -> Dict[str, Any]:
         cleaned["has_meter"] = True
     if cleaned.get("hc3_switch_device_id") is not None and "has_switch" not in cleaned:
         cleaned["has_switch"] = True
+    aggregate_group_key = cleaned.get("aggregate_group_key")
+    if aggregate_group_key is not None and aggregate_group_key not in ENERGY_AGGREGATE_METERS_BY_KEY:
+        raise HTTPException(status_code=400, detail="Ugyldig HC3-samlemåler.")
     return cleaned
 
 
@@ -29932,7 +30071,9 @@ def energy_node_from_values(values: Dict[str, Any], name: str, now_value: dateti
         device_type=values.get("device_type"),
         hc3_device_id=values.get("hc3_device_id"),
         hc3_power_device_id=power_id,
+        hc3_energy_device_id=values.get("hc3_energy_device_id"),
         hc3_switch_device_id=switch_id,
+        aggregate_group_key=values.get("aggregate_group_key"),
         endpoint_key=values.get("endpoint_key"),
         has_meter=values.get("has_meter") if values.get("has_meter") is not None else power_id is not None,
         has_switch=values.get("has_switch") if values.get("has_switch") is not None else switch_id is not None,
@@ -29948,11 +30089,13 @@ def energy_node_from_values(values: Dict[str, Any], name: str, now_value: dateti
 async def validate_energy_node_link_uniqueness(
     session,
     power_id: Optional[int],
+    energy_id: Optional[int],
     switch_id: Optional[int],
     node_id: Optional[int] = None,
 ) -> None:
     checks = (
         (EnergyNode.hc3_power_device_id, power_id, "effekt-ID-en"),
+        (EnergyNode.hc3_energy_device_id, energy_id, "energi-ID-en"),
         (EnergyNode.hc3_switch_device_id, switch_id, "bryter-ID-en"),
     )
     for column, device_id, label in checks:
@@ -29971,9 +30114,10 @@ async def validate_energy_node_link_uniqueness(
 
 async def validate_energy_node_hc3_values(values: Dict[str, Any]) -> None:
     configured = {
-        "hc3_device_id": ("hovedenhet", False, False),
-        "hc3_power_device_id": ("effektmåler", True, False),
-        "hc3_switch_device_id": ("bryter", False, True),
+        "hc3_device_id": ("hovedenhet", False, False, False),
+        "hc3_power_device_id": ("effektmåler", True, False, False),
+        "hc3_energy_device_id": ("energimåler", False, True, False),
+        "hc3_switch_device_id": ("bryter", False, False, True),
     }
     selected = {key: int(values[key]) for key in configured if values.get(key) is not None}
     if values.get("has_meter") and values.get("hc3_power_device_id") is None:
@@ -29992,10 +30136,12 @@ async def validate_energy_node_hc3_values(values: Dict[str, Any]) -> None:
             raise HTTPException(status_code=400, detail=f"HC3-enhet {device_id} kunne ikke kontrolleres: {exc}") from exc
         summaries[device_id] = hc3_energy_device_summary(device)
     for key, device_id in selected.items():
-        label, requires_power, requires_switch = configured[key]
+        label, requires_power, requires_energy, requires_switch = configured[key]
         summary = summaries[device_id]
         if requires_power and not summary.get("hasPower"):
             raise HTTPException(status_code=400, detail=f"HC3-enhet {device_id} kan ikke brukes som effektmåler fordi den ikke rapporterer watt.")
+        if requires_energy and not summary.get("hasEnergy"):
+            raise HTTPException(status_code=400, detail=f"HC3-enhet {device_id} kan ikke brukes som energimåler fordi den ikke rapporterer akkumulert kWh.")
         if requires_switch and not summary.get("hasSwitch"):
             raise HTTPException(status_code=400, detail=f"HC3-enhet {device_id} kan ikke brukes som bryter fordi den ikke rapporterer av/på-status.")
         if summary.get("dead") is True:
@@ -30068,6 +30214,8 @@ async def api_v2_energy_node_create(request: Request, data: V2EnergyNodeIn):
     name = str(values.get("name") or "").strip()
     if not name:
         name = default_energy_node_name(circuit_no, values.get("hc3_power_device_id") or values.get("hc3_device_id"), [])
+    if values.get("aggregate_group_key") is not None and values.get("hc3_power_device_id") is None:
+        raise HTTPException(status_code=400, detail="Bare et punkt med sanntidsmåling kan inngå i en HC3-samlemåler.")
     validate_energy_node_profile_values(values)
     await validate_energy_node_hc3_values(values)
     now_value = datetime.utcnow()
@@ -30077,6 +30225,7 @@ async def api_v2_energy_node_create(request: Request, data: V2EnergyNodeIn):
         await validate_energy_node_link_uniqueness(
             session,
             power_id,
+            values.get("hc3_energy_device_id"),
             values.get("hc3_switch_device_id"),
         )
         node = energy_node_from_values(values, name, now_value)
@@ -30104,9 +30253,14 @@ async def api_v2_energy_node_update(request: Request, node_id: int, data: V2Ener
         if "name" in values and not values.get("name"):
             raise HTTPException(status_code=400, detail="Navn må fylles ut.")
         power_id = values.get("hc3_power_device_id", node.hc3_power_device_id)
+        energy_id = values.get("hc3_energy_device_id", node.hc3_energy_device_id)
+        aggregate_group_key = values.get("aggregate_group_key", node.aggregate_group_key)
+        if aggregate_group_key is not None and power_id is None:
+            raise HTTPException(status_code=400, detail="Bare et punkt med sanntidsmåling kan inngå i en HC3-samlemåler.")
         effective_hc3_values = {
             "hc3_device_id": values.get("hc3_device_id", node.hc3_device_id),
             "hc3_power_device_id": power_id,
+            "hc3_energy_device_id": energy_id,
             "hc3_switch_device_id": values.get("hc3_switch_device_id", node.hc3_switch_device_id),
             "has_meter": values.get("has_meter", node.has_meter),
             "has_switch": values.get("has_switch", node.has_switch),
@@ -30121,6 +30275,7 @@ async def api_v2_energy_node_update(request: Request, node_id: int, data: V2Ener
         await validate_energy_node_link_uniqueness(
             session,
             power_id,
+            energy_id,
             effective_hc3_values.get("hc3_switch_device_id"),
             node_id=node_id,
         )

@@ -92,7 +92,7 @@ Koble bruker sideappen `parking_sun_linker`, men all styring, status og manuell 
 - `/energi/elvia`
 - `/energi/verktoy`
 
-`/energi/kurs-last` bruker modellen `kurs -> enhet/utgang -> last`. En last kan også ligge direkte på kurset. Enheten kan ha flere utganger og underenheter, mens måling og bryter er egenskaper med egne HC3-ID-er. Siden henter levende effekt og av/på-status hvert tiende sekund uten å laste hele modulen på nytt.
+`/energi/kurs-last` bruker modellen `kurs -> enhet/utgang -> last`. En last kan også ligge direkte på kurset. Enheten kan ha flere utganger og underenheter, mens realtime watt, akkumulert kWh og bryter er egenskaper med egne HC3-ID-er. Målepunkter kan knyttes til en av fem HC3-samlinger uten at den fysiske topologien dupliseres. Siden henter levende effekt, energi og av/på-status hvert 15. sekund uten å laste hele modulen på nytt.
 
 ### Ventilasjon og lys
 

@@ -5,8 +5,45 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1575")
+APP_BUILD = os.getenv("APP_BUILD", "1576")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1576",
+        "date": "16.07.2026",
+        "headline": "Samlemålere i Kurs/last",
+        "title": "Alle fysiske målepunkter kan knyttes til en av fem HC3-oppsamlinger",
+        "description": (
+            "Energimodellen skiller nå mellom den fysiske kursstrukturen og medlemskap i en HC3-samlemåler. "
+            "Hvert målepunkt kan ha separat ID for realtime watt og akkumulert kWh, samt tilhøre Varmepumper, "
+            "Belysning, Massasje, Annet eller den særskilte kontrollsamlingen Differanse. Kurs/last viser valgt "
+            "samling på hvert målepunkt og tilbyr alle fem i redigeringen."
+        ),
+        "applications": [
+            "main.py: utvider energinoder, validering, liveverdier og API med kWh-ID og samlemåler.",
+            "desktop_v2/src/pages/EnergyCircuitLoadsPage.tsx: viser og redigerer samling per målepunkt.",
+            "desktop_v2/src/api.ts: nye kontrakter for separat kWh-ID og HC3-samling.",
+            "migrations/versions/20260716_1730_add_energy_node_aggregation.sql: skjema og trygg backfill.",
+            "scripts/configure_energy_course_6.py: registrerer kurs 6 som 530/529 under Annet.",
+            "tests/test_energy_topology.py: regresjonstester separat watt/kWh og samlingsmedlemskap.",
+            "docs/hc3-energi-oppsamlinger.md: dokumenterer alle fem samlinger og korrekt modell.",
+        ],
+        "request": (
+            "Alle målere skal kunne inngå i en samle strømmåler. Vi har vel 5 slike i HC3? "
+            "Sørg for at dette kan gjenspeiles på kurs/last."
+        ),
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bekrefter fire ordinære HC3-kategorisamlinger og én særskilt differansesamling.",
+            "Beholder fysisk kurs, enhet, utgang og last som én uavhengig struktur.",
+            "Lar alle målepunkter velge samlemåler uten å duplisere dem i kursdiagrammet.",
+            "Skiller realtime watt fra akkumulert kWh i både database, API og livekontroll.",
+            "Retter kurs 29 til realtime 399 og akkumulert 398 under Massasje.",
+            "Knytter kurs 6 til realtime 530 og akkumulert 529 under Annet.",
+            "Backfiller kjente HC3-målepunkter med riktig samling og akkumulert ID.",
+        ],
+    },
     {
         "version": "1",
         "build": "1575",
