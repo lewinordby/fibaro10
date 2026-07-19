@@ -2196,7 +2196,13 @@ function DoorDeviationBoard({
         : null;
       let severity: DoorDeviationRow["severity"] = "ok";
       let deviation = "Ingen avvik";
-      if (alarm || period.severity === "alert") {
+      if (alarm?.outcome === "false_positive") {
+        severity = "warning";
+        deviation = "Bekreftet feilalarm";
+      } else if (alarm?.alarmType === "closed_without_session") {
+        severity = "alert";
+        deviation = "Alarm: lukket uten funnet soltime";
+      } else if (alarm || period.severity === "alert") {
         severity = "alert";
         deviation = period.missingSession ? "Lukket uten funnet soltime" : "Alarmgrense etter solslutt";
       } else if (period.missingSession) {
@@ -2254,8 +2260,8 @@ function DoorDeviationBoard({
       key: "severity",
       width: 95,
       render: (_value, row) => (
-        <Tag color={row.severity === "alert" ? "red" : row.severity === "warning" ? "orange" : "green"}>
-          {row.severity === "alert" ? "Alarm" : row.severity === "warning" ? "Avvik" : "OK"}
+        <Tag color={row.alarm?.outcome === "false_positive" ? "orange" : row.severity === "alert" ? "red" : row.severity === "warning" ? "orange" : "green"}>
+          {row.alarm?.outcome === "false_positive" ? "Feilalarm" : row.severity === "alert" ? "Alarm" : row.severity === "warning" ? "Avvik" : "OK"}
         </Tag>
       ),
     },

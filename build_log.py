@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1580")
+APP_BUILD = os.getenv("APP_BUILD", "1581")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1581",
+        "date": "19.07.2026",
+        "headline": "Feilalarm skilles fra reell alarm",
+        "title": "Avvikstabellen bruker riktig status og forklaring for kontrollerte feilalarmer",
+        "description": (
+            "Den visuelle produksjonskontrollen viste at en bekreftet feilalarm hadde korrekt alarmtype og "
+            "tidspunkt, men fikk samme avvikstekst som reell overtid. Avvikstabellen skiller nå uttrykkelig "
+            "mellom feilalarm, lukket uten soltime og overtid etter solslutt."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/DoorsPage.tsx: presis status, farge og avvikstekst per alarmutfall.",
+            "build_log.py: dokumenterer korreksjonen etter visuell produksjonskontroll.",
+        ],
+        "request": "I denne tabellen skal du også vise når det har gått alarm.",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser bekreftet feilalarm med oransje status i stedet for rød aktiv alarmstatus.",
+            "Skiller teksten for lukket uten soltime fra alarmgrense etter solslutt.",
+            "Beholder alarmtid, alarmtype og historisk varselstatus i samme tabellrad.",
+        ],
+    },
     {
         "version": "1",
         "build": "1580",
