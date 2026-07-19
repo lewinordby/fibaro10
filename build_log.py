@@ -5,8 +5,43 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1579")
+APP_BUILD = os.getenv("APP_BUILD", "1580")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1580",
+        "date": "19.07.2026",
+        "headline": "Varig alarmhistorikk og døravvik",
+        "title": "Dørperioder, Sun2-timer, avvik og utsendte alarmer kan kontrolleres samlet",
+        "description": (
+            "Alle nye solromalarmer lagres nå varig med alarmtid, type, rom, dørgrunnlag, tilknyttet Sun2-time, "
+            "forventet utgang, utsendingsstatus og tidspunkt for avslutning. Dører har fått siden Avvik, som viser "
+            "hver lukket-til-åpen-periode sammen med soltime og alarm i én kompakt dagstabell. Historiske "
+            "alarmvilkår kan rekonstrueres fra eksisterende dør- og Sun2-data uten å late som gammel "
+            "varselkvittering er kjent."
+        ),
+        "applications": [
+            "main.py og alarm_events: lagrer alarmforløp og ntfy-resultat, og tilbyr datofiltrert historikk.",
+            "desktop_v2: ny Dører > Avvik-tabell og varig historikk på alarmsiden.",
+            "scripts/backfill_sunroom_alarm_history.py: rekonstruerer dokumenterbare tidligere alarmvilkår.",
+            "tests og dokumentasjon: kontrollerer alarmtyper, skjema, ruter og bruksflyt.",
+        ],
+        "request": (
+            "Jeg ønsker at alle alarmer skal lagres slik at vi kan sjekke i ettertid. Lagre alle åpne og lukke "
+            "tidspunkter og vis dem sammen med soltimene under Dører som en tabell med avvik. I denne tabellen "
+            "skal det også vises når det har gått alarm."
+        ),
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Lagrer hver alarm som én stabil episode som oppdateres til den er avsluttet.",
+            "Lagrer om varsel ble sendt eller feilet, antall utsendinger og siste utsendingstid.",
+            "Viser alarmtid og alarmtype direkte på riktig dørperiode i avvikstabellen.",
+            "Henter alarmhistorikk for valgt dato slik at eldre dager fortsatt kobles korrekt.",
+            "Beholder alle rå åpne/lukke-hendelser i door_events og avleder ryddige dørperioder uten duplikater.",
+            "Holder nye Dører-funksjoner i den eksisterende lazy-lastede sidepakken og justerer totalbudsjettet 5 kB.",
+        ],
+    },
     {
         "version": "1",
         "build": "1579",

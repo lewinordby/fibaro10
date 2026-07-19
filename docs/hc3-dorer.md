@@ -78,6 +78,32 @@ Visningsnumrene 10-12 er ikke de samme som intern fysisk rom-ID. Solrom 10, 11 o
 bekrefter alarmgrunnlaget i en ny databaseøkt før varsel sendes. Det er bare bakgrunnsmonitoren som kan sende
 ntfy-varsel; visning og oppdatering av websider er lesende.
 
+## Alarmhistorikk og avvik
+
+Raa apne- og lukkehendelser beholdes i `door_events`. Fibaro10 slar sammen gjentatte statuser fra HC3 til en
+reell dorperiode fra lukket til neste apning. Siden `Dorer -> Avvik` viser alle periodene for valgt dag mot
+tilhorende Sun2-time, forventet utgang og faktisk apning.
+
+Alarmepisoder lagres varig i `alarm_events` med:
+
+- tidspunktet da alarmgrensen ble passert
+- alarmtype: lukket uten soltime eller overtid etter solslutt
+- rom, sensor, fysisk rom og Sun2-seng
+- tilknyttet Sun2 kilde-ID og forventet utgang
+- om ntfy-varselet ble sendt eller feilet, og antall utsendinger
+- tidspunkt og grunn nar alarmen ble avsluttet
+- status for eventuell senere kontroll av alarmen
+
+`Dorer -> Alarm` viser den samlede alarmhistorikken. Alarmkolonnen i `Dorer -> Avvik` viser alarmen pa den
+konkrete dorperioden. Ved eldre rekonstruerte alarmvilkar vises utsendingsstatus som ukjent dersom den gamle
+losningen ikke lagret ntfy-kvitteringen.
+
+Historiske alarmvilkar kan rekonstrueres uten a overskrive eksisterende alarmhistorikk:
+
+```powershell
+python scripts/backfill_sunroom_alarm_history.py --since 2026-07-13
+```
+
 ## Installer HC3-scener
 
 Kjor denne fra repoet nar HC3-credentials er tilgjengelig i miljovariabler:

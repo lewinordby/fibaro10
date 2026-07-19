@@ -714,6 +714,44 @@ class DoorEvent(Base):
     extra = Column(JSON, nullable=True)
 
 
+class AlarmEvent(Base):
+    __tablename__ = "alarm_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_key = Column(String, unique=True, index=True, nullable=False)
+    domain = Column(String, index=True, nullable=False, default="doors")
+    alarm_type = Column(String, index=True, nullable=False)
+    status = Column(String, index=True, nullable=False, default="active")
+    severity = Column(String, index=True, nullable=False, default="alert")
+    outcome = Column(String, index=True, nullable=False, default="unreviewed")
+    title = Column(String, nullable=False)
+    detail = Column(Text, nullable=True)
+    device_key = Column(String, index=True, nullable=True)
+    device_id = Column(Integer, index=True, nullable=True)
+    room_id = Column(String, index=True, nullable=True)
+    display_room_number = Column(Integer, index=True, nullable=True)
+    physical_room_number = Column(Integer, index=True, nullable=True)
+    sun2_bed_id = Column(String, index=True, nullable=True)
+    source_session_id = Column(String, index=True, nullable=True)
+    door_changed_at = Column(DateTime, index=True, nullable=True)
+    expected_exit_at = Column(DateTime, nullable=True)
+    detected_at = Column(DateTime, index=True, nullable=False, default=local_now_naive)
+    last_observed_at = Column(DateTime, index=True, nullable=False, default=local_now_naive)
+    resolved_at = Column(DateTime, index=True, nullable=True)
+    resolution_reason = Column(String, nullable=True)
+    notification_status = Column(String, index=True, nullable=False, default="pending")
+    notification_count = Column(Integer, nullable=False, default=0)
+    first_notification_at = Column(DateTime, nullable=True)
+    last_notification_at = Column(DateTime, index=True, nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    reviewed_by = Column(String, nullable=True)
+    review_note = Column(Text, nullable=True)
+    source = Column(String, index=True, nullable=False, default="sunroom_door_monitor")
+    created_at = Column(DateTime, index=True, nullable=False, default=local_now_naive)
+    updated_at = Column(DateTime, index=True, nullable=False, default=local_now_naive)
+    raw = Column(JSON, nullable=True)
+
+
 class ImportJobStatus(Base):
     __tablename__ = "import_job_status"
 
@@ -12126,6 +12164,15 @@ def sunroom_status_item(
             status = "I bruk"
             detail = "Soltime funnet, men sluttid mangler."
 
+    alarm_reason = None
+    alarm_title = ""
+    if no_session_alarm_active:
+        alarm_reason = "closed_without_session"
+        alarm_title = "Lukket uten soltime"
+    elif severity == "alert" and is_occupied and matched_session:
+        alarm_reason = "overstay"
+        alarm_title = "Overtid etter solslutt"
+
     return {
         "deviceId": door.get("deviceId"),
         "deviceKey": door.get("deviceKey"),
@@ -12154,8 +12201,8 @@ def sunroom_status_item(
         "missingSession": missing_session,
         "noSessionAlarmActive": no_session_alarm_active,
         "noSessionAlarmMinutes": SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES,
-        "alarmReason": "closed_without_session" if no_session_alarm_active else None,
-        "alarmTitle": "Lukket uten soltime" if no_session_alarm_active else "",
+        "alarmReason": alarm_reason,
+        "alarmTitle": alarm_title,
         "session": sunroom_session_payload(matched_session) if matched_session else None,
         "expectedExitAt": expected_exit_at.isoformat() if expected_exit_at else None,
         "expectedExitLabel": format_source_datetime(expected_exit_at) if expected_exit_at else "-",
@@ -12166,51 +12213,197 @@ def sunroom_status_item(
     }
 
 
-def sunroom_alert_key(item: Dict[str, Any]) -> str:
-    session = item.get("session") or {}
-    return "|".join(
-        [
+def sunroom_alarm_event_key(item: Dict[str, Any]) -> str:
+    session_item = item.get("session") or {}
+    identity = "|".join(
+        (
             str(item.get("deviceKey") or item.get("roomId") or "unknown"),
             str(item.get("alarmReason") or "overstay"),
-            str(session.get("sourceSessionId") or session.get("id") or "missing"),
-            str(item.get("expectedExitAt") or item.get("doorChangedAt") or ""),
-            str(item.get("severity") or ""),
-        ]
+            str(item.get("doorChangedAt") or ""),
+            str(session_item.get("sourceSessionId") or session_item.get("id") or "missing"),
+        )
+    )
+    return hashlib.sha256(identity.encode("utf-8")).hexdigest()
+
+
+def sunroom_alert_key(item: Dict[str, Any]) -> str:
+    return sunroom_alarm_event_key(item)
+
+
+def sunroom_alarm_detected_at(item: Dict[str, Any], now: datetime) -> datetime:
+    reason = item.get("alarmReason") or "overstay"
+    if reason == "closed_without_session":
+        changed_at = sunroom_parse_time_value(item.get("doorChangedAt"))
+        if changed_at:
+            return changed_at + timedelta(minutes=SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES)
+    session_item = item.get("session") or {}
+    ended_at = sunroom_parse_time_value(session_item.get("endedAt"))
+    if ended_at:
+        return ended_at + timedelta(minutes=SUNROOM_DOOR_ALERT_AFTER_END_MINUTES)
+    return now
+
+
+def sunroom_alarm_message(item: Dict[str, Any], checked_at: Optional[datetime] = None) -> str:
+    if item.get("noSessionAlarmActive"):
+        suffix = f" Kontrollert {checked_at.strftime('%H:%M:%S')}." if checked_at else ""
+        return (
+            f"{item.get('title') or item.get('roomLabel')}: dør lukket i "
+            f"{item.get('occupiedDurationLabel') or '-'} uten funnet Sun2-time. "
+            f"Lukket siden {item.get('occupiedSinceLabel') or '-'}.{suffix}"
+        )
+    return (
+        f"{item.get('title') or item.get('roomLabel')}: dør fortsatt lukket. "
+        f"Forventet ut {item.get('expectedExitLabel') or '-'}. "
+        f"Overtid {item.get('overstayLabel') or '-'}."
     )
 
 
-async def publish_sunroom_door_alerts(items: list[Dict[str, Any]], now: datetime) -> int:
+def alarm_event_payload(row: AlarmEvent) -> Dict[str, Any]:
+    return {
+        "id": row.id,
+        "eventKey": row.event_key,
+        "domain": row.domain,
+        "alarmType": row.alarm_type,
+        "status": row.status,
+        "severity": row.severity,
+        "outcome": row.outcome,
+        "title": row.title,
+        "detail": row.detail,
+        "deviceKey": row.device_key,
+        "deviceId": row.device_id,
+        "roomId": row.room_id,
+        "displayRoomNumber": row.display_room_number,
+        "physicalRoomNumber": row.physical_room_number,
+        "sun2BedId": row.sun2_bed_id,
+        "sourceSessionId": row.source_session_id,
+        "doorChangedAt": row.door_changed_at.isoformat() if row.door_changed_at else None,
+        "expectedExitAt": row.expected_exit_at.isoformat() if row.expected_exit_at else None,
+        "detectedAt": row.detected_at.isoformat() if row.detected_at else None,
+        "detectedLabel": format_source_datetime(row.detected_at) if row.detected_at else "-",
+        "lastObservedAt": row.last_observed_at.isoformat() if row.last_observed_at else None,
+        "resolvedAt": row.resolved_at.isoformat() if row.resolved_at else None,
+        "resolvedLabel": format_source_datetime(row.resolved_at) if row.resolved_at else "Pågår",
+        "resolutionReason": row.resolution_reason,
+        "notificationStatus": row.notification_status,
+        "notificationCount": int(row.notification_count or 0),
+        "firstNotificationAt": row.first_notification_at.isoformat() if row.first_notification_at else None,
+        "lastNotificationAt": row.last_notification_at.isoformat() if row.last_notification_at else None,
+        "lastNotificationLabel": format_source_datetime(row.last_notification_at) if row.last_notification_at else "-",
+        "reviewedAt": row.reviewed_at.isoformat() if row.reviewed_at else None,
+        "reviewedBy": row.reviewed_by,
+        "reviewNote": row.review_note,
+        "source": row.source,
+    }
+
+
+async def sync_sunroom_alarm_history(session, items: list[Dict[str, Any]], now: datetime) -> Dict[str, AlarmEvent]:
+    active_items = [
+        item
+        for item in items
+        if item.get("severity") == "alert" and item.get("isOccupied") and item.get("alarmReason")
+    ]
+    active_by_key = {sunroom_alarm_event_key(item): item for item in active_items}
+    where_clause = and_(AlarmEvent.domain == "doors", AlarmEvent.status == "active")
+    if active_by_key:
+        where_clause = and_(
+            AlarmEvent.domain == "doors",
+            or_(AlarmEvent.status == "active", AlarmEvent.event_key.in_(list(active_by_key))),
+        )
+    existing_rows = (await session.execute(select(AlarmEvent).where(where_clause))).scalars().all()
+    existing_by_key = {row.event_key: row for row in existing_rows}
+    current_by_device = {str(item.get("deviceKey") or ""): item for item in items}
+
+    for event_key, item in active_by_key.items():
+        alarm = existing_by_key.get(event_key)
+        session_item = item.get("session") or {}
+        if alarm is None:
+            alarm = AlarmEvent(
+                event_key=event_key,
+                domain="doors",
+                alarm_type=str(item.get("alarmReason") or "overstay"),
+                status="active",
+                severity="alert",
+                outcome="unreviewed",
+                title=str(item.get("title") or item.get("roomLabel") or "Solromalarm"),
+                detected_at=sunroom_alarm_detected_at(item, now),
+                created_at=now,
+                source="sunroom_door_monitor",
+            )
+            session.add(alarm)
+            existing_by_key[event_key] = alarm
+        alarm.status = "active"
+        alarm.severity = str(item.get("severity") or "alert")
+        alarm.detail = str(item.get("detail") or sunroom_alarm_message(item))
+        alarm.device_key = item.get("deviceKey")
+        alarm.device_id = item.get("deviceId")
+        alarm.room_id = item.get("roomId")
+        alarm.display_room_number = item.get("displayRoomNumber")
+        alarm.physical_room_number = item.get("physicalRoomNumber")
+        alarm.sun2_bed_id = item.get("sun2BedId")
+        alarm.source_session_id = session_item.get("sourceSessionId")
+        alarm.door_changed_at = sunroom_parse_time_value(item.get("doorChangedAt"))
+        alarm.expected_exit_at = sunroom_parse_time_value(item.get("expectedExitAt"))
+        alarm.last_observed_at = now
+        alarm.resolved_at = None
+        alarm.resolution_reason = None
+        alarm.updated_at = now
+        alarm.raw = item
+
+    for alarm in existing_rows:
+        if alarm.status != "active" or alarm.event_key in active_by_key:
+            continue
+        current = current_by_device.get(str(alarm.device_key or "")) or {}
+        alarm.status = "resolved"
+        alarm.resolved_at = now
+        if current.get("doorState") == "open":
+            alarm.resolution_reason = "door_opened"
+        elif current.get("session"):
+            alarm.resolution_reason = "session_found"
+        else:
+            alarm.resolution_reason = "condition_cleared"
+        if alarm.notification_status == "pending":
+            alarm.notification_status = "not_sent"
+        alarm.last_observed_at = now
+        alarm.updated_at = now
+
+    await session.flush()
+    return existing_by_key
+
+
+async def publish_sunroom_door_alerts(items: list[Dict[str, Any]], now: datetime, session=None) -> int:
     sent_count = 0
     cutoff = now - timedelta(minutes=SUNROOM_DOOR_NTFY_COOLDOWN_MINUTES)
     for key, last_sent_at in list(sunroom_door_alert_last_sent.items()):
         if last_sent_at < cutoff - timedelta(hours=6):
             sunroom_door_alert_last_sent.pop(key, None)
 
-    for item in items:
-        if item.get("severity") != "alert" or not item.get("isOccupied"):
-            continue
+    candidates = [
+        item
+        for item in items
+        if item.get("severity") == "alert" and item.get("isOccupied") and item.get("alarmReason")
+    ]
+    persisted_by_key: Dict[str, AlarmEvent] = {}
+    if session is not None and candidates:
+        keys = [sunroom_alarm_event_key(item) for item in candidates]
+        rows = (await session.execute(select(AlarmEvent).where(AlarmEvent.event_key.in_(keys)))).scalars().all()
+        persisted_by_key = {row.event_key: row for row in rows}
+
+    for item in candidates:
         key = sunroom_alert_key(item)
-        last_sent_at = sunroom_door_alert_last_sent.get(key)
+        persisted = persisted_by_key.get(key)
+        last_sent_at = persisted.last_notification_at if persisted and persisted.last_notification_at else sunroom_door_alert_last_sent.get(key)
         if last_sent_at and last_sent_at >= cutoff:
             continue
         if item.get("noSessionAlarmActive"):
-            message = (
-                f"{item.get('title') or item.get('roomLabel')}: dør lukket i "
-                f"{item.get('occupiedDurationLabel') or '-'} uten funnet Sun2-time. "
-                f"Lukket siden {item.get('occupiedSinceLabel') or '-'}. "
-                f"Kontrollert {now.strftime('%H:%M:%S')}."
-            )
+            message = sunroom_alarm_message(item, now)
             title = "SUN2 alarm: lukket uten soltime"
             tags = "door,warning"
         else:
-            message = (
-                f"{item.get('title') or item.get('roomLabel')}: dør fortsatt lukket. "
-                f"Forventet ut {item.get('expectedExitLabel') or '-'}. "
-                f"Overtid {item.get('overstayLabel') or '-'}."
-            )
+            message = sunroom_alarm_message(item, now)
             title = "SUN2 dørvarsel"
             tags = "door,rotating_light"
-        if await publish_door_ntfy(title, message, priority="4", tags=tags):
+        sent = await publish_door_ntfy(title, message, priority="4", tags=tags)
+        if sent:
             sunroom_door_alert_last_sent[key] = now
             sent_count += 1
             logger.warning(
@@ -12221,6 +12414,15 @@ async def publish_sunroom_door_alerts(items: list[Dict[str, Any]], now: datetime
                 item.get("doorChangedAt"),
                 now.isoformat(),
             )
+        if persisted is not None:
+            persisted.notification_status = "sent" if sent else "failed"
+            if sent:
+                persisted.notification_count = int(persisted.notification_count or 0) + 1
+                persisted.first_notification_at = persisted.first_notification_at or now
+                persisted.last_notification_at = now
+            persisted.updated_at = now
+    if session is not None:
+        await session.flush()
     return sent_count
 
 
@@ -12275,7 +12477,9 @@ async def sunroom_door_session_payload(session, notify: bool = False) -> Dict[st
         rooms.append(sunroom_status_item(config, latest_row, sessions_by_room, now))
     rooms.sort(key=lambda item: (str(item.get("sectionKey") or ""), int(item.get("sortOrder") or 0)))
     if notify:
-        await publish_sunroom_door_alerts(rooms, now)
+        await sync_sunroom_alarm_history(session, rooms, now)
+        await publish_sunroom_door_alerts(rooms, now, session=session)
+        await session.commit()
     active_rooms = [item for item in rooms if item.get("isOccupied")]
     warning_rooms = [item for item in rooms if item.get("severity") == "warning"]
     alert_rooms = [item for item in rooms if item.get("severity") == "alert"]
@@ -12310,20 +12514,44 @@ async def sunroom_door_session_payload(session, notify: bool = False) -> Dict[st
     }
 
 
-async def sunroom_door_alarm_payload(session) -> Dict[str, Any]:
+async def sunroom_door_alarm_payload(
+    session,
+    history_limit: int = 100,
+    history_day: Optional[date] = None,
+) -> Dict[str, Any]:
     payload = await sunroom_door_session_payload(session, notify=False)
     rooms = list(payload.get("rooms") or [])
-    alarms = [item for item in rooms if item.get("noSessionAlarmActive")]
+    alarms = [item for item in rooms if item.get("severity") == "alert" and item.get("isOccupied")]
     watch = [item for item in rooms if item.get("missingSession") and not item.get("noSessionAlarmActive")]
     occupied_without_session = [item for item in rooms if item.get("isOccupied") and not item.get("session")]
+    history_limit = max(10, min(int(history_limit or 100), 500))
+    history_stmt = select(AlarmEvent).where(AlarmEvent.domain == "doors")
+    if history_day:
+        history_start = datetime.combine(history_day, time.min)
+        history_end = history_start + timedelta(days=1)
+        history_stmt = history_stmt.where(
+            or_(
+                and_(AlarmEvent.detected_at >= history_start, AlarmEvent.detected_at < history_end),
+                and_(AlarmEvent.door_changed_at >= history_start, AlarmEvent.door_changed_at < history_end),
+            )
+        )
+    history_rows = (
+        await session.execute(
+            history_stmt.order_by(AlarmEvent.detected_at.desc(), AlarmEvent.id.desc()).limit(history_limit)
+        )
+    ).scalars().all()
     payload["alarms"] = alarms
     payload["watch"] = watch
     payload["occupiedWithoutSession"] = occupied_without_session
+    payload["history"] = [alarm_event_payload(row) for row in history_rows]
     payload["summary"] = {
         **dict(payload.get("summary") or {}),
         "alarm": len(alarms),
         "watch": len(watch),
         "occupiedWithoutSession": len(occupied_without_session),
+        "history": len(history_rows),
+        "historyActive": len([row for row in history_rows if row.status == "active"]),
+        "historyNotified": len([row for row in history_rows if int(row.notification_count or 0) > 0]),
     }
     return payload
 
@@ -12543,7 +12771,8 @@ async def sunroom_room_overview_payload(session, days: int = 2, day: Optional[st
 
         periods = []
         matched_ids: set[int] = set()
-        for period in device_periods[:12]:
+        visible_device_periods = device_periods if has_day_filter else device_periods[:12]
+        for period in visible_device_periods:
             matched_session = sunroom_match_session_for_period(room_sessions, period.get("closedAt"), period.get("openedAt"), now)
             if matched_session and matched_session.id is not None:
                 matched_ids.add(int(matched_session.id))
@@ -12584,7 +12813,9 @@ async def sunroom_room_overview_payload(session, days: int = 2, day: Optional[st
             for row in room_sessions
             if (start_at := normalize_local_naive(row.started_at))
             and ((day_start <= start_at < day_end) if has_day_filter else start_at >= start_cutoff)
-        ][:8]
+        ]
+        if not has_day_filter:
+            recent_sessions = recent_sessions[:8]
 
         sessions_without_door = [item for item in recent_sessions if not item.get("hasDoorMatch")]
         alerts = [period for period in periods if period.get("severity") == "alert"]
@@ -12678,12 +12909,27 @@ async def sunroom_door_monitor_worker():
         try:
             async with async_session() as session:
                 payload = await sunroom_door_session_payload(session, notify=False)
-            if any(item.get("severity") == "alert" and item.get("isOccupied") for item in payload.get("rooms") or []):
+                has_alert = any(
+                    item.get("severity") == "alert" and item.get("isOccupied") and item.get("alarmReason")
+                    for item in payload.get("rooms") or []
+                )
+                if not has_alert:
+                    await sync_sunroom_alarm_history(session, list(payload.get("rooms") or []), local_now_naive())
+                    await session.commit()
+            if has_alert:
                 if SUNROOM_DOOR_ALERT_CONFIRM_SECONDS:
                     await asyncio.sleep(SUNROOM_DOOR_ALERT_CONFIRM_SECONDS)
                 async with async_session() as confirmation_session:
                     confirmed = await sunroom_door_session_payload(confirmation_session, notify=False)
-                await publish_sunroom_door_alerts(list(confirmed.get("rooms") or []), local_now_naive())
+                    confirmed_at = local_now_naive()
+                    confirmed_rooms = list(confirmed.get("rooms") or [])
+                    await sync_sunroom_alarm_history(confirmation_session, confirmed_rooms, confirmed_at)
+                    await publish_sunroom_door_alerts(
+                        confirmed_rooms,
+                        confirmed_at,
+                        session=confirmation_session,
+                    )
+                    await confirmation_session.commit()
         except Exception as exc:
             logger.warning("Sunroom door monitor feilet: %s", exc, exc_info=True)
         await asyncio.sleep(SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS)
@@ -35651,9 +35897,13 @@ async def api_hc3_doors_sunroom_sessions():
 
 
 @app.get("/api/hc3/doors/alarm")
-async def api_hc3_doors_alarm():
+async def api_hc3_doors_alarm(
+    history_limit: int = Query(100, ge=10, le=500),
+    day: Optional[str] = Query(None),
+):
+    history_day = parse_day(day) if day else None
     async with async_session() as session:
-        return await sunroom_door_alarm_payload(session)
+        return await sunroom_door_alarm_payload(session, history_limit=history_limit, history_day=history_day)
 
 
 @app.get("/api/hc3/doors/sunroom-overview")

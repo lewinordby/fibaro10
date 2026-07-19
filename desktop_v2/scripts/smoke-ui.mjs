@@ -812,6 +812,7 @@ function sunroomSessionsPayload() {
       warnAfterEndMinutes: 5,
       alertAfterEndMinutes: 10,
       monitorIntervalSeconds: 30,
+      alertConfirmSeconds: 15,
     },
     summary: {
       rooms: 2,
@@ -834,11 +835,15 @@ function doorAlarmPayload() {
     alarms: [],
     watch: [],
     occupiedWithoutSession: [],
+    history: [],
     summary: {
       ...payload.summary,
       alarm: 0,
       watch: 0,
       occupiedWithoutSession: 0,
+      history: 0,
+      historyActive: 0,
+      historyNotified: 0,
     },
   };
 }

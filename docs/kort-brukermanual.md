@@ -28,7 +28,7 @@ Dette er tekstversjonen av den korte oversiktsmanualen. Den levende manualen lig
 | Solrom | `/solrom/oversikt` | Nåstatus, forventet ut, varsler, romdetaljer og dagskontroll for solrom 1-12. |
 | Solrom-2 | `/solrom-2/oversikt` | Ny arbeidsflate for solrom med nåstatus, dagsmatrise, avvikskontroll og romdetalj. |
 | Dører2 | `/dorer2/oversikt` | Ny operativ situasjonsflate for solrom og byggdører med avvik først, romkart og detaljvisning. |
-| Dører | `/dorer/oversikt` | Byggdører, andre dører, åpne/lukke-historikk, rådata og synlige designvarianter for romkontroll. |
+| Dører | `/dorer/oversikt` | Byggdører, åpne/lukke-historikk, alarmhistorikk og daglig avvikstabell mot Sun2-timer. |
 | Vedlikehold | `/vedlikehold/besok` | Besøk på Lilletorget og oppgaver utført under hvert besøk. |
 | Renhold | `/renhold/oversikt` | Roborock-status, siste jobber, robotdetaljer og loggerstatus. |
 | Mobil og iPad | `/mobil/oversikt` | Kontroll av hva de lette mobil- og iPad-flatene viser. |

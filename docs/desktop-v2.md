@@ -120,6 +120,8 @@ Koble bruker sideappen `parking_sun_linker`, men all styring, status og manuell 
 - `/dorer2/bygg`
 - `/dorer/oversikt`
 - `/dorer/andre`
+- `/dorer/alarm` viser aktive alarmer og varig alarmhistorikk.
+- `/dorer/avvik` viser dørperioder, Sun2-timer, avvik og alarmtid for valgt dag.
 - `/dorer/radata`
 - Eldre solrom-/romkontrollruter under `/dorer` er synlige igjen for sammenligning mens designet vurderes.
 - `/renhold/oversikt`

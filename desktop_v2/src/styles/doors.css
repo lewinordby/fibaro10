@@ -561,6 +561,45 @@
   background: color-mix(in srgb, var(--green) 5%, var(--surface));
 }
 
+.door-alarm-history-detail {
+  display: grid;
+  gap: 2px;
+  min-width: 180px;
+}
+
+.door-alarm-history-detail strong {
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 680;
+}
+
+.door-alarm-history-detail small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.door-deviation-board {
+  display: grid;
+  gap: 12px;
+}
+
+.door-deviation-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.door-deviation-row.severity-alert > td:first-child {
+  box-shadow: inset 3px 0 0 var(--red);
+}
+
+.door-deviation-row.severity-warning > td:first-child {
+  box-shadow: inset 3px 0 0 var(--amber);
+}
+
+.door-deviation-row.severity-ok > td:first-child {
+  box-shadow: inset 3px 0 0 var(--green);
+}
+
 .door-table-muted {
   color: var(--muted);
   font-size: 11px;
@@ -2951,6 +2990,10 @@
 }
 
 @media (max-width: 760px) {
+  .door-deviation-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .door-board-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

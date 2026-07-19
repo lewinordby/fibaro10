@@ -22,6 +22,7 @@ import {
   fetchDoorSunroomRoomDetail,
   fetchDoorSunroomSessions,
   fetchDoorStatus,
+  type DoorAlarmHistoryItem,
   type DoorEventItem,
   type DoorPeriodItem,
   type DoorSunroomEnergyEvidence,
@@ -64,6 +65,7 @@ type DoorView =
   | "romkontroll-ny2"
   | "soltimer"
   | "alarm"
+  | "avvik"
   | "solrom"
   | "solrom-ny"
   | "andre"
@@ -80,6 +82,7 @@ const DOOR_VIEWS: DoorView[] = [
   "romkontroll-ny2",
   "soltimer",
   "alarm",
+  "avvik",
   "solrom",
   "solrom-ny",
   "andre",
@@ -2123,6 +2126,253 @@ function DoorSunroomSessionsBoard({
   );
 }
 
+type DoorDeviationRow = {
+  key: string;
+  title: string;
+  deviceKey: string;
+  roomId?: string | null;
+  closedAt?: string | null;
+  openedAt?: string | null;
+  durationLabel: string;
+  session?: DoorSunroomOverviewSession | null;
+  expectedExitAt?: string | null;
+  severity: "ok" | "warning" | "alert";
+  deviation: string;
+  exitDeltaMinutes?: number | null;
+  alarm?: DoorAlarmHistoryItem | null;
+};
+
+function deviationClock(value?: string | null) {
+  if (!value) return "-";
+  const parsed = dayjs(value);
+  return parsed.isValid() ? parsed.format("HH:mm:ss") : value;
+}
+
+function deviationMinutesLabel(value?: number | null) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "-";
+  const rounded = Math.round(value);
+  if (rounded === 0) return "0 min";
+  return `${rounded > 0 ? "+" : ""}${rounded} min`;
+}
+
+function alarmNotificationLabel(alarm: DoorAlarmHistoryItem) {
+  if (alarm.notificationStatus === "sent") return `Varsel sendt ${deviationClock(alarm.lastNotificationAt)}`;
+  if (alarm.notificationStatus === "failed") return "Varselsending feilet";
+  if (alarm.notificationStatus === "not_sent") return "Varsel ikke sendt";
+  if (alarm.notificationStatus === "unknown") return "Ukjent for historisk alarm";
+  return "Varsel avventer";
+}
+
+function DoorDeviationBoard({
+  data,
+  alarms,
+  loading,
+  error,
+  selectedDay,
+  onDayChange,
+}: {
+  data?: DoorSunroomOverviewResponse | null;
+  alarms?: DoorSunroomAlarmResponse | null;
+  loading: boolean;
+  error: unknown;
+  selectedDay: string;
+  onDayChange: (day: string) => void;
+}) {
+  if (loading) return <LoadingBlock />;
+  if (error || !data) return <ErrorBlock error={error} />;
+
+  const alarmHistory = alarms?.history ?? [];
+  const rows: DoorDeviationRow[] = [];
+  data.rooms.forEach((room) => {
+    room.periods.forEach((period) => {
+      const sessionId = period.session?.sourceSessionId;
+      const alarm = alarmHistory.find((item) => {
+        if (item.deviceKey !== room.deviceKey) return false;
+        if (item.doorChangedAt && period.closedAt && Math.abs(dayjs(item.doorChangedAt).diff(dayjs(period.closedAt), "second")) <= 2) return true;
+        return Boolean(sessionId && item.sourceSessionId === sessionId);
+      });
+      const exitDeltaMinutes = period.openedAt && period.expectedExitAt
+        ? dayjs(period.openedAt).diff(dayjs(period.expectedExitAt), "second") / 60
+        : null;
+      let severity: DoorDeviationRow["severity"] = "ok";
+      let deviation = "Ingen avvik";
+      if (alarm || period.severity === "alert") {
+        severity = "alert";
+        deviation = period.missingSession ? "Lukket uten funnet soltime" : "Alarmgrense etter solslutt";
+      } else if (period.missingSession) {
+        severity = "warning";
+        deviation = "Dørperiode uten Sun2-time";
+      } else if (period.severity === "warning") {
+        severity = "warning";
+        deviation = "Sen utgang";
+      }
+      rows.push({
+        key: `period-${room.deviceKey}-${period.id}`,
+        title: room.title,
+        deviceKey: room.deviceKey,
+        roomId: room.roomId,
+        closedAt: period.closedAt,
+        openedAt: period.openedAt,
+        durationLabel: period.durationLabel,
+        session: period.session,
+        expectedExitAt: period.expectedExitAt,
+        severity,
+        deviation,
+        exitDeltaMinutes,
+        alarm,
+      });
+    });
+    room.sessionsWithoutDoor.forEach((session) => {
+      const alarm = alarmHistory.find((item) => item.sourceSessionId && item.sourceSessionId === session.sourceSessionId);
+      rows.push({
+        key: `session-${room.deviceKey}-${session.sourceSessionId || session.id}`,
+        title: room.title,
+        deviceKey: room.deviceKey,
+        roomId: room.roomId,
+        durationLabel: "-",
+        session,
+        expectedExitAt: session.expectedExitAt,
+        severity: alarm ? "alert" : "warning",
+        deviation: "Sun2-time uten funnet dørperiode",
+        alarm,
+      });
+    });
+  });
+  rows.sort((a, b) => dayjs(b.closedAt || b.session?.startedAt || 0).valueOf() - dayjs(a.closedAt || a.session?.startedAt || 0).valueOf());
+
+  const summary = {
+    rows: rows.length,
+    deviations: rows.filter((row) => row.severity !== "ok").length,
+    alarms: rows.filter((row) => Boolean(row.alarm) || row.severity === "alert").length,
+    missing: rows.filter((row) => !row.session || !row.closedAt).length,
+  };
+  const selectedDayValue = dayjs(selectedDay);
+  const columns: ColumnsType<DoorDeviationRow> = [
+    {
+      title: "Status",
+      dataIndex: "severity",
+      key: "severity",
+      width: 95,
+      render: (_value, row) => (
+        <Tag color={row.severity === "alert" ? "red" : row.severity === "warning" ? "orange" : "green"}>
+          {row.severity === "alert" ? "Alarm" : row.severity === "warning" ? "Avvik" : "OK"}
+        </Tag>
+      ),
+    },
+    {
+      title: "Rom",
+      dataIndex: "title",
+      key: "title",
+      width: 105,
+      render: (_value, row) =>
+        row.roomId ? <Link to={`/dorer/soltimer?room=${encodeURIComponent(row.roomId)}`}>{row.title}</Link> : row.title,
+    },
+    {
+      title: "Dør lukket",
+      dataIndex: "closedAt",
+      key: "closedAt",
+      width: 110,
+      render: (value) => deviationClock(value),
+    },
+    {
+      title: "Soltime",
+      key: "session",
+      width: 180,
+      render: (_value, row) => row.session ? (
+        <span className="door-alarm-history-detail">
+          <strong>{deviationClock(row.session.startedAt)}–{deviationClock(row.session.endedAt)}</strong>
+          <small>{row.session.durationMinutes ?? "-"} min · seng {row.session.sun2BedId || "-"}</small>
+        </span>
+      ) : <Tag>Ikke funnet</Tag>,
+    },
+    {
+      title: "Forventet ut",
+      dataIndex: "expectedExitAt",
+      key: "expectedExitAt",
+      width: 115,
+      render: (value) => deviationClock(value),
+    },
+    {
+      title: "Dør åpnet",
+      dataIndex: "openedAt",
+      key: "openedAt",
+      width: 135,
+      render: (_value, row) => (
+        <span className="door-alarm-history-detail">
+          <strong>{row.openedAt ? deviationClock(row.openedAt) : row.closedAt ? "Pågår" : "-"}</strong>
+          <small>{row.durationLabel}</small>
+        </span>
+      ),
+    },
+    {
+      title: "Avvik",
+      dataIndex: "deviation",
+      key: "deviation",
+      render: (_value, row) => (
+        <span className="door-alarm-history-detail">
+          <strong>{row.deviation}</strong>
+          <small>{row.exitDeltaMinutes !== null && row.exitDeltaMinutes !== undefined ? `${deviationMinutesLabel(row.exitDeltaMinutes)} mot forventet ut` : ""}</small>
+        </span>
+      ),
+    },
+    {
+      title: "Alarm",
+      key: "alarm",
+      width: 175,
+      render: (_value, row) => row.alarm ? (
+        <span className="door-alarm-history-detail">
+          <strong>{deviationClock(row.alarm.detectedAt)} · {row.alarm.alarmType === "overstay" ? "Overtid" : "Uten soltime"}</strong>
+          <small>{alarmNotificationLabel(row.alarm)}</small>
+        </span>
+      ) : row.severity === "alert" ? <Tag color="red">Historisk alarmvilkår</Tag> : "-",
+    },
+  ];
+
+  return (
+    <div className="door-deviation-board">
+      <section className="door-room-daily-date">
+        <div>
+          <span>Kontrolldato</span>
+          <strong>{roomControlDateLabel(data.dayDate || selectedDay)}</strong>
+        </div>
+        <PeriodNavigator
+          canNext={selectedDayValue.isBefore(dayjs(), "day")}
+          onPrevious={() => onDayChange(selectedDayValue.subtract(1, "day").format("YYYY-MM-DD"))}
+          onNext={() => onDayChange(selectedDayValue.add(1, "day").format("YYYY-MM-DD"))}
+          middle={
+            <DatePicker
+              allowClear={false}
+              format="DD.MM.YYYY"
+              size="small"
+              value={selectedDayValue}
+              onChange={(value) => value && onDayChange(value.format("YYYY-MM-DD"))}
+            />
+          }
+          extra={<Button size="small" onClick={() => onDayChange(dayjs().format("YYYY-MM-DD"))}>I dag</Button>}
+        />
+      </section>
+      <div className="door-sunroom-summary door-deviation-summary">
+        <div className="tone-status"><span>Dørperioder og timer</span><strong>{summary.rows}</strong></div>
+        <div className="tone-warning"><span>Avvik</span><strong>{summary.deviations}</strong></div>
+        <div className="tone-alert"><span>Alarm</span><strong>{summary.alarms}</strong></div>
+        <div className="tone-missing"><span>Mangler kobling</span><strong>{summary.missing}</strong></div>
+      </div>
+      <Card className="work-card doors-table-card doors-panel-card" title="Dørperioder mot Sun2">
+        <Table<DoorDeviationRow>
+          rowKey="key"
+          size="small"
+          columns={columns}
+          dataSource={rows}
+          pagination={false}
+          scroll={{ x: "max-content" }}
+          locale={{ emptyText: "Ingen dørperioder eller Sun2-timer denne dagen" }}
+          rowClassName={(row) => `door-deviation-row severity-${row.severity}`}
+        />
+      </Card>
+    </div>
+  );
+}
+
 function DoorAlarmBoard({
   data,
   loading,
@@ -2178,6 +2428,84 @@ function DoorAlarmBoard({
       title: "Vurdering",
       dataIndex: "detail",
       key: "detail",
+    },
+  ];
+  const historyColumns: ColumnsType<DoorAlarmHistoryItem> = [
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      width: 100,
+      render: (_value, row) => (
+        <Tag color={row.status === "active" ? "red" : row.outcome === "false_positive" ? "orange" : "green"}>
+          {row.status === "active" ? "Aktiv" : row.outcome === "false_positive" ? "Feilalarm" : "Avsluttet"}
+        </Tag>
+      ),
+    },
+    {
+      title: "Alarmtid",
+      dataIndex: "detectedAt",
+      key: "detectedAt",
+      width: 155,
+      render: (value) => roomControlGeneratedLabel(value),
+    },
+    {
+      title: "Rom",
+      dataIndex: "title",
+      key: "title",
+      width: 120,
+      render: (_value, row) =>
+        row.roomId ? <Link to={`/dorer/soltimer?room=${encodeURIComponent(row.roomId)}`}>{row.title}</Link> : row.title,
+    },
+    {
+      title: "Type",
+      dataIndex: "alarmType",
+      key: "alarmType",
+      width: 175,
+      render: (value) => (value === "closed_without_session" ? "Lukket uten soltime" : value === "overstay" ? "Overtid" : value),
+    },
+    {
+      title: "Grunnlag",
+      dataIndex: "detail",
+      key: "detail",
+      render: (_value, row) => (
+        <span className="door-alarm-history-detail">
+          <strong>{row.detail || "Alarm registrert"}</strong>
+          <small>
+            Dør {roomControlGeneratedLabel(row.doorChangedAt)}
+            {row.expectedExitAt ? ` · forventet ut ${roomControlGeneratedLabel(row.expectedExitAt)}` : ""}
+          </small>
+        </span>
+      ),
+    },
+    {
+      title: "Varsel",
+      dataIndex: "notificationStatus",
+      key: "notificationStatus",
+      width: 155,
+      render: (_value, row) => (
+        <span className="door-alarm-history-detail">
+          <strong>
+            {row.notificationStatus === "sent"
+              ? "Sendt"
+              : row.notificationStatus === "failed"
+                ? "Feilet"
+                : row.notificationStatus === "not_sent"
+                  ? "Ikke sendt"
+                  : row.notificationStatus === "unknown"
+                    ? "Ukjent"
+                    : "Avventer"}
+          </strong>
+          <small>{row.notificationCount ? `${row.notificationCount} · ${row.lastNotificationLabel}` : "-"}</small>
+        </span>
+      ),
+    },
+    {
+      title: "Avsluttet",
+      dataIndex: "resolvedAt",
+      key: "resolvedAt",
+      width: 155,
+      render: (_value, row) => (row.resolvedAt ? roomControlGeneratedLabel(row.resolvedAt) : <Tag color="red">Pågår</Tag>),
     },
   ];
 
@@ -2254,6 +2582,22 @@ function DoorAlarmBoard({
           dataSource={data.rooms}
           pagination={false}
           scroll={{ x: "max-content" }}
+        />
+      </Card>
+
+      <Card
+        className="work-card doors-table-card doors-panel-card"
+        title="Alarmhistorikk"
+        extra={<Typography.Text type="secondary">{data.history.length} lagrede episoder</Typography.Text>}
+      >
+        <Table<DoorAlarmHistoryItem>
+          rowKey="eventKey"
+          size="small"
+          columns={historyColumns}
+          dataSource={data.history}
+          pagination={{ pageSize: 20, showSizeChanger: true }}
+          scroll={{ x: "max-content" }}
+          locale={{ emptyText: "Ingen alarmer er lagret ennå" }}
         />
       </Card>
     </div>
@@ -2340,16 +2684,22 @@ export default function DoorsPage({ scope = "doors" }: { scope?: DoorsPageScope 
     enabled: (!isSolromScope && view === "soltimer" && !selectedSunroomRoomId) || (isSolromScope && view === "oversikt"),
     refetchInterval: 30_000,
   });
-  const alarmQuery = useApiQuery(queryKeys.doorSunroomAlarm(), fetchDoorSunroomAlarm, {
-    enabled: !isSolromScope && view === "alarm",
-    refetchInterval: 30_000,
-  });
   const requestedControlDays = Number(searchParams.get("days") || "2");
   const controlDays = [1, 2, 7, 14].includes(requestedControlDays) ? requestedControlDays : 2;
   const selectedControlDay = normalizedDayParam(searchParams.get("day"));
+  const alarmHistoryDay = !isSolromScope && view === "avvik" ? selectedControlDay : "";
+  const alarmQuery = useApiQuery(
+    queryKeys.doorSunroomAlarm(alarmHistoryDay),
+    () => fetchDoorSunroomAlarm(alarmHistoryDay || undefined),
+    {
+      enabled: !isSolromScope && (view === "alarm" || view === "avvik"),
+      refetchInterval: 30_000,
+    },
+  );
   const selectedControlRoomId = !isSolromScope && view === "romkontroll-ny2" ? searchParams.get("room") || "" : "";
   const overviewDay =
-    (!isSolromScope && (view === "romkontroll-ny2" || view === "solrom-ny")) || (isSolromScope && view === "dagskontroll")
+    (!isSolromScope && (view === "romkontroll-ny2" || view === "solrom-ny" || view === "avvik")) ||
+    (isSolromScope && view === "dagskontroll")
       ? selectedControlDay
       : "";
   const sunroomOverviewQuery = useApiQuery(
@@ -2357,7 +2707,8 @@ export default function DoorsPage({ scope = "doors" }: { scope?: DoorsPageScope 
     () => fetchDoorSunroomOverview(controlDays, overviewDay || undefined),
     {
       enabled:
-        (!isSolromScope && (view === "romkontroll" || view === "romkontroll-ny" || view === "romkontroll-ny2" || view === "solrom-ny")) ||
+        (!isSolromScope &&
+          (view === "romkontroll" || view === "romkontroll-ny" || view === "romkontroll-ny2" || view === "solrom-ny" || view === "avvik")) ||
         (isSolromScope && view === "dagskontroll"),
       refetchInterval: 30_000,
     },
@@ -2493,6 +2844,8 @@ export default function DoorsPage({ scope = "doors" }: { scope?: DoorsPageScope 
         ? "Dører · dør og soltime"
       : activeView === "alarm"
         ? "Dører · alarm"
+      : activeView === "avvik"
+        ? "Dører · avvik"
       : activeView === "andre"
         ? "Dører · andre dører"
         : isRawView
@@ -2519,6 +2872,8 @@ export default function DoorsPage({ scope = "doors" }: { scope?: DoorsPageScope 
               ? "Kobler solromdør mot Sun2-enkelttime og varsler når kunden er vesentlig over forventet ut-tid."
             : activeView === "alarm"
               ? "Varsler når et solrom står lukket lenge nok uten at det finnes en koblet Sun2-time."
+            : activeView === "avvik"
+              ? "Alle dørperioder koblet mot Sun2-timer, forventet ut-tid og lagrede alarmer for valgt dag."
             : "Åpne- og lukkeperioder fra magnetfølerne, med klargjorte plasser for de nye sensorene."
         }
         meta={
@@ -2531,7 +2886,8 @@ export default function DoorsPage({ scope = "doors" }: { scope?: DoorsPageScope 
               icon={<ReloadOutlined spin={fetching || alarmQuery.fetching} />}
               onClick={() => {
                 refetch();
-                if (activeView === "alarm") alarmQuery.refetch();
+                if (activeView === "alarm" || activeView === "avvik") alarmQuery.refetch();
+                if (activeView === "avvik") sunroomOverviewQuery.refetch();
               }}
             >
               Oppdater
@@ -2547,7 +2903,8 @@ export default function DoorsPage({ scope = "doors" }: { scope?: DoorsPageScope 
       activeView === "romkontroll-ny" ||
       activeView === "romkontroll-ny2" ||
       activeView === "solrom-ny" ||
-      activeView === "alarm" ? null : (
+      activeView === "alarm" ||
+      activeView === "avvik" ? null : (
         <div className="doors-summary-grid">{buildSummaryCards(data.summary).map(statusSummary)}</div>
       )}
 
@@ -2652,6 +3009,21 @@ export default function DoorsPage({ scope = "doors" }: { scope?: DoorsPageScope 
         />
       ) : null}
 
+      {!isRawView && activeView === "avvik" ? (
+        <DoorDeviationBoard
+          data={sunroomOverviewQuery.data}
+          alarms={alarmQuery.data}
+          loading={sunroomOverviewQuery.loading || alarmQuery.loading}
+          error={sunroomOverviewQuery.error || alarmQuery.error}
+          selectedDay={selectedControlDay}
+          onDayChange={(nextDay: string) => {
+            const next = new URLSearchParams(searchParams);
+            next.set("day", nextDay);
+            setSearchParams(next, { replace: true });
+          }}
+        />
+      ) : null}
+
       {!isRawView && activeView === "solrom" ? <DoorGroupSection title="Solrom" doors={solromDoors} splitBySection /> : null}
 
       {!isRawView && activeView === "andre" ? <DoorGroupSection title="Andre dører" doors={otherDoors} /> : null}
@@ -2683,6 +3055,7 @@ export default function DoorsPage({ scope = "doors" }: { scope?: DoorsPageScope 
         activeView !== "oversikt-ny" &&
         activeView !== "soltimer" &&
         activeView !== "alarm" &&
+        activeView !== "avvik" &&
         activeView !== "romkontroll" &&
         activeView !== "romkontroll-ny" &&
         activeView !== "romkontroll-ny2" &&

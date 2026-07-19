@@ -39,6 +39,17 @@ def test_door_event_datakilde_and_storage_are_registered():
     assert poll_definition["source"] == "Fibaro10 / HC3 API"
     assert poll_definition["expected_interval_minutes"] == 2
     assert "door_events" in STORAGE_TABLES
+    assert "alarm_events" in STORAGE_TABLES
+
+
+def test_alarm_history_schema_and_backfill_are_present():
+    migration = Path("migrations/versions/20260719_2200_add_alarm_events.sql").read_text(encoding="utf-8")
+    backfill = Path("scripts/backfill_sunroom_alarm_history.py").read_text(encoding="utf-8")
+
+    assert "CREATE TABLE IF NOT EXISTS alarm_events" in migration
+    assert "notification_status" in migration
+    assert "sunroom_alarm_event_key" in backfill
+    assert "notification_status=\"unknown\"" in backfill
 
 
 def test_hc3_door_poll_worker_is_configured():
@@ -189,6 +200,39 @@ class SunroomDoorTimingTests(unittest.TestCase):
         self.assertTrue(item["noSessionAlarmActive"])
         self.assertEqual(item["severity"], "alert")
         self.assertEqual(item["status"], "Alarm")
+        self.assertEqual(item["alarmReason"], "closed_without_session")
+        self.assertEqual(self.main.sunroom_alarm_detected_at(item, now), now - timedelta(minutes=1))
+
+    def test_closed_solroom_after_session_triggers_overstay_alarm(self):
+        config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_solrom_04")
+        room_id = self.main.sunroom_room_id_for_config(config)
+        bed_id = self.main.sunroom_bed_id_for_config(config)
+        now = datetime(2026, 7, 13, 12, 0)
+        row = self.main.DoorEvent(
+            device_id=config["device_id"],
+            device_key=config["device_key"],
+            timestamp=datetime(2026, 7, 13, 11, 25),
+            action="CLOSED",
+            state=False,
+        )
+        tanning = self.main.Sun2TanningSession(
+            id=123,
+            source_session_id="stable-overstay-test",
+            room_id=room_id,
+            sun2_bed_id=bed_id,
+            started_at=datetime(2026, 7, 13, 11, 30),
+            duration_minutes=12,
+        )
+
+        item = self.main.sunroom_status_item(config, row, {room_id: [tanning]}, now)
+
+        self.assertEqual(item["severity"], "alert")
+        self.assertEqual(item["alarmReason"], "overstay")
+        self.assertEqual(item["alarmTitle"], "Overtid etter solslutt")
+        self.assertEqual(
+            self.main.sunroom_alarm_detected_at(item, now),
+            self.main.sunroom_session_end_at(tanning) + timedelta(minutes=self.main.SUNROOM_DOOR_ALERT_AFTER_END_MINUTES),
+        )
 
     def test_display_room_12_uses_physical_room_13_and_bed_681(self):
         config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_solrom_12")

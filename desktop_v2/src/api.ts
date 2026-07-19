@@ -531,6 +531,42 @@ export type DoorSunroomSessionItem = {
   alarmTitle?: string;
 };
 
+export type DoorAlarmHistoryItem = {
+  id: number;
+  eventKey: string;
+  domain: string;
+  alarmType: "closed_without_session" | "overstay" | string;
+  status: "active" | "resolved" | string;
+  severity: string;
+  outcome: "unreviewed" | "confirmed" | "false_positive" | string;
+  title: string;
+  detail?: string | null;
+  deviceKey?: string | null;
+  deviceId?: number | null;
+  roomId?: string | null;
+  displayRoomNumber?: number | null;
+  physicalRoomNumber?: number | null;
+  sun2BedId?: string | null;
+  sourceSessionId?: string | null;
+  doorChangedAt?: string | null;
+  expectedExitAt?: string | null;
+  detectedAt?: string | null;
+  detectedLabel: string;
+  lastObservedAt?: string | null;
+  resolvedAt?: string | null;
+  resolvedLabel: string;
+  resolutionReason?: string | null;
+  notificationStatus: "pending" | "sent" | "failed" | "not_sent" | "unknown" | string;
+  notificationCount: number;
+  firstNotificationAt?: string | null;
+  lastNotificationAt?: string | null;
+  lastNotificationLabel: string;
+  reviewedAt?: string | null;
+  reviewedBy?: string | null;
+  reviewNote?: string | null;
+  source: string;
+};
+
 export type DoorSunroomSessionsResponse = {
   generatedAt: string;
   ntfyDoorsSubscribeUrl: string;
@@ -544,6 +580,7 @@ export type DoorSunroomSessionsResponse = {
     warnAfterEndMinutes: number;
     alertAfterEndMinutes: number;
     monitorIntervalSeconds: number;
+    alertConfirmSeconds?: number;
   };
   summary: {
     rooms: number;
@@ -562,10 +599,14 @@ export type DoorSunroomAlarmResponse = DoorSunroomSessionsResponse & {
   alarms: DoorSunroomSessionItem[];
   watch: DoorSunroomSessionItem[];
   occupiedWithoutSession: DoorSunroomSessionItem[];
+  history: DoorAlarmHistoryItem[];
   summary: DoorSunroomSessionsResponse["summary"] & {
     alarm: number;
     watch: number;
     occupiedWithoutSession: number;
+    history: number;
+    historyActive: number;
+    historyNotified: number;
   };
 };
 
@@ -2028,8 +2069,9 @@ export function fetchDoorSunroomSessions(): Promise<DoorSunroomSessionsResponse>
   return apiGet<DoorSunroomSessionsResponse>("/api/hc3/doors/sunroom-sessions");
 }
 
-export function fetchDoorSunroomAlarm(): Promise<DoorSunroomAlarmResponse> {
-  return apiGet<DoorSunroomAlarmResponse>("/api/hc3/doors/alarm");
+export function fetchDoorSunroomAlarm(day?: string): Promise<DoorSunroomAlarmResponse> {
+  const query = day ? `?history_limit=500&day=${encodeURIComponent(day)}` : "";
+  return apiGet<DoorSunroomAlarmResponse>(`/api/hc3/doors/alarm${query}`);
 }
 
 export function fetchDoorSunroomRoomDetail(roomId: string): Promise<DoorSunroomRoomDetailResponse> {

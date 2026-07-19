@@ -9,7 +9,7 @@ export const queryKeys = {
   buildLogEntry: (build: string) => ["admin", "build-log", build] as const,
   mobileScreens: () => ["mobile", "screens"] as const,
   doorStatus: () => ["hc3", "doors", "status"] as const,
-  doorSunroomAlarm: () => ["hc3", "doors", "alarm"] as const,
+  doorSunroomAlarm: (day = "") => ["hc3", "doors", "alarm", day] as const,
   doorSunroomSessions: () => ["hc3", "doors", "sunroom-sessions"] as const,
   doorSunroomRoom: (roomId: string) => ["hc3", "doors", "sunroom-sessions", roomId] as const,
   doorSunroomOverview: (days: number, day = "") => ["hc3", "doors", "sunroom-overview", days, day] as const,
