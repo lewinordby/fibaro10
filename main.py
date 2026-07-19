@@ -237,6 +237,7 @@ NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 SUNROOM_DOOR_MONITOR_ENABLED = os.getenv("SUNROOM_DOOR_MONITOR_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
 SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS = max(30, int(os.getenv("SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS", "60")))
 SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS = max(0, int(os.getenv("SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS", "20")))
+SUNROOM_DOOR_ALERT_CONFIRM_SECONDS = max(0, int(os.getenv("SUNROOM_DOOR_ALERT_CONFIRM_SECONDS", "5")))
 SUNROOM_DOOR_SESSION_GRACE_MINUTES = env_float("SUNROOM_DOOR_SESSION_GRACE_MINUTES", "5")
 SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES = env_float("SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES", "8")
 SUNROOM_DOOR_PAYMENT_DELAY_MINUTES = env_float("SUNROOM_DOOR_PAYMENT_DELAY_MINUTES", "3")
@@ -11395,12 +11396,33 @@ def sunroom_display_number(config: Dict[str, Any]) -> Optional[int]:
         return None
 
 
+def sunroom_identity_for_config(config: Dict[str, Any]) -> Dict[str, Any]:
+    display_number = sunroom_display_number(config)
+    if display_number is None:
+        return {}
+    return dict(SUN2_ROOM_MAP_BY_DISPLAY.get(display_number) or {})
+
+
 def sunroom_room_id_for_config(config: Dict[str, Any]) -> Optional[str]:
     display_number = sunroom_display_number(config)
     if display_number is None:
         return None
-    mapped = SUN2_ROOM_MAP_BY_DISPLAY.get(display_number) or {}
+    mapped = sunroom_identity_for_config(config)
     return mapped.get("room_id") or normalize_room_id(f"rom-{display_number:02d}")
+
+
+def sunroom_bed_id_for_config(config: Dict[str, Any]) -> Optional[str]:
+    bed_id = sunroom_identity_for_config(config).get("sun2_bed_id")
+    return str(bed_id).strip() if bed_id is not None and str(bed_id).strip() else None
+
+
+def sunroom_canonical_room_id(row: Sun2TanningSession) -> Optional[str]:
+    bed_id = str(row.sun2_bed_id or "").strip()
+    if bed_id:
+        for identity in SUN2_ROOM_MAP_BY_DISPLAY.values():
+            if str(identity.get("sun2_bed_id") or "").strip() == bed_id:
+                return normalize_room_id(identity.get("room_id"))
+    return normalize_room_id(row.room_id)
 
 
 def sunroom_config_for_room_id(room_id: str) -> Optional[Dict[str, Any]]:
@@ -12035,7 +12057,10 @@ def sunroom_status_item(
     now: datetime,
 ) -> Dict[str, Any]:
     door = door_status_payload(config, latest_row, now)
+    identity = sunroom_identity_for_config(config)
+    display_number = identity.get("display_room_number") or sunroom_display_number(config)
     room_id = sunroom_room_id_for_config(config)
+    bed_id = sunroom_bed_id_for_config(config)
     sessions = sessions_by_room.get(room_id or "", [])
     door_state = door.get("state")
     is_occupied = door_state == "closed"
@@ -12108,8 +12133,11 @@ def sunroom_status_item(
         "sectionKey": door.get("sectionKey"),
         "sectionTitle": door.get("sectionTitle"),
         "sortOrder": door.get("sortOrder"),
+        "displayRoomNumber": display_number,
+        "physicalRoomNumber": identity.get("physical_room_number"),
+        "sun2BedId": bed_id,
         "roomId": room_id,
-        "roomLabel": sun2_room_label(room_id, None),
+        "roomLabel": door.get("title") or sun2_room_label(room_id, None),
         "doorState": door_state,
         "doorStateLabel": door.get("stateLabel"),
         "doorChangedAt": changed_at.isoformat() if changed_at else None,
@@ -12144,7 +12172,7 @@ def sunroom_alert_key(item: Dict[str, Any]) -> str:
         [
             str(item.get("deviceKey") or item.get("roomId") or "unknown"),
             str(item.get("alarmReason") or "overstay"),
-            str(session.get("id") or "missing"),
+            str(session.get("sourceSessionId") or session.get("id") or "missing"),
             str(item.get("expectedExitAt") or item.get("doorChangedAt") or ""),
             str(item.get("severity") or ""),
         ]
@@ -12169,7 +12197,8 @@ async def publish_sunroom_door_alerts(items: list[Dict[str, Any]], now: datetime
             message = (
                 f"{item.get('title') or item.get('roomLabel')}: dør lukket i "
                 f"{item.get('occupiedDurationLabel') or '-'} uten funnet Sun2-time. "
-                f"Lukket siden {item.get('occupiedSinceLabel') or '-'}."
+                f"Lukket siden {item.get('occupiedSinceLabel') or '-'}. "
+                f"Kontrollert {now.strftime('%H:%M:%S')}."
             )
             title = "SUN2 alarm: lukket uten soltime"
             tags = "door,warning"
@@ -12184,6 +12213,14 @@ async def publish_sunroom_door_alerts(items: list[Dict[str, Any]], now: datetime
         if await publish_door_ntfy(title, message, priority="4", tags=tags):
             sunroom_door_alert_last_sent[key] = now
             sent_count += 1
+            logger.warning(
+                "Sunroom door alert sendt: room=%s bed=%s reason=%s door_changed=%s checked=%s",
+                item.get("roomId"),
+                item.get("sun2BedId"),
+                item.get("alarmReason") or "overstay",
+                item.get("doorChangedAt"),
+                now.isoformat(),
+            )
     return sent_count
 
 
@@ -12209,19 +12246,25 @@ async def sunroom_door_session_payload(session, notify: bool = False) -> Dict[st
         latest_change_by_device.setdefault(int(row.device_id), row)
 
     room_ids = sorted({room_id for room_id in (sunroom_room_id_for_config(config) for config in solroom_configs) if room_id})
+    bed_ids = sorted({bed_id for bed_id in (sunroom_bed_id_for_config(config) for config in solroom_configs) if bed_id})
     sessions_by_room: Dict[str, list[Sun2TanningSession]] = {room_id: [] for room_id in room_ids}
-    if room_ids:
+    if room_ids or bed_ids:
         start_cutoff = now - timedelta(hours=SUNROOM_DOOR_SESSION_LOOKBACK_HOURS)
+        identity_conditions = []
+        if room_ids:
+            identity_conditions.append(Sun2TanningSession.room_id.in_(room_ids))
+        if bed_ids:
+            identity_conditions.append(Sun2TanningSession.sun2_bed_id.in_(bed_ids))
         session_rows = (
             await session.execute(
                 select(Sun2TanningSession)
-                .where(Sun2TanningSession.room_id.in_(room_ids))
+                .where(or_(*identity_conditions))
                 .where(Sun2TanningSession.started_at >= start_cutoff)
                 .order_by(Sun2TanningSession.started_at.desc(), Sun2TanningSession.id.desc())
             )
         ).scalars().all()
         for row in session_rows:
-            room_id = normalize_room_id(row.room_id)
+            room_id = sunroom_canonical_room_id(row)
             if room_id:
                 sessions_by_room.setdefault(room_id, []).append(row)
 
@@ -12251,6 +12294,7 @@ async def sunroom_door_session_payload(session, notify: bool = False) -> Dict[st
             "warnAfterEndMinutes": SUNROOM_DOOR_WARN_AFTER_END_MINUTES,
             "alertAfterEndMinutes": SUNROOM_DOOR_ALERT_AFTER_END_MINUTES,
             "monitorIntervalSeconds": SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS,
+            "alertConfirmSeconds": SUNROOM_DOOR_ALERT_CONFIRM_SECONDS,
         },
         "summary": {
             "rooms": len(rooms),
@@ -12294,6 +12338,7 @@ async def sunroom_room_detail_payload(session, room_id: str, days: int = 14, lim
     days = max(1, min(days, 90))
     limit = max(10, min(limit, 500))
     start_cutoff = now - timedelta(days=days)
+    bed_id = sunroom_bed_id_for_config(config)
     device_id = config.get("device_id")
     latest_row: Optional[DoorEvent] = None
     raw_rows: list[DoorEvent] = []
@@ -12317,10 +12362,13 @@ async def sunroom_room_detail_payload(session, room_id: str, days: int = 14, lim
             )
         ).scalars().all()
 
+    session_identity = Sun2TanningSession.room_id == normalized_room_id
+    if bed_id:
+        session_identity = or_(session_identity, Sun2TanningSession.sun2_bed_id == bed_id)
     session_rows = (
         await session.execute(
             select(Sun2TanningSession)
-            .where(Sun2TanningSession.room_id == normalized_room_id)
+            .where(session_identity)
             .where(Sun2TanningSession.started_at >= start_cutoff - timedelta(hours=2))
             .order_by(Sun2TanningSession.started_at.desc(), Sun2TanningSession.id.desc())
             .limit(max(limit * 3, 300))
@@ -12392,6 +12440,7 @@ async def sunroom_room_overview_payload(session, days: int = 2, day: Optional[st
     configs.sort(key=lambda config: int(config.get("sort_order") or 0))
     device_ids = [int(config["device_id"]) for config in configs if config.get("device_id") is not None]
     room_ids = [room_id for room_id in (sunroom_room_id_for_config(config) for config in configs) if room_id]
+    bed_ids = [bed_id for bed_id in (sunroom_bed_id_for_config(config) for config in configs) if bed_id]
     entrance_config = sunroom_entrance_config()
     entrance_device_id = int(entrance_config["device_id"]) if entrance_config and entrance_config.get("device_id") is not None else None
 
@@ -12421,10 +12470,15 @@ async def sunroom_room_overview_payload(session, days: int = 2, day: Optional[st
         ).scalars().all()
     entrance_change_rows = door_change_rows(entrance_rows)
 
+    session_identity_conditions = []
+    if room_ids:
+        session_identity_conditions.append(Sun2TanningSession.room_id.in_(room_ids))
+    if bed_ids:
+        session_identity_conditions.append(Sun2TanningSession.sun2_bed_id.in_(bed_ids))
     session_rows = (
         await session.execute(
             select(Sun2TanningSession)
-            .where(Sun2TanningSession.room_id.in_(room_ids))
+            .where(or_(*session_identity_conditions))
             .where(Sun2TanningSession.started_at >= session_start)
             .where(Sun2TanningSession.started_at <= session_end)
             .order_by(Sun2TanningSession.started_at.desc(), Sun2TanningSession.id.desc())
@@ -12472,7 +12526,7 @@ async def sunroom_room_overview_payload(session, days: int = 2, day: Optional[st
 
     sessions_by_room: Dict[str, list[Sun2TanningSession]] = {room_id: [] for room_id in room_ids}
     for row in session_rows:
-        normalized = normalize_room_id(row.room_id)
+        normalized = sunroom_canonical_room_id(row)
         if normalized:
             sessions_by_room.setdefault(normalized, []).append(row)
 
@@ -12623,7 +12677,13 @@ async def sunroom_door_monitor_worker():
     while True:
         try:
             async with async_session() as session:
-                await sunroom_door_session_payload(session, notify=True)
+                payload = await sunroom_door_session_payload(session, notify=False)
+            if any(item.get("severity") == "alert" and item.get("isOccupied") for item in payload.get("rooms") or []):
+                if SUNROOM_DOOR_ALERT_CONFIRM_SECONDS:
+                    await asyncio.sleep(SUNROOM_DOOR_ALERT_CONFIRM_SECONDS)
+                async with async_session() as confirmation_session:
+                    confirmed = await sunroom_door_session_payload(confirmation_session, notify=False)
+                await publish_sunroom_door_alerts(list(confirmed.get("rooms") or []), local_now_naive())
         except Exception as exc:
             logger.warning("Sunroom door monitor feilet: %s", exc, exc_info=True)
         await asyncio.sleep(SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS)
@@ -35587,7 +35647,7 @@ async def api_hc3_doors_status(
 @app.get("/api/hc3/doors/sunroom-sessions")
 async def api_hc3_doors_sunroom_sessions():
     async with async_session() as session:
-        return await sunroom_door_session_payload(session, notify=True)
+        return await sunroom_door_session_payload(session, notify=False)
 
 
 @app.get("/api/hc3/doors/alarm")

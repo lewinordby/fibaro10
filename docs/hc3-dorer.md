@@ -1,6 +1,6 @@
 # HC3 dorer
 
-Oppdatert 12.07.2026.
+Oppdatert 19.07.2026.
 
 Fibaro10 logger magnetfolere fra HC3 i tabellen `door_events`.
 
@@ -70,6 +70,13 @@ Disse ligger i Fibaro10 med fast kobling mot HC3 device-id. Solrom 2 og Solrom 3
 | 487 | `door_papirlager` | Papirlager | Andre dorer | Bygg |
 | 493 | `door_vaktmesterlager` | Vaktmesterlager | Andre dorer | Bygg |
 | 495 | `door_toalett` | Toalett | Andre dorer | Bygg |
+
+### Kobling mellom VIP-dorer og Sun2
+
+Visningsnumrene 10-12 er ikke de samme som intern fysisk rom-ID. Solrom 10, 11 og 12 kobles til henholdsvis
+`rom-11`/seng 679, `rom-12`/seng 680 og `rom-13`/seng 681. Doralarmen bruker seng-ID som stabil fasit og
+bekrefter alarmgrunnlaget i en ny databaseøkt før varsel sendes. Det er bare bakgrunnsmonitoren som kan sende
+ntfy-varsel; visning og oppdatering av websider er lesende.
 
 ## Installer HC3-scener
 

@@ -189,3 +189,33 @@ class SunroomDoorTimingTests(unittest.TestCase):
         self.assertTrue(item["noSessionAlarmActive"])
         self.assertEqual(item["severity"], "alert")
         self.assertEqual(item["status"], "Alarm")
+
+    def test_display_room_12_uses_physical_room_13_and_bed_681(self):
+        config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_solrom_12")
+
+        self.assertEqual(self.main.sunroom_room_id_for_config(config), "rom-13")
+        self.assertEqual(self.main.sunroom_bed_id_for_config(config), "681")
+
+    def test_bed_id_is_canonical_when_session_room_id_is_stale(self):
+        row = self.main.Sun2TanningSession(room_id="rom-12", sun2_bed_id="681")
+
+        self.assertEqual(self.main.sunroom_canonical_room_id(row), "rom-13")
+
+    def test_alert_key_uses_stable_source_session_id(self):
+        base = {
+            "deviceKey": "door_solrom_12",
+            "alarmReason": None,
+            "expectedExitAt": "2026-07-19T21:29:00",
+            "severity": "alert",
+        }
+        first = {**base, "session": {"id": 101, "sourceSessionId": "sun2-681-20260719-2058"}}
+        second = {**base, "session": {"id": 202, "sourceSessionId": "sun2-681-20260719-2058"}}
+
+        self.assertEqual(self.main.sunroom_alert_key(first), self.main.sunroom_alert_key(second))
+
+    def test_read_endpoint_does_not_publish_alarm(self):
+        source = Path("main.py").read_text(encoding="utf-8")
+        endpoint = source.split('async def api_hc3_doors_sunroom_sessions():', 1)[1].split("\n\n", 1)[0]
+
+        self.assertIn("notify=False", endpoint)
+        self.assertNotIn("notify=True", endpoint)

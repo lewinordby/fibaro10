@@ -1,6 +1,6 @@
 # SUN2 enkelttimer
 
-Oppdatert 10.07.2026.
+Oppdatert 19.07.2026.
 
 Dette dokumentet beskriver flyten for å hente enkelt-solinger fra SUN2 Owner og vise dem i Lilletorget drift.
 
@@ -49,6 +49,23 @@ SUN2-navn har endret seg over tid. Appen bruker derfor egen fysisk rom-id:
 - Gamle rader med `Solarium -` mappes til gammelt fysisk rom 10.
 - Nyere SUN2-rom 10, 11 og 12 mappes til fysisk rom 11, 12 og 13.
 - Fysisk rom 10 er tatt ut av drift og vises derfor ikke som aktivt rom i dagslinjen.
+
+Aktiv romkobling for VIP er derfor:
+
+| Visning | Intern rom-ID | Sun2-seng |
+| --- | --- | --- |
+| Solrom 10 | `rom-11` | `679` |
+| Solrom 11 | `rom-12` | `680` |
+| Solrom 12 | `rom-13` | `681` |
+
+Sun2-seng-ID brukes som stabil identitet dersom en importert rad har en eldre eller feil rom-ID.
+
+## Døralarm og soltime
+
+Når en solromdør lukkes, leter Fibaro10 etter en betalt time for riktig Sun2-seng. En alarm for lukket dør uten
+soltime kan tidligst bli aktuell etter 8 minutter. Før ntfy-varselet sendes, åpner bakgrunnsjobben en ny
+databaseøkt og kontrollerer rom-ID og seng-ID på nytt. API-kall fra grensesnittet er lesende og kan ikke sende
+alarm.
 
 ## Samspill med energi
 

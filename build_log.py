@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1578")
+APP_BUILD = os.getenv("APP_BUILD", "1579")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1579",
+        "date": "19.07.2026",
+        "headline": "Solromalarm bekreftes mot Sun2-seng",
+        "title": "Solrom 12 og øvrige rom kobles stabilt mot betalt soltime før alarm sendes",
+        "description": (
+            "Døralarmen bruker nå Sun2-seng-ID som stabil identitet i tillegg til intern fysisk rom-ID. Dette er "
+            "særlig viktig for VIP-rommene, der kundens Solrom 12 med vilje er lagret som fysisk rom 13 og Sun2-seng "
+            "681. Før et varsel sendes leser bakgrunnskontrollen data på nytt etter en kort bekreftelsesperiode. "
+            "Vanlige API-kall og sideoppdateringer kan ikke lenger sende varsler."
+        ),
+        "applications": [
+            "main.py: bruker seng-ID som kanonisk romkobling og dobbeltsjekker alarm mot ferske data.",
+            "tests/test_hc3_door_events.py: låser koblingen Solrom 12 -> rom-13 -> seng 681 og stabil varselnøkkel.",
+            "docs/hc3-dorer.md og docs/sun2-enkeltimer.md: dokumenterer nummerering og alarmflyt.",
+        ],
+        "request": "Det er noe feil med solrom nummerering eller noe, får alarm på rom 12 nå selv om det er betalt for soltime, kan du sjekke?",
+        "work_duration": "ca. 35 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Kobler dørsensoren for Solrom 12 til intern rom-ID 13 og Sun2-seng 681 eksplisitt.",
+            "Finner soltimer på både rom-ID og stabil seng-ID, og normaliserer resultatet før matching.",
+            "Leser alarmgrunnlaget på nytt i en fersk databaseøkt før ntfy-varsel sendes.",
+            "Hindrer at åpning eller oppdatering av en visningsside kan sende dørvarsel.",
+            "Bruker Sun2 sin stabile kilde-ID slik at ny import av samme time ikke gir nytt varsel.",
+        ],
+    },
     {
         "version": "1",
         "build": "1578",
