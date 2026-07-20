@@ -61,20 +61,23 @@ SUNROOM_DOOR_SESSION_GRACE_MINUTES = float(os.getenv("SUNROOM_DOOR_SESSION_GRACE
 SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES = float(os.getenv("SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES", "8"))
 SUNROOM_DOOR_PAYMENT_DELAY_MINUTES = float(os.getenv("SUNROOM_DOOR_PAYMENT_DELAY_MINUTES", "3"))
 SUNROOM_DOOR_EXIT_GRACE_MINUTES = float(os.getenv("SUNROOM_DOOR_EXIT_GRACE_MINUTES", "3"))
+SUNROOM_DOOR_WARN_AFTER_END_MINUTES = float(os.getenv("SUNROOM_DOOR_WARN_AFTER_END_MINUTES", "5"))
+SUNROOM_DOOR_ALERT_AFTER_END_MINUTES = float(os.getenv("SUNROOM_DOOR_ALERT_AFTER_END_MINUTES", "10"))
+HC3_DOOR_DEBOUNCE_SECONDS = max(0.0, float(os.getenv("HC3_DOOR_DEBOUNCE_SECONDS", "5")))
 
 SOLROOM_DOOR_CONFIG = [
-    {"device_id": 459, "device_key": "door_solrom_01", "title": "Solrom 1", "section_title": "1.etg", "group_key": "solrom", "sort_order": 1},
-    {"device_id": None, "device_key": "door_solrom_02", "title": "Solrom 2", "section_title": "1.etg", "group_key": "solrom", "sort_order": 2},
-    {"device_id": None, "device_key": "door_solrom_03", "title": "Solrom 3", "section_title": "1.etg", "group_key": "solrom", "sort_order": 3},
-    {"device_id": 465, "device_key": "door_solrom_04", "title": "Solrom 4", "section_title": "2.etg", "group_key": "solrom", "sort_order": 4},
-    {"device_id": 463, "device_key": "door_solrom_05", "title": "Solrom 5", "section_title": "2.etg", "group_key": "solrom", "sort_order": 5},
-    {"device_id": 469, "device_key": "door_solrom_06", "title": "Solrom 6", "section_title": "2.etg", "group_key": "solrom", "sort_order": 6},
-    {"device_id": 471, "device_key": "door_solrom_07", "title": "Solrom 7", "section_title": "2.etg", "group_key": "solrom", "sort_order": 7},
-    {"device_id": 473, "device_key": "door_solrom_08", "title": "Solrom 8", "section_title": "2.etg", "group_key": "solrom", "sort_order": 8},
-    {"device_id": 475, "device_key": "door_solrom_09", "title": "Solrom 9", "section_title": "1.etg", "group_key": "solrom", "sort_order": 9},
-    {"device_id": 477, "device_key": "door_solrom_10", "title": "Solrom 10", "section_title": "VIP", "group_key": "solrom", "sort_order": 10},
-    {"device_id": 479, "device_key": "door_solrom_11", "title": "Solrom 11", "section_title": "VIP", "group_key": "solrom", "sort_order": 11},
-    {"device_id": 491, "device_key": "door_solrom_12", "title": "Solrom 12", "section_title": "VIP", "group_key": "solrom", "sort_order": 12},
+    {"device_id": 459, "device_key": "door_solrom_01", "title": "Solrom 1", "section_title": "1.etg", "group_key": "solrom", "sort_order": 1, "room_id": "rom-01", "sun2_bed_id": "640"},
+    {"device_id": None, "device_key": "door_solrom_02", "title": "Solrom 2", "section_title": "1.etg", "group_key": "solrom", "sort_order": 2, "room_id": "rom-02", "sun2_bed_id": "641"},
+    {"device_id": None, "device_key": "door_solrom_03", "title": "Solrom 3", "section_title": "1.etg", "group_key": "solrom", "sort_order": 3, "room_id": "rom-03", "sun2_bed_id": "642"},
+    {"device_id": 465, "device_key": "door_solrom_04", "title": "Solrom 4", "section_title": "2.etg", "group_key": "solrom", "sort_order": 4, "room_id": "rom-04", "sun2_bed_id": "643"},
+    {"device_id": 463, "device_key": "door_solrom_05", "title": "Solrom 5", "section_title": "2.etg", "group_key": "solrom", "sort_order": 5, "room_id": "rom-05", "sun2_bed_id": "644"},
+    {"device_id": 469, "device_key": "door_solrom_06", "title": "Solrom 6", "section_title": "2.etg", "group_key": "solrom", "sort_order": 6, "room_id": "rom-06", "sun2_bed_id": "645"},
+    {"device_id": 471, "device_key": "door_solrom_07", "title": "Solrom 7", "section_title": "2.etg", "group_key": "solrom", "sort_order": 7, "room_id": "rom-07", "sun2_bed_id": "646"},
+    {"device_id": 473, "device_key": "door_solrom_08", "title": "Solrom 8", "section_title": "2.etg", "group_key": "solrom", "sort_order": 8, "room_id": "rom-08", "sun2_bed_id": "647"},
+    {"device_id": 475, "device_key": "door_solrom_09", "title": "Solrom 9", "section_title": "1.etg", "group_key": "solrom", "sort_order": 9, "room_id": "rom-09", "sun2_bed_id": "648"},
+    {"device_id": 477, "device_key": "door_solrom_10", "title": "Solrom 10", "section_title": "VIP", "group_key": "solrom", "sort_order": 10, "room_id": "rom-11", "sun2_bed_id": "679"},
+    {"device_id": 479, "device_key": "door_solrom_11", "title": "Solrom 11", "section_title": "VIP", "group_key": "solrom", "sort_order": 11, "room_id": "rom-12", "sun2_bed_id": "680"},
+    {"device_id": 491, "device_key": "door_solrom_12", "title": "Solrom 12", "section_title": "VIP", "group_key": "solrom", "sort_order": 12, "room_id": "rom-13", "sun2_bed_id": "681"},
 ]
 SOLROOM_DOOR_DEVICE_IDS = [int(item["device_id"]) for item in SOLROOM_DOOR_CONFIG if item.get("device_id") is not None]
 SOLROOM_DOOR_KEYS = [str(item["device_key"]) for item in SOLROOM_DOOR_CONFIG if item.get("device_key")]
@@ -841,16 +844,58 @@ def door_status_payload(config: dict[str, Any], row: Optional[dict[str, Any]], n
 
 
 def door_change_rows(rows_desc: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    changes: list[dict[str, Any]] = []
-    last_state: Optional[bool] = None
-    for row in reversed(rows_desc):
+    return list(reversed(stabilized_door_change_rows(list(reversed(rows_desc)))))
+
+
+def door_row_key(row: dict[str, Any]) -> str:
+    if row.get("device_id") is not None:
+        return f"id:{row['device_id']}"
+    return f"key:{row.get('device_key') or 'unknown'}"
+
+
+def stabilized_door_change_rows(rows_ascending: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    changes_by_device: dict[str, list[dict[str, Any]]] = {}
+    last_state_by_device: dict[str, bool] = {}
+    for row in rows_ascending:
         state = door_state_bool(row)
         if state is None:
             continue
-        if state != last_state:
+        key = door_row_key(row)
+        if key not in last_state_by_device or last_state_by_device[key] != state:
+            changes_by_device.setdefault(key, []).append(row)
+            last_state_by_device[key] = state
+
+    stabilized: list[dict[str, Any]] = []
+    for device_rows in changes_by_device.values():
+        cluster: list[dict[str, Any]] = []
+
+        def flush_cluster() -> None:
+            if not cluster:
+                return
+            final_state = door_state_bool(cluster[-1])
+            stabilized.append(next((item for item in cluster if door_state_bool(item) == final_state), cluster[-1]))
+
+        for row in device_rows:
+            if cluster:
+                previous_at = cluster[-1].get("timestamp")
+                current_at = row.get("timestamp")
+                gap_seconds = (current_at - previous_at).total_seconds() if isinstance(previous_at, datetime) and isinstance(current_at, datetime) else None
+                if gap_seconds is None or gap_seconds > HC3_DOOR_DEBOUNCE_SECONDS:
+                    flush_cluster()
+                    cluster = []
+            cluster.append(row)
+        flush_cluster()
+
+    stabilized.sort(key=lambda row: (datetime_sort_value(row.get("timestamp")), int(row.get("id") or 0)))
+    changes: list[dict[str, Any]] = []
+    last_stable_state: dict[str, bool] = {}
+    for row in stabilized:
+        state = door_state_bool(row)
+        key = door_row_key(row)
+        if state is not None and last_stable_state.get(key) != state:
             changes.append(row)
-            last_state = state
-    return list(reversed(changes))
+            last_stable_state[key] = state
+    return changes
 
 
 async def door_statuses_for(
@@ -906,6 +951,8 @@ async def solroom_door_statuses() -> list[dict[str, Any]]:
 
 
 def solroom_room_id_from_config(config: dict[str, Any]) -> str:
+    if config.get("room_id"):
+        return str(config["room_id"])
     match = re.search(r"(\d+)$", str(config.get("device_key") or config.get("title") or ""))
     if not match:
         return ""
@@ -918,6 +965,15 @@ def normalize_solroom_room_id(value: Any) -> str:
     if not match:
         return ""
     return f"rom-{int(match.group(1)):02d}"
+
+
+def solroom_session_room_id(row: dict[str, Any]) -> str:
+    bed_id = str(row.get("sun2_bed_id") or "").strip()
+    if bed_id:
+        config = next((item for item in SOLROOM_DOOR_CONFIG if str(item.get("sun2_bed_id") or "") == bed_id), None)
+        if config:
+            return str(config.get("room_id") or "")
+    return normalize_solroom_room_id(row.get("room_id") or row.get("room") or row.get("source_room_name"))
 
 
 def sun_session_end_at(row: dict[str, Any]) -> Optional[datetime]:
@@ -959,7 +1015,7 @@ async def solroom_door_alarm_statuses(statuses: list[dict[str, Any]]) -> dict[st
     if SOURCE_MODE and room_ids:
         rows = await many_mappings(
             """
-            select id, room_id, room, source_room_name, started_at, ended_at, duration_minutes
+            select id, room_id, room, source_room_name, sun2_bed_id, started_at, ended_at, duration_minutes
             from sun2_tanning_sessions
             where started_at >= :cutoff
             order by started_at desc, id desc
@@ -967,7 +1023,7 @@ async def solroom_door_alarm_statuses(statuses: list[dict[str, Any]]) -> dict[st
             {"cutoff": now - timedelta(hours=12)},
         )
         for row in rows:
-            room_id = normalize_solroom_room_id(row.get("room_id") or row.get("room") or row.get("source_room_name"))
+            room_id = solroom_session_room_id(row)
             if room_id in sessions_by_room:
                 sessions_by_room[room_id].append(row)
 
@@ -1025,6 +1081,332 @@ async def solroom_door_alarm_statuses(statuses: list[dict[str, Any]]) -> dict[st
         "subscribe_url": ntfy_subscribe_url(NTFY_DOORS_TOPIC, "SUN2 dørvarsler"),
         "topic_url": ntfy_topic_url(NTFY_DOORS_TOPIC),
         "threshold_minutes": SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES,
+    }
+
+
+def compact_duration_label(seconds: Any) -> str:
+    try:
+        seconds_value = max(0, int(seconds))
+    except (TypeError, ValueError):
+        return "-"
+    if seconds_value < 60:
+        return f"{seconds_value} sek"
+    minutes = seconds_value // 60
+    if minutes < 60:
+        return f"{minutes} min"
+    hours, rest = divmod(minutes, 60)
+    return f"{hours} t {rest} min" if rest else f"{hours} t"
+
+
+def solroom_closed_periods(rows_ascending: list[dict[str, Any]], now: datetime) -> list[dict[str, Any]]:
+    closed_by_device: dict[str, dict[str, Any]] = {}
+    periods: list[dict[str, Any]] = []
+    for row in stabilized_door_change_rows(rows_ascending):
+        state = door_state_bool(row)
+        key = door_row_key(row)
+        if state is False:
+            closed_by_device[key] = row
+        elif state is True:
+            closed_row = closed_by_device.pop(key, None)
+            if closed_row:
+                closed_at = closed_row.get("timestamp")
+                opened_at = row.get("timestamp")
+                periods.append(
+                    {
+                        "id": f"{key}-{closed_row.get('id')}",
+                        "device_key": closed_row.get("device_key"),
+                        "device_id": closed_row.get("device_id"),
+                        "closed_at": closed_at,
+                        "opened_at": opened_at,
+                        "duration_seconds": int((opened_at - closed_at).total_seconds())
+                        if isinstance(closed_at, datetime) and isinstance(opened_at, datetime)
+                        else None,
+                    }
+                )
+    for key, closed_row in closed_by_device.items():
+        closed_at = closed_row.get("timestamp")
+        periods.append(
+            {
+                "id": f"{key}-{closed_row.get('id')}",
+                "device_key": closed_row.get("device_key"),
+                "device_id": closed_row.get("device_id"),
+                "closed_at": closed_at,
+                "opened_at": None,
+                "duration_seconds": int((now - closed_at).total_seconds()) if isinstance(closed_at, datetime) else None,
+            }
+        )
+    return sorted(periods, key=lambda item: datetime_sort_value(item.get("closed_at")), reverse=True)
+
+
+def solroom_session_matches_period(
+    row: dict[str, Any],
+    closed_at: Optional[datetime],
+    opened_at: Optional[datetime],
+    now: datetime,
+) -> bool:
+    started_at = row.get("started_at")
+    if not isinstance(started_at, datetime) or not isinstance(closed_at, datetime):
+        return False
+    period_end = opened_at or now
+    if closed_at - timedelta(minutes=15) <= started_at <= period_end + timedelta(minutes=15):
+        return True
+    expected_exit = sun_session_expected_exit_at(row)
+    return bool(
+        expected_exit
+        and expected_exit >= closed_at - timedelta(minutes=SUNROOM_DOOR_PAYMENT_DELAY_MINUTES + 2)
+        and started_at <= period_end + timedelta(minutes=15)
+    )
+
+
+def solroom_session_period_score(
+    row: dict[str, Any],
+    closed_at: datetime,
+    opened_at: Optional[datetime],
+    now: datetime,
+) -> float:
+    started_at = row.get("started_at")
+    if not isinstance(started_at, datetime):
+        return float("inf")
+    period_end = opened_at or now
+    start_score = abs((started_at - closed_at).total_seconds())
+    expected_exit = sun_session_expected_exit_at(row)
+    if isinstance(expected_exit, datetime):
+        return min(start_score, abs((expected_exit - period_end).total_seconds()) + 60)
+    return start_score
+
+
+def solroom_match_session_for_period(
+    sessions: list[dict[str, Any]],
+    closed_at: Optional[datetime],
+    opened_at: Optional[datetime],
+    now: datetime,
+) -> Optional[dict[str, Any]]:
+    if not isinstance(closed_at, datetime):
+        return None
+    candidates = [row for row in sessions if solroom_session_matches_period(row, closed_at, opened_at, now)]
+    if not candidates:
+        return None
+    return min(candidates, key=lambda row: solroom_session_period_score(row, closed_at, opened_at, now))
+
+
+def solroom_alarm_for_period(
+    alarms: list[dict[str, Any]],
+    config: dict[str, Any],
+    period: dict[str, Any],
+    session: Optional[dict[str, Any]],
+) -> Optional[dict[str, Any]]:
+    closed_at = period.get("closed_at")
+    source_session_id = str((session or {}).get("source_session_id") or "")
+    for alarm in alarms:
+        same_device = (
+            str(alarm.get("device_key") or "") == str(config.get("device_key") or "")
+            or alarm.get("device_id") == config.get("device_id")
+        )
+        if not same_device:
+            continue
+        alarm_closed_at = alarm.get("door_changed_at")
+        if isinstance(alarm_closed_at, datetime) and isinstance(closed_at, datetime):
+            if abs((alarm_closed_at - closed_at).total_seconds()) <= HC3_DOOR_DEBOUNCE_SECONDS:
+                return alarm
+        if source_session_id and source_session_id == str(alarm.get("source_session_id") or ""):
+            return alarm
+    return None
+
+
+def solroom_control_row(
+    config: dict[str, Any],
+    period: dict[str, Any],
+    session: Optional[dict[str, Any]],
+    alarm: Optional[dict[str, Any]],
+    now: datetime,
+) -> dict[str, Any]:
+    closed_at = period.get("closed_at")
+    opened_at = period.get("opened_at")
+    duration_seconds = period.get("duration_seconds")
+    expected_exit = sun_session_expected_exit_at(session) if session else None
+    severity = "ok"
+    status = "OK"
+    deviation = "Ingen avvik"
+    missing_session = session is None and int(duration_seconds or 0) >= int(SUNROOM_DOOR_SESSION_GRACE_MINUTES * 60)
+    if alarm and alarm.get("outcome") == "false_positive":
+        severity, status, deviation = "warning", "Feilalarm", "Bekreftet feilalarm"
+    elif alarm and alarm.get("alarm_type") == "closed_without_session":
+        severity, status, deviation = "alert", "Alarm", "Lukket uten funnet soltime"
+    elif alarm:
+        severity, status, deviation = "alert", "Alarm", "Alarmgrense etter solslutt"
+    elif missing_session:
+        severity, status, deviation = "warning", "Avvik", "Dørperiode uten Sun2-time"
+    elif session:
+        session_end = sun_session_end_at(session)
+        compare_at = opened_at or now
+        after_end_seconds = (compare_at - session_end).total_seconds() if isinstance(session_end, datetime) else 0
+        if after_end_seconds >= SUNROOM_DOOR_ALERT_AFTER_END_MINUTES * 60:
+            severity, status, deviation = "alert", "Alarm", "Alarmgrense etter solslutt"
+        elif after_end_seconds >= SUNROOM_DOOR_WARN_AFTER_END_MINUTES * 60:
+            severity, status, deviation = "warning", "Avvik", "Sen utgang"
+        elif opened_at is None:
+            severity, status, deviation = "active", "Pågår", "Innenfor forventet tid"
+    else:
+        severity, status, deviation = "waiting", "Avventer", "Kort periode uten sikker kobling"
+
+    exit_delta_minutes = None
+    if isinstance(opened_at, datetime) and isinstance(expected_exit, datetime):
+        exit_delta_minutes = (opened_at - expected_exit).total_seconds() / 60
+    session_end = sun_session_end_at(session) if session else None
+    return {
+        "id": period.get("id"),
+        "title": config.get("title"),
+        "room_id": config.get("room_id"),
+        "device_key": config.get("device_key"),
+        "closed_at": closed_at,
+        "opened_at": opened_at,
+        "duration_seconds": duration_seconds,
+        "duration_label": compact_duration_label(duration_seconds),
+        "session": {
+            "id": session.get("id"),
+            "source_session_id": session.get("source_session_id"),
+            "started_at": session.get("started_at"),
+            "ended_at": session_end,
+            "expected_exit_at": expected_exit,
+            "duration_minutes": session.get("duration_minutes"),
+            "sun2_bed_id": session.get("sun2_bed_id"),
+        } if session else None,
+        "expected_exit_at": expected_exit,
+        "exit_delta_minutes": exit_delta_minutes,
+        "severity": severity,
+        "status": status,
+        "deviation": deviation,
+        "missing_session": missing_session,
+        "alarm": alarm,
+    }
+
+
+async def solroom_door_day_control() -> dict[str, Any]:
+    now = local_now()
+    day_start, day_end = day_bounds(now.date())
+    device_ids = [int(item["device_id"]) for item in SOLROOM_DOOR_CONFIG if item.get("device_id") is not None]
+    device_keys = [str(item["device_key"]) for item in SOLROOM_DOOR_CONFIG]
+    door_rows = await many_mappings(
+        """
+        select id, timestamp, action, device_key, device_id, raw_value, state
+        from door_events
+        where (device_id = any(:device_ids) or device_key = any(:device_keys))
+          and timestamp >= :start and timestamp < :end
+        order by timestamp asc, id asc
+        """,
+        {"device_ids": device_ids, "device_keys": device_keys, "start": day_start - timedelta(hours=12), "end": day_end},
+    )
+    sessions = await many_mappings(
+        """
+        select id, source_session_id, room_id, room, source_room_name, sun2_bed_id,
+               started_at, ended_at, duration_minutes
+        from sun2_tanning_sessions
+        where started_at >= :start and started_at < :end
+        order by started_at desc, id desc
+        """,
+        {"start": day_start - timedelta(hours=2), "end": day_end + timedelta(hours=2)},
+    )
+    alarms = await many_mappings(
+        """
+        select id, alarm_type, status, outcome, title, device_key, device_id, room_id,
+               sun2_bed_id, source_session_id, door_changed_at, expected_exit_at,
+               detected_at, resolved_at, notification_status, last_notification_at
+        from alarm_events
+        where domain = 'doors'
+          and ((detected_at >= :start and detected_at < :end)
+               or (door_changed_at >= :start and door_changed_at < :end))
+        order by detected_at desc, id desc
+        """,
+        {"start": day_start, "end": day_end},
+    )
+
+    sessions_by_room: dict[str, list[dict[str, Any]]] = {}
+    for session in sessions:
+        room_id = solroom_session_room_id(session)
+        if room_id:
+            sessions_by_room.setdefault(room_id, []).append(session)
+
+    periods_by_device: dict[str, list[dict[str, Any]]] = {}
+    for period in solroom_closed_periods(door_rows, now):
+        closed_at = period.get("closed_at")
+        opened_at = period.get("opened_at")
+        if isinstance(closed_at, datetime) and closed_at >= day_end:
+            continue
+        if isinstance(opened_at, datetime) and opened_at < day_start and (not isinstance(closed_at, datetime) or closed_at < day_start):
+            continue
+        periods_by_device.setdefault(door_row_key(period), []).append(period)
+
+    rows: list[dict[str, Any]] = []
+    matched_session_ids: set[int] = set()
+    for config in SOLROOM_DOOR_CONFIG:
+        room_sessions = sessions_by_room.get(str(config.get("room_id") or ""), [])
+        device_periods = periods_by_device.get(
+            f"id:{config['device_id']}" if config.get("device_id") is not None else f"key:{config['device_key']}",
+            [],
+        )
+        for period in device_periods:
+            session = solroom_match_session_for_period(room_sessions, period.get("closed_at"), period.get("opened_at"), now)
+            if session and session.get("id") is not None:
+                matched_session_ids.add(int(session["id"]))
+            alarm = solroom_alarm_for_period(alarms, config, period, session)
+            rows.append(solroom_control_row(config, period, session, alarm, now))
+
+        for session in room_sessions:
+            started_at = session.get("started_at")
+            if not isinstance(started_at, datetime) or not day_start <= started_at < day_end:
+                continue
+            if session.get("id") is not None and int(session["id"]) in matched_session_ids:
+                continue
+            alarm = next(
+                (
+                    item for item in alarms
+                    if item.get("source_session_id")
+                    and item.get("source_session_id") == session.get("source_session_id")
+                ),
+                None,
+            )
+            rows.append(
+                {
+                    "id": f"session-{session.get('id')}",
+                    "title": config.get("title"),
+                    "room_id": config.get("room_id"),
+                    "device_key": config.get("device_key"),
+                    "closed_at": None,
+                    "opened_at": None,
+                    "duration_seconds": None,
+                    "duration_label": "-",
+                    "session": {
+                        "id": session.get("id"),
+                        "source_session_id": session.get("source_session_id"),
+                        "started_at": started_at,
+                        "ended_at": sun_session_end_at(session),
+                        "expected_exit_at": sun_session_expected_exit_at(session),
+                        "duration_minutes": session.get("duration_minutes"),
+                        "sun2_bed_id": session.get("sun2_bed_id"),
+                    },
+                    "expected_exit_at": sun_session_expected_exit_at(session),
+                    "exit_delta_minutes": None,
+                    "severity": "alert" if alarm else "warning",
+                    "status": "Alarm" if alarm else "Avvik",
+                    "deviation": "Sun2-time uten funnet dørperiode",
+                    "missing_session": False,
+                    "alarm": alarm,
+                }
+            )
+
+    rows.sort(
+        key=lambda item: datetime_sort_value(item.get("closed_at") or (item.get("session") or {}).get("started_at")),
+        reverse=True,
+    )
+    return {
+        "generated_at": now,
+        "rows": rows,
+        "summary": {
+            "rows": len(rows),
+            "deviations": sum(1 for item in rows if item.get("severity") in {"warning", "alert"}),
+            "alarms": sum(1 for item in rows if item.get("alarm") or item.get("severity") == "alert"),
+            "missing": sum(1 for item in rows if not item.get("session") or not item.get("closed_at")),
+        },
     }
 
 
@@ -1459,6 +1841,7 @@ async def source_dashboard_data() -> dict[str, Any]:
     solroom_doors = await solroom_door_statuses()
     other_doors = await other_door_statuses()
     door_alarm = await solroom_door_alarm_statuses(solroom_doors)
+    door_day_control = await solroom_door_day_control()
 
     inside_values = [vent.get("temp_1etg"), vent.get("temp_2etg"), vent.get("temp_vip")]
     inside_values = [float(value) for value in inside_values if value is not None]
@@ -1519,6 +1902,7 @@ async def source_dashboard_data() -> dict[str, Any]:
         "solroom_doors": solroom_doors,
         "other_doors": other_doors,
         "door_alarm": door_alarm,
+        "door_day_control": door_day_control,
     }
     data["revenue"] = {
         "today": amount_sum(data["soling"].get("amount"), data["parking"].get("amount")),
@@ -1610,6 +1994,11 @@ async def latest_snapshot_payload() -> dict[str, Any]:
                 "subscribe_url": ntfy_subscribe_url(NTFY_DOORS_TOPIC, "SUN2 dørvarsler"),
                 "topic_url": ntfy_topic_url(NTFY_DOORS_TOPIC),
                 "threshold_minutes": SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES,
+            },
+            "door_day_control": {
+                "generated_at": now,
+                "rows": [],
+                "summary": {"rows": 0, "deviations": 0, "alarms": 0, "missing": 0},
             },
             "revenue": {},
             "revenue_updated_at": None,
@@ -2450,15 +2839,16 @@ async def other_doors_detail(request: Request):
 async def door_alarm_detail(request: Request):
     data = await dashboard_data()
     alarm_data = dict(data.get("door_alarm") or {})
-    summary = dict(alarm_data.get("summary") or {})
+    day_control = dict(data.get("door_day_control") or {})
+    summary = dict(day_control.get("summary") or {})
     threshold = alarm_data.get("threshold_minutes") or SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES
     threshold_text = f"{float(threshold):g}"
     body = detail_stats(
         [
-            ("Alarm", fmt_int(summary.get("alarms")), f"lukket > {threshold_text} min uten soltime"),
-            ("Følger", fmt_int(summary.get("watch")), "mangler soltime, under alarmgrense"),
-            ("I bruk", fmt_int(summary.get("busy")), "lukket nå"),
-            ("Sist sjekket", fmt_clock(alarm_data.get("generated_at")), fmt_date(alarm_data.get("generated_at"))),
+            ("Perioder", fmt_int(summary.get("rows")), "dør og soltime"),
+            ("Avvik", fmt_int(summary.get("deviations")), "bør kontrolleres"),
+            ("Alarm", fmt_int(summary.get("alarms")), "registrert i dag"),
+            ("Mangler", fmt_int(summary.get("missing")), "dør eller soltime"),
         ]
     )
     subscribe_url = str(alarm_data.get("subscribe_url") or ntfy_subscribe_url(NTFY_DOORS_TOPIC, "SUN2 dørvarsler"))
@@ -2468,8 +2858,8 @@ async def door_alarm_detail(request: Request):
       <small>Varsel sendes når et solrom har vært lukket mer enn {escape(threshold_text)} min uten koblet Sun2-time.</small>
     </section>
     """
-    body += render_door_alarm_list(alarm_data)
-    return render_detail_page("Døralarm", "Solrom som er lukket uten koblet Sun2-time.", body, icon="door")
+    body += render_door_day_control(day_control)
+    return render_detail_page("Døralarm", "Dagens dørperioder, soltimer, avvik og alarmer.", body, icon="door")
 
 
 @app.get("/dorer/{device_key}", response_class=HTMLResponse)
@@ -2655,46 +3045,83 @@ def render_door_alarm_dashboard_cards(alarm_data: dict[str, Any]) -> str:
     return f'<div class="door-mini-grid">{"".join(cards)}</div>'
 
 
-def render_door_alarm_list(alarm_data: dict[str, Any]) -> str:
-    items = list(alarm_data.get("items") or [])
+def mobile_clock(value: Any) -> str:
+    return value.strftime("%H:%M") if isinstance(value, datetime) else "-"
+
+
+def mobile_session_range(session: dict[str, Any]) -> str:
+    started_at = mobile_clock(session.get("started_at"))
+    ended_at = mobile_clock(session.get("ended_at"))
+    return f"{started_at}–{ended_at}" if started_at != "-" and ended_at != "-" else started_at
+
+
+def mobile_exit_delta(value: Any) -> str:
+    try:
+        rounded = round(float(value))
+    except (TypeError, ValueError):
+        return ""
+    if rounded == 0:
+        return "0 min mot forventet"
+    return f"{rounded:+d} min mot forventet"
+
+
+def render_door_day_control(day_control: dict[str, Any]) -> str:
+    items = list(day_control.get("rows") or [])
     if not items:
-        content = '<p class="empty-list">Ingen solromdata akkurat nå.</p>'
-    else:
-        rows = []
-        for item in items:
-            if item.get("alarm_active"):
-                tone = "alarm"
-                label = "Alarm"
-                detail = f"Lukket {item.get('duration_label') or '-'} uten Sun2-time"
-            elif item.get("missing_session"):
-                tone = "watch"
-                label = "Følger"
-                detail = f"Lukket {item.get('duration_label') or '-'} uten Sun2-time"
-            elif item.get("session"):
-                tone = "ok"
-                label = "Soltime"
-                detail = f"Forventet ut {display_stamp(item.get('expected_exit_at'))}"
-            elif item.get("state") == "closed":
-                tone = "waiting"
-                label = "Venter"
-                detail = f"Lukket {item.get('duration_label') or '-'}"
-            else:
-                tone = "ok"
-                label = str(item.get("state_label") or "Ledig")
-                detail = str(item.get("age_label") or "-")
-            rows.append(
-                f"""
-                <li class="door-alarm-row is-{tone}">
-                    <div>
-                        <strong>{escape(str(item.get("title") or ""))}</strong>
-                        <small>{escape(detail)}</small>
-                    </div>
-                    <em>{escape(label)}</em>
-                </li>
-                """
-            )
-        content = "".join(rows)
-    return f'<section class="section-block detail-list door-alarm-list"><h2>Solromalarm</h2><ul>{content}</ul></section>'
+        return '<section class="section-block door-control-list"><h2>Dagens dørperioder</h2><p class="empty-list">Ingen dørperioder eller soltimer i dag.</p></section>'
+
+    cards = []
+    for item in items:
+        session = dict(item.get("session") or {})
+        alarm = dict(item.get("alarm") or {})
+        severity = str(item.get("severity") or "ok")
+        status = str(item.get("status") or "OK")
+        opened_text = mobile_clock(item.get("opened_at")) if item.get("opened_at") else "Pågår"
+        session_text = mobile_session_range(session) if session else "Ikke funnet"
+        duration_minutes = session.get("duration_minutes")
+        session_detail = ""
+        if session:
+            duration_text = f"{float(duration_minutes):g} min" if duration_minutes is not None else "varighet ukjent"
+            bed_text = f"seng {session.get('sun2_bed_id')}" if session.get("sun2_bed_id") else "seng ukjent"
+            session_detail = f"{duration_text} · {bed_text}"
+        alarm_html = ""
+        if alarm:
+            alarm_type = "Overtid" if alarm.get("alarm_type") == "overstay" else "Uten soltime"
+            notification_text = {
+                "sent": "varsel sendt",
+                "failed": "varsling feilet",
+                "not_sent": "varsel ikke sendt",
+                "unknown": "eldre varselstatus ukjent",
+            }.get(str(alarm.get("notification_status") or ""), "")
+            alarm_html = f"""
+                <div class="door-control-alarm">
+                    <strong>Alarm {escape(mobile_clock(alarm.get('detected_at')))} · {escape(alarm_type)}</strong>
+                    {f'<small>{escape(notification_text)}</small>' if notification_text else ''}
+                </div>
+            """
+        delta_text = mobile_exit_delta(item.get("exit_delta_minutes"))
+        cards.append(
+            f"""
+            <article class="door-control-row is-{escape(severity)}">
+                <header>
+                    <strong>{escape(str(item.get("title") or "Solrom"))}</strong>
+                    <em>{escape(status)}</em>
+                </header>
+                <dl>
+                    <div><dt>Lukket</dt><dd>{escape(mobile_clock(item.get("closed_at")))}</dd></div>
+                    <div><dt>Soltime</dt><dd>{escape(session_text)}{f'<small>{escape(session_detail)}</small>' if session_detail else ''}</dd></div>
+                    <div><dt>Forventet ut</dt><dd>{escape(mobile_clock(item.get("expected_exit_at")))}</dd></div>
+                    <div><dt>Åpnet</dt><dd>{escape(opened_text)}<small>{escape(str(item.get("duration_label") or "-"))}</small></dd></div>
+                </dl>
+                <footer>
+                    <strong>{escape(str(item.get("deviation") or "Ingen avvik"))}</strong>
+                    {f'<small>{escape(delta_text)}</small>' if delta_text else ''}
+                </footer>
+                {alarm_html}
+            </article>
+            """
+        )
+    return f'<section class="section-block door-control-list"><h2>Dagens dørperioder</h2><div>{"".join(cards)}</div></section>'
 
 
 def render_door_overview(statuses: list[dict[str, Any]], base_path: str) -> str:
@@ -3056,7 +3483,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260713-door-alarm">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260720-door-control">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -3089,7 +3516,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260713-door-alarm">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260720-door-control">
 </head>
 <body>
   <header class="topbar">
@@ -3223,7 +3650,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260713-door-alarm">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260720-door-control">
 </head>
 <body>
   <header class="topbar">

@@ -90,11 +90,67 @@ class OnlineDashboardDoorTests(unittest.TestCase):
 
         self.assertEqual(online_main.render_door_alarm_summary(alarm_data), "1 alarm")
         cards = online_main.render_door_alarm_dashboard_cards(alarm_data)
-        alarm_list = online_main.render_door_alarm_list(alarm_data)
 
         self.assertIn("Solrom 4", cards)
         self.assertIn("Alarm", cards)
-        self.assertIn("uten Sun2-time", alarm_list)
+
+    def test_mobile_door_control_shows_today_times_and_alarm_without_date(self) -> None:
+        control = {
+            "rows": [
+                {
+                    "title": "Solrom 5",
+                    "closed_at": datetime(2026, 7, 20, 13, 12, 15),
+                    "opened_at": datetime(2026, 7, 20, 13, 38, 6),
+                    "duration_label": "25 min",
+                    "expected_exit_at": datetime(2026, 7, 20, 13, 29),
+                    "exit_delta_minutes": 9,
+                    "severity": "alert",
+                    "status": "Alarm",
+                    "deviation": "Alarmgrense etter solslutt",
+                    "session": {
+                        "started_at": datetime(2026, 7, 20, 13, 11),
+                        "ended_at": datetime(2026, 7, 20, 13, 26),
+                        "duration_minutes": 12,
+                        "sun2_bed_id": "644",
+                    },
+                    "alarm": {
+                        "detected_at": datetime(2026, 7, 20, 13, 36),
+                        "alarm_type": "overstay",
+                        "notification_status": "sent",
+                    },
+                }
+            ]
+        }
+
+        html = online_main.render_door_day_control(control)
+
+        self.assertIn("Solrom 5", html)
+        self.assertIn("13:12", html)
+        self.assertIn("13:11–13:26", html)
+        self.assertIn("Alarm 13:36 · Overtid", html)
+        self.assertIn("varsel sendt", html)
+        self.assertNotIn("20.07.2026", html)
+
+    def test_mobile_door_periods_collapse_sensor_bounce(self) -> None:
+        rows = [
+            {"id": 1, "device_id": 479, "timestamp": datetime(2026, 7, 20, 10, 40), "state": True},
+            {"id": 2, "device_id": 479, "timestamp": datetime(2026, 7, 20, 10, 42, 50), "state": False},
+            {"id": 3, "device_id": 479, "timestamp": datetime(2026, 7, 20, 10, 42, 52), "state": True},
+            {"id": 4, "device_id": 479, "timestamp": datetime(2026, 7, 20, 10, 42, 53), "state": False},
+            {"id": 5, "device_id": 479, "timestamp": datetime(2026, 7, 20, 10, 59, 19), "state": True},
+        ]
+
+        periods = online_main.solroom_closed_periods(rows, datetime(2026, 7, 20, 11))
+
+        self.assertEqual(len(periods), 1)
+        self.assertEqual(periods[0]["closed_at"], datetime(2026, 7, 20, 10, 42, 50))
+        self.assertEqual(periods[0]["opened_at"], datetime(2026, 7, 20, 10, 59, 19))
+
+    def test_mobile_room_12_uses_physical_room_13_and_bed_681(self) -> None:
+        config = online_main.SOLROOM_DOOR_BY_KEY["door_solrom_12"]
+
+        self.assertEqual(online_main.solroom_room_id_from_config(config), "rom-13")
+        self.assertEqual(config["sun2_bed_id"], "681")
 
 
 if __name__ == "__main__":

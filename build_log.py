@@ -5,8 +5,40 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1582")
+APP_BUILD = os.getenv("APP_BUILD", "1583")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1583",
+        "date": "20.07.2026",
+        "headline": "Dagens dørkontroll på mobil",
+        "title": "Mobilens døralarmside viser perioder, Sun2-kobling, avvik og alarmtid uten datovalg",
+        "description": (
+            "Den tidligere statuslisten på mobilens døralarmside er erstattet med en kompakt dagskontroll. "
+            "Hver faktiske lukketperiode viser rom, lukketid, koblet soltime, forventet utgang, faktisk åpning, "
+            "varighet, avvik og eventuell alarm. Dataene følger den samme femsekunders stabiliseringen som "
+            "hovedappen og sendes videre i den eksisterende sikre snapshot-synkroniseringen."
+        ),
+        "applications": [
+            "online_dashboard: beregner og synkroniserer dagens stabiliserte dør- og Sun2-kontroll.",
+            "online_dashboard mobilside: erstatter gammel alarmtabell med kompakte dagskort uten datovelger.",
+            "static/online-dashboard.css: mobiltilpasset status-, tids- og alarmhierarki.",
+            "tests/test_online_dashboard_doors.py: dekker sensorstøy, alarmvisning og VIP-romnummerering.",
+        ],
+        "request": (
+            "Jeg ønsker også å ha disse data tilgjengelig på mobil for inneværende dag. "
+            "Da trenger man ikke bruke plass på dato. Skift ut tabellen på døralarmsiden."
+        ),
+        "work_duration": "ca. 50 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser kun inneværende dag og bruker ikke plass på datovelger eller gjentatt dato.",
+            "Viser én mobilrad per stabil dørperiode eller Sun2-time som mangler dørkobling.",
+            "Viser alarmtid, alarmtype og varslingsstatus direkte på den aktuelle perioden.",
+            "Kobler Solrom 10–12 korrekt mot fysiske rom 11–13 og Sun2-seng 679–681.",
+            "Beholder abonnementsknappen for samlede dørvarsler.",
+        ],
+    },
     {
         "version": "1",
         "build": "1582",

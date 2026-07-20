@@ -1101,6 +1101,135 @@ h2 { font-size: 1.05rem; }
     font-style: normal;
     font-weight: 950;
 }
+.door-control-list {
+    padding: .78rem;
+}
+.door-control-list > h2 {
+    margin: 0 0 .65rem;
+    color: var(--navy);
+    font-size: 1rem;
+}
+.door-control-list > div {
+    display: grid;
+    gap: .58rem;
+}
+.door-control-row {
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-left: .24rem solid var(--green);
+    border-radius: .82rem;
+    background: rgba(255, 255, 255, .76);
+}
+.door-control-row.is-active {
+    border-left-color: var(--parking);
+    background: rgba(51, 103, 209, .045);
+}
+.door-control-row.is-waiting,
+.door-control-row.is-warning {
+    border-left-color: var(--gold);
+    background: rgba(201, 145, 26, .05);
+}
+.door-control-row.is-alert {
+    border-left-color: var(--red);
+    background: rgba(200, 106, 85, .055);
+}
+.door-control-row > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .6rem;
+    padding: .58rem .65rem .45rem;
+}
+.door-control-row > header strong {
+    color: var(--navy);
+    font-size: .95rem;
+}
+.door-control-row > header em {
+    padding: .18rem .42rem;
+    border-radius: 999px;
+    background: rgba(74, 132, 80, .12);
+    color: #32663c;
+    font-size: .68rem;
+    font-style: normal;
+    font-weight: 950;
+}
+.door-control-row.is-active > header em {
+    background: rgba(51, 103, 209, .11);
+    color: var(--parking);
+}
+.door-control-row.is-waiting > header em,
+.door-control-row.is-warning > header em {
+    background: rgba(201, 145, 26, .13);
+    color: #805b08;
+}
+.door-control-row.is-alert > header em {
+    background: rgba(200, 106, 85, .13);
+    color: #9b3e2e;
+}
+.door-control-row dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+}
+.door-control-row dl > div {
+    min-width: 0;
+    padding: .5rem .65rem;
+}
+.door-control-row dl > div:nth-child(odd) {
+    border-right: 1px solid var(--line);
+}
+.door-control-row dl > div:nth-child(n + 3) {
+    border-top: 1px solid var(--line);
+}
+.door-control-row dt {
+    margin-bottom: .12rem;
+    color: var(--muted);
+    font-size: .64rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+.door-control-row dd {
+    margin: 0;
+    color: var(--navy);
+    font-size: .86rem;
+    font-weight: 900;
+}
+.door-control-row dd small {
+    display: block;
+    margin-top: .08rem;
+    color: var(--muted);
+    font-size: .66rem;
+    font-weight: 750;
+}
+.door-control-row > footer,
+.door-control-alarm {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .55rem;
+    padding: .45rem .65rem;
+}
+.door-control-row > footer strong,
+.door-control-alarm strong {
+    color: var(--navy);
+    font-size: .76rem;
+}
+.door-control-row > footer small,
+.door-control-alarm small {
+    color: var(--muted);
+    font-size: .67rem;
+    font-weight: 750;
+    text-align: right;
+}
+.door-control-alarm {
+    border-top: 1px solid rgba(200, 106, 85, .22);
+    background: rgba(200, 106, 85, .08);
+}
+.door-control-alarm strong {
+    color: #9b3e2e;
+}
 
 .login-page {
     display: grid;
