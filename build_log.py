@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1584")
+APP_BUILD = os.getenv("APP_BUILD", "1585")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1585",
+        "date": "20.07.2026",
+        "headline": "Raskere solromkontroll",
+        "title": "Energi- og d\u00f8ranalysen bruker indekserte tidsvinduer i stedet for gjentatte fullskann",
+        "description": (
+            "Produksjonsm\u00e5lingen i build 1584 avdekket at solromoversikten brukte rundt fem sekunder. "
+            "Databasen var rask; nesten hele ventetiden kom av at alle energipunktene ble lest p\u00e5 nytt for "
+            "hver soltime og hver mark\u00f8r. Analysen finner n\u00e5 start og slutt i den sorterte tidsserien med "
+            "bin\u00e6rs\u00f8k og behandler bare punktene i det aktuelle vinduet."
+        ),
+        "applications": [
+            "Fibaro10 backend: raskere energiunderlag, effektmark\u00f8rer og dagslinjer for solrom.",
+            "Live kvalitetskontroll: strammere sekssekunders sidebudsjett med kontrollert ny m\u00e5ling av oppstartsavvik.",
+            "Tester: grenseverdier for inkluderende og ekskluderende tidsvinduer.",
+        ],
+        "request": (
+            "Ta en grundig gjennomgang av alt som er gjort hittil, s\u00f8rg for at ting fungerer og er logisk riktig, "
+            "s\u00f8rg for at alt fungerer raskt, og g\u00e5 gjennom CSS og design."
+        ),
+        "work_duration": "ca. 40 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kj\u00f8ring",
+        "changes": [
+            "Erstatter gjentatte line\u00e6re s\u00f8k i energiloggen med bisect-baserte tidsvinduer.",
+            "Gjenbruker en ferdig tidsindeks for alle soltimer i samme svar.",
+            "Bevarer n\u00f8yaktig samme regler for baseline, start, stopp og endepunkter.",
+            "Senker standard ytelsesgrense fra ti til seks sekunder og skiller varige feil fra oppstartsvariasjon.",
+        ],
+    },
     {
         "version": "1",
         "build": "1584",

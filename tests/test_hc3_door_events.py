@@ -204,6 +204,30 @@ class SunroomDoorTimingTests(unittest.TestCase):
         self.assertEqual(evidence["status"], "confirmed")
         self.assertEqual(evidence["startDelaySeconds"], 180)
 
+    def test_energy_sample_window_preserves_end_boundary_rules(self):
+        samples = [
+            {"time": datetime(2026, 7, 11, 12, minute), "diff_w": minute}
+            for minute in range(5)
+        ]
+        sample_times = [item["time"] for item in samples]
+
+        exclusive = self.main.sunroom_energy_sample_window(
+            samples,
+            datetime(2026, 7, 11, 12, 1),
+            datetime(2026, 7, 11, 12, 3),
+            sample_times,
+        )
+        inclusive = self.main.sunroom_energy_sample_window(
+            samples,
+            datetime(2026, 7, 11, 12, 1),
+            datetime(2026, 7, 11, 12, 3),
+            sample_times,
+            include_end=True,
+        )
+
+        self.assertEqual([item["diff_w"] for item in exclusive], [1, 2])
+        self.assertEqual([item["diff_w"] for item in inclusive], [1, 2, 3])
+
     def test_closed_solroom_without_session_warns_before_alarm_threshold(self):
         config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_solrom_04")
         now = datetime(2026, 7, 13, 12, 0)

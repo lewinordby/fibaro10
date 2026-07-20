@@ -11622,10 +11622,27 @@ def sunroom_energy_sample_items(samples: list[Any]) -> list[Dict[str, Any]]:
     return sorted(items, key=lambda item: item["time"])
 
 
+def sunroom_energy_sample_window(
+    samples: list[Dict[str, Any]],
+    start_at: datetime,
+    end_at: datetime,
+    sample_times: Optional[list[datetime]] = None,
+    *,
+    include_end: bool = False,
+) -> list[Dict[str, Any]]:
+    if not samples or end_at < start_at:
+        return []
+    times = sample_times if sample_times is not None else [item["time"] for item in samples]
+    start_index = bisect_left(times, start_at)
+    end_index = bisect_right(times, end_at) if include_end else bisect_left(times, end_at)
+    return samples[start_index:end_index]
+
+
 def sunroom_session_energy_evidence(
     row: Sun2TanningSession,
     samples: list[Dict[str, Any]],
     all_sessions: list[Sun2TanningSession],
+    sample_times: Optional[list[datetime]] = None,
 ) -> Dict[str, Any]:
     payment_at = normalize_local_naive(row.started_at)
     window = sunroom_session_energy_window(row)
@@ -11647,9 +11664,21 @@ def sunroom_session_energy_evidence(
     start_check_end = sun_start_at + timedelta(minutes=6)
     expected_delay_seconds = int((sun_start_at - payment_at).total_seconds())
 
-    baseline_values = [item["diff_w"] for item in samples if baseline_start <= item["time"] < baseline_end]
-    active_values = [item["diff_w"] for item in samples if measure_start <= item["time"] < measure_end]
-    start_values = [item for item in samples if payment_at - timedelta(minutes=1) <= item["time"] <= start_check_end]
+    baseline_values = [
+        item["diff_w"]
+        for item in sunroom_energy_sample_window(samples, baseline_start, baseline_end, sample_times)
+    ]
+    active_values = [
+        item["diff_w"]
+        for item in sunroom_energy_sample_window(samples, measure_start, measure_end, sample_times)
+    ]
+    start_values = sunroom_energy_sample_window(
+        samples,
+        payment_at - timedelta(minutes=1),
+        start_check_end,
+        sample_times,
+        include_end=True,
+    )
     baseline_w = sunroom_median_float(baseline_values)
     active_w = sunroom_median_float(active_values)
     net_w = active_w - baseline_w if active_w is not None and baseline_w is not None else None
@@ -11780,7 +11809,11 @@ def sunroom_power_marker(
     }
 
 
-def sunroom_power_markers(row: Sun2TanningSession, samples: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
+def sunroom_power_markers(
+    row: Sun2TanningSession,
+    samples: list[Dict[str, Any]],
+    sample_times: Optional[list[datetime]] = None,
+) -> list[Dict[str, Any]]:
     window = sunroom_session_energy_window(row)
     if not window:
         return []
@@ -11788,16 +11821,51 @@ def sunroom_power_markers(row: Sun2TanningSession, samples: list[Dict[str, Any]]
     start_anchor = sun_start_at + timedelta(minutes=5)
     stop_anchor = end_at - timedelta(minutes=5)
     baseline_w = sunroom_median_float(
-        [item["diff_w"] for item in samples if sun_start_at - timedelta(minutes=5) <= item["time"] < sun_start_at]
+        [
+            item["diff_w"]
+            for item in sunroom_energy_sample_window(
+                samples,
+                sun_start_at - timedelta(minutes=5),
+                sun_start_at,
+                sample_times,
+            )
+        ]
     )
     start_w = sunroom_median_float(
-        [item["diff_w"] for item in samples if start_anchor - timedelta(minutes=1) <= item["time"] <= start_anchor + timedelta(minutes=1)]
+        [
+            item["diff_w"]
+            for item in sunroom_energy_sample_window(
+                samples,
+                start_anchor - timedelta(minutes=1),
+                start_anchor + timedelta(minutes=1),
+                sample_times,
+                include_end=True,
+            )
+        ]
     )
     stop_w = sunroom_median_float(
-        [item["diff_w"] for item in samples if stop_anchor - timedelta(minutes=1) <= item["time"] <= stop_anchor + timedelta(minutes=1)]
+        [
+            item["diff_w"]
+            for item in sunroom_energy_sample_window(
+                samples,
+                stop_anchor - timedelta(minutes=1),
+                stop_anchor + timedelta(minutes=1),
+                sample_times,
+                include_end=True,
+            )
+        ]
     )
     after_w = sunroom_median_float(
-        [item["diff_w"] for item in samples if end_at <= item["time"] <= end_at + timedelta(minutes=5)]
+        [
+            item["diff_w"]
+            for item in sunroom_energy_sample_window(
+                samples,
+                end_at,
+                end_at + timedelta(minutes=5),
+                sample_times,
+                include_end=True,
+            )
+        ]
     )
     markers = [
         sunroom_power_marker("power_start", "Effekt +5 min", start_anchor, start_w, baseline_w),
@@ -11869,6 +11937,7 @@ def sunroom_session_day_events(
     energy_samples: list[Dict[str, Any]],
     day_start: datetime,
     day_end: datetime,
+    energy_sample_times: Optional[list[datetime]] = None,
 ) -> list[Dict[str, Any]]:
     payload = sunroom_session_payload(row)
     events: list[Dict[str, Any]] = []
@@ -11881,7 +11950,11 @@ def sunroom_session_day_events(
     ]:
         if event:
             events.append(event)
-    for marker in sunroom_entrance_markers(row, entrance_change_rows) + sunroom_power_markers(row, energy_samples):
+    for marker in sunroom_entrance_markers(row, entrance_change_rows) + sunroom_power_markers(
+        row,
+        energy_samples,
+        energy_sample_times,
+    ):
         event = sunroom_marker_day_event(marker)
         if event:
             events.append(event)
@@ -12782,8 +12855,14 @@ async def sunroom_room_overview_payload(session, days: int = 2, day: Optional[st
         )
     ).mappings().all()
     energy_samples = sunroom_energy_sample_items([dict(row) for row in energy_rows])
+    energy_sample_times = [item["time"] for item in energy_samples]
     energy_by_session_id = {
-        int(row.id): sunroom_session_energy_evidence(row, energy_samples, session_rows)
+        int(row.id): sunroom_session_energy_evidence(
+            row,
+            energy_samples,
+            session_rows,
+            energy_sample_times,
+        )
         for row in session_rows
         if row.id is not None
     }
@@ -12838,7 +12917,11 @@ async def sunroom_room_overview_payload(session, days: int = 2, day: Optional[st
             if matched_session and matched_session.id is not None:
                 payload["energy"] = energy_by_session_id.get(int(matched_session.id))
                 payload["entranceMarkers"] = sunroom_entrance_markers(matched_session, entrance_change_rows)
-                payload["powerMarkers"] = sunroom_power_markers(matched_session, energy_samples)
+                payload["powerMarkers"] = sunroom_power_markers(
+                    matched_session,
+                    energy_samples,
+                    energy_sample_times,
+                )
             else:
                 payload["energy"] = None
                 payload["entranceMarkers"] = []
@@ -12852,7 +12935,16 @@ async def sunroom_room_overview_payload(session, days: int = 2, day: Optional[st
         for row in room_sessions:
             start_at = normalize_local_naive(row.started_at)
             if start_at and day_start - timedelta(hours=2) <= start_at < day_end:
-                day_events.extend(sunroom_session_day_events(row, entrance_change_rows, energy_samples, day_start, day_end))
+                day_events.extend(
+                    sunroom_session_day_events(
+                        row,
+                        entrance_change_rows,
+                        energy_samples,
+                        day_start,
+                        day_end,
+                        energy_sample_times,
+                    )
+                )
 
         day_events = sorted(
             day_events,
@@ -12864,7 +12956,7 @@ async def sunroom_room_overview_payload(session, days: int = 2, day: Optional[st
                 **sunroom_session_payload(row),
                 "energy": energy_by_session_id.get(int(row.id)) if row.id is not None else None,
                 "entranceMarkers": sunroom_entrance_markers(row, entrance_change_rows),
-                "powerMarkers": sunroom_power_markers(row, energy_samples),
+                "powerMarkers": sunroom_power_markers(row, energy_samples, energy_sample_times),
                 "hasDoorMatch": row.id is not None and int(row.id) in matched_ids,
             }
             for row in room_sessions
