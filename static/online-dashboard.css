@@ -786,6 +786,12 @@ h2 { font-size: 1.05rem; }
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+.parking-row-main > .parking-row-history {
+    margin-top: .12rem;
+    color: var(--parking);
+    font-size: .67rem;
+    font-weight: 800;
+}
 .parking-row-facts {
     display: flex;
     flex-direction: column;

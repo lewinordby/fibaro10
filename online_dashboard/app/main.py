@@ -769,6 +769,29 @@ def parking_status_label(value: Any) -> str:
     }.get(status.casefold(), status)
 
 
+def parking_status_is_active(value: Any) -> bool:
+    return str(value or "").strip().casefold() in {
+        "active",
+        "aktiv",
+        "ongoing",
+        "p\u00e5g\u00e5ende",
+        "p\u00e5g\u00e5r",
+        "started",
+    }
+
+
+def parking_previous_count_label(value: Any) -> str:
+    try:
+        count = max(0, int(value or 0))
+    except (TypeError, ValueError):
+        count = 0
+    if count == 0:
+        return "F\u00f8rste parkering"
+    if count == 1:
+        return "Parkert 1 gang f\u00f8r"
+    return f"Parkert {fmt_int(count)} ganger f\u00f8r"
+
+
 def door_config_match(row: dict[str, Any], config: dict[str, Any]) -> bool:
     device_id = row.get("device_id")
     if device_id is not None and config.get("device_id") is not None:
@@ -2513,11 +2536,29 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
                    k.typebetegnelse,
                    k.farge,
                    k.forstegangsregistrert_norge,
-                   k.svv_teknisk_gyldig_fra
+                   k.svv_teknisk_gyldig_fra,
+                   case
+                       when d.plate_key = '' then 0
+                       else (
+                           select count(*)
+                           from parkering previous
+                           where upper(replace(coalesce(previous.car_license_number, ''), ' ', '')) = d.plate_key
+                             and (
+                                 previous.start_time < d.start_time
+                                 or (previous.start_time = d.start_time and previous.id < d.id)
+                             )
+                       )
+                   end as previous_parking_count
             from dagens d
             left join kjoretoy v on v.plate = d.plate_key
             left join kjoretoy_nokkeldata k on k.plate = d.plate_key
-            order by d.start_time desc
+            order by
+                case
+                    when lower(coalesce(d.status, '')) in ('ongoing', 'active', 'started') then 0
+                    else 1
+                end,
+                d.start_time desc,
+                d.id desc
             limit 30
             """,
             {"start": start, "end": end},
@@ -2962,13 +3003,21 @@ def render_parking_vehicle_list(rows: list[dict[str, Any]], can_view_money: bool
         content = '<p class="empty-list">Ingen parkeringer registrert i dag.</p>'
     else:
         items = []
-        for row in rows:
+        ordered_rows = sorted(
+            rows,
+            key=lambda item: item.get("start_time").isoformat()
+            if isinstance(item.get("start_time"), datetime)
+            else str(item.get("start_time") or ""),
+            reverse=True,
+        )
+        ordered_rows.sort(key=lambda item: 0 if parking_status_is_active(item.get("status")) else 1)
+        for row in ordered_rows:
             plate = str(row.get("car_license_number") or "Uten regnr").strip()
             status = parking_status_label(row.get("status"))
             vehicle = parking_vehicle_summary(row)
+            previous_count = parking_previous_count_label(row.get("previous_parking_count"))
             duration = f"{float(row.get('parking_time_min') or 0):.0f} min"
-            status_key = status.casefold()
-            status_class = " is-active" if status_key in {"active", "aktiv", "ongoing", "pågående", "pågår"} else ""
+            status_class = " is-active" if parking_status_is_active(row.get("status")) else ""
             status_html = f'<span class="parking-status{status_class}">{escape(status)}</span>' if status else ""
             amount_html = (
                 f'<strong class="parking-row-amount">{escape(fmt_amount(row.get("fee_inc_vat")))} kr</strong>'
@@ -2982,6 +3031,7 @@ def render_parking_vehicle_list(rows: list[dict[str, Any]], can_view_money: bool
                     <div class="parking-row-main">
                         <div class="parking-row-heading"><strong>{escape(plate)}</strong>{status_html}</div>
                         <small>{escape(vehicle)}</small>
+                        <small class="parking-row-history">{escape(previous_count)}</small>
                     </div>
                     <div class="parking-row-facts">
                         {amount_html}
@@ -3511,7 +3561,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1588">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1589">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -3544,7 +3594,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1588">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1589">
 </head>
 <body>
   <header class="topbar">
@@ -3678,7 +3728,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1588">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1589">
 </head>
 <body>
   <header class="topbar">

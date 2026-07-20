@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1588")
+APP_BUILD = os.getenv("APP_BUILD", "1589")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1589",
+        "date": "20.07.2026",
+        "headline": "Parkeringshistorikk p\u00e5 mobil",
+        "title": "P\u00e5g\u00e5ende parkeringer ligger f\u00f8rst og hver bil viser tidligere bes\u00f8k",
+        "description": (
+            "Dagens parkeringsliste viser n\u00e5 hvor mange ganger bilen har parkert tidligere. "
+            "P\u00e5g\u00e5ende parkeringer prioriteres alltid f\u00f8r avsluttede parkeringer, og hver gruppe "
+            "sorteres med nyeste starttidspunkt f\u00f8rst."
+        ),
+        "applications": [
+            "Mobilgrensesnitt: historikktall og konsekvent sortering av dagens parkeringer.",
+            "Online dashboard-backend: historikkberegning mot alle tidligere parkeringer.",
+            "Tester: rekkef\u00f8lge og entydige tekster for f\u00f8rste og gjentatte parkeringer.",
+        ],
+        "request": "Pr\u00f8v \u00e5 f\u00e5 med antall ganger parkert f\u00f8r ogs\u00e5, og sorter alltid slik at p\u00e5g\u00e5ende kommer \u00f8verst.",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kj\u00f8ring",
+        "changes": [
+            "Teller bare parkeringer som startet f\u00f8r den aktuelle posten.",
+            "Viser F\u00f8rste parkering eller antall tidligere parkeringer under kj\u00f8ret\u00f8yet.",
+            "Prioriterer aktive parkeringer b\u00e5de i databasesp\u00f8rringen og i visningslaget.",
+        ],
+    },
     {
         "version": "1",
         "build": "1588",
