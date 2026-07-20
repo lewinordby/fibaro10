@@ -3086,6 +3086,7 @@ def render_door_day_control(day_control: dict[str, Any]) -> str:
             session_detail = f"{duration_text} · {bed_text}"
         alarm_html = ""
         if alarm:
+            alarm_label = "Feilalarm" if alarm.get("outcome") == "false_positive" else "Alarm"
             alarm_type = "Overtid" if alarm.get("alarm_type") == "overstay" else "Uten soltime"
             notification_text = {
                 "sent": "varsel sendt",
@@ -3095,7 +3096,7 @@ def render_door_day_control(day_control: dict[str, Any]) -> str:
             }.get(str(alarm.get("notification_status") or ""), "")
             alarm_html = f"""
                 <div class="door-control-alarm">
-                    <strong>Alarm {escape(mobile_clock(alarm.get('detected_at')))} · {escape(alarm_type)}</strong>
+                    <strong>{escape(alarm_label)} {escape(mobile_clock(alarm.get('detected_at')))} · {escape(alarm_type)}</strong>
                     {f'<small>{escape(notification_text)}</small>' if notification_text else ''}
                 </div>
             """

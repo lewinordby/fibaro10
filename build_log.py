@@ -17,10 +17,11 @@ BUILD_LOG = [
             "Den tidligere statuslisten på mobilens døralarmside er erstattet med en kompakt dagskontroll. "
             "Hver faktiske lukketperiode viser rom, lukketid, koblet soltime, forventet utgang, faktisk åpning, "
             "varighet, avvik og eventuell alarm. Dataene følger den samme femsekunders stabiliseringen som "
-            "hovedappen og sendes videre i den eksisterende sikre snapshot-synkroniseringen."
+            "hovedappen. Dagskontrollen er også inkludert i snapshot-kontrakten dersom den separate "
+            "publiseringsmodusen aktiveres senere."
         ),
         "applications": [
-            "online_dashboard: beregner og synkroniserer dagens stabiliserte dør- og Sun2-kontroll.",
+            "online_dashboard: beregner dagens stabiliserte dør- og Sun2-kontroll og støtter snapshot-modus.",
             "online_dashboard mobilside: erstatter gammel alarmtabell med kompakte dagskort uten datovelger.",
             "static/online-dashboard.css: mobiltilpasset status-, tids- og alarmhierarki.",
             "tests/test_online_dashboard_doors.py: dekker sensorstøy, alarmvisning og VIP-romnummerering.",
