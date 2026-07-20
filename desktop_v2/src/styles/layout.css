@@ -208,7 +208,7 @@ a {
 }
 
 .module-view-switcher .ant-segmented-item-selected {
-  color: var(--ink) !important;
+  color: var(--standard-text-primary) !important;
   background: color-mix(in srgb, var(--active-module-color) 10%, var(--surface));
   font-weight: 750;
   box-shadow:

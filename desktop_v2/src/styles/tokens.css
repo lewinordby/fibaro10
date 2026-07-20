@@ -1,6 +1,7 @@
 :root {
   --white: #ffffff;
-  --ink: #111827;
+  --standard-text-primary: #111827;
+  --ink: var(--standard-text-primary);
   --ink-soft: #243041;
   --muted: #64748b;
   --muted-soft: #94a3b8;
