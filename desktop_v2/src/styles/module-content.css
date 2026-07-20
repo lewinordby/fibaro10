@@ -118,16 +118,17 @@
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--panel-surface);
-  box-shadow: 0 5px 16px var(--shadow-ink-faint-color), inset 0 1px 0 var(--panel-inset-highlight);
+  box-shadow: var(--shadow-xs), inset 0 1px 0 var(--panel-inset-highlight);
 }
 
 :is(.work-card, .chart-card, .table-card, .summary-card)::before {
   position: absolute;
   inset: 0 0 auto;
   z-index: 1;
-  height: 3px;
+  height: 2px;
   background: var(--panel-accent);
   content: "";
+  opacity: 0.84;
   pointer-events: none;
 }
 
@@ -135,7 +136,7 @@
 .chart-card .ant-card-head,
 .table-card .ant-card-head {
   min-height: 39px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--active-module-color) 2%, var(--surface)), var(--surface-panel-end));
+  background: color-mix(in srgb, var(--active-module-color) 1.5%, var(--surface-panel-end));
   border-bottom-color: var(--border-panel-soft);
 }
 
@@ -144,7 +145,7 @@
 .table-card .ant-card-head-title {
   color: var(--text-body);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 750;
 }
 
 :is(.tone-revenue, .tone-sun2, .tone-parking, .tone-energy, .tone-vent, .tone-weather, .tone-light, .tone-status) {

@@ -1,11 +1,12 @@
 .screen-theme-toggle {
   flex: 0 0 auto;
+  width: 35px;
   height: 34px;
-  padding: 0 10px;
+  padding: 0;
   color: var(--text-label);
-  border: 1px solid var(--border-control);
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
-  background: var(--surface);
+  background: transparent;
   font-size: 12px;
   font-weight: 760;
 }
@@ -17,9 +18,9 @@
 }
 
 .screen-theme-toggle.active {
-  color: var(--dark-on-accent);
-  background: var(--dark-accent-fill);
-  border-color: var(--dark-accent-fill);
+  color: color-mix(in srgb, var(--active-module-color) 72%, var(--ink));
+  background: color-mix(in srgb, var(--active-module-color) 7%, var(--surface-muted));
+  border-color: color-mix(in srgb, var(--active-module-color) 12%, var(--border-panel));
 }
 
 .app-shell.theme-dark {
@@ -143,9 +144,9 @@
 
 .app-shell.theme-dark .app-header {
   background:
-    linear-gradient(90deg, var(--dark-bg-header-start), var(--dark-bg-header-end) 54%, color-mix(in srgb, var(--active-module-color) 7%, var(--dark-bg-header-end)));
+    linear-gradient(90deg, var(--dark-bg-header-start), color-mix(in srgb, var(--active-module-color) 4%, var(--dark-bg-header-end)));
   border-bottom-color: rgba(255, 255, 255, 0.07);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.24);
   backdrop-filter: none;
 }
 
@@ -159,8 +160,8 @@
 .app-shell.theme-dark .screen-theme-toggle,
 .app-shell.theme-dark .profile-button {
   color: var(--text-body);
-  background: var(--surface-glass);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: transparent;
+  border-color: transparent;
 }
 
 .app-shell.theme-dark .main-menu-toggle:hover,
@@ -173,8 +174,8 @@
 
 .app-shell.theme-dark .screen-theme-toggle.active {
   color: var(--ink);
-  background: color-mix(in srgb, var(--active-module-color) 12%, var(--surface-raised));
-  border-color: color-mix(in srgb, var(--active-module-color) 32%, var(--border-control));
+  background: color-mix(in srgb, var(--active-module-color) 9%, var(--surface-raised));
+  border-color: color-mix(in srgb, var(--active-module-color) 20%, var(--border-control));
 }
 
 .app-shell.theme-dark .profile-avatar {
@@ -183,10 +184,9 @@
 }
 
 .app-shell.theme-dark .module-view-switcher {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--active-module-color) 4%, var(--surface-glass)), var(--surface-glass-soft));
+  background: color-mix(in srgb, var(--active-module-color) 3%, var(--surface-muted));
   border-color: var(--surface-glass-strong);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow: none;
 }
 
 .app-shell.theme-dark .module-view-switcher .ant-segmented-item {
@@ -199,20 +199,18 @@
 
 .app-shell.theme-dark .module-view-switcher .ant-segmented-item-selected {
   color: var(--ink);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--active-module-color) 20%, var(--surface-hover)), color-mix(in srgb, var(--active-module-color) 12%, var(--surface-raised)));
+  background: color-mix(in srgb, var(--active-module-color) 11%, var(--surface-raised));
   box-shadow:
     inset 0 -2px 0 color-mix(in srgb, var(--active-module-color) 82%, var(--dark-white)),
-    0 5px 14px rgba(0, 0, 0, 0.2);
+    0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .app-shell.theme-dark .app-sider {
   color: var(--text-body);
   background:
-    radial-gradient(circle at 20px 20px, color-mix(in srgb, var(--active-module-color) 7%, transparent), transparent 160px),
-    linear-gradient(180deg, var(--dark-bg-sider), var(--dark-bg-page-start) 180px, var(--dark-bg-sider)) !important;
+    linear-gradient(180deg, color-mix(in srgb, var(--active-module-color) 4%, var(--dark-bg-sider)), var(--dark-bg-page-start) 180px, var(--dark-bg-sider)) !important;
   border-right-color: rgba(255, 255, 255, 0.07);
-  box-shadow: 12px 0 26px var(--shadow-ink-faint-color);
+  box-shadow: 6px 0 22px var(--shadow-ink-faint-color);
 }
 
 .app-shell.theme-dark .brand-home-link {
@@ -245,11 +243,9 @@
 .app-shell.theme-dark .sider-nav-item.active {
   color: var(--ink);
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--menu-item-color) 13%, var(--surface-glass)), var(--surface-glass));
-  border-color: color-mix(in srgb, var(--menu-item-color) 28%, rgba(255, 255, 255, 0.1));
-  box-shadow:
-    inset 3px 0 0 var(--menu-item-color),
-    var(--shadow-faint);
+    linear-gradient(90deg, color-mix(in srgb, var(--menu-item-color) 11%, var(--surface-glass)), var(--surface-glass));
+  border-color: color-mix(in srgb, var(--menu-item-color) 20%, rgba(255, 255, 255, 0.1));
+  box-shadow: inset 2px 0 0 var(--menu-item-color);
 }
 
 .app-shell.theme-dark .sider-nav-icon {
@@ -266,8 +262,8 @@
 
 .app-shell.theme-dark .sider-build-link {
   color: var(--text-body);
-  background: var(--surface-glass);
-  border-color: var(--surface-glass-strong);
+  background: transparent;
+  border-color: transparent;
 }
 
 .app-shell.theme-dark .sider-build-link:hover {
@@ -292,7 +288,7 @@
   color: var(--text-body);
   background: var(--panel-surface) !important;
   border-color: var(--panel-border) !important;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-xs);
 }
 
 .app-shell.theme-dark .ant-card-head,
@@ -1204,10 +1200,6 @@ body:has(.app-shell.theme-dark) .ant-picker-cell-in-view.ant-picker-cell-selecte
 }
 
 @media (max-width: 900px) {
-  .screen-theme-toggle span {
-    display: none;
-  }
-
   .screen-theme-toggle {
     width: 34px;
     padding: 0;

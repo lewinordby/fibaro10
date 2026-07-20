@@ -1,8 +1,9 @@
 ﻿import {
-  BgColorsOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  MoonOutlined,
+  SunOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { Avatar, Button, Dropdown, Layout, Segmented } from "antd";
@@ -197,7 +198,7 @@ export function AppShell({ activeView, children, module, viewItems }: AppShellPr
           <Button
             className={`screen-theme-toggle ${screenTheme === "dark" ? "active" : ""}`}
             type="text"
-            icon={<BgColorsOutlined />}
+            icon={screenTheme === "dark" ? <SunOutlined /> : <MoonOutlined />}
             onClick={() => {
               setScreenTheme((value) => {
                 const next = value === "dark" ? "standard" : "dark";
@@ -206,11 +207,10 @@ export function AppShell({ activeView, children, module, viewItems }: AppShellPr
                 return next;
               });
             }}
+            aria-pressed={screenTheme === "dark"}
             aria-label={screenTheme === "dark" ? "Bruk standard tema" : "Bruk mørkt tema"}
             title={screenTheme === "dark" ? "Standard tema" : "Mørkt tema"}
-          >
-            <span>{screenTheme === "dark" ? "Mørkt" : "Standard"}</span>
-          </Button>
+          />
           <UserProfileMenu user={user} onAccount={() => navigate(modulePath("admin", "brukere"))} />
         </Header>
         <Content className="app-content">{children}</Content>

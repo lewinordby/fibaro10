@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1591")
+APP_BUILD = os.getenv("APP_BUILD", "1592")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1592",
+        "date": "20.07.2026",
+        "headline": "Et lettere og mer moderne Fibaro10",
+        "title": "Appskall, navigasjon og felles flater har f\u00e5tt et roligere og mer presist uttrykk",
+        "description": (
+            "Desktopgrensesnittet er modernisert uten \u00e5 \u00f8ke kortst\u00f8rrelser eller redusere informasjonsmengden. "
+            "Toppfeltet er lavere og renere, aktive menyvalg og faner bruker diskret toning og tydelig fargemarkering, "
+            "og tabeller og paneler har f\u00e5tt flatere dybde, lettere skygger og et jevnere typografisk hierarki. "
+            "Lyst og m\u00f8rkt tema f\u00f8lger n\u00e5 samme visuelle logikk."
+        ),
+        "applications": [
+            "Fibaro10 desktop: modernisert appskall, navigasjon, toppfaner, paneler og tabeller.",
+            "Tema: egen sol-/m\u00e5neknapp og samstemt uttrykk i lyst og m\u00f8rkt tema.",
+            "Tilgjengelighet: tydelig tastaturfokus p\u00e5 de viktigste navigasjonskontrollene.",
+            "Kvalitetskontroll: komplett produksjonsbygg og UI-smoke av alle registrerte ruter.",
+        ],
+        "request": "Pr\u00f8v \u00e5 gj\u00f8re designet litt mer moderne og fint.",
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kj\u00f8ring",
+        "changes": [
+            "Erstatter det tunge valgte fanefeltet med en lys toning og presis modulunderstrek.",
+            "Forenkler aktive menyrader og fjerner un\u00f8dvendig dybde fra sidefelt og buildlenke.",
+            "Reduserer h\u00f8yden og den visuelle st\u00f8yen i toppfeltet.",
+            "Bruker sol- og m\u00e5neikon for temabytte i stedet for tekst og generisk fargeikon.",
+            "Justerer skrifttyngder, paneldybde, tabellhoder og fokusmarkeringer globalt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1591",
