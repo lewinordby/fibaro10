@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1587")
+APP_BUILD = os.getenv("APP_BUILD", "1588")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1588",
+        "date": "20.07.2026",
+        "headline": "Norske parkeringsstatuser",
+        "title": "Mobilens parkeringsliste bruker korte og konsekvente norske statusnavn",
+        "description": (
+            "Den visuelle mobilkontrollen av build 1587 viste at EasyPark-statusene fortsatt sto som "
+            "Ongoing og Ended. De vises n\u00e5 som P\u00e5g\u00e5r og Avsluttet, uten at de lagrede kildeverdiene endres."
+        ),
+        "applications": [
+            "Mobilgrensesnitt: norske statusmarkeringer i dagens parkeringer.",
+            "Tester: kontroll av oversettelse og ukjente statusverdier.",
+        ],
+        "request": "Se ogs\u00e5 p\u00e5 dagens parkeringer, rydd bort dato og rydd opp slik at det blir pent p\u00e5 mobil.",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kj\u00f8ring",
+        "changes": [
+            "Oversetter Ongoing til P\u00e5g\u00e5r i mobilvisningen.",
+            "Oversetter Ended, Completed og Finished til Avsluttet.",
+            "Beholder ukjente statusverdier synlige for trygg feils\u00f8king.",
+        ],
+    },
     {
         "version": "1",
         "build": "1587",

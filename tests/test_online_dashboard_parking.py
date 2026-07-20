@@ -14,7 +14,7 @@ class OnlineDashboardParkingTests(unittest.TestCase):
                 {
                     "start_time": datetime(2026, 7, 20, 14, 25),
                     "car_license_number": "AB12345",
-                    "status": "P\u00e5g\u00e5ende",
+                    "status": "Ongoing",
                     "merke": "Volvo",
                     "modell": "XC60",
                     "typebetegnelse": "T8",
@@ -33,7 +33,14 @@ class OnlineDashboardParkingTests(unittest.TestCase):
         self.assertIn("2022 Volvo XC60 T8 - Svart", html)
         self.assertIn("84 kr", html)
         self.assertIn("45 min", html)
+        self.assertIn("P\u00e5g\u00e5r", html)
+        self.assertNotIn("Ongoing", html)
         self.assertIn('class="parking-status is-active"', html)
+
+    def test_easypark_statuses_are_presented_in_norwegian(self) -> None:
+        self.assertEqual(online_main.parking_status_label("Ongoing"), "P\u00e5g\u00e5r")
+        self.assertEqual(online_main.parking_status_label("Ended"), "Avsluttet")
+        self.assertEqual(online_main.parking_status_label("Ukjent"), "Ukjent")
 
     def test_today_parking_list_hides_money_for_viewer(self) -> None:
         html = online_main.render_parking_vehicle_list(

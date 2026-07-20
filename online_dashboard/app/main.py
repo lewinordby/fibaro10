@@ -758,6 +758,17 @@ def parking_vehicle_summary(row: dict[str, Any]) -> str:
     return f"{summary} - {color}" if color else summary
 
 
+def parking_status_label(value: Any) -> str:
+    status = str(value or "").strip()
+    return {
+        "active": "P\u00e5g\u00e5r",
+        "ongoing": "P\u00e5g\u00e5r",
+        "ended": "Avsluttet",
+        "completed": "Avsluttet",
+        "finished": "Avsluttet",
+    }.get(status.casefold(), status)
+
+
 def door_config_match(row: dict[str, Any], config: dict[str, Any]) -> bool:
     device_id = row.get("device_id")
     if device_id is not None and config.get("device_id") is not None:
@@ -2953,7 +2964,7 @@ def render_parking_vehicle_list(rows: list[dict[str, Any]], can_view_money: bool
         items = []
         for row in rows:
             plate = str(row.get("car_license_number") or "Uten regnr").strip()
-            status = str(row.get("status") or "").strip()
+            status = parking_status_label(row.get("status"))
             vehicle = parking_vehicle_summary(row)
             duration = f"{float(row.get('parking_time_min') or 0):.0f} min"
             status_key = status.casefold()
@@ -3500,7 +3511,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1587">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1588">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -3533,7 +3544,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1587">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1588">
 </head>
 <body>
   <header class="topbar">
@@ -3667,7 +3678,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1587">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1588">
 </head>
 <body>
   <header class="topbar">
