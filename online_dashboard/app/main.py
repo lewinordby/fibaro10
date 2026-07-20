@@ -2956,15 +2956,26 @@ def render_parking_vehicle_list(rows: list[dict[str, Any]], can_view_money: bool
             status = str(row.get("status") or "").strip()
             vehicle = parking_vehicle_summary(row)
             duration = f"{float(row.get('parking_time_min') or 0):.0f} min"
-            amount_text = f"{fmt_amount(row.get('fee_inc_vat'))} kr · " if can_view_money else ""
-            status_html = f"<span>{escape(status)}</span>" if status else ""
+            status_key = status.casefold()
+            status_class = " is-active" if status_key in {"active", "aktiv", "ongoing", "pågående", "pågår"} else ""
+            status_html = f'<span class="parking-status{status_class}">{escape(status)}</span>' if status else ""
+            amount_html = (
+                f'<strong class="parking-row-amount">{escape(fmt_amount(row.get("fee_inc_vat")))} kr</strong>'
+                if can_view_money
+                else ""
+            )
             items.append(
                 f"""
                 <li class="parking-vehicle-row">
-                    <time>{escape(fmt_time(row.get("start_time")))}</time>
-                    <strong>{escape(plate)}{status_html}</strong>
-                    <small>{escape(vehicle)}</small>
-                    <em>{escape(amount_text + duration)}</em>
+                    <time>{escape(mobile_clock(row.get("start_time")))}</time>
+                    <div class="parking-row-main">
+                        <div class="parking-row-heading"><strong>{escape(plate)}</strong>{status_html}</div>
+                        <small>{escape(vehicle)}</small>
+                    </div>
+                    <div class="parking-row-facts">
+                        {amount_html}
+                        <span>{escape(duration)}</span>
+                    </div>
                 </li>
                 """
             )
@@ -3489,7 +3500,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260720-door-control">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1587">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -3522,7 +3533,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260720-door-control">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1587">
 </head>
 <body>
   <header class="topbar">
@@ -3656,7 +3667,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260720-door-control">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1587">
 </head>
 <body>
   <header class="topbar">

@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1586")
+APP_BUILD = os.getenv("APP_BUILD", "1587")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1587",
+        "date": "20.07.2026",
+        "headline": "Ryddigere parkeringer p\u00e5 mobil",
+        "title": "Dagens parkeringer viser bare klokkeslett i en strammere mobilrad",
+        "description": (
+            "Datoen er fjernet fra dagens parkeringer. Hver rad har n\u00e5 et fast visuelt hierarki med "
+            "klokkeslett til venstre, registreringsnummer og kj\u00f8ret\u00f8y i midten samt bel\u00f8p og varighet "
+            "h\u00f8yrejustert. Status er beholdt som en liten, tydelig markering."
+        ),
+        "applications": [
+            "Mobilgrensesnitt: kompakt og responsiv liste over dagens parkeringer.",
+            "Mobil-CSS: egne radstiler for tidspunkt, kj\u00f8ret\u00f8y, status, bel\u00f8p og varighet.",
+            "Tester: kontroll av klokkeslett uten dato og komplett radinnhold.",
+        ],
+        "request": "Se ogs\u00e5 p\u00e5 dagens parkeringer, rydd bort dato og rydd opp slik at det blir pent p\u00e5 mobil.",
+        "work_duration": "ca. 25 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kj\u00f8ring",
+        "changes": [
+            "Viser bare starttidspunktet som HH:MM for dagens parkeringer.",
+            "Skiller kj\u00f8ret\u00f8yinformasjon fra bel\u00f8p og varighet i en stabil trekolonners layout.",
+            "Gir aktive parkeringer en diskret bl\u00e5 statusmarkering.",
+            "Oppdaterer CSS-versjonen slik at mobilnettlesere henter det nye designet med en gang.",
+        ],
+    },
     {
         "version": "1",
         "build": "1586",
