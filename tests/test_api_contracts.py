@@ -69,3 +69,9 @@ class AdminBuildApiIntegrationTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["currentBuild"], build_log.APP_BUILD)
+        self.assertRegex(response.headers["x-response-time"], r"^\d+\.\dms$")
+        self.assertRegex(response.headers["server-timing"], r"^app;dur=\d+\.\d$")
+
+        static_response = client.get("/static/lilletorget-favicon.png")
+        self.assertEqual(static_response.status_code, 200)
+        self.assertIn("must-revalidate", static_response.headers["cache-control"])

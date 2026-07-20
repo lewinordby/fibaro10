@@ -1,6 +1,7 @@
 import { Button, Card, Input, Select, Space } from "antd";
 import { useState } from "react";
 import type { ModuleFilter } from "../../api";
+import "../../styles/module-filters.css";
 
 function initialFilterValues(filters: ModuleFilter[]): Record<string, string> {
   return Object.fromEntries(filters.map((filter) => [filter.key, filter.value === null || filter.value === undefined ? "" : String(filter.value)]));

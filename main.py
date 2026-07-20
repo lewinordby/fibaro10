@@ -10,7 +10,7 @@ from functools import lru_cache
 from statistics import median
 from types import SimpleNamespace
 from typing import Any, Dict, Iterable, List, Optional
-from time import monotonic
+from time import monotonic, perf_counter
 import asyncio
 from bisect import bisect_left, bisect_right
 import calendar
@@ -59,7 +59,7 @@ from energy_helpers import (
     parse_elvia_json_payload,
 )
 from import_jobs import IMPORT_JOB_DEFINITIONS, IMPORT_JOB_NUMBER_BY_NAME
-from observability import health_payload
+from observability import cache_control_for_path, health_payload, response_timing_headers
 from pdf_exports import build_table_pdf, pdf_response
 from parking_vehicle_helpers import (
     CAR_INFO_IMPORT_JOB_BY_COUNTRY,
@@ -372,6 +372,7 @@ owntracks_visit_sync_task: Optional[asyncio.Task] = None
 owntracks_visit_sync_lock: Optional[asyncio.Lock] = None
 SECURITY_HSTS_ENABLED = os.getenv("SECURITY_HSTS_ENABLED", "false").strip().lower() in {"1", "true", "yes", "ja"}
 SECURITY_HSTS_MAX_AGE_SECONDS = max(0, int(os.getenv("SECURITY_HSTS_MAX_AGE_SECONDS", str(60 * 60 * 24 * 180))))
+SLOW_REQUEST_WARNING_MS = max(250.0, env_float("SLOW_REQUEST_WARNING_MS", "1500"))
 
 
 MOBILE_PREVIEW_SCREENS = [
@@ -475,12 +476,27 @@ async def access_key_middleware(request: Request, call_next):
 
 @app.middleware("http")
 async def security_headers_middleware(request: Request, call_next):
+    started_at = perf_counter()
     response = await call_next(request)
+    duration_ms = (perf_counter() - started_at) * 1000
     apply_security_headers(
         response.headers,
         hsts_enabled=SECURITY_HSTS_ENABLED,
         hsts_max_age_seconds=SECURITY_HSTS_MAX_AGE_SECONDS,
     )
+    for key, value in response_timing_headers(duration_ms).items():
+        response.headers.setdefault(key, value)
+    cache_control = cache_control_for_path(request.url.path)
+    if cache_control:
+        response.headers.setdefault("Cache-Control", cache_control)
+    if duration_ms >= SLOW_REQUEST_WARNING_MS and request.url.path != "/health":
+        logger.warning(
+            "Slow request %s %s completed in %.1f ms with status %s",
+            request.method,
+            request.url.path,
+            duration_ms,
+            response.status_code,
+        )
     return response
 
 

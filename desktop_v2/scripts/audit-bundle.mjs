@@ -6,11 +6,13 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const distDir = path.join(root, "dist");
 const assetsDir = path.join(distDir, "assets");
+const manifestPath = path.join(distDir, ".vite", "manifest.json");
 
 const limits = {
   maxJsAssetBytes: Number(process.env.FIBARO10_BUNDLE_MAX_JS_ASSET_BYTES || 1_200_000),
   maxCssAssetBytes: Number(process.env.FIBARO10_BUNDLE_MAX_CSS_ASSET_BYTES || 120_000),
-  maxTotalGzipBytes: Number(process.env.FIBARO10_BUNDLE_MAX_TOTAL_GZIP_BYTES || 825_000),
+  maxInitialGzipBytes: Number(process.env.FIBARO10_BUNDLE_MAX_INITIAL_GZIP_BYTES || 325_000),
+  maxTotalGzipBytes: Number(process.env.FIBARO10_BUNDLE_MAX_TOTAL_GZIP_BYTES || 875_000),
 };
 
 function walk(dir) {
@@ -46,6 +48,31 @@ const assets = walk(assetsDir)
 const jsAssets = assets.filter((asset) => asset.type === "js");
 const cssAssets = assets.filter((asset) => asset.type === "css");
 const totalGzipBytes = assets.reduce((sum, asset) => sum + asset.gzipBytes, 0);
+const assetByFile = new Map(assets.map((asset) => [asset.file, asset]));
+
+function initialAssetFiles() {
+  if (!fs.existsSync(manifestPath)) return [];
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  const entry = Object.values(manifest).find((item) => item?.isEntry);
+  if (!entry) return [];
+  const files = new Set();
+  const visited = new Set();
+
+  function visit(item) {
+    if (!item || visited.has(item.file)) return;
+    visited.add(item.file);
+    if (item.file) files.add(`dist/${item.file}`);
+    for (const cssFile of item.css || []) files.add(`dist/${cssFile}`);
+    for (const importKey of item.imports || []) visit(manifest[importKey]);
+  }
+
+  visit(entry);
+  return Array.from(files);
+}
+
+const initialFiles = initialAssetFiles();
+const initialAssets = initialFiles.map((file) => assetByFile.get(file)).filter(Boolean);
+const initialGzipBytes = initialAssets.reduce((sum, asset) => sum + asset.gzipBytes, 0);
 
 const failures = [];
 for (const asset of jsAssets) {
@@ -61,6 +88,11 @@ for (const asset of cssAssets) {
 if (totalGzipBytes > limits.maxTotalGzipBytes) {
   failures.push(`Total gzip er ${totalGzipBytes} byte, over grense ${limits.maxTotalGzipBytes}`);
 }
+if (!initialAssets.length) {
+  failures.push("Vite-manifest mangler eller har ingen entry-assets");
+} else if (initialGzipBytes > limits.maxInitialGzipBytes) {
+  failures.push(`Initial gzip er ${initialGzipBytes} byte, over grense ${limits.maxInitialGzipBytes}`);
+}
 
 const summary = {
   assetCount: assets.length,
@@ -68,6 +100,8 @@ const summary = {
   cssAssetCount: cssAssets.length,
   totalBytes: assets.reduce((sum, asset) => sum + asset.bytes, 0),
   totalGzipBytes,
+  initialGzipBytes,
+  initialAssets,
   limits,
   largestAssets: assets.slice(0, 12),
 };

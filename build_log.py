@@ -5,8 +5,45 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1583")
+APP_BUILD = os.getenv("APP_BUILD", "1584")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1584",
+        "date": "20.07.2026",
+        "headline": "Helhetlig kvalitets- og ytelsesrunde",
+        "title": "Raskere oppstart, bredere CSS-kontroll og målbar produksjonsytelse",
+        "description": (
+            "Hele Fibaro10-løsningen er kontrollert med komplette enhetstester, bygg av begge React-frontendene, "
+            "rute- og UI-smoke, produksjonslogger, datakildestatus, containerressurser og databasevekst. "
+            "Frontendens oppstartspakke er delt bedre slik at kode og CSS for tunge undersider lastes først når "
+            "den aktuelle siden åpnes. Serveren rapporterer nå responstid og varsler om langsomme kall, mens "
+            "statiske ressurser får tydelig og trygg cache-policy."
+        ),
+        "applications": [
+            "Fibaro10 backend: responstidsmåling, sakte-kall-varsling og cache-headere for statiske ressurser.",
+            "Fibaro10 desktop: mindre startpakke og sidebasert lasting av spesialisert CSS og Ant Design-kode.",
+            "Online, OwnTracks, vedlikehold og iPad via Caddy: felles cache-policy for statiske ressurser.",
+            "Kvalitetsverktøy: CSS-parse for alle aktive webflater, initialt bundlebudsjett og live ytelsesrapport.",
+            "Tester og buildlogg: regresjonsdekning for cache- og responstidshoder og dokumentasjon av build 1584.",
+        ],
+        "request": (
+            "Ta en grundig gjennomgang av alt som er gjort hittil, sørg for at ting fungerer og er logisk riktig, "
+            "sørg for at alt fungerer raskt, gå gjennom CSS og sørg for at den er så optimal som mulig og "
+            "at designet fungerer."
+        ),
+        "work_duration": "ca. 2 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Reduserer førstegangs JavaScript fra omtrent 450 kB til 282 kB gzip.",
+            "Reduserer global CSS fra omtrent 81 kB til 68 kB og laster side-CSS ved behov.",
+            "Validerer 44 CSS-filer på tvers av desktop, mobil, iPad, OwnTracks og nettlesertillegg.",
+            "Måler hver respons med Server-Timing og X-Response-Time og logger kall over konfigurerbar grense.",
+            "Gir versjonerte Vite-filer lang immutable-cache og vanlige statiske filer kontrollert revalidering.",
+            "Fjerner ubrukte Recharts-regler etter overgangen til ECharts.",
+            "Utvider live smoke med faktisk sidetid, serverens API-tid, ytelsesbudsjett og valgfri visuell audit.",
+        ],
+    },
     {
         "version": "1",
         "build": "1583",

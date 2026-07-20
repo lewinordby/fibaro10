@@ -4,7 +4,15 @@ import { fileURLToPath } from "node:url";
 import postcss from "postcss";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const styleDir = path.join(root, "src", "styles");
+const repoRoot = path.resolve(root, "..");
+const styleDirs = [
+  path.join(root, "src", "styles"),
+  path.join(repoRoot, "static"),
+  path.join(repoRoot, "maintenance_mobile", "app", "static"),
+  path.join(repoRoot, "fibaro10ipad", "app", "static"),
+  path.join(repoRoot, "owntracks_service", "frontend", "src"),
+  path.join(repoRoot, "browser_extensions"),
+];
 
 function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -14,10 +22,12 @@ function walk(dir) {
 }
 
 function relative(file) {
-  return path.relative(root, file).replaceAll("\\", "/");
+  return path.relative(repoRoot, file).replaceAll("\\", "/");
 }
 
-const cssFiles = walk(styleDir)
+const cssFiles = styleDirs
+  .filter((dir) => fs.existsSync(dir))
+  .flatMap(walk)
   .filter((file) => file.endsWith(".css"))
   .sort((left, right) => relative(left).localeCompare(relative(right)));
 

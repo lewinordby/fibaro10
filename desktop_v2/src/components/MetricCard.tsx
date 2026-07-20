@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import type { MetricCard as MetricCardData } from "../api";
 import { toneLabel } from "../domainModel";
 import { appPath } from "../navigation";
+import "../styles/module-metrics.css";
 
 export default function MetricCard({ card }: { card: MetricCardData }) {
   const internalPath = appPath(card.href);

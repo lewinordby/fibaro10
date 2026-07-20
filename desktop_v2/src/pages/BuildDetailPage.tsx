@@ -5,6 +5,7 @@ import { fetchBuildLogEntry } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useApiQuery } from "../hooks";
 import { queryKeys } from "../queryKeys";
+import "../styles/build.css";
 
 export default function BuildDetailPage() {
   const params = useParams();

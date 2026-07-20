@@ -51,6 +51,19 @@ const baseUrl = (process.env.FIBARO10_LIVE_BASE_URL || "http://192.168.20.218:81
 const username = process.env.FIBARO10_LIVE_USERNAME || process.env.FIBARO10_SMOKE_USERNAME || "";
 const password = process.env.FIBARO10_LIVE_PASSWORD || process.env.FIBARO10_SMOKE_PASSWORD || "";
 const routeList = smokeRoutePathsFromEnv(process.env.FIBARO10_LIVE_SMOKE_ROUTES);
+const routeBudgetMs = Number(process.env.FIBARO10_LIVE_ROUTE_BUDGET_MS || 10_000);
+const visualAuditDir = process.env.FIBARO10_LIVE_VISUAL_AUDIT_DIR
+  ? path.resolve(process.cwd(), process.env.FIBARO10_LIVE_VISUAL_AUDIT_DIR)
+  : "";
+const visualAuditRoutes = String(
+  process.env.FIBARO10_LIVE_VISUAL_AUDIT_ROUTES ||
+    "/status/omsetning,/parkering/parkeringer,/ventilasjon/dagslogg,/dorer/alarm",
+)
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
+const routeTimings = [];
+const apiTimings = [];
 
 function timeoutSignal(milliseconds) {
   const controller = new AbortController();
@@ -100,6 +113,7 @@ async function expectVisible(page, text) {
 }
 
 async function smokeRoute(page, route, expectedTexts) {
+  const startedAt = performance.now();
   const response = await page.goto(`${baseUrl}${route}`, { waitUntil: "load" });
   if (response && response.status() >= 400) {
     throw new Error(`${route} svarte HTTP ${response.status()}`);
@@ -107,8 +121,9 @@ async function smokeRoute(page, route, expectedTexts) {
   if (new URL(page.url()).pathname.startsWith("/auth/login")) {
     throw new Error(`${route} sendte tilbake til login`);
   }
-  await page.locator("body").waitFor({ timeout: 10000 });
-  await page.waitForTimeout(400);
+  await page.locator(".app-shell").waitFor({ timeout: 10000 });
+  await page.waitForTimeout(50);
+  await page.waitForFunction(() => !document.querySelector(".loading-block"), undefined, { timeout: 20000 });
   const bodyText = await page.locator("body").innerText({ timeout: 10000 });
   if (!bodyText.trim()) {
     throw new Error(`${route} rendret tom side`);
@@ -119,7 +134,54 @@ async function smokeRoute(page, route, expectedTexts) {
   for (const text of expectedTexts || []) {
     await expectVisible(page, text);
   }
-  console.log(`Live route OK: ${route}`);
+  const durationMs = Math.round(performance.now() - startedAt);
+  routeTimings.push({ route, durationMs });
+  console.log(`Live route OK: ${route} (${durationMs} ms)`);
+}
+
+function printPerformanceSummary() {
+  const slowestRoutes = [...routeTimings].sort((left, right) => right.durationMs - left.durationMs).slice(0, 12);
+  const slowestApi = [...apiTimings].sort((left, right) => right.durationMs - left.durationMs).slice(0, 12);
+  console.log("Live slowest routes:");
+  slowestRoutes.forEach((item) => console.log(`  ${item.durationMs} ms  ${item.route}`));
+  if (slowestApi.length) {
+    console.log("Live slowest API responses (server time):");
+    slowestApi.forEach((item) => console.log(`  ${item.durationMs.toFixed(1)} ms  ${item.path}`));
+  }
+  const overBudget = routeTimings.filter((item) => item.durationMs > routeBudgetMs);
+  if (overBudget.length) {
+    throw new Error(
+      `Live smoke fant ${overBudget.length} sider over ytelsesgrensen ${routeBudgetMs} ms:\n` +
+        overBudget.map((item) => `${item.route}: ${item.durationMs} ms`).join("\n"),
+    );
+  }
+}
+
+async function captureVisualAudit(page) {
+  if (!visualAuditDir) return;
+  fs.mkdirSync(visualAuditDir, { recursive: true });
+  const viewports = [
+    { name: "desktop", width: 1440, height: 900 },
+    { name: "ipad", width: 1366, height: 1024 },
+  ];
+  for (const viewport of viewports) {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    for (const theme of ["standard", "dark"]) {
+      await page.evaluate((nextTheme) => window.localStorage.setItem("fibaro10:screenTheme", nextTheme), theme);
+      for (const route of visualAuditRoutes) {
+        await page.goto(`${baseUrl}${route}`, { waitUntil: "load" });
+        await page.locator(".app-shell").waitFor({ timeout: 10000 });
+        await page.waitForTimeout(50);
+        await page.waitForFunction(() => !document.querySelector(".loading-block"), undefined, { timeout: 20000 });
+        const routeName = route.replace(/^\/+/, "").replaceAll("/", "-") || "home";
+        await page.screenshot({
+          path: path.join(visualAuditDir, `${viewport.name}-${theme}-${routeName}.png`),
+          fullPage: true,
+        });
+      }
+    }
+  }
+  console.log(`Live visual audit saved: ${visualAuditDir}`);
 }
 
 async function waitForPath(page, pathname) {
@@ -206,6 +268,12 @@ async function runAuthenticatedSmoke() {
       if (url.startsWith(baseUrl) && response.status() >= 400 && !url.endsWith("/favicon.ico")) {
         errors.push(`${response.status()} ${response.url()}`);
       }
+      if (url.startsWith(baseUrl) && new URL(url).pathname.startsWith("/api/")) {
+        void response.headerValue("x-response-time").then((value) => {
+          const durationMs = Number.parseFloat(value || "");
+          if (Number.isFinite(durationMs)) apiTimings.push({ path: new URL(url).pathname, durationMs });
+        });
+      }
     });
 
     await login(page);
@@ -214,6 +282,8 @@ async function runAuthenticatedSmoke() {
     for (const route of routeList) {
       await smokeRoute(page, route.path, route.expectedTexts);
     }
+    printPerformanceSummary();
+    await captureVisualAudit(page);
     if (errors.length) {
       throw new Error(`Live smoke fant browser/API-feil:\n${errors.join("\n")}`);
     }

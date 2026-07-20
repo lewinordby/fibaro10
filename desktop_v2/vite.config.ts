@@ -5,6 +5,7 @@ export default defineConfig({
   base: "/",
   plugins: [react()],
   build: {
+    manifest: true,
     chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
@@ -13,14 +14,6 @@ export default defineConfig({
           if (!normalizedId.includes("/node_modules/")) return undefined;
           if (normalizedId.includes("/echarts/") || normalizedId.includes("/zrender/") || normalizedId.includes("/echarts-for-react/")) {
             return "charts";
-          }
-          if (
-            normalizedId.includes("/antd/") ||
-            normalizedId.includes("/@ant-design/icons/") ||
-            normalizedId.includes("/rc-") ||
-            normalizedId.includes("/@rc-component/")
-          ) {
-            return "antd-core";
           }
           if (
             normalizedId.includes("/react/") ||

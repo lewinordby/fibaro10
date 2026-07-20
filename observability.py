@@ -3,6 +3,27 @@ from typing import Iterable, List, Optional
 from api_types import HealthCheckPayload, HealthPayload, HealthSourcePayload, HealthStatus
 
 
+ASSET_CACHE_CONTROL = "public, max-age=31536000, immutable"
+STATIC_CACHE_CONTROL = "public, max-age=3600, must-revalidate"
+
+
+def cache_control_for_path(path: str) -> Optional[str]:
+    normalized = str(path or "")
+    if normalized.startswith("/assets/"):
+        return ASSET_CACHE_CONTROL
+    if normalized.startswith("/static/"):
+        return STATIC_CACHE_CONTROL
+    return None
+
+
+def response_timing_headers(duration_ms: float) -> dict[str, str]:
+    normalized = max(0.0, float(duration_ms))
+    return {
+        "Server-Timing": f"app;dur={normalized:.1f}",
+        "X-Response-Time": f"{normalized:.1f}ms",
+    }
+
+
 STORAGE_TABLES = [
     "utelys_events", "utelys_samples", "ventilasjon_events", "ventilasjon_samples",
     "yr_forecast_samples", "control_configs", "control_config_history", "event_data", "door_events", "alarm_events",

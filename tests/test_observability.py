@@ -1,6 +1,6 @@
 import unittest
 
-from observability import STORAGE_TABLES, health_payload
+from observability import STORAGE_TABLES, cache_control_for_path, health_payload, response_timing_headers
 
 
 class ObservabilityTests(unittest.TestCase):
@@ -48,3 +48,14 @@ class ObservabilityTests(unittest.TestCase):
 
     def test_storage_tables_are_unique(self) -> None:
         self.assertEqual(len(STORAGE_TABLES), len(set(STORAGE_TABLES)))
+
+    def test_static_cache_policy_distinguishes_hashed_assets(self) -> None:
+        self.assertIn("immutable", cache_control_for_path("/assets/index-abc123.js"))
+        self.assertIn("must-revalidate", cache_control_for_path("/static/online-dashboard.css"))
+        self.assertIsNone(cache_control_for_path("/api/overview"))
+
+    def test_response_timing_headers_are_stable_and_non_negative(self) -> None:
+        headers = response_timing_headers(123.456)
+        self.assertEqual(headers["Server-Timing"], "app;dur=123.5")
+        self.assertEqual(headers["X-Response-Time"], "123.5ms")
+        self.assertEqual(response_timing_headers(-1)["X-Response-Time"], "0.0ms")

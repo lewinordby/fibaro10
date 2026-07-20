@@ -2,8 +2,16 @@
 	admin off
 }
 
+(asset_cache) {
+	@versioned_assets path /assets/*
+	header @versioned_assets Cache-Control "public, max-age=31536000, immutable"
+	@static_assets path /static/*
+	header @static_assets Cache-Control "public, max-age=3600, must-revalidate"
+}
+
 online.lilletorget.net {
 	encode zstd gzip
+	import asset_cache
 
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
@@ -20,6 +28,7 @@ online.lilletorget.net {
 
 owntracks.lilletorget.net {
 	encode zstd gzip
+	import asset_cache
 
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
@@ -34,12 +43,12 @@ owntracks.lilletorget.net {
 	reverse_proxy owntracks_service:8128 {
 		header_up Host {host}
 		header_up X-Real-IP {remote_host}
-		header_up X-Forwarded-Proto {scheme}
 	}
 }
 
 vedl.lilletorget.net {
 	encode zstd gzip
+	import asset_cache
 
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
@@ -51,12 +60,12 @@ vedl.lilletorget.net {
 	reverse_proxy maintenance_mobile:8112 {
 		header_up Host {host}
 		header_up X-Real-IP {remote_host}
-		header_up X-Forwarded-Proto {scheme}
 	}
 }
 
 ipad.lilletorget.net {
 	encode zstd gzip
+	import asset_cache
 
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
@@ -68,6 +77,5 @@ ipad.lilletorget.net {
 	reverse_proxy fibaro10ipad:8113 {
 		header_up Host {host}
 		header_up X-Real-IP {remote_host}
-		header_up X-Forwarded-Proto {scheme}
 	}
 }

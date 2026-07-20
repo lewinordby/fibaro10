@@ -1128,26 +1128,6 @@
   border-color: var(--border-control);
 }
 
-.app-shell.theme-dark :is(.recharts-cartesian-grid line, .recharts-reference-line line) {
-  stroke: rgba(148, 163, 184, 0.3);
-}
-
-.app-shell.theme-dark :is(.recharts-text, .recharts-label, .recharts-legend-item-text) {
-  fill: var(--domain-weather) !important;
-  color: var(--domain-weather) !important;
-}
-
-.app-shell.theme-dark .recharts-tooltip-wrapper .recharts-default-tooltip {
-  color: var(--text-body) !important;
-  background: var(--surface) !important;
-  border-color: var(--line-strong) !important;
-  box-shadow: var(--shadow-md);
-}
-
-.app-shell.theme-dark .recharts-tooltip-label {
-  color: var(--ink) !important;
-}
-
 body:has(.app-shell.theme-dark) {
   --ink: var(--dark-text-strong);
   --text-body: var(--dark-text-body);

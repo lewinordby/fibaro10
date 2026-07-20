@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 
 import { submitModuleEdit, type JsonRecord, type ModuleEditConfig, type ModuleRow, type ModuleTable } from "../../api";
 import { displayValue, editInitialValues, fieldInput, filterRows } from "./moduleTableUtils";
+import "../../styles/maintenance.css";
 
 function rowId(row: ModuleRow): string {
   return String(row.id ?? "");

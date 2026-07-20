@@ -5,6 +5,7 @@ import type { ModuleCard } from "../../api";
 import { moduleMetricFallbackHref, toneLabel } from "../../domainModel";
 import { modulePath } from "../../moduleViews";
 import { appPath } from "../../navigation";
+import "../../styles/module-metrics.css";
 
 export function ModuleMetric({
   card,

@@ -10,12 +10,7 @@ import { queryClient } from "./queryClient";
 import "./styles/tokens.css";
 import "./styles/layout.css";
 import "./styles/app-shell.css";
-import "./styles/build.css";
 import "./styles/module-content.css";
-import "./styles/maintenance.css";
-import "./styles/module-metrics.css";
-import "./styles/module-charts.css";
-import "./styles/module-filters.css";
 import "./styles/responsive.css";
 import "./styles/dark-theme.css";
 

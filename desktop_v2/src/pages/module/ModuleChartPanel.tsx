@@ -17,6 +17,7 @@ import {
 } from "../../chartTheme";
 import { AppChart } from "../../components/AppChart";
 import { PeriodNavigator } from "../../components/PeriodNavigator";
+import "../../styles/module-charts.css";
 
 function timeAxisLabel(value: number | string) {
   const date = new Date(value);
