@@ -1,10 +1,10 @@
 .solroom2-page {
   --solroom2-sun: var(--domain-sun2);
-  --solroom2-free: #16a34a;
-  --solroom2-active: #2563eb;
-  --solroom2-warning: #d97706;
-  --solroom2-alert: #dc2626;
-  --solroom2-energy: #0f766e;
+  --solroom2-free: var(--green);
+  --solroom2-active: var(--blue);
+  --solroom2-warning: var(--status-warn-text);
+  --solroom2-alert: var(--status-bad-text);
+  --solroom2-energy: var(--domain-building);
   width: 100%;
 }
 
@@ -527,14 +527,6 @@
 
 .solroom2-empty.compact {
   min-height: 0;
-}
-
-.theme-dark .solroom2-page {
-  --solroom2-free: #4ade80;
-  --solroom2-active: #60a5fa;
-  --solroom2-warning: #fbbf24;
-  --solroom2-alert: #fb7185;
-  --solroom2-energy: #2dd4bf;
 }
 
 .theme-dark .solroom2-room-tile,

@@ -87,12 +87,14 @@ a {
 }
 
 .ant-btn-primary {
+  color: var(--active-module-on-color);
   background: color-mix(in srgb, var(--active-module-color) 86%, var(--blue));
   border-color: color-mix(in srgb, var(--active-module-color) 86%, var(--blue));
   box-shadow: 0 6px 14px color-mix(in srgb, var(--active-module-color) 20%, transparent);
 }
 
 .ant-btn-primary:hover {
+  color: var(--active-module-on-color) !important;
   background: color-mix(in srgb, var(--active-module-color) 76%, var(--ink)) !important;
   border-color: color-mix(in srgb, var(--active-module-color) 76%, var(--ink)) !important;
 }
@@ -205,9 +207,9 @@ a {
 }
 
 .module-view-switcher .ant-segmented-item-selected {
-  color: var(--surface);
+  color: var(--active-module-on-color);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--active-module-color) 92%, var(--white)), color-mix(in srgb, var(--active-module-color) 88%, var(--ink)));
+    linear-gradient(180deg, var(--active-module-color), color-mix(in srgb, var(--active-module-color) 88%, var(--ink)));
   font-weight: 800;
   box-shadow: 0 5px 14px color-mix(in srgb, var(--active-module-color) 22%, transparent);
 }

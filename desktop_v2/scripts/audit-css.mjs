@@ -29,6 +29,7 @@ const codeText = codeFiles.map(read).join("\n");
 
 const dynamicClassPatterns = [
   /^ant-/,
+  /^app-menu-/,
   /^domain-/,
   /^tone-/,
   /^kind-/,
@@ -51,6 +52,7 @@ function staticClassUsed(className) {
 const selectorPattern = /\.(-?[_a-zA-Z]+[_a-zA-Z0-9-]*)/g;
 const classes = new Map();
 const hardcodedColors = [];
+const hardcodedHexValues = [];
 const tokenColorValues = [];
 
 function topColorValues(items, limit = 20) {
@@ -80,6 +82,7 @@ for (const file of cssFiles) {
       tokenColorValues.push(colorValue);
     } else {
       hardcodedColors.push(colorValue);
+      if (match[0].startsWith("#")) hardcodedHexValues.push(colorValue);
     }
   }
 }
@@ -120,6 +123,7 @@ const summary = {
   possibleUnusedClasses: possibleUnusedClasses.length,
   tokenColorValues: tokenColorValues.length,
   hardcodedColorValues: hardcodedColors.length,
+  hardcodedHexValues: hardcodedHexValues.length,
   hardcodedColorValuesIncludingTokens: hardcodedColors.length + tokenColorValues.length,
   largestCssFiles: [...cssFileStats].sort((left, right) => right.lines - left.lines).slice(0, 5),
   topHardcodedColors: topColorValues(hardcodedColors),
@@ -129,3 +133,11 @@ const summary = {
 };
 
 console.log(JSON.stringify(summary, null, 2));
+
+if (hardcodedHexValues.length > 0) {
+  console.error("Hardkodede palettfarger skal defineres i src/styles/tokens.css:");
+  for (const item of hardcodedHexValues) {
+    console.error(`- ${item.file}: ${item.value}`);
+  }
+  process.exitCode = 1;
+}

@@ -991,6 +991,60 @@ async function smokeShellControls(page) {
   console.log("UI shell controls OK");
 }
 
+async function auditStandardThemeAccentContrast(page) {
+  const results = await page.evaluate(() => {
+    const parseRgb = (value) => {
+      const channels = value.match(/[\d.]+/g)?.slice(0, 3).map(Number);
+      return channels?.length === 3 ? channels : null;
+    };
+    const luminance = (channels) => {
+      const linear = channels.map((channel) => {
+        const normalized = channel / 255;
+        return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+    };
+    const contrast = (foreground, background) => {
+      const foregroundRgb = parseRgb(foreground);
+      const backgroundRgb = parseRgb(background);
+      if (!foregroundRgb || !backgroundRgb) return 0;
+      const lighter = Math.max(luminance(foregroundRgb), luminance(backgroundRgb));
+      const darker = Math.min(luminance(foregroundRgb), luminance(backgroundRgb));
+      return (lighter + 0.05) / (darker + 0.05);
+    };
+    const domains = [
+      "domain-omsetning",
+      "domain-parkering",
+      "domain-soling",
+      "domain-energi",
+      "domain-ventilasjon",
+      "domain-lys",
+      "domain-dorer",
+      "domain-vedlikehold",
+      "domain-ideer",
+      "domain-mobil",
+      "domain-manual",
+      "domain-status",
+    ];
+    return domains.map((domain) => {
+      const probe = document.createElement("span");
+      probe.className = domain;
+      probe.style.cssText = "position:fixed;left:-10000px;color:var(--active-module-on-color);background-color:var(--active-module-color)";
+      document.body.appendChild(probe);
+      const style = getComputedStyle(probe);
+      const foreground = style.color;
+      const background = style.backgroundColor;
+      probe.remove();
+      return { domain, foreground, background, ratio: contrast(foreground, background) };
+    });
+  });
+  const failures = results.filter((result) => result.ratio < 4.5);
+  if (failures.length) {
+    throw new Error(`For svak aksentkontrast: ${failures.map((item) => `${item.domain} ${item.ratio.toFixed(2)}:1`).join(", ")}`);
+  }
+  console.log(`UI accent contrast OK (${results.length} domains)`);
+}
+
 async function run() {
   await fs.access(path.join(distDir, "index.html"));
   await listen();
@@ -1011,6 +1065,10 @@ async function run() {
     });
 
     await smokeShellControls(page);
+    await page.evaluate(() => localStorage.setItem("fibaro10:screenTheme", "standard"));
+    await page.reload({ waitUntil: "load" });
+    await page.locator(".app-shell.theme-standard").waitFor({ timeout: 8000 });
+    await auditStandardThemeAccentContrast(page);
     await smokeRoute(page, "/admin/build", ["Smoke-test build", "Build"]);
     for (const route of routeList) {
       await smokeRoute(page, route.path, route.expectedTexts);

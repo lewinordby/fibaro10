@@ -98,6 +98,7 @@
   --domain-vent: var(--dark-cyan);
   --domain-weather: var(--dark-weather);
   --domain-light: var(--dark-light);
+  --domain-building: var(--dark-building);
   --domain-maintenance: var(--dark-maintenance);
   --domain-ideas: var(--dark-ideas);
   --domain-mobile: var(--dark-mobile);
@@ -535,7 +536,7 @@
 }
 
 .app-shell.theme-dark .revenue-period-card {
-  --period-surface: linear-gradient(180deg, #1c2026, var(--surface));
+  --period-surface: linear-gradient(180deg, color-mix(in srgb, var(--surface-raised) 58%, var(--surface)), var(--surface));
   --period-tint-soft: color-mix(in srgb, var(--tone-color, var(--domain-status)) 5%, var(--surface));
   --period-tint-muted: color-mix(in srgb, var(--tone-color, var(--domain-status)) 4%, var(--surface));
   --period-tint-strong: color-mix(in srgb, var(--tone-color, var(--domain-status)) 12%, var(--surface));

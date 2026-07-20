@@ -1,10 +1,10 @@
 .doors2-page {
-  --doors2-ok: #15803d;
-  --doors2-free: #16a34a;
-  --doors2-active: #2563eb;
-  --doors2-waiting: #d97706;
-  --doors2-alert: #dc2626;
-  --doors2-energy: #0f766e;
+  --doors2-ok: var(--status-ok-text);
+  --doors2-free: var(--green);
+  --doors2-active: var(--blue);
+  --doors2-waiting: var(--status-warn-text);
+  --doors2-alert: var(--status-bad-text);
+  --doors2-energy: var(--domain-building);
   width: 100%;
 }
 
@@ -320,7 +320,7 @@
   bottom: 4px;
   min-width: 4px;
   border-radius: 999px;
-  background: #f59e0b;
+  background: var(--domain-sun2);
 }
 
 .doors2-marker {
@@ -336,7 +336,7 @@
 }
 
 .doors2-marker.kind-sun {
-  background: #f59e0b;
+  background: var(--domain-sun2);
 }
 
 .doors2-marker.kind-power {
@@ -449,7 +449,7 @@
 }
 
 .doors2-event.kind-sun time {
-  color: #b45309;
+  color: color-mix(in srgb, var(--domain-sun2) 70%, var(--ink));
 }
 
 .doors2-event.kind-door time {
@@ -514,15 +514,6 @@
 
 .doors2-empty.compact {
   min-height: 0;
-}
-
-.theme-dark .doors2-page {
-  --doors2-ok: #4ade80;
-  --doors2-free: #4ade80;
-  --doors2-active: #60a5fa;
-  --doors2-waiting: #fbbf24;
-  --doors2-alert: #fb7185;
-  --doors2-energy: #2dd4bf;
 }
 
 .theme-dark .doors2-room-card,

@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1590")
+APP_BUILD = os.getenv("APP_BUILD", "1591")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1591",
+        "date": "20.07.2026",
+        "headline": "Helhetlig designkontroll",
+        "title": "Farger, kontrast og statusuttrykk er samlet i ett kontrollert designsystem",
+        "description": (
+            "Hele desktopgrensesnittet er gjennomg\u00e5tt i lyst og m\u00f8rkt tema p\u00e5 representative sider for "
+            "omsetning, parkering, soling, energi, ventilasjon, lys, d\u00f8rer og manual. Aksentflater med gul, "
+            "oransje og cyan farge har f\u00e5tt korrekt tekst- og ikonkontrast, og lokale paletter for d\u00f8rer, "
+            "solrom og statusmarkeringer er samlet i de felles semantiske fargetokenene."
+        ),
+        "applications": [
+            "Fibaro10 desktop: tydeligere og mer konsekvent fargebruk i lyst og m\u00f8rkt tema.",
+            "D\u00f8rer og solrom: felles statusfarger for ledig, aktiv, ventende, alarm og energi.",
+            "Manual: statusmarkeringer bruker samme palett som resten av l\u00f8sningen.",
+            "Kvalitetskontroll: automatisk kontrasttest og sperre mot nye hardkodede palettfarger.",
+        ],
+        "request": "Ta en grundig gjennomgang av CSS, design, farger og alt p\u00e5 Fibaro10.",
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kj\u00f8ring",
+        "changes": [
+            "Innf\u00f8rer et eget on-accent-token som velger lys eller m\u00f8rk tekst per hovedomr\u00e5de.",
+            "Sikrer lesbare aktive faner, prim\u00e6rknapper og menyikoner p\u00e5 lyse aksentfarger.",
+            "Gir bygg- og d\u00f8rflatene en klarere turkis aksent i m\u00f8rkt tema.",
+            "Fjerner alle hardkodede hex-farger utenfor den sentrale tokenfilen.",
+            "Utvider UI-smoketesten med WCAG-kontroll av aksentkontrast for alle hovedomr\u00e5der.",
+        ],
+    },
     {
         "version": "1",
         "build": "1590",

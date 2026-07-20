@@ -95,6 +95,7 @@
 
 .sider-nav-item {
   --menu-item-color: var(--active-module-color);
+  --menu-item-on-color: var(--white);
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr);
   align-items: center;
@@ -112,6 +113,10 @@
     background 0.14s ease,
     border-color 0.14s ease,
     box-shadow 0.14s ease;
+}
+
+.sider-nav-item:is(.app-menu-soling, .app-menu-solrom, .app-menu-solrom-2, .app-menu-ventilasjon, .app-menu-lys) {
+  --menu-item-on-color: var(--dark-on-accent);
 }
 
 .sider-nav-item:hover {
@@ -143,7 +148,7 @@
 }
 
 .sider-nav-item.active .sider-nav-icon {
-  color: var(--surface);
+  color: var(--menu-item-on-color);
   background: var(--menu-item-color);
   border-color: var(--menu-item-color);
 }

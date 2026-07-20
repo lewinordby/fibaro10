@@ -79,13 +79,13 @@
   --cyan: #0891b2;
   --status-ok-bg: #f0fdf4;
   --status-ok-border: #bbf7d0;
-  --status-ok-text: var(--green);
+  --status-ok-text: #166534;
   --status-warn-bg: #fffbeb;
   --status-warn-border: #fde68a;
-  --status-warn-text: var(--amber);
+  --status-warn-text: #92400e;
   --status-bad-bg: #fef2f2;
   --status-bad-border: #fecaca;
-  --status-bad-text: var(--red);
+  --status-bad-text: #991b1b;
   --domain-revenue: #dc2626;
   --domain-parking: #2563eb;
   --domain-sun2: #f59e0b;
@@ -101,6 +101,7 @@
   --domain-status: #475569;
   --tone-color: var(--domain-status);
   --active-module-color: var(--domain-status);
+  --active-module-on-color: var(--white);
 
   --dark-on-accent: #101217;
   --dark-accent-fill: #f4f7fb;
@@ -159,6 +160,7 @@
   --dark-cyan: #22d3ee;
   --dark-weather: #cbd5e1;
   --dark-light: #fde047;
+  --dark-building: #2dd4bf;
   --dark-maintenance: #76bfb3;
   --dark-ideas: #c98fb0;
   --dark-mobile: #aa9bd8;
@@ -230,6 +232,7 @@
 .domain-solrom,
 .domain-solrom-2 {
   --active-module-color: var(--domain-sun2);
+  --active-module-on-color: var(--dark-on-accent);
 }
 
 .domain-energi {
@@ -238,10 +241,12 @@
 
 .domain-ventilasjon {
   --active-module-color: var(--domain-vent);
+  --active-module-on-color: var(--dark-on-accent);
 }
 
 .domain-lys {
   --active-module-color: var(--domain-light);
+  --active-module-on-color: var(--dark-on-accent);
 }
 
 .domain-dorer,
