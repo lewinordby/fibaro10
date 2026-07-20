@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1581")
+APP_BUILD = os.getenv("APP_BUILD", "1582")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1582",
+        "date": "20.07.2026",
+        "headline": "Ryddige d\u00f8rperioder uten sensorst\u00f8y",
+        "title": "Raske magnetkontaktpulser samles f\u00f8r d\u00f8rbes\u00f8k, avvik og alarmer beregnes",
+        "description": (
+            "Dagens avvikstabell viste flere perioder p\u00e5 null til tre sekunder for samme solrom. "
+            "R\u00e5dataene viste reelle lukket\u2013\u00e5pen\u2013lukket-pulser fra HC3-scenene. Fibaro10 beholder "
+            "alle r\u00e5hendelser, men stabiliserer n\u00e5 statusendringer innen fem sekunder f\u00f8r perioder, "
+            "Sun2-koblinger og alarmvilk\u00e5r beregnes."
+        ),
+        "applications": [
+            "main.py: felles femsekunders stabilisering av d\u00f8rhendelser f\u00f8r avledet logikk.",
+            "tests/test_hc3_door_events.py: dekker dagens pulsm\u00f8nster og bevarer reelle endringer.",
+            "build_log.py: dokumenterer produksjonsfeilen og korreksjonen.",
+        ],
+        "request": "Se p\u00e5 D\u00f8rer > Avvik i dag. Det er ikke ryddige resultater.",
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kj\u00f8ring",
+        "changes": [
+            "Sl\u00e5r sammen raske vekslende d\u00f8rsignaler til den endelige stabile tilstanden.",
+            "Bruker f\u00f8rste tidspunkt for den stabile sluttstatusen slik at bes\u00f8kets start ikke forskyves.",
+            "Beholder komplette r\u00e5hendelser p\u00e5 R\u00e5data-siden for kontroll og feils\u00f8king.",
+            "Fjerner kunstige 0\u20133-sekunders perioder fra avvikstabell, status og alarmgrunnlag.",
+        ],
+    },
     {
         "version": "1",
         "build": "1581",

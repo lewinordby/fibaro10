@@ -257,6 +257,7 @@ HC3_DOOR_UNEXPECTED_RECHECK_MINUTES = env_float("HC3_DOOR_UNEXPECTED_RECHECK_MIN
 HC3_DOOR_OTHER_OPEN_VERIFY_MINUTES = env_float("HC3_DOOR_OTHER_OPEN_VERIFY_MINUTES", "10")
 HC3_DOOR_SOLROOM_CLOSED_VERIFY_MINUTES = env_float("HC3_DOOR_SOLROOM_CLOSED_VERIFY_MINUTES", "90")
 HC3_DOOR_POLL_TIMEOUT_SECONDS = max(3, int(os.getenv("HC3_DOOR_POLL_TIMEOUT_SECONDS", "8")))
+HC3_DOOR_DEBOUNCE_SECONDS = max(0.0, env_float("HC3_DOOR_DEBOUNCE_SECONDS", "5"))
 HC3_SWITCH_POLL_TIMEOUT_SECONDS = max(2, int(os.getenv("HC3_SWITCH_POLL_TIMEOUT_SECONDS", "3")))
 HC3_SWITCH_STATUS_CACHE_SECONDS = max(0.0, env_float("HC3_SWITCH_STATUS_CACHE_SECONDS", "5"))
 HC3_ENERGY_DEVICE_LIST_CACHE_SECONDS = max(5.0, env_float("HC3_ENERGY_DEVICE_LIST_CACHE_SECONDS", "60"))
@@ -11302,7 +11303,7 @@ def door_period_device_key(period: Dict[str, Any]) -> str:
 
 
 def door_change_rows(rows_ascending: list[DoorEvent]) -> list[DoorEvent]:
-    changes: list[DoorEvent] = []
+    changes_by_device: Dict[str, list[DoorEvent]] = {}
     last_state_by_device: Dict[str, bool] = {}
     for row in rows_ascending:
         state = door_event_state_bool(row)
@@ -11310,8 +11311,48 @@ def door_change_rows(rows_ascending: list[DoorEvent]) -> list[DoorEvent]:
             continue
         key = door_event_device_key(row)
         if key not in last_state_by_device or last_state_by_device[key] != state:
-            changes.append(row)
+            changes_by_device.setdefault(key, []).append(row)
             last_state_by_device[key] = state
+
+    stabilized: list[DoorEvent] = []
+    for device_rows in changes_by_device.values():
+        cluster: list[DoorEvent] = []
+
+        def flush_cluster() -> None:
+            if not cluster:
+                return
+            final_state = door_event_state_bool(cluster[-1])
+            representative = next(
+                (item for item in cluster if door_event_state_bool(item) == final_state),
+                cluster[-1],
+            )
+            stabilized.append(representative)
+
+        for row in device_rows:
+            if cluster:
+                previous_at = normalize_local_naive(cluster[-1].timestamp)
+                current_at = normalize_local_naive(row.timestamp)
+                gap_seconds = (current_at - previous_at).total_seconds() if previous_at and current_at else None
+                if gap_seconds is None or gap_seconds > HC3_DOOR_DEBOUNCE_SECONDS:
+                    flush_cluster()
+                    cluster = []
+            cluster.append(row)
+        flush_cluster()
+
+    stabilized.sort(
+        key=lambda row: (
+            normalize_local_naive(row.timestamp) or datetime.min,
+            int(row.id or 0),
+        )
+    )
+    changes: list[DoorEvent] = []
+    last_stable_state_by_device: Dict[str, bool] = {}
+    for row in stabilized:
+        state = door_event_state_bool(row)
+        key = door_event_device_key(row)
+        if state is not None and last_stable_state_by_device.get(key) != state:
+            changes.append(row)
+            last_stable_state_by_device[key] = state
     return changes
 
 

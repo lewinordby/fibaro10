@@ -145,6 +145,44 @@ class SunroomDoorTimingTests(unittest.TestCase):
         self.assertEqual(self.main.sunroom_session_end_at(row), datetime(2026, 7, 11, 12, 15))
         self.assertEqual(self.main.sunroom_expected_exit_at(row), datetime(2026, 7, 11, 12, 18))
 
+    def test_door_change_rows_collapses_sensor_bounce_into_one_closed_period(self):
+        def event(row_id, at, state):
+            return self.main.DoorEvent(
+                id=row_id,
+                device_id=479,
+                timestamp=at,
+                action="OPEN" if state else "CLOSED",
+                state=state,
+            )
+
+        rows = [
+            event(1, datetime(2026, 7, 20, 10, 40, 0), True),
+            event(2, datetime(2026, 7, 20, 10, 42, 50), False),
+            event(3, datetime(2026, 7, 20, 10, 42, 52), True),
+            event(4, datetime(2026, 7, 20, 10, 42, 53), False),
+            event(5, datetime(2026, 7, 20, 10, 42, 53), True),
+            event(6, datetime(2026, 7, 20, 10, 42, 53), False),
+            event(7, datetime(2026, 7, 20, 10, 59, 19), True),
+        ]
+
+        changes = self.main.door_change_rows(rows)
+        periods = self.main.door_closed_periods(changes, datetime(2026, 7, 20, 11, 0))
+
+        self.assertEqual([(row.id, row.state) for row in changes], [(1, True), (2, False), (7, True)])
+        self.assertEqual(len(periods), 1)
+        self.assertEqual(periods[0]["closedAt"], datetime(2026, 7, 20, 10, 42, 50))
+        self.assertEqual(periods[0]["openedAt"], datetime(2026, 7, 20, 10, 59, 19))
+
+    def test_door_change_rows_keeps_real_changes_outside_debounce_window(self):
+        rows = [
+            self.main.DoorEvent(id=1, device_id=469, timestamp=datetime(2026, 7, 20, 9, 0, 0), action="CLOSED", state=False),
+            self.main.DoorEvent(id=2, device_id=469, timestamp=datetime(2026, 7, 20, 9, 0, 6), action="OPEN", state=True),
+        ]
+
+        changes = self.main.door_change_rows(rows)
+
+        self.assertEqual([(row.id, row.state) for row in changes], [(1, False), (2, True)])
+
     def test_energy_evidence_confirms_expected_three_minute_start(self):
         row = self.main.Sun2TanningSession(
             id=1,
