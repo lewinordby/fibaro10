@@ -5,8 +5,30 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1585")
+APP_BUILD = os.getenv("APP_BUILD", "1586")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1586",
+        "date": "20.07.2026",
+        "headline": "Renere visning av dagens soltimer",
+        "title": "Mobilappen viser bare klokkeslett i listen over dagens solinger",
+        "description": (
+            "Listen inneholder bare soltimer fra valgt dag, og datoen p\u00e5 hver rad var derfor un\u00f8dvendig. "
+            "Tidspunktkolonnen viser n\u00e5 bare klokkeslett, mens datovisning i historiske sammenhenger er uendret."
+        ),
+        "applications": [
+            "Mobilgrensesnitt: mer kompakt liste over dagens solinger.",
+            "Tester: regresjonskontroll som sikrer klokkeslett uten dato i dagslisten.",
+        ],
+        "request": "Det er ogs\u00e5 helt un\u00f8dvendig med dato p\u00e5 dagens soltimer. Tidspunkt holder fint i mobilappen.",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kj\u00f8ring",
+        "changes": [
+            "Bytter fra dato og klokkeslett til bare klokkeslett for dagens soltimer.",
+            "Beholder dato i andre visninger der poster kan dekke flere dager.",
+        ],
+    },
     {
         "version": "1",
         "build": "1585",

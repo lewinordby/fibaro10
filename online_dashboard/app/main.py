@@ -2411,17 +2411,7 @@ async def soling_detail(request: Request):
     )
     body += f'<p class="detail-updated-line">Sist oppdatert {fmt_clock(session_import_at)} {fmt_date(session_import_at)}</p>'
     if rows:
-        body += render_list(
-            "Siste solinger",
-            [
-                (
-                    fmt_time(row.get("started_at")),
-                    escape(str(row.get("room") or "Ukjent rom")),
-                    f"{float(row.get('duration_minutes') or 0):.0f} min" + (f" - {amount(row.get('paid_amount_kr'))}" if can_view_money else ""),
-                )
-                for row in rows
-            ],
-        )
+        body += render_today_soling_list(rows, can_view_money)
     return render_detail_page("Soling", "Dagens solinger og utvikling hittil.", body, icon="sun")
 
 
@@ -2939,6 +2929,21 @@ def render_list(title: str, rows: list[tuple[str, str, str]]) -> str:
             for time_text, main, detail in rows
         )
     return f'<section class="section-block detail-list"><h2>{escape(title)}</h2><ul>{content}</ul></section>'
+
+
+def render_today_soling_list(rows: list[dict[str, Any]], can_view_money: bool) -> str:
+    return render_list(
+        "Siste solinger",
+        [
+            (
+                fmt_clock(row.get("started_at")),
+                escape(str(row.get("room") or "Ukjent rom")),
+                f"{float(row.get('duration_minutes') or 0):.0f} min"
+                + (f" - {fmt_amount(row.get('paid_amount_kr'))}" if can_view_money else ""),
+            )
+            for row in rows
+        ],
+    )
 
 
 def render_parking_vehicle_list(rows: list[dict[str, Any]], can_view_money: bool) -> str:
