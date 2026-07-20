@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1589")
+APP_BUILD = os.getenv("APP_BUILD", "1590")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1590",
+        "date": "20.07.2026",
+        "headline": "Rask parkeringshistorikk",
+        "title": "Historikktallet bruker bilnummerindeksen og svarer uten merkbar ventetid",
+        "description": (
+            "Produksjonskontrollen av build 1589 viste riktig innhold, men avdekket at historikkoppslaget "
+            "ikke traff den eksisterende indeksen. Bilnummeret normaliseres n\u00e5 p\u00e5 n\u00f8yaktig samme m\u00e5te "
+            "som indeksuttrykket, slik at dagens parkeringsliste ikke skanner hele historikken for hver rad."
+        ),
+        "applications": [
+            "Mobilgrensesnitt: raskere lasting av dagens parkeringer.",
+            "Online dashboard-backend: indeksert opptelling av tidligere parkeringer.",
+            "Produksjonskontroll: databaseplan m\u00e5lt f\u00f8r og etter optimalisering.",
+        ],
+        "request": "Pr\u00f8v \u00e5 f\u00e5 med antall ganger parkert f\u00f8r ogs\u00e5, og sorter alltid slik at p\u00e5g\u00e5ende kommer \u00f8verst.",
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kj\u00f8ring",
+        "changes": [
+            "Lar historikkoppslaget bruke ix_parkering_compact_plate_start.",
+            "Beholder korrekt avgrensning til parkeringer f\u00f8r den aktuelle posten.",
+            "Reduserer den m\u00e5lte databasesp\u00f8rringen fra omtrent fem sekunder til under ti millisekunder.",
+        ],
+    },
     {
         "version": "1",
         "build": "1589",

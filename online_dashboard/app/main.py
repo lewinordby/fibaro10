@@ -2542,11 +2542,9 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
                        else (
                            select count(*)
                            from parkering previous
-                           where upper(replace(coalesce(previous.car_license_number, ''), ' ', '')) = d.plate_key
-                             and (
-                                 previous.start_time < d.start_time
-                                 or (previous.start_time = d.start_time and previous.id < d.id)
-                             )
+                           where upper(replace(previous.car_license_number, ' ', '')) = d.plate_key
+                             and previous.start_time <= d.start_time
+                             and (previous.start_time < d.start_time or previous.id < d.id)
                        )
                    end as previous_parking_count
             from dagens d
