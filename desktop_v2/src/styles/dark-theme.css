@@ -198,7 +198,7 @@
 }
 
 .app-shell.theme-dark .module-view-switcher .ant-segmented-item-selected {
-  color: var(--ink);
+  color: var(--ink) !important;
   background: color-mix(in srgb, var(--active-module-color) 11%, var(--surface-raised));
   box-shadow:
     inset 0 -2px 0 color-mix(in srgb, var(--active-module-color) 82%, var(--dark-white)),
