@@ -10,7 +10,7 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 - 26 komponenter er aktive i daglig drift eller som aktivt verktøy.
 - 24 komponenter har webflate eller lokal statusflate.
 - 23 datakilder/importjobber er aktive i Fibaro10.
-- Produksjonsbuild ved siste sjekk: Fibaro10 build `1625`.
+- Produksjonsbuild ved siste sjekk: Fibaro10 build `1626`.
 - QNAP-appmappe: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`.
 - Backup/arkivvolum: `/share/CACHEDEV3_DATA/fibaro10_archive`.
 
@@ -139,10 +139,10 @@ Standard deploy går gjennom:
 1. `scripts/check-local.ps1`
 2. Git push til `main`
 3. QNAP backup av runtimefiler/data
-4. `docker compose up -d --build` for relevante tjenester
+4. `docker compose up -d --build` for kjernen og alle fagappene 8151-8158
 5. Health-check
 6. Smoke-check
-7. Innlogget live-smoke gjennom desktop-rutene
+7. Innlogget live-smoke gjennom desktop- og fagapprutene, med p50/p95-måling
 
 Mikroappene har i tillegg egne, raskere løp:
 

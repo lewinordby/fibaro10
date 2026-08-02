@@ -4,6 +4,7 @@ import os
 import re
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, AsyncIterator, Awaitable, Callable, Pattern
 
@@ -107,6 +108,7 @@ def create_domain_app(config: DomainAppConfig) -> FastAPI:
             return True
         return any(pattern.fullmatch(path) for pattern in config.allowed_patterns.get(normalized_method, ()))
 
+    @lru_cache(maxsize=1)
     def index_html() -> str:
         index_path = static_dir / "index.html"
         if not index_path.exists():

@@ -1,8 +1,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { ThemeProvider } from "@lilletorget/microapp-ui/primitives";
+import { AppRouter } from "@lilletorget/microapp-ui/router";
 import App from "./App";
-import { AppRouter } from "./router";
-import { ThemeProvider } from "./components/ThemeContext";
 import "@lilletorget/mosaic-theme/font.css";
 import "./style.css";
 

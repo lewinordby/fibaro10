@@ -10,6 +10,7 @@
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
+    "@lilletorget/microapp-ui": "file:../../packages/microapp-ui",
     "@lilletorget/mosaic-theme": "file:../../packages/mosaic-theme",
     "@tailwindcss/forms": "^0.5.10",
     "chart.js": "^4.4.7",

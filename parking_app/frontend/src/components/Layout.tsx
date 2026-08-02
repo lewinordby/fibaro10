@@ -1,9 +1,8 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useApi } from "@lilletorget/microapp-ui/hooks";
+import { MosaicIcon, ThemeToggle } from "@lilletorget/microapp-ui/primitives";
+import { AppLink, useAppLocation } from "@lilletorget/microapp-ui/router";
 import { api } from "../api";
-import { useApi } from "../hooks";
-import { AppLink, useAppLocation } from "../router";
-import { MosaicIcon } from "./MosaicIcon";
-import { ThemeToggle } from "./ThemeToggle";
 
 const navigation = [
   { to: "/", label: "Oversikt", icon: "dashboard" as const },

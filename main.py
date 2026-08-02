@@ -177,7 +177,7 @@ from v2_navigation import v2_module_title
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 logger = logging.getLogger("fibaro10")
-APP_STARTED_AT = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+APP_STARTED_AT = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 APP_COMMIT = os.getenv("APP_COMMIT") or os.getenv("GIT_COMMIT") or "unknown"
 SUN2_SESSIONS_QUIET_START_HOUR = 0
 SUN2_SESSIONS_QUIET_END_HOUR = 7
@@ -10025,6 +10025,16 @@ def build_sunbed_power_analysis(
             classified.append({**sample, "session_id": None, "state": "overlap", "active_count": len(active)})
 
     global_baseline = median(baseline_global) if baseline_global else None
+    baseline_by_day_hour_median = {
+        key: median(values)
+        for key, values in baseline_by_day_hour.items()
+        if values
+    }
+    baseline_by_day_median = {
+        key: median(values)
+        for key, values in baseline_by_day.items()
+        if values
+    }
     per_room: Dict[str, Dict[str, Any]] = {}
     per_session: Dict[int, Dict[str, Any]] = {}
     candidate_sessions: Dict[int, Dict[str, Any]] = {}
@@ -10046,8 +10056,9 @@ def build_sunbed_power_analysis(
         if not (session_item["measure_start"] <= sample_time < session_item["measure_end"]):
             rejected_warmup_cooldown += 1
             continue
-        baseline_values = baseline_by_day_hour.get((sample_time.date(), sample_time.hour)) or baseline_by_day.get(sample_time.date())
-        baseline = median(baseline_values) if baseline_values else global_baseline
+        baseline = baseline_by_day_hour_median.get((sample_time.date(), sample_time.hour))
+        if baseline is None:
+            baseline = baseline_by_day_median.get(sample_time.date(), global_baseline)
         if baseline is None:
             missing_baseline += 1
             continue
@@ -22226,6 +22237,53 @@ async def api_v2_soling_module(
     yesterday_sun = await sun2_period_snapshot(session, yesterday, today)
     month_sun = await sun2_period_snapshot(session, month_start, tomorrow)
     database_total = await get_sun2_session_database_total(session)
+    latest_import = (
+        await session.execute(
+            select(Sun2ImportRun)
+            .order_by(Sun2ImportRun.timestamp.desc())
+            .limit(1)
+        )
+    ).scalars().first()
+    latest_sessions = (
+        await session.execute(
+            select(Sun2TanningSession)
+            .order_by(Sun2TanningSession.started_at.desc())
+            .limit(80)
+        )
+    ).scalars().all()
+
+    if view == "oversikt":
+        total_sessions = int_or_zero(database_total.get("sessions_count"))
+        total_paid = float_or_zero(database_total.get("paid_amount_kr"))
+        daily_rows = list(reversed(sun2_summaries.get("daily", [])[:120]))
+        daily_count_chart = api_chart(
+            "Solinger per dag",
+            [str(row.get("period") or "") for row in daily_rows],
+            [{"name": "Solinger", "data": [int_or_zero(row.get("totalt_antall_solinger")) for row in daily_rows], "type": "bar"}],
+            "Siste 120 dager fra samlet SUN2-grunnlag.",
+            "bar",
+            300,
+        )
+        return {
+            "title": v2_module_title("soling", "oversikt"),
+            "subtitle": "SUN2 soling samlet i egne visninger for oversikt, detaljer, enkeltimer, senger, medlemmer og prognose.",
+            "cards": [
+                api_card("Solinger i dag", today_sun.sessions, "stk", f"{format_short_number(today_sun.paid)} kr", "sun2", href="/soling/dagslinje"),
+                api_card("I går", yesterday_sun.sessions, "stk", f"{format_short_number(yesterday_sun.paid)} kr", "sun2", href="/soling/enkeltimer"),
+                api_card("Måned", month_sun.sessions, "stk", f"{format_short_number(month_sun.paid)} kr", "revenue", href="/omsetning/manedsoversikt"),
+                api_card("Totalt", format_short_number(total_paid), "kr", f"{format_short_number(total_sessions)} solinger", "revenue", href="/soling/statistikk"),
+            ],
+            "charts": [api_sun2_weekly_chart(sun2_summaries, "revenue"), daily_count_chart],
+            "tables": api_sun2_overview_tables(
+                sun2_summaries,
+                [api_sun2_session_row(row) for row in latest_sessions],
+                [api_pick(latest_import, SUN2_IMPORT_COLUMNS)] if latest_import else [],
+            ),
+            "actions": [],
+            "filters": [],
+            "sunTimeline": None,
+        }
+
     members = (await session.execute(select(func.count()).select_from(Sun2Member))).scalar_one()
     known_members = (
         await session.execute(
@@ -22234,13 +22292,6 @@ async def api_v2_soling_module(
             .where(Sun2TanningSession.sun2_user_id != "")
         )
     ).scalar_one()
-    latest_import = (
-        await session.execute(
-            select(Sun2ImportRun)
-            .order_by(Sun2ImportRun.timestamp.desc())
-            .limit(1)
-        )
-    ).scalars().first()
     imports = (
         await session.execute(
             select(Sun2ImportRun)
@@ -22253,13 +22304,6 @@ async def api_v2_soling_module(
             select(Sun2SessionImportRun)
             .order_by(Sun2SessionImportRun.timestamp.desc())
             .limit(20)
-        )
-    ).scalars().all()
-    latest_sessions = (
-        await session.execute(
-            select(Sun2TanningSession)
-            .order_by(Sun2TanningSession.started_at.desc())
-            .limit(250)
         )
     ).scalars().all()
     today_sessions = (
@@ -22581,14 +22625,7 @@ async def api_v2_soling_module(
     filters = []
     timeline = None
 
-    if view == "oversikt":
-        charts = [api_sun2_weekly_chart(sun2_summaries, "revenue"), daily_count_chart]
-        tables = api_sun2_overview_tables(
-            sun2_summaries,
-            [api_sun2_session_row(row) for row in latest_sessions[:80]],
-            [api_pick(latest_import, SUN2_IMPORT_COLUMNS)] if latest_import else [],
-        )
-    elif view == "statistikk":
+    if view == "statistikk":
         charts = [api_sun2_weekly_chart(sun2_summaries, "revenue"), daily_count_chart, daily_revenue_chart]
         cards = [
             api_card("Totalt omsetning", format_short_number(total_paid), "kr", f"{format_short_number(total_sessions)} solinger", "revenue", href="/omsetning/oversikt"),

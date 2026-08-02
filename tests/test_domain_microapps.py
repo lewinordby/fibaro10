@@ -6,11 +6,15 @@ from energy_app.app.main import app as energy_app
 from link_app.app.main import app as link_app
 from maintenance_app.app.main import app as maintenance_app
 from operations_app.app.main import app as operations_app
+from parking_app.app.main import app as parking_app
+from revenue_app.app.main import app as revenue_app
 from sun_app.app.main import app as sun_app
 from system_app.app.main import app as system_app
 
 
 APPS = [
+    (revenue_app, "revenue_app", "Lilletorget Omsetning"),
+    (parking_app, "parking_app", "Lilletorget Parkering"),
     (sun_app, "sun_app", "Lilletorget Soling"),
     (energy_app, "energy_app", "Lilletorget Energi"),
     (operations_app, "operations_app", "Lilletorget Bygg og drift"),
@@ -48,6 +52,8 @@ def test_domain_apps_reject_unscoped_core_endpoints() -> None:
 
 def test_each_domain_rejects_another_domains_module() -> None:
     cases = [
+        (revenue_app, "/api/modules/parkering"),
+        (parking_app, "/api/modules/soling"),
         (sun_app, "/api/modules/energi"),
         (energy_app, "/api/modules/soling"),
         (operations_app, "/api/modules/admin"),

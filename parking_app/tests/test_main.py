@@ -37,14 +37,16 @@ class ParkingAppTest(unittest.TestCase):
             request=httpx.Request("GET", "http://fibaro10:8110/api/modules/parkering"),
         )
         with TestClient(app) as client:
-            with patch.object(client.app.state.core_client, "get", new=AsyncMock(return_value=core_response)) as core_get:
+            with patch.object(client.app.state.core_client, "request", new=AsyncMock(return_value=core_response)) as core_request:
                 response = client.get(
                     "/api/modules/parkering?view=parkeringer&day=2026-08-02",
                     headers={"cookie": "fibaro10_access_username=master; fibaro10_access_password=test"},
                 )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["title"], "Parkering")
-        _, kwargs = core_get.call_args
+        args, kwargs = core_request.call_args
+        self.assertEqual(args[0], "GET")
+        self.assertEqual(args[1], "/api/modules/parkering")
         self.assertEqual(str(kwargs["params"]), "view=parkeringer&day=2026-08-02")
         self.assertIn("fibaro10_access_username=master", kwargs["headers"]["Cookie"])
 
@@ -54,7 +56,7 @@ class ParkingAppTest(unittest.TestCase):
             httpx.Response(200, json={"id": 42}, request=httpx.Request("GET", "http://fibaro10/api/settlements/42")),
         ]
         with TestClient(app) as client:
-            with patch.object(client.app.state.core_client, "get", new=AsyncMock(side_effect=responses)):
+            with patch.object(client.app.state.core_client, "request", new=AsyncMock(side_effect=responses)):
                 vehicle = client.get("/api/parking/vehicles/AB12345")
                 settlement = client.get("/api/settlements/42")
         self.assertEqual(vehicle.status_code, 200)
@@ -63,11 +65,12 @@ class ParkingAppTest(unittest.TestCase):
     def test_allowed_action_is_forwarded_as_post(self) -> None:
         core_response = httpx.Response(202, json={"message": "Startet"}, request=httpx.Request("POST", "http://fibaro10/api/actions/parkering/refresh"))
         with TestClient(app) as client:
-            with patch.object(client.app.state.core_client, "post", new=AsyncMock(return_value=core_response)) as core_post:
+            with patch.object(client.app.state.core_client, "request", new=AsyncMock(return_value=core_response)) as core_request:
                 response = client.post("/api/actions/parkering/refresh")
         self.assertEqual(response.status_code, 202)
         self.assertEqual(response.json()["message"], "Startet")
-        self.assertEqual(core_post.await_count, 1)
+        self.assertEqual(core_request.await_count, 1)
+        self.assertEqual(core_request.call_args.args[:2], ("POST", "/api/actions/parkering/refresh"))
 
 
 if __name__ == "__main__":

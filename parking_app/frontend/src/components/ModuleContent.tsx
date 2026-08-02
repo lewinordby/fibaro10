@@ -1,11 +1,9 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { displayCell, nok, valueLabel } from "@lilletorget/microapp-ui/format";
+import { Chart, MetricCard, MosaicIcon, Panel, mosaicChartColors, type MosaicChartConfig } from "@lilletorget/microapp-ui/primitives";
+import { AppLink, useAppLocation, useAppSearchParams } from "@lilletorget/microapp-ui/router";
 import { api } from "../api";
-import { displayCell, nok, valueLabel } from "../format";
-import { AppLink, useAppLocation, useAppSearchParams } from "../router";
 import type { ModuleAction, ModuleChart, ModuleFilter, ModuleResponse, ModuleRow, ModuleTable, ParkingTimeline } from "../types";
-import { Chart, mosaicChartColors, type MosaicChartConfig } from "./Chart";
-import { MetricCard, Panel } from "./Mosaic";
-import { MosaicIcon } from "./MosaicIcon";
 
 const palette = [mosaicChartColors.sky, mosaicChartColors.violet, mosaicChartColors.yellow, mosaicChartColors.green, mosaicChartColors.red, mosaicChartColors.gray];
 

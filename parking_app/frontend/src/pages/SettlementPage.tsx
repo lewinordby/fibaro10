@@ -1,10 +1,9 @@
+import { displayCell } from "@lilletorget/microapp-ui/format";
+import { useApi } from "@lilletorget/microapp-ui/hooks";
+import { ErrorState, Loading, Panel } from "@lilletorget/microapp-ui/primitives";
+import { AppLink } from "@lilletorget/microapp-ui/router";
 import { api } from "../api";
 import { ModuleCards } from "../components/ModuleContent";
-import { Panel } from "../components/Mosaic";
-import { ErrorState, Loading } from "../components/PageState";
-import { displayCell } from "../format";
-import { useApi } from "../hooks";
-import { AppLink } from "../router";
 
 export default function SettlementPage({ id }: { id: string }) {
   const result = useApi(() => api.settlement(id), `settlement-${id}`);

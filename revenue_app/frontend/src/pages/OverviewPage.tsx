@@ -1,10 +1,8 @@
 import { useMemo } from "react";
+import { useApi } from "@lilletorget/microapp-ui/hooks";
+import { Chart, ErrorState, Loading, MetricCard, Panel, mosaicChartColors, type MosaicChartConfig } from "@lilletorget/microapp-ui/primitives";
 import { api } from "../api";
-import { Chart, mosaicChartColors, type MosaicChartConfig } from "../components/Chart";
 import { DataTables } from "../components/DataTable";
-import { MetricCard, Panel } from "../components/Mosaic";
-import { ErrorState, Loading } from "../components/PageState";
-import { useApi } from "../hooks";
 import type { ModuleChart } from "../types";
 
 const palette = [mosaicChartColors.violet, mosaicChartColors.sky, mosaicChartColors.yellow, mosaicChartColors.green, mosaicChartColors.gray];

@@ -1,11 +1,8 @@
 import { useMemo, useState } from "react";
+import { nok } from "@lilletorget/microapp-ui/format";
+import { useApi } from "@lilletorget/microapp-ui/hooks";
+import { Chart, ErrorState, IconButton, Loading, MetricCard, MosaicIcon, Panel, mosaicChartColors, type MosaicChartConfig } from "@lilletorget/microapp-ui/primitives";
 import { api } from "../api";
-import { Chart, mosaicChartColors, type MosaicChartConfig } from "../components/Chart";
-import { MosaicIcon } from "../components/MosaicIcon";
-import { IconButton, MetricCard, Panel } from "../components/Mosaic";
-import { ErrorState, Loading } from "../components/PageState";
-import { nok } from "../format";
-import { useApi } from "../hooks";
 
 export default function MonthPage() {
   const [month, setMonth] = useState("");

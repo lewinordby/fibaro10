@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { nok, signedNok } from "@lilletorget/microapp-ui/format";
+import { useApi } from "@lilletorget/microapp-ui/hooks";
+import { Chart, ErrorState, IconButton, Loading, MetricCard, MosaicIcon, Panel, mosaicChartColors, type MosaicChartConfig } from "@lilletorget/microapp-ui/primitives";
+import { useAppSearchParams } from "@lilletorget/microapp-ui/router";
 import { api } from "../api";
-import { Chart, mosaicChartColors, type MosaicChartConfig } from "../components/Chart";
-import { MosaicIcon } from "../components/MosaicIcon";
-import { IconButton, MetricCard, Panel } from "../components/Mosaic";
-import { ErrorState, Loading } from "../components/PageState";
-import { nok, signedNok } from "../format";
-import { useApi } from "../hooks";
 import type { YearComparisonResponse } from "../types";
-import { useAppSearchParams } from "../router";
 
 const yearColors = [mosaicChartColors.violet, mosaicChartColors.sky, mosaicChartColors.yellow, mosaicChartColors.green, mosaicChartColors.gray];
 

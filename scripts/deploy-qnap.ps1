@@ -124,9 +124,19 @@ mkdir -p owntracks_service/data
 mkdir -p visual_anomaly_service/data
 [ -d "`$legacy_sun2_dir" ] && (cd "`$legacy_sun2_dir" && "$Docker" compose down || true)
 export APP_COMMIT=`$(git rev-parse --short HEAD)
+export APP_BUILD=`$(cat BUILD)
+export SHELL_APP_BUILD=`$(cat shell_app/BUILD)
+export REVENUE_APP_BUILD=`$(cat revenue_app/BUILD)
+export PARKING_APP_BUILD=`$(cat parking_app/BUILD)
+export SUN_APP_BUILD=`$(cat sun_app/BUILD)
+export ENERGY_APP_BUILD=`$(cat energy_app/BUILD)
+export OPERATIONS_APP_BUILD=`$(cat operations_app/BUILD)
+export MAINTENANCE_APP_BUILD=`$(cat maintenance_app/BUILD)
+export SYSTEM_APP_BUILD=`$(cat system_app/BUILD)
+export LINK_APP_BUILD=`$(cat link_app/BUILD)
 "$Docker" rm -f owntracks_mqtt >/dev/null 2>&1 || true
 "$Docker" compose -f docker-compose.qnap.yml up -d --build --force-recreate owntracks_service fibaro10_proxy
-"$Docker" compose -f docker-compose.qnap.yml up -d --build fibaro10 shell_app revenue_app online_dashboard maintenance_mobile fibaro10ipad axis_camera_snapshots car_info_lookup sun2_session_scraper parking_sun_linker
+"$Docker" compose -f docker-compose.qnap.yml up -d --build fibaro10 shell_app revenue_app parking_app sun_app energy_app operations_app maintenance_app system_app link_app online_dashboard maintenance_mobile fibaro10ipad axis_camera_snapshots car_info_lookup sun2_session_scraper parking_sun_linker
 "$Docker" compose -f docker-compose.qnap.yml --profile unifi-protect up -d --build unifi_protect_events visual_anomaly_service
 (cd easypark_downloader && "$Docker" compose up -d --build)
 "$Docker" exec fibaro10_proxy caddy validate --config /etc/caddy/Caddyfile || { "$Docker" logs --tail=80 fibaro10_proxy; exit 1; }
@@ -150,4 +160,5 @@ if (-not $SkipSmoke) {
     finally {
         Set-Location $originalDir
     }
+    Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "smoke-domain-apps.ps1"))
 }

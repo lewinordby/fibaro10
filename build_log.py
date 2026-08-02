@@ -1,12 +1,47 @@
 import os
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1625")
+BUILD_FILE = Path(__file__).with_name("BUILD")
+DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exists() else "1626"
+APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1626",
+        "date": "03.08.2026",
+        "headline": "Felles mikroappplattform og raskere analyser",
+        "title": "Hele mikroappløpet er samlet, trimmet og kontrollert",
+        "description": (
+            "Omsetning og Parkering er flyttet over på samme delte backend- og frontendgrunnlag som "
+            "de øvrige fagappene. Samtidig er soloversikten og beregningen av strømforbruk per seng "
+            "optimalisert, og bygg, deploy, readiness, rutekontroll og ytelsesmåling er samlet i ett løp."
+        ),
+        "applications": [
+            "Fibaro10 backend: raskere soloversikt og lineær baselineberegning for solsengforbruk.",
+            "Omsetning og Parkering: felles proxy, autentisering, cache, tema, diagrammer, navigasjon og formatering.",
+            "Alle fagapper 8151-8158: felles runtime, smale pakkepunkter og samordnet versjonering.",
+            "Drift: full deploy bygger alle fagapper og kjører readiness-, rute- og ytelseskontroll.",
+            "Tester og dokumentasjon: utvidede kontrakttester, analyseverifikasjon og oppdatert mikroappoversikt.",
+        ],
+        "request": "Ta en grundig gjennomgang av hele løsningen og gjør den ryddig og effektiv.",
+        "work_duration": "ca. 2 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fjernet 18 kopierte frontendfiler fra Omsetning og Parkering.",
+            "Erstattet to kopierte proxy-backender med den delte mikroapp-runtimeen.",
+            "Delt UI-pakken i smale eksportpunkter for mindre bygggrafer og tydeligere avhengigheter.",
+            "Redusert soloversikten til bare spørringene som forsiden faktisk trenger.",
+            "Forhåndsberegner energibaseline én gang per dag/time i stedet for per målepunkt.",
+            "Samlet alle åtte fagapper i samme lokale kontroll- og deployløp.",
+            "Utvidet live-smoke med readiness, alle fagappruter, p50/p95 og ytelsesgrenser.",
+            "Gjort BUILD-filene til versjonskilde i standard deploy.",
+        ],
+    },
     {
         "version": "1",
         "build": "1625",

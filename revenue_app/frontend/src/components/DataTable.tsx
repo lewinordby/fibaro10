@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { displayCell, valueLabel } from "../format";
+import { displayCell, valueLabel } from "@lilletorget/microapp-ui/format";
 import type { ModuleTable } from "../types";
 
 export function DataTables({ tables }: { tables: ModuleTable[] }) {

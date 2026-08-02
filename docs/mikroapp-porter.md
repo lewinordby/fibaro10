@@ -26,10 +26,12 @@ Alle brukerrettede mikroapper fra port 8150 bruker den interne npm-pakken
 komponentmønstre og lokal Inter-font. Nye apper skal kobles til pakken i stedet
 for å kopiere CSS fra en eksisterende app.
 
-Fagappene på 8153-8158 bruker i tillegg `packages/microapp-ui` for felles
-Mosaic-layout, innlogging, navigasjon, tabeller, grafer og redigeringsmønstre.
-Hver app bygger fortsatt egne, versjonerte statiske filer. Chart.js og
-spesialiserte fagflater lastes ved behov, slik at førstegangslasten holdes liten.
+Alle fagappene på 8151-8158 bruker i tillegg `packages/microapp-ui` for felles
+innlogging, API-cache, navigasjon, tema, formatering, tabeller, grafer og
+redigeringsmønstre. Omsetning og Parkering har egne domenesider, mens de andre
+appene også bruker felles layout. Hver app bygger fortsatt egne, versjonerte
+statiske filer. Chart.js og spesialiserte fagflater lastes ved behov, slik at
+førstegangslasten holdes liten.
 
 ## Utvikling og utrulling
 
@@ -37,6 +39,13 @@ spesialiserte fagflater lastes ved behov, slik at førstegangslasten holdes lite
 - Alle fagappene: `scripts/deploy-all-domain-apps-qnap.ps1`
 - Alle levende ruter: `scripts/smoke-domain-apps.ps1`
 
+`deploy-revenue-app-qnap.ps1` og `deploy-parking-app-qnap.ps1` er korte
+kompatibilitetsinnganger som bruker det samme felles deployløpet.
+
 Samlet deploy bygger og sikkerhetskontrollerer alle frontender, kjører
 kontrakttestene én gang og oppdaterer deretter containerne sekvensielt. Den
 starter ikke Fibaro10 eller andre fagapper på nytt mens en enkelt app bygges.
+
+Rotfilen `BUILD` er buildnummeret for Fibaro10. Hver fagapp har tilsvarende en
+egen `<app>/BUILD`. Standard deploy leser disse filene og sender verdiene til
+Compose, slik at grensesnitt, health-endepunkt og bygglogg viser samme versjon.

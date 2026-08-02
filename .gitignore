@@ -3,6 +3,7 @@ __pycache__/
 **/node_modules/
 **/dist/
 *.tsbuildinfo
+.codex-*.log
 output/
 tmp/
 .env

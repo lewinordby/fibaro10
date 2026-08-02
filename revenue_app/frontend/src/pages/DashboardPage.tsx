@@ -1,10 +1,9 @@
+import { nok, percentDelta, shortDateTime, signedNok } from "@lilletorget/microapp-ui/format";
+import { useApi } from "@lilletorget/microapp-ui/hooks";
+import { ErrorState, Loading, MosaicIcon } from "@lilletorget/microapp-ui/primitives";
+import { AppLink } from "@lilletorget/microapp-ui/router";
 import { api } from "../api";
-import { MosaicIcon } from "../components/MosaicIcon";
-import { ErrorState, Loading } from "../components/PageState";
-import { nok, percentDelta, shortDateTime, signedNok } from "../format";
-import { useApi } from "../hooks";
 import type { PeriodComparison, StatusPeriod } from "../types";
-import { AppLink } from "../router";
 
 function tone(value: number) {
   return value > 0 ? "text-green-700 dark:text-green-400" : value < 0 ? "text-red-700 dark:text-red-400" : "text-gray-500 dark:text-gray-400";

@@ -37,18 +37,19 @@ class RevenueAppTest(unittest.TestCase):
             request=httpx.Request("GET", "http://fibaro10:8110/api/modules/omsetning"),
         )
         with TestClient(app) as client:
-            with patch.object(client.app.state.core_client, "get", new=AsyncMock(return_value=core_response)) as core_get:
+            with patch.object(client.app.state.core_client, "request", new=AsyncMock(return_value=core_response)) as core_request:
                 response = client.get(
                     "/api/modules/omsetning?view=oversikt",
                     headers={"cookie": "fibaro10_access_username=master; fibaro10_access_password=test"},
                 )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["title"], "Omsetning")
-        _, kwargs = core_get.call_args
+        args, kwargs = core_request.call_args
+        self.assertEqual(args[0], "GET")
+        self.assertEqual(args[1], "/api/modules/omsetning")
         self.assertEqual(str(kwargs["params"]), "view=oversikt")
         self.assertIn("fibaro10_access_username=master", kwargs["headers"]["Cookie"])
 
 
 if __name__ == "__main__":
     unittest.main()
-

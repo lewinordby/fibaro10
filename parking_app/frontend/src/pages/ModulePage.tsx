@@ -1,8 +1,8 @@
+import { useApi } from "@lilletorget/microapp-ui/hooks";
+import { ErrorState, Loading } from "@lilletorget/microapp-ui/primitives";
+import { useAppLocation } from "@lilletorget/microapp-ui/router";
 import { api } from "../api";
 import { ModuleContent } from "../components/ModuleContent";
-import { ErrorState, Loading } from "../components/PageState";
-import { useApi } from "../hooks";
-import { useAppLocation } from "../router";
 
 export default function ModulePage({ view }: { view: string }) {
   const { search } = useAppLocation();

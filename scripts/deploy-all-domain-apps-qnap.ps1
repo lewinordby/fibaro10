@@ -6,7 +6,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$apps = @("sun_app", "energy_app", "operations_app", "maintenance_app", "system_app", "link_app")
+$apps = @("revenue_app", "parking_app", "sun_app", "energy_app", "operations_app", "maintenance_app", "system_app", "link_app")
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $npm = if ($env:OS -eq "Windows_NT") { "npm.cmd" } else { "npm" }
 

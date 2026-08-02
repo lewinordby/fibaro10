@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
+import { Loading } from "@lilletorget/microapp-ui/primitives";
+import { useAppLocation } from "@lilletorget/microapp-ui/router";
 import { Layout } from "./components/Layout";
-import { Loading } from "./components/PageState";
-import { useAppLocation } from "./router";
 
 const ModulePage = lazy(() => import("./pages/ModulePage"));
 const YearPage = lazy(() => import("./pages/YearPage"));

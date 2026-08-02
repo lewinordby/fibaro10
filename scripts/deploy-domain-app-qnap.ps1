@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("sun_app", "energy_app", "operations_app", "maintenance_app", "system_app", "link_app")]
+    [ValidateSet("revenue_app", "parking_app", "sun_app", "energy_app", "operations_app", "maintenance_app", "system_app", "link_app")]
     [string]$App,
     [string]$QnapHost = "admin@192.168.20.218",
     [string]$IdentityFile = "$env:USERPROFILE\.ssh\id_ed25519_qnap_fibaro10",
@@ -11,6 +11,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $settings = @{
+    revenue_app = @{ Port = 8151; BuildEnv = "REVENUE_APP_BUILD" }
+    parking_app = @{ Port = 8152; BuildEnv = "PARKING_APP_BUILD" }
     sun_app = @{ Port = 8153; BuildEnv = "SUN_APP_BUILD" }
     energy_app = @{ Port = 8154; BuildEnv = "ENERGY_APP_BUILD" }
     operations_app = @{ Port = 8155; BuildEnv = "OPERATIONS_APP_BUILD" }

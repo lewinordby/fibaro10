@@ -1,11 +1,9 @@
 import { useMemo, useState } from "react";
+import { nok } from "@lilletorget/microapp-ui/format";
+import { useApi } from "@lilletorget/microapp-ui/hooks";
+import { Chart, ErrorState, Loading, MetricCard, Panel, Segmented, mosaicChartColors, type MosaicChartConfig } from "@lilletorget/microapp-ui/primitives";
+import { useAppLocation, useAppSearchParams } from "@lilletorget/microapp-ui/router";
 import { api } from "../api";
-import { Chart, mosaicChartColors, type MosaicChartConfig } from "../components/Chart";
-import { MetricCard, Panel, Segmented } from "../components/Mosaic";
-import { ErrorState, Loading } from "../components/PageState";
-import { nok } from "../format";
-import { useApi } from "../hooks";
-import { useAppLocation, useAppSearchParams } from "../router";
 
 type Metric = "amount" | "minutes";
 const colors = [mosaicChartColors.sky, mosaicChartColors.gray, mosaicChartColors.violet, mosaicChartColors.green, mosaicChartColors.yellow];

@@ -1,8 +1,8 @@
 import { lazy, Suspense } from "react";
+import { Loading } from "@lilletorget/microapp-ui/primitives";
+import { useAppLocation } from "@lilletorget/microapp-ui/router";
 import { Layout } from "./components/Layout";
 import DashboardPage from "./pages/DashboardPage";
-import { Loading } from "./components/PageState";
-import { useAppLocation } from "./router";
 
 const ComparisonPage = lazy(() => import("./pages/ComparisonPage"));
 const MonthPage = lazy(() => import("./pages/MonthPage"));

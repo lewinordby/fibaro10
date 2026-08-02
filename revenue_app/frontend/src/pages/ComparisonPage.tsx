@@ -1,13 +1,10 @@
 import { useMemo } from "react";
+import { nok, signedNok } from "@lilletorget/microapp-ui/format";
+import { useApi } from "@lilletorget/microapp-ui/hooks";
+import { Chart, ErrorState, IconButton, Loading, MosaicIcon, Panel, Segmented, mosaicChartColors, type MosaicChartConfig } from "@lilletorget/microapp-ui/primitives";
+import { useAppSearchParams } from "@lilletorget/microapp-ui/router";
 import { api } from "../api";
-import { Chart, mosaicChartColors, type MosaicChartConfig } from "../components/Chart";
-import { MosaicIcon } from "../components/MosaicIcon";
-import { IconButton, Panel, Segmented } from "../components/Mosaic";
-import { ErrorState, Loading } from "../components/PageState";
-import { nok, signedNok } from "../format";
-import { useApi } from "../hooks";
 import type { ComparisonDelta, ComparisonLane, ComparisonResponse, ComparisonSummary } from "../types";
-import { useAppSearchParams } from "../router";
 
 type Metric = "amount" | "count";
 type Kind = "total" | "sun" | "parking";
