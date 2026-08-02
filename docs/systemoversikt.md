@@ -10,7 +10,7 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 - 26 komponenter er aktive i daglig drift eller som aktivt verktøy.
 - 24 komponenter har webflate eller lokal statusflate.
 - 23 datakilder/importjobber er aktive i Fibaro10.
-- Produksjonsbuild ved siste sjekk: Fibaro10 build `1627`.
+- Produksjonsbuild ved siste sjekk: Fibaro10 build `1628`.
 - QNAP-appmappe: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`.
 - Backup/arkivvolum: `/share/CACHEDEV3_DATA/fibaro10_archive`.
 
@@ -129,8 +129,8 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 - Protect-bilder ligger på SSD-arkivvolumet via `UNIFI_PROTECT_HOST_SNAPSHOT_DIR`.
 - AI-modeller og kalibreringsmetadata ligger på SSD via `VISUAL_AI_HOST_DATA_DIR` og tas med i nattlig backup.
 - Deploy-backuper lagres i `/share/CACHEDEV3_DATA/fibaro10_archive/fibaro10_deploy_backups`.
-- Nattlig/manuel full backup håndteres av `scripts/qnap-backup.sh`.
-- Restore-test kjøres fra Windows med `scripts/verify-qnap-backup.ps1`.
+- Nattlig/manuel full backup håndteres av `scripts/qnap-backup.sh` og inkluderer separate SQL-dumper for Fibaro10 og OwnTracks samt Roborock-data.
+- Restore-test kjøres fra Windows med `scripts/verify-qnap-backup.ps1` og leser begge SQL-dumpene inn i midlertidige databaser.
 
 ## Kvalitetssjekk
 
@@ -139,12 +139,12 @@ Standard deploy går gjennom:
 1. `scripts/check-local.ps1`
 2. Git push til `main`
 3. QNAP backup av runtimefiler/data
-4. `docker compose up -d --build` for kjernen og alle fagappene 8151-8158
-5. Health-check
-6. Smoke-check
+4. Compose-validering og `docker compose up -d --build` for kjernen, fagappene og alle aktive importer-/bakgrunnstjenester
+5. Health-check av 24 HTTP-endepunkter, 23 datakilder og alle forventede containere
+6. Smoke-check av interne flater, importører og eksterne proxyadresser
 7. Innlogget live-smoke gjennom desktop- og fagapprutene, med p50/p95-måling
 
-Frontendkontrollen kjører også `npm audit` for alle aktive flater. Hovedflaten
+Den lokale kontrollen kompilerer all sporet Python-kode og kjører også testene for vedlikeholdsmobil, Protect/pullerter og faste AI-profiler. Frontendkontrollen kjører `npm audit` for alle aktive flater. Hovedflaten
 har et eksplisitt avvik for React Router-rådet `GHSA-qwww-vcr4-c8h2`, fordi
 rådet bare gjelder RSC-modus mens Fibaro10 bruker ren `BrowserRouter` uten
 React Server Components eller router-actions. Alle øvrige funn på moderat

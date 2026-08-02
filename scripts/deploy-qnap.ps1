@@ -87,7 +87,7 @@ if [ "$BackupRetentionCount" -gt 0 ]; then
             | while IFS= read -r old_backup; do rm -rf -- "`$old_backup"; done
     fi
 fi
-for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* car_info_lookup/.env car_info_lookup/.env.* sun2_session_scraper/.env sun2_session_scraper/.env.* axis_camera_snapshots/data/config.json axis_camera_snapshots/data/state.json; do
+for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* car_info_lookup/.env car_info_lookup/.env.* sun2_backfill_downloader/.env sun2_backfill_downloader/.env.* sun2_importer/.env sun2_importer/.env.* sun2_session_scraper/.env sun2_session_scraper/.env.* roborock_logger/.env roborock_logger/.env.* axis_camera_snapshots/data/config.json axis_camera_snapshots/data/state.json; do
     case "`$file" in .env.example|.env.qnap.example|*/.env.example) continue ;; esac
     [ -f "`$file" ] || continue
     target="`$backup_dir/`$file"
@@ -104,8 +104,8 @@ legacy_sun2_dir="$RemoteDir/../sun2_session_scraper"
 [ -d "`$legacy_sun2_dir/data" ] && mkdir -p "`$backup_dir/sun2_session_scraper" && cp -a "`$legacy_sun2_dir/data" "`$backup_dir/sun2_session_scraper/data"
 git fetch origin "$Branch"
 git reset --hard "origin/$Branch"
-git clean -fdx -e .env -e '.env.*' -e easypark_downloader/.env -e 'easypark_downloader/.env.*' -e easypark_downloader/data/ -e car_info_lookup/.env -e 'car_info_lookup/.env.*' -e car_info_lookup/data/ -e sun2_session_scraper/.env -e 'sun2_session_scraper/.env.*' -e sun2_session_scraper/data/ -e axis_camera_snapshots/data/ -e axis_camera_snapshots/snapshots/ -e owntracks_service/data/
-for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* car_info_lookup/.env car_info_lookup/.env.* sun2_session_scraper/.env sun2_session_scraper/.env.* axis_camera_snapshots/data/config.json axis_camera_snapshots/data/state.json; do
+git clean -fdx -e .env -e '.env.*' -e easypark_downloader/.env -e 'easypark_downloader/.env.*' -e easypark_downloader/data/ -e car_info_lookup/.env -e 'car_info_lookup/.env.*' -e car_info_lookup/data/ -e sun2_backfill_downloader/.env -e 'sun2_backfill_downloader/.env.*' -e sun2_importer/.env -e 'sun2_importer/.env.*' -e sun2_session_scraper/.env -e 'sun2_session_scraper/.env.*' -e sun2_session_scraper/data/ -e roborock_logger/.env -e 'roborock_logger/.env.*' -e axis_camera_snapshots/data/ -e axis_camera_snapshots/snapshots/ -e owntracks_service/data/ -e owntracks_service/postgres_data/ -e unifi_protect_events/data/ -e visual_anomaly_service/data/
+for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* car_info_lookup/.env car_info_lookup/.env.* sun2_backfill_downloader/.env sun2_backfill_downloader/.env.* sun2_importer/.env sun2_importer/.env.* sun2_session_scraper/.env sun2_session_scraper/.env.* roborock_logger/.env roborock_logger/.env.* axis_camera_snapshots/data/config.json axis_camera_snapshots/data/state.json; do
     case "`$file" in .env.example|.env.qnap.example|*/.env.example) continue ;; esac
     source="`$backup_dir/`$file"
     [ -f "`$source" ] || continue
@@ -121,6 +121,7 @@ mkdir -p axis_camera_snapshots/data axis_camera_snapshots/snapshots car_info_loo
 mkdir -p sun2_session_scraper/data
 mkdir -p easypark_downloader/data
 mkdir -p owntracks_service/data
+mkdir -p owntracks_service/postgres_data
 mkdir -p visual_anomaly_service/data
 [ -d "`$legacy_sun2_dir" ] && (cd "`$legacy_sun2_dir" && "$Docker" compose down || true)
 export APP_COMMIT=`$(git rev-parse --short HEAD)
@@ -135,11 +136,13 @@ export OPERATIONS_APP_BUILD=`$(cat operations_app/BUILD)
 export MAINTENANCE_APP_BUILD=`$(cat maintenance_app/BUILD)
 export SYSTEM_APP_BUILD=`$(cat system_app/BUILD)
 export LINK_APP_BUILD=`$(cat link_app/BUILD)
+"$Docker" compose -f docker-compose.qnap.yml config --quiet
 "$Docker" rm -f owntracks_mqtt >/dev/null 2>&1 || true
 "$Docker" compose -f docker-compose.qnap.yml up -d --build --force-recreate owntracks_service fibaro10_proxy
-"$Docker" compose -f docker-compose.qnap.yml up -d --build fibaro10 shell_app revenue_app parking_app sun_app energy_app operations_app maintenance_app system_app link_app online_dashboard maintenance_mobile fibaro10ipad axis_camera_snapshots car_info_lookup sun2_session_scraper parking_sun_linker
+"$Docker" compose -f docker-compose.qnap.yml up -d --build fibaro10 shell_app revenue_app parking_app sun_app energy_app operations_app maintenance_app system_app link_app online_dashboard maintenance_mobile fibaro10ipad axis_camera_snapshots car_info_lookup sun2_backfill_downloader sun2_importer sun2_session_scraper parking_sun_linker
 "$Docker" compose -f docker-compose.qnap.yml --profile unifi-protect up -d --build unifi_protect_events visual_anomaly_service
 (cd easypark_downloader && "$Docker" compose up -d --build)
+(cd roborock_logger && "$Docker" compose -f docker-compose.qnap.yml up -d --build)
 "$Docker" exec fibaro10_proxy caddy validate --config /etc/caddy/Caddyfile || { "$Docker" logs --tail=80 fibaro10_proxy; exit 1; }
 "$Docker" compose -f docker-compose.qnap.yml ps
 (cd easypark_downloader && "$Docker" compose ps)

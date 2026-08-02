@@ -59,7 +59,7 @@ services:
     volumes:
       - ${AXIS_HOST_SNAPSHOT_DIR:-./axis_camera_snapshots/snapshots}:/axis_snapshots:ro
     environment:
-      APP_BUILD: ${APP_BUILD:-1627}
+      APP_BUILD: ${APP_BUILD:-1628}
       SUN2_AXIS_SNAPSHOT_ROOT: /axis_snapshots
       CAR_INFO_LOOKUP_URL: http://car_info_lookup:8126
       OWNTRACKS_SERVICE_URL: http://owntracks_service:8128
@@ -335,7 +335,7 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       PROTECT_LEDGER_VERSION: ${PROTECT_LEDGER_VERSION:-1}
       PROTECT_LEDGER_BUILD: ${PROTECT_LEDGER_BUILD:-17}
-      PROTECT_LEDGER_COMMIT: ${PROTECT_LEDGER_COMMIT:-unknown}
+      PROTECT_LEDGER_COMMIT: ${APP_COMMIT:-unknown}
       UNIFI_PROTECT_NVR_URL: ${UNIFI_PROTECT_NVR_URL:-}
       UNIFI_PROTECT_API_KEY: ${UNIFI_PROTECT_API_KEY:-}
       UNIFI_PROTECT_VERIFY_SSL: ${UNIFI_PROTECT_VERIFY_SSL:-false}

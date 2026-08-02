@@ -29,8 +29,13 @@ $domainApps = @("revenue_app", "parking_app", "sun_app", "energy_app", "operatio
 $npm = if ($env:OS -eq "Windows_NT") { "npm.cmd" } else { "npm" }
 
 Write-Host "Python syntax check"
-Run "python" @("-m", "py_compile", "main.py", "build_log.py", "api_contracts.py", "api_types.py", "energy_helpers.py", "migration_runner.py", "observability.py", "security.py", "roborock_domain.py", "sun2_helpers.py", "time_formatting.py", "value_parsing.py", "system_inventory.py", "microapp_backend/runtime.py", "car_info_lookup/app/main.py", "car_info_lookup/app/parsing.py", "parking_sun_linker/app/main.py", "maintenance_mobile/app/main.py", "fibaro10ipad/app/main.py", "owntracks_service/app/main.py", "revenue_app/app/main.py", "parking_app/app/main.py", "shell_app/app/main.py", "sun_app/app/main.py", "energy_app/app/main.py", "operations_app/app/main.py", "maintenance_app/app/main.py", "system_app/app/main.py", "link_app/app/main.py", "v1_reference/app/main.py", "scripts/run-migrations.py", "scripts/backfill_sunroom_alarm_history.py", "scripts/configure_energy_course_6.py", "scripts/upsert_hc3_single_door_logger_scenes.py") $repoRoot
+$pythonFiles = @(& git -C $repoRoot ls-files "*.py")
+if ($LASTEXITCODE -ne 0 -or $pythonFiles.Count -eq 0) {
+    throw "Could not enumerate tracked Python files."
+}
+Run "python" (@("-m", "py_compile") + $pythonFiles) $repoRoot
 Run "python" @("-c", "from build_log import APP_BUILD; assert APP_BUILD == open('BUILD', encoding='utf-8').read().strip()") $repoRoot
+Run "python" @("-m", "pip", "check") $repoRoot
 
 Write-Host "Python unit tests"
 Run "python" @("-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py") $repoRoot
@@ -38,6 +43,9 @@ Run "python" @("-m", "unittest", "revenue_app.tests.test_main") $repoRoot
 Run "python" @("-m", "unittest", "parking_app.tests.test_main") $repoRoot
 Run "python" @("-m", "unittest", "shell_app.tests.test_main") $repoRoot
 Run "python" @("-m", "pytest", "tests/test_domain_microapps.py", "tests/test_system_inventory.py", "-q") $repoRoot
+Run "python" @("-m", "pytest", "maintenance_mobile/tests", "-q") $repoRoot
+Run "python" @("-m", "pytest", "tests", "-q") (Join-Path $repoRoot "unifi_protect_events")
+Run "python" @("-m", "pytest", "tests/test_profiles.py", "-q") (Join-Path $repoRoot "visual_anomaly_service")
 
 Write-Host "Frontend typecheck and build"
 Run $npm @("run", "check") $desktopDir

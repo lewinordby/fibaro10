@@ -19,7 +19,7 @@ from app.bollards import (
 )
 
 
-def test_scene(object_x: int = 130) -> np.ndarray:
+def _scene(object_x: int = 130) -> np.ndarray:
     image = np.full((240, 360, 3), 205, dtype=np.uint8)
     cv2.line(image, (0, 190), (359, 190), (70, 70, 70), 4)
     cv2.rectangle(image, (object_x, 75), (object_x + 34, 190), (32, 42, 38), -1)
@@ -30,7 +30,7 @@ def test_scene(object_x: int = 130) -> np.ndarray:
 
 
 def stabilized_test_scene(object_x: int = 130) -> np.ndarray:
-    image = test_scene(object_x)
+    image = _scene(object_x)
     for y in range(20, 220, 35):
         for x in range(20, 340, 45):
             if not (110 < x < 230 and 55 < y < 205):
@@ -137,7 +137,7 @@ class BollardHelpersTests(unittest.TestCase):
             normalized_roi({"x": 0.99, "y": 0.3, "width": 0.2, "height": 0.4})
 
     def test_same_position_is_normal(self):
-        baseline = test_scene()
+        baseline = _scene()
         result = compare_bollard_region(
             baseline,
             baseline.copy(),
@@ -159,7 +159,7 @@ class BollardHelpersTests(unittest.TestCase):
         ]
         roi = normalized_roi({"polygon": polygon})
         self.assertEqual(roi["polygon"], polygon)
-        baseline = test_scene()
+        baseline = _scene()
         result = compare_bollard_region(
             baseline,
             baseline.copy(),
@@ -173,7 +173,7 @@ class BollardHelpersTests(unittest.TestCase):
 
         moved = compare_bollard_region(
             baseline,
-            test_scene(170),
+            _scene(170),
             roi,
             match_threshold=0.42,
             movement_tolerance_pixels=8,
@@ -181,8 +181,8 @@ class BollardHelpersTests(unittest.TestCase):
         self.assertEqual(moved["state"], "moved")
 
     def test_large_shift_is_reported_as_moved(self):
-        baseline = test_scene(130)
-        current = test_scene(170)
+        baseline = _scene(130)
+        current = _scene(170)
         result = compare_bollard_region(
             baseline,
             current,
@@ -194,7 +194,7 @@ class BollardHelpersTests(unittest.TestCase):
         self.assertGreater(result["distance_pixels"], 30)
 
     def test_full_scene_overlay_compares_without_regions(self):
-        baseline = test_scene(130)
+        baseline = _scene(130)
         unchanged, comparison_frame, overlay = compare_full_scene(
             baseline,
             baseline.copy(),
@@ -208,7 +208,7 @@ class BollardHelpersTests(unittest.TestCase):
 
         changed, _aligned, _overlay = compare_full_scene(
             baseline,
-            test_scene(170),
+            _scene(170),
             analysis_width=360,
         )
         self.assertIn(changed["state"], {"changed", "obscured"})
@@ -240,7 +240,7 @@ class BollardHelpersTests(unittest.TestCase):
         self.assertEqual(overlay.shape, baseline.shape)
 
     def test_full_scene_treats_a_large_foreground_change_as_obscured(self):
-        baseline = test_scene(130)
+        baseline = _scene(130)
         foreground = baseline.copy()
         cv2.rectangle(foreground, (0, 0), (260, 180), (20, 25, 30), -1)
 

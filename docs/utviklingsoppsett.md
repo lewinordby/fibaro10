@@ -58,7 +58,7 @@ Hvis QNAP ikke allerede har public key-en, kjor:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-local-dev.ps1 -InstallQnapKey
 ```
 
-Dette oppretter `C:\Users\<bruker>\.ssh\id_ed25519_qnap_fibaro10`, legger inn SSH-aliaset `qnap-fibaro10`, setter repoet som safe Git-directory og setter lokal Git-identitet for repoet.
+Dette oppretter `C:\Users\<bruker>\.ssh\id_ed25519_qnap_fibaro10`, legger inn SSH-aliaset `qnap-fibaro10`, setter repoet som safe Git-directory og setter lokal Git-identitet for repoet. Det installerer ogsaa Python-avhengigheter, alle elleve frontendmiljoer og Playwright Chromium, slik at `check-local.ps1` kan kjores direkte paa en ny maskin.
 
 GitHub-auth lagres av Git Credential Manager. Hvis push feiler, kjor:
 
@@ -155,7 +155,7 @@ Uten dette vedlegget vil brutto mynt/kortautomat ikke kunne kontrolleres automat
 
 Deploy-scriptet tar backup av `.env`, `.env.*`, EasyPark `.env` og EasyPark runtime-data for hver deploy.
 
-QNAP-backup-scriptet ligger i `scripts/qnap-backup.sh` og tar vare paa `.env`, EasyPark runtime-data, Axis snapshot-arkiv og PostgreSQL-dump naar `postgres-1` er tilgjengelig:
+QNAP-backup-scriptet ligger i `scripts/qnap-backup.sh` og tar vare paa alle runtime-`.env`-filer, importerdata, AI-modeller, Roborock-data og separate SQL-dumper av baade Fibaro10- og OwnTracks-databasen:
 
 ```sh
 sh /share/CACHEDEV1_DATA/Public/containerdata/fibaro10/scripts/qnap-backup.sh
@@ -171,7 +171,7 @@ Bruk denne fra utviklingsmaskinen for aa verifisere at backupen faktisk kan bruk
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-qnap-backup.ps1
 ```
 
-Scriptet kjorer `qnap-backup.sh`, sjekker at backupmappen og SQL-dumpen finnes, oppretter en midlertidig PostgreSQL-database, leser dumpen inn i den og sletter testdatabasen etterpaa. Produksjonsdatabasen endres ikke.
+Scriptet kjorer `qnap-backup.sh`, sjekker at backupmappen og begge SQL-dumpene finnes, oppretter midlertidige PostgreSQL-databaser i hver databasecontainer, leser dumpene inn og sletter testdatabasene etterpaa. Produksjonsdatabasene endres ikke.
 
 For at restore-testen skal gaa raskt hopper den normalt over Axis snapshot-arkivet. Full snapshot-backup kan testes eksplisitt:
 

@@ -7,9 +7,40 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
 BUILD_FILE = Path(__file__).with_name("BUILD")
-DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exists() else "1626"
+DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exists() else "1628"
 APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1628",
+        "date": "03.08.2026",
+        "headline": "Komplett funksjons- og gjenopprettingskontroll",
+        "title": "Alle aktive tjenester inngår nå i samme kvalitets-, helse- og backupløp",
+        "description": (
+            "Kvalitetskontrollen er utvidet fra hovedappen og fagappene til hele installasjonen. "
+            "Importører, OwnTracks, Protect, kamera, kjøretøyoppslag, Roborock, lokal bildeanalyse "
+            "og begge PostgreSQL-databasene blir nå kontrollert og gjenopprettingstestet systematisk."
+        ),
+        "applications": [
+            "Lokal utvikling: komplett Python- og frontendoppsett på ny maskin.",
+            "Drift: 24 HTTP-kontroller, 23 datakilder og alle forventede containere.",
+            "Deploy: alle aktive SUN2-tjenester og Roborock inngår i full utrulling.",
+            "Backup: separate SQL-dumper og restore-test for Fibaro10 og OwnTracks.",
+            "Protect/pullerter: full tjenestetest uten falsk pytest-advarsel og sporbar Git-commit.",
+        ],
+        "request": "Sjekk all funksjonalitet og forbedre der det trengs.",
+        "work_duration": "ca. 2 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Kompilerer all sporet Python-kode og kjører tidligere utelatte delsystemtester.",
+            "Installerer alle Python- og frontendavhengigheter fra ett oppsettskript.",
+            "Validerer aktiv datakildestatus i stedet for bare HTTP 200 fra kjernen.",
+            "Kontrollerer importører, eksterne mobilflater og komplett containerstatus.",
+            "Preserverer runtime-data ved deploy og validerer Compose før containere bygges.",
+            "Tar med OwnTracks-databasen og Roborock-data i nattlig backup.",
+            "Gjenoppretter begge PostgreSQL-dumpene i midlertidige databaser under restore-test.",
+        ],
+    },
     {
         "version": "1",
         "build": "1627",

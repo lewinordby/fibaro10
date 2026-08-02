@@ -6,6 +6,9 @@ param(
     [string]$PostgresContainer = "postgres-1",
     [string]$PostgresUser = "app",
     [string]$PostgresDb = "fibaro10_local",
+    [string]$OwnTracksPostgresContainer = "owntracks_postgres",
+    [string]$OwnTracksPostgresUser = "owntracks",
+    [string]$OwnTracksPostgresDb = "owntracks",
     [switch]$IncludeSnapshots,
     [switch]$SkipSqlRestore
 )
@@ -19,7 +22,7 @@ $remote = @"
 set -e
 . /opt/etc/profile 2>/dev/null || true
 cd "$RemoteDir"
-backup_dir=`$(BACKUP_ROOT="$BackupRoot" POSTGRES_CONTAINER="$PostgresContainer" POSTGRES_USER="$PostgresUser" POSTGRES_DB="$PostgresDb" BACKUP_SNAPSHOTS="$snapshotValue" sh scripts/qnap-backup.sh </dev/null)
+backup_dir=`$(BACKUP_ROOT="$BackupRoot" POSTGRES_CONTAINER="$PostgresContainer" POSTGRES_USER="$PostgresUser" POSTGRES_DB="$PostgresDb" OWNTRACKS_POSTGRES_CONTAINER="$OwnTracksPostgresContainer" OWNTRACKS_POSTGRES_USER="$OwnTracksPostgresUser" OWNTRACKS_POSTGRES_DB="$OwnTracksPostgresDb" BACKUP_SNAPSHOTS="$snapshotValue" sh scripts/qnap-backup.sh </dev/null)
 test -d "`$backup_dir"
 echo "Backup: `$backup_dir"
 if [ "$snapshotValue" != "1" ]; then
@@ -51,6 +54,29 @@ if "$Docker" inspect "$PostgresContainer" >/dev/null 2>&1; then
     fi
 else
     echo "WARN: Postgres container $PostgresContainer not found; SQL restore test skipped"
+fi
+
+owntracks_sql_file="`$backup_dir/owntracks.sql"
+if "$Docker" inspect "$OwnTracksPostgresContainer" >/dev/null 2>&1; then
+    test -s "`$owntracks_sql_file"
+    echo "OwnTracks SQL dump: `$owntracks_sql_file"
+    if [ "$skipRestoreValue" != "1" ]; then
+        stamp=`$(date +%Y%m%d%H%M%S)
+        restore_db="owntracks_restore_check_`$stamp"
+        "$Docker" exec "$OwnTracksPostgresContainer" dropdb -U "$OwnTracksPostgresUser" --if-exists "`$restore_db" >/dev/null 2>&1 || true
+        "$Docker" exec "$OwnTracksPostgresContainer" createdb -U "$OwnTracksPostgresUser" "`$restore_db"
+        restore_status=0
+        "$Docker" exec -i "$OwnTracksPostgresContainer" psql -U "$OwnTracksPostgresUser" -d "`$restore_db" -v ON_ERROR_STOP=1 < "`$owntracks_sql_file" >/dev/null || restore_status=`$?
+        "$Docker" exec "$OwnTracksPostgresContainer" dropdb -U "$OwnTracksPostgresUser" --if-exists "`$restore_db" >/dev/null 2>&1 || true
+        if [ "`$restore_status" -ne 0 ]; then
+            exit "`$restore_status"
+        fi
+        echo "OwnTracks restore dry-run: OK (`$restore_db)"
+    else
+        echo "OwnTracks restore dry-run: SKIPPED"
+    fi
+else
+    echo "WARN: OwnTracks Postgres container $OwnTracksPostgresContainer not found; SQL restore test skipped"
 fi
 "@
 

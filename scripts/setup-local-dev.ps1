@@ -48,18 +48,44 @@ Run "git" @("config", "--global", "--add", "safe.directory", ($repoRoot -replace
 Run "git" @("config", "user.name", "Codex")
 Run "git" @("config", "user.email", "codex@openai.com")
 
-$desktopDir = Join-Path $repoRoot "desktop_v2"
+Run "python" @("-m", "pip", "install", "-r", (Join-Path $repoRoot "requirements-dev.txt"))
+
+$frontendDirs = @(
+    "desktop_v2",
+    "owntracks_service/frontend",
+    "shell_app/frontend",
+    "revenue_app/frontend",
+    "parking_app/frontend",
+    "sun_app/frontend",
+    "energy_app/frontend",
+    "operations_app/frontend",
+    "maintenance_app/frontend",
+    "system_app/frontend",
+    "link_app/frontend"
+)
 $npm = if ($env:OS -eq "Windows_NT") { "npm.cmd" } else { "npm" }
 $npx = if ($env:OS -eq "Windows_NT") { "npx.cmd" } else { "npx" }
-if (Test-Path -LiteralPath (Join-Path $desktopDir "package.json")) {
-    Push-Location $desktopDir
+foreach ($frontend in $frontendDirs) {
+    $frontendDir = Join-Path $repoRoot $frontend
+    if (-not (Test-Path -LiteralPath (Join-Path $frontendDir "package.json"))) {
+        continue
+    }
+    Push-Location $frontendDir
     try {
-        Run $npm @("install")
-        Run $npx @("playwright", "install", "chromium")
+        $installCommand = if (Test-Path -LiteralPath (Join-Path $frontendDir "package-lock.json")) { "ci" } else { "install" }
+        Run $npm @($installCommand)
     }
     finally {
         Pop-Location
     }
+}
+
+Push-Location (Join-Path $repoRoot "desktop_v2")
+try {
+    Run $npx @("playwright", "install", "chromium")
+}
+finally {
+    Pop-Location
 }
 
 if ($InstallQnapKey) {

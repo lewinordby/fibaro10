@@ -7,6 +7,8 @@ DOCKER="${DOCKER:-/share/CACHEDEV1_DATA/.qpkg/container-station/usr/bin/.libs/do
 POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-postgres-1}"
 POSTGRES_USER="${POSTGRES_USER:-app}"
 POSTGRES_DB="${POSTGRES_DB:-fibaro10_local}"
+OWNTRACKS_POSTGRES_CONTAINER="${OWNTRACKS_POSTGRES_CONTAINER:-owntracks_postgres}"
+ROBOROCK_CONTAINER="${ROBOROCK_CONTAINER:-roborock_logger}"
 BACKUP_SNAPSHOTS="${BACKUP_SNAPSHOTS:-0}"
 
 stamp="$(date +%Y%m%d-%H%M%S)"
@@ -35,6 +37,10 @@ SUN2_SESSION_SCRAPER_HOST_DATA_DIR="${SUN2_SESSION_SCRAPER_HOST_DATA_DIR:-$(env_
 FIBARO10_CADDY_DATA_DIR="${FIBARO10_CADDY_DATA_DIR:-$(env_value .env FIBARO10_CADDY_DATA_DIR)}"
 FIBARO10_CADDY_CONFIG_DIR="${FIBARO10_CADDY_CONFIG_DIR:-$(env_value .env FIBARO10_CADDY_CONFIG_DIR)}"
 VISUAL_AI_HOST_DATA_DIR="${VISUAL_AI_HOST_DATA_DIR:-$(env_value .env VISUAL_AI_HOST_DATA_DIR)}"
+OWNTRACKS_POSTGRES_USER="${OWNTRACKS_POSTGRES_USER:-$(env_value .env OWNTRACKS_POSTGRES_USER)}"
+OWNTRACKS_POSTGRES_USER="${OWNTRACKS_POSTGRES_USER:-owntracks}"
+OWNTRACKS_POSTGRES_DB="${OWNTRACKS_POSTGRES_DB:-$(env_value .env OWNTRACKS_POSTGRES_DB)}"
+OWNTRACKS_POSTGRES_DB="${OWNTRACKS_POSTGRES_DB:-owntracks}"
 
 copy_dir() {
     source_dir="$1"
@@ -45,7 +51,7 @@ copy_dir() {
     cp -a "$source_dir" "$target_dir"
 }
 
-for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* sun2_backfill_downloader/.env sun2_backfill_downloader/.env.* sun2_importer/.env sun2_importer/.env.*; do
+for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* car_info_lookup/.env car_info_lookup/.env.* sun2_backfill_downloader/.env sun2_backfill_downloader/.env.* sun2_importer/.env sun2_importer/.env.* sun2_session_scraper/.env sun2_session_scraper/.env.* roborock_logger/.env roborock_logger/.env.* hc3_vedlikehold/.env hc3_vedlikehold/.env.*; do
     [ -f "$file" ] || continue
     target="$backup_dir/$file"
     mkdir -p "$(dirname "$target")"
@@ -69,6 +75,15 @@ fi
 
 if "$DOCKER" inspect "$POSTGRES_CONTAINER" >/dev/null 2>&1; then
     "$DOCKER" exec "$POSTGRES_CONTAINER" pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" > "$backup_dir/${POSTGRES_DB}.sql"
+fi
+
+if "$DOCKER" inspect "$OWNTRACKS_POSTGRES_CONTAINER" >/dev/null 2>&1; then
+    "$DOCKER" exec "$OWNTRACKS_POSTGRES_CONTAINER" pg_dump -U "$OWNTRACKS_POSTGRES_USER" "$OWNTRACKS_POSTGRES_DB" > "$backup_dir/owntracks.sql"
+fi
+
+if "$DOCKER" inspect "$ROBOROCK_CONTAINER" >/dev/null 2>&1; then
+    mkdir -p "$backup_dir/roborock_logger/data"
+    "$DOCKER" cp "$ROBOROCK_CONTAINER:/data/." "$backup_dir/roborock_logger/data"
 fi
 
 find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d | sort | head -n -20 | xargs -r rm -rf

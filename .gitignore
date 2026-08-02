@@ -28,6 +28,7 @@ car_info_lookup/data
 car_info_lookup/data/
 owntracks_service/data
 owntracks_service/data/
+owntracks_service/postgres_data/
 owntracks_service/frontend/dist/
 owntracks_service/frontend/node_modules/
 owntracks_service/frontend/*.tsbuildinfo
