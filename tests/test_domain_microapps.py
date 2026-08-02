@@ -50,6 +50,13 @@ def test_domain_apps_reject_unscoped_core_endpoints() -> None:
             assert response.status_code == 404
 
 
+def test_domain_apps_compress_larger_responses() -> None:
+    with TestClient(revenue_app) as client:
+        response = client.get("/auth/login", headers={"Accept-Encoding": "gzip"})
+        assert response.status_code == 200
+        assert response.headers["content-encoding"] == "gzip"
+
+
 def test_each_domain_rejects_another_domains_module() -> None:
     cases = [
         (revenue_app, "/api/modules/parkering"),

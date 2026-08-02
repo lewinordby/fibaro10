@@ -7,9 +7,40 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
 BUILD_FILE = Path(__file__).with_name("BUILD")
-DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exists() else "1628"
+DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exists() else "1629"
 APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1629",
+        "date": "03.08.2026",
+        "headline": "Raskere dataflyt og færre databasespørringer",
+        "title": "Dashboard, parkering og energi er teknisk optimalisert uten å endre datagrunnlaget",
+        "description": (
+            "De mest brukte rutene er profilert mot aktiv QNAP og bygget om rundt målte flaskehalser. "
+            "Tidsavhengige sammenligninger beregnes nå i samlede databasespørringer, unødvendige oppslag er "
+            "fjernet, og store svar fra fagappene komprimeres før de sendes til nettleseren."
+        ),
+        "applications": [
+            "Fibaro10 dashboard: samlede SUN2- og parkeringsspørringer med uendrede kildeavhengige tidsgrenser.",
+            "Parkering: færre telleoperasjoner og kjøretøy hentes bare på siden som faktisk bruker dem.",
+            "Energi: korrekt akkumulering før grafnedprøving og færre irrelevante databaseoppslag.",
+            "Fagappene 8151-8158: felles gzip-komprimering for større HTML- og API-svar.",
+            "Tester: egne kontrakter for batchspørringer, SUN2-prioritet, energisummer og komprimering.",
+        ],
+        "request": "Gjør en teknisk optimalisering av hele løsningen.",
+        "work_duration": "ca. 2 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Samler nær 50 separate tidsvindusspørringer for dashboardet i fem databasepasseringer.",
+            "Bevarer dagsimport som autoritativ SUN2-kilde og fyller bare manglende dager fra enkelttimer.",
+            "Kjører statusoppslag mot HC3 parallelt med databasearbeidet på dashboardet.",
+            "Slår sammen parkeringssummer og førstegangsregistreringer i betingede aggregater.",
+            "Beregner full akkumulert energisum før grafpunktene reduseres.",
+            "Fjerner Elvia-, historikk- og kjøretøyoppslag fra ruter som ikke bruker dem.",
+            "Komprimerer store fagappsvar og beholder uforanderlige frontendressurser i nettlesercache.",
+        ],
+    },
     {
         "version": "1",
         "build": "1628",

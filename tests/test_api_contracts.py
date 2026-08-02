@@ -51,6 +51,26 @@ class OverviewApiContractTests(unittest.TestCase):
         for name in ("revenue_year", "revenue_previous_year", "revenue_two_years"):
             self.assertIn(name, assigned_names)
 
+    def test_overview_uses_batched_period_queries(self) -> None:
+        tree = ast.parse(Path("main.py").read_text(encoding="utf-8"))
+        overview_func = next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "api_v2_overview"
+        )
+        called_names = {
+            node.func.id
+            for node in ast.walk(overview_func)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+        }
+
+        self.assertIn("sun2_period_snapshots", called_names)
+        self.assertIn("sun2_datetime_snapshots", called_names)
+        self.assertIn("parking_datetime_snapshots", called_names)
+        self.assertNotIn("sun2_period_snapshot", called_names)
+        self.assertNotIn("sun2_datetime_snapshot", called_names)
+        self.assertNotIn("parking_datetime_snapshot", called_names)
+
 
 @unittest.skipUnless(
     importlib.util.find_spec("fastapi") and importlib.util.find_spec("httpx"),

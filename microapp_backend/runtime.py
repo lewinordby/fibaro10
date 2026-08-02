@@ -10,6 +10,7 @@ from typing import Any, AsyncIterator, Awaitable, Callable, Pattern
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -60,6 +61,7 @@ def create_domain_app(config: DomainAppConfig) -> FastAPI:
         await application.state.core_client.aclose()
 
     app = FastAPI(title=config.name, docs_url=None, redoc_url=None, lifespan=lifespan)
+    app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
     if static_dir.exists():
         app.mount("/assets", StaticFiles(directory=static_dir / "assets"), name="assets")
 

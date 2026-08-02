@@ -3284,8 +3284,28 @@ async def get_energy_summaries(session, force: bool = False) -> Dict[str, Any]:
     return await cached_summaries("energy", build_energy_summaries_fast, session, force)
 
 
-async def sun2_period_snapshot(session, start_day: date, end_day: date) -> SimpleNamespace:
-    """Return SUN2 totals using daily files where available and live sessions only for missing days."""
+def normalized_stat_date(value: Any) -> Optional[date]:
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        try:
+            return date.fromisoformat(value[:10])
+        except ValueError:
+            return None
+    return None
+
+
+async def sun2_period_snapshots(
+    session,
+    periods: Dict[str, tuple[date, date]],
+) -> Dict[str, SimpleNamespace]:
+    """Return several SUN2 periods with daily imports taking precedence over live sessions."""
+    if not periods:
+        return {}
+    global_start = min(start_day for start_day, _ in periods.values())
+    global_end = max(end_day for _, end_day in periods.values())
     daily_rows = (
         await session.execute(
             select(
@@ -3293,70 +3313,165 @@ async def sun2_period_snapshot(session, start_day: date, end_day: date) -> Simpl
                 *sun2_sum_columns(),
                 func.count(func.distinct(Sun2RoomDailyStat.room)).label("rooms"),
             )
-            .where(Sun2RoomDailyStat.stat_date >= start_day, Sun2RoomDailyStat.stat_date < end_day)
+            .where(Sun2RoomDailyStat.stat_date >= global_start, Sun2RoomDailyStat.stat_date < global_end)
             .group_by(Sun2RoomDailyStat.stat_date)
         )
     ).mappings().all()
-    daily_dates = {row["stat_date"] for row in daily_rows if row.get("stat_date")}
-    totals = {"sessions": 0, "minutes": 0.0, "paid": 0.0, "rooms": 0}
-    for row in daily_rows:
-        totals["sessions"] += int_or_zero(row.get("totalt_antall_solinger"))
-        totals["minutes"] += float_or_zero(row.get("total_soletid_minutter"))
-        totals["paid"] += float_or_zero(row.get("totalt_inntjent_kr"))
-        totals["rooms"] = max(totals["rooms"], int_or_zero(row.get("rooms")))
-
-    session_filters = [
-        Sun2TanningSession.stat_date >= start_day,
-        Sun2TanningSession.stat_date < end_day,
-    ]
-    if daily_dates:
-        session_filters.append(Sun2TanningSession.stat_date.not_in(daily_dates))
-    session_row = (
+    session_rows = (
         await session.execute(
             select(
+                Sun2TanningSession.stat_date.label("stat_date"),
                 func.count(Sun2TanningSession.id).label("sessions"),
                 func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("minutes"),
                 func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid"),
-                func.count(func.distinct(Sun2TanningSession.room_id)).label("rooms"),
-            ).where(*session_filters)
+            )
+            .where(Sun2TanningSession.stat_date >= global_start, Sun2TanningSession.stat_date < global_end)
+            .group_by(Sun2TanningSession.stat_date)
         )
-    ).one()
-    totals["sessions"] += int_or_zero(session_row.sessions)
-    totals["minutes"] += float_or_zero(session_row.minutes)
-    totals["paid"] += float_or_zero(session_row.paid)
-    totals["rooms"] = max(totals["rooms"], int_or_zero(session_row.rooms))
-    return SimpleNamespace(**totals)
+    ).mappings().all()
+    session_room_rows = (
+        await session.execute(
+            select(Sun2TanningSession.stat_date, Sun2TanningSession.room_id)
+            .where(
+                Sun2TanningSession.stat_date >= global_start,
+                Sun2TanningSession.stat_date < global_end,
+                Sun2TanningSession.room_id.is_not(None),
+            )
+            .distinct()
+        )
+    ).all()
+
+    daily_by_date = {
+        stat_day: row
+        for row in daily_rows
+        if (stat_day := normalized_stat_date(row.get("stat_date"))) is not None
+    }
+    sessions_by_date = {
+        stat_day: row
+        for row in session_rows
+        if (stat_day := normalized_stat_date(row.get("stat_date"))) is not None
+    }
+    rooms_by_date: Dict[date, set[Any]] = {}
+    for stat_date_value, room_id in session_room_rows:
+        stat_day = normalized_stat_date(stat_date_value)
+        if stat_day is not None:
+            rooms_by_date.setdefault(stat_day, set()).add(room_id)
+
+    snapshots: Dict[str, SimpleNamespace] = {}
+    for key, (start_day, end_day) in periods.items():
+        totals = {"sessions": 0, "minutes": 0.0, "paid": 0.0, "rooms": 0}
+        imported_dates = {
+            stat_day for stat_day in daily_by_date if start_day <= stat_day < end_day
+        }
+        for stat_day in imported_dates:
+            row = daily_by_date[stat_day]
+            totals["sessions"] += int_or_zero(row.get("totalt_antall_solinger"))
+            totals["minutes"] += float_or_zero(row.get("total_soletid_minutter"))
+            totals["paid"] += float_or_zero(row.get("totalt_inntjent_kr"))
+            totals["rooms"] = max(totals["rooms"], int_or_zero(row.get("rooms")))
+        session_room_ids: set[Any] = set()
+        for stat_day, row in sessions_by_date.items():
+            if not start_day <= stat_day < end_day or stat_day in imported_dates:
+                continue
+            totals["sessions"] += int_or_zero(row.get("sessions"))
+            totals["minutes"] += float_or_zero(row.get("minutes"))
+            totals["paid"] += float_or_zero(row.get("paid"))
+            session_room_ids.update(rooms_by_date.get(stat_day, set()))
+        totals["rooms"] = max(totals["rooms"], len(session_room_ids))
+        snapshots[key] = SimpleNamespace(**totals)
+    return snapshots
+
+
+async def sun2_period_snapshot(session, start_day: date, end_day: date) -> SimpleNamespace:
+    """Return one SUN2 period; retained for callers outside the optimized overview."""
+    return (await sun2_period_snapshots(session, {"snapshot": (start_day, end_day)}))["snapshot"]
+
+
+async def sun2_datetime_snapshots(
+    session,
+    periods: Dict[str, tuple[datetime, datetime]],
+) -> Dict[str, SimpleNamespace]:
+    if not periods:
+        return {}
+    columns = []
+    for key, (start_at, end_at) in periods.items():
+        condition = and_(Sun2TanningSession.started_at >= start_at, Sun2TanningSession.started_at < end_at)
+        columns.extend(
+            [
+                func.count(case((condition, Sun2TanningSession.id), else_=None)).label(f"{key}_sessions"),
+                func.coalesce(
+                    func.sum(case((condition, Sun2TanningSession.duration_minutes), else_=0)),
+                    0,
+                ).label(f"{key}_minutes"),
+                func.coalesce(
+                    func.sum(case((condition, Sun2TanningSession.paid_amount_kr), else_=0)),
+                    0,
+                ).label(f"{key}_paid"),
+                func.count(
+                    func.distinct(case((condition, Sun2TanningSession.room_id), else_=None))
+                ).label(f"{key}_rooms"),
+            ]
+        )
+    row = (
+        await session.execute(
+            select(*columns).where(
+                Sun2TanningSession.started_at >= min(start_at for start_at, _ in periods.values()),
+                Sun2TanningSession.started_at < max(end_at for _, end_at in periods.values()),
+            )
+        )
+    ).mappings().one()
+    return {
+        key: SimpleNamespace(
+            sessions=int_or_zero(row.get(f"{key}_sessions")),
+            minutes=float_or_zero(row.get(f"{key}_minutes")),
+            paid=float_or_zero(row.get(f"{key}_paid")),
+            rooms=int_or_zero(row.get(f"{key}_rooms")),
+        )
+        for key in periods
+    }
 
 
 async def sun2_datetime_snapshot(session, start_at: datetime, end_at: datetime) -> SimpleNamespace:
+    return (await sun2_datetime_snapshots(session, {"snapshot": (start_at, end_at)}))["snapshot"]
+
+
+async def parking_datetime_snapshots(
+    session,
+    periods: Dict[str, tuple[datetime, datetime]],
+) -> Dict[str, SimpleNamespace]:
+    if not periods:
+        return {}
+    columns = []
+    for key, (start_at, end_at) in periods.items():
+        condition = and_(ParkingSession.start_time >= start_at, ParkingSession.start_time < end_at)
+        columns.extend(
+            [
+                func.count(case((condition, ParkingSession.id), else_=None)).label(f"{key}_sessions"),
+                func.coalesce(
+                    func.sum(case((condition, ParkingSession.fee_inc_vat), else_=0)),
+                    0,
+                ).label(f"{key}_paid"),
+            ]
+        )
     row = (
         await session.execute(
-            select(
-                func.count(Sun2TanningSession.id).label("sessions"),
-                func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("minutes"),
-                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid"),
-                func.count(func.distinct(Sun2TanningSession.room_id)).label("rooms"),
-            ).where(Sun2TanningSession.started_at >= start_at, Sun2TanningSession.started_at < end_at)
+            select(*columns).where(
+                ParkingSession.start_time >= min(start_at for start_at, _ in periods.values()),
+                ParkingSession.start_time < max(end_at for _, end_at in periods.values()),
+            )
         )
-    ).one()
-    return SimpleNamespace(
-        sessions=int_or_zero(row.sessions),
-        minutes=float_or_zero(row.minutes),
-        paid=float_or_zero(row.paid),
-        rooms=int_or_zero(row.rooms),
-    )
+    ).mappings().one()
+    return {
+        key: SimpleNamespace(
+            sessions=int_or_zero(row.get(f"{key}_sessions")),
+            paid=float_or_zero(row.get(f"{key}_paid")),
+        )
+        for key in periods
+    }
 
 
 async def parking_datetime_snapshot(session, start_at: datetime, end_at: datetime) -> SimpleNamespace:
-    row = (
-        await session.execute(
-            select(
-                func.count(ParkingSession.id).label("sessions"),
-                func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-            ).where(ParkingSession.start_time >= start_at, ParkingSession.start_time < end_at)
-        )
-    ).one()
-    return SimpleNamespace(sessions=int_or_zero(row.sessions), paid=float_or_zero(row.paid))
+    return (await parking_datetime_snapshots(session, {"snapshot": (start_at, end_at)}))["snapshot"]
 
 
 def empty_parking_summary(period: str, period_label: Optional[str] = None) -> Dict[str, Any]:
@@ -18797,6 +18912,12 @@ async def api_v2_overview():
     previous_year_start_dt = datetime.combine(previous_year_start, time.min)
     two_years_start_dt = datetime.combine(two_years_start, time.min)
     next_year_start_dt = datetime.combine(date(today.year + 1, 1, 1), time.min)
+    vent_switch_configs = [
+        config
+        for device in VENT_TIMELINE_DEVICES
+        if (config := hc3_switch_config_for_timeline_device(device)) is not None
+    ]
+    vent_status_task = asyncio.create_task(hc3_fetch_switch_statuses(vent_switch_configs))
     async with async_session() as session:
         latest_light_sample = (
             await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.timestamp.desc()).limit(1))
@@ -18897,153 +19018,101 @@ async def api_v2_overview():
             two_years_start_dt,
             previous_year_start_dt,
         )
-        today_sun = await sun2_datetime_snapshot(session, today_start, sun_today_cutoff)
-        yesterday_sun = await sun2_period_snapshot(session, yesterday, today)
-        week_sun = await sun2_datetime_snapshot(session, week_start_dt, sun_week_cutoff)
-        previous_week_sun = await sun2_period_snapshot(session, previous_week_start, week_start)
-        month_sun = await sun2_datetime_snapshot(session, month_start_dt, sun_month_cutoff)
-        previous_month_sun = await sun2_period_snapshot(session, previous_month_start, month_start)
-        year_sun = await sun2_datetime_snapshot(session, year_start_dt, sun_year_cutoff)
-        previous_year_sun = await sun2_period_snapshot(session, previous_year_start, year_start)
-        two_years_full_sun = await sun2_period_snapshot(session, two_years_start, previous_year_start)
-        last_week_same_day_full_sun = await sun2_period_snapshot(
+        sun_full = await sun2_period_snapshots(
             session,
-            last_week_same_day,
-            last_week_same_day + timedelta(days=1),
+            {
+                "yesterday": (yesterday, today),
+                "previous_week": (previous_week_start, week_start),
+                "previous_month": (previous_month_start, month_start),
+                "previous_year": (previous_year_start, year_start),
+                "two_years": (two_years_start, previous_year_start),
+                "last_week_same_day": (last_week_same_day, last_week_same_day + timedelta(days=1)),
+                "same_week_last_year": (same_week_last_year_start, same_week_last_year_end),
+                "same_month_last_year": (same_month_last_year_start, same_month_last_year_end),
+            },
         )
-        same_week_last_year_full_sun = await sun2_period_snapshot(
+        sun_at_cutoff = await sun2_datetime_snapshots(
             session,
-            same_week_last_year_start,
-            same_week_last_year_end,
+            {
+                "today": (today_start, sun_today_cutoff),
+                "week": (week_start_dt, sun_week_cutoff),
+                "month": (month_start_dt, sun_month_cutoff),
+                "year": (year_start_dt, sun_year_cutoff),
+                "yesterday": (yesterday_start, sun_yesterday_cutoff),
+                "last_week_same_day": (last_week_same_day_start, sun_last_week_same_day_cutoff),
+                "previous_week": (previous_week_start_dt, sun_previous_week_cutoff),
+                "same_week_last_year": (same_week_last_year_start_dt, sun_same_week_last_year_cutoff),
+                "previous_month": (previous_month_start_dt, sun_previous_month_cutoff),
+                "same_month_last_year": (same_month_last_year_start_dt, sun_same_month_last_year_cutoff),
+                "previous_year": (previous_year_start_dt, sun_previous_year_cutoff),
+                "two_years": (two_years_start_dt, sun_two_years_cutoff),
+            },
         )
-        same_month_last_year_full_sun = await sun2_period_snapshot(
+        parking = await parking_datetime_snapshots(
             session,
-            same_month_last_year_start,
-            same_month_last_year_end,
+            {
+                "today": (today_start, parking_today_cutoff),
+                "yesterday_full": (yesterday_start, today_start),
+                "last_week_same_day_full": (last_week_same_day_start, last_week_same_day_end),
+                "week": (week_start_dt, parking_week_cutoff),
+                "previous_week_full": (previous_week_start_dt, week_start_dt),
+                "month": (month_start_dt, parking_month_cutoff),
+                "previous_month_full": (previous_month_start_dt, month_start_dt),
+                "same_week_last_year_full": (same_week_last_year_start_dt, same_week_last_year_end_dt),
+                "same_month_last_year_full": (same_month_last_year_start_dt, same_month_last_year_end_dt),
+                "yesterday": (yesterday_start, parking_yesterday_cutoff),
+                "last_week_same_day": (last_week_same_day_start, parking_last_week_same_day_cutoff),
+                "previous_week": (previous_week_start_dt, parking_previous_week_cutoff),
+                "same_week_last_year": (same_week_last_year_start_dt, parking_same_week_last_year_cutoff),
+                "previous_month": (previous_month_start_dt, parking_previous_month_cutoff),
+                "same_month_last_year": (same_month_last_year_start_dt, parking_same_month_last_year_cutoff),
+                "year": (year_start_dt, parking_year_cutoff),
+                "previous_year_full": (previous_year_start_dt, year_start_dt),
+                "two_years_full": (two_years_start_dt, previous_year_start_dt),
+                "previous_year": (previous_year_start_dt, parking_previous_year_cutoff),
+                "two_years": (two_years_start_dt, parking_two_years_cutoff),
+            },
         )
-        yesterday_same_time_sun = await sun2_datetime_snapshot(session, yesterday_start, sun_yesterday_cutoff)
-        last_week_same_day_sun = await sun2_datetime_snapshot(
-            session,
-            last_week_same_day_start,
-            sun_last_week_same_day_cutoff,
-        )
-        previous_week_same_time_sun = await sun2_datetime_snapshot(
-            session,
-            previous_week_start_dt,
-            sun_previous_week_cutoff,
-        )
-        same_week_last_year_same_time_sun = await sun2_datetime_snapshot(
-            session,
-            same_week_last_year_start_dt,
-            sun_same_week_last_year_cutoff,
-        )
-        previous_month_same_time_sun = await sun2_datetime_snapshot(
-            session,
-            previous_month_start_dt,
-            sun_previous_month_cutoff,
-        )
-        same_month_last_year_same_time_sun = await sun2_datetime_snapshot(
-            session,
-            same_month_last_year_start_dt,
-            sun_same_month_last_year_cutoff,
-        )
-        previous_year_same_time_sun = await sun2_datetime_snapshot(
-            session,
-            previous_year_start_dt,
-            sun_previous_year_cutoff,
-        )
-        two_years_same_time_sun = await sun2_datetime_snapshot(
-            session,
-            two_years_start_dt,
-            sun_two_years_cutoff,
-        )
-        today_parking = await parking_datetime_snapshot(session, today_start, parking_today_cutoff)
-        yesterday_parking = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id).label("sessions"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-                ).where(ParkingSession.start_time >= yesterday_start, ParkingSession.start_time < today_start)
-            )
-        ).one()
-        last_week_parking = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id).label("sessions"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-                ).where(
-                    ParkingSession.start_time >= datetime.combine(last_week_same_day, time.min),
-                    ParkingSession.start_time < datetime.combine(last_week_same_day + timedelta(days=1), time.min),
-                )
-            )
-        ).one()
-        week_parking = await parking_datetime_snapshot(session, week_start_dt, parking_week_cutoff)
-        previous_week_parking = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id).label("sessions"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-                ).where(ParkingSession.start_time >= previous_week_start_dt, ParkingSession.start_time < week_start_dt)
-            )
-        ).one()
-        month_parking = await parking_datetime_snapshot(session, month_start_dt, parking_month_cutoff)
-        previous_month_parking = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id).label("sessions"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-                ).where(ParkingSession.start_time >= previous_month_start_dt, ParkingSession.start_time < month_start_dt)
-            )
-        ).one()
-        same_week_last_year_parking = await parking_datetime_snapshot(
-            session,
-            same_week_last_year_start_dt,
-            same_week_last_year_end_dt,
-        )
-        same_month_last_year_parking = await parking_datetime_snapshot(
-            session,
-            same_month_last_year_start_dt,
-            same_month_last_year_end_dt,
-        )
-        yesterday_same_time_parking = await parking_datetime_snapshot(session, yesterday_start, parking_yesterday_cutoff)
-        last_week_same_day_same_time_parking = await parking_datetime_snapshot(
-            session,
-            last_week_same_day_start,
-            parking_last_week_same_day_cutoff,
-        )
-        previous_week_same_time_parking = await parking_datetime_snapshot(
-            session,
-            previous_week_start_dt,
-            parking_previous_week_cutoff,
-        )
-        same_week_last_year_same_time_parking = await parking_datetime_snapshot(
-            session,
-            same_week_last_year_start_dt,
-            parking_same_week_last_year_cutoff,
-        )
-        previous_month_same_time_parking = await parking_datetime_snapshot(
-            session,
-            previous_month_start_dt,
-            parking_previous_month_cutoff,
-        )
-        same_month_last_year_same_time_parking = await parking_datetime_snapshot(
-            session,
-            same_month_last_year_start_dt,
-            parking_same_month_last_year_cutoff,
-        )
-        year_parking = await parking_datetime_snapshot(session, year_start_dt, parking_year_cutoff)
-        previous_year_parking = await parking_datetime_snapshot(session, previous_year_start_dt, year_start_dt)
-        two_years_parking = await parking_datetime_snapshot(session, two_years_start_dt, previous_year_start_dt)
-        previous_year_same_time_parking = await parking_datetime_snapshot(
-            session,
-            previous_year_start_dt,
-            parking_previous_year_cutoff,
-        )
-        two_years_same_time_parking = await parking_datetime_snapshot(
-            session,
-            two_years_start_dt,
-            parking_two_years_cutoff,
-        )
+        today_sun = sun_at_cutoff["today"]
+        yesterday_sun = sun_full["yesterday"]
+        week_sun = sun_at_cutoff["week"]
+        previous_week_sun = sun_full["previous_week"]
+        month_sun = sun_at_cutoff["month"]
+        previous_month_sun = sun_full["previous_month"]
+        year_sun = sun_at_cutoff["year"]
+        previous_year_sun = sun_full["previous_year"]
+        two_years_full_sun = sun_full["two_years"]
+        last_week_same_day_full_sun = sun_full["last_week_same_day"]
+        same_week_last_year_full_sun = sun_full["same_week_last_year"]
+        same_month_last_year_full_sun = sun_full["same_month_last_year"]
+        yesterday_same_time_sun = sun_at_cutoff["yesterday"]
+        last_week_same_day_sun = sun_at_cutoff["last_week_same_day"]
+        previous_week_same_time_sun = sun_at_cutoff["previous_week"]
+        same_week_last_year_same_time_sun = sun_at_cutoff["same_week_last_year"]
+        previous_month_same_time_sun = sun_at_cutoff["previous_month"]
+        same_month_last_year_same_time_sun = sun_at_cutoff["same_month_last_year"]
+        previous_year_same_time_sun = sun_at_cutoff["previous_year"]
+        two_years_same_time_sun = sun_at_cutoff["two_years"]
+        today_parking = parking["today"]
+        yesterday_parking = parking["yesterday_full"]
+        last_week_parking = parking["last_week_same_day_full"]
+        week_parking = parking["week"]
+        previous_week_parking = parking["previous_week_full"]
+        month_parking = parking["month"]
+        previous_month_parking = parking["previous_month_full"]
+        same_week_last_year_parking = parking["same_week_last_year_full"]
+        same_month_last_year_parking = parking["same_month_last_year_full"]
+        yesterday_same_time_parking = parking["yesterday"]
+        last_week_same_day_same_time_parking = parking["last_week_same_day"]
+        previous_week_same_time_parking = parking["previous_week"]
+        same_week_last_year_same_time_parking = parking["same_week_last_year"]
+        previous_month_same_time_parking = parking["previous_month"]
+        same_month_last_year_same_time_parking = parking["same_month_last_year"]
+        year_parking = parking["year"]
+        previous_year_parking = parking["previous_year_full"]
+        two_years_parking = parking["two_years_full"]
+        previous_year_same_time_parking = parking["previous_year"]
+        two_years_same_time_parking = parking["two_years"]
         active_parking = (
             await session.execute(
                 select(func.count(ParkingSession.id)).where(
@@ -19319,11 +19388,7 @@ async def api_v2_overview():
         {"label": device["name"], "state": api_bool_state(light_sample_state(latest_light_sample, device) if latest_light_sample else None)}
         for device in LIGHT_TIMELINE_DEVICES
     ]
-    vent_switch_configs = [
-        config for device in VENT_TIMELINE_DEVICES
-        if (config := hc3_switch_config_for_timeline_device(device)) is not None
-    ]
-    vent_hc3_statuses = await hc3_fetch_switch_statuses(vent_switch_configs)
+    vent_hc3_statuses = await vent_status_task
     fan_items = [
         ventilation_status_payload(device, latest_sample, vent_hc3_statuses.get(str(device.get("key"))))
         for device in VENT_TIMELINE_DEVICES
@@ -29152,71 +29217,138 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "dayNavigation": None,
                     "parkingTimeline": None,
                 }
-            parking_summaries = await get_parking_summaries(session)
-            latest_rows = (
-                await session.execute(
-                    select(ParkingSession, ParkingVehicle, ParkingVehicleDetails)
-                    .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
-                    .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == normalized_session_plate)
-                    .order_by(ParkingSession.start_time.desc())
-                    .limit(120)
-                )
-            ).all()
-            today_summary = await parking_period_summary(session, "I dag", today_start, tomorrow_start)
-            month_summary = await parking_period_summary(session, "Denne måneden", month_start_dt, tomorrow_start)
-            parking_import_status = (
-                await session.execute(
-                    select(ImportJobStatus).where(ImportJobStatus.job_name == "easypark_parking_import")
-                )
-            ).scalars().first()
-            active = (
-                await session.execute(
-                    select(func.count(ParkingSession.id)).where(
-                        ParkingSession.start_time <= now_dt,
-                        or_(
-                            ParkingSession.end_time.is_(None),
-                            ParkingSession.end_time >= now_dt,
-                            func.lower(func.coalesce(ParkingSession.status, "")) == "ongoing",
-                        ),
+            overview_context = view in ("", "oversikt", "bilstatistikk")
+            parking_summaries = await get_parking_summaries(session) if overview_context else {}
+            latest_rows = []
+            if overview_context:
+                latest_rows = (
+                    await session.execute(
+                        select(ParkingSession, ParkingVehicle, ParkingVehicleDetails)
+                        .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
+                        .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == normalized_session_plate)
+                        .order_by(ParkingSession.start_time.desc())
+                        .limit(120)
                     )
+                ).all()
+            parking_periods = (
+                await parking_datetime_snapshots(
+                    session,
+                    {
+                        "today": (today_start, tomorrow_start),
+                        "month": (month_start_dt, tomorrow_start),
+                    },
                 )
-            ).scalar_one()
-            vehicle_stats = await parking_vehicle_count_stats(session)
+                if overview_context
+                else {
+                    "today": SimpleNamespace(sessions=0, paid=0.0),
+                    "month": SimpleNamespace(sessions=0, paid=0.0),
+                }
+            )
+            today_summary = {
+                "label": "I dag",
+                "count": parking_periods["today"].sessions,
+                "paid": parking_periods["today"].paid,
+            }
+            month_summary = {
+                "label": "Denne måneden",
+                "count": parking_periods["month"].sessions,
+                "paid": parking_periods["month"].paid,
+            }
+            parking_import_status = None
+            if overview_context or view == "dagslinje":
+                parking_import_status = (
+                    await session.execute(
+                        select(ImportJobStatus).where(ImportJobStatus.job_name == "easypark_parking_import")
+                    )
+                ).scalars().first()
+            active = 0
+            if overview_context:
+                active = (
+                    await session.execute(
+                        select(func.count(ParkingSession.id)).where(
+                            ParkingSession.start_time <= now_dt,
+                            or_(
+                                ParkingSession.end_time.is_(None),
+                                ParkingSession.end_time >= now_dt,
+                                func.lower(func.coalesce(ParkingSession.status, "")) == "ongoing",
+                            ),
+                        )
+                    )
+                ).scalar_one()
+            vehicle_stats = {
+                "vehicle_count": 0,
+                "vehicle_blank_name_count": 0,
+                "vehicle_name_not_found_count": 0,
+                "vehicle_missing_name_count": 0,
+                "vehicle_blank_area_count": 0,
+                "vehicle_area_not_found_count": 0,
+                "vehicle_missing_area_count": 0,
+            }
+            if overview_context or view in {"omrade", "oppslag"}:
+                vehicle_stats = await parking_vehicle_count_stats(session)
             vehicle_count = vehicle_stats["vehicle_count"]
-            new_vehicle_month_count = (
-                await session.execute(
-                    select(func.count(ParkingVehicle.plate))
-                    .where(ParkingVehicle.first_seen >= month_start_dt)
-                    .where(ParkingVehicle.first_seen < tomorrow_start)
-                )
-            ).scalar_one()
-            new_vehicle_previous_month_count = (
-                await session.execute(
-                    select(func.count(ParkingVehicle.plate))
-                    .where(ParkingVehicle.first_seen >= previous_month_start_dt)
-                    .where(ParkingVehicle.first_seen < month_start_dt)
-                )
-            ).scalar_one()
-            new_vehicle_year_count = (
-                await session.execute(
-                    select(func.count(ParkingVehicle.plate))
-                    .where(ParkingVehicle.first_seen >= year_start_dt)
-                    .where(ParkingVehicle.first_seen < tomorrow_start)
-                )
-            ).scalar_one()
+            new_vehicle_counts = {"month": 0, "previous_month": 0, "year": 0}
+            if overview_context:
+                new_vehicle_counts = (
+                    await session.execute(
+                        select(
+                            func.count(
+                                case(
+                                    (
+                                        and_(
+                                            ParkingVehicle.first_seen >= month_start_dt,
+                                            ParkingVehicle.first_seen < tomorrow_start,
+                                        ),
+                                        ParkingVehicle.plate,
+                                    ),
+                                    else_=None,
+                                )
+                            ).label("month"),
+                            func.count(
+                                case(
+                                    (
+                                        and_(
+                                            ParkingVehicle.first_seen >= previous_month_start_dt,
+                                            ParkingVehicle.first_seen < month_start_dt,
+                                        ),
+                                        ParkingVehicle.plate,
+                                    ),
+                                    else_=None,
+                                )
+                            ).label("previous_month"),
+                            func.count(
+                                case(
+                                    (
+                                        and_(
+                                            ParkingVehicle.first_seen >= year_start_dt,
+                                            ParkingVehicle.first_seen < tomorrow_start,
+                                        ),
+                                        ParkingVehicle.plate,
+                                    ),
+                                    else_=None,
+                                )
+                            ).label("year"),
+                        )
+                    )
+                ).mappings().one()
+            new_vehicle_month_count = int_or_zero(new_vehicle_counts.get("month"))
+            new_vehicle_previous_month_count = int_or_zero(new_vehicle_counts.get("previous_month"))
+            new_vehicle_year_count = int_or_zero(new_vehicle_counts.get("year"))
             vehicle_blank_name_count = vehicle_stats["vehicle_blank_name_count"]
             vehicle_name_not_found_count = vehicle_stats["vehicle_name_not_found_count"]
             vehicle_missing_name_count = vehicle_stats["vehicle_missing_name_count"]
             vehicle_blank_area_count = vehicle_stats["vehicle_blank_area_count"]
             vehicle_area_not_found_count = vehicle_stats["vehicle_area_not_found_count"]
             vehicle_missing_area_count = vehicle_stats["vehicle_missing_area_count"]
-            vehicle_rows = (
-                await session.execute(
-                    select(ParkingVehicle)
-                    .order_by(ParkingVehicle.last_seen.desc().nullslast(), ParkingVehicle.plate.asc())
-                    .limit(250)
-                )
-            ).scalars().all()
+            vehicle_rows = []
+            if view == "bilstatistikk":
+                vehicle_rows = (
+                    await session.execute(
+                        select(ParkingVehicle)
+                        .order_by(ParkingVehicle.last_seen.desc().nullslast(), ParkingVehicle.plate.asc())
+                        .limit(250)
+                    )
+                ).scalars().all()
             tables = api_parking_overview_tables(
                 parking_summaries,
                 [parking_row_api(row, vehicle, details, unifi_before_seconds=15) for row, vehicle, details in latest_rows],
@@ -29913,19 +30045,6 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     .order_by(EnergyFibaroSample.bucket_start.desc())
                 )
             ).scalars().all()
-            today_rows = selected_energy_rows
-            if selected_day != today:
-                today_rows = (
-                    await session.execute(
-                        select(EnergyFibaroSample)
-                        .where(EnergyFibaroSample.bucket_start >= today_start)
-                        .where(EnergyFibaroSample.bucket_start < tomorrow_start)
-                        .order_by(EnergyFibaroSample.bucket_start.desc())
-                    )
-                ).scalars().all()
-            recent = (
-                await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(120))
-            ).scalars().all()
             all_circuits = (
                 await session.execute(select(EnergyCircuit).order_by(EnergyCircuit.circuit_no.asc()))
             ).scalars().all()
@@ -29990,16 +30109,13 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 {"label": "Skjul solsenger", "value": "hide"},
                 {"label": "Kun solsenger", "value": "only"},
             ]
-            elvia_rows = (
-                await session.execute(select(EnergyHourlyConsumption).order_by(EnergyHourlyConsumption.measured_at.desc()).limit(120))
-            ).scalars().all()
-            elvia_imports = (
-                await session.execute(select(EnergyImportRun).order_by(EnergyImportRun.timestamp.desc()).limit(80))
-            ).scalars().all()
+            elvia_rows = []
+            elvia_imports = []
             energy_elvia_data = None
             energy_sunbeds_data = None
             total_kwh = sum(float_or_zero(row.inntak_delta_kwh) for row in selected_energy_rows)
-            energy_chart_rows = decimate_rows(list(reversed(selected_energy_rows)), 1440)
+            chronological_energy_rows = list(reversed(selected_energy_rows))
+            energy_chart_rows = decimate_rows(chronological_energy_rows, 1440)
             energy_chart_items = [
                 ("inntak", "Inntak", "#15803d"),
                 ("varmepumper", "Varmepumper", "#0891b2"),
@@ -30023,7 +30139,10 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             consumption_series = [
                 {
                     "name": label,
-                    "data": cumulative_energy_points(energy_chart_rows, f"{key}_delta_kwh"),
+                    "data": decimate_rows(
+                        cumulative_energy_points(chronological_energy_rows, f"{key}_delta_kwh"),
+                        1440,
+                    ),
                     "color": color,
                     "smooth": False,
                 }
@@ -30095,6 +30214,14 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 ]
                 tables = [api_table("Laster", ["name", "load_type", "area", "circuit_no", "power_profile", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads], edit=api_energy_load_edit())]
             elif view == "elvia":
+                elvia_rows = (
+                    await session.execute(
+                        select(EnergyHourlyConsumption).order_by(EnergyHourlyConsumption.measured_at.desc()).limit(120)
+                    )
+                ).scalars().all()
+                elvia_imports = (
+                    await session.execute(select(EnergyImportRun).order_by(EnergyImportRun.timestamp.desc()).limit(80))
+                ).scalars().all()
                 summaries = await get_energy_summaries(session)
                 elvia_status = (
                     await session.execute(select(ImportJobStatus).where(ImportJobStatus.job_name == "elvia_monthly_import"))

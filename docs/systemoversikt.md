@@ -10,7 +10,7 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 - 26 komponenter er aktive i daglig drift eller som aktivt verktøy.
 - 24 komponenter har webflate eller lokal statusflate.
 - 23 datakilder/importjobber er aktive i Fibaro10.
-- Produksjonsbuild ved siste sjekk: Fibaro10 build `1628`.
+- Produksjonsbuild ved siste sjekk: Fibaro10 build `1629`.
 - QNAP-appmappe: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`.
 - Backup/arkivvolum: `/share/CACHEDEV3_DATA/fibaro10_archive`.
 
