@@ -1,0 +1,54 @@
+from __future__ import annotations
+
+import unittest
+from unittest.mock import AsyncMock, patch
+
+import httpx
+from fastapi.testclient import TestClient
+
+from revenue_app.app.main import app
+
+
+class RevenueAppTest(unittest.TestCase):
+    def test_health_and_config_are_available_without_login(self) -> None:
+        with TestClient(app) as client:
+            health = client.get("/health")
+            config = client.get("/api/app/config")
+        self.assertEqual(health.status_code, 200)
+        self.assertEqual(health.json()["service"], "revenue_app")
+        self.assertEqual(config.status_code, 200)
+        self.assertEqual(config.json()["name"], "Lilletorget Omsetning")
+
+    def test_frontend_redirects_to_login_without_cookies(self) -> None:
+        with TestClient(app, follow_redirects=False) as client:
+            response = client.get("/oversikt")
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/auth/login")
+
+    def test_proxy_rejects_non_revenue_endpoints(self) -> None:
+        with TestClient(app) as client:
+            response = client.get("/api/modules/parkering")
+        self.assertEqual(response.status_code, 404)
+
+    def test_allowed_proxy_forwards_query_and_cookie(self) -> None:
+        core_response = httpx.Response(
+            200,
+            json={"title": "Omsetning"},
+            request=httpx.Request("GET", "http://fibaro10:8110/api/modules/omsetning"),
+        )
+        with TestClient(app) as client:
+            with patch.object(client.app.state.core_client, "get", new=AsyncMock(return_value=core_response)) as core_get:
+                response = client.get(
+                    "/api/modules/omsetning?view=oversikt",
+                    headers={"cookie": "fibaro10_access_username=master; fibaro10_access_password=test"},
+                )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["title"], "Omsetning")
+        _, kwargs = core_get.call_args
+        self.assertEqual(str(kwargs["params"]), "view=oversikt")
+        self.assertIn("fibaro10_access_username=master", kwargs["headers"]["Cookie"])
+
+
+if __name__ == "__main__":
+    unittest.main()
+

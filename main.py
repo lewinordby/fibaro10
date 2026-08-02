@@ -60,6 +60,7 @@ from energy_helpers import (
 )
 from import_jobs import IMPORT_JOB_DEFINITIONS, IMPORT_JOB_NUMBER_BY_NAME
 from observability import cache_control_for_path, health_payload, response_timing_headers
+from unifi_protect_client import ProtectLedgerClient, ProtectLedgerError
 from pdf_exports import build_table_pdf, pdf_response
 from parking_vehicle_helpers import (
     CAR_INFO_IMPORT_JOB_BY_COUNTRY,
@@ -130,7 +131,12 @@ from roborock_domain import (
 )
 from security import apply_security_headers
 from solar_position import solar_elevation_degrees
-from system_inventory import system_component_rows, system_component_summary, system_web_interface_rows
+from system_inventory import (
+    system_component_rows,
+    system_component_summary,
+    system_subsystem_rows,
+    system_web_interface_rows,
+)
 from sun2_helpers import (
     SUN2_ROOM_MAP_BY_DISPLAY,
     SUN2_ROOM_OPTIONS,
@@ -205,6 +211,12 @@ NTFY_LIGHTS_TOPIC = os.getenv("NTFY_LIGHTS_TOPIC", f"sun2-lys-{MASTER_ACCESS_KEY
 NTFY_VENTILATION_TOPIC = os.getenv("NTFY_VENTILATION_TOPIC", f"sun2-ventilasjon-{MASTER_ACCESS_KEY_HASH[:12]}")
 NTFY_ACCESS_TOPIC = os.getenv("NTFY_ACCESS_TOPIC", f"sun2-tilgang-{MASTER_ACCESS_KEY_HASH[:12]}")
 NTFY_DOORS_TOPIC = os.getenv("NTFY_DOORS_TOPIC", f"sun2-dorer-{MASTER_ACCESS_KEY_HASH[:12]}")
+NTFY_BOLLARDS_TOPIC = os.getenv("PROTECT_BOLLARD_NTFY_TOPIC", "").strip()
+if not NTFY_BOLLARDS_TOPIC and MASTER_ACCESS_KEY_HASH:
+    NTFY_BOLLARDS_TOPIC = (
+        "protect-pullerter-"
+        + hashlib.sha256(f"protect-bollards:{MASTER_ACCESS_KEY_HASH}".encode()).hexdigest()[:24]
+    )
 SVV_API_KEY = os.getenv("SVV_API_KEY", "").strip()
 SVV_API_URL = os.getenv(
     "SVV_API_URL",
@@ -353,6 +365,9 @@ axis_snapshot_day_cache: Dict[tuple[str, str], Dict[str, Any]] = {}
 sunroom_door_monitor_task: Optional[asyncio.Task] = None
 sunroom_door_alert_last_sent: Dict[str, datetime] = {}
 OWNTRACKS_SERVICE_URL = os.getenv("OWNTRACKS_SERVICE_URL", "http://owntracks_service:8128").rstrip("/")
+UNIFI_PROTECT_EVENTS_URL = os.getenv("UNIFI_PROTECT_EVENTS_URL", "http://unifi_protect_events:8130").rstrip("/")
+UNIFI_PROTECT_READ_API_TOKEN = os.getenv("UNIFI_PROTECT_READ_API_TOKEN", "").strip()
+UNIFI_PROTECT_API_TIMEOUT_SECONDS = max(1, int(os.getenv("UNIFI_PROTECT_API_TIMEOUT_SECONDS", "10")))
 OWNTRACKS_VISIT_SYNC_ENABLED = os.getenv("OWNTRACKS_VISIT_SYNC_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
 OWNTRACKS_VISIT_SYNC_INTERVAL_SECONDS = max(30, int(os.getenv("OWNTRACKS_VISIT_SYNC_INTERVAL_SECONDS", "60")))
 OWNTRACKS_VISIT_SYNC_LOOKBACK_HOURS = max(1, int(os.getenv("OWNTRACKS_VISIT_SYNC_LOOKBACK_HOURS", str(24 * 14))))
@@ -2326,7 +2341,7 @@ SOLROOM_DOOR_HC3 = {
     9: {"device_id": 475, "hc3_name": "107.0 Rom 9"},
     10: {"device_id": 477, "hc3_name": "108.0 Rom 10"},
     11: {"device_id": 479, "hc3_name": "109.0 Rom 11"},
-    12: {"device_id": 491, "hc3_name": "116.0 Rom 12"},
+    12: {"device_id": 539, "hc3_name": "130.0 Door Sensor"},
 }
 
 DOOR_SENSOR_CONFIG = [
@@ -2382,10 +2397,10 @@ DOOR_SENSOR_CONFIG = [
         "normal_state": "closed",
     },
     {
-        "device_id": 499,
+        "device_id": 541,
         "device_key": "door_inngang",
         "title": "Inngang",
-        "hc3_name": "120.0 Inngang",
+        "hc3_name": "131.0 Door Sensor",
         "group_key": "andre",
         "group_title": "Andre dører",
         "section_key": "bygg",
@@ -2442,6 +2457,18 @@ DOOR_SENSOR_CONFIG = [
         "normal_state": "closed",
     },
     {
+        "device_id": 537,
+        "device_key": "door_soppelbod",
+        "title": "Søppelbod",
+        "hc3_name": "129.0 Door Sensor",
+        "group_key": "andre",
+        "group_title": "Andre dører",
+        "section_key": "bygg",
+        "section_title": "Bygg",
+        "sort_order": 109,
+        "normal_state": "closed",
+    },
+    {
         "device_id": 493,
         "device_key": "door_vaktmesterlager",
         "title": "Vaktmesterlager",
@@ -2450,7 +2477,7 @@ DOOR_SENSOR_CONFIG = [
         "group_title": "Andre dører",
         "section_key": "bygg",
         "section_title": "Bygg",
-        "sort_order": 109,
+        "sort_order": 110,
         "normal_state": "closed",
     },
     {
@@ -2462,7 +2489,7 @@ DOOR_SENSOR_CONFIG = [
         "group_title": "Andre dører",
         "section_key": "bygg",
         "section_title": "Bygg",
-        "sort_order": 110,
+        "sort_order": 111,
         "normal_state": "closed",
     },
 ]
@@ -3477,6 +3504,38 @@ def combine_business_summaries(sun: Dict[str, Any], parking: Dict[str, Any]) -> 
     daily = combine_items(sun.get("daily", []), parking.get("daily", []))
     monthly = combine_items(sun.get("monthly", []), parking.get("monthly", []))
     yearly = combine_items(sun.get("yearly", []), parking.get("yearly", []))
+    weekly_items_by_period: Dict[str, Dict[str, Any]] = {}
+    for item in daily:
+        try:
+            stat_day = date.fromisoformat(str(item.get("period") or ""))
+        except ValueError:
+            continue
+        iso_year, iso_week, _ = stat_day.isocalendar()
+        week_start = date.fromisocalendar(iso_year, iso_week, 1)
+        week_end = date.fromisocalendar(iso_year, iso_week, 7)
+        period = f"{iso_year}-W{iso_week:02d}"
+        if week_start.year == week_end.year:
+            date_range = f"{week_start:%d.%m}-{week_end:%d.%m.%Y}"
+        else:
+            date_range = f"{week_start:%d.%m.%Y}-{week_end:%d.%m.%Y}"
+        weekly_item = weekly_items_by_period.setdefault(
+            period,
+            {
+                "period": period,
+                "period_label": f"Uke {iso_week}, {iso_year} ({date_range})",
+                "sun_paid": 0.0,
+                "parking_paid": 0.0,
+                "sun_count": 0,
+                "parking_count": 0,
+                "total_paid": 0.0,
+                "total_count": 0,
+            },
+        )
+        for field in ("sun_paid", "parking_paid", "total_paid"):
+            weekly_item[field] += float_or_zero(item.get(field))
+        for field in ("sun_count", "parking_count", "total_count"):
+            weekly_item[field] += int_or_zero(item.get(field))
+    weekly_items = list(weekly_items_by_period.values())
     weekly: Dict[str, Dict[str, Any]] = {}
     palette = ["#4e8793", "#d59a18", "#071943", "#52a464", "#df705d", "#726189", "#2f8fa3", "#8b5cf6"]
     for source in (sun.get("weekly_chart", []), parking.get("weekly_chart", [])):
@@ -3526,6 +3585,7 @@ def combine_business_summaries(sun: Dict[str, Any], parking: Dict[str, Any]) -> 
         "daily": sorted(daily, key=lambda item: str(item.get("period") or ""), reverse=True),
         "monthly": sorted(monthly, key=lambda item: str(item.get("period") or ""), reverse=True),
         "top_days": sorted(daily, key=top_sort, reverse=True)[:20],
+        "top_weeks": sorted(weekly_items, key=top_sort, reverse=True)[:20],
         "top_months": sorted(monthly, key=top_sort, reverse=True)[:20],
         "yearly": sorted(yearly, key=lambda item: str(item.get("period") or ""), reverse=True),
         "weekly_chart": weekly_chart,
@@ -5612,6 +5672,89 @@ def ntfy_subscribe_url(topic: str, display_name: str) -> str:
     return f"ntfy://{ntfy_host()}/{quote(topic, safe='')}?display={quote_plus(display_name)}"
 
 
+def ntfy_subscription_rows(bollard_status: Optional[dict[str, Any]] = None) -> list[dict[str, Any]]:
+    bollard_settings = bollard_status.get("settings") if isinstance(bollard_status, dict) else {}
+    if not isinstance(bollard_settings, dict):
+        bollard_settings = {}
+    definitions = [
+        {
+            "key": "doors",
+            "title": "Døralarmer",
+            "area": "Dører og solrom",
+            "topic": NTFY_DOORS_TOPIC,
+            "display_name": "SUN2 dørvarsler",
+            "description": "Varsler når et solrom er lukket uten tilhørende soltime, eller når kunden blir vesentlig lenger enn forventet.",
+            "triggers": ["Lukket uten soltime", "For lang tid etter soltime", "Prioriterte døravvik"],
+            "priority": "Høy",
+            "publishing_enabled": True,
+        },
+        {
+            "key": "bollards",
+            "title": "Pullerter og trapp",
+            "area": "Kamera og bygg",
+            "topic": NTFY_BOLLARDS_TOPIC,
+            "display_name": "Pullert- og trappevarsler",
+            "description": "Varsler om bekreftede visuelle endringer på pullerter og trappa ved Solstudio. Bilder og analysedata sendes ikke til ntfy.",
+            "triggers": ["Bekreftet endring på pullert", "Bekreftet endring på trapp"],
+            "priority": "Høy",
+            "publishing_enabled": bool(bollard_settings.get("notification_enabled")),
+        },
+        {
+            "key": "lights",
+            "title": "Lysstyring",
+            "area": "Lys",
+            "topic": NTFY_LIGHTS_TOPIC,
+            "display_name": "SUN2 lys",
+            "description": "Varsler ved PÅ- og AV-hendelser fra HC3, med lux og årsak når dette finnes i hendelsen.",
+            "triggers": ["Lys slås på", "Lys slås av"],
+            "priority": "Normal",
+            "publishing_enabled": True,
+        },
+        {
+            "key": "ventilation",
+            "title": "Ventilasjon",
+            "area": "Ventilasjon",
+            "topic": NTFY_VENTILATION_TOPIC,
+            "display_name": "SUN2 ventilasjon",
+            "description": "Varsler ved PÅ- og AV-hendelser for vifter og avfukter, med modus, temperaturer og fuktighet når tilgjengelig.",
+            "triggers": ["Vifte eller avfukter slås på", "Vifte eller avfukter slås av"],
+            "priority": "Normal",
+            "publishing_enabled": True,
+        },
+        {
+            "key": "access",
+            "title": "Brukeraktivitet",
+            "area": "Tilgang",
+            "topic": NTFY_ACCESS_TOPIC,
+            "display_name": "SUN2 tilgang",
+            "description": "Varsler når en ordinær bruker logger inn, og deretter høyst periodisk mens brukeren benytter løsningen. Master varsles ikke om egen bruk.",
+            "triggers": ["Innlogging", f"Videre bruk etter minst {int(NTFY_ACCESS_COOLDOWN_MINUTES)} minutter"],
+            "priority": "Normal",
+            "publishing_enabled": True,
+        },
+    ]
+    rows = []
+    for definition in definitions:
+        topic = str(definition.get("topic") or "")
+        display_name = str(definition.get("display_name") or "")
+        configured = bool(topic)
+        public_definition = {
+            key: value
+            for key, value in definition.items()
+            if key not in {"topic", "display_name", "publishing_enabled"}
+        }
+        rows.append(
+            {
+                **public_definition,
+                "configured": configured,
+                "publishingEnabled": configured and bool(definition.get("publishing_enabled")),
+                "subscribeUrl": ntfy_subscribe_url(topic, display_name) if configured else "",
+                "webUrl": ntfy_topic_url(topic) if configured else "",
+            }
+        )
+    return rows
+
+
 def publish_ntfy_message(topic: str, title: str, message: str, tags: str = "", priority: str = "3") -> None:
     headers = {"Title": title, "Priority": priority}
     if tags:
@@ -5624,6 +5767,25 @@ def publish_ntfy_message(topic: str, title: str, message: str, tags: str = "", p
     )
     with urllib.request.urlopen(request, timeout=NTFY_TIMEOUT_SECONDS):
         pass
+
+
+def bollard_mobile_notification_payload(status: dict[str, Any]) -> dict[str, Any]:
+    settings = status.get("settings") if isinstance(status.get("settings"), dict) else {}
+    summary = status.get("summary") if isinstance(status.get("summary"), dict) else {}
+    runtime = status.get("runtime") if isinstance(status.get("runtime"), dict) else {}
+    topic_configured = bool(NTFY_BOLLARDS_TOPIC) and bool(runtime.get("notification_configured"))
+    return {
+        "channelName": "Pullerter og trapp ved Solstudio",
+        "configured": topic_configured,
+        "enabled": bool(settings.get("notification_enabled")),
+        "monitoringReady": bool(summary.get("monitoring_ready")),
+        "activeIncidents": int(summary.get("active_incidents") or 0),
+        "lastCheckAt": runtime.get("last_success_at"),
+        "subscribeUrl": ntfy_subscribe_url(NTFY_BOLLARDS_TOPIC, "Pullert- og trappevarsler") if NTFY_BOLLARDS_TOPIC else "",
+        "webUrl": ntfy_topic_url(NTFY_BOLLARDS_TOPIC) if NTFY_BOLLARDS_TOPIC else "",
+        "provider": ntfy_host(),
+        "privacy": "Kun alarmtekst sendes. Bilder, registreringsnummer og analysedata forblir lokale.",
+    }
 
 
 def should_publish_access_ntfy(request: Request, access_key: Optional[AccessKey], reason: str) -> bool:
@@ -11337,6 +11499,9 @@ def door_change_rows(rows_ascending: list[DoorEvent]) -> list[DoorEvent]:
         def flush_cluster() -> None:
             if not cluster:
                 return
+            if len(cluster) <= 2:
+                stabilized.extend(cluster)
+                return
             final_state = door_event_state_bool(cluster[-1])
             representative = next(
                 (item for item in cluster if door_event_state_bool(item) == final_state),
@@ -11370,6 +11535,15 @@ def door_change_rows(rows_ascending: list[DoorEvent]) -> list[DoorEvent]:
             changes.append(row)
             last_stable_state_by_device[key] = state
     return changes
+
+
+def latest_door_event_by_device(rows_descending: list[DoorEvent]) -> Dict[int, DoorEvent]:
+    latest_by_device: Dict[int, DoorEvent] = {}
+    for row in rows_descending:
+        if row.device_id is None:
+            continue
+        latest_by_device.setdefault(int(row.device_id), row)
+    return latest_by_device
 
 
 def door_duration_label(seconds: Optional[int]) -> str:
@@ -14342,6 +14516,740 @@ async def startup():
         owntracks_visit_sync_task = asyncio.create_task(owntracks_site_visit_sync_worker())
 
 
+def protect_ledger_client() -> ProtectLedgerClient:
+    if not UNIFI_PROTECT_READ_API_TOKEN:
+        raise HTTPException(status_code=503, detail="UniFi Protect API token is not configured")
+    return ProtectLedgerClient(
+        UNIFI_PROTECT_EVENTS_URL,
+        UNIFI_PROTECT_READ_API_TOKEN,
+        UNIFI_PROTECT_API_TIMEOUT_SECONDS,
+    )
+
+
+async def protect_ledger_json(method: str, **params: Any) -> dict[str, Any]:
+    client = protect_ledger_client()
+    try:
+        return await asyncio.to_thread(getattr(client, method), **params)
+    except ProtectLedgerError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.message) from error
+
+
+@app.get("/api/unifi-protect/status")
+async def api_unifi_protect_status() -> dict[str, Any]:
+    return await protect_ledger_json("status")
+
+
+@app.get("/api/unifi-protect/cameras")
+async def api_unifi_protect_cameras() -> dict[str, Any]:
+    return await protect_ledger_json("cameras")
+
+
+@app.get("/api/unifi-protect/capabilities")
+async def api_unifi_protect_capabilities() -> dict[str, Any]:
+    return await protect_ledger_json("capabilities")
+
+
+@app.get("/api/unifi-protect/stats")
+async def api_unifi_protect_stats() -> dict[str, Any]:
+    return await protect_ledger_json("stats")
+
+
+@app.get("/api/unifi-protect/events")
+async def api_unifi_protect_events(
+    event_type: str = "",
+    camera_id: str = "",
+    detection_type: str = "",
+    from_at: Optional[datetime] = Query(default=None, alias="from"),
+    to_at: Optional[datetime] = Query(default=None, alias="to"),
+    has_snapshot: Optional[bool] = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    cursor: str = "",
+) -> dict[str, Any]:
+    return await protect_ledger_json(
+        "events",
+        event_type=event_type,
+        camera_id=camera_id,
+        detection_type=detection_type,
+        **{
+            "from": from_at.isoformat() if from_at else None,
+            "to": to_at.isoformat() if to_at else None,
+            "has_snapshot": has_snapshot,
+            "limit": limit,
+            "cursor": cursor,
+        },
+    )
+
+
+@app.get("/api/unifi-protect/recognitions")
+async def api_unifi_protect_recognitions(
+    kind: str = "",
+    value: str = "",
+    camera_id: str = "",
+    is_known: Optional[bool] = None,
+    from_at: Optional[datetime] = Query(default=None, alias="from"),
+    to_at: Optional[datetime] = Query(default=None, alias="to"),
+    limit: int = Query(default=100, ge=1, le=500),
+    cursor: str = "",
+) -> dict[str, Any]:
+    return await protect_ledger_json(
+        "recognitions",
+        kind=kind,
+        value=value,
+        camera_id=camera_id,
+        is_known=is_known,
+        **{
+            "from": from_at.isoformat() if from_at else None,
+            "to": to_at.isoformat() if to_at else None,
+            "limit": limit,
+            "cursor": cursor,
+        },
+    )
+
+
+@app.get("/api/unifi-protect/recognitions/{recognition_id}")
+async def api_unifi_protect_recognition_detail(recognition_id: int) -> dict[str, Any]:
+    return await protect_ledger_json("recognition_detail", recognition_id=recognition_id)
+
+
+@app.get("/api/unifi-protect/license-plates/daily")
+async def api_unifi_protect_daily_license_plates(
+    from_at: datetime = Query(alias="from"),
+    to_at: datetime = Query(alias="to"),
+) -> dict[str, Any]:
+    return await protect_ledger_json(
+        "daily_license_plates",
+        **{"from": from_at.isoformat(), "to": to_at.isoformat()},
+    )
+
+
+@app.get("/api/unifi-protect/bollards")
+async def api_unifi_protect_bollards() -> dict[str, Any]:
+    payload = await protect_ledger_json("bollards")
+    for monitor in payload.get("camera_monitors", []):
+        for key in (
+            "baseline_url", "latest_url", "overlay_url",
+            "baseline_crop_url", "latest_crop_url", "overlay_crop_url",
+            "ai_heatmap_url",
+        ):
+            if monitor.get(key):
+                monitor[key] = str(monitor[key]).replace(
+                    "/api/v1/bollards/", "/api/unifi-protect/bollards/", 1
+                )
+    for monitor in payload.get("asset_monitors", []):
+        for key in (
+            "baseline_url", "latest_url", "overlay_url",
+            "baseline_crop_url", "latest_crop_url", "overlay_crop_url",
+            "ai_heatmap_url",
+        ):
+            if monitor.get(key):
+                monitor[key] = str(monitor[key]).replace(
+                    "/api/v1/bollards/", "/api/unifi-protect/bollards/", 1
+                )
+    for region in payload.get("regions", []):
+        if region.get("baseline_url"):
+            region["baseline_url"] = str(region["baseline_url"]).replace(
+                "/api/v1/bollards/", "/api/unifi-protect/bollards/", 1
+            )
+    for incident in payload.get("incidents", []):
+        for evidence in (incident.get("evidence") or {}).values():
+            for key in ("before_url", "after_url"):
+                if evidence.get(key):
+                    evidence[key] = str(evidence[key]).replace(
+                        "/api/v1/bollards/", "/api/unifi-protect/bollards/", 1
+                    )
+    return payload
+
+
+@app.get("/api/unifi-protect/bollards/mobile-notifications")
+async def api_unifi_protect_bollard_mobile_notifications() -> dict[str, Any]:
+    status = await protect_ledger_json("bollards")
+    return bollard_mobile_notification_payload(status)
+
+
+@app.post("/api/unifi-protect/bollards/mobile-notifications/test")
+async def api_test_unifi_protect_bollard_mobile_notification() -> dict[str, Any]:
+    if not NTFY_BOLLARDS_TOPIC:
+        raise HTTPException(status_code=503, detail="Varselkanalen er ikke konfigurert")
+    try:
+        await asyncio.to_thread(
+            publish_ntfy_message,
+            NTFY_BOLLARDS_TOPIC,
+            "Testvarsel - pullerter og trapp ved Solstudio",
+            "Test fra Fibaro10: mobilvarsling for pullert- og trappekontrollen virker. Ingen hendelse er registrert.",
+            "white_check_mark,car",
+            "4",
+        )
+    except Exception as error:
+        logger.warning("Kunne ikke sende testvarsel for pullerter: %s", error, exc_info=True)
+        raise HTTPException(status_code=502, detail="Testvarselet kunne ikke sendes") from error
+    return {"sent": True}
+
+
+def cars_recognition_local_datetime(value: Any) -> Optional[datetime]:
+    if isinstance(value, datetime):
+        parsed = value
+    elif value:
+        try:
+            parsed = dtparser.isoparse(str(value))
+        except (TypeError, ValueError, OverflowError):
+            return None
+    else:
+        return None
+    if parsed.tzinfo is not None:
+        return parsed.astimezone(LOCAL_TZ).replace(tzinfo=None)
+    return parsed.replace(tzinfo=None)
+
+
+def cars_detection_is_covered(
+    detection_at: Optional[datetime],
+    parking_start_at: Optional[datetime],
+    parking_end_at: Optional[datetime],
+) -> bool:
+    return bool(
+        detection_at
+        and parking_start_at
+        and parking_end_at
+        and parking_start_at <= detection_at <= parking_end_at
+    )
+
+
+def cars_unifi_score(value: Any) -> Optional[float]:
+    try:
+        score = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(score):
+        return None
+    return round(max(0.0, min(100.0, score)), 1)
+
+
+def cars_confidence_level(score: Optional[float]) -> str:
+    if score is None:
+        return "unscored"
+    if score >= 80:
+        return "high"
+    if score >= 60:
+        return "medium"
+    return "low"
+
+
+def cars_plate_edit_distance(left: str, right: str) -> int:
+    left_value = compact_plate(left)
+    right_value = compact_plate(right)
+    if len(left_value) > len(right_value):
+        left_value, right_value = right_value, left_value
+    previous = list(range(len(left_value) + 1))
+    for right_index, right_character in enumerate(right_value, start=1):
+        current = [right_index]
+        for left_index, left_character in enumerate(left_value, start=1):
+            current.append(
+                min(
+                    current[-1] + 1,
+                    previous[left_index] + 1,
+                    previous[left_index - 1] + (left_character != right_character),
+                )
+            )
+        previous = current
+    return previous[-1]
+
+
+def cars_likely_ocr_variants(
+    left_plate: str,
+    right_plate: str,
+    left_evidence: list[tuple[datetime, str]],
+    right_evidence: list[tuple[datetime, str]],
+    *,
+    maximum_seconds: int = 120,
+) -> bool:
+    left_value = compact_plate(left_plate)
+    right_value = compact_plate(right_plate)
+    if left_value == right_value or min(len(left_value), len(right_value)) < 5:
+        return False
+    maximum_length = max(len(left_value), len(right_value))
+    if abs(len(left_value) - len(right_value)) > 2:
+        return False
+    distance_limit = 1 if maximum_length <= 6 else 2
+    if cars_plate_edit_distance(left_value, right_value) > distance_limit:
+        return False
+    for left_at, left_camera in left_evidence:
+        for right_at, right_camera in right_evidence:
+            if left_camera and left_camera == right_camera and abs((left_at - right_at).total_seconds()) <= maximum_seconds:
+                return True
+    return False
+
+
+def cars_group_daily_recognitions(recognition_items: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
+    """Group only Ledger-confirmed OCR variants under a validated daily plate.
+
+    Protect Ledger keeps every raw read as evidence. Fibaro10 uses the canonical
+    registration for the daily parking join, while retaining the observed value
+    on every detection so the original camera result is still inspectable.
+    """
+    by_plate = {
+        compact_plate(item.get("plate") or item.get("display_value")): item
+        for item in recognition_items
+        if compact_plate(item.get("plate") or item.get("display_value"))
+    }
+    grouped: Dict[str, list[tuple[str, Dict[str, Any]]]] = defaultdict(list)
+    for raw_plate, item in by_plate.items():
+        canonical_plate = compact_plate(item.get("likely_canonical_plate"))
+        canonical_item = by_plate.get(canonical_plate)
+        canonical_validation = (
+            canonical_item.get("validation")
+            if canonical_item and isinstance(canonical_item.get("validation"), dict)
+            else {}
+        )
+        raw_validation = item.get("validation") if isinstance(item.get("validation"), dict) else {}
+        can_merge = bool(
+            item.get("is_likely_ocr_variant")
+            and canonical_plate
+            and canonical_plate != raw_plate
+            and canonical_item
+            and canonical_validation.get("is_valid") is True
+            and raw_validation.get("is_valid") is not True
+        )
+        grouped[canonical_plate if can_merge else raw_plate].append((raw_plate, item))
+
+    result: list[Dict[str, Any]] = []
+    for plate_value, members in grouped.items():
+        canonical_source = next((item for raw_plate, item in members if raw_plate == plate_value), members[0][1])
+        combined = deepcopy(canonical_source)
+        observed_values = sorted({raw_plate for raw_plate, _ in members})
+        detections: list[Dict[str, Any]] = []
+        camera_names: set[str] = set()
+        known_in_protect = False
+        for raw_plate, member in members:
+            known_in_protect = known_in_protect or bool(member.get("known_in_protect"))
+            for camera_name in member.get("camera_names") or []:
+                if camera_name:
+                    camera_names.add(str(camera_name))
+            raw_detections = member.get("detections") or []
+            if isinstance(raw_detections, str):
+                try:
+                    raw_detections = json.loads(raw_detections)
+                except (TypeError, ValueError):
+                    raw_detections = []
+            for detection in raw_detections:
+                if not isinstance(detection, dict):
+                    continue
+                evidence = dict(detection)
+                evidence["observed_plate"] = raw_plate
+                detections.append(evidence)
+
+        detections.sort(
+            key=lambda detection: (
+                cars_recognition_local_datetime(detection.get("occurred_at")) or datetime.min,
+                int_or_zero(detection.get("recognition_id")),
+            )
+        )
+        combined.update(
+            {
+                "plate": plate_value,
+                "display_value": canonical_source.get("display_value") or plate_value,
+                "detection_count": len(detections)
+                or sum(int_or_zero(member.get("detection_count")) for _, member in members),
+                "detections": detections,
+                "camera_names": sorted(camera_names),
+                "known_in_protect": known_in_protect,
+                "observed_plate_values": observed_values,
+                "merged_variant_count": max(0, len(observed_values) - 1),
+                "likely_canonical_plate": plate_value,
+                "is_likely_ocr_variant": False,
+            }
+        )
+        result.append(combined)
+    return result
+
+
+def cars_daily_payment_metrics(
+    detection_datetimes: list[datetime],
+    paid_sessions: list[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Describe the complete daily relationship without requiring prompt payment."""
+    covered_detection_count = sum(
+        1
+        for detected_at in detection_datetimes
+        if any(
+            cars_detection_is_covered(detected_at, parking.get("_startAt"), parking.get("_endAt"))
+            for parking in paid_sessions
+        )
+    )
+    if not paid_sessions:
+        return {
+            "coveredDetectionCount": 0,
+            "dayMatchedDetectionCount": 0,
+            "firstPaymentAt": None,
+            "lastPaymentEndAt": None,
+            "minutesBeforeFirstPayment": None,
+            "minutesAfterLastPayment": None,
+            "paymentStatus": "no_payment",
+        }
+
+    payment_starts = [row.get("_startAt") for row in paid_sessions if row.get("_startAt")]
+    payment_ends = [row.get("_endAt") for row in paid_sessions if row.get("_endAt")]
+    first_payment_at = min(payment_starts) if payment_starts else None
+    last_payment_end_at = max(payment_ends) if payment_ends else None
+    first_detection_at = min(detection_datetimes) if detection_datetimes else None
+    last_detection_at = max(detection_datetimes) if detection_datetimes else None
+    minutes_before_first_payment = (
+        round(max(0.0, (first_payment_at - first_detection_at).total_seconds() / 60), 1)
+        if first_payment_at and first_detection_at
+        else None
+    )
+    minutes_after_last_payment = (
+        round(max(0.0, (last_detection_at - last_payment_end_at).total_seconds() / 60), 1)
+        if last_payment_end_at and last_detection_at
+        else None
+    )
+    return {
+        "coveredDetectionCount": covered_detection_count,
+        "dayMatchedDetectionCount": len(detection_datetimes),
+        "firstPaymentAt": api_local_iso(first_payment_at),
+        "lastPaymentEndAt": api_local_iso(last_payment_end_at),
+        "minutesBeforeFirstPayment": minutes_before_first_payment,
+        "minutesAfterLastPayment": minutes_after_last_payment,
+        "paymentStatus": "paid_same_day",
+    }
+
+
+@app.get("/api/cars/day")
+async def api_cars_day(response: Response, day: Optional[str] = None) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    selected_day = parse_day(day)
+    today = datetime.now(LOCAL_TZ).date()
+    day_start = datetime.combine(selected_day, time.min)
+    day_end = day_start + timedelta(days=1)
+    day_start_aware = day_start.replace(tzinfo=LOCAL_TZ)
+    day_end_aware = day_end.replace(tzinfo=LOCAL_TZ)
+    ledger = await protect_ledger_json(
+        "daily_license_plates",
+        **{"from": day_start_aware.isoformat(), "to": day_end_aware.isoformat()},
+    )
+    recognition_items = cars_group_daily_recognitions(list(ledger.get("items") or []))
+    plate_values = sorted(
+        {
+            compact_plate(item.get("plate") or item.get("display_value"))
+            for item in recognition_items
+            if compact_plate(item.get("plate") or item.get("display_value"))
+        }
+    )
+
+    parking_by_plate: Dict[str, list[Dict[str, Any]]] = defaultdict(list)
+    vehicle_by_plate: Dict[str, Dict[str, Any]] = {}
+    if plate_values:
+        normalized_session_plate = compact_plate_sql(ParkingSession.car_license_number)
+        async with async_session() as session:
+            parking_rows = (
+                await session.execute(
+                    select(ParkingSession)
+                    .where(normalized_session_plate.in_(plate_values))
+                    .where(ParkingSession.start_time >= day_start - timedelta(days=7))
+                    .where(ParkingSession.start_time < day_end)
+                    .where(
+                        or_(
+                            ParkingSession.start_time >= day_start,
+                            ParkingSession.end_time.is_(None),
+                            ParkingSession.end_time >= day_start,
+                        )
+                    )
+                    .order_by(ParkingSession.start_time.asc(), ParkingSession.id.asc())
+                )
+            ).scalars().all()
+            vehicle_rows = (
+                await session.execute(
+                    select(ParkingVehicle, ParkingVehicleDetails)
+                    .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
+                    .where(compact_plate_sql(ParkingVehicle.plate).in_(plate_values))
+                )
+            ).all()
+
+        timeline_end = min(local_now_naive(), day_end) if selected_day == today else day_end
+        for row in parking_rows:
+            plate_value = compact_plate(row.car_license_number)
+            start_at = normalize_local_naive(row.start_time)
+            end_at = parking_timeline_end(row, timeline_end)
+            if not start_at or end_at <= day_start or start_at >= day_end:
+                continue
+            paid = float_or_zero(row.fee_inc_vat)
+            parking_by_plate[plate_value].append(
+                {
+                    "id": row.id,
+                    "startAt": api_local_iso(start_at),
+                    "endAt": api_local_iso(end_at),
+                    "durationMinutes": round(float_or_zero(parking_duration_minutes(row, timeline_end)), 1),
+                    "amountKr": round(paid, 2),
+                    "isPaid": paid > 0,
+                    "status": row.status,
+                    "source": row.source_system,
+                    "area": row.parking_area,
+                    "_startAt": start_at,
+                    "_endAt": end_at,
+                }
+            )
+        for vehicle, details in vehicle_rows:
+            plate_value = compact_plate(vehicle.plate)
+            vehicle_by_plate[plate_value] = {
+                "name": vehicle.navn,
+                "area": vehicle.omrade,
+                "title": parking_vehicle_summary(details, vehicle.car_info_data),
+                "path": f"/parkering/kjoretoy/{quote(vehicle.plate or plate_value, safe='')}",
+            }
+
+    items: list[Dict[str, Any]] = []
+    for source_item in recognition_items:
+        plate_value = compact_plate(source_item.get("plate") or source_item.get("display_value"))
+        if not plate_value:
+            continue
+        detections = []
+        detection_datetimes = []
+        unifi_scores = []
+        raw_detections = source_item.get("detections") or []
+        if isinstance(raw_detections, str):
+            try:
+                raw_detections = json.loads(raw_detections)
+            except (TypeError, ValueError):
+                raw_detections = []
+        for detection in raw_detections:
+            if not isinstance(detection, dict):
+                continue
+            occurred_at = cars_recognition_local_datetime(detection.get("occurred_at"))
+            if occurred_at:
+                detection_datetimes.append(occurred_at)
+            source_event_id = str(detection.get("source_event_id") or "").strip()
+            unifi_score = cars_unifi_score(detection.get("unifi_score"))
+            if unifi_score is not None:
+                unifi_scores.append(unifi_score)
+            detections.append(
+                {
+                    "recognitionId": detection.get("recognition_id"),
+                    "occurredAt": api_local_iso(occurred_at),
+                    "cameraId": detection.get("camera_id"),
+                    "cameraName": detection.get("camera_name"),
+                    "observedPlate": compact_plate(detection.get("observed_plate")) or plate_value,
+                    "sourceEventId": source_event_id or None,
+                    "unifiScore": unifi_score,
+                    "snapshotStatus": detection.get("snapshot_status"),
+                    "snapshotCapturedAt": detection.get("snapshot_captured_at"),
+                    "snapshotTargetAt": detection.get("snapshot_target_at"),
+                    "snapshotTimeOffsetMs": detection.get("snapshot_time_offset_ms"),
+                    "snapshotSource": detection.get("snapshot_source"),
+                    "snapshotCameraId": detection.get("snapshot_camera_id"),
+                    "snapshotUrl": (
+                        f"/api/unifi-protect/recognitions/{int(detection['recognition_id'])}/snapshot"
+                        if detection.get("recognition_id") is not None and detection.get("snapshot_url")
+                        else None
+                    ),
+                }
+            )
+
+        parking_sessions = parking_by_plate.get(plate_value, [])
+        paid_sessions = [parking for parking in parking_sessions if parking["isPaid"]]
+        has_paid_session = bool(paid_sessions)
+        payment_metrics = cars_daily_payment_metrics(detection_datetimes, paid_sessions)
+
+        def public_parking_row(row: Dict[str, Any]) -> Dict[str, Any]:
+            return {key: value for key, value in row.items() if not key.startswith("_")}
+
+        first_detected_at = min(detection_datetimes) if detection_datetimes else cars_recognition_local_datetime(source_item.get("first_detected_at"))
+        last_detected_at = max(detection_datetimes) if detection_datetimes else cars_recognition_local_datetime(source_item.get("last_detected_at"))
+        average_unifi_score = (
+            round(sum(unifi_scores) / len(unifi_scores), 1)
+            if unifi_scores
+            else cars_unifi_score(source_item.get("average_unifi_score"))
+        )
+        registry_validation = source_item.get("validation") if isinstance(source_item.get("validation"), dict) else {
+            "status": "pending",
+            "is_valid": None,
+            "likely_misread": False,
+            "message": "Venter på validering i Protect Ledger",
+            "sources": {},
+        }
+        ledger_variant_candidates = source_item.get("ocr_variant_candidates") or []
+        items.append(
+            {
+                "plate": plate_value,
+                "displayValue": source_item.get("display_value") or plate_value,
+                "detectionCount": int_or_zero(source_item.get("detection_count")) or len(detections),
+                "firstDetectedAt": api_local_iso(first_detected_at),
+                "lastDetectedAt": api_local_iso(last_detected_at),
+                "knownInProtect": bool(source_item.get("known_in_protect")),
+                "cameraNames": list(source_item.get("camera_names") or []),
+                "detections": detections,
+                "averageUnifiScore": average_unifi_score,
+                "minimumUnifiScore": min(unifi_scores) if unifi_scores else cars_unifi_score(source_item.get("minimum_unifi_score")),
+                "maximumUnifiScore": max(unifi_scores) if unifi_scores else cars_unifi_score(source_item.get("maximum_unifi_score")),
+                "scoredDetectionCount": len(unifi_scores) or int_or_zero(source_item.get("scored_detection_count")),
+                "confidenceLevel": cars_confidence_level(average_unifi_score),
+                "matchingReadCount": int_or_zero(source_item.get("detection_count")) or len(detections),
+                "observedPlateValues": list(source_item.get("observed_plate_values") or [plate_value]),
+                "mergedVariantCount": int_or_zero(source_item.get("merged_variant_count")),
+                "ocrWarning": bool(ledger_variant_candidates),
+                "isLikelyOcrVariant": bool(source_item.get("is_likely_ocr_variant")),
+                "likelyCanonicalPlate": source_item.get("likely_canonical_plate") or plate_value,
+                "ocrVariantCandidates": [
+                    {
+                        "plate": candidate.get("plate"),
+                        "editDistance": candidate.get("edit_distance"),
+                        "detectionCount": candidate.get("detection_count"),
+                    }
+                    for candidate in ledger_variant_candidates
+                    if isinstance(candidate, dict)
+                ],
+                "registryValidation": registry_validation,
+                "likelyMisread": bool(source_item.get("likely_misread")),
+                "presentationStatus": source_item.get("presentation_status") or "pending_review",
+                "requiresReview": bool(source_item.get("requires_review")),
+                "vehicle": vehicle_by_plate.get(plate_value),
+                "hasParkingSession": bool(parking_sessions),
+                "hasPaidSession": has_paid_session,
+                "paidSessionCount": len(paid_sessions),
+                "paidTotalKr": round(sum(float_or_zero(parking["amountKr"]) for parking in paid_sessions), 2),
+                **payment_metrics,
+                "parkingSessions": [public_parking_row(parking) for parking in parking_sessions],
+                "paidSessions": [public_parking_row(parking) for parking in paid_sessions],
+            }
+        )
+
+    items.sort(key=lambda item: (item.get("lastDetectedAt") or "", item["plate"]), reverse=True)
+    covered_count = sum(1 for item in items if item["coveredDetectionCount"] > 0)
+    paid_count = sum(1 for item in items if item["hasPaidSession"])
+    observation_datetimes = [
+        cars_recognition_local_datetime(detection.get("occurredAt"))
+        for item in items
+        for detection in item.get("detections") or []
+    ]
+    observation_datetimes = [value for value in observation_datetimes if value]
+    observation_start_at = min(observation_datetimes) if observation_datetimes else None
+    observation_end_at = max(observation_datetimes) if observation_datetimes else None
+    return {
+        "generatedAt": api_local_iso(local_now_naive()),
+        "selectedDay": selected_day.isoformat(),
+        "selectedDayLabel": selected_day.strftime("%d.%m.%Y"),
+        "prevDay": (selected_day - timedelta(days=1)).isoformat(),
+        "nextDay": (selected_day + timedelta(days=1)).isoformat(),
+        "isToday": selected_day == today,
+        "matchPolicy": {
+            "mode": "same_calendar_day",
+            "label": "Samme bil og samme dag",
+            "detail": "Betaling matches mot bilen for hele kalenderdagen, uavhengig av hvor lenge sjåføren ventet før betaling.",
+        },
+        "observationWindow": {
+            "firstDetectedAt": api_local_iso(observation_start_at),
+            "lastDetectedAt": api_local_iso(observation_end_at),
+            "spanMinutes": round((observation_end_at - observation_start_at).total_seconds() / 60, 1)
+            if observation_start_at and observation_end_at
+            else 0,
+        },
+        "summary": {
+            "uniquePlates": len(items),
+            "detections": sum(int_or_zero(item["detectionCount"]) for item in items),
+            "paidPlates": paid_count,
+            "coveredPlates": covered_count,
+            "withoutPayment": len(items) - paid_count,
+            "mergedOcrVariants": sum(int_or_zero(item.get("mergedVariantCount")) for item in items),
+            "scoredDetections": sum(int_or_zero(item["scoredDetectionCount"]) for item in items),
+            "lowConfidencePlates": sum(1 for item in items if item["confidenceLevel"] in {"low", "unscored"}),
+            "ocrWarningPlates": sum(1 for item in items if item["ocrWarning"]),
+            "reviewPlates": sum(1 for item in items if item["requiresReview"]),
+            "validatedPlates": sum(1 for item in items if item["registryValidation"].get("is_valid") is True),
+            "likelyMisreads": sum(1 for item in items if item["likelyMisread"]),
+            "pendingValidation": sum(1 for item in items if item["registryValidation"].get("is_valid") is None),
+        },
+        "items": items,
+    }
+
+
+@app.get("/api/unifi-protect/events/{source_event_id}/snapshot")
+async def api_unifi_protect_snapshot(source_event_id: str) -> Response:
+    client = protect_ledger_client()
+    try:
+        content, content_type = await asyncio.to_thread(client.snapshot, source_event_id)
+    except ProtectLedgerError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.message) from error
+    return Response(content=content, media_type=content_type, headers={"Cache-Control": "private, max-age=3600"})
+
+
+@app.get("/api/unifi-protect/recognitions/{recognition_id}/snapshot")
+async def api_unifi_protect_recognition_snapshot(recognition_id: int) -> Response:
+    client = protect_ledger_client()
+    try:
+        content, content_type = await asyncio.to_thread(client.recognition_snapshot, recognition_id)
+    except ProtectLedgerError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.message) from error
+    return Response(content=content, media_type=content_type, headers={"Cache-Control": "private, max-age=3600"})
+
+
+@app.get("/api/unifi-protect/bollards/regions/{region_id}/baseline")
+async def api_unifi_protect_bollard_baseline(region_id: int) -> Response:
+    client = protect_ledger_client()
+    try:
+        content, content_type = await asyncio.to_thread(client.bollard_region_baseline, region_id)
+    except ProtectLedgerError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.message) from error
+    return Response(content=content, media_type=content_type, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/unifi-protect/bollards/cameras/{camera_id}/{kind}")
+async def api_unifi_protect_bollard_camera_image(camera_id: str, kind: str) -> Response:
+    client = protect_ledger_client()
+    try:
+        content, content_type = await asyncio.to_thread(
+            client.bollard_camera_image,
+            camera_id,
+            kind,
+        )
+    except ProtectLedgerError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.message) from error
+    return Response(content=content, media_type=content_type, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/unifi-protect/bollards/cameras/{camera_id}/{kind}/crop")
+async def api_unifi_protect_bollard_camera_crop(camera_id: str, kind: str) -> Response:
+    client = protect_ledger_client()
+    try:
+        content, content_type = await asyncio.to_thread(
+            client.bollard_camera_crop,
+            camera_id,
+            kind,
+        )
+    except ProtectLedgerError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.message) from error
+    return Response(content=content, media_type=content_type, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/unifi-protect/bollards/assets/{asset_key}/{kind}")
+async def api_unifi_protect_bollard_asset_image(asset_key: str, kind: str) -> Response:
+    client = protect_ledger_client()
+    try:
+        content, content_type = await asyncio.to_thread(
+            client.bollard_asset_image,
+            asset_key,
+            kind,
+        )
+    except ProtectLedgerError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.message) from error
+    return Response(content=content, media_type=content_type, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/unifi-protect/bollards/incidents/{incident_id}/images/{camera_id}/{kind}")
+async def api_unifi_protect_bollard_incident_image(
+    incident_id: int,
+    camera_id: str,
+    kind: str,
+) -> Response:
+    client = protect_ledger_client()
+    try:
+        content, content_type = await asyncio.to_thread(
+            client.bollard_incident_image,
+            incident_id,
+            camera_id,
+            kind,
+        )
+    except ProtectLedgerError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.message) from error
+    return Response(content=content, media_type=content_type, headers={"Cache-Control": "no-store"})
+
+
 @app.get("/health")
 async def health(details: bool = Query(False)):
     database = {"status": "ok", "detail": "SELECT 1 OK"}
@@ -14839,7 +15747,7 @@ def admin_manual_payload() -> Dict[str, Any]:
                 "dagens parkeringer, pågående og avsluttede",
                 "kjøretøyinfo, eier, område, bilmerke, type og farge",
                 "UniFi Protect-lenker for start og slutt",
-                "oppgjør, prognose, årsutvikling og tidspunktfordeling",
+                "oppgjør, prognose, årsutvikling, ukesnitt og tidspunktfordeling",
             ],
             "canDo": ["oppdatere EasyPark", "søke etter bil/eier", "kontrollere område og biloppslag", "åpne bilhistorikk"],
         },
@@ -15041,7 +15949,7 @@ def admin_manual_payload() -> Dict[str, Any]:
                 "menuGroups": [
                     {"title": "Dashboard", "path": "/status/omsetning", "text": "Omsetning, parkering, soling og drift. Brukes som første skjerm for status akkurat nå."},
                     {"title": "Omsetning", "path": "/omsetning/oversikt", "text": "Oversikt, periodesammenligning, årssammenligning og månedsoversikt. Brukes når økonomien skal forklares."},
-                    {"title": "Parkering", "path": "/parkering/oversikt", "text": "Oversikt, parkeringer, dagslinje, tidspunkt, kjøretøy, områder, prognose, oppgjør og datakvalitet."},
+                    {"title": "Parkering", "path": "/parkering/oversikt", "text": "Oversikt, parkeringer, dagslinje, tidspunkt, ukesnitt, kjøretøy, områder, prognose, oppgjør og datakvalitet."},
                     {"title": "Soling", "path": "/soling/oversikt", "text": "Oversikt, årssammenligning, dagslinje, enkelttimer, oppgjør, prognose, produkter, senger, medlemmer og statistikk."},
                     {"title": "Koble", "path": "/koble/oversikt", "text": "Koblingsmotor for bilnummer mot SUN2-ID. Viser kandidater, biltreff, treffgrunnlag og jobbstatus."},
                     {"title": "Energi", "path": "/energi/status", "text": "Status, Elvia-kontroll, kurser, laster, forbruk per seng, Elvia-import og verktøy."},
@@ -15053,6 +15961,8 @@ def admin_manual_payload() -> Dict[str, Any]:
                     {"title": "Dører", "path": "/dorer/oversikt", "text": "Byggdører, andre dører, rådata og synlige romkontrollvarianter for sammenligning."},
                     {"title": "Vedlikehold", "path": "/vedlikehold/besok", "text": "Besøk og oppgaver på Lilletorget. Brukes for å koble faktisk tilstedeværelse og utført arbeid."},
                     {"title": "Renhold", "path": "/renhold/oversikt", "text": "Roborock-status, vaskelogger og robotdetaljer."},
+                    {"title": "Varslinger", "path": "/varslinger/oversikt", "text": "Ntfy-kanaler med forklaring av utløsere, direkte abonnement og kanalhistorikk."},
+                    {"title": "Undersystemer", "path": "/undersystemer/oversikt", "text": "Klikkbar katalog over offentlige og lokale webflater, health-lenker og interne tjenester."},
                     {"title": "Manual", "path": "/manual/oversikt", "text": "Kapitteldelt dokumentasjon med egne undersider for daglig bruk, menyvalg, datagrunnlag, rutiner og feilsøking."},
                     {"title": "Admin", "path": "/admin/datakilder", "text": "Datakilder, systemkart, buildlogg, brukere, teknisk status, AI, kontroll og verktøy."},
                 ],
@@ -15066,6 +15976,8 @@ def admin_manual_payload() -> Dict[str, Any]:
                 "title": "System og underapper",
                 "areas": system_areas,
                 "subapps": [
+                    {"title": "Varslinger", "text": "Alle ntfy-abonnementer finnes samlet under System -> Varslinger.", "path": "/varslinger/oversikt"},
+                    {"title": "Undersystemer", "text": "Alle klikkbare systemflater og interne tjenester finnes under System -> Undersystemer.", "path": "/undersystemer/oversikt"},
                     {"title": "online_dashboard", "text": "Ekstern mobilvisning på online.lilletorget.net."},
                     {"title": "maintenance_mobile", "text": "Mobil vedlikeholdsapp på vedl.lilletorget.net."},
                     {"title": "fibaro10ipad", "text": "Egen iPad-flate på ipad.lilletorget.net."},
@@ -15091,7 +16003,7 @@ def admin_manual_payload() -> Dict[str, Any]:
                     {"title": "OwnTracks", "text": "Egen tjeneste for lokasjon, waypoints og besøk på kjente steder."},
                     {"title": "HC3 energioppsamlinger", "text": "Detaljert rapport over QuickApps, målte medlemmer og målere som ikke er direkte med.", "path": "/manual/hc3-energi"},
                 ],
-                "note": "Bruk Admin -> Datakilder for operativ status. Bruk Admin -> Systemkart når du trenger URL, port, health-lenke eller compose-service.",
+                "note": "Bruk Admin -> Datakilder for operativ status. Bruk System -> Undersystemer når du trenger URL, webflate eller health-lenke, og Admin -> Systemkart for tekniske detaljer.",
             },
             {
                 "id": "hc3-energi",
@@ -15147,6 +16059,44 @@ async def api_manual():
 @app.get("/api/admin/manual")
 async def api_admin_manual():
     return admin_manual_payload()
+
+
+@app.get("/api/system/notifications")
+async def api_system_notifications():
+    bollard_status = None
+    try:
+        bollard_status = await protect_ledger_json("bollards")
+    except Exception:
+        logger.debug("Kunne ikke lese pullertstatus for ntfy-oversikten", exc_info=True)
+    subscriptions = ntfy_subscription_rows(bollard_status)
+    return {
+        "generatedAt": api_local_iso(local_now_naive()),
+        "provider": ntfy_host(),
+        "providerUrl": NTFY_BASE_URL,
+        "summary": {
+            "channels": len(subscriptions),
+            "configured": sum(1 for row in subscriptions if row["configured"]),
+            "publishing": sum(1 for row in subscriptions if row["publishingEnabled"]),
+        },
+        "subscriptions": subscriptions,
+        "setup": [
+            "Installer ntfy-appen på telefonen eller nettbrettet.",
+            "Trykk Abonner på kanalene du vil motta.",
+            "Godkjenn varslinger for ntfy i operativsystemet.",
+            "Bruk Åpne kanal for å kontrollere meldingshistorikken i nettleseren.",
+        ],
+        "privacy": "Abonnementslenkene inneholder private kanalnavn. Ikke del dem. Fibaro10 sender bare varseltekst til ntfy; kamera- og analysedata forblir lokale.",
+    }
+
+
+@app.get("/api/system/subsystems")
+async def api_system_subsystems():
+    rows = system_subsystem_rows()
+    return {
+        "generatedAt": api_local_iso(local_now_naive()),
+        "summary": system_component_summary(),
+        "subsystems": rows,
+    }
 
 
 @app.get("/api/admin/builds/{build}")
@@ -15665,7 +16615,10 @@ def desktop_app_response() -> FileResponse:
     index_path = DESKTOP_V2_DIST / "index.html"
     if not index_path.exists():
         raise HTTPException(status_code=404, detail="Desktop-appen er ikke bygget")
-    return FileResponse(index_path)
+    return FileResponse(
+        index_path,
+        headers={"Cache-Control": "no-store, max-age=0, must-revalidate"},
+    )
 
 
 def mobile_preview_screen_payload(screen: Dict[str, Any]) -> Dict[str, Any]:
@@ -15929,6 +16882,8 @@ async def api_sun2_session_set_primary_image(
 @app.get("/omsetning/{path:path}", response_class=HTMLResponse)
 @app.get("/parkering", response_class=HTMLResponse)
 @app.get("/parkering/{path:path}", response_class=HTMLResponse)
+@app.get("/biler", response_class=HTMLResponse)
+@app.get("/biler/{path:path}", response_class=HTMLResponse)
 @app.get("/soling", response_class=HTMLResponse)
 @app.get("/soling/{path:path}", response_class=HTMLResponse)
 @app.get("/solrom", response_class=HTMLResponse)
@@ -15941,6 +16896,8 @@ async def api_sun2_session_set_primary_image(
 @app.get("/energi/{path:path}", response_class=HTMLResponse)
 @app.get("/ventilasjon/{path:path}", response_class=HTMLResponse)
 @app.get("/lys/{path:path}", response_class=HTMLResponse)
+@app.get("/pullerter", response_class=HTMLResponse)
+@app.get("/pullerter/{path:path}", response_class=HTMLResponse)
 @app.get("/dorer2", response_class=HTMLResponse)
 @app.get("/dorer2/{path:path}", response_class=HTMLResponse)
 @app.get("/dorer", response_class=HTMLResponse)
@@ -15951,6 +16908,10 @@ async def api_sun2_session_set_primary_image(
 @app.get("/ideer/{path:path}", response_class=HTMLResponse)
 @app.get("/mobil", response_class=HTMLResponse)
 @app.get("/mobil/{path:path}", response_class=HTMLResponse)
+@app.get("/varslinger", response_class=HTMLResponse)
+@app.get("/varslinger/{path:path}", response_class=HTMLResponse)
+@app.get("/undersystemer", response_class=HTMLResponse)
+@app.get("/undersystemer/{path:path}", response_class=HTMLResponse)
 @app.get("/manual", response_class=HTMLResponse)
 @app.get("/manual/{path:path}", response_class=HTMLResponse)
 @app.get("/renhold", response_class=HTMLResponse)
@@ -17632,6 +18593,85 @@ async def api_v2_parking_time_distribution(request: Request):
     now_dt = local_now_naive()
     async with async_session() as session:
         return await api_parking_time_distribution(session, request.query_params, now_dt)
+
+
+@app.get("/api/parkering/weekly-averages")
+async def api_v2_parking_weekly_averages(request: Request):
+    now_dt = local_now_naive()
+    period = parking_weekly_average_period(request.query_params, now_dt.date())
+    async with async_session() as session:
+        rows = (
+            await session.execute(
+                select(
+                    ParkingSession.start_time,
+                    ParkingSession.end_time,
+                    ParkingSession.parking_time_min,
+                    ParkingSession.fee_inc_vat,
+                )
+                .where(ParkingSession.start_time >= period["start"])
+                .where(ParkingSession.start_time < period["end"])
+                .order_by(ParkingSession.start_time.asc())
+            )
+        ).all()
+    return parking_weekly_average_payload(rows, period, now_dt)
+
+
+@app.get("/api/parkering/weekly-averages/years")
+async def api_v2_parking_weekly_average_years(years: Optional[str] = Query(None)):
+    now_dt = local_now_naive()
+    calendar_year_expr = cast(func.extract("year", ParkingSession.start_time), Integer)
+    comparison_week_expr = cast(
+        func.floor((func.extract("doy", ParkingSession.start_time) - 1) / 7) + 1,
+        Integer,
+    )
+    duration_expr = case(
+        (ParkingSession.parking_time_min > 0, ParkingSession.parking_time_min),
+        (
+            and_(
+                ParkingSession.end_time.is_not(None),
+                ParkingSession.end_time > ParkingSession.start_time,
+            ),
+            func.extract("epoch", ParkingSession.end_time - ParkingSession.start_time) / 60.0,
+        ),
+        else_=None,
+    )
+
+    async with async_session() as session:
+        available_rows = (
+            await session.execute(
+                select(calendar_year_expr)
+                .where(ParkingSession.start_time.is_not(None))
+                .distinct()
+                .order_by(calendar_year_expr.desc())
+            )
+        ).scalars().all()
+        available_years = sorted({int_or_zero(value) for value in available_rows if int_or_zero(value) > 0}, reverse=True)
+        selected_years = parking_weekly_selected_years(years, available_years, now_dt.year)
+
+        aggregate_rows = []
+        if selected_years:
+            aggregate_rows = (
+                await session.execute(
+                    select(
+                        calendar_year_expr.label("calendar_year"),
+                        comparison_week_expr.label("comparison_week"),
+                        func.count(ParkingSession.id).label("sessions"),
+                        func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                        func.coalesce(func.sum(duration_expr), 0).label("minutes"),
+                        func.count(duration_expr).label("duration_sessions"),
+                    )
+                    .where(calendar_year_expr.in_(selected_years))
+                    .group_by(calendar_year_expr, comparison_week_expr)
+                    .order_by(calendar_year_expr.desc(), comparison_week_expr.asc())
+                )
+            ).all()
+
+    return parking_weekly_year_comparison_payload(
+        aggregate_rows,
+        available_years,
+        selected_years,
+        now_dt,
+    )
 
 
 @app.get("/api/omsetning/year-comparison")
@@ -19809,6 +20849,7 @@ def api_revenue_overview_tables(summaries: Dict[str, Any]) -> list[Dict[str, Any
     revenue_columns = ["period_label", "total_paid", "parking_paid", "parking_count", "sun_paid", "sun_count"]
     return [
         api_table("Topp dager omsetning", revenue_columns, [api_revenue_summary_row(row) for row in summaries.get("top_days", [])]),
+        api_table("Topp uker omsetning", revenue_columns, [api_revenue_summary_row(row) for row in summaries.get("top_weeks", [])]),
         api_table("Topp m\u00e5neder omsetning", ["period", *revenue_columns[1:]], [api_revenue_summary_row(row) for row in summaries.get("top_months", [])]),
     ]
 
@@ -20168,6 +21209,13 @@ PARKING_TIME_PERIOD_OPTIONS = [
     {"key": "this_year", "label": "Dette året"},
     {"key": "last_90_days", "label": "Siste 90 dager"},
     {"key": "previous_month", "label": "Forrige måned"},
+    {"key": "last_year", "label": "I fjor"},
+    {"key": "custom", "label": "Egendefinert"},
+]
+PARKING_WEEKLY_AVERAGE_PERIOD_OPTIONS = [
+    {"key": "this_year", "label": "Dette året"},
+    {"key": "last_12_months", "label": "Siste 12 måneder"},
+    {"key": "last_24_months", "label": "Siste 24 måneder"},
     {"key": "last_year", "label": "I fjor"},
     {"key": "custom", "label": "Egendefinert"},
 ]
@@ -22910,6 +23958,282 @@ def load_row_api(row: EnergyLoad) -> Dict[str, Any]:
         "critical": row.critical,
         "active": row.active,
         "note": row.note,
+    }
+
+
+def parking_weekly_average_period(params: Any, today: date) -> Dict[str, Any]:
+    requested = api_filter_value(params, "period", "this_year")
+    valid_periods = {item["key"] for item in PARKING_WEEKLY_AVERAGE_PERIOD_OPTIONS}
+    period_key = requested if requested in valid_periods else "this_year"
+    custom_from = parse_optional_date(api_filter_value(params, "date_from"))
+    custom_to = parse_optional_date(api_filter_value(params, "date_to"))
+
+    if period_key == "last_12_months":
+        start_day = today - timedelta(days=364)
+        end_day = today
+        label = "Siste 12 måneder"
+    elif period_key == "last_24_months":
+        start_day = today - timedelta(days=729)
+        end_day = today
+        label = "Siste 24 måneder"
+    elif period_key == "last_year":
+        start_day = date(today.year - 1, 1, 1)
+        end_day = date(today.year - 1, 12, 31)
+        label = str(today.year - 1)
+    elif period_key == "custom" and custom_from and custom_to:
+        start_day, end_day = sorted([custom_from, custom_to])
+        label = f"{start_day:%d.%m.%Y} - {end_day:%d.%m.%Y}"
+    else:
+        period_key = "this_year"
+        start_day = date(today.year, 1, 1)
+        end_day = today
+        label = str(today.year)
+
+    return {
+        "key": period_key,
+        "label": label,
+        "dateFrom": start_day.isoformat(),
+        "dateTo": end_day.isoformat(),
+        "start": datetime.combine(start_day, time.min),
+        "end": datetime.combine(end_day + timedelta(days=1), time.min),
+        "options": PARKING_WEEKLY_AVERAGE_PERIOD_OPTIONS,
+    }
+
+
+def parking_weekly_average_payload(rows: Any, period: Dict[str, Any], now_dt: datetime) -> Dict[str, Any]:
+    start_day = date.fromisoformat(period["dateFrom"])
+    end_day = date.fromisoformat(period["dateTo"])
+    first_week = start_day - timedelta(days=start_day.weekday())
+    last_week = end_day - timedelta(days=end_day.weekday())
+    buckets: Dict[date, Dict[str, Any]] = {}
+    cursor = first_week
+    while cursor <= last_week:
+        iso_year, iso_week, _ = cursor.isocalendar()
+        buckets[cursor] = {
+            "weekStart": cursor,
+            "weekEnd": cursor + timedelta(days=6),
+            "isoYear": iso_year,
+            "isoWeek": iso_week,
+            "sessions": 0,
+            "paid": 0.0,
+            "minutes": 0.0,
+            "durationSessions": 0,
+        }
+        cursor += timedelta(days=7)
+
+    for start_time, end_time, parking_time_min, fee_inc_vat in rows:
+        start_at = normalize_local_naive(start_time)
+        if not start_at:
+            continue
+        week_start = start_at.date() - timedelta(days=start_at.weekday())
+        bucket = buckets.get(week_start)
+        if not bucket:
+            continue
+        bucket["sessions"] += 1
+        bucket["paid"] += float_or_zero(fee_inc_vat)
+        minutes = float_or_zero(parking_time_min)
+        if minutes <= 0:
+            end_at = normalize_local_naive(end_time)
+            if end_at and end_at > start_at:
+                minutes = (end_at - start_at).total_seconds() / 60
+        if minutes > 0:
+            bucket["minutes"] += minutes
+            bucket["durationSessions"] += 1
+
+    def format_week_range(week_start: date, week_end: date) -> str:
+        if week_start.year == week_end.year:
+            return f"{week_start:%d.%m}–{week_end:%d.%m.%Y}"
+        return f"{week_start:%d.%m.%Y}–{week_end:%d.%m.%Y}"
+
+    points = []
+    for bucket in buckets.values():
+        sessions = int_or_zero(bucket["sessions"])
+        duration_sessions = int_or_zero(bucket["durationSessions"])
+        paid = round(float_or_zero(bucket["paid"]), 2)
+        minutes = round(float_or_zero(bucket["minutes"]), 1)
+        week_start = bucket["weekStart"]
+        week_end = bucket["weekEnd"]
+        is_partial = week_start < start_day or week_end > end_day or week_end >= now_dt.date()
+        points.append(
+            {
+                "key": f"{bucket['isoYear']}-W{bucket['isoWeek']:02d}",
+                "label": f"Uke {bucket['isoWeek']}",
+                "shortLabel": f"U{bucket['isoWeek']}",
+                "rangeLabel": format_week_range(week_start, week_end),
+                "weekStart": week_start.isoformat(),
+                "weekEnd": week_end.isoformat(),
+                "isoYear": bucket["isoYear"],
+                "isoWeek": bucket["isoWeek"],
+                "sessions": sessions,
+                "paid": paid,
+                "minutes": minutes,
+                "durationSessions": duration_sessions,
+                "durationCoveragePct": round(duration_sessions * 100 / sessions, 1) if sessions else 0.0,
+                "avgPaidPerSession": round(paid / sessions, 2) if sessions else None,
+                "avgMinutesPerSession": round(minutes / duration_sessions, 1) if duration_sessions else None,
+                "isPartial": is_partial,
+            }
+        )
+
+    points_with_data = [item for item in points if item["sessions"] > 0]
+    latest = points_with_data[-1] if points_with_data else None
+    previous = points_with_data[-2] if len(points_with_data) > 1 else None
+    total_sessions = sum(int_or_zero(item["sessions"]) for item in points)
+    total_paid = round(sum(float_or_zero(item["paid"]) for item in points), 2)
+    duration_sessions = sum(int_or_zero(item["durationSessions"]) for item in points)
+    total_minutes = round(sum(float_or_zero(item["minutes"]) for item in points), 1)
+
+    def delta_pct(current: Any, reference: Any) -> Optional[float]:
+        reference_value = float_or_zero(reference)
+        if reference_value == 0:
+            return None
+        return round((float_or_zero(current) - reference_value) * 100 / reference_value, 1)
+
+    return {
+        "generatedAt": api_local_iso(now_dt),
+        "period": {
+            **{key: value for key, value in period.items() if key not in {"start", "end"}},
+            "detail": f"{len(points_with_data)} uker med parkeringer",
+        },
+        "summary": {
+            "sessions": total_sessions,
+            "paid": total_paid,
+            "minutes": total_minutes,
+            "durationSessions": duration_sessions,
+            "durationCoveragePct": round(duration_sessions * 100 / total_sessions, 1) if total_sessions else 0.0,
+            "avgPaidPerSession": round(total_paid / total_sessions, 2) if total_sessions else 0.0,
+            "avgMinutesPerSession": round(total_minutes / duration_sessions, 1) if duration_sessions else 0.0,
+            "weeksWithData": len(points_with_data),
+        },
+        "latest": latest,
+        "previous": previous,
+        "delta": {
+            "paidPct": delta_pct(
+                latest.get("avgPaidPerSession") if latest else None,
+                previous.get("avgPaidPerSession") if previous else None,
+            ),
+            "minutesPct": delta_pct(
+                latest.get("avgMinutesPerSession") if latest else None,
+                previous.get("avgMinutesPerSession") if previous else None,
+            ),
+        },
+        "weeks": points,
+    }
+
+
+def parking_weekly_selected_years(
+    requested: Optional[str],
+    available_years: list[int],
+    current_iso_year: int,
+) -> list[int]:
+    available = sorted({int_or_zero(value) for value in available_years if int_or_zero(value) > 0}, reverse=True)
+    available_set = set(available)
+    selected = []
+    for value in str(requested or "").split(","):
+        parsed = int_or_zero(value.strip())
+        if parsed in available_set and parsed not in selected:
+            selected.append(parsed)
+    if selected:
+        return selected
+
+    anchor = current_iso_year if current_iso_year in available_set else (available[0] if available else current_iso_year)
+    previous = next((year for year in available if year < anchor), None)
+    return [year for year in (anchor, previous) if year is not None]
+
+
+def parking_calendar_comparison_week(day_value: date) -> int:
+    return ((day_value.timetuple().tm_yday - 1) // 7) + 1
+
+
+def parking_calendar_comparison_week_ranges(year_value: int) -> Dict[int, tuple[date, date]]:
+    dates_by_week: Dict[int, list[date]] = defaultdict(list)
+    cursor = date(year_value, 1, 1)
+    end_day = date(year_value, 12, 31)
+    while cursor <= end_day:
+        dates_by_week[parking_calendar_comparison_week(cursor)].append(cursor)
+        cursor += timedelta(days=1)
+    return {week: (days[0], days[-1]) for week, days in dates_by_week.items()}
+
+
+def parking_weekly_year_comparison_payload(
+    rows: Any,
+    available_years: list[int],
+    selected_years: list[int],
+    now_dt: datetime,
+) -> Dict[str, Any]:
+    current_year = now_dt.year
+    current_week = parking_calendar_comparison_week(now_dt.date())
+    grouped: Dict[tuple[int, int], Dict[str, Any]] = {}
+    for iso_year, iso_week, sessions, paid, minutes, duration_sessions in rows:
+        year_value = int_or_zero(iso_year)
+        week_value = int_or_zero(iso_week)
+        if year_value <= 0 or week_value <= 0:
+            continue
+        grouped[(year_value, week_value)] = {
+            "sessions": int_or_zero(sessions),
+            "paid": round(float_or_zero(paid), 2),
+            "minutes": round(float_or_zero(minutes), 1),
+            "durationSessions": int_or_zero(duration_sessions),
+        }
+
+    colors = ["#2563eb", "#64748b", "#0f766e", "#7c3aed", "#be123c", "#0891b2", "#ea580c", "#f59e0b"]
+    series = []
+    for index, year_value in enumerate(selected_years):
+        week_ranges = parking_calendar_comparison_week_ranges(year_value)
+        points = []
+        for week_value in range(1, 54):
+            bucket = grouped.get((year_value, week_value), {})
+            sessions = int_or_zero(bucket.get("sessions"))
+            duration_sessions = int_or_zero(bucket.get("durationSessions"))
+            paid = round(float_or_zero(bucket.get("paid")), 2)
+            minutes = round(float_or_zero(bucket.get("minutes")), 1)
+            week_range = week_ranges.get(week_value)
+            week_start = week_range[0] if week_range else None
+            week_end = week_range[1] if week_range else None
+            points.append(
+                {
+                    "week": week_value,
+                    "label": f"U{week_value}",
+                    "rangeLabel": f"{week_start:%d.%m.%Y} - {week_end:%d.%m.%Y}" if week_start and week_end else "",
+                    "sessions": sessions,
+                    "paid": paid,
+                    "minutes": minutes,
+                    "durationSessions": duration_sessions,
+                    "durationCoveragePct": round(duration_sessions * 100 / sessions, 1) if sessions else 0.0,
+                    "avgPaidPerSession": round(paid / sessions, 2) if sessions else None,
+                    "avgMinutesPerSession": round(minutes / duration_sessions, 1) if duration_sessions else None,
+                    "isPartial": year_value == current_year and week_value == current_week,
+                    "isAvailable": week_range is not None,
+                }
+            )
+
+        year_sessions = sum(int_or_zero(point["sessions"]) for point in points)
+        year_paid = round(sum(float_or_zero(point["paid"]) for point in points), 2)
+        year_duration_sessions = sum(int_or_zero(point["durationSessions"]) for point in points)
+        year_minutes = round(sum(float_or_zero(point["minutes"]) for point in points), 1)
+        series.append(
+            {
+                "year": year_value,
+                "label": str(year_value),
+                "color": colors[index % len(colors)],
+                "sessions": year_sessions,
+                "weeksWithData": sum(1 for point in points if point["sessions"] > 0),
+                "durationCoveragePct": round(year_duration_sessions * 100 / year_sessions, 1) if year_sessions else 0.0,
+                "avgPaidPerSession": round(year_paid / year_sessions, 2) if year_sessions else 0.0,
+                "avgMinutesPerSession": round(year_minutes / year_duration_sessions, 1) if year_duration_sessions else 0.0,
+                "points": points,
+            }
+        )
+
+    default_years = parking_weekly_selected_years(None, available_years, current_year)
+    return {
+        "generatedAt": api_local_iso(now_dt),
+        "currentYear": current_year,
+        "currentWeek": current_week,
+        "availableYears": sorted({int_or_zero(value) for value in available_years if int_or_zero(value) > 0}, reverse=True),
+        "defaultYears": default_years,
+        "selectedYears": selected_years,
+        "series": series,
     }
 
 
@@ -35982,17 +37306,13 @@ async def api_hc3_doors_status(
         total_events = await session.scalar(select(func.count(DoorEvent.id)).where(DoorEvent.device_id.in_(DOOR_SENSOR_IDS)))
 
     change_rows_ascending = door_change_rows(list(reversed(raw_rows)))
-    latest_change_by_device: Dict[int, DoorEvent] = {}
-    for row in reversed(change_rows_ascending):
-        if row.device_id is None:
-            continue
-        latest_change_by_device.setdefault(int(row.device_id), row)
-    newest_change = max(
-        change_rows_ascending,
+    latest_status_by_device = latest_door_event_by_device(raw_rows)
+    newest_status_event = max(
+        raw_rows,
         key=lambda row: (normalize_local_naive(row.timestamp) or datetime.min, row.id or 0),
         default=None,
     )
-    newest_at = normalize_local_naive(newest_change.timestamp) if newest_change else None
+    newest_at = normalize_local_naive(newest_status_event.timestamp) if newest_status_event else None
     periods = door_open_periods(change_rows_ascending, now)
     recent_periods_by_device: Dict[str, list[Dict[str, Any]]] = {}
     for period in periods:
@@ -36003,7 +37323,7 @@ async def api_hc3_doors_status(
     doors = []
     for config in DOOR_SENSOR_CONFIG:
         device_id = config.get("device_id")
-        latest_row = latest_change_by_device.get(int(device_id)) if device_id is not None else None
+        latest_row = latest_status_by_device.get(int(device_id)) if device_id is not None else None
         door = door_status_payload(config, latest_row, now)
         door["recentPeriods"] = recent_periods_by_device.get(door_config_device_key(config), [])[:2]
         doors.append(door)
@@ -36026,7 +37346,7 @@ async def api_hc3_doors_status(
             "latestAt": newest_at.isoformat() if newest_at else None,
             "latestLabel": format_source_datetime_short(newest_at) if newest_at else "-",
             "latestAgeLabel": door_age_label(newest_at, now),
-            "latestChangeText": door_change_text(newest_change),
+            "latestChangeText": door_change_text(newest_status_event),
             "events": int(total_events or 0),
             "changes": len(change_rows_ascending),
             "periods": len(periods),

@@ -3,7 +3,7 @@ export const smokeRoutes = [
   { path: "/status/parkering", name: "Dashboard parkering" },
   { path: "/status/soling", name: "Dashboard soling" },
   { path: "/status/drift", name: "Dashboard drift" },
-  { path: "/omsetning/oversikt", name: "Omsetning oversikt" },
+  { path: "/omsetning/oversikt", name: "Omsetning oversikt", expectedTexts: ["Topp dager omsetning", "Topp uker omsetning", "Topp m\u00e5neder omsetning"] },
   { path: "/omsetning/manedsoversikt", name: "Omsetning manedsoversikt" },
   { path: "/omsetning/akkumulert", name: "Omsetning arssammenligning" },
   { path: "/omsetning/sammenligning", name: "Omsetning periodesammenligning" },
@@ -11,6 +11,7 @@ export const smokeRoutes = [
   { path: "/parkering/sammenligning", name: "Parkering arssammenligning" },
   { path: "/parkering/dagslinje", name: "Parkering dagslinje" },
   { path: "/parkering/tidspunkt", name: "Parkering tidspunkt" },
+  { path: "/parkering/ukesnitt", name: "Parkering ukesnitt", expectedTexts: ["Gjennomsnitt pr parkering", "Ukevis utvikling", "Beløp siste uke", "Tid siste uke"] },
   { path: "/parkering/parkeringer", name: "Parkeringer" },
   { path: "/parkering/kjoretoy", name: "Kjoretoy" },
   { path: "/parkering/prognose", name: "Parkering prognose" },
@@ -18,6 +19,8 @@ export const smokeRoutes = [
   { path: "/parkering/bilstatistikk", name: "Bilstatistikk" },
   { path: "/parkering/oppgjor", name: "Parkering oppgjor" },
   { path: "/parkering/oppslag", name: "Parkering oppslag" },
+  { path: "/biler/oversikt", name: "Biler dagsoversikt", expectedTexts: ["Observerte biler", "Første og siste registrering", "Betalt fra / til"] },
+  { path: "/pullerter/oversikt", name: "Pullert- og trappekontroll", expectedTexts: ["Pullert- og trappekontroll", "Kontrollområder", "Trapp ved Solstudio", "Side om side", "Referanse", "Siste bilde", "Vanlig bildekontroll", "AI-kontroll", "Avvik og historikk", "Abonner"] },
   { path: "/soling/oversikt", name: "Soling oversikt" },
   { path: "/soling/sammenligning", name: "Soling arssammenligning" },
   { path: "/soling/dagslinje", name: "Soling dagslinje" },
@@ -84,6 +87,8 @@ export const smokeRoutes = [
   { path: "/renhold/oversikt", name: "Renhold oversikt" },
   { path: "/renhold/roboter", name: "Renhold roboter" },
   { path: "/mobil/oversikt", name: "Mobil oversikt" },
+  { path: "/varslinger/oversikt", name: "System varslinger", expectedTexts: ["Varslinger", "Døralarmer", "Pullerter og trapp", "Abonner", "Åpne kanal"] },
+  { path: "/undersystemer/oversikt", name: "System undersystemer", expectedTexts: ["Undersystemer", "Fibaro10 hovedgrensesnitt", "Vedlikehold mobil", "OwnTracks"] },
   { path: "/manual/oversikt", name: "Manual oversikt", expectedTexts: ["Lilletorget drift", "Undersider"] },
   { path: "/manual/daglig-bruk", name: "Manual daglig bruk", expectedTexts: ["Daglig bruk"] },
   { path: "/manual/menyvalg", name: "Manual menyvalg", expectedTexts: ["Menyvalg"] },
@@ -114,5 +119,7 @@ export function smokeRoutePathsFromEnv(value) {
     .split(",")
     .map((route) => route.trim())
     .filter(Boolean);
-  return explicit.length ? explicit.map((path) => ({ path, name: path })) : smokeRoutes;
+  return explicit.length
+    ? explicit.map((path) => smokeRoutes.find((route) => route.path === path) || { path, name: path })
+    : smokeRoutes;
 }

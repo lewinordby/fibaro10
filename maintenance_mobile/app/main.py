@@ -11,7 +11,7 @@ from datetime import datetime
 from html import escape
 from typing import Any, Optional
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 from urllib.request import Request as UrlRequest
 from urllib.request import urlopen
 
@@ -23,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv()
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstrip("/")
+MAINTENANCE_MOBILE_BUILD = os.getenv("MAINTENANCE_MOBILE_BUILD", "1465")
 SESSION_COOKIE_NAME = "lilletorget_maintenance_session"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 SESSION_SECRET = (
@@ -167,6 +168,108 @@ async def fibaro_request(
     )
 
 
+def fibaro_binary_request_sync(
+    path: str,
+    username: str,
+    password: str,
+    *,
+    timeout: int = 25,
+) -> tuple[bytes, str]:
+    request = UrlRequest(
+        f"{FIBARO10_BASE_URL}{path}",
+        headers={
+            "Accept": "image/jpeg",
+            "X-Access-Username": username,
+            "X-Access-Password": password,
+            "User-Agent": "lilletorget-maintenance-mobile/1",
+        },
+        method="GET",
+    )
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            return response.read(), response.headers.get_content_type() or "image/jpeg"
+    except HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        try:
+            parsed = json.loads(detail)
+            message = parsed.get("detail") or parsed.get("message") or detail
+        except json.JSONDecodeError:
+            message = detail or exc.reason
+        raise HTTPException(status_code=exc.code, detail=message) from exc
+    except URLError as exc:
+        raise HTTPException(status_code=502, detail=f"Fibaro10 er ikke tilgjengelig: {exc.reason}") from exc
+
+
+async def fibaro_binary_request(
+    path: str,
+    username: str,
+    password: str,
+    *,
+    timeout: int = 25,
+) -> tuple[bytes, str]:
+    return await asyncio.to_thread(
+        fibaro_binary_request_sync,
+        path,
+        username,
+        password,
+        timeout=timeout,
+    )
+
+
+def mobile_bollard_camera_payload(payload: dict[str, Any], *, cropped: bool = False) -> dict[str, Any]:
+    items = []
+    monitors = [
+        (monitor, "camera") for monitor in (payload.get("camera_monitors") or [])
+    ] + [
+        (monitor, "asset") for monitor in (payload.get("asset_monitors") or [])
+    ]
+    for monitor, monitor_kind in monitors:
+        if not isinstance(monitor, dict) or not monitor.get("camera_id"):
+            continue
+        camera_id = str(monitor["camera_id"])
+        encoded_id = quote(camera_id, safe="")
+        asset_key = str(monitor.get("asset_key") or "")
+        encoded_asset_key = quote(asset_key, safe="")
+        crop = dict(monitor.get("display_crop") or {})
+        crop["aspectRatio"] = round(
+            float(crop.get("width") or 16) / float(crop.get("height") or 9),
+            4,
+        )
+        images = {}
+        for kind, source_key, stamp_key in (
+            ("latest", "latest_url", "latest_captured_at"),
+            ("overlay", "overlay_url", "latest_captured_at"),
+            ("baseline", "baseline_url", "baseline_captured_at"),
+        ):
+            if monitor.get(source_key):
+                stamp = quote(str(monitor.get(stamp_key) or "current"), safe="")
+                if monitor_kind == "asset":
+                    images[kind] = f"/api/bollards/assets/{encoded_asset_key}/{kind}?captured={stamp}"
+                else:
+                    crop_suffix = "/crop" if cropped else ""
+                    images[kind] = f"/api/bollards/cameras/{encoded_id}/{kind}{crop_suffix}?captured={stamp}"
+        items.append(
+            {
+                "cameraId": str(monitor.get("monitor_id") or camera_id),
+                "cameraName": str(monitor.get("display_name") or monitor.get("camera_name") or camera_id),
+                "itemType": str(monitor.get("item_type") or "bollards"),
+                "status": str(monitor.get("status") or "unknown"),
+                "lastCheckedAt": monitor.get("last_checked_at"),
+                "latestCapturedAt": monitor.get("latest_captured_at"),
+                "baselineCapturedAt": monitor.get("baseline_captured_at"),
+                "changeScore": monitor.get("change_score"),
+                "changedFraction": monitor.get("changed_fraction"),
+                "lastError": monitor.get("last_error"),
+                "crop": crop,
+                "images": images,
+            }
+        )
+    return {
+        "comparisonMode": payload.get("comparison_mode"),
+        "items": items,
+    }
+
+
 def fields_by_key(module_payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
     for table in module_payload.get("tables") or []:
         edit = table.get("edit") if isinstance(table, dict) else None
@@ -263,7 +366,12 @@ def bootstrap_payload(
 
 @app.get("/health")
 async def health():
-    return {"ok": True, "service": "maintenance_mobile", "fibaro10": FIBARO10_BASE_URL}
+    return {
+        "ok": True,
+        "service": "maintenance_mobile",
+        "build": MAINTENANCE_MOBILE_BUILD,
+        "fibaro10": FIBARO10_BASE_URL,
+    }
 
 
 @app.get("/favicon.ico")
@@ -295,15 +403,24 @@ async def index(request: Request):
     return HTMLResponse(INDEX_HTML)
 
 
+@app.get("/varsler", response_class=HTMLResponse)
+async def notifications_page(request: Request):
+    if not session_credentials(request):
+        return RedirectResponse("/auth/login?next=/varsler", status_code=303)
+    return HTMLResponse(INDEX_HTML)
+
+
 @app.get("/auth/login", response_class=HTMLResponse)
 async def login_view(request: Request):
+    next_path = "/varsler" if request.query_params.get("next") == "/varsler" else "/"
     if session_credentials(request):
-        return RedirectResponse("/", status_code=303)
-    return HTMLResponse(login_html())
+        return RedirectResponse(next_path, status_code=303)
+    return HTMLResponse(login_html(next_path=next_path))
 
 
 @app.post("/auth/login")
 async def login_submit(request: Request):
+    next_path = "/varsler" if request.query_params.get("next") == "/varsler" else "/"
     form = await request.form()
     username = normalize_username(form.get("username"))
     password = str(form.get("password") or "").strip()
@@ -316,8 +433,8 @@ async def login_submit(request: Request):
         except HTTPException:
             error = "Ugyldig brukernavn eller passord."
     if error:
-        return HTMLResponse(login_html(error), status_code=401)
-    response = RedirectResponse("/", status_code=303)
+        return HTMLResponse(login_html(error, next_path=next_path), status_code=401)
+    response = RedirectResponse(next_path, status_code=303)
     response.set_cookie(
         SESSION_COOKIE_NAME,
         make_session_token(username, password),
@@ -378,8 +495,94 @@ async def api_update_maintenance_log(request: Request, log_id: int):
     return result
 
 
-def login_html(error: str = "") -> str:
+@app.get("/api/notifications")
+async def api_notifications(request: Request):
+    username, password = require_session(request)
+    return await fibaro_request(
+        "/api/unifi-protect/bollards/mobile-notifications",
+        username,
+        password,
+    )
+
+
+@app.post("/api/notifications/bollards/test")
+async def api_test_bollard_notification(request: Request):
+    username, password = require_session(request)
+    return await fibaro_request(
+        "/api/unifi-protect/bollards/mobile-notifications/test",
+        username,
+        password,
+        method="POST",
+    )
+
+
+@app.get("/api/bollards/cameras")
+async def api_bollard_cameras(request: Request, geometry: str = ""):
+    username, password = require_session(request)
+    payload = await fibaro_request("/api/unifi-protect/bollards", username, password)
+    return mobile_bollard_camera_payload(
+        payload,
+        cropped=geometry == "fixed_source_pixel_crop",
+    )
+
+
+@app.get("/api/bollards/cameras/{camera_id}/{kind}")
+async def api_bollard_camera_image(request: Request, camera_id: str, kind: str):
+    username, password = require_session(request)
+    if kind not in {"baseline", "latest", "overlay"}:
+        raise HTTPException(status_code=400, detail="Ukjent bildetype")
+    encoded_id = quote(camera_id, safe="")
+    content, content_type = await fibaro_binary_request(
+        f"/api/unifi-protect/bollards/cameras/{encoded_id}/{kind}",
+        username,
+        password,
+    )
+    return Response(
+        content=content,
+        media_type=content_type,
+        headers={"Cache-Control": "private, no-store"},
+    )
+
+
+@app.get("/api/bollards/cameras/{camera_id}/{kind}/crop")
+async def api_bollard_camera_crop(request: Request, camera_id: str, kind: str):
+    username, password = require_session(request)
+    if kind not in {"baseline", "latest", "overlay"}:
+        raise HTTPException(status_code=400, detail="Ukjent bildetype")
+    encoded_id = quote(camera_id, safe="")
+    content, content_type = await fibaro_binary_request(
+        f"/api/unifi-protect/bollards/cameras/{encoded_id}/{kind}/crop",
+        username,
+        password,
+    )
+    return Response(
+        content=content,
+        media_type=content_type,
+        headers={"Cache-Control": "private, no-store"},
+    )
+
+
+@app.get("/api/bollards/assets/{asset_key}/{kind}")
+async def api_bollard_asset_image(request: Request, asset_key: str, kind: str):
+    username, password = require_session(request)
+    if kind not in {"baseline", "latest", "overlay"}:
+        raise HTTPException(status_code=400, detail="Ukjent bildetype")
+    encoded_asset_key = quote(asset_key, safe="")
+    content, content_type = await fibaro_binary_request(
+        f"/api/unifi-protect/bollards/assets/{encoded_asset_key}/{kind}",
+        username,
+        password,
+    )
+    return Response(
+        content=content,
+        media_type=content_type,
+        headers={"Cache-Control": "private, no-store"},
+    )
+
+
+def login_html(error: str = "", *, next_path: str = "/") -> str:
     error_html = f'<div class="login-error">{escape(error)}</div>' if error else ""
+    login_action = "/auth/login?next=/varsler" if next_path == "/varsler" else "/auth/login"
     return f"""<!doctype html>
 <html lang="no">
 <head>
@@ -387,7 +590,7 @@ def login_html(error: str = "") -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Logg inn · Vedlikehold</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1455">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1465">
 </head>
 <body class="login-body">
   <main class="login-screen">
@@ -399,7 +602,7 @@ def login_html(error: str = "") -> str:
       <h1>Vedlikehold</h1>
       <p class="muted">Samme brukere som Fibaro10. Alle innloggede brukere kan registrere arbeid og observasjoner.</p>
       {error_html}
-      <form method="post" action="/auth/login" class="login-form">
+      <form method="post" action="{login_action}" class="login-form">
         <label>Brukernavn<input name="username" autocomplete="username" required autofocus></label>
         <label>Passord<input type="password" name="password" autocomplete="current-password" required></label>
         <button type="submit">Logg inn</button>
@@ -419,8 +622,8 @@ INDEX_HTML = """<!doctype html>
   <title>Lilletorget Vedlikehold</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1455">
-  <script src="/assets/maintenance-mobile.js?v=1455" defer></script>
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1465">
+  <script src="/assets/maintenance-mobile.js?v=1465" defer></script>
 </head>
 <body>
   <header class="app-topbar">
@@ -428,6 +631,9 @@ INDEX_HTML = """<!doctype html>
       <img src="/static/lilletorget-mark.png" alt="">
     </div>
     <strong class="brand-title">Lilletorget, <span>vedlikehold</span></strong>
+    <button id="notificationsButton" class="user-button notification-button" type="button" title="Varsler" aria-label="Åpne varselabonnementer">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+    </button>
     <button id="profileButton" class="user-button" type="button" title="Bruker" aria-label="Åpne brukerprofil">
         <span id="topUserInitial" class="user-initial" aria-hidden="true">?</span>
     </button>
@@ -437,6 +643,14 @@ INDEX_HTML = """<!doctype html>
       <section class="task-hero">
         <h1>Hva skal registreres?</h1>
       </section>
+
+      <a class="notification-entry" href="/varsler">
+        <span class="notification-entry-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+        </span>
+        <span class="notification-entry-copy"><strong>Pullert- og trappevarsler</strong><small>Abonner og send testvarsel</small></span>
+        <span class="notification-entry-arrow" aria-hidden="true">›</span>
+      </a>
 
       <section id="taskGrid" class="task-grid" aria-label="Vedlikeholdsoppgaver"></section>
       <p id="taskMessage" class="task-message" role="status"></p>
@@ -528,6 +742,63 @@ INDEX_HTML = """<!doctype html>
         <form method="post" action="/konto/logg-ut">
           <button class="primary-button logout-button" type="submit">Logg ut</button>
         </form>
+      </section>
+    </section>
+
+    <section id="notificationsScreen" class="screen is-hidden">
+      <section class="entry-head sub-topbar notifications-head">
+        <button id="notificationsBackButton" class="back-button" type="button" aria-label="Tilbake">
+          <img src="/static/lilletorget-mark.png" alt="">
+        </button>
+        <div class="entry-title-block">
+          <h1>Varsler</h1>
+          <p class="entry-user-line">Abonnement på mobilvarsler</p>
+        </div>
+        <span class="sub-topbar-spacer" aria-hidden="true"></span>
+      </section>
+
+      <section class="notification-card">
+        <div class="notification-card-head">
+          <div>
+            <p class="eyebrow">Overvåking</p>
+            <h2>Pullerter og trapp ved Solstudio</h2>
+          </div>
+          <span id="bollardNotificationBadge" class="status-pill is-loading">Henter</span>
+        </div>
+        <p id="bollardNotificationSummary" class="notification-summary">Henter status fra Protect Ledger...</p>
+        <dl class="notification-details">
+          <div><dt>Overvåking</dt><dd id="bollardMonitoringStatus">–</dd></div>
+          <div><dt>Siste kontroll</dt><dd id="bollardLastCheck">–</dd></div>
+          <div><dt>Aktive avvik</dt><dd id="bollardActiveIncidents">–</dd></div>
+        </dl>
+        <a id="bollardSubscribeLink" class="subscription-button is-disabled" href="#" aria-disabled="true">Abonner på varsler</a>
+        <button id="bollardTestButton" class="test-notification-button" type="button" disabled>Send testvarsel</button>
+        <a id="bollardWebLink" class="channel-web-link is-hidden" href="#" target="_blank" rel="noopener">Åpne varselkanalen i nettleser</a>
+        <p id="notificationMessage" class="form-message notification-message" role="status"></p>
+        <p id="bollardPrivacy" class="privacy-note">Kun alarmtekst sendes. Bilder, registreringsnummer og analysedata forblir lokale.</p>
+      </section>
+
+      <section class="camera-inspection-card">
+        <div class="camera-inspection-head">
+          <div>
+            <p class="eyebrow">Kamerainspeksjon</p>
+            <h2>Referanse og siste bilde</h2>
+          </div>
+          <button id="refreshBollardCameras" class="camera-refresh-button" type="button">Oppdater</button>
+        </div>
+        <p class="camera-inspection-intro">Referanse og siste bilde har opptakstid på hver sin side av skyveren. Begge står fast i nøyaktig samme kontrollutsnitt.</p>
+        <div id="bollardCameraList" class="bollard-camera-list" aria-live="polite"></div>
+        <p id="bollardCameraMessage" class="form-message" role="status">Henter kamerabilder...</p>
+      </section>
+
+      <section class="notification-help">
+        <h2>Slik kobler du til</h2>
+        <ol>
+          <li>Installer ntfy-appen og tillat varsler.</li>
+          <li>Trykk «Abonner på varsler» over.</li>
+          <li>Kom tilbake hit og send et testvarsel.</li>
+        </ol>
+        <p>Dette abonnementet er separat fra dørvarsler.</p>
       </section>
     </section>
 

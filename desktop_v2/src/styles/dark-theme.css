@@ -94,6 +94,7 @@
   --cyan: var(--dark-cyan);
   --domain-revenue: var(--dark-bad);
   --domain-parking: var(--dark-blue);
+  --domain-cars: var(--dark-building);
   --domain-sun2: var(--dark-warn);
   --domain-energy: var(--dark-ok);
   --domain-vent: var(--dark-cyan);

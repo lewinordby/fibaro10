@@ -89,6 +89,7 @@
   --status-bad-text: #991b1b;
   --domain-revenue: #dc2626;
   --domain-parking: #2563eb;
+  --domain-cars: #0f766e;
   --domain-sun2: #f59e0b;
   --domain-energy: #15803d;
   --domain-vent: #0891b2;
@@ -227,6 +228,10 @@
 
 .domain-parkering {
   --active-module-color: var(--domain-parking);
+}
+
+.domain-biler {
+  --active-module-color: var(--domain-cars);
 }
 
 .domain-soling,

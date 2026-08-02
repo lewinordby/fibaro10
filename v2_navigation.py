@@ -12,6 +12,8 @@ V2_MODULE_LABELS: Dict[str, str] = {
     "lys": "Lys",
     "dorer": "Dører",
     "vedlikehold": "Vedlikehold",
+    "varslinger": "Varslinger",
+    "undersystemer": "Undersystemer",
     "ideer": "Ideer",
     "mobil": "Mobil",
     "renhold": "Renhold",
@@ -98,6 +100,12 @@ V2_VIEW_LABELS: Dict[str, Dict[str, str]] = {
     "vedlikehold": {
         "oversikt": "Oversikt",
         "besok": "Besøk",
+    },
+    "varslinger": {
+        "oversikt": "Oversikt",
+    },
+    "undersystemer": {
+        "oversikt": "Oversikt",
     },
     "ideer": {
         "oversikt": "Oversikt",

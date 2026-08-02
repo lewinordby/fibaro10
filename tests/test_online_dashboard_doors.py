@@ -146,11 +146,35 @@ class OnlineDashboardDoorTests(unittest.TestCase):
         self.assertEqual(periods[0]["closed_at"], datetime(2026, 7, 20, 10, 42, 50))
         self.assertEqual(periods[0]["opened_at"], datetime(2026, 7, 20, 10, 59, 19))
 
+    def test_mobile_keeps_single_short_open_close_sequence(self) -> None:
+        rows_desc = [
+            {"id": 3, "device_id": 447, "timestamp": datetime(2026, 7, 23, 9, 17, 6), "state": False},
+            {"id": 2, "device_id": 447, "timestamp": datetime(2026, 7, 23, 9, 17, 2), "state": True},
+            {"id": 1, "device_id": 447, "timestamp": datetime(2026, 7, 14, 11, 57, 56), "state": False},
+        ]
+
+        changes = online_main.door_change_rows(rows_desc)
+
+        self.assertEqual([(row["id"], row["state"]) for row in changes], [(3, False), (2, True), (1, False)])
+
     def test_mobile_room_12_uses_physical_room_13_and_bed_681(self) -> None:
         config = online_main.SOLROOM_DOOR_BY_KEY["door_solrom_12"]
 
+        self.assertEqual(config["device_id"], 539)
         self.assertEqual(online_main.solroom_room_id_from_config(config), "rom-13")
         self.assertEqual(config["sun2_bed_id"], "681")
+
+    def test_mobile_other_doors_contains_waste_room_sensor(self) -> None:
+        config = online_main.OTHER_DOOR_BY_KEY["door_soppelbod"]
+
+        self.assertEqual(config["device_id"], 537)
+        self.assertEqual(config["title"], "Søppelbod")
+
+    def test_mobile_entrance_uses_replacement_sensor(self) -> None:
+        config = online_main.OTHER_DOOR_BY_KEY["door_inngang"]
+
+        self.assertEqual(config["device_id"], 541)
+        self.assertEqual(config["title"], "Inngang")
 
 
 if __name__ == "__main__":

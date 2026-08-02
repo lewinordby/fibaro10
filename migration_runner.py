@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+import re
 from typing import Iterable, List, Optional
 
 
@@ -48,10 +49,21 @@ def split_sql_statements(sql: str) -> List[str]:
     in_double_quote = False
     in_line_comment = False
     in_block_comment = False
+    dollar_quote_tag: Optional[str] = None
     index = 0
     while index < len(sql):
         char = sql[index]
         next_char = sql[index + 1] if index + 1 < len(sql) else ""
+
+        if dollar_quote_tag is not None:
+            if sql.startswith(dollar_quote_tag, index):
+                current.append(dollar_quote_tag)
+                index += len(dollar_quote_tag)
+                dollar_quote_tag = None
+            else:
+                current.append(char)
+                index += 1
+            continue
 
         if in_line_comment:
             current.append(char)
@@ -84,6 +96,14 @@ def split_sql_statements(sql: str) -> List[str]:
             index += 2
             continue
 
+        if not in_single_quote and not in_double_quote and char == "$":
+            match = re.match(r"\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$", sql[index:])
+            if match:
+                dollar_quote_tag = match.group(0)
+                current.append(dollar_quote_tag)
+                index += len(dollar_quote_tag)
+                continue
+
         if char == "'" and not in_double_quote:
             current.append(char)
             if in_single_quote and next_char == "'":
@@ -95,6 +115,11 @@ def split_sql_statements(sql: str) -> List[str]:
             continue
 
         if char == '"' and not in_single_quote:
+            if in_double_quote and next_char == '"':
+                current.append(char)
+                current.append(next_char)
+                index += 2
+                continue
             in_double_quote = not in_double_quote
             current.append(char)
             index += 1

@@ -19,7 +19,7 @@ Dette er tekstversjonen av den korte oversiktsmanualen. Den levende manualen lig
 | Område | Gå til | Hva du kan se/gjøre |
 | --- | --- | --- |
 | Omsetning | `/omsetning/oversikt` | År, måned, dag, toppdager, toppmåneder og samlet kontroll mot oppgjør. |
-| Parkering | `/parkering/parkeringer` | Dagens parkeringer, kjøretøy, eier, bilinfo, områder, kamera og oppgjør. |
+| Parkering | `/parkering/parkeringer` | Dagens parkeringer, kjøretøy, eier, bilinfo, områder, ukesnitt med årssammenligning, kamera og oppgjør. |
 | Soling | `/soling/dagslinje` | Soltimer, rom, senger, medlemmer, produkter, bilder, prognoser og oppgjør. |
 | Koble | `/koble/oversikt` | Sannsynlige koblinger mellom bilnummer og SUN2-ID basert på tidstreff. |
 | Energi | `/energi/status` | Realtime HC3-forbruk, kurser, laster, Elvia-kontroll og forbruk per seng. |

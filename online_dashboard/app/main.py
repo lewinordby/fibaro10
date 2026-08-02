@@ -77,7 +77,7 @@ SOLROOM_DOOR_CONFIG = [
     {"device_id": 475, "device_key": "door_solrom_09", "title": "Solrom 9", "section_title": "1.etg", "group_key": "solrom", "sort_order": 9, "room_id": "rom-09", "sun2_bed_id": "648"},
     {"device_id": 477, "device_key": "door_solrom_10", "title": "Solrom 10", "section_title": "VIP", "group_key": "solrom", "sort_order": 10, "room_id": "rom-11", "sun2_bed_id": "679"},
     {"device_id": 479, "device_key": "door_solrom_11", "title": "Solrom 11", "section_title": "VIP", "group_key": "solrom", "sort_order": 11, "room_id": "rom-12", "sun2_bed_id": "680"},
-    {"device_id": 491, "device_key": "door_solrom_12", "title": "Solrom 12", "section_title": "VIP", "group_key": "solrom", "sort_order": 12, "room_id": "rom-13", "sun2_bed_id": "681"},
+    {"device_id": 539, "device_key": "door_solrom_12", "title": "Solrom 12", "section_title": "VIP", "group_key": "solrom", "sort_order": 12, "room_id": "rom-13", "sun2_bed_id": "681"},
 ]
 SOLROOM_DOOR_DEVICE_IDS = [int(item["device_id"]) for item in SOLROOM_DOOR_CONFIG if item.get("device_id") is not None]
 SOLROOM_DOOR_KEYS = [str(item["device_key"]) for item in SOLROOM_DOOR_CONFIG if item.get("device_key")]
@@ -87,13 +87,14 @@ OTHER_DOOR_CONFIG = [
     {"device_id": 453, "device_key": "door_453", "title": "Bod/kjøkken", "sort_order": 101},
     {"device_id": 447, "device_key": "door_447", "title": "Kjeller luke", "sort_order": 102},
     {"device_id": 413, "device_key": "door_413", "title": "Arbeidsrom", "sort_order": 103},
-    {"device_id": 499, "device_key": "door_inngang", "title": "Inngang", "sort_order": 104},
+    {"device_id": 541, "device_key": "door_inngang", "title": "Inngang", "sort_order": 104},
     {"device_id": 483, "device_key": "door_massasjestudio", "title": "Massasjestudio", "sort_order": 105},
     {"device_id": 535, "device_key": "door_loftluke_massasje", "title": "Loftluke massasje", "sort_order": 106},
     {"device_id": 489, "device_key": "door_vaskerom", "title": "Vaskerom", "sort_order": 107},
     {"device_id": 487, "device_key": "door_papirlager", "title": "Papirlager", "sort_order": 108},
-    {"device_id": 493, "device_key": "door_vaktmesterlager", "title": "Vaktmesterlager", "sort_order": 109},
-    {"device_id": 495, "device_key": "door_toalett", "title": "Toalett", "sort_order": 110},
+    {"device_id": 537, "device_key": "door_soppelbod", "title": "Søppelbod", "sort_order": 109},
+    {"device_id": 493, "device_key": "door_vaktmesterlager", "title": "Vaktmesterlager", "sort_order": 110},
+    {"device_id": 495, "device_key": "door_toalett", "title": "Toalett", "sort_order": 111},
 ]
 OTHER_DOOR_DEVICE_IDS = [int(item["device_id"]) for item in OTHER_DOOR_CONFIG if item.get("device_id") is not None]
 OTHER_DOOR_KEYS = [str(item["device_key"]) for item in OTHER_DOOR_CONFIG if item.get("device_key")]
@@ -905,6 +906,9 @@ def stabilized_door_change_rows(rows_ascending: list[dict[str, Any]]) -> list[di
 
         def flush_cluster() -> None:
             if not cluster:
+                return
+            if len(cluster) <= 2:
+                stabilized.extend(cluster)
                 return
             final_state = door_state_bool(cluster[-1])
             stabilized.append(next((item for item in cluster if door_state_bool(item) == final_state), cluster[-1]))

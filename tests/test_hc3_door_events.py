@@ -75,15 +75,16 @@ def test_hc3_door_lua_contains_expected_devices_and_endpoint():
         "475",
         "477",
         "479",
-        "491",
+        "539",
         "453",
         "447",
         "413",
-        "499",
+        "541",
         "483",
         "535",
         "489",
         "487",
+        "537",
         "493",
         "495",
     )
@@ -108,7 +109,7 @@ def test_hc3_single_door_scene_script_contains_configured_devices():
         "475",
         "477",
         "479",
-        "491",
+        "539",
         "453",
         "447",
         "413",
@@ -117,6 +118,7 @@ def test_hc3_single_door_scene_script_contains_configured_devices():
         "535",
         "489",
         "487",
+        "537",
         "493",
         "495",
     ):
@@ -124,6 +126,9 @@ def test_hc3_single_door_scene_script_contains_configured_devices():
 
     assert "door_solrom_02" not in script
     assert "door_solrom_03" not in script
+    assert "OBSOLETE_DOOR_DEVICE_IDS = {491, 499}" in script
+    assert "disable_obsolete_door_scenes" in script
+    assert "HC3_DOOR_UPSERT_DEVICE_IDS" in script
 
 
 class SunroomDoorTimingTests(unittest.TestCase):
@@ -182,6 +187,26 @@ class SunroomDoorTimingTests(unittest.TestCase):
         changes = self.main.door_change_rows(rows)
 
         self.assertEqual([(row.id, row.state) for row in changes], [(1, False), (2, True)])
+
+    def test_latest_door_status_keeps_timestamp_after_short_open_close(self):
+        rows_ascending = [
+            self.main.DoorEvent(id=1, device_id=447, timestamp=datetime(2026, 7, 14, 11, 57, 56), action="CLOSED", state=False),
+            self.main.DoorEvent(id=2, device_id=447, timestamp=datetime(2026, 7, 23, 9, 17, 2), action="OPEN", state=True),
+            self.main.DoorEvent(id=3, device_id=447, timestamp=datetime(2026, 7, 23, 9, 17, 6), action="CLOSED", state=False),
+        ]
+
+        stabilized = self.main.door_change_rows(rows_ascending)
+        latest = self.main.latest_door_event_by_device(list(reversed(rows_ascending)))
+
+        self.assertEqual([(row.id, row.state) for row in stabilized], [(1, False), (2, True), (3, False)])
+        self.assertEqual(latest[447].id, 3)
+        self.assertEqual(latest[447].timestamp, datetime(2026, 7, 23, 9, 17, 6))
+
+        periods = self.main.door_open_periods(stabilized, datetime(2026, 7, 23, 9, 18))
+        self.assertEqual(len(periods), 1)
+        self.assertEqual(periods[0]["openedEventId"], 2)
+        self.assertEqual(periods[0]["closedEventId"], 3)
+        self.assertEqual(periods[0]["durationSeconds"], 4)
 
     def test_energy_evidence_confirms_expected_three_minute_start(self):
         row = self.main.Sun2TanningSession(
@@ -299,8 +324,25 @@ class SunroomDoorTimingTests(unittest.TestCase):
     def test_display_room_12_uses_physical_room_13_and_bed_681(self):
         config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_solrom_12")
 
+        self.assertEqual(config["device_id"], 539)
         self.assertEqual(self.main.sunroom_room_id_for_config(config), "rom-13")
         self.assertEqual(self.main.sunroom_bed_id_for_config(config), "681")
+
+    def test_new_waste_room_sensor_is_an_other_door(self):
+        config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_soppelbod")
+
+        self.assertEqual(config["device_id"], 537)
+        self.assertEqual(config["title"], "Søppelbod")
+        self.assertEqual(config["group_key"], "andre")
+        self.assertEqual(config["normal_state"], "closed")
+
+    def test_replacement_entrance_sensor_preserves_door_key(self):
+        config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_inngang")
+
+        self.assertEqual(config["device_id"], 541)
+        self.assertEqual(config["title"], "Inngang")
+        self.assertEqual(config["group_key"], "andre")
+        self.assertEqual(config["normal_state"], "closed")
 
     def test_bed_id_is_canonical_when_session_room_id_is_stale(self):
         row = self.main.Sun2TanningSession(room_id="rom-12", sun2_bed_id="681")

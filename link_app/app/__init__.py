@@ -1,0 +1,1 @@
+"""Koblingsapp for Lilletorget."""

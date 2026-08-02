@@ -1,0 +1,4 @@
+@import "tailwindcss";
+@import "@lilletorget/mosaic-theme/style.css";
+@source "../../../packages/microapp-ui/src";
+@plugin "@tailwindcss/forms" { strategy: base; }

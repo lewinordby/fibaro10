@@ -21,12 +21,17 @@ const BuildLogPage = lazy(() => import("./pages/BuildLogPage"));
 const IdeasPage = lazy(() => import("./pages/IdeasPage"));
 const ParkingSettlementsPage = lazy(() => import("./pages/ParkingSettlementsPage"));
 const ParkingTimeDistributionPage = lazy(() => import("./pages/ParkingTimeDistributionPage"));
+const ParkingWeeklyAveragesPage = lazy(() => import("./pages/ParkingWeeklyAveragesPage"));
 const ParkingVehicleDetailPage = lazy(() => import("./pages/ParkingVehicleDetailPage"));
 const ParkingYearComparisonPage = lazy(() => import("./pages/ParkingYearComparisonPage"));
+const CarsPage = lazy(() => import("./pages/CarsPage"));
+const BollardsPage = lazy(() => import("./pages/BollardsPage"));
 const SettlementDetailPage = lazy(() => import("./pages/SettlementDetailPage"));
 const SunSettlementsPage = lazy(() => import("./pages/SunSettlementsPage"));
 const SunYearComparisonPage = lazy(() => import("./pages/SunYearComparisonPage"));
 const StatusComparisonPage = lazy(() => import("./pages/StatusComparisonPage"));
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
+const SubsystemsPage = lazy(() => import("./pages/SubsystemsPage"));
 
 function LegacyRedirect({ to }: { to: string }) {
   const { search } = useLocation();
@@ -61,10 +66,15 @@ export function AppRoutes() {
         <Route path="/parkering/omrade-oppslag" element={<LegacyRedirect to={modulePath("parkering", "oppslag")} />} />
         <Route path="/parkering/sammenligning" element={<ParkingYearComparisonPage />} />
         <Route path="/parkering/tidspunkt" element={<ParkingTimeDistributionPage />} />
+        <Route path="/parkering/ukesnitt" element={<ParkingWeeklyAveragesPage />} />
         <Route path="/parkering/kjoretoy/:plate" element={<ParkingVehicleDetailPage />} />
         <Route path="/parkering/oppgjor" element={<ParkingSettlementsPage />} />
         <Route path="/parkering/oppgjor/:settlementId" element={<SettlementDetailPage />} />
         <Route path="/parkering/:view" element={<ModulePage module="parkering" />} />
+        <Route path="/biler" element={<Navigate to={modulePath("biler")} replace />} />
+        <Route path="/biler/:view" element={<CarsPage />} />
+        <Route path="/pullerter" element={<Navigate to={modulePath("pullerter")} replace />} />
+        <Route path="/pullerter/:view" element={<BollardsPage />} />
         <Route path="/soling" element={<Navigate to={modulePath("soling")} replace />} />
         <Route path="/soling/sammenligning" element={<SunYearComparisonPage />} />
         <Route path="/soling/oppgjor" element={<SunSettlementsPage />} />
@@ -94,6 +104,10 @@ export function AppRoutes() {
         <Route path="/vedlikehold" element={<Navigate to={modulePath("vedlikehold")} replace />} />
         <Route path="/vedlikehold/besok/:visitId" element={<MaintenanceVisitDetailPage />} />
         <Route path="/vedlikehold/:view" element={<ModulePage module="vedlikehold" />} />
+        <Route path="/varslinger" element={<Navigate to={modulePath("varslinger")} replace />} />
+        <Route path="/varslinger/:view" element={<NotificationsPage />} />
+        <Route path="/undersystemer" element={<Navigate to={modulePath("undersystemer")} replace />} />
+        <Route path="/undersystemer/:view" element={<SubsystemsPage />} />
         <Route path="/ideer" element={<Navigate to={modulePath("ideer")} replace />} />
         <Route path="/ideer/:view" element={<IdeasPage />} />
         <Route path="/mobil" element={<Navigate to={modulePath("mobil")} replace />} />

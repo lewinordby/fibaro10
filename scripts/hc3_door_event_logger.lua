@@ -9,7 +9,7 @@
 475 value
 477 value
 479 value
-491 value
+539 value
 453 value
 447 value
 413 value
@@ -18,6 +18,7 @@
 535 value
 489 value
 487 value
+537 value
 493 value
 495 value
 %% events
@@ -46,15 +47,16 @@ local DEVICES = {
   [475] = { key = "door_solrom_09", name = "107.0 Rom 9" },
   [477] = { key = "door_solrom_10", name = "108.0 Rom 10" },
   [479] = { key = "door_solrom_11", name = "109.0 Rom 11" },
-  [491] = { key = "door_solrom_12", name = "116.0 Rom 12" },
+  [539] = { key = "door_solrom_12", name = "130.0 Door Sensor" },
   [453] = { key = "door_453", name = "96.0 bod/kjokken" },
   [447] = { key = "door_447", name = "94.0 Kjeller luke" },
   [413] = { key = "door_413", name = "86.0 Arbeidsrom" },
-  [499] = { key = "door_inngang", name = "120.0 Inngang" },
+  [541] = { key = "door_inngang", name = "131.0 Door Sensor" },
   [483] = { key = "door_massasjestudio", name = "112.0 Massasje" },
   [535] = { key = "door_loftluke_massasje", name = "128.0 Loftluke massasje" },
   [489] = { key = "door_vaskerom", name = "115.0 Vaskerom" },
   [487] = { key = "door_papirlager", name = "114.0 Papirlager" },
+  [537] = { key = "door_soppelbod", name = "129.0 Door Sensor" },
   [493] = { key = "door_vaktmesterlager", name = "117.0 Vaktmesterlager" },
   [495] = { key = "door_toalett", name = "118.0 Toalett" }
 }

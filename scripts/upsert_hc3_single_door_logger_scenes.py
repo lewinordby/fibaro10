@@ -20,6 +20,12 @@ DISABLE_LEGACY_TRIGGERS = os.environ.get("HC3_DOOR_DISABLE_LEGACY", "true").stri
     "ja",
 }
 LEGACY_TRIGGER_NAMES = {"registrere dor aapnes", "registrere dor lukkes"}
+OBSOLETE_DOOR_DEVICE_IDS = {491, 499}
+UPSERT_DEVICE_IDS = {
+    int(value)
+    for value in os.environ.get("HC3_DOOR_UPSERT_DEVICE_IDS", "").split(",")
+    if value.strip().isdigit()
+}
 
 DOORS = [
     {"device_id": 459, "device_key": "door_solrom_01", "name": "98.0 Rom 1", "title": "Solrom 1"},
@@ -31,15 +37,16 @@ DOORS = [
     {"device_id": 475, "device_key": "door_solrom_09", "name": "107.0 Rom 9", "title": "Solrom 9"},
     {"device_id": 477, "device_key": "door_solrom_10", "name": "108.0 Rom 10", "title": "Solrom 10"},
     {"device_id": 479, "device_key": "door_solrom_11", "name": "109.0 Rom 11", "title": "Solrom 11"},
-    {"device_id": 491, "device_key": "door_solrom_12", "name": "116.0 Rom 12", "title": "Solrom 12"},
+    {"device_id": 539, "device_key": "door_solrom_12", "name": "130.0 Door Sensor", "title": "Solrom 12"},
     {"device_id": 453, "device_key": "door_453", "name": "96.0 bod/kjokken", "title": "Bod/kjokken"},
     {"device_id": 447, "device_key": "door_447", "name": "94.0 Kjeller luke", "title": "Kjeller luke"},
     {"device_id": 413, "device_key": "door_413", "name": "86.0 Arbeidsrom", "title": "Arbeidsrom"},
-    {"device_id": 499, "device_key": "door_inngang", "name": "120.0 Inngang", "title": "Inngang"},
+    {"device_id": 541, "device_key": "door_inngang", "name": "131.0 Door Sensor", "title": "Inngang"},
     {"device_id": 483, "device_key": "door_massasjestudio", "name": "112.0 Massasje", "title": "Massasjestudio"},
     {"device_id": 535, "device_key": "door_loftluke_massasje", "name": "128.0 Loftluke massasje", "title": "Loftluke massasje"},
     {"device_id": 489, "device_key": "door_vaskerom", "name": "115.0 Vaskerom", "title": "Vaskerom"},
     {"device_id": 487, "device_key": "door_papirlager", "name": "114.0 Papirlager", "title": "Papirlager"},
+    {"device_id": 537, "device_key": "door_soppelbod", "name": "129.0 Door Sensor", "title": "Søppelbod"},
     {"device_id": 493, "device_key": "door_vaktmesterlager", "name": "117.0 Vaktmesterlager", "title": "Vaktmesterlager"},
     {"device_id": 495, "device_key": "door_toalett", "name": "118.0 Toalett", "title": "Toalett"},
 ]
@@ -350,6 +357,29 @@ def disable_legacy_triggers(scenes: list[dict], backup_dir: pathlib.Path, stamp:
     return results
 
 
+def disable_obsolete_door_scenes(scenes: list[dict], backup_dir: pathlib.Path, stamp: str) -> list[dict]:
+    results = []
+    prefixes = tuple(
+        prefix
+        for device_id in sorted(OBSOLETE_DOOR_DEVICE_IDS)
+        for prefix in (f"{SCENE_PREFIX} {device_id} -", f"Dortrigger {device_id} -")
+    )
+    for scene in scenes:
+        name = str(scene.get("name") or "")
+        if not name.startswith(prefixes) or not scene.get("enabled"):
+            continue
+        scene_id = int(scene["id"])
+        _, current = request(f"/api/scenes/{scene_id}")
+        (backup_dir / f"scene_{scene_id}_before_disable_obsolete_door_{stamp}.json").write_text(
+            json.dumps(current, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        current["enabled"] = False
+        status, _ = request(f"/api/scenes/{scene_id}", method="PUT", body=current)
+        results.append({"scene_id": scene_id, "scene_name": name, "action": "disabled", "status": status})
+    return results
+
+
 def main():
     root = pathlib.Path(__file__).resolve().parents[1]
     backup_dir = root / "outputs" / "hc3_inventory" / "backups"
@@ -359,7 +389,8 @@ def main():
     _, scenes = request("/api/scenes")
     results = []
     block_results = []
-    for door in DOORS:
+    selected_doors = [door for door in DOORS if not UPSERT_DEVICE_IDS or int(door["device_id"]) in UPSERT_DEVICE_IDS]
+    for door in selected_doors:
         name = scene_name(door)
         payload = lua_scene_payload(door)
         action, status, scene_id = upsert_scene(
@@ -414,14 +445,17 @@ def main():
 
     _, latest_scenes = request("/api/scenes")
     legacy_results = disable_legacy_triggers(latest_scenes, backup_dir, stamp)
+    obsolete_results = disable_obsolete_door_scenes(latest_scenes, backup_dir, stamp)
 
     output = {
         "status": "ok",
         "hc3": BASE_URL,
         "room_id": ROOM_ID,
+        "selected_device_ids": [int(door["device_id"]) for door in selected_doors],
         "lua_scenes": results,
         "block_scenes": block_results,
         "legacy_triggers": legacy_results,
+        "obsolete_scenes": obsolete_results,
         "next_step": "Test each door once open/closed and verify that only one Fibaro10 event is written per state change.",
     }
     out_path = root / "outputs" / "hc3_inventory" / f"door_single_scene_map_{stamp}.json"

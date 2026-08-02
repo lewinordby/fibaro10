@@ -41,3 +41,30 @@ class MigrationRunnerTests(unittest.TestCase):
 
         self.assertEqual(len(statements), 3)
         self.assertIn("'a;b'", statements[1])
+
+    def test_split_sql_statements_preserves_postgres_dollar_quoted_block(self) -> None:
+        sql = """
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1) THEN
+                PERFORM 1;
+            END IF;
+        END
+        $$;
+        SELECT 2;
+        """
+
+        statements = split_sql_statements(sql)
+
+        self.assertEqual(len(statements), 2)
+        self.assertIn("PERFORM 1;", statements[0])
+        self.assertTrue(statements[0].rstrip().endswith("$$"))
+        self.assertEqual(statements[1], "SELECT 2")
+
+    def test_split_sql_statements_supports_tagged_dollar_quotes(self) -> None:
+        sql = "CREATE FUNCTION f() RETURNS void AS $body$ BEGIN PERFORM 1; END; $body$ LANGUAGE plpgsql;"
+
+        statements = split_sql_statements(sql)
+
+        self.assertEqual(len(statements), 1)
+        self.assertIn("$body$", statements[0])

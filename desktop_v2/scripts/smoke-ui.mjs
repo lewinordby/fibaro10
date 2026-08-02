@@ -10,6 +10,8 @@ const distDir = path.resolve(__dirname, "..", "dist");
 const port = Number(process.env.FIBARO10_UI_SMOKE_PORT || 5196);
 const baseUrl = `http://127.0.0.1:${port}`;
 const routeList = smokeRoutePathsFromEnv(process.env.FIBARO10_UI_SMOKE_ROUTES);
+const screenshotRoute = String(process.env.FIBARO10_UI_SMOKE_SCREENSHOT_ROUTE || "").trim();
+const screenshotPath = String(process.env.FIBARO10_UI_SMOKE_SCREENSHOT_PATH || "").trim();
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -21,6 +23,22 @@ const mimeTypes = {
 function sendJson(response, payload) {
   response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
   response.end(JSON.stringify(payload));
+}
+
+function sendSmokeCameraImage(response) {
+  const body = Buffer.from(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360"><rect width="640" height="360" fill="#172033"/><rect x="285" y="95" width="42" height="210" rx="18" fill="#9aa8b8"/><text x="24" y="42" fill="#dbe5ef" font-family="sans-serif" font-size="22">Pullert smoke</text></svg>',
+  );
+  response.writeHead(200, { "content-type": "image/svg+xml", "cache-control": "no-store" });
+  response.end(body);
+}
+
+function sendSmokeRecognitionImage(response) {
+  const body = Buffer.from(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360"><rect width="640" height="360" fill="#263443"/><path d="M110 230h420l-42-82H212l-60 82" fill="#708298"/><circle cx="205" cy="246" r="42" fill="#131b26"/><circle cx="450" cy="246" r="42" fill="#131b26"/><rect x="284" y="194" width="108" height="35" rx="3" fill="#eef3f7"/><text x="297" y="219" fill="#16202b" font-family="sans-serif" font-size="24" font-weight="700">AB12345</text><text x="20" y="35" fill="#dbe5ef" font-family="sans-serif" font-size="18">UniFi registreringsbilde</text></svg>',
+  );
+  response.writeHead(200, { "content-type": "image/svg+xml", "cache-control": "private, max-age=3600" });
+  response.end(body);
 }
 
 async function sendStatic(request, response) {
@@ -102,17 +120,31 @@ const moduleTitles = {
 function modulePayload(url) {
   const [, , , module, view = "oversikt"] = url.pathname.split("/");
   const title = moduleTitles[module] || moduleResponse.title;
+  const tables = module === "omsetning" && view === "oversikt"
+    ? ["Topp dager omsetning", "Topp uker omsetning", "Topp m\u00e5neder omsetning"].map((tableTitle) => ({
+        title: tableTitle,
+        columns: ["period_label", "total_paid", "parking_paid", "parking_count", "sun_paid", "sun_count"],
+        rows: [{
+          period_label: tableTitle.includes("uker") ? "Uke 23, 2026 (01.06-07.06.2026)" : "Smoke periode",
+          total_paid: 3200,
+          parking_paid: 1800,
+          parking_count: 20,
+          sun_paid: 1400,
+          sun_count: 8,
+        }],
+      }))
+    : [
+        {
+          title: `${title} rader`,
+          columns: ["date", "title"],
+          rows: [{ date: "2026-06-10", title: `${title} smoke row` }],
+        },
+      ];
   return {
     ...moduleResponse,
     title,
     subtitle: `Smoke ${view}`,
-    tables: [
-      {
-        title: `${title} rader`,
-        columns: ["date", "title"],
-        rows: [{ date: "2026-06-10", title: `${title} smoke row` }],
-      },
-    ],
+    tables,
   };
 }
 
@@ -398,6 +430,100 @@ function parkingTimeDistributionPayload() {
     weekdays,
     hours,
     topSlots: [...cells].sort((a, b) => b.paid - a.paid).slice(0, 20),
+  };
+}
+
+function parkingWeeklyPoint(week, paid, minutes, isPartial = false) {
+  const sessions = 20 + week;
+  return {
+    key: `2026-W${String(week).padStart(2, "0")}`,
+    label: `Uke ${week}`,
+    shortLabel: `U${week}`,
+    rangeLabel: `${week}.06 - ${week + 6}.06`,
+    weekStart: "2026-06-01",
+    weekEnd: "2026-06-07",
+    isoYear: 2026,
+    isoWeek: week,
+    sessions,
+    paid,
+    minutes,
+    durationSessions: sessions,
+    durationCoveragePct: 100,
+    avgPaidPerSession: paid / sessions,
+    avgMinutesPerSession: minutes / sessions,
+    isPartial,
+  };
+}
+
+function parkingWeeklyAveragesPayload() {
+  const weeks = [parkingWeeklyPoint(22, 4200, 1680), parkingWeeklyPoint(23, 5100, 1900, true)];
+  return {
+    generatedAt: "2026-06-10T12:00:00",
+    period: {
+      key: "this_year",
+      label: "Dette året",
+      dateFrom: "2026-01-01",
+      dateTo: "2026-06-10",
+      detail: "Til og med inneværende uke",
+      options: [
+        { key: "this_month", label: "Denne måneden" },
+        { key: "this_year", label: "Dette året" },
+        { key: "last_90_days", label: "Siste 90 dager" },
+        { key: "previous_month", label: "Forrige måned" },
+        { key: "last_year", label: "I fjor" },
+        { key: "custom", label: "Egendefinert" },
+      ],
+    },
+    summary: {
+      sessions: 85,
+      paid: 9300,
+      minutes: 3580,
+      durationSessions: 85,
+      durationCoveragePct: 100,
+      avgPaidPerSession: 109.4,
+      avgMinutesPerSession: 42.1,
+      weeksWithData: 2,
+    },
+    latest: weeks[1],
+    previous: weeks[0],
+    delta: { paidPct: 12.5, minutesPct: 3.2 },
+    weeks,
+  };
+}
+
+function parkingWeeklyYearsPayload() {
+  const series = [2026, 2025].map((year, seriesIndex) => ({
+    year,
+    label: String(year),
+    color: seriesIndex ? "#64748b" : "#2563eb",
+    sessions: 85 - seriesIndex * 10,
+    weeksWithData: 2,
+    durationCoveragePct: 100,
+    avgPaidPerSession: 109.4 - seriesIndex * 6,
+    avgMinutesPerSession: 42.1 + seriesIndex * 2,
+    points: [22, 23].map((week) => ({
+      week,
+      label: `Uke ${week}`,
+      rangeLabel: `${week}.06 - ${week + 6}.06`,
+      sessions: 40,
+      paid: 4200 - seriesIndex * 300,
+      minutes: 1680 + seriesIndex * 100,
+      durationSessions: 40,
+      durationCoveragePct: 100,
+      avgPaidPerSession: 105 - seriesIndex * 7,
+      avgMinutesPerSession: 42 + seriesIndex * 2,
+      isPartial: year === 2026 && week === 23,
+      isAvailable: true,
+    })),
+  }));
+  return {
+    generatedAt: "2026-06-10T12:00:00",
+    currentYear: 2026,
+    currentWeek: 23,
+    availableYears: [2026, 2025],
+    defaultYears: [2026, 2025],
+    selectedYears: [2026, 2025],
+    series,
   };
 }
 
@@ -848,6 +974,428 @@ function doorAlarmPayload() {
   };
 }
 
+function bollardStatusPayload() {
+  const cameras = [
+    ["69f3a8ae0069e103e437d742", "G6 Butikk Nord", { x: 614, y: 324, width: 1152, height: 1836 }],
+    ["6a35149c002cef03e4018be0", "G6 Butikk Front", { x: 0, y: 1123, width: 2803, height: 1037 }],
+    ["6a219d5e00513a03e4066cba", "G6 Solstudio Front", { x: 2765, y: 0, width: 537, height: 734 }],
+  ];
+  return {
+    api_version: "v1",
+    local_only: true,
+    comparison_mode: "fixed_bollard_zones",
+    settings: {
+      monitoring_enabled: true,
+      analysis_interval_seconds: 300,
+      confirmation_seconds: 300,
+      notification_enabled: true,
+    },
+    camera_monitors: cameras.map(([cameraId, cameraName, displayCrop]) => ({
+      monitor_id: `camera:${cameraId}`,
+      item_type: "bollards",
+      display_name: cameraName,
+      camera_id: cameraId,
+      camera_name: cameraName,
+      status: "normal",
+      baseline_captured_at: "2026-06-10T09:00:00Z",
+      latest_captured_at: "2026-06-10T12:00:00Z",
+      last_checked_at: "2026-06-10T12:00:00Z",
+      change_score: 0,
+      baseline_url: `/api/unifi-protect/bollards/cameras/${cameraId}/baseline`,
+      latest_url: `/api/unifi-protect/bollards/cameras/${cameraId}/latest`,
+      overlay_url: `/api/unifi-protect/bollards/cameras/${cameraId}/overlay`,
+      baseline_crop_url: `/api/unifi-protect/bollards/cameras/${cameraId}/baseline/crop`,
+      latest_crop_url: `/api/unifi-protect/bollards/cameras/${cameraId}/latest/crop`,
+      overlay_crop_url: `/api/unifi-protect/bollards/cameras/${cameraId}/overlay/crop`,
+      ai_heatmap_url: `/api/unifi-protect/bollards/cameras/${cameraId}/ai`,
+      ai_profile_id: cameraName === "G6 Butikk Nord" ? "north-bollards" : cameraName === "G6 Butikk Front" ? "front-bollards" : "solstudio-bollards",
+      ai_status: "normal",
+      ai_score: 0.34,
+      ai_threshold: 0.5,
+      ai_score_ratio: 0.68,
+      ai_is_anomaly: false,
+      ai_model_version: "patchcore-resnet18-v1",
+      ai_training_samples: 128,
+      ai_inference_ms: 420,
+      ai_last_checked_at: "2026-06-10T12:00:00Z",
+      hybrid_status: "normal",
+      display_crop: displayCrop,
+    })),
+    asset_monitors: [{
+      monitor_id: "asset:trapp-solstudio",
+      item_type: "stairs",
+      asset_key: "trapp-solstudio",
+      display_name: "Trapp ved Solstudio",
+      camera_id: "6a219d5e00513a03e4066cba",
+      camera_name: "G6 Solstudio Front",
+      status: "normal",
+      baseline_captured_at: "2026-06-10T09:00:00Z",
+      latest_captured_at: "2026-06-10T12:00:00Z",
+      last_checked_at: "2026-06-10T12:00:00Z",
+      change_score: 0,
+      baseline_crop_url: "/api/unifi-protect/bollards/assets/trapp-solstudio/baseline",
+      latest_crop_url: "/api/unifi-protect/bollards/assets/trapp-solstudio/latest",
+      overlay_crop_url: "/api/unifi-protect/bollards/assets/trapp-solstudio/overlay",
+      ai_heatmap_url: "/api/unifi-protect/bollards/assets/trapp-solstudio/ai",
+      ai_profile_id: "solstudio-stairs",
+      ai_status: "normal",
+      ai_score: 0.31,
+      ai_threshold: 0.49,
+      ai_score_ratio: 0.63,
+      ai_is_anomaly: false,
+      ai_model_version: "patchcore-resnet18-v1",
+      ai_training_samples: 128,
+      ai_inference_ms: 440,
+      ai_last_checked_at: "2026-06-10T12:00:00Z",
+      hybrid_status: "normal",
+      display_crop: { x: 2200, y: 400, width: 1640, height: 1760 },
+    }],
+    incidents: [],
+    summary: {
+      target_cameras: 3,
+      connected_cameras: 3,
+      baseline_cameras: 3,
+      monitored_assets: 1,
+      calibrated_assets: 1,
+      inspection_objects: 4,
+      active_incidents: 0,
+      monitoring_ready: true,
+      ai_profiles_ready: 4,
+      ai_profiles_total: 4,
+      ai_anomalies: 0,
+    },
+    visual_ai: {
+      configured: true,
+      mode: "advisory",
+      profiles_ready: 4,
+      profiles_total: 4,
+      anomalies: 0,
+      failure_isolation: true,
+    },
+    runtime: {
+      running: true,
+      last_success_at: "2026-06-10T12:00:00Z",
+      checks_since_start: 18,
+      incidents_since_start: 0,
+      notification_configured: true,
+    },
+  };
+}
+
+function bollardNotificationPayload() {
+  return {
+    channelName: "Pullerter ved solstudio",
+    configured: true,
+    enabled: true,
+    monitoringReady: true,
+    activeIncidents: 0,
+    lastCheckAt: "2026-06-10T12:00:00Z",
+    subscribeUrl: "ntfy://ntfy.sh/pullerter-smoke",
+    webUrl: "https://ntfy.sh/pullerter-smoke",
+    provider: "ntfy.sh",
+    privacy: "Kun alarmtekst sendes. Bilder og analysedata forblir lokale.",
+  };
+}
+
+function carsDayPayload() {
+  const firstAt = "2026-06-10T09:14:12+02:00";
+  const lastAt = "2026-06-10T13:42:31+02:00";
+  const detections = [
+    {
+      recognitionId: 101,
+      occurredAt: firstAt,
+      cameraId: "camera-front",
+      cameraName: "G6 Butikk Front",
+      observedPlate: "AB12345",
+      unifiScore: 94,
+      snapshotStatus: "captured",
+      snapshotTimeOffsetMs: 180,
+      snapshotUrl: "/api/unifi-protect/recognitions/101/snapshot",
+    },
+    {
+      recognitionId: 102,
+      occurredAt: lastAt,
+      cameraId: "camera-north",
+      cameraName: "G6 Butikk Nord",
+      observedPlate: "AB12345",
+      unifiScore: 71,
+      snapshotStatus: "captured",
+      snapshotTimeOffsetMs: -220,
+      snapshotUrl: "/api/unifi-protect/recognitions/102/snapshot",
+    },
+  ];
+  const paidSessions = [{
+    id: 501,
+    startAt: "2026-06-10T10:05:00+02:00",
+    endAt: "2026-06-10T14:05:00+02:00",
+    durationMinutes: 240,
+    amountKr: 80,
+    isPaid: true,
+    status: "Completed",
+    source: "EasyPark",
+    area: "Lilletorget",
+  }];
+  return {
+    generatedAt: "2026-06-10T14:10:00+02:00",
+    selectedDay: "2026-06-10",
+    selectedDayLabel: "10.06.2026",
+    prevDay: "2026-06-09",
+    nextDay: "2026-06-11",
+    isToday: false,
+    matchPolicy: {
+      mode: "same_calendar_day",
+      label: "Samme bil og samme dag",
+      detail: "Betaling matches mot bilen for hele kalenderdagen.",
+    },
+    observationWindow: { firstDetectedAt: firstAt, lastDetectedAt: lastAt, spanMinutes: 268.3 },
+    summary: {
+      uniquePlates: 2,
+      detections: 3,
+      paidPlates: 1,
+      coveredPlates: 1,
+      withoutPayment: 1,
+      mergedOcrVariants: 0,
+      scoredDetections: 2,
+      lowConfidencePlates: 0,
+      ocrWarningPlates: 0,
+      reviewPlates: 1,
+      validatedPlates: 1,
+      likelyMisreads: 0,
+      pendingValidation: 1,
+    },
+    items: [{
+      plate: "AB12345",
+      displayValue: "AB 12345",
+      detectionCount: 2,
+      firstDetectedAt: firstAt,
+      lastDetectedAt: lastAt,
+      knownInProtect: true,
+      cameraNames: ["G6 Butikk Front", "G6 Butikk Nord"],
+      detections,
+      averageUnifiScore: 82.5,
+      minimumUnifiScore: 71,
+      maximumUnifiScore: 94,
+      scoredDetectionCount: 2,
+      confidenceLevel: "high",
+      matchingReadCount: 2,
+      observedPlateValues: ["AB12345"],
+      mergedVariantCount: 0,
+      ocrWarning: false,
+      isLikelyOcrVariant: false,
+      likelyCanonicalPlate: "AB12345",
+      ocrVariantCandidates: [],
+      registryValidation: {
+        status: "valid_local",
+        is_valid: true,
+        likely_misread: false,
+        country_code: null,
+        country: null,
+        source: "Fibaro10",
+        vehicle_label: "Volvo XC60",
+        local_match: true,
+        message: "Kjent fra lokalt kjøretøyregister",
+        sources: {},
+      },
+      likelyMisread: false,
+      presentationStatus: "valid",
+      requiresReview: false,
+      vehicle: { name: "Kundebil", area: "Lilletorget", title: "Volvo XC60", path: "/parkering/kjoretoy/AB12345" },
+      hasParkingSession: true,
+      hasPaidSession: true,
+      paidSessionCount: 1,
+      paidTotalKr: 80,
+      dayMatchedDetectionCount: 2,
+      coveredDetectionCount: 1,
+      minutesBeforeFirstPayment: 50.8,
+      minutesAfterLastPayment: 0,
+      paymentStatus: "paid_same_day",
+      parkingSessions: paidSessions,
+      paidSessions,
+    }, {
+      plate: "ZZ98765",
+      displayValue: "ZZ 98765",
+      detectionCount: 1,
+      firstDetectedAt: "2026-06-10T11:20:00+02:00",
+      lastDetectedAt: "2026-06-10T11:20:00+02:00",
+      knownInProtect: false,
+      cameraNames: ["G6 Butikk Front"],
+      detections: [{
+        recognitionId: 103,
+        occurredAt: "2026-06-10T11:20:00+02:00",
+        cameraId: "camera-front",
+        cameraName: "G6 Butikk Front",
+        observedPlate: "ZZ98765",
+        unifiScore: 78,
+        snapshotStatus: "missing",
+        snapshotUrl: null,
+      }],
+      averageUnifiScore: 78,
+      minimumUnifiScore: 78,
+      maximumUnifiScore: 78,
+      scoredDetectionCount: 1,
+      confidenceLevel: "medium",
+      matchingReadCount: 1,
+      observedPlateValues: ["ZZ98765"],
+      mergedVariantCount: 0,
+      ocrWarning: false,
+      isLikelyOcrVariant: false,
+      likelyCanonicalPlate: "ZZ98765",
+      ocrVariantCandidates: [],
+      registryValidation: {
+        status: "not_found",
+        is_valid: false,
+        likely_misread: false,
+        country_code: null,
+        country: null,
+        source: null,
+        vehicle_label: null,
+        local_match: false,
+        message: "Ikke funnet i kjøretøyregister",
+        sources: {},
+      },
+      likelyMisread: false,
+      presentationStatus: "pending_review",
+      requiresReview: true,
+      vehicle: null,
+      hasParkingSession: false,
+      hasPaidSession: false,
+      paidSessionCount: 0,
+      paidTotalKr: 0,
+      dayMatchedDetectionCount: 1,
+      coveredDetectionCount: 0,
+      minutesBeforeFirstPayment: null,
+      minutesAfterLastPayment: null,
+      paymentStatus: "no_payment",
+      parkingSessions: [],
+      paidSessions: [],
+    }],
+  };
+}
+
+async function smokeCarsRegistryFilter(page) {
+  const rows = page.locator(".cars-day-table .ant-table-tbody > tr.ant-table-row");
+  if (await rows.count() !== 2) {
+    throw new Error(`Bilregisterfilter forventet 2 rader før filtrering, fikk ${await rows.count()}`);
+  }
+  await page.getByRole("checkbox", { name: /kun kjente eller registerfunnet/i }).check();
+  await page.waitForFunction(
+    () => document.querySelectorAll(".cars-day-table .ant-table-tbody > tr.ant-table-row").length === 1,
+    undefined,
+    { timeout: 5000 },
+  );
+  const filteredText = await rows.first().innerText();
+  if (!filteredText.includes("AB12345") || filteredText.includes("ZZ98765")) {
+    throw new Error(`Bilregisterfilter viste uventet rad: ${filteredText}`);
+  }
+  await page.getByRole("checkbox", { name: /kun kjente eller registerfunnet/i }).uncheck();
+  await page.locator(".cars-score-filter").click();
+  await page.getByText("Minst 90", { exact: true }).last().click();
+  await page.waitForFunction(
+    () => document.querySelectorAll(".cars-day-table .ant-table-tbody > tr.ant-table-row").length === 1,
+    undefined,
+    { timeout: 5000 },
+  );
+  const scoreFilteredText = await rows.first().innerText();
+  if (!scoreFilteredText.includes("AB12345") || scoreFilteredText.includes("ZZ98765")) {
+    throw new Error(`Bilscorefilter viste uventet rad: ${scoreFilteredText}`);
+  }
+  await page.locator(".cars-score-filter").click();
+  await page.getByText("Alle scorer", { exact: true }).last().click();
+  console.log("UI cars registry filter OK");
+  console.log("UI cars score filter OK");
+}
+
+async function smokeBollardVisualControl(page) {
+  const slider = page.getByRole("slider", { name: /gjennomsiktighet for siste bilde/i });
+  await slider.waitFor({ timeout: 5000 });
+  if (await slider.inputValue() !== "50") throw new Error("Gjennomsiktig pullertvisning startet ikke p\u00e5 50 prosent");
+  await page.keyboard.press("ArrowRight");
+  if (await slider.inputValue() !== "55") throw new Error("H\u00f8yre piltast justerte ikke gjennomsiktigheten med 5 prosent");
+  await page.keyboard.press("ArrowLeft");
+  if (await slider.inputValue() !== "50") throw new Error("Venstre piltast justerte ikke gjennomsiktigheten med 5 prosent");
+  await page.getByRole("button", { name: "Side om side", exact: true }).click();
+  const visualPanels = page.locator(".bollard-visual-panel");
+  if (await visualPanels.count() !== 2) {
+    throw new Error(`Pullertkontroll forventet referanse og siste bilde, fikk ${await visualPanels.count()} felt`);
+  }
+  await page.getByRole("button", { name: "Markerte forskjeller", exact: true }).click();
+  await page.getByText("Pikselforskjeller markert", { exact: true }).waitFor({ timeout: 5000 });
+  await page.getByRole("button", { name: "Gjennomsiktig", exact: true }).click();
+  const aiButton = page.locator(".bollard-ai-summary .ant-btn");
+  if (await aiButton.count() !== 1) {
+    const summaryText = await page.locator(".bollard-ai-summary").innerText();
+    throw new Error(`Pullertkontroll mangler knapp for AI-markering: ${summaryText}`);
+  }
+  await aiButton.click();
+  await page.getByText("Slik skal AI-resultatet tolkes", { exact: true }).waitFor({ timeout: 5000 });
+  await aiButton.click();
+  console.log("UI bollard visual control OK");
+}
+
+function systemNotificationsPayload() {
+  const channel = (key, title, area, publishingEnabled = true) => ({
+    key,
+    title,
+    area,
+    description: `Varsler fra ${title}.`,
+    triggers: ["Hendelse oppdaget", "Kontroll bekreftet"],
+    priority: "Normal",
+    configured: true,
+    publishingEnabled,
+    subscribeUrl: `ntfy://ntfy.sh/smoke-${key}`,
+    webUrl: `https://ntfy.sh/smoke-${key}`,
+  });
+  return {
+    generatedAt: "2026-06-10T12:00:00",
+    provider: "ntfy.sh",
+    providerUrl: "https://ntfy.sh",
+    summary: { channels: 5, configured: 5, publishing: 5 },
+    subscriptions: [
+      channel("doors", "Døralarmer", "Dører og solrom"),
+      channel("bollards", "Pullerter og trapp", "Kamera og bygg"),
+      channel("lights", "Lysstyring", "Lys"),
+      channel("ventilation", "Ventilasjon", "Ventilasjon"),
+      channel("access", "Brukeraktivitet", "Tilgang"),
+    ],
+    setup: ["Installer ntfy.", "Trykk Abonner.", "Godkjenn varslinger.", "Kontroller kanalen."],
+    privacy: "Ikke del de private abonnementslenkene.",
+  };
+}
+
+function systemSubsystemsPayload() {
+  const subsystem = (component, title, area, access, links) => ({
+    component,
+    title,
+    area,
+    role: `${title} brukes av Fibaro10.`,
+    runtime: "Docker",
+    compose_service: component,
+    interface: access === "internal" ? "Intern" : "Web",
+    status: "Aktiv",
+    criticality: "Normal",
+    has_web_interface: access !== "internal",
+    primary_url: links[0]?.url || "",
+    access,
+    links,
+  });
+  return {
+    generatedAt: "2026-06-10T12:00:00",
+    summary: { components: 4, active: 4, critical: 2, web_interfaces: 3, areas: 3 },
+    subsystems: [
+      subsystem("desktop_v2", "Fibaro10 hovedgrensesnitt", "Frontend", "local", [
+        { kind: "local", label: "Lokalt grensesnitt", url: "http://127.0.0.1:8110/" },
+      ]),
+      subsystem("maintenance_mobile", "Vedlikehold mobil", "Vedlikehold", "external", [
+        { kind: "public", label: "Åpne", url: "https://vedl.lilletorget.net/" },
+      ]),
+      subsystem("owntracks_service", "OwnTracks", "Lokasjon", "external", [
+        { kind: "public", label: "Åpne", url: "https://owntracks.lilletorget.net/" },
+      ]),
+      subsystem("owntracks_postgres", "OwnTracks database", "Lokasjon", "internal", []),
+    ],
+  };
+}
+
 const server = http.createServer((request, response) => {
   const url = new URL(request.url || "/", baseUrl);
   if (url.pathname === "/health") return sendJson(response, healthPayload);
@@ -863,13 +1411,23 @@ const server = http.createServer((request, response) => {
   if (url.pathname === "/api/admin/builds") return sendJson(response, { currentBuild: "smoke", rows: [buildEntry] });
   if (url.pathname === "/api/admin/builds/smoke") return sendJson(response, buildEntry);
   if (url.pathname === "/api/manual" || url.pathname === "/api/admin/manual") return sendJson(response, manualPayload);
+  if (url.pathname === "/api/system/notifications") return sendJson(response, systemNotificationsPayload());
+  if (url.pathname === "/api/system/subsystems") return sendJson(response, systemSubsystemsPayload());
   if (url.pathname === "/api/revenue/month") return sendJson(response, revenueMonthPayload());
   if (url.pathname === "/api/status/comparison") return sendJson(response, statusComparisonPayload());
   if (url.pathname === "/api/soling/year-comparison") return sendJson(response, yearComparisonPayload("Soling arssammenligning"));
   if (url.pathname === "/api/parkering/year-comparison") return sendJson(response, yearComparisonPayload("Parkering arssammenligning"));
   if (url.pathname === "/api/parkering/time-distribution") return sendJson(response, parkingTimeDistributionPayload());
+  if (url.pathname === "/api/parkering/weekly-averages/years") return sendJson(response, parkingWeeklyYearsPayload());
+  if (url.pathname === "/api/parkering/weekly-averages") return sendJson(response, parkingWeeklyAveragesPayload());
   if (url.pathname === "/api/omsetning/year-comparison") return sendJson(response, yearComparisonPayload("Omsetning arssammenligning"));
   if (url.pathname === "/api/mobile-preview/screens") return sendJson(response, mobileScreensPayload());
+  if (url.pathname === "/api/cars/day") return sendJson(response, carsDayPayload());
+  if (url.pathname.startsWith("/api/unifi-protect/recognitions/") && url.pathname.endsWith("/snapshot")) return sendSmokeRecognitionImage(response);
+  if (url.pathname === "/api/unifi-protect/bollards") return sendJson(response, bollardStatusPayload());
+  if (url.pathname === "/api/unifi-protect/bollards/mobile-notifications") return sendJson(response, bollardNotificationPayload());
+  if (url.pathname.startsWith("/api/unifi-protect/bollards/cameras/")) return sendSmokeCameraImage(response);
+  if (url.pathname.startsWith("/api/unifi-protect/bollards/assets/")) return sendSmokeCameraImage(response);
   if (url.pathname === "/api/hc3/doors/status") return sendJson(response, doorStatusPayload());
   if (url.pathname === "/api/hc3/doors/sunroom-overview") return sendJson(response, sunroomOverviewPayload());
   if (url.pathname === "/api/hc3/doors/alarm") return sendJson(response, doorAlarmPayload());
@@ -1072,6 +1630,16 @@ async function run() {
     await smokeRoute(page, "/admin/build", ["Smoke-test build", "Build"]);
     for (const route of routeList) {
       await smokeRoute(page, route.path, route.expectedTexts);
+      if (route.path === "/biler/oversikt") {
+        await smokeCarsRegistryFilter(page);
+      }
+      if (route.path === "/pullerter/oversikt") {
+        await smokeBollardVisualControl(page);
+      }
+      if (screenshotPath && screenshotRoute === route.path) {
+        await fs.mkdir(path.dirname(screenshotPath), { recursive: true });
+        await page.screenshot({ path: screenshotPath, fullPage: true });
+      }
       console.log(`UI route OK: ${route.path}`);
     }
 

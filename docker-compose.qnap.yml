@@ -62,12 +62,342 @@ services:
       SUN2_AXIS_SNAPSHOT_ROOT: /axis_snapshots
       CAR_INFO_LOOKUP_URL: http://car_info_lookup:8126
       OWNTRACKS_SERVICE_URL: http://owntracks_service:8128
+      UNIFI_PROTECT_EVENTS_URL: http://unifi_protect_events:8130
+      UNIFI_PROTECT_READ_API_TOKEN: ${UNIFI_PROTECT_READ_API_TOKEN:-}
+      UNIFI_PROTECT_API_TIMEOUT_SECONDS: ${UNIFI_PROTECT_API_TIMEOUT_SECONDS:-10}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8110/health', timeout=5).read()\""]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
+
+  revenue_app:
+    build:
+      context: .
+      dockerfile: revenue_app/Dockerfile
+    container_name: revenue_app
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      fibaro10:
+        condition: service_healthy
+    ports:
+      - "192.168.20.218:8151:8151"
+    environment:
+      FIBARO10_BASE_URL: http://fibaro10:8110
+      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
+      SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
+      REVENUE_APP_BUILD: ${REVENUE_APP_BUILD:-13}
+      REVENUE_APP_COMMIT: ${APP_COMMIT:-unknown}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8151/health', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  parking_app:
+    build:
+      context: .
+      dockerfile: parking_app/Dockerfile
+    container_name: parking_app
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      fibaro10:
+        condition: service_healthy
+    ports:
+      - "192.168.20.218:8152:8152"
+    environment:
+      FIBARO10_BASE_URL: http://fibaro10:8110
+      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
+      SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
+      PARKING_APP_BUILD: ${PARKING_APP_BUILD:-4}
+      PARKING_APP_COMMIT: ${APP_COMMIT:-unknown}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8152/health', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  sun_app:
+    build:
+      context: .
+      dockerfile: sun_app/Dockerfile
+    container_name: sun_app
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      fibaro10:
+        condition: service_healthy
+    ports:
+      - "192.168.20.218:8153:8153"
+    environment:
+      FIBARO10_BASE_URL: http://fibaro10:8110
+      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
+      SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
+      SUN_APP_BUILD: ${SUN_APP_BUILD:-1}
+      SUN_APP_COMMIT: ${APP_COMMIT:-unknown}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8153/health', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  energy_app:
+    build:
+      context: .
+      dockerfile: energy_app/Dockerfile
+    container_name: energy_app
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      fibaro10:
+        condition: service_healthy
+    ports:
+      - "192.168.20.218:8154:8154"
+    environment:
+      FIBARO10_BASE_URL: http://fibaro10:8110
+      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
+      SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
+      ENERGY_APP_BUILD: ${ENERGY_APP_BUILD:-1}
+      ENERGY_APP_COMMIT: ${APP_COMMIT:-unknown}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8154/health', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  operations_app:
+    build:
+      context: .
+      dockerfile: operations_app/Dockerfile
+    container_name: operations_app
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      fibaro10:
+        condition: service_healthy
+    ports:
+      - "192.168.20.218:8155:8155"
+    environment:
+      FIBARO10_BASE_URL: http://fibaro10:8110
+      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
+      SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
+      OPERATIONS_APP_BUILD: ${OPERATIONS_APP_BUILD:-1}
+      OPERATIONS_APP_COMMIT: ${APP_COMMIT:-unknown}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8155/health', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  maintenance_app:
+    build:
+      context: .
+      dockerfile: maintenance_app/Dockerfile
+    container_name: maintenance_app
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      fibaro10:
+        condition: service_healthy
+    ports:
+      - "192.168.20.218:8156:8156"
+    environment:
+      FIBARO10_BASE_URL: http://fibaro10:8110
+      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
+      SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
+      MAINTENANCE_APP_BUILD: ${MAINTENANCE_APP_BUILD:-1}
+      MAINTENANCE_APP_COMMIT: ${APP_COMMIT:-unknown}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8156/health', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  system_app:
+    build:
+      context: .
+      dockerfile: system_app/Dockerfile
+    container_name: system_app
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      fibaro10:
+        condition: service_healthy
+    ports:
+      - "192.168.20.218:8157:8157"
+    environment:
+      FIBARO10_BASE_URL: http://fibaro10:8110
+      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
+      SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
+      SYSTEM_APP_BUILD: ${SYSTEM_APP_BUILD:-1}
+      SYSTEM_APP_COMMIT: ${APP_COMMIT:-unknown}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8157/health', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  link_app:
+    build:
+      context: .
+      dockerfile: link_app/Dockerfile
+    container_name: link_app
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      fibaro10:
+        condition: service_healthy
+    ports:
+      - "192.168.20.218:8158:8158"
+    environment:
+      FIBARO10_BASE_URL: http://fibaro10:8110
+      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
+      SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
+      LINK_APP_BUILD: ${LINK_APP_BUILD:-1}
+      LINK_APP_COMMIT: ${APP_COMMIT:-unknown}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8158/health', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  shell_app:
+    build:
+      context: .
+      dockerfile: shell_app/Dockerfile
+    container_name: shell_app
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "192.168.20.218:8150:8150"
+    environment:
+      FIBARO10_BASE_URL: http://fibaro10:8110
+      REVENUE_BASE_URL: http://revenue_app:8151
+      REVENUE_APP_URL: ${REVENUE_APP_URL:-http://192.168.20.218:8151}
+      PARKING_BASE_URL: http://parking_app:8152
+      PARKING_APP_URL: ${PARKING_APP_URL:-http://192.168.20.218:8152}
+      SUN_BASE_URL: http://sun_app:8153
+      SUN_APP_URL: ${SUN_APP_URL:-http://192.168.20.218:8153}
+      ENERGY_BASE_URL: http://energy_app:8154
+      ENERGY_APP_URL: ${ENERGY_APP_URL:-http://192.168.20.218:8154}
+      OPERATIONS_BASE_URL: http://operations_app:8155
+      OPERATIONS_APP_URL: ${OPERATIONS_APP_URL:-http://192.168.20.218:8155}
+      MAINTENANCE_BASE_URL: http://maintenance_app:8156
+      MAINTENANCE_APP_URL: ${MAINTENANCE_APP_URL:-http://192.168.20.218:8156}
+      SYSTEM_BASE_URL: http://system_app:8157
+      SYSTEM_APP_URL: ${SYSTEM_APP_URL:-http://192.168.20.218:8157}
+      LINK_BASE_URL: http://link_app:8158
+      LINK_APP_URL: ${LINK_APP_URL:-http://192.168.20.218:8158}
+      SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
+      SHELL_APP_BUILD: ${SHELL_APP_BUILD:-18}
+      SHELL_APP_COMMIT: ${APP_COMMIT:-unknown}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8150/health', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  unifi_protect_events:
+    profiles: ["unifi-protect"]
+    build:
+      context: ./unifi_protect_events
+    container_name: unifi_protect_events
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "192.168.20.218:8130:8130"
+    volumes:
+      - ${UNIFI_PROTECT_HOST_SNAPSHOT_DIR:-./unifi_protect_events/data/snapshots}:/data/snapshots
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      PROTECT_LEDGER_VERSION: ${PROTECT_LEDGER_VERSION:-1}
+      PROTECT_LEDGER_BUILD: ${PROTECT_LEDGER_BUILD:-17}
+      PROTECT_LEDGER_COMMIT: ${PROTECT_LEDGER_COMMIT:-unknown}
+      UNIFI_PROTECT_NVR_URL: ${UNIFI_PROTECT_NVR_URL:-}
+      UNIFI_PROTECT_API_KEY: ${UNIFI_PROTECT_API_KEY:-}
+      UNIFI_PROTECT_VERIFY_SSL: ${UNIFI_PROTECT_VERIFY_SSL:-false}
+      UNIFI_PROTECT_CONSOLE_KEY: ${UNIFI_PROTECT_CONSOLE_KEY:-lilletorget}
+      UNIFI_PROTECT_CAMERA_IDS: ${UNIFI_PROTECT_CAMERA_IDS:-}
+      UNIFI_PROTECT_EVENT_TYPES: ${UNIFI_PROTECT_EVENT_TYPES:-}
+      UNIFI_PROTECT_RECONNECT_MIN_SECONDS: ${UNIFI_PROTECT_RECONNECT_MIN_SECONDS:-2}
+      UNIFI_PROTECT_RECONNECT_MAX_SECONDS: ${UNIFI_PROTECT_RECONNECT_MAX_SECONDS:-60}
+      UNIFI_PROTECT_SNAPSHOT_DIR: /data/snapshots
+      UNIFI_PROTECT_READ_API_TOKEN: ${UNIFI_PROTECT_READ_API_TOKEN:-}
+      UNIFI_PROTECT_WEBHOOK_TOKEN: ${UNIFI_PROTECT_WEBHOOK_TOKEN:-}
+      UNIFI_PROTECT_WEBHOOK_ALLOWED_IPS: ${UNIFI_PROTECT_WEBHOOK_ALLOWED_IPS:-192.168.1.1,192.168.20.1}
+      UNIFI_PROTECT_SNAPSHOT_WORKERS: ${UNIFI_PROTECT_SNAPSHOT_WORKERS:-2}
+      UNIFI_PROTECT_SNAPSHOT_QUEUE_SIZE: ${UNIFI_PROTECT_SNAPSHOT_QUEUE_SIZE:-1000}
+      UNIFI_PROTECT_RECOGNITION_SNAPSHOT_WORKERS: ${UNIFI_PROTECT_RECOGNITION_SNAPSHOT_WORKERS:-2}
+      PROTECT_PLATE_VALIDATION_ENABLED: ${PROTECT_PLATE_VALIDATION_ENABLED:-true}
+      PROTECT_PLATE_VALIDATION_INTERVAL_SECONDS: ${PROTECT_PLATE_VALIDATION_INTERVAL_SECONDS:-30}
+      PROTECT_PLATE_VALIDATION_BATCH_SIZE: ${PROTECT_PLATE_VALIDATION_BATCH_SIZE:-20}
+      PROTECT_PLATE_VALIDATION_TIMEOUT_SECONDS: ${PROTECT_PLATE_VALIDATION_TIMEOUT_SECONDS:-30}
+      PROTECT_PLATE_VALIDATION_CACHE_DAYS: ${PROTECT_PLATE_VALIDATION_CACHE_DAYS:-30}
+      PROTECT_PLATE_NEGATIVE_CACHE_DAYS: ${PROTECT_PLATE_NEGATIVE_CACHE_DAYS:-7}
+      PROTECT_PLATE_RETRY_MINUTES: ${PROTECT_PLATE_RETRY_MINUTES:-30}
+      PROTECT_BOLLARD_NTFY_TOPIC: ${PROTECT_BOLLARD_NTFY_TOPIC:-}
+      VISUAL_AI_URL: ${VISUAL_AI_URL:-http://visual_anomaly_service:8140}
+      VISUAL_AI_TOKEN: ${VISUAL_AI_TOKEN:-}
+      VISUAL_AI_TIMEOUT_SECONDS: ${VISUAL_AI_TIMEOUT_SECONDS:-30}
+      SVV_API_KEY: ${SVV_API_KEY:-}
+      SVV_API_URL: ${SVV_API_URL:-https://www.vegvesen.no/ws/no/vegvesen/kjoretoy/felles/datautlevering/enkeltoppslag/kjoretoydata}
+      SVV_API_AUTH_HEADER: ${SVV_API_AUTH_HEADER:-SVV-Authorization}
+      SVV_API_AUTH_PREFIX: ${SVV_API_AUTH_PREFIX:-Apikey}
+      CAR_INFO_LOOKUP_URL: ${CAR_INFO_LOOKUP_URL:-http://car_info_lookup:8126}
+      CAR_INFO_APP_TOKEN: ${CAR_INFO_APP_TOKEN:-}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8130/health', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  visual_anomaly_service:
+    profiles: ["unifi-protect"]
+    build:
+      context: ./visual_anomaly_service
+    container_name: visual_anomaly_service
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ${UNIFI_PROTECT_HOST_SNAPSHOT_DIR:-./unifi_protect_events/data/snapshots}:/snapshots:ro
+      - ${VISUAL_AI_HOST_DATA_DIR:-./visual_anomaly_service/data}:/data
+    environment:
+      VISUAL_AI_SNAPSHOT_ROOT: /snapshots
+      VISUAL_AI_DATA_ROOT: /data
+      VISUAL_AI_TOKEN: ${VISUAL_AI_TOKEN:-}
+      VISUAL_AI_AUTO_TRAIN: ${VISUAL_AI_AUTO_TRAIN:-true}
+      VISUAL_AI_SAMPLE_LIMIT: ${VISUAL_AI_SAMPLE_LIMIT:-240}
+      PATCHCORE_TORCH_THREADS: ${PATCHCORE_TORCH_THREADS:-4}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8140/health', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
 
   online_dashboard:
     build:
@@ -97,6 +427,7 @@ services:
     environment:
       FIBARO10_BASE_URL: http://fibaro10:8110
       MAINTENANCE_MOBILE_SESSION_SECRET: ${MAINTENANCE_MOBILE_SESSION_SECRET:-}
+      MAINTENANCE_MOBILE_BUILD: ${MAINTENANCE_MOBILE_BUILD:-1465}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8112/health', timeout=5).read()\""]
       interval: 30s

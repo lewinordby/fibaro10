@@ -456,6 +456,67 @@ async def run_plate(plate: str, force: bool = False) -> dict[str, Any]:
             return {"status": "error", "message": str(exc), "plate": compact, "processed": 0, "results": []}
 
 
+async def lookup_plate_only(plate: str, force: bool = False) -> dict[str, Any]:
+    """Fetch one Nordic registry result without reading or writing Fibaro10 data."""
+    compact = compact_plate(plate)
+    country_code = lookup_country_for_plate(compact)
+    if not country_code:
+        return {
+            "plate": compact,
+            "country_code": None,
+            "http_status": 400,
+            "confirmed": False,
+            "url": None,
+            "data": {},
+            "error": "Registreringsnummer matcher ikke svensk eller dansk standardformat",
+        }
+    if lock.locked():
+        return {
+            "plate": compact,
+            "country_code": country_code,
+            "http_status": 425,
+            "confirmed": False,
+            "url": lookup_url(compact),
+            "data": {},
+            "error": "Nordisk oppslagsadapter er opptatt",
+        }
+    async with lock:
+        if not force:
+            until = backoff_active()
+            if until:
+                return {
+                    "plate": compact,
+                    "country_code": country_code,
+                    "http_status": 429,
+                    "confirmed": False,
+                    "url": lookup_url(compact),
+                    "data": {},
+                    "error": f"Oppslagskilden er i backoff til {until}",
+                    "backoff_until": until,
+                }
+        status_code, url, data, error = await asyncio.to_thread(fetch_foreign_vehicle, compact)
+        if status_code == 429:
+            until = utcnow() + timedelta(minutes=RATE_LIMIT_BACKOFF_MINUTES)
+            set_state(backoff_until=until.isoformat(), last_error=error)
+        result = {
+            "plate": compact,
+            "country_code": data.get("country_code") or country_code,
+            "http_status": status_code,
+            "confirmed": status_code == 200 and is_confirmed_foreign(data),
+            "url": url,
+            "data": data,
+            "error": error,
+        }
+        set_state(
+            last_action="lookup_plate_only",
+            last_plate=compact,
+            last_url=url,
+            last_result=result,
+            last_success_at=utcnow_iso() if status_code < 400 else state.get("last_success_at"),
+        )
+        return result
+
+
 async def run_backlog_cycle(max_items: int = BACKLOG_MAX_PER_CYCLE, force: bool = False) -> dict[str, Any]:
     started = time.monotonic()
     max_items = max(1, min(1000, max_items))
@@ -636,6 +697,17 @@ async def api_run_plate(
 ) -> dict[str, Any]:
     require_token(x_car_info_token)
     return await run_plate(plate, force)
+
+
+@app.post("/api/lookup-plate/{plate}")
+async def api_lookup_plate(
+    plate: str,
+    force: bool = Query(False),
+    x_car_info_token: str | None = Header(None),
+) -> dict[str, Any]:
+    """Stateless registry adapter used by Protect Ledger's validation pipeline."""
+    require_token(x_car_info_token)
+    return await lookup_plate_only(plate, force)
 
 
 @app.post("/api/run-backlog")

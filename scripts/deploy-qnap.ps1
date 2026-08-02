@@ -121,11 +121,13 @@ mkdir -p axis_camera_snapshots/data axis_camera_snapshots/snapshots car_info_loo
 mkdir -p sun2_session_scraper/data
 mkdir -p easypark_downloader/data
 mkdir -p owntracks_service/data
+mkdir -p visual_anomaly_service/data
 [ -d "`$legacy_sun2_dir" ] && (cd "`$legacy_sun2_dir" && "$Docker" compose down || true)
 export APP_COMMIT=`$(git rev-parse --short HEAD)
 "$Docker" rm -f owntracks_mqtt >/dev/null 2>&1 || true
 "$Docker" compose -f docker-compose.qnap.yml up -d --build --force-recreate owntracks_service fibaro10_proxy
-"$Docker" compose -f docker-compose.qnap.yml up -d --build fibaro10 online_dashboard maintenance_mobile fibaro10ipad axis_camera_snapshots car_info_lookup sun2_session_scraper parking_sun_linker
+"$Docker" compose -f docker-compose.qnap.yml up -d --build fibaro10 shell_app revenue_app online_dashboard maintenance_mobile fibaro10ipad axis_camera_snapshots car_info_lookup sun2_session_scraper parking_sun_linker
+"$Docker" compose -f docker-compose.qnap.yml --profile unifi-protect up -d --build unifi_protect_events visual_anomaly_service
 (cd easypark_downloader && "$Docker" compose up -d --build)
 "$Docker" exec fibaro10_proxy caddy validate --config /etc/caddy/Caddyfile || { "$Docker" logs --tail=80 fibaro10_proxy; exit 1; }
 "$Docker" compose -f docker-compose.qnap.yml ps

@@ -1,11 +1,14 @@
 import {
+  AppstoreOutlined,
   BarChartOutlined,
+  BellOutlined,
   BulbOutlined,
   CalendarOutlined,
   CarOutlined,
   CarryOutOutlined,
   DashboardOutlined,
   ExperimentOutlined,
+  EyeOutlined,
   FileTextOutlined,
   HomeOutlined,
   MobileOutlined,
@@ -27,6 +30,8 @@ const mainModuleIcons: Array<Pick<MainNavigationModule, "module" | "icon">> = [
   { module: "status", icon: <DashboardOutlined /> },
   { module: "omsetning", icon: <BarChartOutlined /> },
   { module: "parkering", icon: <CarOutlined /> },
+  { module: "biler", icon: <CarOutlined /> },
+  { module: "pullerter", icon: <EyeOutlined /> },
   { module: "soling", icon: <CalendarOutlined /> },
   { module: "solrom", icon: <HomeOutlined /> },
   { module: "solrom-2", icon: <HomeOutlined /> },
@@ -37,6 +42,8 @@ const mainModuleIcons: Array<Pick<MainNavigationModule, "module" | "icon">> = [
   { module: "lys", icon: <BulbOutlined /> },
   { module: "dorer", icon: <HomeOutlined /> },
   { module: "vedlikehold", icon: <CarryOutOutlined /> },
+  { module: "varslinger", icon: <BellOutlined /> },
+  { module: "undersystemer", icon: <AppstoreOutlined /> },
   { module: "ideer", icon: <BulbOutlined /> },
   { module: "renhold", icon: <ToolOutlined /> },
   { module: "mobil", icon: <MobileOutlined /> },
@@ -56,9 +63,9 @@ const modulesForGroup = (modules: string[]) =>
 
 export const mainModuleGroups = [
   { label: "", modules: modulesForGroup(["status"]) },
-  { label: "Økonomi", modules: modulesForGroup(["omsetning", "parkering", "soling", "koble"]) },
-  { label: "Bygg og drift", modules: modulesForGroup(["energi", "ventilasjon", "lys", "solrom", "solrom-2", "dorer2", "dorer", "renhold", "vedlikehold"]) },
-  { label: "System", modules: modulesForGroup(["ideer", "mobil", "manual", "admin"]) },
+  { label: "Økonomi", modules: modulesForGroup(["omsetning", "parkering", "biler", "soling", "koble"]) },
+  { label: "Bygg og drift", modules: modulesForGroup(["energi", "ventilasjon", "lys", "solrom", "solrom-2", "dorer2", "dorer", "pullerter", "renhold", "vedlikehold"]) },
+  { label: "System", modules: modulesForGroup(["varslinger", "undersystemer", "ideer", "mobil", "manual", "admin"]) },
 ];
 
 export function selectedMainModuleKey(pathname: string): string {

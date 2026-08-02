@@ -43,6 +43,141 @@ SYSTEM_COMPONENTS: list[dict[str, Any]] = [
         "has_web_interface": True,
     },
     {
+        "component": "shell_app",
+        "area": "Plattform",
+        "role": "Intern appvelger, tjenesteregister og samlet helsestatus for brukerrettede mikroapper",
+        "runtime": "Docker",
+        "compose_service": "shell_app",
+        "interface": "Felles internt appskall",
+        "web_url": "",
+        "local_url": "http://192.168.20.218:8150/",
+        "health_url": "http://192.168.20.218:8150/health",
+        "health": "/health og /ready",
+        "status": "Aktiv",
+        "criticality": "Normal",
+        "has_web_interface": True,
+    },
+    {
+        "component": "revenue_app",
+        "area": "Økonomi",
+        "role": "Fagapplikasjon for omsetningsdashboard, utvikling og periodesammenligning",
+        "runtime": "Docker",
+        "compose_service": "revenue_app",
+        "interface": "Separat intern webapp",
+        "web_url": "",
+        "local_url": "http://192.168.20.218:8151/",
+        "health_url": "http://192.168.20.218:8151/health",
+        "health": "/health og /ready",
+        "status": "Aktiv",
+        "criticality": "Normal",
+        "has_web_interface": True,
+    },
+    {
+        "component": "parking_app",
+        "area": "Parkering",
+        "role": "Parkeringer, kjøretøy, oppgjør, områder, tidsanalyse og prognoser",
+        "runtime": "Docker",
+        "compose_service": "parking_app",
+        "interface": "Separat intern webapp",
+        "web_url": "",
+        "local_url": "http://192.168.20.218:8152/",
+        "health_url": "http://192.168.20.218:8152/health",
+        "health": "/health og /ready",
+        "status": "Aktiv",
+        "criticality": "Høy",
+        "has_web_interface": True,
+    },
+    {
+        "component": "sun_app",
+        "area": "Soling",
+        "role": "Soltimer, dagslinje, bilder, produkter, medlemmer, oppgjør og analyse",
+        "runtime": "Docker",
+        "compose_service": "sun_app",
+        "interface": "Separat intern webapp",
+        "web_url": "",
+        "local_url": "http://192.168.20.218:8153/",
+        "health_url": "http://192.168.20.218:8153/health",
+        "health": "/health og /ready",
+        "status": "Aktiv",
+        "criticality": "Høy",
+        "has_web_interface": True,
+    },
+    {
+        "component": "energy_app",
+        "area": "Energi",
+        "role": "Sanntidsforbruk, Elvia-kontroll, kurs/last og energibruk per solseng",
+        "runtime": "Docker",
+        "compose_service": "energy_app",
+        "interface": "Separat intern webapp",
+        "web_url": "",
+        "local_url": "http://192.168.20.218:8154/",
+        "health_url": "http://192.168.20.218:8154/health",
+        "health": "/health og /ready",
+        "status": "Aktiv",
+        "criticality": "Høy",
+        "has_web_interface": True,
+    },
+    {
+        "component": "operations_app",
+        "area": "Bygg og drift",
+        "role": "Ventilasjon, lys, dører, solrom, pullerter og robotrenhold",
+        "runtime": "Docker",
+        "compose_service": "operations_app",
+        "interface": "Separat intern webapp",
+        "web_url": "",
+        "local_url": "http://192.168.20.218:8155/",
+        "health_url": "http://192.168.20.218:8155/health",
+        "health": "/health og /ready",
+        "status": "Aktiv",
+        "criticality": "Høy",
+        "has_web_interface": True,
+    },
+    {
+        "component": "maintenance_app",
+        "area": "Vedlikehold",
+        "role": "Intern arbeidsflate for besøk, oppgaver, redigering og historikk",
+        "runtime": "Docker",
+        "compose_service": "maintenance_app",
+        "interface": "Separat intern webapp",
+        "web_url": "",
+        "local_url": "http://192.168.20.218:8156/",
+        "health_url": "http://192.168.20.218:8156/health",
+        "health": "/health og /ready",
+        "status": "Aktiv",
+        "criticality": "Normal",
+        "has_web_interface": True,
+    },
+    {
+        "component": "system_app",
+        "area": "System",
+        "role": "Datakilder, brukere, buildlogg, manual, varslinger og systemkontroll",
+        "runtime": "Docker",
+        "compose_service": "system_app",
+        "interface": "Separat intern webapp",
+        "web_url": "",
+        "local_url": "http://192.168.20.218:8157/",
+        "health_url": "http://192.168.20.218:8157/health",
+        "health": "/health og /ready",
+        "status": "Aktiv",
+        "criticality": "Normal",
+        "has_web_interface": True,
+    },
+    {
+        "component": "link_app",
+        "area": "Kobling",
+        "role": "Kandidater, Sun2-kontroll og treffgrunnlag for kobling mellom bil og Sun2-ID",
+        "runtime": "Docker",
+        "compose_service": "link_app",
+        "interface": "Separat intern webapp",
+        "web_url": "",
+        "local_url": "http://192.168.20.218:8158/",
+        "health_url": "http://192.168.20.218:8158/health",
+        "health": "/health og /ready",
+        "status": "Aktiv",
+        "criticality": "Normal",
+        "has_web_interface": True,
+    },
+    {
         "component": "online_dashboard",
         "area": "Mobil/ekstern",
         "role": "Eksternt dashboard med begrensede nøkkeltall",
@@ -116,6 +251,36 @@ SYSTEM_COMPONENTS: list[dict[str, Any]] = [
         "status": "Aktiv",
         "criticality": "Høy",
         "has_web_interface": True,
+    },
+    {
+        "component": "unifi_protect_events",
+        "area": "Kamera",
+        "role": "Lytter på lokal UniFi Protect WebSocket og lagrer filtrerte hendelser og stillbilder",
+        "runtime": "Docker (profil: unifi-protect)",
+        "compose_service": "unifi_protect_events",
+        "interface": "Eget lokalt administrasjonsgrensesnitt og API",
+        "web_url": "",
+        "local_url": "http://192.168.20.218:8130/",
+        "health_url": "http://192.168.20.218:8130/health",
+        "health": "/health",
+        "status": "Klar for aktivering",
+        "criticality": "Høy",
+        "has_web_interface": True,
+    },
+    {
+        "component": "visual_anomaly_service",
+        "area": "Kamera",
+        "role": "Lokal PatchCore-analyse av tre pullertflater og trappa ved Solstudio",
+        "runtime": "Docker (profil: unifi-protect, CPU)",
+        "compose_service": "visual_anomaly_service",
+        "interface": "Internt tokenbeskyttet API; status vises i Fibaro10",
+        "web_url": "",
+        "local_url": "",
+        "health_url": "",
+        "health": "/health i Docker-nettet",
+        "status": "Aktiv",
+        "criticality": "Normal",
+        "has_web_interface": False,
     },
     {
         "component": "car_info_lookup",
@@ -285,12 +450,72 @@ SYSTEM_COMPONENTS: list[dict[str, Any]] = [
 ]
 
 
+SYSTEM_COMPONENT_TITLES: dict[str, str] = {
+    "fibaro10": "Fibaro10 backend",
+    "desktop_v2": "Fibaro10 hovedgrensesnitt",
+    "shell_app": "Lilletorget-skall",
+    "revenue_app": "Omsetning",
+    "parking_app": "Parkering",
+    "sun_app": "Soling",
+    "energy_app": "Energi",
+    "operations_app": "Bygg og drift",
+    "maintenance_app": "Vedlikehold",
+    "system_app": "System",
+    "link_app": "Koble",
+    "online_dashboard": "Mobiloversikt",
+    "maintenance_mobile": "Vedlikehold mobil",
+    "fibaro10ipad": "Fibaro10 iPad",
+    "owntracks_service": "OwnTracks",
+    "axis_camera_snapshots": "Axis bildearkiv",
+    "unifi_protect_events": "UniFi Protect-hendelser",
+    "visual_anomaly_service": "Visuell AI-kontroll",
+    "car_info_lookup": "Nordiske kjøretøyoppslag",
+    "sun2_session_scraper": "SUN2 enkelttimer og salg",
+    "easypark_downloader": "EasyPark-import",
+    "parking_sun_linker": "Koblingsmotor parkering og soling",
+    "roborock_logger": "Roborock-logger",
+    "sun2_importer": "SUN2 dagsimport",
+    "sun2_backfill_downloader": "SUN2 historisk bakfylling",
+    "browser_extensions": "Nettleserutvidelser",
+    "hc3_vedlikehold": "HC3-verktøy",
+    "fibaro10_proxy": "Ekstern reverse proxy",
+    "owntracks_postgres": "OwnTracks database",
+}
+
+
 def system_component_rows() -> list[dict[str, Any]]:
     return [dict(component) for component in SYSTEM_COMPONENTS]
 
 
 def system_web_interface_rows() -> list[dict[str, Any]]:
     return [dict(component) for component in SYSTEM_COMPONENTS if component.get("has_web_interface")]
+
+
+def system_subsystem_rows() -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for component in SYSTEM_COMPONENTS:
+        row = dict(component)
+        component_key = str(row.get("component") or "")
+        links = []
+        web_url = str(row.get("web_url") or "")
+        local_url = str(row.get("local_url") or "")
+        health_url = str(row.get("health_url") or "")
+        if web_url:
+            links.append({"kind": "public", "label": "Åpne", "url": web_url})
+        if local_url and local_url != web_url:
+            links.append({"kind": "local", "label": "Lokalt grensesnitt", "url": local_url})
+        if health_url and health_url not in {web_url, local_url}:
+            links.append({"kind": "health", "label": "Helsesjekk", "url": health_url})
+        row.update(
+            {
+                "title": SYSTEM_COMPONENT_TITLES.get(component_key, component_key.replace("_", " ").title()),
+                "primary_url": web_url or local_url,
+                "access": "external" if web_url else "local" if local_url else "internal",
+                "links": links,
+            }
+        )
+        rows.append(row)
+    return rows
 
 
 def system_component_summary() -> dict[str, Any]:

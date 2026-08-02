@@ -52,6 +52,7 @@ Oppgjør ligger under Parkering og Soling fordi kontrollen eies av hvert fagdome
 - `Oversikt`: analyseflate med ukesstatistikk og siste parkeringer.
 - `Parkeringer`: daglig arbeidsflate med dagsvalg, EasyPark-oppdatering og radliste.
 - `Dagslinje`: visuell kapasitets-/beleggsflate.
+- `Ukesnitt`: ukevis utvikling i gjennomsnittlig beløp og parkeringstid per parkering, med sammenligning mellom valgte år.
 - `Kjøretøy`: søk, eier/kjøretøydata og historikk per bil.
 - `Områder`: områdeanalyse med dato/tidsrom.
 - `Prognose`: parkeringsprognoser etter import.

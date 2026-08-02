@@ -353,6 +353,88 @@ export type ParkingTimeDistributionResponse = {
   hours: ParkingTimeCell[];
   topSlots: ParkingTimeCell[];
 };
+
+export type ParkingWeeklyAveragePoint = {
+  key: string;
+  label: string;
+  shortLabel: string;
+  rangeLabel: string;
+  weekStart: string;
+  weekEnd: string;
+  isoYear: number;
+  isoWeek: number;
+  sessions: number;
+  paid: number;
+  minutes: number;
+  durationSessions: number;
+  durationCoveragePct: number;
+  avgPaidPerSession: number | null;
+  avgMinutesPerSession: number | null;
+  isPartial: boolean;
+};
+
+export type ParkingWeeklyAveragesResponse = {
+  generatedAt: string | null;
+  period: {
+    key: string;
+    label: string;
+    dateFrom: string;
+    dateTo: string;
+    detail: string;
+    options: ParkingTimePeriodOption[];
+  };
+  summary: {
+    sessions: number;
+    paid: number;
+    minutes: number;
+    durationSessions: number;
+    durationCoveragePct: number;
+    avgPaidPerSession: number;
+    avgMinutesPerSession: number;
+    weeksWithData: number;
+  };
+  latest: ParkingWeeklyAveragePoint | null;
+  previous: ParkingWeeklyAveragePoint | null;
+  delta: {
+    paidPct: number | null;
+    minutesPct: number | null;
+  };
+  weeks: ParkingWeeklyAveragePoint[];
+};
+export type ParkingWeeklyYearPoint = {
+  week: number;
+  label: string;
+  rangeLabel: string;
+  sessions: number;
+  paid: number;
+  minutes: number;
+  durationSessions: number;
+  durationCoveragePct: number;
+  avgPaidPerSession: number | null;
+  avgMinutesPerSession: number | null;
+  isPartial: boolean;
+  isAvailable: boolean;
+};
+export type ParkingWeeklyYearSeries = {
+  year: number;
+  label: string;
+  color: string;
+  sessions: number;
+  weeksWithData: number;
+  durationCoveragePct: number;
+  avgPaidPerSession: number;
+  avgMinutesPerSession: number;
+  points: ParkingWeeklyYearPoint[];
+};
+export type ParkingWeeklyYearComparisonResponse = {
+  generatedAt: string | null;
+  currentYear: number;
+  currentWeek: number;
+  availableYears: number[];
+  defaultYears: number[];
+  selectedYears: number[];
+  series: ParkingWeeklyYearSeries[];
+};
 export type RevenueYearComparisonPoint = SunYearComparisonPoint;
 export type RevenueYearComparisonSeries = SunYearComparisonSeries;
 export type RevenueYearComparisonResponse = SunYearComparisonResponse;
@@ -1935,6 +2017,138 @@ export type ParkingVehicleDetailResponse = {
   actions?: ModuleAction[];
 };
 
+export type CarsDayDetection = {
+  recognitionId?: number | null;
+  occurredAt?: string | null;
+  cameraId?: string | null;
+  cameraName?: string | null;
+  observedPlate?: string | null;
+  sourceEventId?: string | null;
+  unifiScore?: number | null;
+  snapshotStatus?: string | null;
+  snapshotCapturedAt?: string | null;
+  snapshotTargetAt?: string | null;
+  snapshotTimeOffsetMs?: number | null;
+  snapshotSource?: string | null;
+  snapshotCameraId?: string | null;
+  snapshotUrl?: string | null;
+};
+
+export type CarsOcrVariantCandidate = {
+  plate: string;
+  editDistance: number;
+  detectionCount: number;
+};
+
+export type CarsDayParkingSession = {
+  id: number;
+  startAt?: string | null;
+  endAt?: string | null;
+  durationMinutes?: number | null;
+  amountKr: number;
+  isPaid: boolean;
+  status?: string | null;
+  source?: string | null;
+  area?: string | null;
+};
+
+export type CarsRegistryValidation = {
+  status: "valid_local" | "valid_norway" | "valid_sweden" | "valid_denmark" | "not_found" | "pending" | "error" | string;
+  is_valid?: boolean | null;
+  likely_misread: boolean;
+  country_code?: string | null;
+  country?: string | null;
+  source?: string | null;
+  vehicle_label?: string | null;
+  local_match: boolean;
+  checked_at?: string | null;
+  next_check_at?: string | null;
+  message: string;
+  error?: string | null;
+  sources?: Record<string, unknown>;
+};
+
+export type CarsDayItem = {
+  plate: string;
+  displayValue: string;
+  detectionCount: number;
+  firstDetectedAt?: string | null;
+  lastDetectedAt?: string | null;
+  knownInProtect: boolean;
+  cameraNames: string[];
+  detections: CarsDayDetection[];
+  averageUnifiScore?: number | null;
+  minimumUnifiScore?: number | null;
+  maximumUnifiScore?: number | null;
+  scoredDetectionCount: number;
+  confidenceLevel: "high" | "medium" | "low" | "unscored";
+  matchingReadCount: number;
+  observedPlateValues: string[];
+  mergedVariantCount: number;
+  ocrWarning: boolean;
+  isLikelyOcrVariant: boolean;
+  likelyCanonicalPlate: string;
+  ocrVariantCandidates: CarsOcrVariantCandidate[];
+  requiresReview: boolean;
+  registryValidation: CarsRegistryValidation;
+  likelyMisread: boolean;
+  presentationStatus: "valid" | "likely_misread" | "pending_review" | string;
+  vehicle?: {
+    name?: string | null;
+    area?: string | null;
+    title?: string | null;
+    path: string;
+  } | null;
+  hasParkingSession: boolean;
+  hasPaidSession: boolean;
+  paidSessionCount: number;
+  paidTotalKr: number;
+  coveredDetectionCount: number;
+  dayMatchedDetectionCount: number;
+  firstPaymentAt?: string | null;
+  lastPaymentEndAt?: string | null;
+  minutesBeforeFirstPayment?: number | null;
+  minutesAfterLastPayment?: number | null;
+  paymentStatus: "paid_same_day" | "no_payment";
+  parkingSessions: CarsDayParkingSession[];
+  paidSessions: CarsDayParkingSession[];
+};
+
+export type CarsDayResponse = {
+  generatedAt?: string | null;
+  selectedDay: string;
+  selectedDayLabel: string;
+  prevDay: string;
+  nextDay: string;
+  isToday: boolean;
+  matchPolicy: {
+    mode: "same_calendar_day" | string;
+    label: string;
+    detail: string;
+  };
+  observationWindow: {
+    firstDetectedAt?: string | null;
+    lastDetectedAt?: string | null;
+    spanMinutes: number;
+  };
+  summary: {
+    uniquePlates: number;
+    detections: number;
+    paidPlates: number;
+    coveredPlates: number;
+    withoutPayment: number;
+    mergedOcrVariants: number;
+    scoredDetections: number;
+    lowConfidencePlates: number;
+    ocrWarningPlates: number;
+    reviewPlates: number;
+    validatedPlates: number;
+    likelyMisreads: number;
+    pendingValidation: number;
+  };
+  items: CarsDayItem[];
+};
+
 export type MaintenanceSiteVisitField = {
   label: string;
   value: unknown;
@@ -1995,10 +2209,194 @@ export type SettlementDetailResponse = {
   raw: JsonRecord;
 };
 
-async function apiGet<T>(path: string): Promise<T> {
+export type BollardCameraMonitor = {
+  monitor_id?: string;
+  item_type?: "bollards" | "stairs" | string;
+  asset_key?: string;
+  asset_type?: string;
+  display_name?: string;
+  camera_id: string;
+  camera_name: string;
+  status: string;
+  baseline_captured_at?: string | null;
+  latest_captured_at?: string | null;
+  last_checked_at?: string | null;
+  change_score?: number | null;
+  changed_fraction?: number | null;
+  largest_change_fraction?: number | null;
+  mean_difference?: number | null;
+  consecutive_abnormal?: number | null;
+  abnormal_since?: string | null;
+  last_error?: string | null;
+  baseline_url?: string | null;
+  latest_url?: string | null;
+  overlay_url?: string | null;
+  baseline_crop_url?: string | null;
+  latest_crop_url?: string | null;
+  overlay_crop_url?: string | null;
+  ai_heatmap_url?: string | null;
+  ai_profile_id?: string | null;
+  ai_status?: "normal" | "anomaly" | "training" | "not_ready" | "error" | "disabled" | string;
+  ai_score?: number | null;
+  ai_threshold?: number | null;
+  ai_score_ratio?: number | null;
+  ai_is_anomaly?: boolean | null;
+  ai_model_version?: string | null;
+  ai_trained_at?: string | null;
+  ai_training_samples?: number | null;
+  ai_inference_ms?: number | null;
+  ai_last_checked_at?: string | null;
+  ai_last_error?: string | null;
+  hybrid_status?: "normal" | "corroborated" | "ai_review" | "classical_review" | "classical_only" | string;
+  display_crop?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null;
+  image_geometry?: "fixed_source_pixel_crop" | string | null;
+};
+
+export type BollardIncident = {
+  incident_id: number;
+  display_name: string;
+  status: string;
+  severity?: string | null;
+  detected_at: string;
+  last_observed_at?: string | null;
+  resolved_at?: string | null;
+};
+
+export type BollardStatusResponse = {
+  api_version?: string;
+  local_only?: boolean;
+  comparison_mode?: string | null;
+  settings: {
+    monitoring_enabled?: boolean;
+    analysis_interval_seconds?: number;
+    confirmation_seconds?: number;
+    notification_enabled?: boolean;
+  };
+  camera_monitors: BollardCameraMonitor[];
+  asset_monitors?: BollardCameraMonitor[];
+  incidents?: BollardIncident[];
+  summary: {
+    target_cameras?: number;
+    connected_cameras?: number;
+    calibrated_regions?: number;
+    baseline_cameras?: number;
+    monitored_assets?: number;
+    calibrated_assets?: number;
+    inspection_objects?: number;
+    active_incidents?: number;
+    monitoring_ready?: boolean;
+    ai_profiles_ready?: number;
+    ai_profiles_total?: number;
+    ai_anomalies?: number;
+  };
+  visual_ai?: {
+    configured?: boolean;
+    mode?: "advisory" | string;
+    profiles_ready?: number;
+    profiles_total?: number;
+    anomalies?: number;
+    failure_isolation?: boolean;
+  };
+  runtime: {
+    running?: boolean;
+    last_run_at?: string | null;
+    last_success_at?: string | null;
+    last_error?: string | null;
+    checks_since_start?: number;
+    incidents_since_start?: number;
+    notification_configured?: boolean;
+  };
+};
+
+export type BollardNotificationResponse = {
+  channelName: string;
+  configured: boolean;
+  enabled: boolean;
+  monitoringReady: boolean;
+  activeIncidents: number;
+  lastCheckAt?: string | null;
+  subscribeUrl?: string | null;
+  webUrl?: string | null;
+  provider?: string | null;
+  privacy?: string | null;
+};
+
+export type BollardOverviewResponse = {
+  status: BollardStatusResponse;
+  notifications: BollardNotificationResponse;
+};
+
+export type NtfySubscription = {
+  key: string;
+  title: string;
+  area: string;
+  description: string;
+  triggers: string[];
+  priority: string;
+  configured: boolean;
+  publishingEnabled: boolean;
+  subscribeUrl: string;
+  webUrl: string;
+};
+
+export type SystemNotificationsResponse = {
+  generatedAt: string;
+  provider: string;
+  providerUrl: string;
+  summary: {
+    channels: number;
+    configured: number;
+    publishing: number;
+  };
+  subscriptions: NtfySubscription[];
+  setup: string[];
+  privacy: string;
+};
+
+export type SubsystemLink = {
+  kind: "public" | "local" | "health";
+  label: string;
+  url: string;
+};
+
+export type SystemSubsystem = {
+  component: string;
+  title: string;
+  area: string;
+  role: string;
+  runtime: string;
+  compose_service: string;
+  interface: string;
+  status: string;
+  criticality: string;
+  has_web_interface: boolean;
+  primary_url: string;
+  access: "external" | "local" | "internal";
+  links: SubsystemLink[];
+};
+
+export type SystemSubsystemsResponse = {
+  generatedAt: string;
+  summary: {
+    components: number;
+    active: number;
+    critical: number;
+    web_interfaces: number;
+    areas: number;
+  };
+  subsystems: SystemSubsystem[];
+};
+
+async function apiGet<T>(path: string, cache: RequestCache = "default"): Promise<T> {
   const response = await fetch(path, {
     credentials: "same-origin",
     headers: { Accept: "application/json" },
+    cache,
   });
   const payload = (await response.json().catch(() => null)) as unknown;
   if (!response.ok) {
@@ -2013,6 +2411,14 @@ async function apiGet<T>(path: string): Promise<T> {
 
 export function fetchOverview(): Promise<OverviewResponse> {
   return apiGet<OverviewResponse>("/api/overview");
+}
+
+export function fetchSystemNotifications(): Promise<SystemNotificationsResponse> {
+  return apiGet<SystemNotificationsResponse>("/api/system/notifications", "no-store");
+}
+
+export function fetchSystemSubsystems(): Promise<SystemSubsystemsResponse> {
+  return apiGet<SystemSubsystemsResponse>("/api/system/subsystems");
 }
 
 export function fetchRevenueMonth(month?: string): Promise<RevenueMonthResponse> {
@@ -2048,6 +2454,16 @@ export function fetchParkingTimeDistribution(filters?: URLSearchParams): Promise
   return apiGet<ParkingTimeDistributionResponse>(`/api/parkering/time-distribution${query}`);
 }
 
+export function fetchParkingWeeklyAverages(filters?: URLSearchParams): Promise<ParkingWeeklyAveragesResponse> {
+  const query = filters?.toString() ? `?${filters.toString()}` : "";
+  return apiGet<ParkingWeeklyAveragesResponse>(`/api/parkering/weekly-averages${query}`);
+}
+
+export function fetchParkingWeeklyYearComparison(years?: string | null): Promise<ParkingWeeklyYearComparisonResponse> {
+  const query = years ? `?years=${encodeURIComponent(years)}` : "";
+  return apiGet<ParkingWeeklyYearComparisonResponse>(`/api/parkering/weekly-averages/years${query}`);
+}
+
 export function fetchRevenueYearComparison(year?: string | null): Promise<RevenueYearComparisonResponse> {
   const query = year ? `?year=${encodeURIComponent(year)}` : "";
   return apiGet<RevenueYearComparisonResponse>(`/api/omsetning/year-comparison${query}`);
@@ -2059,6 +2475,27 @@ export function fetchCurrentUser(): Promise<AuthUser> {
 
 export function fetchMobilePreviewScreens(): Promise<MobilePreviewResponse> {
   return apiGet<MobilePreviewResponse>("/api/mobile-preview/screens");
+}
+
+export async function fetchBollardOverview(): Promise<BollardOverviewResponse> {
+  const [status, notifications] = await Promise.all([
+    apiGet<BollardStatusResponse>("/api/unifi-protect/bollards", "no-store"),
+    apiGet<BollardNotificationResponse>("/api/unifi-protect/bollards/mobile-notifications", "no-store"),
+  ]);
+  return { status, notifications };
+}
+
+export async function sendBollardTestNotification(): Promise<{ sent: boolean }> {
+  const response = await fetch("/api/unifi-protect/bollards/mobile-notifications/test", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+  });
+  const payload = (await response.json().catch(() => null)) as { sent?: boolean; detail?: unknown; message?: unknown } | null;
+  if (!response.ok) {
+    throw new Error(String(payload?.message || payload?.detail || `${response.status} ${response.statusText}`));
+  }
+  return { sent: Boolean(payload?.sent) };
 }
 
 export function fetchDoorStatus(): Promise<DoorStatusResponse> {
@@ -2132,6 +2569,10 @@ export function fetchModule(
 
 export function fetchParkingVehicleDetail(plate: string): Promise<ParkingVehicleDetailResponse> {
   return apiGet<ParkingVehicleDetailResponse>(`/api/parking/vehicles/${encodeURIComponent(plate)}`);
+}
+
+export function fetchCarsDay(day: string): Promise<CarsDayResponse> {
+  return apiGet<CarsDayResponse>(`/api/cars/day?day=${encodeURIComponent(day)}`, "no-store");
 }
 
 export function fetchMaintenanceSiteVisitDetail(visitId: string | number): Promise<MaintenanceSiteVisitDetailResponse> {

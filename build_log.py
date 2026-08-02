@@ -5,8 +5,897 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1592")
+APP_BUILD = os.getenv("APP_BUILD", "1625")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1625",
+        "date": "02.08.2026",
+        "headline": "20 beste omsetningsuker",
+        "title": "Omsetningsoversikten rangerer de 20 beste ukene",
+        "description": (
+            "Omsetning / Oversikt har fått en egen toppliste for de 20 ukene med høyest samlet "
+            "omsetning. Hver uke viser samlet beløp og samme fordeling mellom parkering og soling "
+            "som topplistene for dager og måneder."
+        ),
+        "applications": [
+            "Fibaro10 backend: ISO-ukeaggregat bygget fra det samlede dagsgrunnlaget for omsetning.",
+            "Fibaro10 frontend: ny tabellfane mellom beste dager og beste måneder.",
+            "Fibaro10 tester: kontroll av ukegrenser, totalsummer, fordeling og rangering.",
+        ],
+        "request": "På Omsetning / Oversikt skal de 20 beste ukene også vises.",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Grupperer samlet sol- og parkeringsomsetning etter ISO-uke.",
+            "Viser tydelig ukenummer, år og datointervall.",
+            "Rangerer de 20 ukene med høyest samlet omsetning.",
+            "Beholder separate beløp og antall for parkering og soling.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1624",
+        "date": "02.08.2026",
+        "headline": "Årssammenligning av parkeringssnitt",
+        "title": "Ukesnitt for beløp og parkeringstid kan sammenlignes mellom alle historiske år",
+        "description": (
+            "Ukesnitt-siden er utvidet med to egne årsgrafer som sammenligner samme ukenummer for "
+            "gjennomsnittlig beløp og gjennomsnittlig parkeringstid. Alle år med data kan velges, mens "
+            "inneværende år og nærmeste tidligere år vises som standard."
+        ),
+        "applications": [
+            "Fibaro10 backend: databaseaggregert API for ukesnitt gruppert etter kalenderår.",
+            "Fibaro10 frontend: årvelger, sammendrag og separate grafer for beløp og tid.",
+            "Fibaro10 tester og manual: kontroll av årvalg og vektede ukesgjennomsnitt.",
+        ],
+        "request": "Legg til mulighet for å sammenligne ukesnitt for parkering med tidligere år.",
+        "work_duration": "ca. 35 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Gjør alle år med parkeringsdata valgbare.",
+            "Starter med inneværende og nærmeste tidligere år.",
+            "Viser kroner per parkering i en egen årsgraf.",
+            "Viser minutter per parkering i en egen årsgraf.",
+            "Tilbyr hurtigvalg for alle år og standardutvalg.",
+            "Aggregerer data i PostgreSQL for å unngå å laste historiske enkeltrader.",
+            "Avkorter første og siste uke ved årsskiftet slik at hvert år bare inneholder egne parkeringer.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1623",
+        "date": "02.08.2026",
+        "headline": "Ukesnitt for parkering",
+        "title": "Beløp og parkeringstid per parkering kan følges uke for uke",
+        "description": (
+            "Parkering har fått en egen utviklingsgraf som beregner gjennomsnittlig betalt beløp og "
+            "gjennomsnittlig parkeringstid per parkering for hver ISO-uke. Ulike måleenheter vises på "
+            "separate akser, og pågående eller avkortede uker merkes tydelig."
+        ),
+        "applications": [
+            "Fibaro10 backend: nytt ukeaggregert API basert på parkeringsradene.",
+            "Fibaro10 frontend: ny side Parkering / Ukesnitt med periodevalg og dobbelt trenddiagram.",
+            "Fibaro10 tester og manual: beregningskontroll, rutesmoke og oppdatert funksjonsbeskrivelse.",
+        ],
+        "request": "Lag en ny graf under Parkering som viser utviklingen i snittbeløp og snittid per parkering, uke for uke.",
+        "work_duration": "ca. 50 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser gjennomsnittlig kroner per parkering for hver uke.",
+            "Viser gjennomsnittlig parkeringstid i minutter for de samme ukene.",
+            "Bruker faktisk sluttid som reserve når lagret parkeringstid mangler.",
+            "Viser antall parkeringer og tidsdekning i tooltip og nøkkeltall.",
+            "Tilbyr dette året, siste 12/24 måneder, fjoråret og egendefinert periode.",
+            "Markerer pågående og avkortede uker og viser periodesnitt som stiplede referanselinjer.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1622",
+        "date": "02.08.2026",
+        "headline": "Varslinger og undersystemer samlet under System",
+        "title": "Ntfy-abonnementer og alle systemflater har fått egne, klikkbare oversiktssider",
+        "description": (
+            "System-menyen har fått en egen varslingssentral med forklaring av hver ntfy-kanal, "
+            "direkte abonnement og tilgang til kanalhistorikk. En separat undersystemside samler "
+            "offentlige, lokale og interne komponenter med riktige grensesnitt- og health-lenker."
+        ),
+        "applications": [
+            "Fibaro10 backend: kodeeide API-er for ntfy-kanaler og undersystemkatalog.",
+            "Fibaro10 frontend: nye hovedsidene Varslinger og Undersystemer under System.",
+            "Systeminventar: visningsnavn og typede lenker for alle registrerte komponenter.",
+        ],
+        "request": "Lag en egen hovedside under System for ntfy med forklaringer og lenker til alt som kan abonneres på, og en egen side med klikkbare lenker til alle undersystemer.",
+        "work_duration": "ca. 60 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Viser alle fem ntfy-kanaler med utløsere, prioritet, kanalstatus og personvernforklaring.",
+            "Legger inn direkte Abonner-lenke til ntfy-appen og webtilgang til kanalhistorikken.",
+            "Samler alle undersystemer etter fagområde med offentlig, lokal og health-lenke.",
+            "Skiller tydelig mellom eksterne webflater, interne nettadresser og tjenester uten egen webflate.",
+            "Legger til søk og tilgangsfilter i undersystemkatalogen.",
+            "Legger begge sidene som egne hovedvalg under System og tester rutene i frontend-smoken.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1621",
+        "date": "02.08.2026",
+        "headline": "Kjente biler og manglende registreringsbilder",
+        "title": "Bilfilteret inkluderer lokale biler og avbrutte OCR-bilder får trygg UniFi-fallback",
+        "description": (
+            "Filteret på Observerte biler regner nå både lokale kjøretøy, Protect-kjente biler og "
+            "nordiske registertreff som kjente. Hvis en separat OCR-bildejobb mangler, brukes det lagrede "
+            "bildet fra nøyaktig samme UniFi-hendelse."
+        ),
+        "applications": [
+            "Fibaro10 Biler: korrigert kjent/registerfunnet-filter.",
+            "UniFi Protect-hendelser: hendelsesbilde som fallback for OCR-registrering.",
+            "UniFi Protect-oppstart: rydder fastlåste bildejobber etter omstart.",
+        ],
+        "request": "Ta med kjente biler i filteret og finn hvorfor den siste bilen mangler bilder.",
+        "work_duration": "ca. 35 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Inkluderer lokalt bekreftede biler uten landkode i filteret.",
+            "Inkluderer biler som er kjent i Protect eller finnes i Fibaro10s kjøretøybase.",
+            "Bruker lagret bilde fra samme UniFi-hendelse når OCR-bildet ikke ble ferdig.",
+            "Setter avbrutte capturing-jobber til failed ved kontrollert tjenesteoppstart.",
+            "Oppdaterer frontendtesten med et lokalt kjent kjøretøy uten landkode.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1620",
+        "date": "02.08.2026",
+        "headline": "Endrede bildepiksler markeres helt r\u00f8dt",
+        "title": "Forskjellsbildet gj\u00f8r lokale endringer vesentlig enklere \u00e5 se",
+        "description": (
+            "Den klassiske bildeanalysen bruker fortsatt samme endringsmaske, men alle piksler som "
+            "best\u00e5r filtreringen tegnes n\u00e5 i ren r\u00f8d i stedet for \u00e5 blandes svakt med bakgrunnsbildet."
+        ),
+        "applications": [
+            "UniFi Protect-hendelser: tydelig r\u00f8d pikselmaske i forskjellsbildet.",
+            "Fibaro10 Pullerter: skarpere visuell kontroll i Markerte forskjeller.",
+            "UniFi Protect-test: verifiserer eksakt r\u00f8d pikselverdi i endringsmasken.",
+        ],
+        "request": "Gj\u00f8r endrede piksler helt r\u00f8de i visningen Markerte forskjeller.",
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Beholder eksisterende terskler og filtrering for reelle bildeendringer.",
+            "Farger alle godkjente endringspiksler rent r\u00f8de uten gjennomsiktig innblanding.",
+            "Beholder uendrede omr\u00e5der som en nedtonet blanding av referanse og siste bilde.",
+            "Tester at et lokalt avvik produserer eksakt r\u00f8de piksler i forskjellsbildet.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1619",
+        "date": "02.08.2026",
+        "headline": "Gjennomsiktig pullertkontroll som standard",
+        "title": "Referanse og siste bilde kan blandes direkte med mus eller piltaster",
+        "description": (
+            "Pullertkontrollen \u00e5pner n\u00e5 direkte i den gjennomsiktige sammenligningen. "
+            "Blandingen justeres i faste trinn p\u00e5 fem prosent med slideren eller venstre og h\u00f8yre piltast."
+        ),
+        "applications": [
+            "Fibaro10 Pullerter: ny standardmodus og tastestyrt bildekontroll.",
+            "Fibaro10 frontendtest: verifiserer standardmodus og femprosenttrinn.",
+        ],
+        "request": "Bruk gjennomsiktig sammenligning som standard og la tastene endre fem prosent hver vei.",
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Setter gjennomsiktig sammenligning som standard n\u00e5r pullertsiden \u00e5pnes.",
+            "Justerer slideren i faste trinn p\u00e5 fem prosent.",
+            "Lar venstre og h\u00f8yre piltast justere blandingen uten at slideren m\u00e5 ha fokus.",
+            "Skjermer tekstfelt og andre redigerbare kontroller fra hurtigtastene.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1618",
+        "date": "02.08.2026",
+        "headline": "Visuell kontroll tilbake i sentrum",
+        "title": "Pullerter og trapp sammenlignes tydelig før AI brukes som et forklarende tillegg",
+        "description": (
+            "Pullertsiden er bygget om rundt den manuelle bildekontrollen. Referanse og siste bilde vises "
+            "side om side som standard, med egne valg for gjennomsiktig sammenligning og markerte "
+            "pikselforskjeller. AI-markeringen er flyttet til en separat, valgfri forklaring."
+        ),
+        "applications": [
+            "Fibaro10 Pullerter: ny visuell inspeksjonsflate og forenklet statusoversikt.",
+            "Fibaro10 AI-visning: valgfri markering med forklaring i vanlig språk.",
+            "Fibaro10 CSS: gammel AI-stripe og overflødige bildemoduser er fjernet.",
+        ],
+        "request": "Gjeninnfør den visuelle kontrollen av pullertene i tillegg til AI, og rydd opp i en uoversiktlig side.",
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Viser fast referanse og siste bilde side om side som standard.",
+            "Beholder transparent sammenligning med tydelig bryter mellom bildene.",
+            "Beholder klassisk forskjellsbilde som eget sekundærvalg.",
+            "Flytter AI-varmekartet ut av hovednavigasjonen og kaller det AI-markering.",
+            "Forklarer at AI-markeringen viser uvanlige bildeområder og ikke beviser skade.",
+            "Reduserer tekniske statusfelt og fremhever vanlig bildekontroll og endringsscore.",
+            "Rydder bort ubrukt CSS fra den tidligere arbeidsflaten.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1617",
+        "date": "02.08.2026",
+        "headline": "Høyeste UniFi-score styrer bilfilteret",
+        "title": "Én god kameraregistrering er nok til at bilen beholdes i den valgte scoregrensen",
+        "description": (
+            "Scorefilteret på Observerte biler bruker nå den høyeste dokumenterte UniFi-scoren for bilen "
+            "den valgte dagen. Scoremerket viser samme maksimum, mens gjennomsnittet fortsatt er tilgjengelig "
+            "i forklaringen ved hover."
+        ),
+        "applications": [
+            "Fibaro10 Biler: maksimumsscore i filter, kvalitetsmerke og forklaring.",
+            "Fibaro10 frontendtest: verifiserer maksimumsfilter med lavere gjennomsnittsscore.",
+        ],
+        "request": "Bruk høyeste score i stedet for gjennomsnittet når observerte biler filtreres.",
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Filtrerer på høyeste UniFi-score registrert for bilen den valgte dagen.",
+            "Viser maksimumsscoren direkte i bilens kvalitetsmerke.",
+            "Beholder gjennomsnittsscoren i hoverforklaringen for kontroll og sammenheng.",
+            "Tester eksplisitt en bil med gjennomsnitt under 90 og maksimum over 90.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1616",
+        "date": "02.08.2026",
+        "headline": "Minimumsscore for observerte biler",
+        "title": "Biloversikten kan filtreres trinnvis på UniFi-sikkerhet fra 40 til 90",
+        "description": (
+            "Filterlinjen på Observerte biler har fått et kompakt valg for laveste tillatte "
+            "gjennomsnittsscore. Valget skjuler svakere avlesninger og biler uten score, og virker "
+            "samtidig med registerfilter, søk og betalingsstatus."
+        ),
+        "applications": [
+            "Fibaro10 Biler: minimumsfilter for gjennomsnittlig UniFi-score.",
+            "Fibaro10 frontendtest: verifiserer at scoregrensen faktisk fjerner svakere biler.",
+        ],
+        "request": "Legg inn filter som kan fjerne alle observerte biler med score under 40, 50, 60, 70, 80 eller 90.",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Legger inn valgene Alle scorer og minst 40, 50, 60, 70, 80 eller 90.",
+            "Bruker bilens gjennomsnittlige UniFi-score for den valgte dagen.",
+            "Skjuler biler uten score når en minimumsverdi er valgt.",
+            "Lar scorefilteret kombineres med alle eksisterende filtre.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1615",
+        "date": "02.08.2026",
+        "headline": "Registerfilter for observerte biler",
+        "title": "Dagsoversikten kan avgrenses til biler bekreftet i Norge, Sverige eller Danmark",
+        "description": (
+            "Observerte biler har fått en tydelig avkryssing som bare viser registreringsnummer med "
+            "gyldig treff i et nasjonalt kjøretøyregister. Lokal kjennskap alene regnes ikke som "
+            "registertreff, og filteret kan kombineres med søk og betalingsstatus."
+        ),
+        "applications": [
+            "Fibaro10 Biler: nytt registerfilter i dagsoversikten.",
+            "Fibaro10 frontendtest: verifiserer filteret med både bekreftet og ubekreftet bil.",
+        ],
+        "request": "Legg inn en avkryssing på Biler / Observerte biler som bare viser biler funnet i kjøretøyregisteret i Norge, Sverige eller Danmark.",
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Filtrerer eksplisitt på gyldig registertreff med landkode NO, SE eller DK.",
+            "Lar filteret kombineres med fritekstsøk og valget med eller uten betaling.",
+            "Viser løpende korrekt antall filtrerte biler i tabelloverskriften.",
+            "Legger inn responsiv utforming og automatisk nettlesertest av avkryssingen.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1614",
+        "date": "01.08.2026",
+        "headline": "Lokal AI-kontroll av pullerter og trapp",
+        "title": "Fire selvstendige PatchCore-profiler bekrefter reelle strukturavvik og filtrerer lysutslag",
+        "description": (
+            "Tre pullertflater og trappa ved Solstudio analyseres nå av en separat lokal AI-tjeneste på QNAP. "
+            "Hver profil lærer normaltilstanden fra sitt eget historiske bildegrunnlag og sammenligner detaljer "
+            "bare mot samme faste posisjon. Ferdige modeller må bekrefte klassiske utslag før alarm, mens den "
+            "eksisterende bildeanalysen overtar automatisk dersom AI-laget trener, stopper eller returnerer feil."
+        ),
+        "applications": [
+            "Fibaro10: AI-status, terskelforhold, samlet vurdering og lokalt varmekart per kontrollflate.",
+            "Protect Ledger build 17: isolert AI-klient, lagring av resultat og feilrobust hybridstatus.",
+            "Visual Anomaly Service: CPU-basert PatchCore med fire varige modellprofiler på arkivvolumet.",
+        ],
+        "request": "Sett opp en lokal AI-modell på QNAP som kontrollerer både pullertene og trappa, implementer den i grensesnittet og test grundig.",
+        "work_duration": "ca. 3 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Oppretter separate modeller for Butikk Nord, Butikk Front, Solstudio Front og trappa.",
+            "Bygger analyseatlas fra faste originalpiksler uten flytting eller perspektivkorrigering.",
+            "Kombinerer posisjonsbundet PatchCore med en lysnormalisert kontroll av kantgeometrien.",
+            "Trener hver modell på inntil 192 normalbilder og kalibrerer mot inntil 48 bilder fordelt over historikken.",
+            "Lagrer AI-score, terskel, modellversjon, inferenstid og varmekart i Protect Ledger.",
+            "Viser klassisk og lokal AI-vurdering samlet, men lar dagens varsling fortsette ved AI-feil.",
+            "Filtrerer rene lys- og pikselutslag ved å kreve samstemt AI-avvik før ny alarm.",
+            "Gjør Pullerter-siden tilgjengelig ved menyvalg, direkte lenke og nettleseroppdatering.",
+            "Legger modellene og metadata på Vol3 og tar dem med i nattlig systembackup.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1613",
+        "date": "01.08.2026",
+        "headline": "Trapp fast synlig i hovedgrensesnittet",
+        "title": "PC- og iPad-visningen viser trappekontrollen uten å være avhengig av gammel nettleserstatus",
+        "description": (
+            "Trapp ved Solstudio har fått en egen, alltid synlig inngang i statuslinjen for pullertkontrollen. "
+            "Trappa identifiseres også robust fra både objekt- og ressursdata, og hovedsidens HTML mellomlagres "
+            "ikke lenger slik at nye frontendbygg vises straks etter utrulling."
+        ),
+        "applications": [
+            "Fibaro10 Pullert- og trappekontroll: egen trappestatus og direkte åpning av trappebildet.",
+            "Fibaro10 frontendlevering: HTML leveres uten nettlesermellomlagring.",
+        ],
+        "request": "Trappa mangler i hovedgrensesnittet og er kun tilgjengelig i mobilgrensesnittet.",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger Trapp som eget statuspunkt øverst i hovedvisningen.",
+            "Åpner Trapp ved Solstudio direkte når statuspunktet trykkes.",
+            "Beholder Trapp som egen gruppe i listen over kontrollobjekter.",
+            "Gjenkjenner trappa også dersom bare ressursfeltene er tilgjengelige.",
+            "Forhindrer at gammel HTML holder igjen et nytt frontendbygg etter utrulling.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1612",
+        "date": "01.08.2026",
+        "headline": "Trapp synlig og bilder låst til kildepiksler",
+        "title": "Trappekontrollen vises separat og sammenligner fysisk lagrede utsnitt",
+        "description": (
+            "Trapp ved Solstudio er nå skilt tydelig fra pullertkameraene i grensesnittet. "
+            "Protect Ledger beskjærer originalbildet med faste koordinater idet bildet behandles, "
+            "lagrer utsnittet og bruker den samme filen til visning og sammenligning."
+        ),
+        "applications": [
+            "Fibaro10 Pullert- og trappekontroll: egne grupper for Pullerter og Trapp.",
+            "Protect Ledger build 16: direkte analyse av lagrede kildepikselutsnitt.",
+        ],
+        "request": "Ta bildet, beskjær det med faste punkter og benytt det uten annen geometrisk behandling; få trappa tydelig inn i grensesnittet.",
+        "work_duration": "ca. 35 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser Trapp ved Solstudio i en egen, tydelig merket gruppe.",
+            "Henter referanse og løpende bilder med samme Protect-kvalitetsmodus.",
+            "Lagrer trappereferansen og hvert nytt trappebilde ferdig beskåret.",
+            "Sammenligner alle pikslene i utsnittet uten skalering, flytting eller perspektivbehandling.",
+            "Kontrollerer at lagrede trappebilder har nøyaktig forventet pikselstørrelse før de leveres.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1611",
+        "date": "01.08.2026",
+        "headline": "Egen kontroll av trappa ved Solstudio",
+        "title": "Pullerter og trapp har fått hvert sitt utsnitt, status og varsel",
+        "description": (
+            "G6 Solstudio Front er delt i to selvstendige kontrollområder. Pullertene beholder sitt "
+            "kompakte utsnitt, mens hele trappa sammenlignes mot en egen fast referanse. Endring eller "
+            "mulig skade på trappa får egen status, historikk og varseltekst."
+        ),
+        "applications": [
+            "Fibaro10 Pullert- og trappekontroll: viser fire separate kontrollområder.",
+            "Protect Ledger build 15: analyserer og varsler trappa uavhengig av pullertene.",
+            "Vedlikehold mobil build 1465: viser trappa som eget kontrollområde på Varsler.",
+        ],
+        "request": "Trappa er like viktig å varsle på; skill den ut som eget varsel og eget utsnitt.",
+        "work_duration": "ca. 40 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Beholder pullertutsnittet på x=2765, y=0, bredde=537 og høyde=734.",
+            "Oppretter trappeutsnittet x=2200, y=400, bredde=1640 og høyde=1760.",
+            "Lagrer selvstendig trappestatus og analyserer den hvert femte minutt.",
+            "Avgrenser skadeanalysen til selve metallkonstruksjonen, slik at asfalt og lys i døra ikke gir falske avvik.",
+            "Oppretter separat hendelse og varsel dersom endringen vedvarer.",
+            "Tar det egne trappeutsnittet inn på den innloggede mobile varslingssiden.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1610",
+        "date": "01.08.2026",
+        "headline": "Uendrede kamerabilder med fast pikselutsnitt",
+        "title": "Pullertbildene beskjæres likt uten zoom, flytting eller perspektivkorrigering",
+        "description": (
+            "Referanse og siste bilde hentes nå fra ett absolutt pikselrektangel per kamera på serveren. "
+            "Klientbasert zoom, forskyvning og fargebehandling er fjernet. Dersom kameraets oppløsning "
+            "endres, stopper analysen i stedet for å skalere bildet."
+        ),
+        "applications": [
+            "Fibaro10 Pullerter: viser ferdig beskårne, geometrisk uendrede bilder.",
+            "Protect Ledger build 14: utfører og dokumenterer det faste pikselutsnittet.",
+            "Vedlikehold mobil build 1464: bruker samme ferdig beskårne bildestrøm.",
+        ],
+        "request": "Bare beskjær rundt det aktuelle området med samme beskjæring hver gang; ingen zoom, perspektivendring eller annen bildejustering.",
+        "work_duration": "ca. 35 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Flytter beskjæringen til Protect Ledger og bruker absolutte 4K-pikselkoordinater.",
+            "Fjerner prosentbasert CSS-utsnitt og all geometrisk behandling i klientene.",
+            "Fjerner fargefilteret fra referansebildet; transparens endrer bare synligheten mellom råbildene.",
+            "Avviser endret kameraoppløsning uten å skalere og tester at kildens piksler bevares i utsnittet.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1609",
+        "date": "01.08.2026",
+        "headline": "Entydig bildeslider med opptakstid",
+        "title": "Referanse og siste bilde skilles tydelig med rolle, farge og full dato",
+        "description": (
+            "Den transparente pullertsammenligningen har fått tydeligere blågrå fargebehandling av "
+            "referansebildet. Sliderens venstre og høyre endepunkt viser nå henholdsvis Referanse og "
+            "Siste bilde med full dato og klokkeslett, slik at hvert bildelag kan identifiseres uten tvil."
+        ),
+        "applications": [
+            "Fibaro10 Pullerter: ny endepunktvisning og tydeligere referansefarge.",
+            "Protect Ledger build 13: samme slider med opptakstid.",
+            "Vedlikehold mobil build 1463: samme slider på Varsler-siden.",
+        ],
+        "request": "Vis tydelig hva som er referanse og siste bilde, med dato og klokkeslett på riktig side av slideren.",
+        "work_duration": "ca. 25 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser full opptakstid under begge endepunktene på slideren.",
+            "Forsterker den kjølige blågrå fargebehandlingen bare på referansebildet.",
+            "Beholder siste bilde i originale farger og fast pikselgeometri for begge bildelag.",
+            "Standardiserer samme visuelle språk i alle tre grensesnittene.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1608",
+        "date": "01.08.2026",
+        "headline": "Transparent overlegg med tydelig referanse",
+        "title": "Den foretrukne transparensen er tilbake med alle geometriforbedringene beholdt",
+        "description": (
+            "Pullertkontrollen bruker igjen et transparent overlegg. Referanse og siste bilde ligger fortsatt "
+            "i identisk fast utsnitt uten perspektivflytting. Den blågrå referansen, tidsstemplene og den "
+            "tydelige skyveren fra 0 til 100 prosent gjør det enkelt å se hvilket bildelag som vises."
+        ),
+        "applications": [
+            "Fibaro10 Pullerter: transparent overlegg med tydelig 0–100-prosentmerking.",
+            "Protect Ledger build 12: samme sammenligningsmodell.",
+            "Vedlikehold mobil build 1462: samme sammenligningsmodell.",
+        ],
+        "request": "Jeg likte bedre transparent, men med de andre endringene beholdt.",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Gjeninnfører transparensslideren med referanse ved 0 prosent og siste bilde ved 100 prosent.",
+            "Beholder den blågrå referansen og siste bilde i originalfarger.",
+            "Beholder tydelige etiketter og tidsstempler direkte i bildeflaten.",
+            "Beholder fast pikselgeometri og korrekt klipping mot kamerautsittet.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1607",
+        "date": "01.08.2026",
+        "headline": "Fast før/etter-visning i pullertkontrollen",
+        "title": "Referansebildet er entydig og bildene oppleves ikke lenger som forskjøvet",
+        "description": (
+            "Den tidligere gjennomsiktighetsblandingen kunne gi inntrykk av at et fast kamerabilde "
+            "flyttet seg når lys og skygger endret seg. Fibaro10 bruker nå en ekte før/etter-skyver: "
+            "referansen står fast til venstre med blågrå farge, siste bilde står fast til høyre i "
+            "originalfarger, og bare skillelinjen beveger seg."
+        ),
+        "applications": [
+            "Fibaro10 Pullerter: fast før/etter-skyver, tidsstempler og tydelig referanse.",
+            "Protect Ledger build 11: samme visning i administrasjonsgrensesnittet.",
+            "Vedlikehold mobil build 1461: samme visning på Varsler-siden.",
+        ],
+        "request": "Gjør referansemarkeringen tydeligere og fjern fortsatt inntrykk av at bildet flytter seg, også på skyveren.",
+        "work_duration": "ca. 35 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Erstatter kryssblanding med en fast vertikal før/etter-deling.",
+            "Lar referansen være blågrå og siste bilde beholde originalfargene.",
+            "Merker begge bildesider med rolle og opptakstid direkte i bildeflaten.",
+            "Legger tydelige Referanse- og Siste bilde-endepunkter rundt skyveren.",
+            "Standardiserer funksjonen i Fibaro10, Protect Ledger og vedlikeholdsappen.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1606",
+        "date": "01.08.2026",
+        "headline": "Tydelig referanse i pullertkontrollen",
+        "title": "Referanse og siste kamerabilde kan skilles med et blikk",
+        "description": (
+            "Referansebildet i Pullerter har fått en diskret kjølig blåtone og et fast Referanse-merke. "
+            "Siste bilde beholder kameraets originalfarger og merkes separat i overleggvisningen. "
+            "Det gjør både enkeltbildet og blandingen med glidebryteren lettere å tolke."
+        ),
+        "applications": [
+            "Fibaro10 Pullerter: blåtonet referanse, faste bildemerker og tydeligere overlegg.",
+        ],
+        "request": "Gjør det mer synlig hva som er referansebildet, gjerne med et fargefilter.",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger et skånsomt fargefilter bare på referansebildet.",
+            "Merker Referanse og Siste bilde direkte i bildeflaten uten å bruke mer sidehøyde.",
+            "Beholder siste kamerabilde og forskjellsbildet i originale farger.",
+            "Gjør forklaringen ved glidebryteren entydig.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1605",
+        "date": "23.07.2026",
+        "headline": "Riktig siste tidspunkt for korte døråpninger",
+        "title": "Fibaro10 viser nå samme ferske dørstatus som mobilappen",
+        "description": (
+            "Fibaro10 brukte tidligere den støydempede hendelsesrekken både til perioder og til siste status. "
+            "En gyldig åpning og lukking innen fem sekunder kunne derfor bli lagret riktig, men fortsatt vise "
+            "et eldre tidspunkt på Dører-siden. Status og Sist endret bruker nå alltid nyeste rå dørhendelse. "
+            "Én kort åpne/lukke-sekvens beholdes også som en reell periode, mens gjentatt rask sensorflimring "
+            "fortsatt dempes."
+        ),
+        "applications": [
+            "Fibaro10 Dører: status og tidspunkt følger nyeste lagrede HC3-hendelse.",
+            "Mobilappen: ingen endring nødvendig; den viste allerede nyeste hendelse.",
+            "Dørperioder og alarmer: korte reelle åpninger beholdes, mens gjentatt sensorflimring dempes.",
+        ],
+        "request": "Rett at Kjeller luke oppdateres i mobilappen, men ikke i Fibaro10.",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Skiller siste rå status fra den stabiliserte hendelsesrekken i døroppsummeringen.",
+            "Bruker nyeste rå hendelse for status, Sist endret og siste endring i toppfeltet.",
+            "Justerer debounce slik at én kort åpne/lukke-sekvens beholdes, men klynger med gjentatt flimring filtreres.",
+            "Legger regresjonstest med den faktiske fire sekunders åpne/lukke-sekvensen fra Kjeller luke.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1604",
+        "date": "23.07.2026",
+        "headline": "Ny dørsensor på Inngang",
+        "title": "Fibaro10, mobilappen og HC3-loggingen bruker node 131",
+        "description": (
+            "Inngang er flyttet fra gammel HC3-sensor 499 til dørsensor 541 under Z-Wave-node 131. "
+            "Den stabile nøkkelen door_inngang beholdes, slik at tidligere dørhistorikk og koblingen mot "
+            "solrommenes dagskontroll fortsetter uten brudd."
+        ),
+        "applications": [
+            "Fibaro10 Dører: Inngang bruker sensor 541.",
+            "Mobilappen: Inngang viser samme nye sensor og bevart historikk.",
+            "HC3: nye logger- og triggerscener samt kontrollert deaktivering av gamle Inngang-scener.",
+        ],
+        "request": "Bytt den defekte sensoren på Inngang til ny enhet 131.",
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Slår opp node 131 i HC3 og bruker den faktiske dørsensor-ID-en 541.",
+            "Beholder door_inngang slik at historikk og eksisterende funksjoner fortsetter.",
+            "Oppdaterer Fibaro10, online mobilapp, samlet Lua-logger og sceneoppsett.",
+            "Deaktiverer gamle HC3-scener for sensor 499 etter sikkerhetskopiering.",
+            "Legger regresjonstester på sensor-ID 541 i begge appene.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1603",
+        "date": "22.07.2026",
+        "headline": "Nye dørsensorer for Solrom 12 og Søppelbod",
+        "title": "Fibaro10, mobilappen og HC3-loggingen bruker det nye sensorkartet",
+        "description": (
+            "Solrom 12 er flyttet fra gammel HC3-sensor 491 til dørsensor 539 under Z-Wave-node 130. "
+            "Den nye døren Søppelbod er lagt til under Andre dører med dørsensor 537 under node 129. "
+            "Begge appene bruker samme navn, nøkkel og statusgrunnlag."
+        ),
+        "applications": [
+            "Fibaro10 Dører: Solrom 12 på sensor 539 og Søppelbod på sensor 537.",
+            "Mobilappen: samme sensorkart i Solrom og Andre dører.",
+            "HC3: nye logger- og triggerscener samt kontrollert deaktivering av gammel Solrom 12-scene.",
+        ],
+        "request": "Bytt sensor på Solrom 12 til enhet 130 og legg sensor 129 inn som Søppelbod i begge apper.",
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Slår opp node 129 og 130 i HC3 og bruker de faktiske dørsensor-ID-ene 537 og 539.",
+            "Beholder door_solrom_12, rom-13 og Sun2-seng 681 slik at alarm- og betalingskoblingen fortsetter.",
+            "Legger door_soppelbod til Andre dører med normaltilstand lukket.",
+            "Oppdaterer Fibaro10, online mobilapp, samlet Lua-logger og sceneoppsett.",
+            "Deaktiverer gamle HC3-scener for sensor 491 etter sikkerhetskopiering, uten å slette historikk.",
+            "Legger regresjonstester på begge sensor-ID-ene og mobilkonfigurasjonen.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1602",
+        "date": "22.07.2026",
+        "headline": "Egen PC-arbeidsflate for pullertkontroll",
+        "title": "Tre smale mobilkort er erstattet av kameravelger og stor inspeksjonsflate",
+        "description": (
+            "Pullerter-siden i Fibaro10 er tegnet om spesielt for PC. Alle kameraene ligger i en kompakt "
+            "arbeidsliste til venstre, mens valgt kamera vises stort med overlegg, forskjellsbilde, siste bilde "
+            "og referanse. Systemstatus, avvikshistorikk og mobilvarsling er samlet uten å skyve bildene nedover."
+        ),
+        "applications": [
+            "Fibaro10 Pullerter: master-/detaljvisning tilpasset bred PC-skjerm.",
+            "Kamerakontroll: stor inspeksjonsflate med bevart, fast utsnitt rundt pullertene.",
+            "Driftskontroll: kompakt statuslinje, avvikshistorikk og varslingsverktøy.",
+        ],
+        "request": "Lag Pullerter-visningen i Fibaro10 mer PC-vennlig, ikke som en kopi av mobilappen.",
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Erstatter tre parallelle kamerakort med en kameravelger og én stor arbeidsflate.",
+            "Reduserer høyden på status- og varslingsinformasjonen slik at inspeksjonsbildet kommer tidligere.",
+            "Beholder overlegg som standard og gir direkte valg mellom overlegg, forskjell, siste bilde og referanse.",
+            "Viser kontrolltid, referansetid, bildetid, endringsscore og automatisk vurdering samlet.",
+            "Legger aktive og historiske avvik i en egen PC-tabell under kamerakontrollen.",
+            "Laster kun bildene for valgt kamera i stedet for alle kameravisningene samtidig.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1601",
+        "date": "22.07.2026",
+        "headline": "Første og siste registreringsbilde i Biler",
+        "title": "Biloversikten viser kamerabevis og eksplisitt betalt fra/til i samme rad",
+        "description": (
+            "Biler-tabellen er bygget om rundt opplysningene som trengs i dagskontrollen. Hver rad viser nå "
+            "tidspunkt og bilde for både første og siste registrering, mens hver betalte parkeringsperiode har "
+            "egne, tydelige felt for start og slutt. Full dagsjournal ligger fortsatt i den utvidbare raden."
+        ),
+        "applications": [
+            "Fibaro10 Biler: første og siste deteksjonsbilde direkte i dagsoversikten.",
+            "Fibaro10 Biler: eksplisitte Betalt fra- og Betalt til-tidspunkt per betalt periode.",
+            "Fibaro10 UI-test: realistiske bil-, betalings- og bildedata for regresjonskontroll.",
+        ],
+        "request": "Vis betalt fra og til sammen med første og siste registreringsbilde i Biler-oversikten.",
+        "work_duration": "ca. 35 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Erstatter døgnlinjen i hovedtabellen med to kompakte, klikkbare kamerabilder.",
+            "Sorterer observasjonene kronologisk før første og siste registrering velges.",
+            "Viser tidspunkt og kamera sammen med hvert registreringsbilde.",
+            "Viser start, slutt, beløp og kilde for hver betalte parkeringsperiode.",
+            "Laster oversiktsbildene forsinket og med lav prioritet for å begrense ressursbruken.",
+            "Beholder tre hovedkolonner og fast tabellbredde uten horisontal rulling.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1600",
+        "date": "22.07.2026",
+        "headline": "Pullertkontroll som egen hovedside",
+        "title": "Fibaro10 får samme overlay-kontroll og mobilvarsling som mobilappen",
+        "description": (
+            "Pullerter er nå et eget hovedmenyvalg i Fibaro10. Siden viser driftsstatus, siste kontroll, "
+            "aktive avvik og alle tre kameraene med samme avgrensede utsnitt som mobilen. Standardvisningen "
+            "legger siste bilde over den faste referansen, med justerbar gjennomsiktighet."
+        ),
+        "applications": [
+            "Fibaro10 Pullerter: egen responsiv hovedside og kamerainspeksjon.",
+            "Fibaro10 navigasjon: Pullerter under Bygg og drift.",
+            "Fibaro10 API-klient: lokal status, bilder, abonnement og testvarsel.",
+        ],
+        "request": "Legg pullertkontrollen fra mobilappen inn som en egen hovedside i Fibaro10.",
+        "work_duration": "ca. 50 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser referanse og siste bilde som standard overlay for hvert av de tre kameraene.",
+            "Bruker de samme faste utsnittene rundt pullertene som mobilappen.",
+            "Lar brukeren velge sammenligning, forskjell, siste bilde eller referanse.",
+            "Legger til abonnementslenke, varselkanal og kontrollert testvarsel.",
+            "Oppdaterer status automatisk hvert minutt uten å flytte kamerabehandlingen ut av Protect Ledger.",
+            "Beholder alle bilder og analysedata lokalt; bare kort alarmtekst sendes ved mobilvarsel.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1599",
+        "date": "22.07.2026",
+        "headline": "Biler-tabellen utnytter skjermbredden",
+        "title": "Sju brede kolonner er samlet til tre oversiktlige arbeidskolonner",
+        "description": (
+            "Biler-siden samler bilidentitet, registerkontroll, AI-kvalitet og kamera i én kolonne, "
+            "beholder det komplette dagsforløpet i midten og viser betalingsstatus og perioder samlet. "
+            "Tabellen tilpasser seg nå innholdsbredden uten den tidligere horisontale rullingen."
+        ),
+        "applications": [
+            "Fibaro10 Biler: kompakt dagsoversikt med tre arbeidskolonner.",
+            "Bil- og kvalitetsfelt: registerstatus, AI-sikkerhet, OCR-variant og kamera samlet.",
+            "Betalingsfelt: status og alle betalte perioder vises på samme sted.",
+        ],
+        "request": "Biler-siden på Fibaro10 har blitt for bred; rydd opp i tabellen.",
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Reduserer hovedtabellen fra sju informasjonskolonner til tre.",
+            "Beholder register- og kvalitetsfiltrene i den sammenslåtte bilkolonnen.",
+            "Fjerner tvungen tabellbredde og bruker fast layout innenfor tilgjengelig skjermbredde.",
+            "Gjør betalingsfeltet responsivt slik at innholdet stables på smalere skjermer.",
+            "Beholder detaljvisningen med komplette observasjoner og bilder.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1598",
+        "date": "21.07.2026",
+        "headline": "Eget mobilabonnement for pullertvarsler",
+        "title": "Pullertalarmer skilles fra dørvarsler og kan abonneres på i mobilappen",
+        "description": (
+            "Fibaro10 eksponerer nå en separat, avledet pullertkanal med abonnementslenke, "
+            "driftsstatus og kontrollert testvarsel. Kanalen deles ikke med dørvarsler. Eksternt "
+            "sendes bare kort alarmtekst; bilder, registreringsnummer og analysegrunnlag beholdes lokalt."
+        ),
+        "applications": [
+            "Fibaro10 API: status, abonnementslenke og testvarsel for pullertkanalen.",
+            "Vedlikehold mobil build 1456: egen Varsler-side med abonnementsknapp.",
+            "Protect Ledger build 8: separat kanal og personvernssikker pushtekst.",
+        ],
+        "request": "Lag en side i mobilappen med en lenke man kan trykke på for å abonnere på pullerter.",
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Oppretter en egen pullertkanal som ikke bruker dørvarselkanalen som reserve.",
+            "Gir innloggede mobilbrukere en direkte ntfy-abonnementslenke.",
+            "Legger til et eksplisitt testvarsel uten å opprette en falsk hendelse.",
+            "Fjerner registreringsnummer fra eksterne pullertvarsler.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1597",
+        "date": "21.07.2026",
+        "headline": "Helbilde-overlay for pullertkameraene",
+        "title": "Fibaro10 eksponerer faste referanser, siste kontrollbilder og differanser",
+        "description": (
+            "Fibaro10 sin lokale Protect Ledger-proxy støtter nå den automatiske "
+            "helbildesammenligningen for alle tre pullertkameraene. Referansen beholdes fast, "
+            "mens siste femminuttersbilde og rødt differansebilde kan hentes uten at klienten "
+            "kjenner Protect Ledger-tokenet."
+        ),
+        "applications": [
+            "Fibaro10 API: lokale proxyendepunkter for baseline, latest og overlay per kamera.",
+            "Protect Ledger build 7: fast helbildereferanse og automatisk sammenligning hvert femte minutt.",
+        ],
+        "request": "Behold eksisterende bilder som referanse og sammenlign automatisk uten markeringer.",
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Skriver kamerabildelenkene om til Fibaro10 sitt eget lokale API.",
+            "Proxyer referanse, siste kontrollbilde og beregnet differanse.",
+            "Avviser ukjente bildetyper før de sendes videre til Protect Ledger.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1596",
+        "date": "21.07.2026",
+        "headline": "Pullertdata fra Protect Ledger",
+        "title": "Fibaro10 kan hente status, avvik og bevisbilder fra pullertovervåkingen",
+        "description": (
+            "Fibaro10 har fått en lokal proxy til Protect Ledger build 6. Den eksponerer kalibrerte "
+            "pullerter, kamerastatus, aktive og historiske avvik samt de tilhørende før- og etterbildene "
+            "uten at nettleseren trenger Protect Ledger-tokenet."
+        ),
+        "applications": [
+            "Fibaro10 API: /api/unifi-protect/bollards med lokale bildeproxyer.",
+            "Protect Ledger-klient: status, referansebilder og hendelsesbilder.",
+            "Protect Ledger build 6: komplett kalibrerings- og analysemotor.",
+        ],
+        "request": "Gjør pullertdataene tilgjengelige for videre bruk i Fibaro10.",
+        "work_duration": "ca. 90 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger til tokenbeskyttet klientmetode for pullertstatus.",
+            "Skriver bildelenker om til Fibaro10 sine lokale proxyendepunkter.",
+            "Proxyer referanse- og hendelsesbilder uten mellomlagring i Fibaro10.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1595",
+        "date": "21.07.2026",
+        "headline": "Sikre deteksjonsbilder i Biler",
+        "title": "Fibaro10 viser bildet som tilhører den konkrete OCR-observasjonen",
+        "description": (
+            "Biler-siden bruker nå Protect Ledgers nye gjenkjenningsbilde i stedet for et generelt "
+            "hendelsesbilde. Hvert bilde er hentet fra kameraet oppgitt i Alarm Manager-webhooken, "
+            "tidsstyrt mot OCR-tidspunktet og ledsaget av beregnet tidsavvik."
+        ),
+        "applications": [
+            "Fibaro10 Biler: lenke til deteksjonsbilde og synlig tidsavvik per observasjon.",
+            "Fibaro10 API: proxy for gjenkjenningsbilder og komplett bildemetadata.",
+            "Protect Ledger-klient: eget endepunkt for bilde per gjenkjennings-ID.",
+            "Protect Ledger build 5: lokal tidsstyrt bildehenting fra riktig kamera.",
+        ],
+        "request": "Jeg trenger bilde fra rett kamera på rett tidspunkt.",
+        "work_duration": "ca. 50 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fjerner hendelsesbildet som fallback for OCR-dokumentasjon.",
+            "Viser bare bilder som er lagret på den konkrete gjenkjenningen.",
+            "Viser tidsavvik i sekunder og varsler når bildet fortsatt hentes.",
+            "Beholder kamera-ID, OCR-tid, bildetid og bildekilde i API-responsen.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1594",
+        "date": "21.07.2026",
+        "headline": "Samlet dagsjournal for biler",
+        "title": "Kameraobservasjoner og betalinger vurderes nå som ett komplett dagsforløp",
+        "description": (
+            "Biler-siden krever ikke lenger at en kameraobservasjon må ligge inne i det betalte tidsintervallet "
+            "for å få betalingsmatch. Samme validerte bil og en betalt parkering som berører valgt kalenderdag "
+            "gir dagsmatch, også når sjåføren venter lenge før betaling. Nøyaktige observasjons- og betalingstider "
+            "beholdes og vises sammen på en døgnlinje."
+        ),
+        "applications": [
+            "Fibaro10 Biler: ny kronologisk døgnlinje med kameraobservasjoner og betalte perioder.",
+            "Fibaro10 API: dagsmatch er uavhengig av ventetiden før betaling.",
+            "Protect Ledger-data: bekreftede OCR-varianter samles under validert hovedskilt med rålesingen bevart.",
+            "Diagnostikk: viser kameradekningens faktiske tidsrom og ventetid før første betaling.",
+        ],
+        "request": "Bruk større toleranse og strukturer kamera og betaling som en helhet for dagen.",
+        "work_duration": "ca. 40 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Matcher alle betalte parkeringsperioder for samme bil på valgt kalenderdag.",
+            "Beholder separat telling av observasjoner som faktisk lå inne i betalt tidsrom.",
+            "Beregner tiden fra første observasjon til første betaling og tiden etter siste betalte periode.",
+            "Slår kun sammen OCR-varianter når Protect Ledger peker på et registerbekreftet hovedskilt.",
+            "Viser rå OCR-verdi på hver observasjon slik at ingen dokumentasjon går tapt.",
+            "Erstatter separate første-/sistekolonner med en samlet døgnlinje.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1593",
+        "date": "21.07.2026",
+        "headline": "Fersk bil- og parkeringssammenstilling",
+        "title": "Fibaro10 kobler skilt mot parkering på nytt hver gang Biler-siden vises",
+        "description": (
+            "Biler-siden bruker ikke lenger en gyldig klientcache som grunn til å hoppe over en ny sammenstilling. "
+            "Hver åpning og hver gang nettleserfanen blir synlig igjen henter Fibaro10 rensede skilt fra Protect "
+            "Ledger og kobler dem mot de ferskeste parkeringsradene i Fibaro10-databasen. Dagens side fortsetter "
+            "også å oppdatere seg automatisk hvert 30. sekund."
+        ),
+        "applications": [
+            "Fibaro10 Biler: tvinger ny henting ved sideåpning, fanefokus og nettverksgjenkomst.",
+            "Fibaro10 API: /api/cars/day merkes no-store og utfører parkeringssammenstillingen per kall.",
+            "Fibaro10 klient: biloversikten bruker eksplisitt no-store ved henting.",
+            "Grensesnitt: viser når skilt og parkering sammenstilles og tidspunktet resultatet ble laget.",
+        ],
+        "request": "Sammenstilling mot parkeringer må gjøres i Fibaro10 og oppdateres hver gang siden vises.",
+        "work_duration": "ca. 25 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Setter biloversikten til alltid å hente på nytt når komponenten monteres.",
+            "Henter på nytt når nettleserfanen får fokus eller forbindelsen kommer tilbake.",
+            "Beholder 30-sekunders oppdatering for inneværende dag.",
+            "Deaktiverer HTTP-/nettlesercache for den sammensatte dagsresponsen.",
+            "Tydeliggjør at Ledger eier skiltkvalitet, mens Fibaro10 eier parkeringskoblingen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1592",

@@ -1,0 +1,6 @@
+@import 'tailwindcss';
+@import '@lilletorget/mosaic-theme/style.css';
+
+@plugin "@tailwindcss/forms" {
+  strategy: base;
+}

@@ -34,6 +34,7 @@ SUN2_DAILY_DATA_DIR="${SUN2_DAILY_DATA_DIR:-$(env_value sun2_importer/.env SUN2_
 SUN2_SESSION_SCRAPER_HOST_DATA_DIR="${SUN2_SESSION_SCRAPER_HOST_DATA_DIR:-$(env_value .env SUN2_SESSION_SCRAPER_HOST_DATA_DIR)}"
 FIBARO10_CADDY_DATA_DIR="${FIBARO10_CADDY_DATA_DIR:-$(env_value .env FIBARO10_CADDY_DATA_DIR)}"
 FIBARO10_CADDY_CONFIG_DIR="${FIBARO10_CADDY_CONFIG_DIR:-$(env_value .env FIBARO10_CADDY_CONFIG_DIR)}"
+VISUAL_AI_HOST_DATA_DIR="${VISUAL_AI_HOST_DATA_DIR:-$(env_value .env VISUAL_AI_HOST_DATA_DIR)}"
 
 copy_dir() {
     source_dir="$1"
@@ -59,6 +60,7 @@ copy_dir "${SUN2_DAILY_DATA_DIR:-sun2_daily_data}" "$backup_dir/sun2_daily_data"
 copy_dir "${SUN2_SESSION_SCRAPER_HOST_DATA_DIR:-sun2_session_scraper/data}" "$backup_dir/sun2_session_scraper/data"
 copy_dir "${FIBARO10_CADDY_DATA_DIR:-}" "$backup_dir/caddy/data"
 copy_dir "${FIBARO10_CADDY_CONFIG_DIR:-}" "$backup_dir/caddy/config"
+copy_dir "${VISUAL_AI_HOST_DATA_DIR:-visual_anomaly_service/data}" "$backup_dir/visual_anomaly_service/data"
 
 if [ "$BACKUP_SNAPSHOTS" != "0" ] && [ -d axis_camera_snapshots/snapshots ]; then
     mkdir -p "$backup_dir/axis_camera_snapshots"

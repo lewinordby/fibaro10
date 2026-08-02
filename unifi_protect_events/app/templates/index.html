@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="nb">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Protect Ledger</title>
+  <meta name="description" content="Lokal hendelsesinnsamling og lagringsstyring for UniFi Protect.">
+  <link rel="stylesheet" href="/static/app.css">
+  <script defer src="/static/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Hopp til innhold</a>
+  <aside class="sidebar" aria-label="Hovedmeny">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">PL</span>
+      <span><strong>Protect Ledger</strong><small>Lokal hendelseslogg</small></span>
+    </div>
+    <nav class="nav-list">
+      <a href="/" data-route="dashboard"><span aria-hidden="true">⌁</span>Oversikt</a>
+      <a href="/events" data-route="events"><span aria-hidden="true">≡</span>Hendelser</a>
+      <a href="/recognitions" data-route="recognitions"><span aria-hidden="true">◇</span>Gjenkjenning</a>
+      <a href="/plates" data-route="plates"><span aria-hidden="true">▭</span>Biler</a>
+      <a href="/bollards" data-route="bollards"><span aria-hidden="true">▥</span>Pullerter</a>
+      <a href="/configuration" data-route="configuration"><span aria-hidden="true">◎</span>Innstillinger</a>
+      <a href="/storage" data-route="storage"><span aria-hidden="true">▤</span>Lagring</a>
+      <a href="/integrations" data-route="integrations"><span aria-hidden="true">↔</span>Integrasjoner</a>
+      <a href="/builds" data-route="builds"><span aria-hidden="true">#</span>Buildlogg</a>
+    </nav>
+    <div class="sidebar-status">
+      <div class="status-line"><span class="status-dot" id="sidebar-status-dot"></span><span id="sidebar-status-text">Kobler til …</span></div>
+      <small id="sidebar-console">UniFi Protect</small>
+      <a class="sidebar-build" href="/builds"><span>Protect Ledger</span><strong id="sidebar-build-number">Build –</strong></a>
+    </div>
+  </aside>
+
+  <main class="app-shell" id="main-content">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow" id="page-eyebrow">UniFi Protect</p>
+        <h1 id="page-title">Driftsoversikt</h1>
+      </div>
+      <div class="topbar-actions">
+        <span class="connection-pill" id="connection-pill"><span></span>Kontrollerer forbindelse</span>
+        <button class="icon-button" id="refresh-button" type="button" aria-label="Oppdater data">↻</button>
+      </div>
+    </header>
+
+    <section class="page" data-page="dashboard">
+      <div class="hero-row">
+        <div>
+          <p class="section-kicker">Sanntidsinnsamling</p>
+          <h2>Det viktigste, uten kamerastøyen</h2>
+          <p>Følg datamengde, tilkobling og hvilke deteksjoner som faktisk kommer inn.</p>
+        </div>
+        <div class="hero-note"><strong id="hero-last-event">Venter på hendelse</strong><span>Siste lagrede aktivitet</span></div>
+      </div>
+
+      <div class="metric-grid">
+        <article class="metric-card"><span>Lagrede hendelser</span><strong id="metric-events">–</strong><small id="metric-events-hour">– siste time</small></article>
+        <article class="metric-card"><span>Siste 24 timer</span><strong id="metric-24h">–</strong><small id="metric-ignored">– filtrert bort</small></article>
+        <article class="metric-card"><span>Kameraer på nett</span><strong id="metric-cameras">–</strong><small id="metric-enabled-cameras">– aktive for lagring</small></article>
+        <article class="metric-card"><span>Oppdagede typer</span><strong id="metric-types">–</strong><small id="metric-catalog">– muligheter i katalogen</small></article>
+      </div>
+
+      <div class="dashboard-grid">
+        <article class="panel panel-wide">
+          <div class="panel-heading"><div><p class="section-kicker">14 dager</p><h3>Hendelsesvolum</h3></div><span class="quiet-label">Lagrede rader per dag</span></div>
+          <div class="bar-chart" id="daily-chart" aria-label="Hendelsesvolum siste 14 dager"></div>
+        </article>
+        <article class="panel">
+          <div class="panel-heading"><div><p class="section-kicker">Katalog</p><h3>Hendelsestyper</h3></div><a href="/configuration">Konfigurer</a></div>
+          <div class="type-summary" id="type-summary"></div>
+        </article>
+      </div>
+
+      <article class="panel table-panel">
+        <div class="panel-heading"><div><p class="section-kicker">Direkte</p><h3>Siste hendelser</h3></div><a href="/events">Se hele loggen</a></div>
+        <div class="table-scroll"><table><thead><tr><th>Bilde</th><th>Tidspunkt</th><th>Kamera</th><th>Hendelse</th><th>Deteksjon</th><th>Varighet</th></tr></thead><tbody id="recent-events-body"></tbody></table></div>
+      </article>
+    </section>
+
+    <section class="page" data-page="events" hidden>
+      <div class="hero-row compact">
+        <div><p class="section-kicker">Søkbar historikk</p><h2>Hendelser</h2><p>Filtrer på tid, kamera, hovedtype og AI-/lyddeteksjon.</p></div>
+        <div class="hero-note"><strong id="events-total">–</strong><span>Treff i valgt periode</span></div>
+      </div>
+      <form class="filter-bar" id="events-filter-form">
+        <label><span>Søk</span><input id="filter-query" type="search" placeholder="Kamera eller hendelsestype"></label>
+        <label><span>Tidsrom</span><select id="filter-hours"><option value="1">Siste time</option><option value="24">24 timer</option><option value="168" selected>7 dager</option><option value="720">30 dager</option><option value="0">Hele historikken</option></select></label>
+        <label><span>Hendelse</span><select id="filter-event-type"><option value="">Alle hendelser</option></select></label>
+        <label><span>Deteksjon</span><select id="filter-detection-type"><option value="">Alle deteksjoner</option></select></label>
+        <label><span>Kamera</span><select id="filter-camera"><option value="">Alle kameraer</option></select></label>
+        <button class="primary-button" type="submit">Bruk filter</button>
+      </form>
+      <article class="panel table-panel events-panel">
+        <div class="table-scroll"><table><thead><tr><th>Bilde</th><th>Tidspunkt</th><th>Kamera</th><th>Hendelsestype</th><th>AI / lyd</th><th>Varighet</th><th>Oppdateringer</th><th></th></tr></thead><tbody id="events-body"></tbody></table></div>
+        <div class="pagination"><button class="secondary-button" id="events-prev" type="button">← Forrige</button><span id="events-page-label">Side 1</span><button class="secondary-button" id="events-next" type="button">Neste →</button></div>
+      </article>
+    </section>
+
+    <section class="page" data-page="configuration" hidden>
+      <div class="hero-row compact">
+        <div><p class="section-kicker">Lagringspolicy</p><h2>Velg hva som skal beholdes</h2><p>Alle muligheter fra kameraene vises. Nye typer legges automatisk i katalogen.</p></div>
+        <div class="hero-note"><strong id="config-enabled-count">–</strong><span>Aktive lagringsvalg</span></div>
+      </div>
+
+      <article class="panel settings-panel">
+        <div class="panel-heading"><div><p class="section-kicker">Standardvalg</p><h3>Globale innstillinger</h3></div><button class="primary-button" id="save-settings" type="button">Lagre innstillinger</button></div>
+        <div class="settings-grid">
+          <label class="setting-control"><span>Nye hendelsestyper</span><select id="setting-default-store"><option value="true">Lagre automatisk</option><option value="false">Ikke lagre før godkjent</option></select><small>Gjelder typer UniFi introduserer senere.</small></label>
+          <label class="setting-control"><span>Oppbevaring</span><div class="input-suffix"><input id="setting-retention-days" type="number" min="1" max="3650"><span>dager</span></div><small>Eldre hendelser slettes automatisk.</small></label>
+          <label class="setting-control"><span>Prøvedata i katalog</span><select id="setting-sample-limit"><option value="16384">16 KB</option><option value="65536">64 KB</option><option value="262144">256 KB</option><option value="1048576">1 MB</option></select><small>Maks størrelse på siste eksempel per type.</small></label>
+          <label class="setting-control"><span>Stillbilder</span><select id="setting-snapshots-enabled"><option value="true">Lagre stillbilder</option><option value="false">Kun hendelsesdata</option></select><small>Gjenkjenninger får eget tidsstyrt bilde fra kameraet i webhooken.</small></label>
+          <label class="setting-control"><span>Bildekvalitet</span><select id="setting-snapshot-quality"><option value="false">Standard</option><option value="true">Høy kvalitet</option></select><small>Høy kvalitet bruker vesentlig mer diskplass.</small></label>
+          <label class="setting-control"><span>Maks bildestørrelse</span><select id="setting-snapshot-max"><option value="4194304">4 MB</option><option value="8388608">8 MB</option><option value="12582912">12 MB</option><option value="25165824">24 MB</option><option value="52428800">50 MB</option></select><small>Avviser unormalt store svar fra kameraet.</small></label>
+        </div>
+      </article>
+
+      <div class="config-grid">
+        <article class="panel">
+          <div class="panel-heading"><div><p class="section-kicker">Hovedfilter</p><h3>Hendelsestyper</h3></div><span class="quiet-label" id="event-type-count">– typer</span></div>
+          <div class="config-list" id="event-type-config"></div>
+        </article>
+        <article class="panel">
+          <div class="panel-heading"><div><p class="section-kicker">Finfilter</p><h3>AI og lyd</h3></div><span class="quiet-label" id="detection-type-count">– muligheter</span></div>
+          <div class="detection-groups" id="detection-type-config"></div>
+        </article>
+      </div>
+
+      <article class="panel">
+        <div class="panel-heading"><div><p class="section-kicker">Kildevalg</p><h3>Kameraer</h3></div><span class="quiet-label">Slå av hele kameraer ved behov</span></div>
+        <div class="camera-grid" id="camera-config"></div>
+      </article>
+    </section>
+
+    <section class="page" data-page="recognitions" hidden>
+      <div class="hero-row compact">
+        <div><p class="section-kicker">Lokal AI-metadata</p><h2>Skilt og kjente personer</h2><p>Hver ny gjenkjenning får sitt eget høyoppløste bilde fra kameraet i webhooken, tidsstyrt mot OCR-tidspunktet. Bilder, ansikter og hendelsesdata forlater ikke lokalnettet.</p></div>
+        <div class="hero-note"><strong id="recognition-last">Venter på første treff</strong><span>Siste gjenkjenning</span></div>
+      </div>
+      <div class="metric-grid">
+        <article class="metric-card"><span>Registreringer</span><strong id="recognition-total">–</strong><small id="recognition-24h">– siste døgn</small></article>
+        <article class="metric-card"><span>Bilskilt</span><strong id="recognition-plates">–</strong><small>kjente og ukjente</small></article>
+        <article class="metric-card"><span>Ansikter</span><strong id="recognition-faces">–</strong><small>navngitte og ukjente</small></article>
+        <article class="metric-card"><span>Unike verdier</span><strong id="recognition-unique">–</strong><small id="recognition-known">– kjente / ukjente</small></article>
+      </div>
+      <form class="filter-bar recognition-filter" id="recognition-filter-form">
+        <label><span>Søk</span><input id="recognition-filter-value" type="search" placeholder="Skiltnummer eller navn"></label>
+        <label><span>Type</span><select id="recognition-filter-kind"><option value="">Alle typer</option><option value="license_plate">Bilskilt</option><option value="face">Ansikt</option><option value="person_of_interest">Person av interesse</option></select></label>
+        <label><span>Status</span><select id="recognition-filter-known"><option value="">Kjent og ukjent</option><option value="true">Kjent</option><option value="false">Ukjent</option></select></label>
+        <label><span>Kamera</span><select id="recognition-filter-camera"><option value="">Alle kameraer</option></select></label>
+        <button class="primary-button" type="submit">Bruk filter</button>
+      </form>
+      <article class="panel table-panel">
+        <div class="table-scroll"><table><thead><tr><th>Tidspunkt</th><th>Type</th><th>Verdi</th><th>Status</th><th>Kamera</th><th>Hendelse</th></tr></thead><tbody id="recognitions-body"></tbody></table></div>
+      </article>
+      <div class="empty-guidance" id="recognition-guidance" hidden>
+        <strong>Aktiver lokale Alarm Manager-webhooks</strong>
+        <p>Lag regler for både kjente og ukjente bilskilt, samt ønskede ansiktsregler. Oppskriften finnes under Integrasjoner.</p>
+        <a class="primary-button button-link" href="/integrations">Vis oppsett</a>
+      </div>
+    </section>
+
+    <section class="page" data-page="plates" hidden>
+      <div class="hero-row compact">
+        <div><p class="section-kicker">Renset skiltlogg</p><h2>Biler</h2><p>Protect Ledger normaliserer, validerer og kvalitetsmerker alle registreringsnumre før de leveres til Fibaro10.</p></div>
+        <div class="hero-note"><strong id="plates-last">–</strong><span>Siste deteksjon valgt dag</span></div>
+      </div>
+      <div class="metric-grid plates-metrics">
+        <article class="metric-card"><span>Unike skilt</span><strong id="plates-unique">–</strong><small id="plates-detections">– deteksjoner</small></article>
+        <article class="metric-card"><span>Bekreftet</span><strong id="plates-valid">–</strong><small>lokalt eller i register</small></article>
+        <article class="metric-card"><span>Venter</span><strong id="plates-pending">–</strong><small>oppslag pågår eller er utsatt</small></article>
+        <article class="metric-card"><span>Mulig feillesing</span><strong id="plates-misreads">–</strong><small>fullført kjede uten treff</small></article>
+      </div>
+      <article class="panel plates-day-panel">
+        <div class="plates-daybar">
+          <button class="secondary-button" id="plates-previous" type="button">← Forrige</button>
+          <label><span>Valgt dato</span><input id="plates-day" type="date"></label>
+          <button class="secondary-button" id="plates-today" type="button">I dag</button>
+          <button class="secondary-button" id="plates-next" type="button">Neste →</button>
+          <label class="plates-search"><span>Søk</span><input id="plates-search" type="search" placeholder="Reg.nr, bil, land eller kamera"></label>
+          <label><span>Kvalitet</span><select id="plates-status"><option value="">Alle</option><option value="valid">Bekreftet</option><option value="pending_review">Venter / kontroll</option><option value="likely_misread">Mulig feillesing</option></select></label>
+        </div>
+      </article>
+      <article class="panel table-panel plates-table-panel">
+        <div class="table-scroll"><table><thead><tr><th>Registreringsnummer</th><th>Registerkontroll</th><th>Første / siste</th><th>Treff</th><th>AI-score</th><th>Kamera</th><th>Handling</th></tr></thead><tbody id="plates-body"></tbody></table></div>
+        <p class="privacy-note">Råobservasjoner slettes eller slås aldri sammen i bakgrunnen. Mulige OCR-varianter merkes med foreslått hovedskilt, slik at revisjonssporet bevares. Bare registreringsnummeret sendes til registeroppslag; bilder og øvrige hendelsesdata forblir lokalt.</p>
+      </article>
+    </section>
+
+    <section class="page" data-page="bollards" hidden>
+      <div class="hero-row compact">
+        <div><p class="section-kicker">Automatisk helbildesammenligning</p><h2>Pullerter ved solstudio</h2><p>Alle tre kameraene sammenlignes mot hvert sitt faste referansebilde. Et nytt bilde kontrolleres i nøyaktig samme pikselposisjon hvert femte minutt, uten at bildet flyttes eller perspektivjusteres.</p></div>
+        <div class="hero-note bollard-hero-note"><strong id="bollard-monitor-state">Ikke aktivert</strong><span id="bollard-monitor-copy">Opprett tre referansebilder før sammenligningen startes</span></div>
+      </div>
+
+      <div class="metric-grid">
+        <article class="metric-card"><span>Kameraer på nett</span><strong id="bollard-cameras">–</strong><small>G6 Butikk Nord, Butikk Front og Solstudio Front</small></article>
+        <article class="metric-card"><span>Referansebilder</span><strong id="bollard-regions">–</strong><small id="bollard-keys">av 3 kameraer</small></article>
+        <article class="metric-card"><span>Aktive avvik</span><strong id="bollard-active">–</strong><small id="bollard-last-check">Ingen analyse utført</small></article>
+        <article class="metric-card"><span>Varsling</span><strong id="bollard-notify">–</strong><small>Tekstvarsel uten å sende kamerabilder ut</small></article>
+      </div>
+
+      <article class="panel bollard-settings-panel">
+        <div class="panel-heading"><div><p class="section-kicker">Drift</p><h3>Sammenligning og varsling</h3></div><div class="bollard-actions"><button class="secondary-button" id="bollard-analyze" type="button">Sammenlign nå</button><button class="primary-button" id="bollard-save-settings" type="button">Lagre og bruk</button></div></div>
+        <div class="settings-grid bollard-settings-grid">
+          <label class="setting-control"><span>Sammenligning</span><select id="bollard-monitoring-enabled"><option value="false">Av</option><option value="true">Aktiv hvert 5. minutt</option></select><small>Kan aktiveres når alle tre referansebildene finnes.</small></label>
+          <label class="setting-control"><span>Intervall</span><div class="input-suffix"><input id="bollard-interval" type="number" min="300" max="300" value="300" readonly><span>sek</span></div><small>Fast intervall: ett nytt bilde hvert femte minutt.</small></label>
+          <label class="setting-control"><span>Bekreftelse</span><div class="input-suffix"><input id="bollard-confirmation" type="number" min="300" max="300" value="300" readonly><span>sek</span></div><small>Endringen må fremdeles finnes ved neste femminutterskontroll.</small></label>
+          <label class="setting-control"><span>Pushvarsel</span><select id="bollard-notification-enabled"><option value="true">Varsle ved bekreftet avvik</option><option value="false">Kun lagre lokalt</option></select><small>Kun alarmtekst sendes; bilder og registreringsnummer forblir lokale.</small></label>
+        </div>
+      </article>
+
+      <article class="panel bollard-calibration-panel">
+        <div class="panel-heading"><div><p class="section-kicker">Referanse mot nytt bilde</p><h3>Transparent sammenligning fra alle tre kameraer</h3></div><div class="bollard-actions"><button class="secondary-button" id="bollard-capture-baselines" type="button">Sett alle nåbilder som referanse</button></div></div>
+        <div class="bollard-guide"><span>1</span><p>Den tydelig blågrå referansen er det godkjente utgangspunktet.</p><span>2</span><p>Et nytt bilde hentes automatisk hvert femte minutt i de samme faste pikselposisjonene.</p><span>3</span><p>Rolle og opptakstid vises ved hver ende av skyveren. Røde felt viser beregnede forskjeller.</p></div>
+        <div class="bollard-comparison-grid" id="bollard-comparison-grid"></div>
+      </article>
+
+      <article class="panel bollard-incidents-panel">
+        <div class="panel-heading"><div><p class="section-kicker">Historikk og bevis</p><h3>Registrerte avvik</h3></div><span class="quiet-label">Referanse og kontrollbilde fra riktig kamera</span></div>
+        <div class="bollard-incidents" id="bollard-incidents"></div>
+      </article>
+    </section>
+
+    <section class="page" data-page="storage" hidden>
+      <div class="hero-row compact">
+        <div><p class="section-kicker">PostgreSQL</p><h2>Lagring og vedlikehold</h2><p>Se plassbruk, datadistribusjon og endringshistorikk.</p></div>
+        <button class="danger-button" id="run-retention" type="button">Kjør opprydding nå</button>
+      </div>
+      <div class="metric-grid storage-metrics">
+        <article class="metric-card"><span>Total Ledger-størrelse</span><strong id="storage-total">–</strong><small id="storage-ledger-counts">Hendelser, gjenkjenninger og webhooks</small></article>
+        <article class="metric-card"><span>Lagrede stillbilder</span><strong id="storage-snapshots">–</strong><small id="storage-snapshot-count">JPEG på QNAP-disk</small></article>
+        <article class="metric-card"><span>Indekser</span><strong id="storage-indexes">–</strong><small>For raske søk og filtre</small></article>
+        <article class="metric-card"><span>Oppbevaring</span><strong id="storage-retention">–</strong><small>Automatisk opprydding hver 6. time</small></article>
+      </div>
+      <div class="dashboard-grid">
+        <article class="panel"><div class="panel-heading"><div><p class="section-kicker">Fordeling</p><h3>Per hendelsestype</h3></div></div><div class="storage-list" id="storage-by-type"></div></article>
+        <article class="panel"><div class="panel-heading"><div><p class="section-kicker">Fordeling</p><h3>Per kamera</h3></div></div><div class="storage-list" id="storage-by-camera"></div></article>
+      </div>
+      <article class="panel table-panel"><div class="panel-heading"><div><p class="section-kicker">Revisjonsspor</p><h3>Siste konfigurasjonsendringer</h3></div></div><div class="table-scroll"><table><thead><tr><th>Tidspunkt</th><th>Område</th><th>Verdi</th><th>Endring</th></tr></thead><tbody id="history-body"></tbody></table></div></article>
+    </section>
+
+    <section class="page" data-page="builds" hidden>
+      <div class="hero-row compact build-hero">
+        <div><p class="section-kicker">Versjon og endringshistorikk</p><h2>Buildlogg</h2><p>Én samlet oversikt over hva som er levert i Protect Ledger, hvorfor det ble gjort og hvilke komponenter som ble berørt.</p></div>
+        <div class="build-current-badge"><span>Gjeldende</span><strong id="build-current-badge">Build –</strong><small id="build-current-version">Versjon –</small></div>
+      </div>
+      <div class="metric-grid build-metrics">
+        <article class="metric-card"><span>Versjon</span><strong id="build-version">–</strong><small>Protect Ledger</small></article>
+        <article class="metric-card"><span>Build</span><strong id="build-number">–</strong><small>aktiv på denne instansen</small></article>
+        <article class="metric-card"><span>Loggførte builds</span><strong id="build-count">–</strong><small>egen historikk for PL</small></article>
+        <article class="metric-card"><span>Siste levering</span><strong id="build-latest-date">–</strong><small id="build-latest-headline">Laster historikk …</small></article>
+      </div>
+      <form class="filter-bar build-filter" id="build-filter-form">
+        <label><span>Søk i buildloggen</span><input id="build-query" type="search" placeholder="Build, dato, endring eller komponent"></label>
+        <button class="primary-button" type="submit">Søk</button>
+        <button class="secondary-button" id="build-clear" type="button">Nullstill</button>
+      </form>
+      <div class="build-list" id="build-list" aria-live="polite"></div>
+    </section>
+
+    <section class="page" data-page="integrations" hidden>
+      <div class="hero-row compact">
+        <div><p class="section-kicker">Lokalt integrasjonspunkt</p><h2>API for Fibaro10 og UniFi</h2><p>Tjenesten kommuniserer kun på lokalnettet: QNAP → UniFi Protect og Fibaro10 → Protect Ledger.</p></div>
+        <span class="local-badge">Lokalt hendelsesarkiv</span>
+      </div>
+      <div class="integration-status-grid">
+        <article class="panel status-card"><span class="status-dot" id="integration-nvr-dot"></span><div><strong>UniFi Protect</strong><small id="integration-nvr">Kontrollerer lokal forbindelse …</small></div></article>
+        <article class="panel status-card"><span class="status-dot" id="integration-api-dot"></span><div><strong>Fibaro10 API</strong><small id="integration-api">Kontrollerer nøkkel …</small></div></article>
+        <article class="panel status-card"><span class="status-dot" id="integration-webhook-dot"></span><div><strong>Alarm-webhook</strong><small id="integration-webhook">Kontrollerer nøkkel …</small></div></article>
+      </div>
+      <div class="dashboard-grid integrations-grid">
+        <article class="panel">
+          <div class="panel-heading"><div><p class="section-kicker">Lesetilgang</p><h3>Versjonert REST-API og sanntid</h3></div><a href="/docs" target="_blank" rel="noreferrer">OpenAPI</a></div>
+          <p class="panel-copy">Bruk <code>Authorization: Bearer &lt;token&gt;</code>. Markørbasert sideinndeling holder svartiden stabil også når arkivet blir stort.</p>
+          <div class="endpoint-list" id="integration-endpoints"></div>
+        </article>
+        <article class="panel">
+          <div class="panel-heading"><div><p class="section-kicker">UniFi Alarm Manager</p><h3>Lagre alle skilt</h3></div></div>
+          <div class="alarm-readiness" id="alarm-readiness">
+            <div><strong id="alarm-progress-title">0 av 4 signaler verifisert</strong><small id="alarm-progress-copy">Reglene testes automatisk når første lokale webhook kommer inn.</small></div>
+            <span id="alarm-progress-badge">Venter</span>
+          </div>
+          <div class="alarm-rule-list" id="alarm-rule-list" aria-label="Status for Alarm Manager-regler"></div>
+          <ol class="setup-list">
+            <li>Opprett én alarm for <strong>License plate · Known</strong> og én for <strong>License plate · Unknown</strong>.</li>
+            <li>Velg handlingen <strong>Webhook / HTTP POST</strong> og bruk adressen under.</li>
+            <li>Velg <strong>HTTP POST</strong>. Gateway-adressen <code>192.168.1.1</code> er godkjent lokalt, så Protect trenger ikke støtte egendefinerte POST-headere.</li>
+            <li>Gjenta for <strong>Face · Known</strong> og <strong>Face · Unknown</strong> hvis ansikter skal lagres.</li>
+          </ol>
+          <div class="copy-field"><code id="webhook-url">/api/v1/webhooks/unifi-alarm</code><button class="secondary-button" id="copy-webhook" type="button">Kopier adresse</button></div>
+          <p class="privacy-note">Protect utfører selve gjenkjenningen lokalt. Andre avsendere må bruke webhook-token som Bearer, X-API-Key eller <code>?token=…</code>. Ledger lagrer verdien UniFi sender, rå webhook og kobling til nærmeste hendelse/stillbilde. UniFis støttede API kan ikke opprette Alarm Manager-regler; de fire valgene må derfor gjøres én gang i Protect-grensesnittet.</p>
+        </article>
+      </div>
+      <article class="panel architecture-panel">
+        <div class="panel-heading"><div><p class="section-kicker">Dataflyt</p><h3>Lokalt hovedløp</h3></div></div>
+        <div class="local-flow" aria-label="Lokal dataflyt"><span>UniFi Protect<br><small>192.168.1.1</small></span><b>WebSocket + REST</b><span>Protect Ledger<br><small>QNAP :8130</small></span><b>REST + SSE</b><span>Fibaro10<br><small>Docker-nett</small></span></div>
+        <p class="privacy-note">Registervalidering styres og lagres av Protect Ledger. Først brukes lokal parkeringshistorikk. Ved manglende lokalt treff sendes kun selve registreringsnummeret til Statens vegvesen og eventuelt relevant svensk eller dansk oppslagskilde.</p>
+      </article>
+    </section>
+  </main>
+
+  <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
+  <aside class="event-drawer" id="event-drawer" aria-labelledby="drawer-title" hidden>
+    <div class="drawer-heading"><div><p class="section-kicker">Rådata</p><h2 id="drawer-title">Hendelsesdetaljer</h2></div><button class="icon-button" id="drawer-close" type="button" aria-label="Lukk detaljer">×</button></div>
+    <div id="drawer-snapshot" class="drawer-snapshot"></div>
+    <div id="drawer-summary" class="drawer-summary"></div>
+    <pre id="drawer-json"></pre>
+  </aside>
+  <div class="bollard-calibrator" id="bollard-calibrator" role="dialog" aria-modal="true" aria-labelledby="bollard-calibrator-title" hidden>
+    <button class="bollard-calibrator-backdrop" id="bollard-calibrator-backdrop" type="button" aria-label="Lukk kalibrering"></button>
+    <section class="bollard-calibrator-panel">
+      <header class="bollard-calibrator-header">
+        <div><p class="section-kicker">Presis kalibrering</p><h2 id="bollard-calibrator-title">Marker hele pullerten</h2><p id="bollard-calibrator-camera">Kamerabilde</p></div>
+        <button class="icon-button" id="bollard-calibrator-close" type="button" aria-label="Lukk kalibrering">&times;</button>
+      </header>
+      <div class="bollard-calibrator-body">
+        <aside class="bollard-calibrator-help">
+          <strong>Følg ytterkanten</strong>
+          <p>Klikk punkter rundt hele pullerten, inkludert topp og fotplate. Den grønne overlayen viser nøyaktig hvilke piksler analysen skal bruke.</p>
+          <ol><li>Velg riktig navn.</li><li>Zoom ved behov.</li><li>Klikk rundt ytterkanten.</li><li>Bruk minst seks punkter og lagre.</li></ol>
+          <div class="bollard-crop-preview" id="bollard-crop-preview"><span>Formen vises her når du markerer</span></div>
+        </aside>
+        <div class="bollard-calibrator-workspace">
+          <div class="bollard-calibrator-toolbar">
+            <label><span>Fysisk pullert</span><input id="bollard-calibrator-name" type="text" list="bollard-name-options" maxlength="120" autocomplete="off"></label>
+            <datalist id="bollard-name-options"></datalist>
+            <div class="bollard-zoom" aria-label="Zoom"><span>Zoom</span><button class="secondary-button active" data-bollard-zoom="1" type="button">100 %</button><button class="secondary-button" data-bollard-zoom="1.5" type="button">150 %</button><button class="secondary-button" data-bollard-zoom="2" type="button">200 %</button></div>
+            <button class="secondary-button" id="bollard-calibrator-refresh" type="button">Nytt bilde</button>
+          </div>
+          <div class="bollard-calibrator-viewport" id="bollard-calibrator-viewport">
+            <div class="bollard-calibrator-canvas" id="bollard-calibrator-canvas">
+              <div class="bollard-frame bollard-calibrator-frame" id="bollard-calibrator-frame"></div>
+            </div>
+          </div>
+          <div class="bollard-calibrator-feedback" id="bollard-calibrator-feedback">Klikk punkter rundt ytterkanten av hele pullerten.</div>
+        </div>
+      </div>
+      <footer class="bollard-calibrator-footer">
+        <div><button class="secondary-button" id="bollard-calibrator-undo" type="button" disabled>Angre punkt</button><button class="secondary-button" id="bollard-calibrator-reset" type="button">Nullstill form</button></div>
+        <div><button class="secondary-button" id="bollard-calibrator-cancel" type="button">Avbryt</button><button class="primary-button" id="bollard-calibrator-save" type="button" disabled>Lagre overlay</button></div>
+      </footer>
+    </section>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

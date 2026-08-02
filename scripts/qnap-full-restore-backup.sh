@@ -157,6 +157,7 @@ SUN2_DAILY_DATA_DIR="${SUN2_DAILY_DATA_DIR:-$(env_value sun2_importer/.env SUN2_
 SUN2_SESSION_SCRAPER_HOST_DATA_DIR="${SUN2_SESSION_SCRAPER_HOST_DATA_DIR:-$(env_value .env SUN2_SESSION_SCRAPER_HOST_DATA_DIR)}"
 FIBARO10_CADDY_DATA_DIR="${FIBARO10_CADDY_DATA_DIR:-$(env_value .env FIBARO10_CADDY_DATA_DIR)}"
 FIBARO10_CADDY_CONFIG_DIR="${FIBARO10_CADDY_CONFIG_DIR:-$(env_value .env FIBARO10_CADDY_CONFIG_DIR)}"
+VISUAL_AI_HOST_DATA_DIR="${VISUAL_AI_HOST_DATA_DIR:-$(env_value .env VISUAL_AI_HOST_DATA_DIR)}"
 
 log "Starting full restore backup to $BACKUP_DIR"
 printf 'started=%s\nstatus=running\n' "$stamp" > "$status_file"
@@ -227,6 +228,7 @@ sync_dir_if_exists "${SUN2_DAILY_DATA_DIR:-sun2_daily_data}" "$BACKUP_DIR/runtim
 sync_dir_if_exists "${SUN2_SESSION_SCRAPER_HOST_DATA_DIR:-sun2_session_scraper/data}" "$BACKUP_DIR/runtime/sun2_session_scraper/data"
 sync_dir_if_exists "${FIBARO10_CADDY_DATA_DIR:-}" "$BACKUP_DIR/runtime/caddy/data"
 sync_dir_if_exists "${FIBARO10_CADDY_CONFIG_DIR:-}" "$BACKUP_DIR/runtime/caddy/config"
+sync_dir_if_exists "${VISUAL_AI_HOST_DATA_DIR:-visual_anomaly_service/data}" "$BACKUP_DIR/runtime/visual_anomaly_service/data"
 
 log "Discovering and copying Docker host mounts"
 backup_docker_mounts
@@ -256,7 +258,7 @@ write_section "Docker images" "$DOCKER" images
 write_section "Docker networks" "$DOCKER" network ls
 write_section "Docker system df" "$DOCKER" system df
 
-for container in postgres-1 easypark_downloader fibaro10 owntracks_service axis_camera_snapshots car_info_lookup sun2_backfill_downloader sun2_importer sun2_session_scraper parking_sun_linker fibaro10_proxy online_dashboard maintenance_mobile fibaro10ipad; do
+for container in postgres-1 easypark_downloader fibaro10 shell_app revenue_app parking_app sun_app energy_app operations_app maintenance_app system_app link_app owntracks_service axis_camera_snapshots car_info_lookup sun2_backfill_downloader sun2_importer sun2_session_scraper parking_sun_linker fibaro10_proxy online_dashboard maintenance_mobile fibaro10ipad unifi_protect_events visual_anomaly_service; do
     "$DOCKER" inspect "$container" > "$BACKUP_DIR/system/docker-inspect-$container.json" 2>/dev/null || true
 done
 ("$DOCKER" network inspect fibaro10_default > "$BACKUP_DIR/system/docker-network-fibaro10_default.json" 2>/dev/null) || true
@@ -286,6 +288,7 @@ Hvis volum-idene blir annerledes paa ny QNAP maa stiene i `.env` justeres for:
 - `SUN2_SESSION_SCRAPER_HOST_DATA_DIR`
 - `FIBARO10_CADDY_DATA_DIR`
 - `FIBARO10_CADDY_CONFIG_DIR`
+- `VISUAL_AI_HOST_DATA_DIR`
 
 ## 2. Legg tilbake repo
 
@@ -345,6 +348,9 @@ cp -a runtime/car_info_lookup /share/CACHEDEV2_DATA/fibaro10_runtime/
 cp -a runtime/sun2_session_scraper /share/CACHEDEV2_DATA/fibaro10_runtime/
 cp -a runtime/caddy /share/CACHEDEV2_DATA/fibaro10_runtime/
 cp -a runtime/sun2_daily_data /share/CACHEDEV1_DATA/Public/containerdata/
+mkdir -p /share/CACHEDEV3_DATA/fibaro10_archive
+mkdir -p /share/CACHEDEV3_DATA/fibaro10_archive/visual_ai
+cp -a runtime/visual_anomaly_service/data/. /share/CACHEDEV3_DATA/fibaro10_archive/visual_ai/
 ```
 
 `runtime/axis_camera_snapshots` inneholder metadata/konfig for Axis-jobben. `runtime/sun2_daily_data` inneholder daglige Sun2-romstatistikkfiler for downloader/importer-flyten. Selve raa Axis snapshot-bufferen er med vilje ikke med i denne backupen.
@@ -420,7 +426,7 @@ Fra repoet:
 ```sh
 cd /share/CACHEDEV1_DATA/Public/containerdata/fibaro10
 export APP_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo restored)
-/share/CACHEDEV1_DATA/.qpkg/container-station/usr/bin/.libs/docker compose -f docker-compose.qnap.yml up -d --build
+/share/CACHEDEV1_DATA/.qpkg/container-station/usr/bin/.libs/docker compose -f docker-compose.qnap.yml --profile unifi-protect up -d --build
 cd easypark_downloader
 /share/CACHEDEV1_DATA/.qpkg/container-station/usr/bin/.libs/docker compose up -d --build
 ```
@@ -447,6 +453,7 @@ docker ps
 curl http://127.0.0.1:8110/health
 curl http://127.0.0.1:8125/health
 curl http://127.0.0.1:8128/health
+for port in 8150 8151 8152 8153 8154 8155 8156 8157 8158; do curl -fsS "http://127.0.0.1:$port/ready"; done
 ```
 
 Fra utviklings-PC kan du ogsaa kjoere:
@@ -462,7 +469,7 @@ cat > "$BACKUP_DIR/CODEX-RESTORE-PROMPT.txt" <<'EOF'
 Du jobber paa en ny QNAP/ny installasjon og skal gjenopprette Fibaro10 fra denne full restore backup-katalogen.
 
 Maal:
-- Sett opp Fibaro10, online dashboard, vedlikeholdsapp, OwnTracks, EasyPark downloader, Axis snapshot-service, nordisk biloppslag, SUN2 scraper og koblingsmotor.
+- Sett opp Fibaro10, Lilletorget-skallet og alle fagappene paa port 8150-8158, online dashboard, vedlikeholdsapp, OwnTracks, EasyPark downloader, Axis snapshot-service, nordisk biloppslag, SUN2 scraper og koblingsmotor.
 - Bruk alle hemmeligheter, passord, tokens, .env-filer, Caddy-data, runtime-data og database-dump fra backupen. Axis-bilder som er knyttet til soltimer ligger i database-dumpen.
 - Ikke utelat noe. Ikke regenerer hemmeligheter hvis de finnes i backupen.
 - Ikke skriv hemmeligheter i chatten; bruk filene direkte.
@@ -495,9 +502,9 @@ Arbeidsrekkefolge:
 8. Kopier runtime/ til SSD runtime-root.
 9. Kopier archive/ til arkivroot. Ikke forvent historisk Axis snapshot-buffer; soltimebilder kommer fra PostgreSQL.
 10. Opprett/start postgres-1 og restore postgres/fibaro10_local.sql eller postgres/fibaro10_local.dump.
-11. Start alle Docker Compose-tjenester.
+11. Start alle Docker Compose-tjenester, inkludert shell_app, revenue_app, parking_app, sun_app, energy_app, operations_app, maintenance_app, system_app og link_app.
 12. Legg tilbake cron-jobber for qnap-backup.sh og qnap-full-restore-backup.sh.
-13. Kjor health-check og live smoke-test.
+13. Kjor health-check, scripts/smoke-domain-apps.ps1 og live smoke-test.
 14. Bekreft at alle containere er oppe og at domenene peker riktig via Caddy.
 
 Viktige prinsipper:

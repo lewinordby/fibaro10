@@ -1,0 +1,42 @@
+# Porter for Lilletorget-mikroapper
+
+Brukergrensesnittene reserveres på QNAP-adressen `192.168.20.218` fra port 8150.
+
+| Port | Applikasjon | Status |
+|---:|---|---|
+| 8150 | Lilletorget-skall og appvelger | I drift |
+| 8151 | Omsetning | I drift |
+| 8152 | Parkering | I drift |
+| 8153 | Soling | I drift |
+| 8154 | Energi | I drift |
+| 8155 | Bygg og drift | I drift |
+| 8156 | Vedlikehold | I drift |
+| 8157 | System og administrasjon | I drift |
+| 8158 | Koble | I drift |
+
+Portene gjelder vertsmaskinen. En intern containerport med samme nummer gir ingen
+konflikt så lenge den ikke er publisert på QNAP-adressen. Serien 8150-8159 er likevel
+valgt for å holde alle brukerrettede mikroapper tydelig adskilt fra grunn- og
+datatjenestene.
+
+## Felles designgrunnlag
+
+Alle brukerrettede mikroapper fra port 8150 bruker den interne npm-pakken
+`packages/mosaic-theme`. Den er eneste kilde for Mosaic-farger, typografi,
+komponentmønstre og lokal Inter-font. Nye apper skal kobles til pakken i stedet
+for å kopiere CSS fra en eksisterende app.
+
+Fagappene på 8153-8158 bruker i tillegg `packages/microapp-ui` for felles
+Mosaic-layout, innlogging, navigasjon, tabeller, grafer og redigeringsmønstre.
+Hver app bygger fortsatt egne, versjonerte statiske filer. Chart.js og
+spesialiserte fagflater lastes ved behov, slik at førstegangslasten holdes liten.
+
+## Utvikling og utrulling
+
+- En enkelt fagapp: `scripts/deploy-domain-app-qnap.ps1 -App <appnavn>`
+- Alle fagappene: `scripts/deploy-all-domain-apps-qnap.ps1`
+- Alle levende ruter: `scripts/smoke-domain-apps.ps1`
+
+Samlet deploy bygger og sikkerhetskontrollerer alle frontender, kjører
+kontrakttestene én gang og oppdaterer deretter containerne sekvensielt. Den
+starter ikke Fibaro10 eller andre fagapper på nytt mens en enkelt app bygges.
