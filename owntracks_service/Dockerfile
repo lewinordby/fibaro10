@@ -20,6 +20,7 @@ COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY app /app/app
+COPY BUILD /app/BUILD
 COPY --from=frontend_builder /frontend/dist /app/app/frontend_dist
 
 EXPOSE 8128

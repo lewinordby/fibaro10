@@ -12,6 +12,35 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1627",
+        "date": "03.08.2026",
+        "headline": "Sikrere frontendavhengigheter",
+        "title": "Diagrammer, ruting og byggverktøy er oppdatert og kontrollert",
+        "description": (
+            "Hovedgrensesnittet og OwnTracks er oppdatert etter en full avhengighetskontroll. ECharts, React Router, "
+            "PostCSS og tilhørende låsefiler er løftet til korrigerte versjoner, og sikkerhetsaudit er nå en fast del "
+            "av den lokale kvalitetskontrollen."
+        ),
+        "applications": [
+            "Fibaro10 frontend: ECharts 6.1 og React Router 7.18.2.",
+            "OwnTracks frontend: korrigert PostCSS og egen BUILD-fil.",
+            "Kvalitetsløp: automatiske avhengighetsauditer for hovedflate, OwnTracks, skall og alle fagapper.",
+            "Bundlekontroll: uendret grense for førstegangslast og oppdatert totalramme for ny diagrammotor.",
+        ],
+        "request": "Ta en grundig gjennomgang av hele løsningen og gjør den ryddig og effektiv.",
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fjernet kjente PostCSS- og ECharts-sårbarheter.",
+            "Oppdatert React Router til siste stabile utgave med rettelser for eldre klientruting-svakheter.",
+            "Dokumentert og avgrenset RSC-rådet som ikke gjelder BrowserRouter-arkitekturen i Fibaro10.",
+            "Lagt sikkerhetsaudit inn i standard lokal kontroll for alle aktive frontender.",
+            "Versjonering av OwnTracks følger nå samme BUILD-mønster som resten av løsningen.",
+            "Live-smoke godtar et legitimt tomt bildatasett rett etter midnatt, men validerer fortsatt alle bilder når biler finnes.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1626",
         "date": "03.08.2026",
         "headline": "Felles mikroappplattform og raskere analyser",

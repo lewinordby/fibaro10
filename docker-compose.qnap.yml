@@ -34,7 +34,7 @@ services:
       OWNTRACKS_DATA_DIR: /data
       OWNTRACKS_DATABASE_URL: ${OWNTRACKS_DATABASE_URL:-postgresql+psycopg://owntracks:owntracks@owntracks_postgres:5432/owntracks}
       OWNTRACKS_PUBLIC_BASE_URL: ${OWNTRACKS_PUBLIC_BASE_URL:-https://owntracks.lilletorget.net}
-      OWNTRACKS_APP_BUILD: ${OWNTRACKS_APP_BUILD:-26}
+      OWNTRACKS_APP_BUILD: ${OWNTRACKS_APP_BUILD:-27}
       OWNTRACKS_APP_COMMIT: ${APP_COMMIT:-unknown}
       OWNTRACKS_MAX_CALCULATION_ACCURACY_M: ${OWNTRACKS_MAX_CALCULATION_ACCURACY_M:-30}
     healthcheck:
@@ -59,7 +59,7 @@ services:
     volumes:
       - ${AXIS_HOST_SNAPSHOT_DIR:-./axis_camera_snapshots/snapshots}:/axis_snapshots:ro
     environment:
-      APP_BUILD: ${APP_BUILD:-1626}
+      APP_BUILD: ${APP_BUILD:-1627}
       SUN2_AXIS_SNAPSHOT_ROOT: /axis_snapshots
       CAR_INFO_LOOKUP_URL: http://car_info_lookup:8126
       OWNTRACKS_SERVICE_URL: http://owntracks_service:8128

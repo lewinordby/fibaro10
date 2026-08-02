@@ -7,6 +7,11 @@ function Run($exe, [string[]]$arguments, [string]$WorkingDirectory = "") {
     }
     try {
         & $exe @arguments
+        if ($env:OS -eq "Windows_NT" -and $exe -eq "npm.cmd" -and $LASTEXITCODE -eq -1073740791) {
+            Write-Warning "Node avsluttet med sporadisk Windows/libuv-feil etter kjøring. Prøver samme kommando én gang til."
+            Start-Sleep -Seconds 1
+            & $exe @arguments
+        }
         if ($LASTEXITCODE -ne 0) {
             throw "$exe failed with exit code $LASTEXITCODE"
         }
@@ -36,16 +41,21 @@ Run "python" @("-m", "pytest", "tests/test_domain_microapps.py", "tests/test_sys
 
 Write-Host "Frontend typecheck and build"
 Run $npm @("run", "check") $desktopDir
+Run $npm @("run", "audit:security") $desktopDir
 
 Write-Host "OwnTracks frontend typecheck and build"
 Run $npm @("run", "check") $owntracksFrontendDir
+Run $npm @("audit", "--audit-level=moderate") $owntracksFrontendDir
 
 Write-Host "Shell app frontend typecheck and build"
 Run $npm @("run", "build") $shellFrontendDir
+Run $npm @("audit", "--audit-level=moderate") $shellFrontendDir
 
 foreach ($app in $domainApps) {
     Write-Host "$app frontend typecheck and build"
-    Run $npm @("run", "build") (Join-Path $repoRoot "$app/frontend")
+    $appFrontend = Join-Path $repoRoot "$app/frontend"
+    Run $npm @("run", "build") $appFrontend
+    Run $npm @("audit", "--audit-level=moderate") $appFrontend
 }
 
 Write-Host "Frontend CSS parse"

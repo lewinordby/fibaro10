@@ -12,7 +12,7 @@ const limits = {
   maxJsAssetBytes: Number(process.env.FIBARO10_BUNDLE_MAX_JS_ASSET_BYTES || 1_200_000),
   maxCssAssetBytes: Number(process.env.FIBARO10_BUNDLE_MAX_CSS_ASSET_BYTES || 120_000),
   maxInitialGzipBytes: Number(process.env.FIBARO10_BUNDLE_MAX_INITIAL_GZIP_BYTES || 325_000),
-  maxTotalGzipBytes: Number(process.env.FIBARO10_BUNDLE_MAX_TOTAL_GZIP_BYTES || 900_000),
+  maxTotalGzipBytes: Number(process.env.FIBARO10_BUNDLE_MAX_TOTAL_GZIP_BYTES || 925_000),
 };
 
 function walk(dir) {

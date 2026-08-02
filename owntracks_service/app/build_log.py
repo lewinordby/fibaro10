@@ -1,14 +1,41 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "26")
+BUILD_FILE = Path(__file__).resolve().parents[1] / "BUILD"
+DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exists() else "27"
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", DEFAULT_BUILD)
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "27",
+        "date": "03.08.2026",
+        "headline": "Oppdatert frontendgrunnlag",
+        "title": "OwnTracks bygger med sikker PostCSS-versjon",
+        "description": (
+            "Build 27 oppdaterer den transitive PostCSS-avhengigheten som brukes under frontendbygging. "
+            "Kjorende API, lagrede posisjoner og soneberegninger er uendret."
+        ),
+        "applications": [
+            "owntracks_service/frontend/package-lock.json: PostCSS og Nano ID oppdatert.",
+            "owntracks_service/BUILD: egen versjonskilde for deploy og buildlogg.",
+            "scripts/check-local.ps1: sikkerhetskontroll kjorer automatisk ved full lokal kontroll.",
+        ],
+        "request": "Ta en grundig gjennomgang av hele losningen og gjor den ryddig og effektiv.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Fjernet kjent PostCSS-saarbarhet fra OwnTracks sitt byggeverktøy.",
+            "Produksjonsbygg og npm audit er kontrollert.",
+            "OwnTracks har naa samme filbaserte buildkilde som fagappene.",
+        ],
+    },
     {
         "version": "1",
         "build": "26",

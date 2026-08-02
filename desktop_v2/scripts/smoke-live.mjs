@@ -236,10 +236,14 @@ async function smokeCarsRegistryFilter(page) {
   const invalidLatestImages = counts.latestImages.filter(
     (image) => !image.ok || !image.contentType.startsWith("image/") || image.size < 1_000,
   );
-  if (counts.latestImages.length === 0 || invalidLatestImages.length > 0) {
+  if (counts.total > 0 && (counts.latestImages.length === 0 || invalidLatestImages.length > 0)) {
     throw new Error(`Siste bil ${counts.latestPlate || "ukjent"} mangler gyldige bilder: ${JSON.stringify(counts.latestImages)}`);
   }
-  console.log(`Live latest car images OK: ${counts.latestPlate}, ${counts.latestImages.length} bilder`);
+  if (counts.total > 0) {
+    console.log(`Live latest car images OK: ${counts.latestPlate}, ${counts.latestImages.length} bilder`);
+  } else {
+    console.log("Live latest car images: ingen biler registrert på valgt dag");
+  }
 
   const checkbox = page.getByRole("checkbox", { name: /kun kjente eller registerfunnet/i });
   await checkbox.check();

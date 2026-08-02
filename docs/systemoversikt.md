@@ -10,7 +10,7 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 - 26 komponenter er aktive i daglig drift eller som aktivt verktøy.
 - 24 komponenter har webflate eller lokal statusflate.
 - 23 datakilder/importjobber er aktive i Fibaro10.
-- Produksjonsbuild ved siste sjekk: Fibaro10 build `1626`.
+- Produksjonsbuild ved siste sjekk: Fibaro10 build `1627`.
 - QNAP-appmappe: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`.
 - Backup/arkivvolum: `/share/CACHEDEV3_DATA/fibaro10_archive`.
 
@@ -143,6 +143,12 @@ Standard deploy går gjennom:
 5. Health-check
 6. Smoke-check
 7. Innlogget live-smoke gjennom desktop- og fagapprutene, med p50/p95-måling
+
+Frontendkontrollen kjører også `npm audit` for alle aktive flater. Hovedflaten
+har et eksplisitt avvik for React Router-rådet `GHSA-qwww-vcr4-c8h2`, fordi
+rådet bare gjelder RSC-modus mens Fibaro10 bruker ren `BrowserRouter` uten
+React Server Components eller router-actions. Alle øvrige funn på moderat
+eller høyere nivå stopper kontrollen.
 
 Mikroappene har i tillegg egne, raskere løp:
 
