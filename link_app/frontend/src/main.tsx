@@ -4,7 +4,7 @@ import { DomainApp, ThemeProvider, type DomainUiConfig } from "@lilletorget/micr
 import "@lilletorget/mosaic-theme/font.css";
 import "./style.css";
 
-const config: DomainUiConfig = { name: "Lilletorget Koble", shortName: "Koble", icon: "link", accent: "violet", navigation: [
+const config: DomainUiConfig = { appId: "link", name: "Lilletorget Koble", shortName: "Koble", icon: "link", accent: "violet", navigation: [
   { label: "Koblinger", items: [
     { to: "/", label: "Kandidater", icon: "link", title: "Koble parkering og soling", description: "Sannsynlige koblinger mellom kj\u00f8ret\u00f8y og Sun2-ID.", module: "koble", view: "oversikt", corePath: "/koble/oversikt" },
     { to: "/kontroll", label: "Sun2-kontroll", icon: "compare", title: "Sun2-kontroll", description: "Visuell kontroll av gjentatte treff og motbevis.", module: "koble", view: "sun2-kontroll", corePath: "/koble/sun2-kontroll" },

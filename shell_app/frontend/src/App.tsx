@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppDock } from "@lilletorget/microapp-ui/app-dock";
 import { api } from "./api";
 import { ThemeToggle } from "./ThemeToggle";
 import type { AppConfig, AppRow, AppsResponse, AuthUser } from "./types";
@@ -109,19 +110,20 @@ function Sidebar({ apps, config, open, setOpen }: { apps: AppRow[]; config: AppC
   );
 }
 
-function Header({ open, setOpen, user, refreshing, refresh }: { open: boolean; setOpen: (open: boolean) => void; user: AuthUser | null; refreshing: boolean; refresh: () => void }) {
+function Header({ open, setOpen, user, refreshing, refresh, shellUrl }: { open: boolean; setOpen: (open: boolean) => void; user: AuthUser | null; refreshing: boolean; refresh: () => void; shellUrl: string }) {
   return (
     <header className="sticky top-0 before:absolute before:inset-0 before:backdrop-blur-md max-lg:before:bg-white/90 dark:max-lg:before:bg-gray-800/90 before:-z-10 z-30 max-lg:shadow-xs lg:before:bg-gray-100/90 dark:lg:before:bg-gray-900/90">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 lg:border-b border-gray-200 dark:border-gray-700/60">
-          <div className="flex items-center">
+          <div className="flex min-w-0 items-center">
             <button className="text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 lg:hidden" aria-controls="sidebar" aria-expanded={open} onClick={(event) => { event.stopPropagation(); setOpen(!open); }}>
               <span className="sr-only">Åpne meny</span>
               <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="2" /><rect x="4" y="11" width="16" height="2" /><rect x="4" y="17" width="16" height="2" /></svg>
             </button>
-            <span className="ml-3 text-sm font-semibold text-gray-700 dark:text-gray-200 lg:ml-0">Alle apper</span>
+            <span className="ml-3 truncate text-sm font-semibold text-gray-700 dark:text-gray-200 lg:ml-0">Alle apper</span>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="ml-4 flex shrink-0 items-center gap-3">
+            <AppDock shellUrl={shellUrl} />
             <button className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 lg:hover:bg-gray-200 dark:hover:bg-gray-700/50 dark:lg:hover:bg-gray-800 rounded-full" type="button" title="Oppdater status" onClick={refresh} disabled={refreshing}>
               {refreshing ? <Spinner size={16} /> : <svg className="fill-current text-gray-500/80 dark:text-gray-400/80" width="16" height="16" viewBox="0 0 16 16"><path d="M13.65 2.35A8 8 0 1 0 16 8h-2a6 6 0 1 1-1.76-4.24L9 7h7V0l-2.35 2.35Z" /></svg>}
             </button>
@@ -217,7 +219,7 @@ export default function App() {
     <div className="flex h-[100dvh] overflow-hidden">
       <Sidebar apps={activeApps} config={config} open={sidebarOpen} setOpen={setSidebarOpen} />
       <div className="relative flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
-        <Header open={sidebarOpen} setOpen={setSidebarOpen} user={user} refreshing={refreshing} refresh={() => void load(true)} />
+        <Header open={sidebarOpen} setOpen={setSidebarOpen} user={user} refreshing={refreshing} refresh={() => void load(true)} shellUrl={config?.shellUrl || "http://192.168.20.218:8150"} />
         <main className="grow">
           <div className="px-4 py-6 sm:px-6 lg:px-8 w-full max-w-[96rem] mx-auto">
             {loading ? <div className="flex min-h-96 flex-col items-center justify-center gap-3 text-gray-400 dark:text-gray-500"><Spinner size={28} /><strong className="text-sm">Henter apper</strong></div> : null}

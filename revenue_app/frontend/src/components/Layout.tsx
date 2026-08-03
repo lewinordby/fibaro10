@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { MosaicIcon, ThemeToggle } from "@lilletorget/microapp-ui/primitives";
+import { AppDock, MosaicIcon, ThemeToggle } from "@lilletorget/microapp-ui/primitives";
 import { useApi } from "@lilletorget/microapp-ui/hooks";
 import { AppLink, useAppLocation } from "@lilletorget/microapp-ui/router";
 import { api } from "../api";
@@ -107,18 +107,19 @@ function Sidebar({ open, setOpen, shellUrl, fibaroUrl, build }: { open: boolean;
   );
 }
 
-function Header({ open, setOpen, username, title }: { open: boolean; setOpen: (open: boolean) => void; username: string; title: string }) {
+function Header({ open, setOpen, username, title, shellUrl }: { open: boolean; setOpen: (open: boolean) => void; username: string; title: string; shellUrl: string }) {
   return (
     <header className="sticky top-0 before:absolute before:inset-0 before:backdrop-blur-md max-lg:before:bg-white/90 dark:max-lg:before:bg-gray-800/90 before:-z-10 z-30 max-lg:shadow-xs lg:before:bg-gray-100/90 dark:lg:before:bg-gray-900/90">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 lg:border-b border-gray-200 dark:border-gray-700/60">
-          <div className="flex items-center">
+          <div className="flex min-w-0 items-center">
             <button className="text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 lg:hidden" aria-controls="sidebar" aria-expanded={open} onClick={(event) => { event.stopPropagation(); setOpen(!open); }}>
               <span className="sr-only">Åpne meny</span><svg className="w-6 h-6 fill-current" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="2" /><rect x="4" y="11" width="16" height="2" /><rect x="4" y="17" width="16" height="2" /></svg>
             </button>
-            <span className="ml-3 text-sm font-semibold text-gray-700 dark:text-gray-200 lg:ml-0">{title}</span>
+            <span className="ml-3 truncate text-sm font-semibold text-gray-700 dark:text-gray-200 lg:ml-0">{title}</span>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="ml-4 flex shrink-0 items-center gap-3">
+            <AppDock activeApp="revenue" shellUrl={shellUrl} />
             <button className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 lg:hover:bg-gray-200 dark:hover:bg-gray-700/50 dark:lg:hover:bg-gray-800 rounded-full" type="button" title="Oppdater siden" onClick={() => window.location.reload()}><MosaicIcon name="refresh" className="text-gray-500/80 dark:text-gray-400/80" /></button>
             <ThemeToggle />
             <hr className="w-px h-6 bg-gray-200 dark:bg-gray-700/60 border-none" />
@@ -140,12 +141,13 @@ export function Layout({ children }: { children: ReactNode }) {
   const { data: user } = useApi(api.user, "current-user");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const title = titles[location.pathname] ?? titles["/"];
+  const shellUrl = config?.shellAppUrl || "http://192.168.20.218:8150";
 
   return (
     <div className="flex h-[100dvh] overflow-hidden">
-      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} shellUrl={config?.shellAppUrl || "http://192.168.20.218:8150"} fibaroUrl={config?.fibaro10AppUrl || "http://192.168.20.218:8110"} build={config?.build || "-"} />
+      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} shellUrl={shellUrl} fibaroUrl={config?.fibaro10AppUrl || "http://192.168.20.218:8110"} build={config?.build || "-"} />
       <div className="relative flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
-        <Header open={sidebarOpen} setOpen={setSidebarOpen} username={user?.username || "Bruker"} title={title} />
+        <Header open={sidebarOpen} setOpen={setSidebarOpen} username={user?.username || "Bruker"} title={title} shellUrl={shellUrl} />
         <main className="grow">
           <div className="px-4 py-6 sm:px-6 lg:px-8 w-full max-w-[96rem] mx-auto">
             {children}

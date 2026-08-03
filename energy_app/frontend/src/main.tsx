@@ -4,7 +4,7 @@ import { DomainApp, ThemeProvider, type DomainUiConfig } from "@lilletorget/micr
 import "@lilletorget/mosaic-theme/font.css";
 import "./style.css";
 
-const config: DomainUiConfig = { name: "Lilletorget Energi", shortName: "Energi", icon: "energy", accent: "green", navigation: [
+const config: DomainUiConfig = { appId: "energy", name: "Lilletorget Energi", shortName: "Energi", icon: "energy", accent: "green", navigation: [
   { label: "Energi", items: [
     { to: "/", label: "Status", icon: "dashboard", title: "Energistatus", description: "Sanntidseffekt, fordeling og historisk utvikling.", module: "energi", view: "status", corePath: "/energi/status" },
     { to: "/elvia-kontroll", label: "Elvia-kontroll", icon: "compare", title: "Elvia-kontroll", description: "Sammenlign Elvia-import med målt forbruk fra HC3.", module: "energi", view: "elvia-kontroll", corePath: "/energi/elvia-kontroll" },

@@ -3,11 +3,13 @@ FROM node:24-alpine AS frontend_builder
 
 WORKDIR /workspace
 COPY packages/mosaic-theme/package.json ./packages/mosaic-theme/package.json
+COPY packages/microapp-ui/package.json ./packages/microapp-ui/package.json
 COPY shell_app/frontend/package*.json ./shell_app/frontend/
 WORKDIR /workspace/shell_app/frontend
 RUN --mount=type=cache,target=/root/.npm npm ci
 WORKDIR /workspace
 COPY packages/mosaic-theme ./packages/mosaic-theme
+COPY packages/microapp-ui ./packages/microapp-ui
 COPY shell_app/frontend/ ./shell_app/frontend/
 WORKDIR /workspace/shell_app/frontend
 RUN npm run build

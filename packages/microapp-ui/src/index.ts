@@ -1,6 +1,8 @@
 export { DomainApp } from "./DomainApp";
 export { Chart, mosaicChartColors } from "./components/Chart";
 export type { MosaicChartConfig, MosaicChartDataset } from "./components/Chart";
+export { AppDock } from "./components/AppDock";
+export type { AppDockId } from "./components/AppDock";
 export { IconButton, MetricCard, Panel, Segmented } from "./components/Mosaic";
 export { MosaicIcon } from "./components/MosaicIcon";
 export type { IconName } from "./components/MosaicIcon";

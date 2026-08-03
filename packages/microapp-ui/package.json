@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./format": "./src/format.ts",
+    "./app-dock": "./src/components/AppDock.tsx",
     "./hooks": "./src/hooks.ts",
     "./primitives": "./src/primitives.ts",
     "./router": "./src/router.tsx"

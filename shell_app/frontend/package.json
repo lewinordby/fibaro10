@@ -9,6 +9,7 @@
     "build": "tsc -b && vite build"
   },
   "dependencies": {
+    "@lilletorget/microapp-ui": "file:../../packages/microapp-ui",
     "@lilletorget/mosaic-theme": "file:../../packages/mosaic-theme",
     "@tailwindcss/forms": "^0.5.10",
     "react": "^19.1.0",

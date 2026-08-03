@@ -241,6 +241,7 @@ export type NavigationItem = {
 export type NavigationGroup = { label: string; items: NavigationItem[] };
 
 export type DomainUiConfig = {
+  appId: import("./components/AppDock").AppDockId;
   name: string;
   shortName: string;
   icon: import("./components/MosaicIcon").IconName;

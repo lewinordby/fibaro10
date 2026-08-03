@@ -86,6 +86,24 @@ def test_app_selector_has_only_the_header_refresh_control() -> None:
     assert "<span>Oppdater</span>" not in source
     assert ">Alle apper</span>" in source
     assert "<h1" not in source
+    assert "<AppDock shellUrl={shellUrl}" in source
+
+
+def test_every_microapp_header_uses_the_shared_app_dock() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    dock = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "AppDock.tsx").read_text(encoding="utf-8")
+    assert dock.count("port: 815") == 8
+    for port in range(8151, 8159):
+        assert f"port: {port}" in dock
+    assert 'aria-label="Bytt app"' in dock
+    assert "border-r" in dock
+
+    shared_layout = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "Layout.tsx").read_text(encoding="utf-8")
+    revenue_layout = (repo_root / "revenue_app" / "frontend" / "src" / "components" / "Layout.tsx").read_text(encoding="utf-8")
+    parking_layout = (repo_root / "parking_app" / "frontend" / "src" / "components" / "Layout.tsx").read_text(encoding="utf-8")
+    assert "<AppDock activeApp={activeApp}" in shared_layout
+    assert '<AppDock activeApp="revenue"' in revenue_layout
+    assert '<AppDock activeApp="parking"' in parking_layout
 
 
 def test_shared_domain_layout_uses_the_header_for_the_active_page_title() -> None:

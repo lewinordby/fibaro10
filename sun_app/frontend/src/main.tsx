@@ -5,6 +5,7 @@ import "@lilletorget/mosaic-theme/font.css";
 import "./style.css";
 
 const config: DomainUiConfig = {
+  appId: "sun",
   name: "Lilletorget Soling", shortName: "Soling", icon: "sun", accent: "yellow",
   navigation: [
     { label: "Soling", items: [

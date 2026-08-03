@@ -4,7 +4,7 @@ import { DomainApp, ThemeProvider, type DomainUiConfig } from "@lilletorget/micr
 import "@lilletorget/mosaic-theme/font.css";
 import "./style.css";
 
-const config: DomainUiConfig = { name: "Lilletorget Bygg og drift", shortName: "Bygg og drift", icon: "building", accent: "sky", navigation: [
+const config: DomainUiConfig = { appId: "operations", name: "Lilletorget Bygg og drift", shortName: "Bygg og drift", icon: "building", accent: "sky", navigation: [
   { label: "Drift", items: [
     { to: "/", label: "Driftsoversikt", icon: "dashboard", title: "Driftsoversikt", description: "Samlet status for tekniske funksjoner i bygget.", module: "status", view: "drift", corePath: "/status/drift" },
   ]},
