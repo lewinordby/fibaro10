@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -12,6 +13,7 @@ from parking_app.app.main import app as parking_app
 from revenue_app.app.main import app as revenue_app
 from sun_app.app.main import app as sun_app
 from system_app.app.main import app as system_app
+from system_app.app.menu_structure import APP_MENU_STRUCTURE
 
 
 APPS = [
@@ -112,6 +114,35 @@ def test_every_microapp_header_uses_the_shared_app_dock() -> None:
     assert "<AppDock activeApp={activeApp}" in shared_layout
     assert '<AppDock activeApp="revenue"' in revenue_layout
     assert '<AppDock activeApp="parking"' in parking_layout
+
+
+def test_documented_menu_structure_matches_every_microapp_navigation() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    sources = {
+        "revenue": repo_root / "revenue_app" / "frontend" / "src" / "components" / "Layout.tsx",
+        "parking": repo_root / "parking_app" / "frontend" / "src" / "components" / "Layout.tsx",
+        "sun": repo_root / "sun_app" / "frontend" / "src" / "main.tsx",
+        "energy": repo_root / "energy_app" / "frontend" / "src" / "main.tsx",
+        "operations": repo_root / "operations_app" / "frontend" / "src" / "main.tsx",
+        "maintenance": repo_root / "maintenance_app" / "frontend" / "src" / "main.tsx",
+        "system": repo_root / "system_app" / "frontend" / "src" / "main.tsx",
+        "link": repo_root / "link_app" / "frontend" / "src" / "main.tsx",
+    }
+    pattern = re.compile(r'\{\s*to:\s*"([^"]+)",\s*label:\s*"([^"]+)"')
+    for app in APP_MENU_STRUCTURE:
+        actual = set(pattern.findall(sources[app["id"]].read_text(encoding="utf-8")))
+        documented = {(route, label) for _, items in app["groups"] for label, route in items}
+        assert documented == actual, f"Menyoversikten for {app['name']} er ikke oppdatert"
+
+
+def test_system_menu_structure_page_is_available_without_core_data() -> None:
+    with TestClient(system_app) as client:
+        response = client.get("/api/modules/manual?view=menystruktur")
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["title"] == "Menystruktur"
+        assert len(payload["tables"]) == len(APP_MENU_STRUCTURE) + 2
+        assert sum(len(items) for app in APP_MENU_STRUCTURE for _, items in app["groups"]) == 83
 
 
 def test_shared_domain_layout_uses_the_header_for_the_active_page_title() -> None:

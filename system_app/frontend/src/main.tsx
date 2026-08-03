@@ -30,6 +30,7 @@ const config: DomainUiConfig = { appId: "system", name: "Lilletorget System", sh
     { to: "/manual/daglig-bruk", label: "Daglig bruk", icon: "book", title: "Daglig bruk", description: "De viktigste arbeidsflytene i hverdagen.", module: "manual", view: "daglig-bruk", corePath: "/manual/daglig-bruk" },
     { to: "/manual/datagrunnlag", label: "Datagrunnlag", icon: "book", title: "Datagrunnlag", description: "Hvor data kommer fra og hvordan de behandles.", module: "manual", view: "datagrunnlag", corePath: "/manual/datagrunnlag" },
     { to: "/manual/feilsoking", label: "Feilsøking", icon: "warning", title: "Feilsøking", description: "Systematiske kontroller ved vanlige feil.", module: "manual", view: "feilsoking", corePath: "/manual/feilsoking" },
+    { to: "/manual/menystruktur", label: "Menystruktur", icon: "apps", title: "Menystruktur", description: "Komplett oversikt over apper, grupper og sider.", module: "manual", view: "menystruktur", corePath: "/manual/menystruktur" },
   ]},
   { label: "Utvikling", items: [
     { to: "/ideer", label: "Ideer", icon: "idea", title: "Ideer", description: "Forslag til ny funksjonalitet før de flyttes inn i fagappene.", module: "ideer", view: "oversikt", corePath: "/ideer/oversikt" },

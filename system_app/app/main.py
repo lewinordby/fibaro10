@@ -9,6 +9,7 @@ import httpx
 from fastapi import Request
 
 from microapp_backend import DomainAppConfig, create_domain_app
+from system_app.app.menu_structure import menu_structure_module
 
 
 APP_DIR = Path(__file__).resolve().parents[1]
@@ -115,8 +116,11 @@ def scalar_row(row: dict[str, Any]) -> dict[str, Any]:
 
 
 async def manual_module(request: Request, client: httpx.AsyncClient, headers: dict[str, str]) -> dict[str, Any]:
-    data = await core_json(client, headers, "/api/manual")
     view = request.query_params.get("view", "oversikt")
+    if view == "menystruktur":
+        return menu_structure_module(request)
+
+    data = await core_json(client, headers, "/api/manual")
     chapters = data.get("chapters", [])
     if view == "oversikt":
         rows = [{"kapittel": chapter.get("number"), "tittel": chapter.get("title"), "id": chapter.get("id"), "merknad": chapter.get("note", "")} for chapter in chapters]
