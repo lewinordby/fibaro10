@@ -7,9 +7,36 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
 BUILD_FILE = Path(__file__).with_name("BUILD")
-DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exists() else "1629"
+DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exists() else "1630"
 APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1630",
+        "date": "03.08.2026",
+        "headline": "Indekserte sammenligninger på dashboardet",
+        "title": "Historiske tidsvinduer bruker nå databaseindeksene uten å endre resultatene",
+        "description": (
+            "Den samlede optimaliseringen er finjustert etter måling mot produksjonsdata. "
+            "Dashboardets største historiske spørringer kjøres fortsatt i én databaseoperasjon, men hver periode "
+            "er nå en egen indekserbar delspørring i stedet for en bred skanning med mange betingelser per rad."
+        ),
+        "applications": [
+            "Fibaro10 dashboard: raskere sammenligninger for dag, uke, måned og år.",
+            "Parkering: indekserte tidsvinduer for alle omsetnings- og antallssammenligninger.",
+            "Soling: samme optimalisering for enkelttimer, beløp, minutter og rom.",
+            "Tester: oppdatert kontrakt for ett samlet UNION ALL-oppslag per datakilde.",
+        ],
+        "request": "Gjør en teknisk optimalisering av hele løsningen.",
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Erstatter brede CASE-aggregater over flere år med indekserte periodeaggregater.",
+            "Beholder én databaseoperasjon per datakilde og reduserer samtidig radarbeidet i PostgreSQL.",
+            "Verifiserer alle summer og antall mot produksjonsdata med likhet avrundet til øre.",
+            "Måler både kald og varm dashboard-kjøring før utrulling.",
+        ],
+    },
     {
         "version": "1",
         "build": "1629",

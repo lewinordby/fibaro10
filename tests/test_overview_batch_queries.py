@@ -84,16 +84,10 @@ class OverviewBatchQueryTests(unittest.IsolatedAsyncioTestCase):
     async def test_datetime_batches_return_all_requested_windows_in_one_query(self):
         session = _Session(
             _Result(
-                mappings={
-                    "today_sessions": 4,
-                    "today_minutes": 60,
-                    "today_paid": 800,
-                    "today_rooms": 3,
-                    "week_sessions": 15,
-                    "week_minutes": 210,
-                    "week_paid": 2_600,
-                    "week_rooms": 7,
-                }
+                mappings=[
+                    {"period_key": "today", "sessions": 4, "minutes": 60, "paid": 800, "rooms": 3},
+                    {"period_key": "week", "sessions": 15, "minutes": 210, "paid": 2_600, "rooms": 7},
+                ]
             )
         )
         start = datetime(2026, 8, 3)
@@ -113,7 +107,12 @@ class OverviewBatchQueryTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_parking_batches_return_all_requested_windows_in_one_query(self):
         session = _Session(
-            _Result(mappings={"today_sessions": 12, "today_paid": 1_250, "year_sessions": 900, "year_paid": 92_000})
+            _Result(
+                mappings=[
+                    {"period_key": "today", "sessions": 12, "paid": 1_250},
+                    {"period_key": "year", "sessions": 900, "paid": 92_000},
+                ]
+            )
         )
         start = datetime(2026, 8, 3)
 

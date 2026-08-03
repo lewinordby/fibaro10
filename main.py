@@ -37,7 +37,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
-from sqlalchemy import Boolean, BigInteger, Column, Date, DateTime, Float, ForeignKey, Integer, JSON, LargeBinary, String, Text, UniqueConstraint, and_, case, cast, delete, func, or_, select, text as sql_text, tuple_, update
+from sqlalchemy import Boolean, BigInteger, Column, Date, DateTime, Float, ForeignKey, Integer, JSON, LargeBinary, String, Text, UniqueConstraint, and_, case, cast, delete, func, literal, or_, select, text as sql_text, tuple_, union_all, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base, load_only
@@ -3393,39 +3393,28 @@ async def sun2_datetime_snapshots(
 ) -> Dict[str, SimpleNamespace]:
     if not periods:
         return {}
-    columns = []
+    queries = []
     for key, (start_at, end_at) in periods.items():
-        condition = and_(Sun2TanningSession.started_at >= start_at, Sun2TanningSession.started_at < end_at)
-        columns.extend(
-            [
-                func.count(case((condition, Sun2TanningSession.id), else_=None)).label(f"{key}_sessions"),
-                func.coalesce(
-                    func.sum(case((condition, Sun2TanningSession.duration_minutes), else_=0)),
-                    0,
-                ).label(f"{key}_minutes"),
-                func.coalesce(
-                    func.sum(case((condition, Sun2TanningSession.paid_amount_kr), else_=0)),
-                    0,
-                ).label(f"{key}_paid"),
-                func.count(
-                    func.distinct(case((condition, Sun2TanningSession.room_id), else_=None))
-                ).label(f"{key}_rooms"),
-            ]
-        )
-    row = (
-        await session.execute(
-            select(*columns).where(
-                Sun2TanningSession.started_at >= min(start_at for start_at, _ in periods.values()),
-                Sun2TanningSession.started_at < max(end_at for _, end_at in periods.values()),
+        queries.append(
+            select(
+                literal(key).label("period_key"),
+                func.count(Sun2TanningSession.id).label("sessions"),
+                func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("minutes"),
+                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid"),
+                func.count(func.distinct(Sun2TanningSession.room_id)).label("rooms"),
+            ).where(
+                Sun2TanningSession.started_at >= start_at,
+                Sun2TanningSession.started_at < end_at,
             )
         )
-    ).mappings().one()
+    rows = (await session.execute(union_all(*queries))).mappings().all()
+    rows_by_key = {str(row.get("period_key")): row for row in rows}
     return {
         key: SimpleNamespace(
-            sessions=int_or_zero(row.get(f"{key}_sessions")),
-            minutes=float_or_zero(row.get(f"{key}_minutes")),
-            paid=float_or_zero(row.get(f"{key}_paid")),
-            rooms=int_or_zero(row.get(f"{key}_rooms")),
+            sessions=int_or_zero(rows_by_key.get(key, {}).get("sessions")),
+            minutes=float_or_zero(rows_by_key.get(key, {}).get("minutes")),
+            paid=float_or_zero(rows_by_key.get(key, {}).get("paid")),
+            rooms=int_or_zero(rows_by_key.get(key, {}).get("rooms")),
         )
         for key in periods
     }
@@ -3441,30 +3430,24 @@ async def parking_datetime_snapshots(
 ) -> Dict[str, SimpleNamespace]:
     if not periods:
         return {}
-    columns = []
+    queries = []
     for key, (start_at, end_at) in periods.items():
-        condition = and_(ParkingSession.start_time >= start_at, ParkingSession.start_time < end_at)
-        columns.extend(
-            [
-                func.count(case((condition, ParkingSession.id), else_=None)).label(f"{key}_sessions"),
-                func.coalesce(
-                    func.sum(case((condition, ParkingSession.fee_inc_vat), else_=0)),
-                    0,
-                ).label(f"{key}_paid"),
-            ]
-        )
-    row = (
-        await session.execute(
-            select(*columns).where(
-                ParkingSession.start_time >= min(start_at for start_at, _ in periods.values()),
-                ParkingSession.start_time < max(end_at for _, end_at in periods.values()),
+        queries.append(
+            select(
+                literal(key).label("period_key"),
+                func.count(ParkingSession.id).label("sessions"),
+                func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+            ).where(
+                ParkingSession.start_time >= start_at,
+                ParkingSession.start_time < end_at,
             )
         )
-    ).mappings().one()
+    rows = (await session.execute(union_all(*queries))).mappings().all()
+    rows_by_key = {str(row.get("period_key")): row for row in rows}
     return {
         key: SimpleNamespace(
-            sessions=int_or_zero(row.get(f"{key}_sessions")),
-            paid=float_or_zero(row.get(f"{key}_paid")),
+            sessions=int_or_zero(rows_by_key.get(key, {}).get("sessions")),
+            paid=float_or_zero(rows_by_key.get(key, {}).get("paid")),
         )
         for key in periods
     }
