@@ -84,6 +84,27 @@ def test_app_selector_has_only_the_header_refresh_control() -> None:
     source = (repo_root / "shell_app" / "frontend" / "src" / "App.tsx").read_text(encoding="utf-8")
     assert 'title="Oppdater status"' in source
     assert "<span>Oppdater</span>" not in source
+    assert ">Alle apper</span>" in source
+    assert "<h1" not in source
+
+
+def test_shared_domain_layout_uses_the_header_for_the_active_page_title() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    source = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "Layout.tsx").read_text(encoding="utf-8")
+    assert "<Header title={item.label}" in source
+    assert ">{title}</span>" in source
+    assert "item.description" not in source
+    assert "<h1" not in source
+
+
+def test_parking_layout_uses_the_header_for_the_active_page_title() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    source = (repo_root / "parking_app" / "frontend" / "src" / "components" / "Layout.tsx").read_text(encoding="utf-8")
+    assert "<Header open={sidebarOpen}" in source
+    assert "title={title}" in source
+    assert ">{title}</span>" in source
+    assert "heading.description" not in source
+    assert "<h1" not in source
 
 
 def test_revenue_dashboard_names_both_driver_references() -> None:
