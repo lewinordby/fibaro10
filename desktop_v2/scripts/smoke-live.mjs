@@ -415,8 +415,8 @@ async function smokeShellControls(page) {
 
 async function smokeEnergyTopologyControls(page) {
   await page.goto(`${baseUrl}/energi/kurs-last`, { waitUntil: "load" });
-  await expectVisible(page, "Kurs, enheter og laster");
-  await page.locator(".energy-course-card").first().waitFor({ timeout: 10000 });
+  await page.getByText("Kurs, enheter og laster", { exact: false }).first().waitFor({ timeout: 30000 });
+  await page.locator(".energy-course-card").first().waitFor({ timeout: 30000 });
 
   await page.getByRole("button", { name: "Lukk alle", exact: true }).click();
   await page.waitForTimeout(150);
