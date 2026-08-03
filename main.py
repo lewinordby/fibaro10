@@ -206,6 +206,9 @@ MET_USER_AGENT = os.getenv("MET_USER_AGENT", "fibaro10/1.0 http://192.168.20.218
 MET_WEATHER_CACHE = {"expires": datetime.min, "value": None}
 SUMMARY_CACHE_TTL = timedelta(minutes=5)
 SUMMARY_CACHE: Dict[str, Dict[str, Any]] = {}
+SUNBED_POWER_ANALYSIS_CACHE_TTL = timedelta(
+    minutes=max(3, int(os.getenv("SUNBED_POWER_ANALYSIS_CACHE_MINUTES", "10")))
+)
 NTFY_BASE_URL = os.getenv("NTFY_BASE_URL", "https://ntfy.sh").rstrip("/")
 NTFY_LIGHTS_TOPIC = os.getenv("NTFY_LIGHTS_TOPIC", f"sun2-lys-{MASTER_ACCESS_KEY_HASH[:12]}")
 NTFY_VENTILATION_TOPIC = os.getenv("NTFY_VENTILATION_TOPIC", f"sun2-ventilasjon-{MASTER_ACCESS_KEY_HASH[:12]}")
@@ -10043,32 +10046,16 @@ def build_sunbed_power_analysis(
         events.append((item["occupied_end"], -1, item["id"]))
     events.sort(key=lambda item: (item[0], item[1]))
 
-    ventilation_items = []
+    ventilation_items: list[tuple[datetime, bool]] = []
     for row in ventilation_samples or []:
         bucket = row.get("bucket_start") if isinstance(row, dict) else getattr(row, "bucket_start", None)
         bucket = normalize_local_naive(bucket)
         fan_tak = row.get("fan_tak") if isinstance(row, dict) else getattr(row, "fan_tak", None)
         if bucket is not None:
-            ventilation_items.append({"time": bucket, "fan_tak": bool(fan_tak)})
-    ventilation_items.sort(key=lambda item: item["time"])
-    ventilation_times = [item["time"] for item in ventilation_items]
+            ventilation_items.append((bucket, bool(fan_tak)))
+    ventilation_items.sort(key=lambda item: item[0])
 
-    def roof_exhaust_adjustment(sample_time: datetime) -> float:
-        if not ventilation_items:
-            return 0.0
-        index = bisect_left(ventilation_times, sample_time)
-        candidates = []
-        if index < len(ventilation_items):
-            candidates.append(ventilation_items[index])
-        if index > 0:
-            candidates.append(ventilation_items[index - 1])
-        nearest = min(candidates, key=lambda item: abs((sample_time - item["time"]).total_seconds()))
-        distance = abs((sample_time - nearest["time"]).total_seconds())
-        if distance <= SUNBED_ANALYSIS_VENTILATION_MATCH_SECONDS and nearest["fan_tak"]:
-            return ROOF_EXHAUST_UNMETERED_W
-        return 0.0
-
-    sample_items = []
+    sample_items: list[tuple[datetime, float]] = []
     for sample in samples:
         bucket = sample.get("bucket_start") if isinstance(sample, dict) else getattr(sample, "bucket_start", None)
         bucket = normalize_local_naive(bucket)
@@ -10078,31 +10065,50 @@ def build_sunbed_power_analysis(
         except (TypeError, ValueError):
             continue
         if bucket is not None:
-            adjustment_w = roof_exhaust_adjustment(bucket)
-            sample_items.append({
-                "time": bucket,
-                "diff_w": diff_w,
-                "analysis_diff_w": diff_w - adjustment_w,
-                "roof_exhaust_adjustment_w": adjustment_w,
-            })
-    sample_items.sort(key=lambda item: item["time"])
+            sample_items.append((bucket, diff_w))
+    sample_items.sort(key=lambda item: item[0])
     sample_interval_candidates = [
-        (right["time"] - left["time"]).total_seconds()
+        (right[0] - left[0]).total_seconds()
         for left, right in zip(sample_items, sample_items[1:])
-        if 5 <= (right["time"] - left["time"]).total_seconds() <= 300
+        if 5 <= (right[0] - left[0]).total_seconds() <= 300
     ]
-    sample_interval_seconds = float(median(sample_interval_candidates) or 30.0)
+    sample_interval_seconds = float(median(sample_interval_candidates)) if sample_interval_candidates else 30.0
 
     active: set[int] = set()
     event_index = 0
-    classified = []
+    ventilation_index = 0
+    single_samples: list[tuple[datetime, float, float, int]] = []
     baseline_by_day_hour: Dict[tuple[date, int], list[float]] = defaultdict(list)
     baseline_by_day: Dict[date, list[float]] = defaultdict(list)
     baseline_global: list[float] = []
     overlap_samples = 0
+    roof_exhaust_adjusted_samples = 0
 
-    for sample in sample_items:
-        sample_time = sample["time"]
+    for sample_time, diff_w in sample_items:
+        while (
+            ventilation_index < len(ventilation_items)
+            and ventilation_items[ventilation_index][0] < sample_time
+        ):
+            ventilation_index += 1
+        ventilation_candidates = []
+        if ventilation_index < len(ventilation_items):
+            ventilation_candidates.append(ventilation_items[ventilation_index])
+        if ventilation_index > 0:
+            ventilation_candidates.append(ventilation_items[ventilation_index - 1])
+        adjustment_w = 0.0
+        if ventilation_candidates:
+            nearest_time, nearest_fan_tak = min(
+                ventilation_candidates,
+                key=lambda item: abs((sample_time - item[0]).total_seconds()),
+            )
+            if (
+                nearest_fan_tak
+                and abs((sample_time - nearest_time).total_seconds()) <= SUNBED_ANALYSIS_VENTILATION_MATCH_SECONDS
+            ):
+                adjustment_w = ROOF_EXHAUST_UNMETERED_W
+                roof_exhaust_adjusted_samples += 1
+        analysis_diff_w = diff_w - adjustment_w
+
         while event_index < len(events) and events[event_index][0] <= sample_time:
             _, action, session_id = events[event_index]
             if action == 1:
@@ -10111,16 +10117,13 @@ def build_sunbed_power_analysis(
                 active.discard(session_id)
             event_index += 1
         if len(active) == 0:
-            baseline_by_day_hour[(sample_time.date(), sample_time.hour)].append(sample["analysis_diff_w"])
-            baseline_by_day[sample_time.date()].append(sample["analysis_diff_w"])
-            baseline_global.append(sample["analysis_diff_w"])
-            classified.append({**sample, "session_id": None, "state": "baseline"})
+            baseline_by_day_hour[(sample_time.date(), sample_time.hour)].append(analysis_diff_w)
+            baseline_by_day[sample_time.date()].append(analysis_diff_w)
+            baseline_global.append(analysis_diff_w)
         elif len(active) == 1:
-            session_id = next(iter(active))
-            classified.append({**sample, "session_id": session_id, "state": "single"})
+            single_samples.append((sample_time, diff_w, analysis_diff_w, next(iter(active))))
         else:
             overlap_samples += 1
-            classified.append({**sample, "session_id": None, "state": "overlap", "active_count": len(active)})
 
     global_baseline = median(baseline_global) if baseline_global else None
     baseline_by_day_hour_median = {
@@ -10143,14 +10146,10 @@ def build_sunbed_power_analysis(
     rejected_short_sessions = 0
     rejected_short_samples = 0
 
-    for sample in classified:
-        if sample["state"] != "single":
-            continue
-        session_id = sample["session_id"]
+    for sample_time, diff_w, analysis_diff_w, session_id in single_samples:
         session_item = sessions_by_id.get(session_id)
         if not session_item:
             continue
-        sample_time = sample["time"]
         if not (session_item["measure_start"] <= sample_time < session_item["measure_end"]):
             rejected_warmup_cooldown += 1
             continue
@@ -10160,7 +10159,7 @@ def build_sunbed_power_analysis(
         if baseline is None:
             missing_baseline += 1
             continue
-        net_w = sample["analysis_diff_w"] - baseline
+        net_w = analysis_diff_w - baseline
         if net_w <= 500:
             rejected_low += 1
             continue
@@ -10173,7 +10172,7 @@ def build_sunbed_power_analysis(
                 "baseline_values": [],
             }
         candidate_sessions[session_id]["net_values"].append(net_w)
-        candidate_sessions[session_id]["observed_values"].append(sample["diff_w"])
+        candidate_sessions[session_id]["observed_values"].append(diff_w)
         candidate_sessions[session_id]["baseline_values"].append(baseline)
 
     for session_id, session_item in candidate_sessions.items():
@@ -10273,7 +10272,7 @@ def build_sunbed_power_analysis(
         "summary": {
             "sessions_total": len(session_items),
             "energy_samples_total": len(sample_items),
-            "roof_exhaust_adjusted_samples": sum(1 for sample in sample_items if sample.get("roof_exhaust_adjustment_w")),
+            "roof_exhaust_adjusted_samples": roof_exhaust_adjusted_samples,
             "roof_exhaust_adjustment_w": ROOF_EXHAUST_UNMETERED_W,
             "baseline_samples": len(baseline_global),
             "single_samples": used_samples,
@@ -10360,7 +10359,8 @@ async def load_sunbed_power_analysis(
         )
     ).scalars().all()
     bed_lookup = {bed.room_id: bed for bed in bed_rows if bed.room_id}
-    analysis = build_sunbed_power_analysis(
+    analysis = await asyncio.to_thread(
+        build_sunbed_power_analysis,
         session_rows,
         [dict(row) for row in energy_rows],
         bed_lookup,
@@ -10374,7 +10374,7 @@ async def load_sunbed_power_analysis(
         "maxPower": max_power,
         **analysis,
     }
-    SUMMARY_CACHE[cache_key] = {"expires": now_utc + timedelta(minutes=3), "value": deepcopy(value)}
+    SUMMARY_CACHE[cache_key] = {"expires": now_utc + SUNBED_POWER_ANALYSIS_CACHE_TTL, "value": deepcopy(value)}
     return value
 
 

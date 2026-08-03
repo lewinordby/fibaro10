@@ -91,7 +91,7 @@ async function login(page) {
   await page.locator('input[name="password"]').fill(password);
   await Promise.all([
     page.waitForNavigation({ waitUntil: "load", timeout: 10000 }).catch(() => null),
-    page.locator("form").evaluate((form) => form.requestSubmit()),
+    page.locator('button[type="submit"]').click(),
   ]);
 
   const auth = await page.evaluate(async () => {

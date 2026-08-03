@@ -59,7 +59,7 @@ services:
     volumes:
       - ${AXIS_HOST_SNAPSHOT_DIR:-./axis_camera_snapshots/snapshots}:/axis_snapshots:ro
     environment:
-      APP_BUILD: ${APP_BUILD:-1630}
+      APP_BUILD: ${APP_BUILD:-1631}
       SUN2_AXIS_SNAPSHOT_ROOT: /axis_snapshots
       CAR_INFO_LOOKUP_URL: http://car_info_lookup:8126
       OWNTRACKS_SERVICE_URL: http://owntracks_service:8128

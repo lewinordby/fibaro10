@@ -7,9 +7,36 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
 BUILD_FILE = Path(__file__).with_name("BUILD")
-DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exists() else "1630"
+DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exists() else "1631"
 APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1631",
+        "date": "03.08.2026",
+        "headline": "Smidigere energianalyse og sikrere sluttkontroll",
+        "title": "Solsengberegningen blokkerer ikke lenger resten av løsningen",
+        "description": (
+            "Den tyngste gjenværende beregningen er profilert med 85 000 energipunkter og bygget om til en "
+            "enklere passering med mindre minnearbeid. Beregningen kjøres nå utenfor webserverens hovedløkke, "
+            "mens en mer egnet cache reduserer hvor ofte den samme 30-dagersanalysen må gjentas."
+        ),
+        "applications": [
+            "Energi / forbruk per seng: lettere beregningsmotor og ti minutters analysecache.",
+            "Fibaro10 API: andre forespørsler forblir responsive mens energiresultatet beregnes.",
+            "Live-test: robust skjema-innsending uten løpssituasjon under innlogging.",
+        ],
+        "request": "Gjør en teknisk optimalisering av hele løsningen.",
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Behandler energipunkter og ventilasjonsstatus i én sortert passering.",
+            "Fjerner store mellomkopier av klassifiserte energisamples.",
+            "Flytter CPU-tung analyse til arbeidstråd og beholder FastAPI-løkken responsiv.",
+            "Øker cacheperioden for den historiske analysen fra tre til ti minutter.",
+            "Stabiliserer automatisk innlogging i den komplette nettlesertesten.",
+        ],
+    },
     {
         "version": "1",
         "build": "1630",
