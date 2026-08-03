@@ -27,11 +27,16 @@ komponentmønstre og lokal Inter-font. Nye apper skal kobles til pakken i stedet
 for å kopiere CSS fra en eksisterende app.
 
 Alle fagappene på 8151-8158 bruker i tillegg `packages/microapp-ui` for felles
-innlogging, API-cache, navigasjon, tema, formatering, tabeller, grafer og
-redigeringsmønstre. Omsetning og Parkering har egne domenesider, mens de andre
-appene også bruker felles layout. Hver app bygger fortsatt egne, versjonerte
-statiske filer. Chart.js og spesialiserte fagflater lastes ved behov, slik at
-førstegangslasten holdes liten.
+innlogging, API-cache, navigasjon, layout, tema, formatering, tabeller, grafer og
+redigeringsmønstre. Menystruktur, apprekkefølge og porter har én autoritativ kilde
+i `packages/microapp-ui/src/navigation.json`.
+
+Navigasjonen har tre faste roller: appfeltet i toppen bytter fagapp,
+venstremenyen bytter hovedområde og den horisontale menyen bytter mellom
+beslektede sider i aktivt område. Detaljsider åpnes fra innholdet og er ikke
+egne hovedmenyvalg. Hver app bygger fortsatt egne, versjonerte statiske filer.
+Chart.js og spesialiserte fagflater lastes ved behov, slik at førstegangslasten
+holdes liten.
 
 ## Utvikling og utrulling
 

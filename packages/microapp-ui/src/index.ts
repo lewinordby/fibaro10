@@ -1,8 +1,9 @@
 export { DomainApp } from "./DomainApp";
+export { Layout as DomainLayout } from "./components/Layout";
 export { Chart, mosaicChartColors } from "./components/Chart";
 export type { MosaicChartConfig, MosaicChartDataset } from "./components/Chart";
 export { AppDock } from "./components/AppDock";
-export type { AppDockId } from "./components/AppDock";
+export { appDefinitions, findNavigationGroup, findNavigationItem, getAppDefinition, getDomainConfig } from "./navigation";
 export { IconButton, MetricCard, Panel, Segmented } from "./components/Mosaic";
 export { MosaicIcon } from "./components/MosaicIcon";
 export type { IconName } from "./components/MosaicIcon";
@@ -12,4 +13,4 @@ export { ThemeToggle } from "./components/ThemeToggle";
 export { displayCell, nok, percentDelta, shortDateTime, signedNok, valueLabel } from "./format";
 export { useApi } from "./hooks";
 export { AppLink, AppRouter, useAppLocation, useAppSearchParams } from "./router";
-export type { DomainUiConfig, NavigationGroup, NavigationItem } from "./types";
+export type { AppDockId, DomainAppDefinition, DomainUiConfig, NavigationGroup, NavigationItem } from "./types";

@@ -7,9 +7,40 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
 BUILD_FILE = Path(__file__).with_name("BUILD")
-DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exists() else "1633"
+DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exists() else "1634"
 APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1634",
+        "date": "03.08.2026",
+        "headline": "Felles og ryddigere navigasjon i alle fagappene",
+        "title": "Alle mikroappene bruker n\u00e5 samme navigasjonsmodell med to tydelige niv\u00e5er",
+        "description": (
+            "Navigasjonen i de \u00e5tte fagappene er bygget om og samlet i \u00e9n felles kilde. "
+            "Appfeltet bytter fagapp, venstremenyen viser arbeidsomr\u00e5der og en kompakt horisontal meny "
+            "viser beslektede sider. Detaljvisninger \u00e5pnes fortsatt fra innholdet og tar ikke plass i hovedmenyen."
+        ),
+        "applications": [
+            "Appvelger: globalt appfelt i fast og logisk rekkef\u00f8lge.",
+            "Omsetning og Parkering: egne dupliserte layoutfiler er erstattet av felles layout.",
+            "Soling, Koble, Bygg og drift, Energi, Vedlikehold og System: ny omr\u00e5debasert venstremeny.",
+            "Bygg og drift: d\u00f8ralarm og avvik er samlet, og d\u00f8rtype velges som filter i oversikten.",
+            "System: menyoversikten genereres direkte fra samme kilde som appene bruker.",
+        ],
+        "request": "G\u00e5 grundig gjennom alle menyvalg og inndelinger, og gjennomf\u00f8r den mest logiske strukturen i alle applikasjonene.",
+        "work_duration": "ca. 2 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kj\u00f8ring",
+        "changes": [
+            "Etablerer \u00e9n typesikret navigasjonskilde for alle \u00e5tte fagapper.",
+            "Begrenser appnavigasjonen til hovedomr\u00e5de i venstremeny og side i horisontalmeny.",
+            "Samler overlappende d\u00f8rfunksjoner uten \u00e5 fjerne underliggende ruter eller data.",
+            "Legger appvelgeren f\u00f8rst i toppfeltet og grupperer fagappene konsekvent.",
+            "Oppdaterer automatisk menydokumentasjon og regresjonstester.",
+            "Oppdaterer PostCSS til en sikker felles versjon i alle mikroappene.",
+            "Bygger og kontrollerer alle ni webfronter f\u00f8r utrulling.",
+        ],
+    },
     {
         "version": "1",
         "build": "1633",

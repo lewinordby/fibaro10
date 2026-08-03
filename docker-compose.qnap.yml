@@ -59,7 +59,7 @@ services:
     volumes:
       - ${AXIS_HOST_SNAPSHOT_DIR:-./axis_camera_snapshots/snapshots}:/axis_snapshots:ro
     environment:
-      APP_BUILD: ${APP_BUILD:-1633}
+      APP_BUILD: ${APP_BUILD:-1634}
       SUN2_AXIS_SNAPSHOT_ROOT: /axis_snapshots
       CAR_INFO_LOOKUP_URL: http://car_info_lookup:8126
       OWNTRACKS_SERVICE_URL: http://owntracks_service:8128
@@ -90,7 +90,7 @@ services:
       FIBARO10_BASE_URL: http://fibaro10:8110
       FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
       SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
-      REVENUE_APP_BUILD: ${REVENUE_APP_BUILD:-21}
+      REVENUE_APP_BUILD: ${REVENUE_APP_BUILD:-22}
       REVENUE_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8151/health', timeout=5).read()\""]
@@ -116,7 +116,7 @@ services:
       FIBARO10_BASE_URL: http://fibaro10:8110
       FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
       SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
-      PARKING_APP_BUILD: ${PARKING_APP_BUILD:-10}
+      PARKING_APP_BUILD: ${PARKING_APP_BUILD:-11}
       PARKING_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8152/health', timeout=5).read()\""]
@@ -142,7 +142,7 @@ services:
       FIBARO10_BASE_URL: http://fibaro10:8110
       FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
       SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
-      SUN_APP_BUILD: ${SUN_APP_BUILD:-9}
+      SUN_APP_BUILD: ${SUN_APP_BUILD:-10}
       SUN_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8153/health', timeout=5).read()\""]
@@ -168,7 +168,7 @@ services:
       FIBARO10_BASE_URL: http://fibaro10:8110
       FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
       SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
-      ENERGY_APP_BUILD: ${ENERGY_APP_BUILD:-9}
+      ENERGY_APP_BUILD: ${ENERGY_APP_BUILD:-10}
       ENERGY_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8154/health', timeout=5).read()\""]
@@ -194,7 +194,7 @@ services:
       FIBARO10_BASE_URL: http://fibaro10:8110
       FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
       SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
-      OPERATIONS_APP_BUILD: ${OPERATIONS_APP_BUILD:-11}
+      OPERATIONS_APP_BUILD: ${OPERATIONS_APP_BUILD:-12}
       OPERATIONS_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8155/health', timeout=5).read()\""]
@@ -220,7 +220,7 @@ services:
       FIBARO10_BASE_URL: http://fibaro10:8110
       FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
       SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
-      MAINTENANCE_APP_BUILD: ${MAINTENANCE_APP_BUILD:-8}
+      MAINTENANCE_APP_BUILD: ${MAINTENANCE_APP_BUILD:-9}
       MAINTENANCE_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8156/health', timeout=5).read()\""]
@@ -246,7 +246,7 @@ services:
       FIBARO10_BASE_URL: http://fibaro10:8110
       FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
       SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
-      SYSTEM_APP_BUILD: ${SYSTEM_APP_BUILD:-12}
+      SYSTEM_APP_BUILD: ${SYSTEM_APP_BUILD:-13}
       SYSTEM_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8157/health', timeout=5).read()\""]
@@ -272,7 +272,7 @@ services:
       FIBARO10_BASE_URL: http://fibaro10:8110
       FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
       SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
-      LINK_APP_BUILD: ${LINK_APP_BUILD:-7}
+      LINK_APP_BUILD: ${LINK_APP_BUILD:-8}
       LINK_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8158/health', timeout=5).read()\""]
@@ -310,7 +310,7 @@ services:
       LINK_BASE_URL: http://link_app:8158
       LINK_APP_URL: ${LINK_APP_URL:-http://192.168.20.218:8158}
       SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
-      SHELL_APP_BUILD: ${SHELL_APP_BUILD:-23}
+      SHELL_APP_BUILD: ${SHELL_APP_BUILD:-24}
       SHELL_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8150/health', timeout=5).read()\""]

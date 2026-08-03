@@ -4,7 +4,7 @@ export { IconButton, MetricCard, Panel, Segmented } from "./components/Mosaic";
 export { MosaicIcon } from "./components/MosaicIcon";
 export type { IconName } from "./components/MosaicIcon";
 export { AppDock } from "./components/AppDock";
-export type { AppDockId } from "./components/AppDock";
+export type { AppDockId } from "./types";
 export { ErrorState, Loading } from "./components/PageState";
 export { ThemeProvider, useTheme } from "./components/ThemeContext";
 export { ThemeToggle } from "./components/ThemeToggle";

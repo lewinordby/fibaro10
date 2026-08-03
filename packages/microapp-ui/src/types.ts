@@ -226,6 +226,7 @@ export type OperationsOverviewResponse = {
 };
 
 export type Accent = "violet" | "sky" | "yellow" | "green" | "red";
+export type AppDockId = "revenue" | "parking" | "sun" | "energy" | "operations" | "maintenance" | "system" | "link";
 
 export type NavigationItem = {
   to: string;
@@ -236,15 +237,18 @@ export type NavigationItem = {
   module: string;
   view: string;
   corePath?: string;
+  aliases?: string[];
 };
 
-export type NavigationGroup = { label: string; items: NavigationItem[] };
+export type NavigationGroup = { label: string; icon: import("./components/MosaicIcon").IconName; items: NavigationItem[] };
 
 export type DomainUiConfig = {
-  appId: import("./components/AppDock").AppDockId;
+  appId: AppDockId;
   name: string;
   shortName: string;
   icon: import("./components/MosaicIcon").IconName;
   accent: Accent;
   navigation: NavigationGroup[];
 };
+
+export type DomainAppDefinition = DomainUiConfig & { port: number };

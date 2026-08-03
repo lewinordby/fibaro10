@@ -1,0 +1,375 @@
+{
+  "apps": [
+    {
+      "id": "revenue",
+      "name": "Lilletorget Omsetning",
+      "shortName": "Omsetning",
+      "icon": "chart",
+      "accent": "red",
+      "port": 8151,
+      "groups": [
+        {
+          "label": "Dashboard",
+          "icon": "dashboard",
+          "items": [
+            { "to": "/", "label": "Dashboard", "icon": "dashboard", "title": "Dashboard", "description": "Dagens operative omsetningsbilde.", "module": "omsetning", "view": "dashboard", "corePath": "/status/omsetning" }
+          ]
+        },
+        {
+          "label": "Utvikling",
+          "icon": "trend",
+          "items": [
+            { "to": "/oversikt", "label": "Oversikt", "icon": "chart", "title": "Resultatutvikling", "description": "N\u00f8kkeltall, topplister og utvikling over tid.", "module": "omsetning", "view": "oversikt" },
+            { "to": "/maned", "label": "M\u00e5ned", "icon": "calendar", "title": "M\u00e5nedsoversikt", "description": "Omsetning dag for dag i valgt m\u00e5ned.", "module": "omsetning", "view": "maned" },
+            { "to": "/ar", "label": "\u00c5r", "icon": "trend", "title": "\u00c5rssammenligning", "description": "Akkumulert omsetning sammenlignet mellom \u00e5r.", "module": "omsetning", "view": "ar" }
+          ]
+        },
+        {
+          "label": "Sammenligning",
+          "icon": "compare",
+          "items": [
+            { "to": "/sammenligning", "label": "Periodesammenligning", "icon": "compare", "title": "Periodesammenligning", "description": "Akkumulert utvikling for valgte perioder.", "module": "omsetning", "view": "sammenligning" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "parking",
+      "name": "Lilletorget Parkering",
+      "shortName": "Parkering",
+      "icon": "parking",
+      "accent": "sky",
+      "port": 8152,
+      "groups": [
+        {
+          "label": "Oversikt",
+          "icon": "dashboard",
+          "items": [
+            { "to": "/", "label": "Oversikt", "icon": "dashboard", "title": "Parkeringsoversikt", "description": "N\u00f8kkeltall, ukesutvikling og siste parkeringer.", "module": "parkering", "view": "oversikt", "corePath": "/parkering/oversikt" }
+          ]
+        },
+        {
+          "label": "Parkeringer",
+          "icon": "parking",
+          "items": [
+            { "to": "/parkeringer", "label": "Liste", "icon": "parking", "title": "Parkeringer", "description": "Alle parkeringer p\u00e5 valgt dag.", "module": "parkering", "view": "parkeringer", "corePath": "/parkering/parkeringer" },
+            { "to": "/dagslinje", "label": "Dagslinje", "icon": "clock", "title": "Parkeringsdagslinje", "description": "Belegg og aktivitet gjennom valgt dag.", "module": "parkering", "view": "dagslinje", "corePath": "/parkering/dagslinje" }
+          ]
+        },
+        {
+          "label": "Kj\u00f8ret\u00f8y",
+          "icon": "apps",
+          "items": [
+            { "to": "/kjoretoy", "label": "Register", "icon": "apps", "title": "Kj\u00f8ret\u00f8yregister", "description": "S\u00f8k, eiere og parkeringshistorikk per bil.", "module": "parkering", "view": "kjoretoy", "corePath": "/parkering/kjoretoy" },
+            { "to": "/omrade", "label": "Omr\u00e5der", "icon": "compare", "title": "Parkeringsomr\u00e5der", "description": "Geografisk fordeling av kj\u00f8ret\u00f8y og parkeringer.", "module": "parkering", "view": "omrade", "corePath": "/parkering/omrade" },
+            { "to": "/oppslag", "label": "Oppslag", "icon": "apps", "title": "Kj\u00f8ret\u00f8yoppslag", "description": "Status og kontroll av eksterne kj\u00f8ret\u00f8yoppslag.", "module": "parkering", "view": "oppslag", "corePath": "/parkering/oppslag" }
+          ]
+        },
+        {
+          "label": "Analyse",
+          "icon": "chart",
+          "items": [
+            { "to": "/prognose", "label": "Prognose", "icon": "trend", "title": "Parkeringsprognose", "description": "Forventet utvikling mot faktisk parkering.", "module": "parkering", "view": "prognose", "corePath": "/parkering/prognose" },
+            { "to": "/arsutvikling", "label": "\u00c5r", "icon": "chart", "title": "\u00c5rssammenligning", "description": "Akkumulert parkering sammenlignet mellom \u00e5r.", "module": "parkering", "view": "arsutvikling", "corePath": "/parkering/arsutvikling" },
+            { "to": "/tidspunkt", "label": "D\u00f8gn og ukedag", "icon": "clock", "title": "D\u00f8gn og ukedag", "description": "Parkeringstid og omsetning fordelt p\u00e5 tidspunkt.", "module": "parkering", "view": "tidspunkt", "corePath": "/parkering/tidspunkt" },
+            { "to": "/ukesnitt", "label": "Snitt per uke", "icon": "trend", "title": "Snitt per uke", "description": "Utvikling i bel\u00f8p og tid per parkering.", "module": "parkering", "view": "ukesnitt", "corePath": "/parkering/ukesnitt" },
+            { "to": "/bilstatistikk", "label": "Bilstatistikk", "icon": "chart", "title": "Bilstatistikk", "description": "Topplister og statistikk for kj\u00f8ret\u00f8y.", "module": "parkering", "view": "bilstatistikk", "corePath": "/parkering/bilstatistikk" }
+          ]
+        },
+        {
+          "label": "Oppgj\u00f8r",
+          "icon": "calendar",
+          "items": [
+            { "to": "/oppgjor", "label": "Oppgj\u00f8r", "icon": "calendar", "title": "Parkeringsoppgj\u00f8r", "description": "Oppgj\u00f8rsskjema kontrollert mot parkeringsgrunnlaget.", "module": "parkering", "view": "oppgjor", "corePath": "/parkering/oppgjor" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sun",
+      "name": "Lilletorget Soling",
+      "shortName": "Soling",
+      "icon": "sun",
+      "accent": "yellow",
+      "port": 8153,
+      "groups": [
+        {
+          "label": "Oversikt",
+          "icon": "dashboard",
+          "items": [
+            { "to": "/", "label": "Oversikt", "icon": "dashboard", "title": "Solingsoversikt", "description": "Ukesutvikling, n\u00f8kkeltall og siste solinger.", "module": "soling", "view": "oversikt", "corePath": "/soling/oversikt" }
+          ]
+        },
+        {
+          "label": "Soltimer",
+          "icon": "sun",
+          "items": [
+            { "to": "/dagslinje", "label": "Dagslinje", "icon": "clock", "title": "Dagslinje", "description": "Soltimer, rom og energibruk gjennom valgt dag.", "module": "soling", "view": "dagslinje", "corePath": "/soling/dagslinje" },
+            { "to": "/enkeltimer", "label": "Enkelttimer", "icon": "calendar", "title": "Enkelttimer", "description": "Alle soltimer med bilder, medlem og Sun2-ID.", "module": "soling", "view": "enkeltimer", "corePath": "/soling/enkeltimer" }
+          ]
+        },
+        {
+          "label": "Analyse",
+          "icon": "chart",
+          "items": [
+            { "to": "/sammenligning", "label": "\u00c5r", "icon": "compare", "title": "\u00c5rssammenligning", "description": "Akkumulert utvikling sammenlignet mellom \u00e5r.", "module": "soling", "view": "sammenligning", "corePath": "/soling/sammenligning" },
+            { "to": "/prognose", "label": "Prognose", "icon": "trend", "title": "Prognose", "description": "Forventet soling mot faktisk utvikling.", "module": "soling", "view": "prognose", "corePath": "/soling/prognose" },
+            { "to": "/statistikk", "label": "Statistikk", "icon": "chart", "title": "Statistikk", "description": "Detaljerte analyser av soling.", "module": "soling", "view": "statistikk", "corePath": "/soling/statistikk" }
+          ]
+        },
+        {
+          "label": "Kunder og senger",
+          "icon": "users",
+          "items": [
+            { "to": "/senger", "label": "Senger", "icon": "sun", "title": "Solsenger", "description": "Bruk, omsetning og status per solseng.", "module": "soling", "view": "senger", "corePath": "/soling/senger" },
+            { "to": "/medlemmer", "label": "Medlemmer", "icon": "users", "title": "Medlemmer", "description": "Medlemsaktivitet og relaterte soltimer.", "module": "soling", "view": "medlemmer", "corePath": "/soling/medlemmer" }
+          ]
+        },
+        {
+          "label": "Oppgj\u00f8r",
+          "icon": "calendar",
+          "items": [
+            { "to": "/produkter", "label": "Produktsalg", "icon": "chart", "title": "Produktsalg", "description": "Produktsalg per dag og periode.", "module": "soling", "view": "produkter", "corePath": "/soling/produkter" },
+            { "to": "/oppgjor", "label": "Oppgj\u00f8r", "icon": "calendar", "title": "Solingsoppgj\u00f8r", "description": "Kreditnotaer kontrollert mot sol- og produktsalg.", "module": "soling", "view": "oppgjor", "corePath": "/soling/oppgjor" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "link",
+      "name": "Lilletorget Koble",
+      "shortName": "Koble",
+      "icon": "link",
+      "accent": "violet",
+      "port": 8158,
+      "groups": [
+        {
+          "label": "Kandidater",
+          "icon": "link",
+          "items": [
+            { "to": "/", "label": "Kandidater", "icon": "link", "title": "Koble parkering og soling", "description": "Sannsynlige koblinger mellom kj\u00f8ret\u00f8y og Sun2-ID.", "module": "koble", "view": "oversikt", "corePath": "/koble/oversikt" }
+          ]
+        },
+        {
+          "label": "Kontroll",
+          "icon": "compare",
+          "items": [
+            { "to": "/kontroll", "label": "Sun2-kontroll", "icon": "compare", "title": "Sun2-kontroll", "description": "Visuell kontroll av gjentatte treff og motbevis.", "module": "koble", "view": "sun2-kontroll", "corePath": "/koble/sun2-kontroll" },
+            { "to": "/biltreff", "label": "Biltreff", "icon": "parking", "title": "Biltreff", "description": "Biler med gjentatte treff mot samme Sun2-ID.", "module": "koble", "view": "biltreff", "corePath": "/koble/biltreff" },
+            { "to": "/treffgrunnlag", "label": "Treffgrunnlag", "icon": "chart", "title": "Treffgrunnlag", "description": "Parkeringer og soltimer som ligger bak kandidatene.", "module": "koble", "view": "treffgrunnlag", "corePath": "/koble/treffgrunnlag" }
+          ]
+        },
+        {
+          "label": "Koblingsmotor",
+          "icon": "settings",
+          "items": [
+            { "to": "/jobb", "label": "Jobbstatus", "icon": "settings", "title": "Koblingsmotor", "description": "Status, parametere og styring av koblingsmotoren.", "module": "koble", "view": "jobb", "corePath": "/koble/jobb" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operations",
+      "name": "Lilletorget Bygg og drift",
+      "shortName": "Bygg og drift",
+      "icon": "building",
+      "accent": "violet",
+      "port": 8155,
+      "groups": [
+        {
+          "label": "Driftsoversikt",
+          "icon": "dashboard",
+          "items": [
+            { "to": "/", "label": "Driftsoversikt", "icon": "dashboard", "title": "Driftsoversikt", "description": "Samlet status for tekniske funksjoner i bygget.", "module": "status", "view": "drift", "corePath": "/status/drift" }
+          ]
+        },
+        {
+          "label": "Ventilasjon",
+          "icon": "ventilation",
+          "items": [
+            { "to": "/ventilasjon", "label": "Dagslogg", "icon": "ventilation", "title": "Ventilasjon dagslogg", "description": "Temperatur, fuktighet og viftestatus gjennom dagen.", "module": "ventilasjon", "view": "dagslogg", "corePath": "/ventilasjon/dagslogg" },
+            { "to": "/ventilasjon/temp-logg", "label": "Temperatur og fukt", "icon": "chart", "title": "Temperatur og fuktighet", "description": "Historiske m\u00e5linger gruppert etter omr\u00e5de.", "module": "ventilasjon", "view": "temp-logg", "corePath": "/ventilasjon/temp-logg" },
+            { "to": "/ventilasjon/yr-logg", "label": "Yr", "icon": "calendar", "title": "Yr-logg", "description": "Lagrede v\u00e6rdata fra Yr.", "module": "ventilasjon", "view": "yr-logg", "corePath": "/ventilasjon/yr-logg" },
+            { "to": "/ventilasjon/hendelser", "label": "Hendelser", "icon": "clock", "title": "Ventilasjonshendelser", "description": "Start, stopp og endringer i ventilasjonen.", "module": "ventilasjon", "view": "hendelser", "corePath": "/ventilasjon/hendelser" },
+            { "to": "/ventilasjon/innstillinger", "label": "Innstillinger", "icon": "settings", "title": "Ventilasjonsinnstillinger", "description": "Regler og parametere for automatisk styring.", "module": "ventilasjon", "view": "innstillinger", "corePath": "/ventilasjon/innstillinger" }
+          ]
+        },
+        {
+          "label": "Lys",
+          "icon": "light",
+          "items": [
+            { "to": "/lys", "label": "Dagslogg", "icon": "light", "title": "Lys dagslogg", "description": "Lux, skydekke og solh\u00f8yde gjennom dagen.", "module": "lys", "view": "dagslogg", "corePath": "/lys/dagslogg" },
+            { "to": "/lys/lux-logging", "label": "M\u00e5linger", "icon": "chart", "title": "Lysm\u00e5linger", "description": "Historiske lysm\u00e5linger og datakvalitet.", "module": "lys", "view": "lux-logging", "corePath": "/lys/lux-logging" },
+            { "to": "/lys/hendelser", "label": "Hendelser", "icon": "clock", "title": "Lyshendelser", "description": "Registrerte endringer i lysstyringen.", "module": "lys", "view": "hendelser", "corePath": "/lys/hendelser" },
+            { "to": "/lys/innstillinger", "label": "Innstillinger", "icon": "settings", "title": "Lysinnstillinger", "description": "Regler og terskler for automatisk lysstyring.", "module": "lys", "view": "innstillinger", "corePath": "/lys/innstillinger" }
+          ]
+        },
+        {
+          "label": "D\u00f8rer",
+          "icon": "door",
+          "items": [
+            { "to": "/dorer", "label": "Oversikt", "icon": "door", "title": "D\u00f8roversikt", "description": "Rask status og filtrering for alle d\u00f8rer.", "module": "dorer", "view": "oversikt", "corePath": "/dorer/oversikt" },
+            { "to": "/dorer/solrom", "label": "Solrom", "icon": "sun", "title": "Solrom", "description": "D\u00f8rstatus, soltider og forventet slutt per rom.", "module": "dorer", "view": "solrom", "corePath": "/dorer/solrom" },
+            { "to": "/dorer/romkontroll", "label": "Romkontroll", "icon": "compare", "title": "Romkontroll", "description": "Tidslinje og hendelser koblet mot soltimer og effekt.", "module": "dorer", "view": "romkontroll-ny2", "corePath": "/dorer/romkontroll-ny2" },
+            { "to": "/dorer/avvik", "label": "Alarmer og avvik", "icon": "warning", "title": "Alarmer og avvik", "description": "D\u00f8rperioder, alarmer og varslinger samlet.", "module": "dorer", "view": "avvik", "corePath": "/dorer/avvik", "aliases": ["/dorer/alarm"] },
+            { "to": "/dorer/radata", "label": "R\u00e5data", "icon": "apps", "title": "D\u00f8rdata", "description": "Alle registrerte sensorhendelser.", "module": "dorer", "view": "radata", "corePath": "/dorer/radata" }
+          ]
+        },
+        {
+          "label": "Pullerter",
+          "icon": "building",
+          "items": [
+            { "to": "/pullerter", "label": "Pullerter", "icon": "building", "title": "Pullerter og fasade", "description": "Visuell og AI-basert kontroll av pullerter, fasade og trapp.", "module": "pullerter", "view": "oversikt", "corePath": "/pullerter/oversikt" }
+          ]
+        },
+        {
+          "label": "Renhold",
+          "icon": "robot",
+          "items": [
+            { "to": "/renhold", "label": "Oversikt", "icon": "robot", "title": "Renhold", "description": "Status, historikk og oppf\u00f8lging av robotvaskere.", "module": "renhold", "view": "oversikt", "corePath": "/renhold/oversikt" },
+            { "to": "/renhold/roboter", "label": "Robotvaskere", "icon": "robot", "title": "Robotvaskere", "description": "Detaljer per robot og siste rengj\u00f8ringer.", "module": "renhold", "view": "roboter", "corePath": "/renhold/roboter" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "energy",
+      "name": "Lilletorget Energi",
+      "shortName": "Energi",
+      "icon": "energy",
+      "accent": "green",
+      "port": 8154,
+      "groups": [
+        {
+          "label": "Status",
+          "icon": "dashboard",
+          "items": [
+            { "to": "/", "label": "Status", "icon": "dashboard", "title": "Energistatus", "description": "Sanntidseffekt, fordeling og historisk utvikling.", "module": "energi", "view": "status", "corePath": "/energi/status" }
+          ]
+        },
+        {
+          "label": "Elvia",
+          "icon": "compare",
+          "items": [
+            { "to": "/elvia-kontroll", "label": "Kontroll", "icon": "compare", "title": "Elvia-kontroll", "description": "Sammenlign Elvia-import med m\u00e5lt forbruk fra HC3.", "module": "energi", "view": "elvia-kontroll", "corePath": "/energi/elvia-kontroll" },
+            { "to": "/elvia", "label": "Import", "icon": "calendar", "title": "Elvia-import", "description": "Last opp og kontroller forbruksfiler fra Elvia.", "module": "energi", "view": "elvia", "corePath": "/energi/elvia" }
+          ]
+        },
+        {
+          "label": "Anlegg",
+          "icon": "energy",
+          "items": [
+            { "to": "/kurs-last", "label": "Kurs og last", "icon": "link", "title": "Kurs og last", "description": "Visuell modell av kurser, Z-Wave-enheter, m\u00e5lere og laster.", "module": "energi", "view": "kurs-last", "corePath": "/energi/kurs-last" },
+            { "to": "/kurser", "label": "Kurser", "icon": "energy", "title": "Kurser", "description": "Oppsett og redigering av elektriske kurser.", "module": "energi", "view": "kurser", "corePath": "/energi/kurser" },
+            { "to": "/laster", "label": "Laster", "icon": "apps", "title": "Laster", "description": "Alle registrerte laster og tilknyttede m\u00e5lere.", "module": "energi", "view": "laster", "corePath": "/energi/laster" }
+          ]
+        },
+        {
+          "label": "Beregninger",
+          "icon": "chart",
+          "items": [
+            { "to": "/forbruk-per-seng", "label": "Forbruk per seng", "icon": "sun", "title": "Forbruk per solseng", "description": "Beregnet og m\u00e5lt energibruk per solseng.", "module": "energi", "view": "forbruk-per-seng", "corePath": "/energi/forbruk-per-seng" }
+          ]
+        },
+        {
+          "label": "Verkt\u00f8y",
+          "icon": "tools",
+          "items": [
+            { "to": "/verktoy", "label": "Verkt\u00f8y", "icon": "tools", "title": "Energiverkt\u00f8y", "description": "Diagnostikk og vedlikehold av energigrunnlaget.", "module": "energi", "view": "verktoy", "corePath": "/energi/verktoy" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "maintenance",
+      "name": "Lilletorget Vedlikehold",
+      "shortName": "Vedlikehold",
+      "icon": "tools",
+      "accent": "green",
+      "port": 8156,
+      "groups": [
+        {
+          "label": "Oppgaver",
+          "icon": "tools",
+          "items": [
+            { "to": "/", "label": "Oppgaver", "icon": "tools", "title": "Vedlikeholdsoppgaver", "description": "Registrer, s\u00f8k og rediger vedlikeholdsoppgaver.", "module": "vedlikehold", "view": "oversikt", "corePath": "/vedlikehold/oversikt" }
+          ]
+        },
+        {
+          "label": "Bes\u00f8k",
+          "icon": "calendar",
+          "items": [
+            { "to": "/besok", "label": "Bes\u00f8k", "icon": "calendar", "title": "Bes\u00f8k p\u00e5 Lilletorget", "description": "Bes\u00f8k med notater og tilknyttede oppgaver.", "module": "vedlikehold", "view": "besok", "corePath": "/vedlikehold/besok" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "system",
+      "name": "Lilletorget System",
+      "shortName": "System",
+      "icon": "settings",
+      "accent": "violet",
+      "port": 8157,
+      "groups": [
+        {
+          "label": "Status",
+          "icon": "dashboard",
+          "items": [
+            { "to": "/", "label": "Systemstatus", "icon": "dashboard", "title": "Systemstatus", "description": "Tjenestestatus og sentrale systemkontroller.", "module": "admin", "view": "drift", "corePath": "/admin/drift" },
+            { "to": "/datakilder", "label": "Datakilder", "icon": "link", "title": "Datakilder", "description": "Status, kj\u00f8replan, avhengigheter og forklaring per datakilde.", "module": "admin", "view": "datakilder", "corePath": "/admin/datakilder" },
+            { "to": "/oppgaver", "label": "Jobber", "icon": "clock", "title": "Systemjobber", "description": "Planlagte og manuelle systemjobber.", "module": "admin", "view": "oppgaver", "corePath": "/admin/oppgaver" },
+            { "to": "/varslinger", "label": "Varslinger", "icon": "bell", "title": "Varslinger og abonnement", "description": "ntfy-emner, forklaringer og abonnementslister.", "module": "varslinger", "view": "oversikt", "corePath": "/varslinger/oversikt" }
+          ]
+        },
+        {
+          "label": "Kvalitet",
+          "icon": "compare",
+          "items": [
+            { "to": "/kontroll", "label": "Kontroller", "icon": "compare", "title": "Systemkontroller", "description": "Samlede kontroller av datagrunnlag og prosesser.", "module": "admin", "view": "kontroll", "corePath": "/admin/kontroll" },
+            { "to": "/datakvalitet", "label": "Datakvalitet", "icon": "warning", "title": "Datakvalitet", "description": "Manglende, utdaterte og avvikende data.", "module": "admin", "view": "datakvalitet", "corePath": "/admin/datakvalitet" },
+            { "to": "/analyse", "label": "Systemanalyse", "icon": "chart", "title": "Systemanalyse", "description": "Systemanalyse og oppf\u00f8lging av avvik.", "module": "admin", "view": "analyse", "corePath": "/admin/analyse" }
+          ]
+        },
+        {
+          "label": "Arkitektur",
+          "icon": "building",
+          "items": [
+            { "to": "/systemkart", "label": "Systemkart", "icon": "apps", "title": "Systemkart", "description": "Komponenter, tjenester og forbindelser i l\u00f8sningen.", "module": "admin", "view": "systemkart", "corePath": "/admin/systemkart" },
+            { "to": "/undersystemer", "label": "Undersystemer", "icon": "external", "title": "Undersystemer", "description": "Klikkbare lenker til alle l\u00f8sninger med webgrensesnitt.", "module": "undersystemer", "view": "oversikt", "corePath": "/undersystemer/oversikt" },
+            { "to": "/teknisk", "label": "Teknisk", "icon": "settings", "title": "Teknisk oversikt", "description": "Tekniske innstillinger og diagnostikk.", "module": "admin", "view": "teknisk", "corePath": "/admin/teknisk" }
+          ]
+        },
+        {
+          "label": "Administrasjon",
+          "icon": "users",
+          "items": [
+            { "to": "/brukere", "label": "Brukere", "icon": "users", "title": "Brukeradministrasjon", "description": "Opprett, rediger og kontroller brukere.", "module": "admin", "view": "brukere", "corePath": "/admin/brukere" },
+            { "to": "/verktoy", "label": "Verkt\u00f8y", "icon": "tools", "title": "Systemverkt\u00f8y", "description": "Administrative verkt\u00f8y og vedlikeholdsfunksjoner.", "module": "admin", "view": "verktoy", "corePath": "/admin/verktoy" }
+          ]
+        },
+        {
+          "label": "Dokumentasjon",
+          "icon": "book",
+          "items": [
+            { "to": "/manual", "label": "Manual", "icon": "book", "title": "Manual", "description": "Kort innf\u00f8ring og inngang til alle kapitler.", "module": "manual", "view": "oversikt", "corePath": "/manual/oversikt" },
+            { "to": "/manual/daglig-bruk", "label": "Daglig bruk", "icon": "book", "title": "Daglig bruk", "description": "De viktigste arbeidsflytene i hverdagen.", "module": "manual", "view": "daglig-bruk", "corePath": "/manual/daglig-bruk" },
+            { "to": "/manual/datagrunnlag", "label": "Datagrunnlag", "icon": "book", "title": "Datagrunnlag", "description": "Hvor data kommer fra og hvordan de behandles.", "module": "manual", "view": "datagrunnlag", "corePath": "/manual/datagrunnlag" },
+            { "to": "/manual/feilsoking", "label": "Feils\u00f8king", "icon": "warning", "title": "Feils\u00f8king", "description": "Systematiske kontroller ved vanlige feil.", "module": "manual", "view": "feilsoking", "corePath": "/manual/feilsoking" },
+            { "to": "/manual/menystruktur", "label": "Menystruktur", "icon": "apps", "title": "Menystruktur", "description": "Komplett oversikt over apper, hovedomr\u00e5der og sider.", "module": "manual", "view": "menystruktur", "corePath": "/manual/menystruktur" }
+          ]
+        },
+        {
+          "label": "Utvikling",
+          "icon": "idea",
+          "items": [
+            { "to": "/build", "label": "Buildlogg", "icon": "clock", "title": "Buildlogg", "description": "Buildnummer, bestillinger, endringer og ber\u00f8rte apper.", "module": "admin", "view": "build", "corePath": "/admin/build" },
+            { "to": "/ideer", "label": "Ideer", "icon": "idea", "title": "Ideer", "description": "Forslag til ny funksjonalitet f\u00f8r de flyttes inn i fagappene.", "module": "ideer", "view": "oversikt", "corePath": "/ideer/oversikt" },
+            { "to": "/mobil", "label": "Mobilflater", "icon": "apps", "title": "Mobilflater", "description": "Samlet oversikt over skjermene i mobilappen.", "module": "mobil", "view": "oversikt", "corePath": "/mobil/oversikt" },
+            { "to": "/ai", "label": "AI", "icon": "idea", "title": "AI-funksjoner", "description": "Status og innstillinger for lokale og eksterne AI-funksjoner.", "module": "admin", "view": "ai", "corePath": "/admin/ai" }
+          ]
+        }
+      ]
+    }
+  ]
+}

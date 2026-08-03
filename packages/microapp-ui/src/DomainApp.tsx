@@ -3,6 +3,7 @@ import { Layout } from "./components/Layout";
 import { ModuleContent } from "./components/ModuleContent";
 import { ErrorState, Loading } from "./components/PageState";
 import { useApi } from "./hooks";
+import { findNavigationItem } from "./navigation";
 import { AppRouter, useAppLocation } from "./router";
 import type { DomainUiConfig, ModuleResponse, OperationsOverviewResponse } from "./types";
 
@@ -56,8 +57,7 @@ function operationsModule(data: OperationsOverviewResponse): ModuleResponse {
 
 function RoutedDomainApp({ config }: { config: DomainUiConfig }) {
   const { pathname, search } = useAppLocation();
-  const items = config.navigation.flatMap((group) => group.items);
-  const item = items.find((entry) => entry.to === pathname) || items[0];
+  const item = findNavigationItem(config, pathname);
   const isOperationsOverview = item.module === "status" && item.view === "drift";
   const result = useApi(
     async () => isOperationsOverview ? operationsModule(await domainApi.operationsOverview()) : domainApi.module(item.module, item.view, new URLSearchParams(search)),

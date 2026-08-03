@@ -1,8 +1,10 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { domainApi } from "../api";
 import { useApi } from "../hooks";
-import { AppLink, useAppLocation } from "../router";
-import type { Accent, DomainUiConfig, NavigationItem } from "../types";
+import { findNavigationGroup, findNavigationItem } from "../navigation";
+import { AppLink } from "../router";
+import { useAppLocation } from "../router";
+import type { Accent, DomainUiConfig, NavigationGroup, NavigationItem } from "../types";
 import { AppDock } from "./AppDock";
 import { MosaicIcon } from "./MosaicIcon";
 import { ThemeToggle } from "./ThemeToggle";
@@ -23,8 +25,22 @@ const iconClasses: Record<Accent, string> = {
   red: "text-red-500",
 };
 
-function Sidebar({ config, open, setOpen, shellUrl, coreUrl, build }: { config: DomainUiConfig; open: boolean; setOpen: (open: boolean) => void; shellUrl: string; coreUrl: string; build: string }) {
-  const location = useAppLocation();
+const tabClasses: Record<Accent, string> = {
+  violet: "border-violet-500 text-violet-600 dark:text-violet-400",
+  sky: "border-sky-500 text-sky-600 dark:text-sky-400",
+  yellow: "border-yellow-500 text-yellow-700 dark:text-yellow-400",
+  green: "border-green-500 text-green-700 dark:text-green-400",
+  red: "border-red-500 text-red-600 dark:text-red-400",
+};
+
+function Sidebar({ config, activeGroup, open, setOpen, coreUrl, build }: {
+  config: DomainUiConfig;
+  activeGroup: NavigationGroup;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  coreUrl: string;
+  build: string;
+}) {
   const sidebar = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const [expanded, setExpanded] = useState(() => window.localStorage.getItem("sidebar-expanded") === "true");
@@ -43,45 +59,95 @@ function Sidebar({ config, open, setOpen, shellUrl, coreUrl, build }: { config: 
     return () => document.removeEventListener("click", close);
   }, [open, setOpen]);
 
-  const labelClass = "text-sm font-medium ml-4 lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200";
+  const labelClass = "ml-4 text-sm font-medium duration-200 lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100";
   const activeClass = activeClasses[config.accent];
   const iconClass = iconClasses[config.accent];
+
   return (
     <div className="min-w-fit">
-      <div className={`fixed inset-0 bg-gray-900/30 z-40 lg:hidden transition-opacity duration-200 ${open ? "opacity-100" : "opacity-0 pointer-events-none"}`} aria-hidden="true" />
-      <div ref={sidebar} className={`flex flex-col absolute z-40 left-0 top-0 lg:static lg:translate-x-0 h-[100dvh] overflow-y-auto no-scrollbar w-64 lg:w-20 lg:sidebar-expanded:!w-64 2xl:w-64! shrink-0 bg-white dark:bg-gray-800 p-4 transition-all duration-200 rounded-r-2xl shadow-xs ${open ? "translate-x-0" : "-translate-x-64"}`}>
-        <div className="flex justify-between mb-8 pr-3 sm:px-2">
-          <button ref={trigger} className="lg:hidden text-gray-500" onClick={() => setOpen(false)}><span className="sr-only">Lukk meny</span><MosaicIcon name="arrow-left" size={22} /></button>
-          <AppLink to="/" className="flex items-center text-xl font-bold text-gray-800 dark:text-gray-100"><span className="lg:hidden lg:sidebar-expanded:block 2xl:block">{config.shortName}</span><MosaicIcon name={config.icon} className={`${iconClass} lg:block lg:sidebar-expanded:hidden 2xl:hidden`} size={24} /></AppLink>
+      <div className={`fixed inset-0 z-40 bg-gray-900/30 transition-opacity duration-200 lg:hidden ${open ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-hidden="true" />
+      <aside ref={sidebar} className={`absolute left-0 top-0 z-40 flex h-[100dvh] w-64 shrink-0 flex-col overflow-y-auto rounded-r-2xl bg-white p-4 shadow-xs transition-all duration-200 dark:bg-gray-800 lg:static lg:w-20 lg:translate-x-0 lg:sidebar-expanded:!w-64 2xl:w-64! ${open ? "translate-x-0" : "-translate-x-64"}`}>
+        <div className="mb-8 flex justify-between pr-3 sm:px-2">
+          <button ref={trigger} className="text-gray-500 lg:hidden" onClick={() => setOpen(false)}><span className="sr-only">Lukk meny</span><MosaicIcon name="arrow-left" size={22} /></button>
+          <AppLink to="/" className="flex items-center text-xl font-bold text-gray-800 dark:text-gray-100">
+            <span className="lg:hidden lg:sidebar-expanded:block 2xl:block">{config.shortName}</span>
+            <MosaicIcon name={config.icon} className={`${iconClass} lg:block lg:sidebar-expanded:hidden 2xl:hidden`} size={24} />
+          </AppLink>
         </div>
-        <nav className="space-y-7">
-          <div>
-            <div className="px-3 py-2"><a className="flex items-center text-gray-800 dark:text-gray-100" href={shellUrl}><MosaicIcon name="apps" className="text-gray-400 dark:text-gray-500" /><span className={labelClass}>Alle apper</span></a></div>
-          </div>
-          {config.navigation.map((group) => (
-            <div key={group.label}>
-              <h3 className="pl-3 text-xs font-semibold uppercase text-gray-400 dark:text-gray-500"><span className="hidden lg:block lg:sidebar-expanded:hidden 2xl:hidden text-center w-6">•••</span><span className="lg:hidden lg:sidebar-expanded:block 2xl:block">{group.label}</span></h3>
-              <ul className="mt-2">
-                {group.items.map((item) => {
-                  const active = location.pathname === item.to || (item.to !== "/" && location.pathname.startsWith(`${item.to}/`));
-                  return <li className={`px-3 py-2 rounded-lg mb-0.5 ${active ? activeClass : ""}`} key={item.to}><AppLink className="block truncate text-gray-800 dark:text-gray-100" to={item.to}><div className="flex items-center"><MosaicIcon name={item.icon} className={active ? iconClass : "text-gray-400 dark:text-gray-500"} /><span className={labelClass}>{item.label}</span></div></AppLink></li>;
-                })}
-              </ul>
-            </div>
-          ))}
+
+        <nav aria-label={`${config.shortName} hovedomr\u00e5der`}>
+          <ul className="space-y-1">
+            {config.navigation.map((group) => {
+              const active = group === activeGroup;
+              return (
+                <li className={`rounded-lg px-3 py-2 ${active ? activeClass : ""}`} key={group.label}>
+                  <AppLink className="block truncate text-gray-800 dark:text-gray-100" to={group.items[0].to}>
+                    <div className="flex items-center">
+                      <MosaicIcon name={group.icon} className={active ? iconClass : "text-gray-400 dark:text-gray-500"} />
+                      <span className={labelClass}>{group.label}</span>
+                    </div>
+                  </AppLink>
+                </li>
+              );
+            })}
+          </ul>
         </nav>
+
         <div className="mt-auto">
-          <div className="px-3 py-2"><a className="flex items-center text-gray-800 dark:text-gray-100" href={coreUrl}><MosaicIcon name="external" className="text-gray-400 dark:text-gray-500" /><span className={labelClass}>Fibaro10</span></a></div>
-          <div className="pt-3 hidden lg:inline-flex 2xl:hidden justify-end w-full"><button className="w-12 px-4 py-2 text-gray-400" onClick={() => setExpanded(!expanded)} title="Utvid eller trekk sammen meny"><MosaicIcon name={expanded ? "arrow-left" : "arrow-right"} /></button></div>
+          <div className="px-3 py-2">
+            <a className="flex items-center text-gray-800 dark:text-gray-100" href={coreUrl}><MosaicIcon name="external" className="text-gray-400 dark:text-gray-500" /><span className={labelClass}>Fibaro10</span></a>
+          </div>
+          <div className="hidden w-full justify-end pt-3 lg:inline-flex 2xl:hidden"><button className="w-12 px-4 py-2 text-gray-400" onClick={() => setExpanded(!expanded)} title="Utvid eller trekk sammen meny"><MosaicIcon name={expanded ? "arrow-left" : "arrow-right"} /></button></div>
           <div className="px-3 py-2 text-xs text-gray-400 lg:hidden lg:sidebar-expanded:block 2xl:block">Build {build}</div>
         </div>
-      </div>
+      </aside>
     </div>
   );
 }
 
-function Header({ title, open, setOpen, username, activeApp, shellUrl }: { title: string; open: boolean; setOpen: (open: boolean) => void; username: string; activeApp: DomainUiConfig["appId"]; shellUrl: string }) {
-  return <header className="sticky top-0 before:absolute before:inset-0 before:backdrop-blur-md before:-z-10 z-30 before:bg-gray-100/90 dark:before:bg-gray-900/90"><div className="px-4 sm:px-6 lg:px-8"><div className="flex h-16 items-center justify-between border-b border-gray-200 dark:border-gray-700/60"><div className="flex min-w-0 items-center gap-3"><button className="shrink-0 text-gray-500 lg:hidden" aria-expanded={open} onClick={(event) => { event.stopPropagation(); setOpen(!open); }}><span className="sr-only">Åpne meny</span><svg className="h-6 w-6 fill-current" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="2" /><rect x="4" y="11" width="16" height="2" /><rect x="4" y="17" width="16" height="2" /></svg></button><span className="truncate text-sm font-semibold text-gray-700 dark:text-gray-200">{title}</span></div><div className="ml-4 flex shrink-0 items-center gap-3"><AppDock activeApp={activeApp} shellUrl={shellUrl} /><button className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-800" title="Oppdater siden" onClick={() => window.location.reload()}><MosaicIcon name="refresh" className="text-gray-500 dark:text-gray-400" /></button><ThemeToggle /><hr className="h-6 w-px border-none bg-gray-200 dark:bg-gray-700" /><span className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold uppercase text-gray-600 dark:bg-gray-700 dark:text-gray-200">{username.slice(0, 1)}</span><span className="hidden text-sm font-medium text-gray-600 dark:text-gray-100 sm:block">{username}</span><form method="post" action="/konto/logg-ut"><button className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-800" title="Logg ut"><MosaicIcon name="logout" className="text-gray-500 dark:text-gray-400" /></button></form></div></div></div></header>;
+function Header({ title, open, setOpen, username, activeApp, shellUrl }: {
+  title: string;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  username: string;
+  activeApp: DomainUiConfig["appId"];
+  shellUrl: string;
+}) {
+  return (
+    <header className="sticky top-0 z-30 before:absolute before:inset-0 before:-z-10 before:bg-gray-100/90 before:backdrop-blur-md dark:before:bg-gray-900/90">
+      <div className="px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between border-b border-gray-200 dark:border-gray-700/60">
+          <div className="flex min-w-0 items-center gap-3">
+            <button className="shrink-0 text-gray-500 lg:hidden" aria-expanded={open} onClick={(event) => { event.stopPropagation(); setOpen(!open); }}><span className="sr-only">\u00c5pne meny</span><svg className="h-6 w-6 fill-current" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="2" /><rect x="4" y="11" width="16" height="2" /><rect x="4" y="17" width="16" height="2" /></svg></button>
+            <span className="truncate text-sm font-semibold text-gray-700 dark:text-gray-200">{title}</span>
+          </div>
+          <div className="ml-4 flex shrink-0 items-center gap-3">
+            <AppDock activeApp={activeApp} shellUrl={shellUrl} />
+            <button className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-800" title="Oppdater siden" onClick={() => window.location.reload()}><MosaicIcon name="refresh" className="text-gray-500 dark:text-gray-400" /></button>
+            <ThemeToggle />
+            <hr className="h-6 w-px border-none bg-gray-200 dark:bg-gray-700" />
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold uppercase text-gray-600 dark:bg-gray-700 dark:text-gray-200">{username.slice(0, 1)}</span>
+            <span className="hidden text-sm font-medium text-gray-600 dark:text-gray-100 sm:block">{username}</span>
+            <form method="post" action="/konto/logg-ut"><button className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-800" title="Logg ut"><MosaicIcon name="logout" className="text-gray-500 dark:text-gray-400" /></button></form>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function ContextNavigation({ group, item, accent }: { group: NavigationGroup; item: NavigationItem; accent: Accent }) {
+  if (group.items.length < 2) return null;
+  return (
+    <nav className="sticky top-16 z-20 border-b border-gray-200 bg-gray-100/95 backdrop-blur-md dark:border-gray-700/60 dark:bg-gray-900/95" aria-label={`${group.label} undersider`}>
+      <div className="mx-auto flex h-12 max-w-[96rem] items-end gap-6 overflow-x-auto px-4 sm:px-6 lg:px-8">
+        {group.items.map((candidate) => {
+          const active = candidate === item;
+          return <AppLink className={`flex h-12 shrink-0 items-center border-b-2 px-0.5 text-sm font-medium transition-colors ${active ? tabClasses[accent] : "border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100"}`} to={candidate.to} key={candidate.to}>{candidate.label}</AppLink>;
+        })}
+      </div>
+    </nav>
+  );
 }
 
 export function Layout({ config, children }: { config: DomainUiConfig; children: ReactNode }) {
@@ -89,12 +155,18 @@ export function Layout({ config, children }: { config: DomainUiConfig; children:
   const appConfig = useApi(domainApi.config, "app-config");
   const user = useApi(domainApi.user, "current-user");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const item = useMemo<NavigationItem>(() => {
-    const items = config.navigation.flatMap((group) => group.items);
-    return items.find((entry) => entry.to === location.pathname)
-      || items.filter((entry) => entry.to !== "/" && location.pathname.startsWith(`${entry.to}/`)).sort((a, b) => b.to.length - a.to.length)[0]
-      || items[0];
-  }, [config, location.pathname]);
+  const item = useMemo(() => findNavigationItem(config, location.pathname), [config, location.pathname]);
+  const group = useMemo(() => findNavigationGroup(config, item), [config, item]);
   const shellUrl = appConfig.data?.shellAppUrl || "http://192.168.20.218:8150";
-  return <div className="flex h-[100dvh] overflow-hidden"><Sidebar config={config} open={sidebarOpen} setOpen={setSidebarOpen} shellUrl={shellUrl} coreUrl={appConfig.data?.fibaro10AppUrl || "http://192.168.20.218:8110"} build={appConfig.data?.build || "-"} /><div className="relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto"><Header title={item.label} open={sidebarOpen} setOpen={setSidebarOpen} username={user.data?.username || "Bruker"} activeApp={config.appId} shellUrl={shellUrl} /><main className="grow"><div className="mx-auto w-full max-w-[96rem] px-4 py-6 sm:px-6 lg:px-8">{children}</div></main></div></div>;
+
+  return (
+    <div className="flex h-[100dvh] overflow-hidden">
+      <Sidebar config={config} activeGroup={group} open={sidebarOpen} setOpen={setSidebarOpen} coreUrl={appConfig.data?.fibaro10AppUrl || "http://192.168.20.218:8110"} build={appConfig.data?.build || "-"} />
+      <div className="relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
+        <Header title={item.title || item.label} open={sidebarOpen} setOpen={setSidebarOpen} username={user.data?.username || "Bruker"} activeApp={config.appId} shellUrl={shellUrl} />
+        <ContextNavigation group={group} item={item} accent={config.accent} />
+        <main className="grow"><div className="mx-auto w-full max-w-[96rem] px-4 py-6 sm:px-6 lg:px-8">{children}</div></main>
+      </div>
+    </div>
+  );
 }

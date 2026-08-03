@@ -57,6 +57,7 @@ async def doors_module(request: Request, client: httpx.AsyncClient, headers: dic
     summary = status_data.get("summary", {})
     cards = door_cards(summary)
     tables: list[dict[str, Any]] = []
+    filters: list[dict[str, Any]] = []
 
     if view == "solrom":
         data = await core_json(client, headers, "/api/hc3/doors/sunroom-sessions")
@@ -116,14 +117,27 @@ async def doors_module(request: Request, client: httpx.AsyncClient, headers: dic
         tables = [{"title": "R\u00e5hendelser", "columns": ["tid", "d\u00f8r", "hendelse", "status", "kilde", "batteri"], "rows": event_rows}]
     else:
         rows = status_data.get("doors", [])
-        if view == "andre":
+        door_type = request.query_params.get("door_type", "")
+        if view == "andre" or door_type == "other":
             rows = [row for row in rows if row.get("groupKey") != "sunrooms"]
+        elif door_type == "sunrooms":
+            rows = [row for row in rows if row.get("groupKey") == "sunrooms"]
+        filters = [{
+            "key": "door_type",
+            "label": "D\u00f8rtype",
+            "type": "select",
+            "value": door_type,
+            "options": [
+                {"label": "Solrom", "value": "sunrooms"},
+                {"label": "Andre d\u00f8rer", "value": "other"},
+            ],
+        }]
         tables = [
             {"title": "D\u00f8rstatus", "columns": ["d\u00f8r", "avdeling", "status", "sist endret", "varighet", "batteri"], "rows": door_rows(rows)},
             {"title": "Siste endringer", "columns": ["tid", "d\u00f8r", "hendelse", "status"], "rows": [{"tid": row.get("timeLabel"), "d\u00f8r": row.get("deviceName"), "hendelse": row.get("action"), "status": row.get("stateLabel")} for row in status_data.get("changes", [])]},
         ]
 
-    return {"title": "D\u00f8rer", "subtitle": f'Sist endret {summary.get("latestAgeLabel", "-")}', "cards": cards, "tables": tables}
+    return {"title": "D\u00f8rer", "subtitle": f'Sist endret {summary.get("latestAgeLabel", "-")}', "cards": cards, "tables": tables, "filters": filters}
 
 
 async def bollards_module(request: Request, client: httpx.AsyncClient, headers: dict[str, str]) -> dict[str, Any]:

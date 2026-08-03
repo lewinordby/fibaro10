@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import re
+import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -102,37 +102,38 @@ def test_app_selector_has_only_the_header_refresh_control() -> None:
 def test_every_microapp_header_uses_the_shared_app_dock() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     dock = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "AppDock.tsx").read_text(encoding="utf-8")
-    assert dock.count("port: 815") == 8
-    for port in range(8151, 8159):
-        assert f"port: {port}" in dock
+    navigation = json.loads((repo_root / "packages" / "microapp-ui" / "src" / "navigation.json").read_text(encoding="utf-8"))
+    assert sorted(app["port"] for app in navigation["apps"]) == list(range(8151, 8159))
     assert 'aria-label="Bytt app"' in dock
     assert "border-r" in dock
+    assert "appDefinitions.map" in dock
 
     shared_layout = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "Layout.tsx").read_text(encoding="utf-8")
-    revenue_layout = (repo_root / "revenue_app" / "frontend" / "src" / "components" / "Layout.tsx").read_text(encoding="utf-8")
-    parking_layout = (repo_root / "parking_app" / "frontend" / "src" / "components" / "Layout.tsx").read_text(encoding="utf-8")
     assert "<AppDock activeApp={activeApp}" in shared_layout
-    assert '<AppDock activeApp="revenue"' in revenue_layout
-    assert '<AppDock activeApp="parking"' in parking_layout
+    for app_name in ("revenue_app", "parking_app"):
+        app_source = (repo_root / app_name / "frontend" / "src" / "App.tsx").read_text(encoding="utf-8")
+        assert "<DomainLayout config={navigation}>" in app_source
+        assert not (repo_root / app_name / "frontend" / "src" / "components" / "Layout.tsx").exists()
 
 
 def test_documented_menu_structure_matches_every_microapp_navigation() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    sources = {
-        "revenue": repo_root / "revenue_app" / "frontend" / "src" / "components" / "Layout.tsx",
-        "parking": repo_root / "parking_app" / "frontend" / "src" / "components" / "Layout.tsx",
-        "sun": repo_root / "sun_app" / "frontend" / "src" / "main.tsx",
-        "energy": repo_root / "energy_app" / "frontend" / "src" / "main.tsx",
-        "operations": repo_root / "operations_app" / "frontend" / "src" / "main.tsx",
-        "maintenance": repo_root / "maintenance_app" / "frontend" / "src" / "main.tsx",
-        "system": repo_root / "system_app" / "frontend" / "src" / "main.tsx",
-        "link": repo_root / "link_app" / "frontend" / "src" / "main.tsx",
-    }
-    pattern = re.compile(r'\{\s*to:\s*"([^"]+)",\s*label:\s*"([^"]+)"')
-    for app in APP_MENU_STRUCTURE:
-        actual = set(pattern.findall(sources[app["id"]].read_text(encoding="utf-8")))
-        documented = {(route, label) for _, items in app["groups"] for label, route in items}
-        assert documented == actual, f"Menyoversikten for {app['name']} er ikke oppdatert"
+    navigation = json.loads((repo_root / "packages" / "microapp-ui" / "src" / "navigation.json").read_text(encoding="utf-8"))["apps"]
+    assert tuple(navigation) == APP_MENU_STRUCTURE
+    assert [app["id"] for app in navigation] == ["revenue", "parking", "sun", "link", "operations", "energy", "maintenance", "system"]
+
+    generic_apps = ("sun", "energy", "operations", "maintenance", "system", "link")
+    for app_id in generic_apps:
+        main_source = (repo_root / f"{app_id}_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
+        assert f'getDomainConfig("{app_id}")' in main_source
+    for app_id in ("revenue", "parking"):
+        app_source = (repo_root / f"{app_id}_app" / "frontend" / "src" / "App.tsx").read_text(encoding="utf-8")
+        assert f'getDomainConfig("{app_id}")' in app_source
+
+    for app in navigation:
+        routes = [item["to"] for group in app["groups"] for item in group["items"]]
+        assert len(routes) == len(set(routes)), f"Dupliserte ruter i {app['shortName']}"
+        assert all(group["items"] for group in app["groups"])
 
 
 def test_system_menu_structure_page_is_available_without_core_data() -> None:
@@ -142,26 +143,25 @@ def test_system_menu_structure_page_is_available_without_core_data() -> None:
         payload = response.json()
         assert payload["title"] == "Menystruktur"
         assert len(payload["tables"]) == len(APP_MENU_STRUCTURE) + 2
-        assert sum(len(items) for app in APP_MENU_STRUCTURE for _, items in app["groups"]) == 83
+        assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 81
 
 
 def test_shared_domain_layout_uses_the_header_for_the_active_page_title() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     source = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "Layout.tsx").read_text(encoding="utf-8")
-    assert "<Header title={item.label}" in source
+    assert "<Header title={item.title || item.label}" in source
     assert ">{title}</span>" in source
     assert "item.description" not in source
     assert "<h1" not in source
 
 
-def test_parking_layout_uses_the_header_for_the_active_page_title() -> None:
+def test_shared_layout_uses_area_navigation_and_horizontal_sibling_pages() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    source = (repo_root / "parking_app" / "frontend" / "src" / "components" / "Layout.tsx").read_text(encoding="utf-8")
-    assert "<Header open={sidebarOpen}" in source
-    assert "title={title}" in source
-    assert ">{title}</span>" in source
-    assert "heading.description" not in source
-    assert "<h1" not in source
+    source = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "Layout.tsx").read_text(encoding="utf-8")
+    assert "config.navigation.map((group)" in source
+    assert "to={group.items[0].to}" in source
+    assert "<ContextNavigation group={group}" in source
+    assert "group.items.length < 2" in source
 
 
 def test_revenue_dashboard_names_both_driver_references() -> None:
@@ -171,15 +171,6 @@ def test_revenue_dashboard_names_both_driver_references() -> None:
     assert "driverComparisons.map" in source
     assert 'if (periodKey === "today" && index === 1) return "Forrige uke";' in source
     assert "driverComparisonLabel(period.key, comparison, index)" in source
-
-
-def test_revenue_layout_uses_the_header_for_the_active_page_title() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
-    source = (repo_root / "revenue_app" / "frontend" / "src" / "components" / "Layout.tsx").read_text(encoding="utf-8")
-    assert 'title={title}' in source
-    assert '>{title}</span>' in source
-    assert "heading.description" not in source
-    assert "text-2xl md:text-3xl" not in source
 
 
 def test_each_domain_rejects_another_domains_module() -> None:
