@@ -95,6 +95,15 @@ def test_revenue_dashboard_names_both_driver_references() -> None:
     assert "driverComparisonLabel(period.key, comparison, index)" in source
 
 
+def test_revenue_layout_uses_the_header_for_the_active_page_title() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    source = (repo_root / "revenue_app" / "frontend" / "src" / "components" / "Layout.tsx").read_text(encoding="utf-8")
+    assert 'title={title}' in source
+    assert '>{title}</span>' in source
+    assert "heading.description" not in source
+    assert "text-2xl md:text-3xl" not in source
+
+
 def test_each_domain_rejects_another_domains_module() -> None:
     cases = [
         (revenue_app, "/api/modules/parkering"),

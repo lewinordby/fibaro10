@@ -12,12 +12,12 @@ const navigation = [
   { to: "/maned", label: "Månedsoversikt", icon: "calendar" as const },
 ];
 
-const titles: Record<string, { title: string; description: string }> = {
-  "/": { title: "Dashboard", description: "Omsetning akkurat nå, sammenlignet på samme datatidspunkt." },
-  "/oversikt": { title: "Omsetningsoversikt", description: "Utvikling og periodene som har levert best." },
-  "/sammenligning": { title: "Periodesammenligning", description: "Akkumulert utvikling gjennom dag, uke og måned." },
-  "/ar": { title: "Årssammenligning", description: "Akkumulert omsetning gjennom året." },
-  "/maned": { title: "Månedsoversikt", description: "Daglig fordeling mellom soling og parkering." },
+const titles: Record<string, string> = {
+  "/": "Dashboard",
+  "/oversikt": "Omsetningsoversikt",
+  "/sammenligning": "Periodesammenligning",
+  "/ar": "Årssammenligning",
+  "/maned": "Månedsoversikt",
 };
 
 function Sidebar({ open, setOpen, shellUrl, fibaroUrl, build }: { open: boolean; setOpen: (open: boolean) => void; shellUrl: string; fibaroUrl: string; build: string }) {
@@ -107,7 +107,7 @@ function Sidebar({ open, setOpen, shellUrl, fibaroUrl, build }: { open: boolean;
   );
 }
 
-function Header({ open, setOpen, username }: { open: boolean; setOpen: (open: boolean) => void; username: string }) {
+function Header({ open, setOpen, username, title }: { open: boolean; setOpen: (open: boolean) => void; username: string; title: string }) {
   return (
     <header className="sticky top-0 before:absolute before:inset-0 before:backdrop-blur-md max-lg:before:bg-white/90 dark:max-lg:before:bg-gray-800/90 before:-z-10 z-30 max-lg:shadow-xs lg:before:bg-gray-100/90 dark:lg:before:bg-gray-900/90">
       <div className="px-4 sm:px-6 lg:px-8">
@@ -116,7 +116,7 @@ function Header({ open, setOpen, username }: { open: boolean; setOpen: (open: bo
             <button className="text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 lg:hidden" aria-controls="sidebar" aria-expanded={open} onClick={(event) => { event.stopPropagation(); setOpen(!open); }}>
               <span className="sr-only">Åpne meny</span><svg className="w-6 h-6 fill-current" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="2" /><rect x="4" y="11" width="16" height="2" /><rect x="4" y="17" width="16" height="2" /></svg>
             </button>
-            <span className="hidden lg:block text-sm font-semibold text-gray-600 dark:text-gray-300">Omsetning</span>
+            <span className="ml-3 text-sm font-semibold text-gray-700 dark:text-gray-200 lg:ml-0">{title}</span>
           </div>
           <div className="flex items-center space-x-3">
             <button className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 lg:hover:bg-gray-200 dark:hover:bg-gray-700/50 dark:lg:hover:bg-gray-800 rounded-full" type="button" title="Oppdater siden" onClick={() => window.location.reload()}><MosaicIcon name="refresh" className="text-gray-500/80 dark:text-gray-400/80" /></button>
@@ -139,16 +139,15 @@ export function Layout({ children }: { children: ReactNode }) {
   const { data: config } = useApi(api.config, "app-config");
   const { data: user } = useApi(api.user, "current-user");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const heading = titles[location.pathname] ?? titles["/"];
+  const title = titles[location.pathname] ?? titles["/"];
 
   return (
     <div className="flex h-[100dvh] overflow-hidden">
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} shellUrl={config?.shellAppUrl || "http://192.168.20.218:8150"} fibaroUrl={config?.fibaro10AppUrl || "http://192.168.20.218:8110"} build={config?.build || "-"} />
       <div className="relative flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
-        <Header open={sidebarOpen} setOpen={setSidebarOpen} username={user?.username || "Bruker"} />
+        <Header open={sidebarOpen} setOpen={setSidebarOpen} username={user?.username || "Bruker"} title={title} />
         <main className="grow">
-          <div className="px-4 sm:px-6 lg:px-8 py-8 w-full max-w-[96rem] mx-auto">
-            <div className="mb-8"><h1 className="text-2xl md:text-3xl text-gray-800 dark:text-gray-100 font-bold">{heading.title}</h1><p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{heading.description}</p></div>
+          <div className="px-4 py-6 sm:px-6 lg:px-8 w-full max-w-[96rem] mx-auto">
             {children}
           </div>
         </main>
