@@ -42,10 +42,12 @@ function shortComparisonLabel(value: string) {
     .replace(/^Mot i (?=\d{4})/i, "Mot ");
 }
 
-function DriverRow({ kind, amount, count, delta }: { kind: "sun" | "parking"; amount: number; count: number; delta: number }) {
+const driverGrid = "grid-cols-[minmax(150px,1.25fr)_minmax(75px,.6fr)_minmax(110px,.8fr)_minmax(135px,1fr)]";
+
+function DriverRow({ kind, amount, count, comparisons }: { kind: "sun" | "parking"; amount: number; count: number; comparisons: Array<PeriodComparison | undefined> }) {
   const sun = kind === "sun";
   return (
-    <div className="grid min-h-14 grid-cols-[minmax(170px,1.4fr)_minmax(90px,.7fr)_minmax(120px,.8fr)] items-center border-t border-gray-100 px-4 py-2 dark:border-gray-700/60">
+    <div className={`grid min-h-14 ${driverGrid} items-center border-t border-gray-100 px-4 py-2 dark:border-gray-700/60`}>
       <span className="flex min-w-0 items-center gap-3">
         <span className={`h-3 w-3 shrink-0 rounded-full ${sun ? "bg-yellow-500" : "bg-sky-500"}`} />
         <span className="min-w-0">
@@ -54,13 +56,19 @@ function DriverRow({ kind, amount, count, delta }: { kind: "sun" | "parking"; am
         </span>
       </span>
       <strong className="tabular-nums text-right text-sm font-semibold text-gray-800 dark:text-gray-100">{nok(amount)} kr</strong>
-      <em className={`tabular-nums text-right text-sm font-semibold not-italic ${tone(delta)}`}>{signedNok(delta)}</em>
+      {comparisons.map((comparison, index) => {
+        if (!comparison) return <em className="text-right text-sm not-italic text-gray-400" key={index}>-</em>;
+        const referenceAmount = sun ? comparison.sol : comparison.parking;
+        const delta = amount - referenceAmount;
+        return <em className={`tabular-nums text-right text-sm font-semibold not-italic ${tone(delta)}`} key={`${comparison.label}-${index}`}>{signedNok(delta)}</em>;
+      })}
     </div>
   );
 }
 
 function PeriodCard({ period }: { period: StatusPeriod }) {
   const comparisons = [comparisonForPrevious(period), ...(period.extraComparisons ?? [])].slice(0, 2);
+  const driverComparisons = [comparisons[0], comparisons[1]];
   const comparisonPath = period.key === "year" ? "/ar" : `/sammenligning?period=${period.key}`;
   const sunShare = period.total > 0 ? Math.max(0, Math.min(100, (period.sol / period.total) * 100)) : 50;
 
@@ -103,12 +111,15 @@ function PeriodCard({ period }: { period: StatusPeriod }) {
         })}
       </div>
 
-      <div className="m-4 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700/60">
-        <div className="grid h-8 grid-cols-[minmax(170px,1.4fr)_minmax(90px,.7fr)_minmax(120px,.8fr)] items-center bg-gray-50 px-4 text-[9px] font-semibold uppercase text-gray-400 dark:bg-gray-900/30 dark:text-gray-500">
-          <span>Inntektskilde</span><span className="text-right">Hittil</span><span className="text-right">Mot første referanse</span>
+      <div className="m-4 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700/60">
+        <div className="min-w-[570px]">
+          <div className={`grid h-8 ${driverGrid} items-center bg-gray-50 px-4 text-[9px] font-semibold uppercase text-gray-400 dark:bg-gray-900/30 dark:text-gray-500`}>
+            <span>Inntektskilde</span><span className="text-right">Hittil</span>
+            {driverComparisons.map((comparison, index) => <span className="text-right" key={comparison?.label || index}>{comparison ? shortComparisonLabel(comparison.label) : "-"}</span>)}
+          </div>
+          <DriverRow kind="sun" amount={period.sol} count={period.solCount} comparisons={driverComparisons} />
+          <DriverRow kind="parking" amount={period.parking} count={period.parkingCount} comparisons={driverComparisons} />
         </div>
-        <DriverRow kind="sun" amount={period.sol} count={period.solCount} delta={period.sol - period.previousSol} />
-        <DriverRow kind="parking" amount={period.parking} count={period.parkingCount} delta={period.parking - period.previousParking} />
       </div>
 
       <footer className="grid grid-cols-2 border-t border-gray-100 bg-gray-50/80 dark:border-gray-700/60 dark:bg-gray-900/25">
