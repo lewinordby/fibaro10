@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { DomainApp, ThemeProvider, type DomainUiConfig } from "@lilletorget/microapp-ui";
+import "@lilletorget/mosaic-theme/font.css";
 import "./style.css";
 
 const config: DomainUiConfig = { name: "Lilletorget Energi", shortName: "Energi", icon: "energy", accent: "green", navigation: [

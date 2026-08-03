@@ -7,9 +7,35 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
 BUILD_FILE = Path(__file__).with_name("BUILD")
-DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exists() else "1631"
+DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exists() else "1632"
 APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1632",
+        "date": "03.08.2026",
+        "headline": "Lik typografi i alle fagappene",
+        "title": "Soling og de nyere appene bruker nå samme Inter-font som Omsetning og Parkering",
+        "description": (
+            "Fontlasting er kontrollert i alle mikroappene. Seks nyere fagapper manglet den eksplisitte "
+            "fontressursen og kunne derfor falle tilbake til nettleserens standardfont. Inter lastes nå likt "
+            "og bygges inn som en versjonert produksjonsressurs i samtlige appfronter."
+        ),
+        "applications": [
+            "Soling: samme Inter-font og vektområde som Omsetning og Parkering.",
+            "Energi, Bygg og drift, Vedlikehold, System og Koble: identisk fontlasting.",
+            "Mikroapp-testene: regresjonskontroll som krever delt fontressurs i alle appene.",
+        ],
+        "request": "Sjekk fonten som er brukt i Soling og de andre nye; den er ikke den samme som i Parkering og Omsetning.",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger eksplisitt inn den delte Inter-variable fonten i alle nyere mikroapper.",
+            "Sikrer at WOFF2-filen blir med i hvert Vite-produksjonsbygg med cachevennlig filnavn.",
+            "Beholder én fontkilde og samme typografitokens på tvers av appene.",
+            "Tester at alle nåværende og fremtidige mikroapper følger fontkontrakten.",
+        ],
+    },
     {
         "version": "1",
         "build": "1631",
