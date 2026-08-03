@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 
+from fastapi import Request
 from fastapi.testclient import TestClient
 
 from energy_app.app.main import app as energy_app
 from link_app.app.main import app as link_app
 from maintenance_app.app.main import app as maintenance_app
+import operations_app.app.main as operations_main
 from operations_app.app.main import app as operations_app
 from parking_app.app.main import app as parking_app
 from revenue_app.app.main import app as revenue_app
@@ -144,6 +147,32 @@ def test_system_menu_structure_page_is_available_without_core_data() -> None:
         assert payload["title"] == "Menystruktur"
         assert len(payload["tables"]) == len(APP_MENU_STRUCTURE) + 2
         assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 81
+
+
+def test_operations_door_filter_uses_live_group_keys(monkeypatch) -> None:
+    status_data = {
+        "summary": {},
+        "doors": [
+            {"deviceKey": "sun", "title": "Solrom 1", "groupKey": "solrom", "isConfigured": True, "state": "open", "stateLabel": "\u00c5pen", "lastChangedAt": "2026-08-03T12:00:00", "lastChangedLabel": "03.08.2026 12:00"},
+            {"deviceKey": "entry", "title": "Inngang", "groupKey": "andre", "isConfigured": True, "state": "closed", "stateLabel": "Lukket", "lastChangedAt": "2026-08-03T13:00:00", "lastChangedLabel": "03.08.2026 13:00"},
+        ],
+        "changes": [
+            {"deviceKey": "sun", "deviceName": "Solrom 1", "timeLabel": "12:00", "action": "OPEN", "stateLabel": "\u00c5pen"},
+            {"deviceKey": "entry", "deviceName": "Inngang", "timeLabel": "13:00", "action": "CLOSED", "stateLabel": "Lukket"},
+        ],
+    }
+
+    async def fake_core_json(*_args, **_kwargs):
+        return status_data
+
+    monkeypatch.setattr(operations_main, "core_json", fake_core_json)
+    request = Request({"type": "http", "method": "GET", "path": "/api/modules/dorer", "headers": [], "query_string": b"view=oversikt&door_type=andre"})
+    payload = asyncio.run(operations_main.doors_module(request, None, {}))
+
+    assert payload["filters"][0]["value"] == "andre"
+    assert [row["d\u00f8r"] for row in payload["tables"][0]["rows"]] == ["Inngang"]
+    assert [row["d\u00f8r"] for row in payload["tables"][1]["rows"]] == ["Inngang"]
+    assert payload["cards"][0]["value"] == 1
 
 
 def test_shared_domain_layout_uses_the_header_for_the_active_page_title() -> None:

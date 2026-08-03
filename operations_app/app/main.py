@@ -51,6 +51,22 @@ def door_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ]
 
 
+def filtered_door_cards(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    configured = [row for row in rows if row.get("isConfigured")]
+    latest = max(configured, key=lambda row: str(row.get("lastChangedAt") or ""), default={})
+    return [
+        card("D\u00f8rer", len(rows), "stk", f"{len(configured)} konfigurert"),
+        card("\u00c5pne", sum(row.get("state") == "open" for row in configured), "stk", "N\u00e5status", "warning"),
+        card("Lukkede", sum(row.get("state") == "closed" for row in configured), "stk", "N\u00e5status", "success"),
+        card(
+            "Sist endret",
+            latest.get("lastChangedLabel", "-"),
+            "",
+            f'{latest.get("title", "")} {str(latest.get("stateLabel") or "").lower()}'.strip(),
+        ),
+    ]
+
+
 async def doors_module(request: Request, client: httpx.AsyncClient, headers: dict[str, str]) -> dict[str, Any]:
     view = request.query_params.get("view", "oversikt")
     status_data = await core_json(client, headers, "/api/hc3/doors/status", {"history_limit": 150, "period_limit": 150})
@@ -118,23 +134,29 @@ async def doors_module(request: Request, client: httpx.AsyncClient, headers: dic
     else:
         rows = status_data.get("doors", [])
         door_type = request.query_params.get("door_type", "")
-        if view == "andre" or door_type == "other":
-            rows = [row for row in rows if row.get("groupKey") != "sunrooms"]
-        elif door_type == "sunrooms":
-            rows = [row for row in rows if row.get("groupKey") == "sunrooms"]
+        if view == "andre":
+            door_type = "andre"
+        door_type = {"other": "andre", "sunrooms": "solrom"}.get(door_type, door_type)
+        if door_type in {"solrom", "andre"}:
+            rows = [row for row in rows if row.get("groupKey") == door_type]
+            cards = filtered_door_cards(rows)
+        selected_keys = {row.get("deviceKey") for row in rows}
+        changes = status_data.get("changes", [])
+        if door_type in {"solrom", "andre"}:
+            changes = [row for row in changes if row.get("deviceKey") in selected_keys]
         filters = [{
             "key": "door_type",
             "label": "D\u00f8rtype",
             "type": "select",
             "value": door_type,
             "options": [
-                {"label": "Solrom", "value": "sunrooms"},
-                {"label": "Andre d\u00f8rer", "value": "other"},
+                {"label": "Solrom", "value": "solrom"},
+                {"label": "Andre d\u00f8rer", "value": "andre"},
             ],
         }]
         tables = [
             {"title": "D\u00f8rstatus", "columns": ["d\u00f8r", "avdeling", "status", "sist endret", "varighet", "batteri"], "rows": door_rows(rows)},
-            {"title": "Siste endringer", "columns": ["tid", "d\u00f8r", "hendelse", "status"], "rows": [{"tid": row.get("timeLabel"), "d\u00f8r": row.get("deviceName"), "hendelse": row.get("action"), "status": row.get("stateLabel")} for row in status_data.get("changes", [])]},
+            {"title": "Siste endringer", "columns": ["tid", "d\u00f8r", "hendelse", "status"], "rows": [{"tid": row.get("timeLabel"), "d\u00f8r": row.get("deviceName"), "hendelse": row.get("action"), "status": row.get("stateLabel")} for row in changes]},
         ]
 
     return {"title": "D\u00f8rer", "subtitle": f'Sist endret {summary.get("latestAgeLabel", "-")}', "cards": cards, "tables": tables, "filters": filters}

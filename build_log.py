@@ -35,6 +35,7 @@ BUILD_LOG = [
             "Etablerer \u00e9n typesikret navigasjonskilde for alle \u00e5tte fagapper.",
             "Begrenser appnavigasjonen til hovedomr\u00e5de i venstremeny og side i horisontalmeny.",
             "Samler overlappende d\u00f8rfunksjoner uten \u00e5 fjerne underliggende ruter eller data.",
+            "Lar d\u00f8roversikten filtrere b\u00e5de status, summer og hendelser p\u00e5 Solrom eller Andre d\u00f8rer.",
             "Legger appvelgeren f\u00f8rst i toppfeltet og grupperer fagappene konsekvent.",
             "Oppdaterer automatisk menydokumentasjon og regresjonstester.",
             "Oppdaterer PostCSS til en sikker felles versjon i alle mikroappene.",
