@@ -79,6 +79,14 @@ def test_all_microapps_bundle_the_shared_inter_font() -> None:
         assert font_import in main_source, f"{app_name} mangler delt Inter-font"
 
 
+def test_all_microapps_scan_the_shared_ui_styles() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    source_directive = '@source "../../../packages/microapp-ui/src";'
+    for app_name in FRONTEND_APPS:
+        style_source = (repo_root / app_name / "frontend" / "src" / "style.css").read_text(encoding="utf-8")
+        assert source_directive in style_source, f"{app_name} mangler delt UI-kilde i Tailwind"
+
+
 def test_app_selector_has_only_the_header_refresh_control() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     source = (repo_root / "shell_app" / "frontend" / "src" / "App.tsx").read_text(encoding="utf-8")
