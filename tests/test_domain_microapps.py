@@ -91,7 +91,8 @@ def test_revenue_dashboard_names_both_driver_references() -> None:
     source = (repo_root / "revenue_app" / "frontend" / "src" / "pages" / "DashboardPage.tsx").read_text(encoding="utf-8")
     assert "Mot første referanse" not in source
     assert "driverComparisons.map" in source
-    assert "shortComparisonLabel(comparison.label)" in source
+    assert 'if (periodKey === "today" && index === 1) return "Forrige uke";' in source
+    assert "driverComparisonLabel(period.key, comparison, index)" in source
 
 
 def test_each_domain_rejects_another_domains_module() -> None:

@@ -42,6 +42,11 @@ function shortComparisonLabel(value: string) {
     .replace(/^Mot i (?=\d{4})/i, "Mot ");
 }
 
+function driverComparisonLabel(periodKey: string, comparison: PeriodComparison, index: number) {
+  if (periodKey === "today" && index === 1) return "Forrige uke";
+  return shortComparisonLabel(comparison.label);
+}
+
 const driverGrid = "grid-cols-[minmax(150px,1.25fr)_minmax(75px,.6fr)_minmax(110px,.8fr)_minmax(135px,1fr)]";
 
 function DriverRow({ kind, amount, count, comparisons }: { kind: "sun" | "parking"; amount: number; count: number; comparisons: Array<PeriodComparison | undefined> }) {
@@ -115,7 +120,7 @@ function PeriodCard({ period }: { period: StatusPeriod }) {
         <div className="min-w-[570px]">
           <div className={`grid h-8 ${driverGrid} items-center bg-gray-50 px-4 text-[9px] font-semibold uppercase text-gray-400 dark:bg-gray-900/30 dark:text-gray-500`}>
             <span>Inntektskilde</span><span className="text-right">Hittil</span>
-            {driverComparisons.map((comparison, index) => <span className="text-right" key={comparison?.label || index}>{comparison ? shortComparisonLabel(comparison.label) : "-"}</span>)}
+            {driverComparisons.map((comparison, index) => <span className="text-right" key={comparison?.label || index}>{comparison ? driverComparisonLabel(period.key, comparison, index) : "-"}</span>)}
           </div>
           <DriverRow kind="sun" amount={period.sol} count={period.solCount} comparisons={driverComparisons} />
           <DriverRow kind="parking" amount={period.parking} count={period.parkingCount} comparisons={driverComparisons} />
