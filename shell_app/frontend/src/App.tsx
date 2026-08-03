@@ -220,12 +220,7 @@ export default function App() {
         <Header open={sidebarOpen} setOpen={setSidebarOpen} user={user} refreshing={refreshing} refresh={() => void load(true)} />
         <main className="grow">
           <div className="px-4 sm:px-6 lg:px-8 py-8 w-full max-w-[96rem] mx-auto">
-            <div className="sm:flex sm:justify-between sm:items-center mb-8">
-              <div className="mb-4 sm:mb-0"><h1 className="text-2xl md:text-3xl text-gray-800 dark:text-gray-100 font-bold">Apper</h1></div>
-              <button className="btn bg-gray-900 text-gray-100 hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-800 dark:hover:bg-white" type="button" onClick={() => void load(true)} disabled={refreshing}>
-                {refreshing ? <Spinner size={16} /> : <svg className="fill-current shrink-0" width="16" height="16" viewBox="0 0 16 16"><path d="M13.65 2.35A8 8 0 1 0 16 8h-2a6 6 0 1 1-1.76-4.24L9 7h7V0l-2.35 2.35Z" /></svg>}<span>Oppdater</span>
-              </button>
-            </div>
+            <div className="mb-8"><h1 className="text-2xl md:text-3xl text-gray-800 dark:text-gray-100 font-bold">Apper</h1></div>
 
             {loading ? <div className="flex min-h-96 flex-col items-center justify-center gap-3 text-gray-400 dark:text-gray-500"><Spinner size={28} /><strong className="text-sm">Henter apper</strong></div> : null}
             {!loading && error ? <div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl p-8 text-center"><svg className="mx-auto fill-current text-red-500" width="32" height="32" viewBox="0 0 16 16"><path d="M7.134 1.5a1 1 0 0 1 1.732 0l6.928 12A1 1 0 0 1 14.928 15H1.072a1 1 0 0 1-.866-1.5l6.928-12ZM7 6v4h2V6H7Zm0 5.5v2h2v-2H7Z" /></svg><h2 className="mt-3 font-semibold text-gray-800 dark:text-gray-100">Kunne ikke hente appstatus</h2><p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{error}</p><button className="btn mt-4 bg-gray-900 text-gray-100 hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-800" onClick={() => void load()}>Prøv igjen</button></div> : null}

@@ -7,9 +7,33 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
 BUILD_FILE = Path(__file__).with_name("BUILD")
-DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exists() else "1632"
+DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exists() else "1633"
 APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1633",
+        "date": "03.08.2026",
+        "headline": "Én oppdateringsknapp i Appvelgeren",
+        "title": "Den overflødige oppdateringsknappen i innholdsfeltet er fjernet",
+        "description": (
+            "Appvelgeren hadde to synlige kontroller som utførte samme statusoppdatering. Den store knappen "
+            "ved siden av sideoverskriften er fjernet, mens den kompakte kontrollen i toppmenyen og automatisk "
+            "oppdatering hvert 30. sekund er beholdt."
+        ),
+        "applications": [
+            "Appvelger: ryddigere sidehode uten duplisert kommando.",
+            "Tester: kontroll som sikrer at bare toppmenyens oppdateringskontroll vises.",
+        ],
+        "request": "Fjern den unødvendige ekstra oppdateringsknappen i Appvelger-appen.",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fjerner innholdsknappen ved overskriften Apper.",
+            "Beholder oppdateringsikonet i toppmenyen.",
+            "Beholder automatisk statusoppdatering hvert 30. sekund.",
+        ],
+    },
     {
         "version": "1",
         "build": "1632",

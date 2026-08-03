@@ -59,7 +59,7 @@ services:
     volumes:
       - ${AXIS_HOST_SNAPSHOT_DIR:-./axis_camera_snapshots/snapshots}:/axis_snapshots:ro
     environment:
-      APP_BUILD: ${APP_BUILD:-1632}
+      APP_BUILD: ${APP_BUILD:-1633}
       SUN2_AXIS_SNAPSHOT_ROOT: /axis_snapshots
       CAR_INFO_LOOKUP_URL: http://car_info_lookup:8126
       OWNTRACKS_SERVICE_URL: http://owntracks_service:8128
@@ -310,7 +310,7 @@ services:
       LINK_BASE_URL: http://link_app:8158
       LINK_APP_URL: ${LINK_APP_URL:-http://192.168.20.218:8158}
       SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
-      SHELL_APP_BUILD: ${SHELL_APP_BUILD:-19}
+      SHELL_APP_BUILD: ${SHELL_APP_BUILD:-20}
       SHELL_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8150/health', timeout=5).read()\""]

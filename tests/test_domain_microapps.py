@@ -79,6 +79,13 @@ def test_all_microapps_bundle_the_shared_inter_font() -> None:
         assert font_import in main_source, f"{app_name} mangler delt Inter-font"
 
 
+def test_app_selector_has_only_the_header_refresh_control() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    source = (repo_root / "shell_app" / "frontend" / "src" / "App.tsx").read_text(encoding="utf-8")
+    assert 'title="Oppdater status"' in source
+    assert "<span>Oppdater</span>" not in source
+
+
 def test_each_domain_rejects_another_domains_module() -> None:
     cases = [
         (revenue_app, "/api/modules/parkering"),
