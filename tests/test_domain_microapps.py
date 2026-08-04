@@ -107,6 +107,16 @@ def test_sun_sessions_keep_the_interactive_image_workflow() -> None:
     assert "selectSunSessionImage" in shared_api
 
 
+def test_sun_app_has_a_narrow_proxy_for_saved_session_images() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    sun_backend = (repo_root / "sun_app" / "app" / "main.py").read_text(encoding="utf-8")
+    shared_runtime = (repo_root / "microapp_backend" / "runtime.py").read_text(encoding="utf-8")
+
+    assert "SESSION_IMAGE_PATTERN" in sun_backend
+    assert "resource_patterns=(SESSION_IMAGE_PATTERN,)" in sun_backend
+    assert "if any(pattern.fullmatch(normalized) for pattern in config.resource_patterns)" in shared_runtime
+
+
 def test_app_selector_has_only_the_header_refresh_control() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     source = (repo_root / "shell_app" / "frontend" / "src" / "App.tsx").read_text(encoding="utf-8")

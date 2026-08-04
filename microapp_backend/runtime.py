@@ -32,6 +32,7 @@ class DomainAppConfig:
     port: int
     allowed_paths: dict[str, set[str]] = field(default_factory=dict)
     allowed_patterns: dict[str, tuple[Pattern[str], ...]] = field(default_factory=dict)
+    resource_patterns: tuple[Pattern[str], ...] = field(default_factory=tuple)
     adapters: dict[str, ProxyAdapter] = field(default_factory=dict)
 
     def build(self) -> str:
@@ -211,6 +212,9 @@ def create_domain_app(config: DomainAppConfig) -> FastAPI:
 
     @app.get("/{path:path}", response_class=HTMLResponse)
     async def frontend(path: str, request: Request) -> Response:
+        normalized = path.strip("/").casefold()
+        if any(pattern.fullmatch(normalized) for pattern in config.resource_patterns):
+            return proxy_response(await core_request(request, normalized))
         if not request.cookies.get(AUTH_USER_COOKIE_NAME) or not request.cookies.get(AUTH_COOKIE_NAME):
             return RedirectResponse("/auth/login", status_code=303)
         return HTMLResponse(index_html())
