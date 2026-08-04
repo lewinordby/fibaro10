@@ -12,6 +12,31 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1647",
+        "date": "05.08.2026",
+        "headline": "Tabellsøk fjerner nå alle rader som ikke treffer",
+        "title": "Unike radnøkler hindrer at gamle tabellrader blir hengende",
+        "description": (
+            "Den interaktive live-testen viste at treffantallet var riktig, men at enkelte gamle rader kunne bli "
+            "stående i tabellen når flere rader delte samme detaljlenke. Alle radnøkler kombinerer nå identitet "
+            "og visningsposisjon, slik at React rydder tabellen korrekt etter søk, sortering og sidebytte."
+        ),
+        "applications": [
+            "Alle fagapper: søk og sortering gir samsvar mellom treffantall og synlige rader.",
+            "Parkering: den egendefinerte tabellflaten bruker samme sikre nøkkelstrategi.",
+            "Vedlikehold: norske tekster for pågående besøk og besøksnotat er rettet.",
+        ],
+        "request": "Jeg synes det er masse mangler.",
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Gjør alle rendrerte tabellradnøkler unike, også når flere rader har samme lenke.",
+            "Kontrollerer tabellsøk med faktisk brukerinteraksjon i live-grensesnittet.",
+            "Retter synlige norske tekster i besøksdetaljen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1646",
         "date": "05.08.2026",
         "headline": "Dynamiske ID-er bevares gjennom alle mikroappene",

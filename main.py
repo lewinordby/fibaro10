@@ -32538,9 +32538,9 @@ async def api_v2_maintenance_site_visit_detail(visit_id: int):
         "visit": visit_row,
         "cards": [
             api_card("Start", format_source_datetime_short(visit.started_at) if visit.started_at else "-", "", "Kom inn", "status"),
-            api_card("Slutt", format_source_datetime_short(visit.ended_at) if visit.ended_at else "Pagaende", "", "Dro ut", "status"),
+            api_card("Slutt", format_source_datetime_short(visit.ended_at) if visit.ended_at else "Pågående", "", "Dro ut", "status"),
             api_card("Varighet", site_visit_duration_label(visit.duration_seconds, visit.started_at, visit.ended_at), "", site_visit_status_label(visit), "status"),
-            api_card("Oppgaver", len(task_rows), "stk", "Koblet til dette besoket", "status"),
+            api_card("Oppgaver", len(task_rows), "stk", "Koblet til dette besøket", "status"),
         ],
         "fields": [
             {"label": "Sted", "value": visit.location_name},
@@ -32581,7 +32581,7 @@ async def api_v2_maintenance_site_visit_detail(visit_id: int):
             "endpoint": "/api/maintenance/site-visits/{id}",
             "method": "PATCH",
             "fields": [
-                {"key": "notes", "label": "Notat for besoket", "type": "textarea", "rows": 8},
+                {"key": "notes", "label": "Notat for besøket", "type": "textarea", "rows": 8},
             ],
         },
         "raw": visit.raw or {},
@@ -32599,7 +32599,7 @@ async def api_v2_maintenance_site_visit_update(visit_id: int, data: MaintenanceS
             visit.notes = str(values.get("notes") or "").strip() or None
         visit.updated_at = local_now_naive().replace(second=0, microsecond=0)
         await session.commit()
-    return {"status": "ok", "message": "Besoksnotat er lagret."}
+    return {"status": "ok", "message": "Besøksnotat er lagret."}
 
 
 @app.get("/api/maintenance/site-visits")

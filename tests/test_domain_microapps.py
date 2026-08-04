@@ -225,6 +225,8 @@ def test_shared_tables_keep_search_sorting_and_local_pagination() -> None:
         assert "toggleSort" in source
     assert "exactPattern" in table_utils
     assert "localeCompare" in table_utils
+    assert 'row.id ?? row.path ?? "row"' in shared
+    assert 'row.id ?? row.plate ?? row.path ?? "row"' in parking
 
 
 def test_energy_topology_editor_keeps_full_hc3_workflow() -> None:

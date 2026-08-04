@@ -128,7 +128,7 @@ export function DataTable({ table, fibaroUrl }: { table: ModuleTable; fibaroUrl:
             <tr>{table.columns.map((column) => <th className="px-4 py-3 whitespace-nowrap text-left font-semibold" key={column}><button className="inline-flex items-center gap-1.5 uppercase hover:text-gray-700 dark:hover:text-gray-200" type="button" onClick={() => toggleSort(column)} title={`Sorter etter ${valueLabel(column)}`}>{valueLabel(column)}{sort?.column === column ? <MosaicIcon name={sort.direction === "asc" ? "arrow-up" : "arrow-down"} size={12} /> : null}</button></th>)}</tr>
           </thead>
           <tbody className="text-sm divide-y divide-gray-100 dark:divide-gray-700/60">
-            {visibleRows.map((row, index) => <tr className="hover:bg-gray-50/70 dark:hover:bg-gray-700/20" key={String(row.id || row.plate || row.path || `${firstRow}-${index}`)}>{table.columns.map((column) => <td className="px-4 py-3 whitespace-nowrap tabular-nums" key={column}><TableCell column={column} row={row} fibaroUrl={fibaroUrl} /></td>)}</tr>)}
+            {visibleRows.map((row, index) => <tr className="hover:bg-gray-50/70 dark:hover:bg-gray-700/20" key={`${String(row.id ?? row.plate ?? row.path ?? "row")}-${firstRow + index}`}>{table.columns.map((column) => <td className="px-4 py-3 whitespace-nowrap tabular-nums" key={column}><TableCell column={column} row={row} fibaroUrl={fibaroUrl} /></td>)}</tr>)}
             {!visibleRows.length ? <tr><td className="px-5 py-10 text-center text-gray-400" colSpan={Math.max(1, table.columns.length)}>{query ? "Ingen treff for søket" : "Ingen rader i valgt utvalg"}</td></tr> : null}
           </tbody>
         </table>
