@@ -12,6 +12,30 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1639",
+        "date": "04.08.2026",
+        "headline": "Pullertarbeidsflaten er tilgjengelig i Bygg og drift",
+        "title": "Proxygrensen omfatter nå hele den avgrensede pullertfunksjonen",
+        "description": (
+            "Den visuelle produksjonskontrollen av build 1638 avdekket at Bygg og drift tillot det gamle "
+            "bollards-navnet, men ikke Fibaro10-ruten unifi-protect/bollards. Den presise ruten og dens "
+            "varslingsendepunkter er nå åpnet uten å utvide tilgangen til andre UniFi Protect-data."
+        ),
+        "applications": [
+            "Bygg og drift: referansebilde, siste bilde, gjennomsiktighet, forskjeller og AI-status lastes igjen.",
+            "Varsling: abonnement og testvarsel for pullertkontroll bruker samme avgrensede proxyregel.",
+        ],
+        "request": "Gå nøye gjennom den nye applikasjonsstacken og fiks alle mangler sammenlignet med Fibaro10.",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Tillater unifi-protect/bollards og underressurser i Bygg og drift-proxyen.",
+            "Legger inn regresjonstest for hovedruten, mobilvarsling og testvarsel.",
+            "Verifiserer rettingen mot den faktiske produksjonssiden etter utrulling.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1638",
         "date": "04.08.2026",
         "headline": "Mikroappene har fått tilbake sentral Fibaro10-funksjonalitet",

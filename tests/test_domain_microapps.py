@@ -212,6 +212,12 @@ def test_specialized_views_have_narrow_proxy_access() -> None:
     assert "mobile-preview" in system_backend
 
 
+def test_operations_proxy_allows_bollard_workbench_endpoints() -> None:
+    assert operations_main.DOMAIN_PATTERN.fullmatch("unifi-protect/bollards")
+    assert operations_main.DOMAIN_PATTERN.fullmatch("unifi-protect/bollards/mobile-notifications")
+    assert operations_main.DOMAIN_PATTERN.fullmatch("unifi-protect/bollards/mobile-notifications/test")
+
+
 def test_operations_door_filter_uses_live_group_keys(monkeypatch) -> None:
     status_data = {
         "summary": {},
