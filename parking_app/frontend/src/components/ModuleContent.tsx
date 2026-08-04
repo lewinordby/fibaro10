@@ -3,6 +3,7 @@ import { displayCell, nok, valueLabel } from "@lilletorget/microapp-ui/format";
 import { Chart, MetricCard, MosaicIcon, Panel, mosaicChartColors, type MosaicChartConfig } from "@lilletorget/microapp-ui/primitives";
 import { resolveCorePath } from "@lilletorget/microapp-ui/navigation";
 import { AppLink, useAppLocation, useAppSearchParams } from "@lilletorget/microapp-ui/router";
+import { filterTableRows, sortTableRows, type TableSort } from "@lilletorget/microapp-ui/table";
 import { api } from "../api";
 import type { ModuleAction, ModuleChart, ModuleFilter, ModuleResponse, ModuleRow, ModuleTable, ParkingTimeline } from "../types";
 
@@ -88,26 +89,51 @@ function TableCell({ column, row, fibaroUrl }: { column: string; row: ModuleRow;
 
 export function DataTable({ table, fibaroUrl }: { table: ModuleTable; fibaroUrl: string }) {
   const [, setParams] = useAppSearchParams();
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<TableSort>(null);
+  const [localPage, setLocalPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const meta = table.meta;
+  const serverPaged = Boolean(meta?.pageSize && typeof meta.totalRows === "number");
+  const filteredRows = useMemo(
+    () => serverPaged ? table.rows : filterTableRows(table.rows, table.columns, query),
+    [query, serverPaged, table.columns, table.rows],
+  );
+  const sortedRows = useMemo(() => sortTableRows(filteredRows, sort), [filteredRows, sort]);
+  const clientPaged = !serverPaged && !meta?.disablePagination;
+  const pageCount = Math.max(1, Math.ceil(sortedRows.length / pageSize));
+  const safeLocalPage = Math.min(localPage, pageCount);
+  const visibleRows = clientPaged ? sortedRows.slice((safeLocalPage - 1) * pageSize, safeLocalPage * pageSize) : sortedRows;
+  const firstRow = sortedRows.length ? (clientPaged ? (safeLocalPage - 1) * pageSize : 0) + 1 : 0;
+  const lastRow = clientPaged ? Math.min(safeLocalPage * pageSize, sortedRows.length) : sortedRows.length;
+  const showClientSearch = !serverPaged && table.rows.length >= 8;
+  const totalRows = serverPaged ? meta?.totalRows || table.rows.length : table.rows.length;
+  const subtitle = query && !serverPaged
+    ? `${filteredRows.length.toLocaleString("nb-NO")} av ${totalRows.toLocaleString("nb-NO")} rader`
+    : `${totalRows.toLocaleString("nb-NO")} rader`;
+  useEffect(() => setLocalPage(1), [pageSize, query, sort]);
   const changePage = (page: number) => {
     const next = new URLSearchParams(window.location.search);
     next.set("page", String(Math.max(1, page)));
     setParams(next);
   };
+  const toggleSort = (column: string) => setSort((current) => current?.column === column
+    ? current.direction === "asc" ? { column, direction: "desc" } : null
+    : { column, direction: "asc" });
   return (
-    <Panel title={table.title} subtitle={meta?.totalRows != null ? `${meta.totalRows.toLocaleString("nb-NO")} rader` : undefined}>
+    <Panel title={table.title} subtitle={subtitle} actions={showClientSearch ? <label><span className="sr-only">Søk i {table.title}</span><input className="form-input w-52" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Søk i tabellen" /></label> : undefined}>
       <div className="overflow-x-auto">
         <table className="table-auto w-full dark:text-gray-300">
           <thead className="text-xs uppercase text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-700/50">
-            <tr>{table.columns.map((column) => <th className="px-4 py-3 whitespace-nowrap text-left font-semibold" key={column}>{valueLabel(column)}</th>)}</tr>
+            <tr>{table.columns.map((column) => <th className="px-4 py-3 whitespace-nowrap text-left font-semibold" key={column}><button className="inline-flex items-center gap-1.5 uppercase hover:text-gray-700 dark:hover:text-gray-200" type="button" onClick={() => toggleSort(column)} title={`Sorter etter ${valueLabel(column)}`}>{valueLabel(column)}{sort?.column === column ? <MosaicIcon name={sort.direction === "asc" ? "arrow-up" : "arrow-down"} size={12} /> : null}</button></th>)}</tr>
           </thead>
           <tbody className="text-sm divide-y divide-gray-100 dark:divide-gray-700/60">
-            {table.rows.map((row, index) => <tr className="hover:bg-gray-50/70 dark:hover:bg-gray-700/20" key={String(row.id || row.plate || row.path || index)}>{table.columns.map((column) => <td className="px-4 py-3 whitespace-nowrap tabular-nums" key={column}><TableCell column={column} row={row} fibaroUrl={fibaroUrl} /></td>)}</tr>)}
-            {!table.rows.length ? <tr><td className="px-5 py-10 text-center text-gray-400" colSpan={Math.max(1, table.columns.length)}>Ingen rader i valgt utvalg</td></tr> : null}
+            {visibleRows.map((row, index) => <tr className="hover:bg-gray-50/70 dark:hover:bg-gray-700/20" key={String(row.id || row.plate || row.path || `${firstRow}-${index}`)}>{table.columns.map((column) => <td className="px-4 py-3 whitespace-nowrap tabular-nums" key={column}><TableCell column={column} row={row} fibaroUrl={fibaroUrl} /></td>)}</tr>)}
+            {!visibleRows.length ? <tr><td className="px-5 py-10 text-center text-gray-400" colSpan={Math.max(1, table.columns.length)}>{query ? "Ingen treff for søket" : "Ingen rader i valgt utvalg"}</td></tr> : null}
           </tbody>
         </table>
       </div>
-      {meta && !meta.disablePagination && (meta.hasPrevious || meta.hasMore) ? <div className="flex items-center justify-between border-t border-gray-100 px-5 py-3 dark:border-gray-700/60"><span className="text-xs text-gray-500">{meta.firstRow || 0}-{meta.lastRow || table.rows.length} av {meta.totalRows || table.rows.length}</span><div className="flex gap-2"><button className="btn border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300" disabled={!meta.hasPrevious} onClick={() => changePage((meta.page || 1) - 1)}>Forrige</button><button className="btn border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300" disabled={!meta.hasMore} onClick={() => changePage((meta.page || 1) + 1)}>Neste</button></div></div> : null}
+      {serverPaged && meta && !meta.disablePagination && (meta.hasPrevious || meta.hasMore) ? <div className="flex items-center justify-between border-t border-gray-100 px-5 py-3 dark:border-gray-700/60"><span className="text-xs text-gray-500">{meta.firstRow || 0}-{meta.lastRow || table.rows.length} av {meta.totalRows || table.rows.length}</span><div className="flex gap-2"><button className="btn border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300" disabled={!meta.hasPrevious} onClick={() => changePage((meta.page || 1) - 1)}>Forrige</button><button className="btn border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300" disabled={!meta.hasMore} onClick={() => changePage((meta.page || 1) + 1)}>Neste</button></div></div> : clientPaged && sortedRows.length > 25 ? <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-5 py-3 dark:border-gray-700/60"><span className="text-xs text-gray-500">{firstRow}-{lastRow} av {sortedRows.length.toLocaleString("nb-NO")}</span><div className="flex items-center gap-2"><select className="form-select py-1 text-sm" aria-label="Rader per side" value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>{[25, 50, 100].map((size) => <option value={size} key={size}>{size} per side</option>)}</select><button className="btn border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300" disabled={safeLocalPage <= 1} onClick={() => setLocalPage((page) => Math.max(1, page - 1))}>Forrige</button><button className="btn border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300" disabled={safeLocalPage >= pageCount} onClick={() => setLocalPage((page) => Math.min(pageCount, page + 1))}>Neste</button></div></div> : null}
     </Panel>
   );
 }

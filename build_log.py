@@ -12,6 +12,40 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1644",
+        "date": "05.08.2026",
+        "headline": "Mikroappene har fått tilbake komplette arbeidsflyter",
+        "title": "Funksjonsparitet omfatter nå tabellarbeid, energimodell, Roborock og systemflater",
+        "description": (
+            "Den nye kontrollen tok utgangspunkt i hva brukeren faktisk kan gjøre, ikke bare hvilke ruter som svarer. "
+            "Alle generiske tabeller har fått søk, eksaktsøk, stabil sortering og lokal paginering. Energi har fått "
+            "full redigering av kurs, Z-Wave-noder, utganger, målere og laster med live HC3-verdier. Roborock-detaljene, "
+            "ntfy-abonnementene, undersystemkatalogen, idégrunnlaget, datakildedetaljene og besøksdetaljene er samtidig "
+            "løftet tilbake som komplette arbeidsflater i mikroappene."
+        ),
+        "applications": [
+            "Alle fagapper: tabeller kan søkes, eksaktsøkes, sorteres og sideinndeles uten å miste serverfiltrering.",
+            "Energi: komplett kurs- og lastmodell med hierarki, HC3-enheter, samlemålere, liveverdier og redigering.",
+            "Bygg og drift: Roborock har robotvelger, status, kart, forbruksdeler, planer, vasker og statushistorikk.",
+            "System: ntfy-abonnement, undersystemlenker og tolv detaljerte idéforslag har egne arbeidsflater.",
+            "Vedlikehold: besøksnotat, tilknyttede oppgaver og rå OwnTracks-grunnlag er tilgjengelig i detaljvisningen.",
+        ],
+        "request": "Jeg synes det er masse mangler.",
+        "work_duration": "ca. 3 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Innfører én delt tabellmotor for søk, anførselstegn-basert eksaktsøk, sortering og paginering.",
+            "Gjenoppbygger hele energi-topologien i Mosaic-grensesnittet og kobler den til eksisterende skrive-API-er.",
+            "Legger til et eget robot-API og erstatter avhengigheten til den klassiske Roborock-siden.",
+            "Gjeninnfører direkte ntfy-abonnement og støtter native app-lenker som ntfy://.",
+            "Gjeninnfører tilgangsfilter, søk og alle web-, lokal- og health-lenker for undersystemene.",
+            "Utvider idébanken til tolv vurderbare forslag med mål, begrunnelse, byggetrinn og kontrollpunkter.",
+            "Utvider datakilde- og besøksdetaljene med kjøreplan, feilgrunnlag, rådata og automatisk oppdatering.",
+            "Utvider kontrakttestene og kjører komplett lokal kvalitetskontroll av backend, frontend, ruter og UI.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1643",
         "date": "05.08.2026",
         "headline": "Parkeringsoppslag virker for vanlige brukere",

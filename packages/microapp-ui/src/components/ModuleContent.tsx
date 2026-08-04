@@ -3,6 +3,7 @@ import { domainApi } from "../api";
 import { displayCell, nok, valueLabel } from "../format";
 import { AppLink, useAppSearchParams } from "../router";
 import { resolveCorePath } from "../navigation";
+import { filterTableRows, sortTableRows, type TableSort } from "../table";
 import type { Accent, DomainUiConfig, JsonRecord, ModuleAction, ModuleChart, ModuleEditConfig, ModuleEditField, ModuleFilter, ModuleResponse, ModuleRow, ModuleTable, SunTimeline } from "../types";
 import { Chart, mosaicChartColors, type MosaicChartConfig } from "./Chart";
 import { MetricCard, Panel } from "./Mosaic";
@@ -18,6 +19,10 @@ const LinkReviewSpecialAsync = lazy(() => import("./LinkReviewSpecial").then((mo
 const BollardsSpecialAsync = lazy(() => import("./BollardsSpecial").then((module) => ({ default: module.BollardsSpecial })));
 const DoorsSpecialAsync = lazy(() => import("./DoorsSpecial").then((module) => ({ default: module.DoorsSpecial })));
 const MobilePreviewSpecialAsync = lazy(() => import("./MobilePreviewSpecial").then((module) => ({ default: module.MobilePreviewSpecial })));
+const IdeasSpecialAsync = lazy(() => import("./IdeasSpecial").then((module) => ({ default: module.IdeasSpecial })));
+const NotificationsSpecialAsync = lazy(() => import("./SystemSpecial").then((module) => ({ default: module.NotificationsSpecial })));
+const SubsystemsSpecialAsync = lazy(() => import("./SystemSpecial").then((module) => ({ default: module.SubsystemsSpecial })));
+const RoborockSpecialAsync = lazy(() => import("./RoborockSpecial").then((module) => ({ default: module.RoborockSpecial })));
 
 function SpecializedFallback() {
   return <Panel><div className="p-6 text-sm text-gray-400">Klargjør detaljvisning ...</div></Panel>;
@@ -61,6 +66,22 @@ function DoorsSpecial(props: ComponentProps<typeof DoorsSpecialAsync>) {
 
 function MobilePreviewSpecial(props: ComponentProps<typeof MobilePreviewSpecialAsync>) {
   return <Suspense fallback={<SpecializedFallback />}><MobilePreviewSpecialAsync {...props} /></Suspense>;
+}
+
+function IdeasSpecial(props: ComponentProps<typeof IdeasSpecialAsync>) {
+  return <Suspense fallback={<SpecializedFallback />}><IdeasSpecialAsync {...props} /></Suspense>;
+}
+
+function NotificationsSpecial(props: ComponentProps<typeof NotificationsSpecialAsync>) {
+  return <Suspense fallback={<SpecializedFallback />}><NotificationsSpecialAsync {...props} /></Suspense>;
+}
+
+function SubsystemsSpecial(props: ComponentProps<typeof SubsystemsSpecialAsync>) {
+  return <Suspense fallback={<SpecializedFallback />}><SubsystemsSpecialAsync {...props} /></Suspense>;
+}
+
+function RoborockSpecial(props: ComponentProps<typeof RoborockSpecialAsync>) {
+  return <Suspense fallback={<SpecializedFallback />}><RoborockSpecialAsync {...props} /></Suspense>;
 }
 
 const palette = [mosaicChartColors.sky, mosaicChartColors.violet, mosaicChartColors.yellow, mosaicChartColors.green, mosaicChartColors.red, mosaicChartColors.gray];
@@ -111,7 +132,7 @@ function RowLink({ path, config, coreUrl, children }: { path: string; config: Do
   const local = localPath(path, config);
   const classes = `font-medium ${linkClasses[config.accent]} hover:underline`;
   if (local) return <AppLink to={local} className={classes}>{children}</AppLink>;
-  const href = /^https?:\/\//.test(path) ? path : `${coreUrl}${path}`;
+  const href = /^[a-z][a-z0-9+.-]*:\/\//i.test(path) ? path : `${coreUrl}${path}`;
   return <a href={href} className={classes} target="_blank" rel="noreferrer">{children}</a>;
 }
 
@@ -122,7 +143,7 @@ function TableCell({ column, row, config, coreUrl }: { column: string; row: Modu
   if (columnPath) return <RowLink path={columnPath} config={config} coreUrl={coreUrl}>{displayCell(column, value)}</RowLink>;
   if (rowPath && (column === "plate" || column === "car_license_number" || column === "period_label" || column === "title" || column === "name" || column === "build" || column === "headline")) return <RowLink path={rowPath} config={config} coreUrl={coreUrl}>{displayCell(column, value)}</RowLink>;
   if (column === "path" && typeof value === "string") return <RowLink path={value} config={config} coreUrl={coreUrl}>Åpne</RowLink>;
-  if (typeof value === "string" && (/^https?:\/\//.test(value) || value.startsWith("/")) && /(?:url|lenke|abonner|historikk|forhåndsvisning|forhandsvisning|health)/i.test(column)) return <RowLink path={value} config={config} coreUrl={coreUrl}>Åpne</RowLink>;
+  if (typeof value === "string" && (/^[a-z][a-z0-9+.-]*:\/\//i.test(value) || value.startsWith("/")) && /(?:url|lenke|abonner|historikk|forhåndsvisning|forhandsvisning|health)/i.test(column)) return <RowLink path={value} config={config} coreUrl={coreUrl}>Åpne</RowLink>;
   if (column === "status") {
     const label = displayCell(column, value);
     const normalized = String(value || "").toLowerCase();
@@ -157,9 +178,39 @@ function EditDialog({ edit, row, create, close, saved }: { edit: ModuleEditConfi
 export function DataTable({ table, config, coreUrl, reload }: { table: ModuleTable; config: DomainUiConfig; coreUrl: string; reload: () => void }) {
   const [, setParams] = useAppSearchParams();
   const [editing, setEditing] = useState<{ row: ModuleRow; create: boolean } | null>(null);
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<TableSort>(null);
+  const [localPage, setLocalPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const meta = table.meta;
+  const serverPaged = Boolean(meta?.pageSize && typeof meta.totalRows === "number");
+  const filteredRows = useMemo(
+    () => serverPaged ? table.rows : filterTableRows(table.rows, table.columns, query),
+    [query, serverPaged, table.columns, table.rows],
+  );
+  const sortedRows = useMemo(() => sortTableRows(filteredRows, sort), [filteredRows, sort]);
+  const clientPaged = !serverPaged && !meta?.disablePagination;
+  const pageCount = Math.max(1, Math.ceil(sortedRows.length / pageSize));
+  const safeLocalPage = Math.min(localPage, pageCount);
+  const visibleRows = clientPaged ? sortedRows.slice((safeLocalPage - 1) * pageSize, safeLocalPage * pageSize) : sortedRows;
+  const firstRow = sortedRows.length ? (clientPaged ? (safeLocalPage - 1) * pageSize : 0) + 1 : 0;
+  const lastRow = clientPaged ? Math.min(safeLocalPage * pageSize, sortedRows.length) : sortedRows.length;
+  useEffect(() => setLocalPage(1), [pageSize, query, sort]);
   const changePage = (page: number) => { const next = new URLSearchParams(window.location.search); next.set("page", String(Math.max(1, page))); setParams(next); };
-  return <><Panel title={table.title} subtitle={meta?.totalRows != null ? `${meta.totalRows.toLocaleString("nb-NO")} rader` : undefined} actions={table.edit?.createEndpoint ? <button className={`btn text-white ${buttonClasses[config.accent]}`} onClick={() => setEditing({ row: {}, create: true })}>Ny</button> : undefined}><div className="overflow-x-auto"><table className="table-auto w-full dark:text-gray-300"><thead className="bg-gray-50 text-xs uppercase text-gray-400 dark:bg-gray-700/50 dark:text-gray-500"><tr>{table.columns.map((column) => <th className="px-4 py-3 whitespace-nowrap text-left font-semibold" key={column}>{valueLabel(column)}</th>)}{table.edit ? <th className="px-4 py-3 text-right">Handling</th> : null}</tr></thead><tbody className="divide-y divide-gray-100 text-sm dark:divide-gray-700/60">{table.rows.map((row, index) => <tr className="hover:bg-gray-50/70 dark:hover:bg-gray-700/20" key={String(row.id || row.path || index)}>{table.columns.map((column) => <td className="px-4 py-3 whitespace-nowrap tabular-nums" key={column}><TableCell column={column} row={row} config={config} coreUrl={coreUrl} /></td>)}{table.edit ? <td className="px-4 py-3 text-right"><button className={`text-sm font-medium ${linkClasses[config.accent]}`} onClick={() => setEditing({ row, create: false })}>Rediger</button></td> : null}</tr>)}{!table.rows.length ? <tr><td className="px-5 py-10 text-center text-gray-400" colSpan={table.columns.length + (table.edit ? 1 : 0)}>Ingen rader i valgt utvalg</td></tr> : null}</tbody></table></div>{meta && !meta.disablePagination && (meta.hasPrevious || meta.hasMore) ? <div className="flex items-center justify-between border-t border-gray-100 px-5 py-3 dark:border-gray-700"><span className="text-xs text-gray-500">{meta.firstRow || 0}-{meta.lastRow || table.rows.length} av {meta.totalRows || table.rows.length}</span><div className="flex gap-2"><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" disabled={!meta.hasPrevious} onClick={() => changePage((meta.page || 1) - 1)}>Forrige</button><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" disabled={!meta.hasMore} onClick={() => changePage((meta.page || 1) + 1)}>Neste</button></div></div> : null}</Panel>{editing && table.edit ? <EditDialog edit={table.edit} row={editing.row} create={editing.create} close={() => setEditing(null)} saved={reload} /> : null}</>;
+  const toggleSort = (column: string) => setSort((current) => current?.column === column
+    ? current.direction === "asc" ? { column, direction: "desc" } : null
+    : { column, direction: "asc" });
+  const showClientSearch = !serverPaged && table.rows.length >= 8;
+  const canCreate = Boolean(table.edit?.createEndpoint);
+  const totalLabel = serverPaged ? meta?.totalRows || table.rows.length : table.rows.length;
+  const subtitle = query && !serverPaged
+    ? `${filteredRows.length.toLocaleString("nb-NO")} av ${totalLabel.toLocaleString("nb-NO")} rader`
+    : `${totalLabel.toLocaleString("nb-NO")} rader`;
+  const toolbar = showClientSearch || canCreate ? <div className="flex flex-wrap items-center justify-end gap-2">
+    {showClientSearch ? <label className="relative"><span className="sr-only">Søk i {table.title}</span><input className="form-input w-52" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Søk i tabellen" /></label> : null}
+    {canCreate ? <button className={`btn text-white ${buttonClasses[config.accent]}`} onClick={() => setEditing({ row: {}, create: true })}>Ny</button> : null}
+  </div> : undefined;
+  return <><Panel title={table.title} subtitle={subtitle} actions={toolbar}><div className="overflow-x-auto"><table className="table-auto w-full dark:text-gray-300"><thead className="bg-gray-50 text-xs uppercase text-gray-400 dark:bg-gray-700/50 dark:text-gray-500"><tr>{table.columns.map((column) => <th className="whitespace-nowrap px-4 py-3 text-left font-semibold" key={column}><button className="inline-flex items-center gap-1.5 uppercase hover:text-gray-700 dark:hover:text-gray-200" type="button" onClick={() => toggleSort(column)} title={`Sorter etter ${valueLabel(column)}`}>{valueLabel(column)}{sort?.column === column ? <MosaicIcon name={sort.direction === "asc" ? "arrow-up" : "arrow-down"} size={12} /> : null}</button></th>)}{table.edit ? <th className="px-4 py-3 text-right">Handling</th> : null}</tr></thead><tbody className="divide-y divide-gray-100 text-sm dark:divide-gray-700/60">{visibleRows.map((row, index) => <tr className="hover:bg-gray-50/70 dark:hover:bg-gray-700/20" key={String(row.id || row.path || `${firstRow}-${index}`)}>{table.columns.map((column) => <td className="whitespace-nowrap px-4 py-3 tabular-nums" key={column}><TableCell column={column} row={row} config={config} coreUrl={coreUrl} /></td>)}{table.edit ? <td className="px-4 py-3 text-right"><button className={`text-sm font-medium ${linkClasses[config.accent]}`} onClick={() => setEditing({ row, create: false })}>Rediger</button></td> : null}</tr>)}{!visibleRows.length ? <tr><td className="px-5 py-10 text-center text-gray-400" colSpan={table.columns.length + (table.edit ? 1 : 0)}>{query ? "Ingen treff for søket" : "Ingen rader i valgt utvalg"}</td></tr> : null}</tbody></table></div>{serverPaged && meta && !meta.disablePagination && (meta.hasPrevious || meta.hasMore) ? <div className="flex items-center justify-between border-t border-gray-100 px-5 py-3 dark:border-gray-700"><span className="text-xs text-gray-500">{meta.firstRow || 0}-{meta.lastRow || table.rows.length} av {meta.totalRows || table.rows.length}</span><div className="flex gap-2"><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" disabled={!meta.hasPrevious} onClick={() => changePage((meta.page || 1) - 1)}>Forrige</button><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" disabled={!meta.hasMore} onClick={() => changePage((meta.page || 1) + 1)}>Neste</button></div></div> : clientPaged && sortedRows.length > 25 ? <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-5 py-3 dark:border-gray-700"><span className="text-xs text-gray-500">{firstRow}-{lastRow} av {sortedRows.length.toLocaleString("nb-NO")}</span><div className="flex items-center gap-2"><select className="form-select py-1 text-sm" aria-label="Rader per side" value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>{[25, 50, 100].map((size) => <option value={size} key={size}>{size} per side</option>)}</select><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" disabled={safeLocalPage <= 1} onClick={() => setLocalPage((page) => Math.max(1, page - 1))}>Forrige</button><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" disabled={safeLocalPage >= pageCount} onClick={() => setLocalPage((page) => Math.min(pageCount, page + 1))}>Neste</button></div></div> : null}</Panel>{editing && table.edit ? <EditDialog edit={table.edit} row={editing.row} create={editing.create} close={() => setEditing(null)} saved={reload} /> : null}</>;
 }
 
 function FilterInput({ filter, value, onChange }: { filter: ModuleFilter; value: string; onChange: (value: string) => void }) {
@@ -221,6 +272,10 @@ export function ModuleContent({ data, config, reload, coreUrl, module, view }: {
     "solrom2-avvik", "dorer2-oversikt", "dorer2-bygg",
   ].includes(view);
   const mobileSpecial = module === "mobil";
+  const ideasSpecial = module === "ideer";
+  const notificationsSpecial = module === "varslinger" && data.systemNotifications;
+  const subsystemsSpecial = module === "undersystemer" && data.systemSubsystems;
+  const roborockSpecial = module === "renhold" && data.roborock;
   const visibleTables = module !== "koble"
     ? data.tables
     : view === "treffgrunnlag"
@@ -228,9 +283,9 @@ export function ModuleContent({ data, config, reload, coreUrl, module, view }: {
       : view === "jobb"
         ? data.tables.filter((table) => ["Jobbparametere", "Sist behandlet"].includes(table.title))
         : [];
-  const hidesGenericTables = Boolean(sunSessionsSpecial || sunbedSpecial || elviaSpecial || circuitSpecial || settingsSpecial || linkCustomView || bollardsSpecial || doorsSpecial || mobileSpecial || (ventilationSpecial && view === "innstillinger"));
+  const hidesGenericTables = Boolean(sunSessionsSpecial || sunbedSpecial || elviaSpecial || circuitSpecial || settingsSpecial || linkCustomView || bollardsSpecial || doorsSpecial || mobileSpecial || ideasSpecial || notificationsSpecial || subsystemsSpecial || roborockSpecial || (ventilationSpecial && view === "innstillinger"));
   const showActions = module !== "koble" || view === "jobb";
   const showCards = !elviaSpecial && !(linkSpecial && view !== "oversikt");
   const showUpload = Boolean(data.uploadEndpoint && !elviaSpecial);
-  return <div className="space-y-6">{showActions ? <ModuleActions actions={data.actions} reload={reload} accent={config.accent} /> : null}{!doorsSpecial ? <ModuleFilters filters={data.filters} accent={config.accent} /> : null}{data.dayNavigation && !data.sunTimeline ? <DayNavigation data={data.dayNavigation} /> : null}{showUpload ? <UploadPanel endpoint={data.uploadEndpoint!} reload={reload} accent={config.accent} /> : null}{showCards && !bollardsSpecial && !doorsSpecial ? <ModuleCards data={data.cards} config={config} /> : null}{data.sunTimeline ? <SunTimelineView timeline={data.sunTimeline} config={config} /> : null}{ventilationSpecial ? <VentilationSpecial data={data} view={view} reload={reload} /> : null}{sunSessionsSpecial ? <SunSessionsSpecial table={data.tables.find((table) => table.title === "Enkeltimer")} reload={reload} /> : null}{elviaSpecial ? <EnergyElviaSpecial data={elviaSpecial} reload={reload} /> : null}{sunbedSpecial ? <EnergySunbedsSpecial data={sunbedSpecial} /> : null}{circuitSpecial ? <EnergyCircuitLoadsSpecial data={circuitSpecial} reload={reload} /> : null}{data.controlSettings ? <ControlSettingsSpecial settings={data.controlSettings} reload={reload} /> : null}{linkSpecial ? <LinkReviewSpecial review={linkSpecial} view={view} reload={reload} /> : null}{bollardsSpecial ? <BollardsSpecial /> : null}{doorsSpecial ? <DoorsSpecial view={view} /> : null}{mobileSpecial ? <MobilePreviewSpecial table={data.tables[0]} /> : null}{!ventilationSpecial && !elviaSpecial && !bollardsSpecial && !doorsSpecial && !mobileSpecial ? <ModuleCharts charts={data.charts} /> : null}{!hidesGenericTables ? visibleTables.map((table, index) => <DataTable key={`${table.title}-${index}`} table={table} config={config} coreUrl={coreUrl} reload={reload} />) : null}{empty && !ventilationSpecial && !sunSessionsSpecial && !sunbedSpecial && !elviaSpecial && !circuitSpecial && !settingsSpecial && !linkSpecial && !bollardsSpecial && !doorsSpecial && !mobileSpecial ? <Panel title={data.title}><div className="p-6 text-sm text-gray-500 dark:text-gray-400">{data.subtitle || "Denne visningen har ingen data i valgt utvalg."}</div></Panel> : null}</div>;
+  return <div className="space-y-6">{showActions ? <ModuleActions actions={data.actions} reload={reload} accent={config.accent} /> : null}{!doorsSpecial ? <ModuleFilters filters={data.filters} accent={config.accent} /> : null}{data.dayNavigation && !data.sunTimeline ? <DayNavigation data={data.dayNavigation} /> : null}{showUpload ? <UploadPanel endpoint={data.uploadEndpoint!} reload={reload} accent={config.accent} /> : null}{showCards && !bollardsSpecial && !doorsSpecial && !notificationsSpecial && !subsystemsSpecial && !roborockSpecial ? <ModuleCards data={data.cards} config={config} /> : null}{data.sunTimeline ? <SunTimelineView timeline={data.sunTimeline} config={config} /> : null}{ventilationSpecial ? <VentilationSpecial data={data} view={view} reload={reload} /> : null}{sunSessionsSpecial ? <SunSessionsSpecial table={data.tables.find((table) => table.title === "Enkeltimer")} reload={reload} /> : null}{elviaSpecial ? <EnergyElviaSpecial data={elviaSpecial} reload={reload} /> : null}{sunbedSpecial ? <EnergySunbedsSpecial data={sunbedSpecial} /> : null}{circuitSpecial ? <EnergyCircuitLoadsSpecial data={circuitSpecial} reload={reload} /> : null}{data.controlSettings ? <ControlSettingsSpecial settings={data.controlSettings} reload={reload} /> : null}{linkSpecial ? <LinkReviewSpecial review={linkSpecial} view={view} reload={reload} /> : null}{bollardsSpecial ? <BollardsSpecial /> : null}{doorsSpecial ? <DoorsSpecial view={view} /> : null}{mobileSpecial ? <MobilePreviewSpecial table={data.tables[0]} /> : null}{ideasSpecial ? <IdeasSpecial rows={data.tables[0]?.rows || []} /> : null}{notificationsSpecial ? <NotificationsSpecial data={notificationsSpecial} /> : null}{subsystemsSpecial ? <SubsystemsSpecial data={subsystemsSpecial} /> : null}{roborockSpecial ? <RoborockSpecial data={roborockSpecial} /> : null}{!ventilationSpecial && !elviaSpecial && !bollardsSpecial && !doorsSpecial && !mobileSpecial && !ideasSpecial && !notificationsSpecial && !subsystemsSpecial && !roborockSpecial ? <ModuleCharts charts={data.charts} /> : null}{!hidesGenericTables ? visibleTables.map((table, index) => <DataTable key={`${table.title}-${index}`} table={table} config={config} coreUrl={coreUrl} reload={reload} />) : null}{empty && !ventilationSpecial && !sunSessionsSpecial && !sunbedSpecial && !elviaSpecial && !circuitSpecial && !settingsSpecial && !linkSpecial && !bollardsSpecial && !doorsSpecial && !mobileSpecial && !ideasSpecial && !notificationsSpecial && !subsystemsSpecial && !roborockSpecial ? <Panel title={data.title}><div className="p-6 text-sm text-gray-500 dark:text-gray-400">{data.subtitle || "Denne visningen har ingen data i valgt utvalg."}</div></Panel> : null}</div>;
 }

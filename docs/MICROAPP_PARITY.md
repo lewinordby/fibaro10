@@ -7,7 +7,7 @@ direktelenker skal også virke.
 ## Statusforklaring
 
 - **Komplett**: arbeidsflyten finnes i mikroappen og har relevant spesialvisning eller redigering.
-- **Delt**: funksjonen finnes, men presentasjonen deles med den generiske modulvisningen.
+- **Komplett i tabellflate**: funksjonen bruker felles tabellvisning med søk, eksaktsøk, sortering og paginering.
 - **Arkivert**: et tidligere designforsøk, ikke en egen funksjon. Dataene finnes i den valgte sluttvisningen.
 
 ## Omsetning
@@ -44,9 +44,9 @@ direktelenker skal også virke.
 | Dagslinje med energi | Soling / Dagslinje | Komplett |
 | Enkelttimer, Sun2-ID og bildearkiv | Soling / Enkelttimer | Komplett |
 | Periode- og årssammenligning | Soling / Analyse | Komplett fra build 1641 |
-| Prognose og statistikk | Soling / Analyse | Delt |
+| Prognose og statistikk | Soling / Analyse | Komplett i tabellflate |
 | Rom-, måneds-, års- og importdetaljer | Soling / Datadetaljer | Komplett fra build 1641 |
-| Senger, medlemmer og produkter | Soling / Kunder og senger, Oppgjør | Delt |
+| Senger, medlemmer og produkter | Soling / Kunder og senger, Oppgjør | Komplett i tabellflate |
 | Altera-kreditnota og originalbilag | Soling / Oppgjør | Komplett |
 
 ## Koble
@@ -71,7 +71,7 @@ direktelenker skal også virke.
 | Dør, soltime, effekt og dagshendelser | Bygg og drift / Romkontroll | Komplett |
 | Alarmhistorikk og avvik | Bygg og drift / Alarm og Avvik | Komplett fra build 1641 |
 | Pullert, fasade og trapp med bilder og AI | Bygg og drift / Pullerter | Komplett |
-| Roborock-status og historikk | Bygg og drift / Renhold | Delt |
+| Roborock-status, kart, planer, forbruksdeler og historikk | Bygg og drift / Renhold | Komplett |
 
 Alternative sider med navn som oversikt-ny, romkontroll-ny, romkontroll-ny2, solrom-ny,
 Solrom-2 og Dører2 er fortsatt tilgjengelige under **Alternative dørvisninger**. De beholdes som
@@ -84,8 +84,8 @@ egne vurderingsflater inntil brukeren har valgt hvilke visninger som skal være 
 | Sanntid, fordeling og historikk | Energi / Status | Komplett |
 | Elvia mot HC3 | Energi / Kontroll | Komplett |
 | Elvia-opplasting | Energi / Import | Komplett |
-| Kurs, Z-Wave-enheter, målere og laster | Energi / Kurs og last | Komplett |
-| Redigering av kurser og laster | Energi / Kurser og Laster | Komplett |
+| Kurs, Z-Wave-enheter, utganger, målere og laster | Energi / Kurs og last | Komplett |
+| Redigering av hierarki, HC3-koblinger, samlemålere og laster | Energi / Kurs og last | Komplett |
 | Forbruk per solseng | Energi / Forbruk per seng | Komplett |
 
 ## Vedlikehold
@@ -94,7 +94,7 @@ egne vurderingsflater inntil brukeren har valgt hvilke visninger som skal være 
 | --- | --- | --- |
 | Opprette, søke og redigere oppgaver | Vedlikehold / Oppgaver | Komplett |
 | Besøk fra OwnTracks | Vedlikehold / Besøk | Komplett |
-| Besøksnotat og tilknyttede oppgaver | Besøksdetalj | Komplett |
+| Besøksnotat, rå OwnTracks-data og tilknyttede oppgaver | Besøksdetalj | Komplett |
 
 ## System
 
@@ -103,11 +103,18 @@ egne vurderingsflater inntil brukeren har valgt hvilke visninger som skal være 
 | Datakilder, planer og kjøringer | System / Datakilder | Komplett |
 | Jobber, kontroll og datakvalitet | System / Drift | Komplett |
 | Brukere, roller og passord | System / Brukere | Komplett |
-| Varslingsabonnement | System / Varslinger | Komplett |
-| Systemkart og klikkbare undersystemer | System / Arkitektur | Komplett |
+| Varslingsabonnement med direkte åpning i ntfy | System / Varslinger | Komplett |
+| Systemkart og filtrerbare, klikkbare undersystemer | System / Arkitektur | Komplett |
 | Manual med kapitler | System / Manual | Komplett |
 | Buildlogg og builddetaljer | System / Buildlogg | Komplett |
 | Mobilforhåndsvisninger | System / Mobilflater | Komplett |
+| Idébank med mål, byggetrinn og kontrollpunkter | System / Ideer | Komplett |
+
+## Felles arbeidsflyter
+
+Alle tabellbaserte sider skal ha stabil sortering. Tabeller med minst åtte lokale rader skal ha søk,
+og anførselstegn rundt søketeksten skal gi eksakt token-treff. Store lokale tabeller sideinndeles med
+valg mellom 25, 50 og 100 rader. Serverpaginering og serverfiltre skal beholdes når API-et tilbyr dette.
 
 ## Testkrav
 
@@ -119,3 +126,4 @@ Før utrulling skal minst følgende være grønt:
 4. Direkte lasting av alle nye ruter etter innlogging.
 5. API-respons uten 401, 403, 404 eller 5xx på spesialvisningene.
 6. Visuell kontroll i lys modus på desktop.
+7. Direkte handlinger som abonnement, opplasting, redigering og detaljåpning skal prøves uten å endre produksjonsdata.

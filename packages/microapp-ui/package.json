@@ -10,7 +10,8 @@
     "./hooks": "./src/hooks.ts",
     "./navigation": "./src/navigation.ts",
     "./primitives": "./src/primitives.ts",
-    "./router": "./src/router.tsx"
+    "./router": "./src/router.tsx",
+    "./table": "./src/table.ts"
   },
   "peerDependencies": {
     "chart.js": "^4.4.7",

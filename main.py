@@ -30599,6 +30599,24 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     api_card("Feil", sum(1 for row in statuses[:20] if row.error_code and row.error_code != 0), "siste", "Siste 20 statuser", "status", href="/renhold/roboter"),
                 ],
                 "tables": tables,
+                "roborock": {
+                    "robots": [
+                        {
+                            "duid": robot.duid,
+                            "name": robot.name,
+                            "model": robot.model,
+                            "cloud_online": robot.cloud_online,
+                            "local_ip": robot.local_ip,
+                            "last_seen_at": robot.last_seen_at,
+                            "last_error": robot.last_error,
+                            "state_name": latest_status_by_robot.get(robot.duid).state_name if latest_status_by_robot.get(robot.duid) else None,
+                            "battery": latest_status_by_robot.get(robot.duid).battery if latest_status_by_robot.get(robot.duid) else None,
+                            "error_code": latest_status_by_robot.get(robot.duid).error_code if latest_status_by_robot.get(robot.duid) else None,
+                            "status_at": latest_status_by_robot.get(robot.duid).timestamp if latest_status_by_robot.get(robot.duid) else None,
+                        }
+                        for robot in robots
+                    ]
+                },
             }
 
         if module == "vedlikehold":
@@ -37155,6 +37173,126 @@ async def cleaning_overview(request: Request):
             "next_schedules": next_schedules,
         },
     )
+
+
+@app.get("/api/renhold/robots/{duid}")
+async def api_cleaning_robot_detail(duid: str):
+    async with async_session() as session:
+        robot = (await session.execute(select(RoborockRobot).where(RoborockRobot.duid == duid))).scalars().first()
+        if not robot:
+            raise HTTPException(status_code=404, detail="Ukjent robot")
+        statuses = (
+            await session.execute(
+                select(RoborockStatusSample)
+                .where(RoborockStatusSample.robot_duid == duid)
+                .order_by(RoborockStatusSample.timestamp.desc())
+                .limit(100)
+            )
+        ).scalars().all()
+        jobs = (
+            await session.execute(
+                select(RoborockCleanJob)
+                .where(RoborockCleanJob.robot_duid == duid)
+                .order_by(RoborockCleanJob.begin_at.desc())
+                .limit(50)
+            )
+        ).scalars().all()
+        schedules = (
+            await session.execute(
+                select(RoborockSchedule)
+                .where(RoborockSchedule.robot_duid == duid)
+                .order_by(RoborockSchedule.cron)
+            )
+        ).scalars().all()
+        consumables = (
+            await session.execute(
+                select(RoborockConsumableSnapshot)
+                .where(RoborockConsumableSnapshot.robot_duid == duid)
+                .order_by(RoborockConsumableSnapshot.timestamp.desc())
+                .limit(1)
+            )
+        ).scalars().first()
+        latest_map = (
+            await session.execute(
+                select(RoborockMapSnapshot)
+                .where(RoborockMapSnapshot.robot_duid == duid)
+                .order_by(RoborockMapSnapshot.timestamp.desc())
+                .limit(1)
+            )
+        ).scalars().first()
+
+    latest_status = statuses[0] if statuses else None
+    metadata = ((robot.extra or {}).get("metadata") or {}) if isinstance(robot.extra, dict) else {}
+    latest_raw = latest_status.raw if latest_status and isinstance(latest_status.raw, dict) else {}
+    network = latest_raw.get("network") if isinstance(latest_raw.get("network"), dict) else {}
+    status_rows = []
+    for row in statuses:
+        item = row_to_dict(row, [column for column in ROBOROCK_STATUS_COLUMNS if column != "raw"])
+        item.update(
+            {
+                "state_label": roborock_state_label(row.state_code),
+                "error_label": roborock_error_label(row.error_code),
+                "fan_label": roborock_fan_label(row.fan_power),
+                "mop_label": roborock_mop_label(row.mop_mode),
+                "charge_label": roborock_charge_label(row.charge_status),
+                "signal_label": roborock_signal_label(row.rssi),
+            }
+        )
+        status_rows.append(item)
+    job_rows = []
+    for row in jobs:
+        item = row_to_dict(row, [column for column in ROBOROCK_JOB_COLUMNS if column != "raw"])
+        item.update(
+            {
+                "complete_label": roborock_bool_label(row.complete),
+                "error_label": roborock_error_label(row.error_code),
+                "rounds_label": roborock_rounds_label(row.clean_times),
+            }
+        )
+        job_rows.append(item)
+    schedule_rows = []
+    for row in schedules:
+        item = row_to_dict(row, [column for column in ROBOROCK_SCHEDULE_COLUMNS if column != "raw"])
+        item.update(
+            {
+                "schedule_label": roborock_schedule_text(row),
+                "enabled_label": roborock_bool_label(row.enabled),
+                "rounds_label": roborock_rounds_label(row.repeat),
+                "fan_label": roborock_fan_label(row.fan_power),
+                "mop_label": roborock_mop_label(row.mop_mode),
+                "water_label": roborock_water_label(row.water_box_mode),
+            }
+        )
+        schedule_rows.append(item)
+    consumable_data = None
+    if consumables:
+        consumable_data = {
+            "timestamp": api_local_iso(consumables.timestamp),
+            "main_brush": format_seconds_as_hours(consumables.main_brush_work_time),
+            "side_brush": format_seconds_as_hours(consumables.side_brush_work_time),
+            "filter": format_seconds_as_hours(consumables.filter_work_time),
+            "sensor": format_seconds_as_hours(consumables.sensor_dirty_time),
+            "dust_collection": consumables.dust_collection_work_times,
+        }
+    map_data = None
+    if latest_map:
+        map_data = {
+            **row_to_dict(latest_map, [column for column in ROBOROCK_MAP_COLUMNS if column != "raw"]),
+            "imageDataUrl": f"data:image/png;base64,{latest_map.image_base64}" if latest_map.image_base64 else None,
+        }
+    robot_data = row_to_dict(robot, [column for column in ROBOROCK_ROBOT_COLUMNS if column not in {"extra", "capabilities"}])
+    robot_data.update({"shared_label": roborock_bool_label(robot.shared), "cloud_label": roborock_bool_label(robot.cloud_online)})
+    return {
+        "robot": robot_data,
+        "metadata": metadata,
+        "network": network,
+        "latestStatus": status_rows[0] if status_rows else None,
+        "statuses": status_rows,
+        "jobs": job_rows,
+        "schedules": schedule_rows,
+        "consumables": consumable_data,
+        "latestMap": map_data,
+    }
 
 
 @app.get("/renhold/robot/{duid}", response_class=HTMLResponse)

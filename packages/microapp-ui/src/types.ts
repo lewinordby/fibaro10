@@ -202,7 +202,79 @@ export type ModuleResponse = {
   energyElvia?: EnergyElviaData | null;
   energySunbeds?: EnergySunbedsData | null;
   energyCircuitLoads?: EnergyCircuitLoadsData | null;
+  systemNotifications?: SystemNotificationsData | null;
+  systemSubsystems?: SystemSubsystemsData | null;
+  roborock?: RoborockModuleData | null;
   uploadEndpoint?: string;
+};
+
+export type SystemNotificationChannel = {
+  key: string;
+  title: string;
+  area: string;
+  description: string;
+  triggers: string[];
+  priority: string;
+  configured: boolean;
+  publishingEnabled: boolean;
+  subscribeUrl?: string;
+  webUrl?: string;
+};
+
+export type SystemNotificationsData = {
+  provider: string;
+  providerUrl?: string;
+  privacy: string;
+  summary: { channels: number; configured: number; publishing: number };
+  subscriptions: SystemNotificationChannel[];
+  setup: string[];
+};
+
+export type SystemSubsystem = {
+  component: string;
+  title: string;
+  area: string;
+  role: string;
+  runtime: string;
+  compose_service?: string;
+  status: string;
+  criticality: string;
+  access: "external" | "local" | "internal";
+  primary_url?: string;
+  links: Array<{ kind: "public" | "local" | "health"; label: string; url: string }>;
+};
+
+export type SystemSubsystemsData = {
+  summary: { components: number; active: number; critical: number; web_interfaces: number };
+  subsystems: SystemSubsystem[];
+};
+
+export type RoborockRobotSummary = {
+  duid: string;
+  name: string;
+  model?: string | null;
+  cloud_online?: boolean | null;
+  local_ip?: string | null;
+  last_seen_at?: string | null;
+  last_error?: string | null;
+  state_name?: string | null;
+  battery?: number | null;
+  error_code?: number | null;
+  status_at?: string | null;
+};
+
+export type RoborockModuleData = { robots: RoborockRobotSummary[] };
+
+export type RoborockRobotDetail = {
+  robot: JsonRecord;
+  metadata: JsonRecord;
+  network: JsonRecord;
+  latestStatus: JsonRecord | null;
+  schedules: JsonRecord[];
+  jobs: JsonRecord[];
+  statuses: JsonRecord[];
+  consumables: JsonRecord | null;
+  latestMap: (JsonRecord & { imageDataUrl?: string | null }) | null;
 };
 
 export type ParkingTimeline = {
@@ -379,10 +451,16 @@ export type VentilationData = {
 export type EnergySunbedRoom = { room_id?: string | null; label: string; sun2_bed_id?: string | null; bed_model?: string | null; samples_count: number; sessions_count: number; avg_w?: number | null; estimate_w?: number | null; p25_w?: number | null; p75_w?: number | null; kwh_15_min?: number | null; estimated_kwh?: number | null; confidence: string };
 export type EnergySunbedObservation = { session_id: number; label: string; start: string | null; duration_minutes?: number | null; samples_count: number; avg_w?: number | null; avg_observed_w?: number | null; avg_baseline_w?: number | null; estimated_kwh?: number | null };
 export type EnergySunbedsData = { dateFrom: string; dateTo: string; maxDays: number; maxPower: number; rooms: EnergySunbedRoom[]; observations: EnergySunbedObservation[]; summary: JsonRecord };
-export type EnergyLoadItem = { id: number; name: string; loadType?: string | null; area?: string | null; powerProfile?: string | null; expectedPowerW?: number | null; minPowerW?: number | null; maxPowerW?: number | null; energyNodeId?: number | null; active?: boolean | null; critical?: boolean | null; note?: string | null };
-export type EnergyNode = { id: number; name: string; circuitNo?: number | null; parentNodeId?: number | null; nodeType: string; manufacturer?: string | null; model?: string | null; hc3DeviceId?: number | null; hc3PowerDeviceId?: number | null; hc3EnergyDeviceId?: number | null; hc3SwitchDeviceId?: number | null; hasMeter: boolean; hasSwitch: boolean; active: boolean; currentPowerW?: number | null; switchState?: boolean | null; liveStatus?: string | null; loads: EnergyLoadItem[]; children: EnergyNode[] };
-export type EnergyCircuit = { key: string; circuitNo?: number | null; description?: string | null; breaker?: string | null; status?: string | null; isSunbed: boolean; loadCount: number; nodeCount: number; expectedPowerW: number; currentPowerW?: number | null; measurementMode: string; measurementDetail: string; directLoads: EnergyLoadItem[]; nodes: EnergyNode[] };
-export type EnergyCircuitLoadsData = { canManage?: boolean; summary: JsonRecord; aggregateMeters: Array<{ key: string; label: string; realtimeId: number; accumulatedId: number; description?: string | null; mappedNodeCount?: number }>; circuits: EnergyCircuit[] };
+export type EnergyLoadItem = { id: number; name: string; loadType?: string | null; area?: string | null; powerProfile?: "unknown" | "fixed" | "variable" | string | null; expectedPowerW?: number | null; minPowerW?: number | null; maxPowerW?: number | null; measuredDirect?: boolean | null; energyNodeId?: number | null; fibaroDeviceId?: number | null; fibaroMeterId?: number | null; zwaveSwitchId?: number | null; controllable?: boolean | null; active?: boolean | null; critical?: boolean | null; note?: string | null };
+export type EnergyAggregateMeter = { key: string; label: string; realtimeId: number; accumulatedId: number; description?: string | null; special?: boolean; mappedNodeCount?: number; memberPowerIds?: number[] };
+export type EnergyNodeLive = { nodeId: number; status: string; checkedAt?: string | null; currentPowerW?: number | null; currentEnergyKwh?: number | null; switchState?: boolean | null; deviceName?: string | null; powerDeviceName?: string | null; energyDeviceName?: string | null; switchDeviceName?: string | null; dead?: boolean | null; enabled?: boolean | null; error?: string | null };
+export type EnergyAggregateLive = { key: string; status: string; currentPowerW?: number | null; currentEnergyKwh?: number | null; error?: string | null };
+export type Hc3EnergyDevice = { id: number; name?: string | null; type?: string | null; baseType?: string | null; parentId?: number | null; roomId?: number | null; manufacturer?: string | null; model?: string | null; value?: unknown; powerW?: number | null; energyKwh?: number | null; switchState?: boolean | null; hasPower?: boolean; hasEnergy?: boolean; hasSwitch?: boolean; dead?: boolean | null; enabled?: boolean | null; visible?: boolean | null };
+export type Hc3EnergyDevicesResponse = { source: string; error?: string | null; count: number; devices: Hc3EnergyDevice[] };
+export type EnergyNodesLiveResponse = { checkedAt: string; configured: boolean; nodes: Record<string, EnergyNodeLive>; aggregateMeters?: Record<string, EnergyAggregateLive> };
+export type EnergyNode = { id: number; name: string; circuitNo?: number | null; parentNodeId?: number | null; nodeType: string; manufacturer?: string | null; model?: string | null; deviceType?: string | null; hc3DeviceId?: number | null; hc3PowerDeviceId?: number | null; hc3EnergyDeviceId?: number | null; hc3SwitchDeviceId?: number | null; aggregateGroupKey?: string | null; aggregateMeter?: EnergyAggregateMeter | null; endpointKey?: string | null; hasMeter: boolean; hasSwitch: boolean; area?: string | null; active: boolean; note?: string | null; loadCount: number; activeLoadCount: number; expectedPowerW: number; currentPowerW?: number | null; switchState?: boolean | null; liveStatus?: string | null; liveCheckedAt?: string | null; topologyWarning?: string | null; loads: EnergyLoadItem[]; children: EnergyNode[] };
+export type EnergyCircuit = { key: string; circuitNo?: number | null; description?: string | null; breaker?: string | null; breakerType?: string | null; status?: string | null; isSunbed: boolean; note?: string | null; loadCount: number; activeLoadCount: number; nodeCount: number; expectedPowerW: number; currentPowerW?: number | null; measuredLoadCount: number; unmeasuredLoadCount: number; measurementMode: string; measurementDetail: string; directLoads: EnergyLoadItem[]; nodes: EnergyNode[] };
+export type EnergyCircuitLoadsData = { canManage?: boolean; summary: JsonRecord; aggregateMeters: EnergyAggregateMeter[]; circuits: EnergyCircuit[] };
 
 export type OperationsOverviewResponse = {
   generatedAt: string;

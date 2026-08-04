@@ -72,6 +72,21 @@ async def subsystems_module(request: Request, client: httpx.AsyncClient, headers
             "health_url": f"{app_url}/health" if app_url else "",
         })
         known_components.add(component)
+    for row in subsystem_rows:
+        component = str(row.get("component") or "ukjent")
+        primary_url = str(row.get("primary_url") or row.get("web_url") or row.get("local_url") or "")
+        local_url = str(row.get("local_url") or "")
+        health_url = str(row.get("health_url") or "")
+        row.setdefault("title", component.replace("_", " ").title())
+        row.setdefault("primary_url", primary_url)
+        row.setdefault("access", "external" if row.get("web_url") else "local" if primary_url or local_url else "internal")
+        if not isinstance(row.get("links"), list):
+            links = []
+            if primary_url:
+                links.append({"kind": "local", "label": "Åpne", "url": primary_url})
+            if health_url and health_url not in {primary_url, local_url}:
+                links.append({"kind": "health", "label": "Helsesjekk", "url": health_url})
+            row["links"] = links
     summary = data.get("summary", {})
     active_count = sum(1 for row in subsystem_rows if str(row.get("status") or "").lower().startswith("aktiv"))
     cards = [
@@ -86,7 +101,21 @@ async def subsystems_module(request: Request, client: httpx.AsyncClient, headers
         "kritikalitet": row.get("criticality"), "url": row.get("primary_url") or row.get("local_url") or row.get("web_url"),
         "health": row.get("health_url"),
     } for row in subsystem_rows]
-    return {"title": "Undersystemer", "subtitle": "Alle apper, tjenester og webflater i Lilletorget-l\u00f8sningen", "cards": cards, "tables": [{"title": "Systemkatalog", "columns": ["komponent", "omr\u00e5de", "rolle", "runtime", "tjeneste", "status", "kritikalitet", "url", "health"], "rows": rows}]}
+    return {
+        "title": "Undersystemer",
+        "subtitle": "Alle apper, tjenester og webflater i Lilletorget-l\u00f8sningen",
+        "cards": cards,
+        "tables": [{"title": "Systemkatalog", "columns": ["komponent", "omr\u00e5de", "rolle", "runtime", "tjeneste", "status", "kritikalitet", "url", "health"], "rows": rows}],
+        "systemSubsystems": {
+            "summary": {
+                **summary,
+                "components": len(subsystem_rows),
+                "active": active_count,
+                "web_interfaces": sum(1 for row in subsystem_rows if row.get("primary_url") or row.get("local_url") or row.get("web_url")),
+            },
+            "subsystems": subsystem_rows,
+        },
+    }
 
 
 async def notifications_module(request: Request, client: httpx.AsyncClient, headers: dict[str, str]) -> dict[str, Any]:
@@ -104,7 +133,13 @@ async def notifications_module(request: Request, client: httpx.AsyncClient, head
         "publiserer": row.get("publishingEnabled"), "abonner": row.get("subscribeUrl"), "historikk": row.get("webUrl"),
     } for row in data.get("subscriptions", [])]
     setup_rows = [{"trinn": index + 1, "forklaring": value} for index, value in enumerate(data.get("setup", []))]
-    return {"title": "Varslinger og abonnement", "subtitle": data.get("privacy", "ntfy-kanaler for varsler fra l\u00f8sningen"), "cards": cards, "tables": [{"title": "Kanaler", "columns": ["kanal", "omr\u00e5de", "forklaring", "utl\u00f8ses av", "prioritet", "konfigurert", "publiserer", "abonner", "historikk"], "rows": rows}, {"title": "Slik abonnerer du", "columns": ["trinn", "forklaring"], "rows": setup_rows}]}
+    return {
+        "title": "Varslinger og abonnement",
+        "subtitle": data.get("privacy", "ntfy-kanaler for varsler fra l\u00f8sningen"),
+        "cards": cards,
+        "tables": [{"title": "Kanaler", "columns": ["kanal", "omr\u00e5de", "forklaring", "utl\u00f8ses av", "prioritet", "konfigurert", "publiserer", "abonner", "historikk"], "rows": rows}, {"title": "Slik abonnerer du", "columns": ["trinn", "forklaring"], "rows": setup_rows}],
+        "systemNotifications": data,
+    }
 
 
 def scalar_row(row: dict[str, Any]) -> dict[str, Any]:
@@ -179,21 +214,25 @@ async def mobile_module(request: Request, client: httpx.AsyncClient, headers: di
 
 async def ideas_module(request: Request, client: httpx.AsyncClient, headers: dict[str, str]) -> dict[str, Any]:
     rows = [
-        {"kategori": "kontroll", "omr\u00e5de": "Omsetning", "forslag": "Endringsforklaring", "nytte": "H\u00f8y", "status": "Klar \u00e5 bygge", "m\u00e5l": "Vis hvorfor omsetningen endret seg mellom importer."},
-        {"kategori": "kontroll,innsikt", "omr\u00e5de": "Omsetning", "forslag": "Samlet oppgj\u00f8rskontroll", "nytte": "H\u00f8y", "status": "B\u00f8r vurderes", "m\u00e5l": "Parkering, soling og produkter i ett kontrollbilde."},
-        {"kategori": "kontroll,automatisering", "omr\u00e5de": "Parkering", "forslag": "Kildeavstemming", "nytte": "H\u00f8y", "status": "Klar \u00e5 bygge", "m\u00e5l": "EasyPark, Flowbird, kj\u00f8ret\u00f8y og omr\u00e5de mot hverandre."},
-        {"kategori": "automatisering,arbeidsflyt", "omr\u00e5de": "Soling", "forslag": "Bildekontrollk\u00f8", "nytte": "Middels", "status": "Klar \u00e5 bygge", "m\u00e5l": "Rask kontroll av manglende og usikre hovedbilder."},
-        {"kategori": "innsikt,arbeidsflyt", "omr\u00e5de": "Koble", "forslag": "Forklarbar sannsynlighet", "nytte": "H\u00f8y", "status": "Eksperiment", "m\u00e5l": "Vis positive og negative bevis for bil mot Sun2-ID."},
-        {"kategori": "automatisering", "omr\u00e5de": "Drift", "forslag": "Importkalender", "nytte": "Middels", "status": "Klar \u00e5 bygge", "m\u00e5l": "Planlagt mot faktisk kj\u00f8ring med varighet og avvik."},
-        {"kategori": "innsikt", "omr\u00e5de": "Energi", "forslag": "Energi mot inntekt", "nytte": "Middels", "status": "Krever datagrunnlag", "m\u00e5l": "Kostnad og margin per dag, time og solseng."},
-        {"kategori": "kontroll,automatisering,arbeidsflyt", "omr\u00e5de": "System", "forslag": "Datakvalitet som innboks", "nytte": "H\u00f8y", "status": "B\u00f8r vurderes", "m\u00e5l": "Samle avvik som m\u00e5 rettes, bekreftes eller f\u00f8lges opp."},
+        {"id": "revenue-change-ledger", "kategori": "kontroll", "område": "Omsetning", "forslag": "Endringsforklaring for omsetning", "oppsummering": "Vis hvorfor dagens omsetning endret seg siden forrige oppdatering, med kilde og før/etter-tall.", "nytte": "Høy", "status": "Klar å bygge", "mål": "Omsetning og Dashboard", "hvorfor": "EasyPark og Sun2 kan oppdatere gamle rader slik at totalen flytter seg uten nye hendelser.", "må_bygges": ["Periodiske snapshots av nøkkeltall", "Endring per datakilde", "Skille ny, oppdatert og korrigert rad"], "kontrollpunkter": ["Samme kuttetidspunkt som dashboard", "Beløp og antall må avstemmes"]},
+        {"id": "settlement-control-center", "kategori": "kontroll,innsikt", "område": "Omsetning", "forslag": "Oppgjørskontroll samlet", "oppsummering": "Ett kontrollbilde for parkering, soling og produkter mot innleste oppgjør.", "nytte": "Høy", "status": "Bør vurderes", "mål": "Omsetning", "hvorfor": "En samlet flate gjør det enkelt å se om en måned er ferdig avstemt.", "må_bygges": ["Samle kontrollstatus fra fagappene", "Avvik og status per måned", "Lenke til originalbilag"], "kontrollpunkter": ["Detaljsidene beholdes", "Filter på år og status"]},
+        {"id": "parking-source-reconciliation", "kategori": "kontroll,automatisering", "område": "Parkering", "forslag": "Parkeringskilde-avstemming", "oppsummering": "Kontroller EasyPark, Flowbird/ParkNordic, kjøretøyoppslag og område mot hverandre.", "nytte": "Høy", "status": "Klar å bygge", "mål": "Parkering", "hvorfor": "Manglende område eller kjøretøydata kan gi feil analyser og bør samles i en arbeidsliste.", "må_bygges": ["Liste manglende område, kjøretøy og eier", "Skille SVV, Sverige og Danmark", "Vise siste og neste forsøk"], "kontrollpunkter": ["Oppslag kjøres i bakgrunnen", "Manuell overstyring må være tydelig"]},
+        {"id": "sun-image-review-queue", "kategori": "automatisering,arbeidsflyt", "område": "Soling", "forslag": "Bildekontrollkø for soltimer", "oppsummering": "Rask arbeidsflate for soltimer som mangler eller har usikkert hovedbilde.", "nytte": "Middels", "status": "Klar å bygge", "mål": "Soling", "hvorfor": "Detaljvisningen er tung når mange timer skal kontrolleres etter hverandre.", "må_bygges": ["Kø med usikre bilder", "Fem kandidater og tastaturstyring", "Sett hovedbilde, hopp over og marker OK"], "kontrollpunkter": ["Ingen arkivbilder endres uten lagring", "Sun2-ID, rom og tid vises tydelig"]},
+        {"id": "link-confidence-lab", "kategori": "innsikt,arbeidsflyt", "område": "Koble", "forslag": "Koblingslab for parkering og soling", "oppsummering": "Forklar hvorfor en bil og en Sun2-ID sannsynligvis hører sammen.", "nytte": "Høy", "status": "Eksperiment", "mål": "Koble", "hvorfor": "Forslag er først nyttige når det er raskt å forstå hvorfor koblingen er sterk eller svak.", "må_bygges": ["Felles tidslinje", "Forklarbare scorekriterier", "Lære av bekreftede koblinger"], "kontrollpunkter": ["Vise positive og negative bevis", "Aldri automatisk bekrefte"]},
+        {"id": "import-calendar", "kategori": "automatisering", "område": "Drift", "forslag": "Importkalender og neste kjøring", "oppsummering": "Vis planlagte og faktiske importer med varighet og avvik.", "nytte": "Middels", "status": "Klar å bygge", "mål": "System og Dashboard", "hvorfor": "Manglende eller forsinkede importer bør oppdages uten å lese logger.", "må_bygges": ["Samle planlagte tidspunkt", "Vise faktisk kjøring og forsinkelse", "Varsle når en kilde er gammel"], "kontrollpunkter": ["Skille faste tidspunkt og intervaller", "All tid vises som lokal tid"]},
+        {"id": "energy-revenue-model", "kategori": "innsikt", "område": "Energi", "forslag": "Energi mot inntekt", "oppsummering": "Koble strøm, Elvia, soltimer og omsetning for å se margin og avvik.", "nytte": "Middels", "status": "Krever datagrunnlag", "mål": "Energi", "hvorfor": "Forbruk per seng sammen med inntekt kan avdekke målefeil, driftsavvik og svak prising.", "må_bygges": ["Kostnad per dag, time og seng", "Koble forbruk mot soltid", "Forventet mot målt forbruk"], "kontrollpunkter": ["Håndtere umålte laster", "Vise kvalitet på grunnlaget"]},
+        {"id": "data-quality-inbox", "kategori": "kontroll,automatisering,arbeidsflyt", "område": "System", "forslag": "Datakvalitet som innboks", "oppsummering": "Felles innboks for ting som må rettes, bekreftes eller følges opp.", "nytte": "Høy", "status": "Bør vurderes", "mål": "System", "hvorfor": "Arbeidslister ligger i dag på flere sider og bør kunne håndteres samlet.", "må_bygges": ["Oppgaver fra dataavvik", "Ansvar, alvorlighet og lenke", "Automatisk lukking når avvik er rettet"], "kontrollpunkter": ["Ikke lage parallell datamodell", "Støtte raske massehandlinger"]},
+        {"id": "forecast-explainer", "kategori": "innsikt", "område": "Omsetning", "forslag": "Forklarbar prognose", "oppsummering": "Vis hvilke faktorer som trekker prognosen opp eller ned.", "nytte": "Middels", "status": "Eksperiment", "mål": "Omsetning, Parkering og Soling", "hvorfor": "Prognosen er mer nyttig når vær, ukedag, historikk og datakvalitet er synlig.", "må_bygges": ["Faktorbidrag per kjøring", "Endring fra forrige prognose", "Markere svakt datagrunnlag"], "kontrollpunkter": ["Unngå falsk presisjon", "Start med forklaring før modellendring"]},
+        {"id": "alert-rules", "kategori": "automatisering", "område": "Drift", "forslag": "Varslingsregler", "oppsummering": "Egne regler for importstopp, omsetningsfall, oppslagsfeil og energiavvik.", "nytte": "Middels", "status": "Bør vurderes", "mål": "System", "hvorfor": "Feil bør bli operative varsler før de oppdages tilfeldig.", "må_bygges": ["Terskel, stillhetstid og alvorlighet", "Varslingskanaler", "Historikk og falske positive"], "kontrollpunkter": ["Lett å dempe støy", "Ta hensyn til åpningstid"]},
+        {"id": "audit-safe-actions", "kategori": "kontroll,arbeidsflyt", "område": "System", "forslag": "Sikker handlingslogg", "oppsummering": "Logg manuelle endringer, hvem som gjorde dem og hva som ble endret.", "nytte": "Høy", "status": "Klar å bygge", "mål": "System", "hvorfor": "Redigering av bilder, oppgjør og koblinger bør være sporbar.", "må_bygges": ["Felles audit-tabell", "Historikk på detaljsider", "Før- og etterverdi"], "kontrollpunkter": ["Ikke logge hemmeligheter", "Kobles til innlogging"]},
+        {"id": "api-health-map", "kategori": "arbeidsflyt", "område": "Drift", "forslag": "Avhengighetskart for datakilder", "oppsummering": "Vis hvilke tjenester, containere, API-er og jobber hver side er avhengig av.", "nytte": "Lav", "status": "Bør vurderes", "mål": "System", "hvorfor": "Ved feil må konsekvens og berørte sider kunne finnes raskt.", "må_bygges": ["Kartlegge datakilder", "Vise tilstand og siste feil", "Lenke til berørte sider"], "kontrollpunkter": ["Oppdateres med nye jobber", "Start med kritiske importer"]},
     ]
     view = request.query_params.get("view", "oversikt")
     selected = rows if view == "oversikt" else [row for row in rows if view in row["kategori"].split(",")]
-    ready = sum(1 for row in selected if row["status"] == "Klar \u00e5 bygge")
-    high = sum(1 for row in selected if row["nytte"] == "H\u00f8y")
+    ready = sum(1 for row in selected if row["status"] == "Klar å bygge")
+    high = sum(1 for row in selected if row["nytte"] == "Høy")
     titles = {"kontroll": "Kontroll og avvik", "innsikt": "Analyse og innsikt", "automatisering": "Automatisering", "arbeidsflyt": "Arbeidsflyt"}
-    return {"title": titles.get(view, "Ideer"), "subtitle": "Vurderingsflate f\u00f8r funksjoner flyttes til riktig fagapp", "cards": [card("Forslag", len(selected), "stk"), card("Klar \u00e5 bygge", ready, "stk"), card("H\u00f8y nytte", high, "stk"), card("Omr\u00e5der", len({row["omr\u00e5de"] for row in selected}), "stk")], "tables": [{"title": "Forslag", "columns": ["omr\u00e5de", "forslag", "nytte", "status", "m\u00e5l"], "rows": selected}]}
+    return {"title": titles.get(view, "Ideer"), "subtitle": "Vurderingsflate før funksjoner flyttes til riktig fagapp", "cards": [card("Forslag", len(selected), "stk"), card("Klar å bygge", ready, "stk"), card("Høy nytte", high, "stk"), card("Områder", len({row["område"] for row in selected}), "stk")], "tables": [{"title": "Forslag", "columns": ["område", "forslag", "oppsummering", "nytte", "status", "mål", "hvorfor", "må_bygges", "kontrollpunkter"], "rows": selected}]}
 
 app = create_domain_app(
     DomainAppConfig(

@@ -185,6 +185,10 @@ def test_parity_critical_specialized_views_are_kept_in_microapps() -> None:
     assert "<BollardsSpecial" in module_content
     assert "<DoorsSpecial" in module_content
     assert "<MobilePreviewSpecial" in module_content
+    assert "<IdeasSpecial" in module_content
+    assert "<NotificationsSpecial" in module_content
+    assert "<SubsystemsSpecial" in module_content
+    assert "<RoborockSpecial" in module_content
     assert "/observerte-biler" in routes["parking"]
     assert {"/", "/oversikt", "/periode", "/arsutvikling"} <= routes["parking"]
     assert {"/", "/oversikt", "/periode", "/sammenligning"} <= routes["sun"]
@@ -206,6 +210,54 @@ def test_parity_critical_specialized_views_are_kept_in_microapps() -> None:
     assert {"/ideer/kontroll", "/ideer/innsikt", "/ideer/automatisering", "/ideer/arbeidsflyt"} <= routes["system"]
     assert "/kandidater" in routes["link"]
     assert "/manual/hc3-energi" in routes["system"]
+
+
+def test_shared_tables_keep_search_sorting_and_local_pagination() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    shared = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "ModuleContent.tsx").read_text(encoding="utf-8")
+    parking = (repo_root / "parking_app" / "frontend" / "src" / "components" / "ModuleContent.tsx").read_text(encoding="utf-8")
+    table_utils = (repo_root / "packages" / "microapp-ui" / "src" / "table.ts").read_text(encoding="utf-8")
+    for source in (shared, parking):
+        assert "filterTableRows" in source
+        assert "sortTableRows" in source
+        assert "Søk i tabellen" in source
+        assert "Rader per side" in source
+        assert "toggleSort" in source
+    assert "exactPattern" in table_utils
+    assert "localeCompare" in table_utils
+
+
+def test_energy_topology_editor_keeps_full_hc3_workflow() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    source = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "EnergyCircuitLoads.tsx").read_text(encoding="utf-8")
+    for marker in (
+        "/api/energy/hc3-devices",
+        "/api/energy/nodes/live",
+        "aggregate_group_key",
+        "hc3_power_device_id",
+        "hc3_energy_device_id",
+        "hc3_switch_device_id",
+        "Kartlagt",
+        "Mangler måling",
+        "Åpne alle",
+        "Oppdater nå",
+        "Utgang / kanal",
+        "Logisk samling",
+    ):
+        assert marker in source
+
+
+def test_system_ideas_restore_the_complete_evaluation_content() -> None:
+    with TestClient(system_app) as client:
+        response = client.get("/api/modules/ideer?view=oversikt")
+        assert response.status_code == 200
+        payload = response.json()
+        rows = payload["tables"][0]["rows"]
+        assert len(rows) == 12
+        assert all(row.get("hvorfor") for row in rows)
+        assert all(row.get("må_bygges") for row in rows)
+        assert all(row.get("kontrollpunkter") for row in rows)
+        assert {row["id"] for row in rows} >= {"revenue-change-ledger", "forecast-explainer", "api-health-map"}
 
 
 def test_parking_and_sun_have_domain_specific_dashboards_and_comparisons() -> None:
@@ -250,6 +302,27 @@ def test_shared_tables_link_build_rows_to_their_detail_page() -> None:
     source = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "ModuleContent.tsx").read_text(encoding="utf-8")
     assert 'column === "build"' in source
     assert 'column === "headline"' in source
+
+
+def test_shared_links_support_native_app_schemes() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    source = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "ModuleContent.tsx").read_text(encoding="utf-8")
+    notifications = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "SystemSpecial.tsx").read_text(encoding="utf-8")
+    assert "[a-z0-9+.-]*" in source
+    assert "channel.subscribeUrl" in notifications
+    assert "Abonner" in notifications
+    assert "Åpne kanal" in notifications
+
+
+def test_roborock_details_no_longer_depend_on_the_classic_ui() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    core = (repo_root / "main.py").read_text(encoding="utf-8")
+    detail = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "RoborockSpecial.tsx").read_text(encoding="utf-8")
+    assert '@app.get("/api/renhold/robots/{duid}")' in core
+    assert '"roborock": {' in core
+    for marker in ("Siste kart", "Forbruksdeler", "Planlagte jobber", "Siste rengjøringer", "Statushistorikk"):
+        assert marker in detail
+    assert "/api/renhold/robots/" in detail
 
 
 def test_specialized_views_have_narrow_proxy_access() -> None:
