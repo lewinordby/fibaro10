@@ -1,4 +1,7 @@
 export { DomainApp } from "./DomainApp";
+export { CountDashboardSpecial } from "./components/CountDashboardSpecial";
+export { CountComparisonSpecial } from "./components/CountComparisonSpecial";
+export { YearComparisonSpecial } from "./components/YearComparisonSpecial";
 export { Layout as DomainLayout } from "./components/Layout";
 export { Chart, mosaicChartColors } from "./components/Chart";
 export type { MosaicChartConfig, MosaicChartDataset } from "./components/Chart";

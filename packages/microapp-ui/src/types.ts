@@ -408,6 +408,118 @@ export type OperationsOverviewResponse = {
   }>;
 };
 
+export type BusinessPeriodComparison = {
+  label: string;
+  sol: number;
+  solCount: number;
+  parking: number;
+  parkingCount: number;
+  total: number;
+  fullLabel?: string;
+  fullSol?: number;
+  fullSolCount?: number;
+  fullParking?: number;
+  fullParkingCount?: number;
+  fullTotal?: number;
+};
+
+export type BusinessStatusPeriod = {
+  key: string;
+  title: string;
+  total: number;
+  sol: number;
+  solCount: number;
+  parking: number;
+  parkingCount: number;
+  solAsOfLabel: string;
+  parkingAsOfLabel: string;
+  previousLabel: string;
+  previousTotal: number;
+  previousSol: number;
+  previousSolCount: number;
+  previousParking: number;
+  previousParkingCount: number;
+  previousFullLabel?: string;
+  previousFullTotal?: number;
+  previousFullSol?: number;
+  previousFullSolCount?: number;
+  previousFullParking?: number;
+  previousFullParkingCount?: number;
+  extraComparisons?: BusinessPeriodComparison[];
+  rank?: { rank: number; label: string; totalDays?: number } | null;
+};
+
+export type BusinessOverviewResponse = {
+  generatedAt: string;
+  statusPeriods: BusinessStatusPeriod[];
+  services: OperationsOverviewResponse["services"];
+};
+
+export type BusinessComparisonEvent = { left: number; amount: number; label?: string };
+export type BusinessComparisonLane = {
+  source: "current" | "comparison" | "reference";
+  kind: "sun" | "parking";
+  label: string;
+  endLeft?: number;
+  events: BusinessComparisonEvent[];
+};
+export type BusinessComparisonSummary = {
+  label: string;
+  sol: number;
+  solCount: number;
+  parking: number;
+  parkingCount: number;
+  total: number;
+  solAsOfLabel?: string;
+  parkingAsOfLabel?: string;
+};
+export type BusinessComparisonReference = {
+  key: string;
+  label: string;
+  summary: BusinessComparisonSummary;
+  lanes: BusinessComparisonLane[];
+};
+export type BusinessComparisonResponse = {
+  comparisonLabel: string;
+  navigation: { label: string; previousAnchor: string; nextAnchor: string; canNext: boolean };
+  axis: { start?: string; seconds: number };
+  current: BusinessComparisonSummary;
+  comparison: BusinessComparisonSummary;
+  lanes: BusinessComparisonLane[];
+  referenceComparisons?: BusinessComparisonReference[];
+};
+
+export type YearComparisonPoint = {
+  day: number;
+  cumulativeAmount: number;
+  cumulativeCount: number;
+  cumulativeMinutes: number;
+};
+
+export type YearComparisonSeries = {
+  key: string;
+  year: number;
+  label: string;
+  daysWithData: number;
+  totalAmount: number;
+  totalCount: number;
+  totalMinutes: number;
+  points: YearComparisonPoint[];
+};
+
+export type YearComparisonResponse = {
+  anchorYear: number;
+  comparisonYear: number;
+  navigation: { label: string; previousAnchor: string; nextAnchor: string; canPrevious: boolean; canNext: boolean };
+  axis: { days: number };
+  availableYears: number[];
+  series: YearComparisonSeries[];
+  selected: YearComparisonSeries;
+  comparison: YearComparisonSeries;
+  comparisonFull: YearComparisonSeries;
+  delta: { amount: number; count: number; minutes: number };
+};
+
 export type Accent = "violet" | "sky" | "yellow" | "green" | "red";
 export type AppDockId = "revenue" | "parking" | "sun" | "energy" | "operations" | "maintenance" | "system" | "link";
 

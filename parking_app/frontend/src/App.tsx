@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { DomainLayout, getDomainConfig } from "@lilletorget/microapp-ui";
+import { CountComparisonSpecial, CountDashboardSpecial, DomainLayout, getDomainConfig } from "@lilletorget/microapp-ui";
 import { Loading } from "@lilletorget/microapp-ui/primitives";
 import { useAppLocation } from "@lilletorget/microapp-ui/router";
 
@@ -13,7 +13,7 @@ const ObservedCarsPage = lazy(() => import("./pages/ObservedCarsPage"));
 const navigation = getDomainConfig("parking");
 
 const moduleRoutes: Record<string, string> = {
-  "/": "oversikt",
+  "/oversikt": "oversikt",
   "/parkeringer": "parkeringer",
   "/dagslinje": "dagslinje",
   "/kjoretoy": "kjoretoy",
@@ -28,8 +28,9 @@ export default function App() {
   const { pathname } = useAppLocation();
   const vehicle = pathname.match(/^\/kjoretoy\/([^/]+)$/);
   const settlement = pathname.match(/^\/oppgjor\/(\d+)$/);
-  let page = moduleRoutes[pathname] ? <ModulePage view={moduleRoutes[pathname]} /> : <ModulePage view="oversikt" />;
+  let page = pathname === "/" ? <CountDashboardSpecial domain="parking" /> : moduleRoutes[pathname] ? <ModulePage view={moduleRoutes[pathname]} /> : <ModulePage view="oversikt" />;
   if (pathname === "/arsutvikling") page = <YearPage />;
+  else if (pathname === "/periode") page = <CountComparisonSpecial domain="parking" />;
   else if (pathname === "/tidspunkt") page = <TimeDistributionPage />;
   else if (pathname === "/ukesnitt") page = <WeeklyPage />;
   else if (pathname === "/observerte-biler") page = <ObservedCarsPage />;

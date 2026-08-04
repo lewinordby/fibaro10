@@ -7,7 +7,7 @@ from microapp_backend import DomainAppConfig, create_domain_app
 
 
 APP_DIR = Path(__file__).resolve().parents[1]
-MODULES = {"auth/me", "modules/soling"}
+MODULES = {"auth/me", "overview", "modules/soling", "soling/year-comparison", "status/comparison"}
 DOMAIN_PATTERN = re.compile(r"(?:actions/soling|soling|sun2|settlements)(?:/.*)?")
 SESSION_IMAGE_PATTERN = re.compile(r"soling/enkeltimer/\d+/(?:bilde\.jpg|bilder/\d+\.jpg)")
 

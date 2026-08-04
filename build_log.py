@@ -12,6 +12,37 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1641",
+        "date": "04.08.2026",
+        "headline": "Parkering, soling og dører har fått tilbake manglende arbeidsflater",
+        "title": "Paritetskontrollen retter feilruting og gjeninnfører sentrale funksjoner",
+        "description": (
+            "En ny side-for-side-kontroll mot Fibaro10 avdekket at den første migreringskontrollen var for "
+            "overflatisk. Parkering og soling manglet egne aktivitetsdashboard og reelle periodesammenligninger, "
+            "solingens årsside falt stille tilbake til oversikten, og flere operative dørflater var tatt ut av "
+            "menyen. Denne builden retter de konkrete avvikene og låser dem med paritetstester."
+        ),
+        "applications": [
+            "Parkering: eget dashboard, periodesammenligning og korrekt lenke til fagoversikten.",
+            "Soling: eget dashboard, periodesammenligning, fungerende årssammenligning og datadetaljer.",
+            "Bygg og drift: andre dører, dør/soltime, alarm og avvik er igjen separate arbeidsflater.",
+            "System: menyoversikten dokumenterer 97 tilgjengelige sider fra samme navigasjonskilde.",
+        ],
+        "request": "Det er fortsatt masse mangler i den nye applikasjonsstacken sammenlignet med Fibaro10.",
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bygger aktivitetsdashboard for parkering og soling med antall som primærverdi.",
+            "Bygger dag-, uke- og månedssammenligning med relevante referanseperioder og beløpsvalg.",
+            "Gjeninnfører akkumulert årssammenligning for soling uten fallback til feil side.",
+            "Gjeninnfører solingsdetaljer med rom-, måneds-, års- og importgrunnlag.",
+            "Gjeninnfører direkte dørflater for andre dører, alarmhistorikk og dør/soltime-kontroll.",
+            "Bevarer valgt rom og dato i URL slik at oppdatering og deling av romkontroll fungerer.",
+            "Utvider regresjonstestene for kritiske ruter, proxygrenser og spesialvisninger.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1640",
         "date": "04.08.2026",
         "headline": "Buildloggen åpner komplette builddetaljer",

@@ -225,7 +225,7 @@ export function ModuleContent({ data, config, reload, coreUrl, module, view }: {
   const linkSpecial = module === "koble" && data.kobleReview;
   const linkCustomView = Boolean(linkSpecial && ["oversikt", "kandidater", "biltreff", "sun2", "sun2-kontroll"].includes(view));
   const bollardsSpecial = module === "pullerter";
-  const doorsSpecial = module === "dorer" && ["oversikt", "solrom", "romkontroll-ny2"].includes(view);
+  const doorsSpecial = module === "dorer" && ["oversikt", "andre", "solrom", "soltimer", "romkontroll-ny2"].includes(view);
   const mobileSpecial = module === "mobil";
   const visibleTables = module !== "koble"
     ? data.tables

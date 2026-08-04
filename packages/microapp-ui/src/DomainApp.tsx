@@ -1,7 +1,10 @@
 import { domainApi } from "./api";
+import { CountDashboardSpecial } from "./components/CountDashboardSpecial";
+import { CountComparisonSpecial } from "./components/CountComparisonSpecial";
 import { DetailRoute } from "./components/DetailPages";
 import { Layout } from "./components/Layout";
 import { ModuleContent } from "./components/ModuleContent";
+import { YearComparisonSpecial } from "./components/YearComparisonSpecial";
 import { ErrorState, Loading } from "./components/PageState";
 import { useApi } from "./hooks";
 import { findNavigationItem } from "./navigation";
@@ -59,6 +62,9 @@ function operationsModule(data: OperationsOverviewResponse): ModuleResponse {
 function RoutedDomainApp({ config }: { config: DomainUiConfig }) {
   const { pathname, search } = useAppLocation();
   const item = findNavigationItem(config, pathname);
+  const isCountDashboard = item.module === "status" && item.view === "soling";
+  const isCountComparison = item.module === "status" && item.view === "soling-comparison";
+  const isYearComparison = config.appId === "sun" && item.module === "soling" && item.view === "sammenligning";
   const isOperationsOverview = item.module === "status" && item.view === "drift";
   const isDetailRoute = (
     (config.appId === "maintenance" && /^\/besok\/\d+$/.test(pathname))
@@ -66,7 +72,7 @@ function RoutedDomainApp({ config }: { config: DomainUiConfig }) {
     || (config.appId === "sun" && /^\/oppgjor\/\d+$/.test(pathname))
   );
   const result = useApi(
-    async () => isDetailRoute
+    async () => isDetailRoute || isCountDashboard || isCountComparison || isYearComparison
       ? { title: "", subtitle: "", cards: [], tables: [] }
       : isOperationsOverview
         ? operationsModule(await domainApi.operationsOverview())
@@ -81,6 +87,12 @@ function RoutedDomainApp({ config }: { config: DomainUiConfig }) {
       ? <ErrorState error={result.error} onRetry={result.reload} />
       : isDetailRoute
         ? <DetailRoute config={config} pathname={pathname} coreUrl={coreUrl} />
+        : isCountDashboard
+          ? <CountDashboardSpecial domain="sun" />
+          : isCountComparison
+            ? <CountComparisonSpecial domain="sun" />
+          : isYearComparison
+            ? <YearComparisonSpecial domain="soling" />
         : <ModuleContent data={result.data} config={config} reload={result.reload} coreUrl={coreUrl} module={item.module} view={item.view} />}</Layout>;
 }
 

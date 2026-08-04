@@ -12,7 +12,7 @@ export function localParkingPath(path?: string | null) {
   const parsed = new URL(path, window.location.origin);
   const pathname = parsed.pathname;
   const routes: Record<string, string> = {
-    "/parkering/oversikt": "/",
+    "/parkering/oversikt": "/oversikt",
     "/parkering/parkeringer": "/parkeringer",
     "/parkering/dagslinje": "/dagslinje",
     "/parkering/kjoretoy": "/kjoretoy",

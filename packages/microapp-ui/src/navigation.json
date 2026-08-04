@@ -45,7 +45,8 @@
           "label": "Oversikt",
           "icon": "dashboard",
           "items": [
-            { "to": "/", "label": "Oversikt", "icon": "dashboard", "title": "Parkeringsoversikt", "description": "N\u00f8kkeltall, ukesutvikling og siste parkeringer.", "module": "parkering", "view": "oversikt", "corePath": "/parkering/oversikt" }
+            { "to": "/", "label": "Dashboard", "icon": "dashboard", "title": "Parkeringsdashboard", "description": "Dagens, ukens, m\u00e5nedens og \u00e5rets aktivitet sammenlignet med relevante perioder.", "module": "status", "view": "parkering", "corePath": "/status/parkering" },
+            { "to": "/oversikt", "label": "Oversikt", "icon": "chart", "title": "Parkeringsoversikt", "description": "N\u00f8kkeltall, ukesutvikling og siste parkeringer.", "module": "parkering", "view": "oversikt", "corePath": "/parkering/oversikt" }
           ]
         },
         {
@@ -70,6 +71,7 @@
           "label": "Analyse",
           "icon": "chart",
           "items": [
+            { "to": "/periode", "label": "Periode", "icon": "compare", "title": "Periodesammenligning", "description": "Akkumulert antall og bel\u00f8p mot relevante referanseperioder.", "module": "status", "view": "parkering-comparison", "corePath": "/status/sammenligning" },
             { "to": "/prognose", "label": "Prognose", "icon": "trend", "title": "Parkeringsprognose", "description": "Forventet utvikling mot faktisk parkering.", "module": "parkering", "view": "prognose", "corePath": "/parkering/prognose" },
             { "to": "/arsutvikling", "label": "\u00c5r", "icon": "chart", "title": "\u00c5rssammenligning", "description": "Akkumulert parkering sammenlignet mellom \u00e5r.", "module": "parkering", "view": "arsutvikling", "corePath": "/parkering/arsutvikling" },
             { "to": "/tidspunkt", "label": "D\u00f8gn og ukedag", "icon": "clock", "title": "D\u00f8gn og ukedag", "description": "Parkeringstid og omsetning fordelt p\u00e5 tidspunkt.", "module": "parkering", "view": "tidspunkt", "corePath": "/parkering/tidspunkt" },
@@ -98,7 +100,8 @@
           "label": "Oversikt",
           "icon": "dashboard",
           "items": [
-            { "to": "/", "label": "Oversikt", "icon": "dashboard", "title": "Solingsoversikt", "description": "Ukesutvikling, n\u00f8kkeltall og siste solinger.", "module": "soling", "view": "oversikt", "corePath": "/soling/oversikt" }
+            { "to": "/", "label": "Dashboard", "icon": "dashboard", "title": "Solingsdashboard", "description": "Dagens, ukens, m\u00e5nedens og \u00e5rets solinger sammenlignet med relevante perioder.", "module": "status", "view": "soling", "corePath": "/status/soling" },
+            { "to": "/oversikt", "label": "Oversikt", "icon": "chart", "title": "Solingsoversikt", "description": "Ukesutvikling, n\u00f8kkeltall og siste solinger.", "module": "soling", "view": "oversikt", "corePath": "/soling/oversikt" }
           ]
         },
         {
@@ -113,9 +116,11 @@
           "label": "Analyse",
           "icon": "chart",
           "items": [
+            { "to": "/periode", "label": "Periode", "icon": "compare", "title": "Periodesammenligning", "description": "Akkumulert antall og bel\u00f8p mot relevante referanseperioder.", "module": "status", "view": "soling-comparison", "corePath": "/status/sammenligning" },
             { "to": "/sammenligning", "label": "\u00c5r", "icon": "compare", "title": "\u00c5rssammenligning", "description": "Akkumulert utvikling sammenlignet mellom \u00e5r.", "module": "soling", "view": "sammenligning", "corePath": "/soling/sammenligning" },
             { "to": "/prognose", "label": "Prognose", "icon": "trend", "title": "Prognose", "description": "Forventet soling mot faktisk utvikling.", "module": "soling", "view": "prognose", "corePath": "/soling/prognose" },
-            { "to": "/statistikk", "label": "Statistikk", "icon": "chart", "title": "Statistikk", "description": "Detaljerte analyser av soling.", "module": "soling", "view": "statistikk", "corePath": "/soling/statistikk" }
+            { "to": "/statistikk", "label": "Statistikk", "icon": "chart", "title": "Statistikk", "description": "Detaljerte analyser av soling.", "module": "soling", "view": "statistikk", "corePath": "/soling/statistikk" },
+            { "to": "/detaljer", "label": "Datadetaljer", "icon": "apps", "title": "Solingsdetaljer", "description": "Romstatistikk, m\u00e5nedstall, \u00e5rstall og importhistorikk.", "module": "soling", "view": "detaljer", "corePath": "/soling/detaljer" }
           ]
         },
         {
@@ -212,8 +217,11 @@
           "items": [
             { "to": "/dorer", "label": "Oversikt", "icon": "door", "title": "D\u00f8roversikt", "description": "Rask status og filtrering for alle d\u00f8rer.", "module": "dorer", "view": "oversikt", "corePath": "/dorer/oversikt" },
             { "to": "/dorer/solrom", "label": "Solrom", "icon": "sun", "title": "Solrom", "description": "D\u00f8rstatus, soltider og forventet slutt per rom.", "module": "dorer", "view": "solrom", "corePath": "/dorer/solrom" },
+            { "to": "/dorer/andre", "label": "Andre d\u00f8rer", "icon": "door", "title": "Andre d\u00f8rer", "description": "Status for inngang, lager, vaskerom og \u00f8vrige byggd\u00f8rer.", "module": "dorer", "view": "andre", "corePath": "/dorer/andre" },
             { "to": "/dorer/romkontroll", "label": "Romkontroll", "icon": "compare", "title": "Romkontroll", "description": "Tidslinje og hendelser koblet mot soltimer og effekt.", "module": "dorer", "view": "romkontroll-ny2", "corePath": "/dorer/romkontroll-ny2" },
-            { "to": "/dorer/avvik", "label": "Alarmer og avvik", "icon": "warning", "title": "Alarmer og avvik", "description": "D\u00f8rperioder, alarmer og varslinger samlet.", "module": "dorer", "view": "avvik", "corePath": "/dorer/avvik", "aliases": ["/dorer/alarm"] },
+            { "to": "/dorer/soltimer", "label": "D\u00f8r og soltime", "icon": "clock", "title": "D\u00f8r og soltime", "description": "Dagens d\u00f8rhendelser, soltimer og effektbekreftelser per rom.", "module": "dorer", "view": "soltimer", "corePath": "/dorer/soltimer" },
+            { "to": "/dorer/alarm", "label": "Alarm", "icon": "warning", "title": "D\u00f8ralarmer", "description": "Aktive alarmer, historikk og varslingsstatus.", "module": "dorer", "view": "alarm", "corePath": "/dorer/alarm" },
+            { "to": "/dorer/avvik", "label": "Avvik", "icon": "warning", "title": "Alarmer og avvik", "description": "D\u00f8rperioder, alarmer og varslinger samlet.", "module": "dorer", "view": "avvik", "corePath": "/dorer/avvik" },
             { "to": "/dorer/radata", "label": "R\u00e5data", "icon": "apps", "title": "D\u00f8rdata", "description": "Alle registrerte sensorhendelser.", "module": "dorer", "view": "radata", "corePath": "/dorer/radata" }
           ]
         },

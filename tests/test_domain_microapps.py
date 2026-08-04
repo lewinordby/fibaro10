@@ -171,7 +171,7 @@ def test_system_menu_structure_page_is_available_without_core_data() -> None:
         payload = response.json()
         assert payload["title"] == "Menystruktur"
         assert len(payload["tables"]) == len(APP_MENU_STRUCTURE) + 2
-        assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 89
+        assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 97
 
 
 def test_parity_critical_specialized_views_are_kept_in_microapps() -> None:
@@ -186,8 +186,30 @@ def test_parity_critical_specialized_views_are_kept_in_microapps() -> None:
     assert "<DoorsSpecial" in module_content
     assert "<MobilePreviewSpecial" in module_content
     assert "/observerte-biler" in routes["parking"]
+    assert {"/", "/oversikt", "/periode", "/arsutvikling"} <= routes["parking"]
+    assert {"/", "/oversikt", "/periode", "/sammenligning"} <= routes["sun"]
+    assert "/detaljer" in routes["sun"]
+    assert {"/dorer/andre", "/dorer/soltimer", "/dorer/alarm", "/dorer/avvik"} <= routes["operations"]
     assert "/kandidater" in routes["link"]
     assert "/manual/hc3-energi" in routes["system"]
+
+
+def test_parking_and_sun_have_domain_specific_dashboards_and_comparisons() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    domain_app = (repo_root / "packages" / "microapp-ui" / "src" / "DomainApp.tsx").read_text(encoding="utf-8")
+    parking_app = (repo_root / "parking_app" / "frontend" / "src" / "App.tsx").read_text(encoding="utf-8")
+    parking_backend = (repo_root / "parking_app" / "app" / "main.py").read_text(encoding="utf-8")
+    sun_backend = (repo_root / "sun_app" / "app" / "main.py").read_text(encoding="utf-8")
+
+    assert "<CountDashboardSpecial" in domain_app
+    assert "<CountComparisonSpecial" in domain_app
+    assert "<YearComparisonSpecial" in domain_app
+    assert "<CountDashboardSpecial domain=\"parking\"" in parking_app
+    assert "<CountComparisonSpecial domain=\"parking\"" in parking_app
+    assert '"overview"' in parking_backend
+    assert '"status/comparison"' in parking_backend
+    assert '"soling/year-comparison"' in sun_backend
+    assert '"status/comparison"' in sun_backend
 
 
 def test_detail_routes_do_not_fall_back_to_generic_module_pages() -> None:

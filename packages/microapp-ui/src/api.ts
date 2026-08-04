@@ -1,4 +1,4 @@
-import type { AppConfig, AuthUser, JsonRecord, ModuleAction, ModuleEditConfig, ModuleResponse, ModuleRow, OperationsOverviewResponse, SunSessionImageBrowser } from "./types";
+import type { AppConfig, AuthUser, BusinessComparisonResponse, BusinessOverviewResponse, JsonRecord, ModuleAction, ModuleEditConfig, ModuleResponse, ModuleRow, OperationsOverviewResponse, SunSessionImageBrowser, YearComparisonResponse } from "./types";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isFormData = init?.body instanceof FormData;
@@ -24,6 +24,9 @@ export const domainApi = {
   config: () => request<AppConfig>("/api/app/config"),
   user: () => request<AuthUser>("/api/auth/me"),
   operationsOverview: () => request<OperationsOverviewResponse>("/api/overview"),
+  businessOverview: () => request<BusinessOverviewResponse>("/api/overview"),
+  businessComparison: (params: URLSearchParams) => request<BusinessComparisonResponse>(`/api/status/comparison?${params.toString()}`),
+  yearComparison: (domain: "soling" | "parkering", year?: string) => request<YearComparisonResponse>(`/api/${domain}/year-comparison${year ? `?year=${encodeURIComponent(year)}` : ""}`),
   get: <T = JsonRecord>(path: string) => request<T>(path),
   mutate: <T = JsonRecord>(path: string, method: "POST" | "PATCH" | "PUT" | "DELETE", values?: JsonRecord) => request<T>(path, {
     method,

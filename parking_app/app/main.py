@@ -20,8 +20,10 @@ app = create_domain_app(
         allowed_paths={
             "GET": {
                 "auth/me",
+                "overview",
                 "modules/parkering",
                 "parkering/year-comparison",
+                "status/comparison",
                 "parkering/time-distribution",
                 "parkering/weekly-averages",
                 "parkering/weekly-averages/years",
