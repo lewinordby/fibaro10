@@ -12,6 +12,30 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1645",
+        "date": "05.08.2026",
+        "headline": "Roborock-detaljer åpnes i Bygg og drift",
+        "title": "Proxyen tillater den nye robotdetaljruten",
+        "description": (
+            "Den visuelle live-kontrollen fant at robotlisten var tilgjengelig, men at detaljkallet ble avvist "
+            "av Bygg og drift før det nådde Fibaro10-kjernen. Den smale tillatelseslisten omfatter nå den "
+            "faktiske renhold/robots-ruten, slik at kart, forbruksdeler, planer, vasker og statushistorikk lastes."
+        ),
+        "applications": [
+            "Bygg og drift: robotdetaljer lastes gjennom den fagspesifikke proxyen.",
+            "Test: Roborock-ruten er eksplisitt dekket av proxykontrakten.",
+        ],
+        "request": "Jeg synes det er masse mangler.",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Tillater GET mot renhold/robots/{duid} i Bygg og drift.",
+            "Legger til regresjonstest for detaljruten.",
+            "Verifiserer rettingen i live-grensesnittet etter utrulling.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1644",
         "date": "05.08.2026",
         "headline": "Mikroappene har fått tilbake komplette arbeidsflyter",

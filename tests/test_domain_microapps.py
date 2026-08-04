@@ -352,6 +352,11 @@ def test_operations_proxy_allows_bollard_workbench_endpoints() -> None:
     assert operations_main.DOMAIN_PATTERN.fullmatch("unifi-protect/bollards/mobile-notifications/test")
 
 
+def test_operations_proxy_allows_roborock_detail_endpoint() -> None:
+    assert operations_main.DOMAIN_PATTERN.fullmatch("renhold/robots/abc-123")
+    assert operations_main.DOMAIN_PATTERN.fullmatch("renhold/robots")
+
+
 def test_operations_door_filter_uses_live_group_keys(monkeypatch) -> None:
     status_data = {
         "summary": {},

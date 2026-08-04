@@ -15,7 +15,7 @@ MODULES = {
     "auth/me", "overview", "modules/ventilasjon", "modules/lys", "modules/dorer",
     "modules/solrom", "modules/solrom-2", "modules/dorer2", "modules/pullerter", "modules/renhold",
 }
-DOMAIN_PATTERN = re.compile(r"(?:actions/(?:ventilasjon|lys|dorer|solrom|pullerter|renhold)|unifi-protect/bollards|ventilation|lights?|doors?|solrooms?|bollards?|roborock|hc3)(?:/.*)?")
+DOMAIN_PATTERN = re.compile(r"(?:actions/(?:ventilasjon|lys|dorer|solrom|pullerter|renhold)|unifi-protect/bollards|renhold/robots|ventilation|lights?|doors?|solrooms?|bollards?|roborock|hc3)(?:/.*)?")
 
 
 def card(title: str, value: Any, unit: str = "", detail: str = "", tone: str = "status") -> dict[str, Any]:
