@@ -1,4 +1,4 @@
-import type { AppConfig, AuthUser, JsonRecord, ModuleAction, ModuleEditConfig, ModuleResponse, ModuleRow, OperationsOverviewResponse } from "./types";
+import type { AppConfig, AuthUser, JsonRecord, ModuleAction, ModuleEditConfig, ModuleResponse, ModuleRow, OperationsOverviewResponse, SunSessionImageBrowser } from "./types";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isFormData = init?.body instanceof FormData;
@@ -55,5 +55,16 @@ export const domainApi = {
     const form = new FormData();
     form.set("file", file);
     return request<{ message?: string }>(endpoint, { method: "POST", body: form });
+  },
+  sunSessionImages: (sessionId: number, snapshotId?: string | null) => {
+    const params = new URLSearchParams();
+    if (snapshotId) params.set("snapshot_id", snapshotId);
+    const query = params.toString();
+    return request<SunSessionImageBrowser>(`/api/soling/enkeltimer/${encodeURIComponent(sessionId)}/image-browser${query ? `?${query}` : ""}`);
+  },
+  selectSunSessionImage: async (sessionId: number, snapshotId: string) => {
+    const params = new URLSearchParams({ snapshot_id: snapshotId });
+    const result = await request<SunSessionImageBrowser | { browser: SunSessionImageBrowser }>(`/api/soling/enkeltimer/${encodeURIComponent(sessionId)}/image?${params}`, { method: "POST" });
+    return "browser" in result ? result.browser : result;
   },
 };

@@ -92,6 +92,21 @@ def test_all_microapps_scan_the_shared_ui_styles() -> None:
         assert source_directive in style_source, f"{app_name} mangler delt UI-kilde i Tailwind"
 
 
+def test_sun_sessions_keep_the_interactive_image_workflow() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    module_content = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "ModuleContent.tsx").read_text(encoding="utf-8")
+    session_view = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "SunSessionsSpecial.tsx").read_text(encoding="utf-8")
+    shared_api = (repo_root / "packages" / "microapp-ui" / "src" / "api.ts").read_text(encoding="utf-8")
+
+    assert 'module === "soling" && view === "enkeltimer"' in module_content
+    assert "<SunSessionsSpecial" in module_content
+    assert "Sett som hovedbilde" in session_view
+    assert "Finn bilde i arkivet" in session_view
+    assert "SUN2-ID / medlemsnummer" in session_view
+    assert "sunSessionImages" in shared_api
+    assert "selectSunSessionImage" in shared_api
+
+
 def test_app_selector_has_only_the_header_refresh_control() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     source = (repo_root / "shell_app" / "frontend" / "src" / "App.tsx").read_text(encoding="utf-8")

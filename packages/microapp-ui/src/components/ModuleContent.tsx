@@ -11,6 +11,7 @@ const VentilationSpecialAsync = lazy(() => import("./SpecializedContent").then((
 const EnergySunbedsSpecialAsync = lazy(() => import("./SpecializedContent").then((module) => ({ default: module.EnergySunbedsSpecial })));
 const EnergyCircuitLoadsSpecialAsync = lazy(() => import("./SpecializedContent").then((module) => ({ default: module.EnergyCircuitLoadsSpecial })));
 const ControlSettingsSpecialAsync = lazy(() => import("./SpecializedContent").then((module) => ({ default: module.ControlSettingsSpecial })));
+const SunSessionsSpecialAsync = lazy(() => import("./SunSessionsSpecial").then((module) => ({ default: module.SunSessionsSpecial })));
 
 function SpecializedFallback() {
   return <Panel><div className="p-6 text-sm text-gray-400">Klargjør detaljvisning ...</div></Panel>;
@@ -30,6 +31,10 @@ function EnergyCircuitLoadsSpecial(props: ComponentProps<typeof EnergyCircuitLoa
 
 function ControlSettingsSpecial(props: ComponentProps<typeof ControlSettingsSpecialAsync>) {
   return <Suspense fallback={<SpecializedFallback />}><ControlSettingsSpecialAsync {...props} /></Suspense>;
+}
+
+function SunSessionsSpecial(props: ComponentProps<typeof SunSessionsSpecialAsync>) {
+  return <Suspense fallback={<SpecializedFallback />}><SunSessionsSpecialAsync {...props} /></Suspense>;
 }
 
 const palette = [mosaicChartColors.sky, mosaicChartColors.violet, mosaicChartColors.yellow, mosaicChartColors.green, mosaicChartColors.red, mosaicChartColors.gray];
@@ -178,6 +183,7 @@ export function ModuleContent({ data, config, reload, coreUrl, module, view }: {
   const sunbedSpecial = module === "energi" && view === "forbruk-per-seng" && data.energySunbeds;
   const circuitSpecial = module === "energi" && view === "kurs-last" && data.energyCircuitLoads;
   const settingsSpecial = Boolean(data.controlSettings);
-  const hidesGenericTables = Boolean(sunbedSpecial || circuitSpecial || settingsSpecial || (ventilationSpecial && view === "innstillinger"));
-  return <div className="space-y-6"><ModuleActions actions={data.actions} reload={reload} accent={config.accent} /><ModuleFilters filters={data.filters} accent={config.accent} />{data.dayNavigation && !data.sunTimeline ? <DayNavigation data={data.dayNavigation} /> : null}{data.uploadEndpoint ? <UploadPanel endpoint={data.uploadEndpoint} reload={reload} accent={config.accent} /> : null}<ModuleCards data={data.cards} config={config} />{data.sunTimeline ? <SunTimelineView timeline={data.sunTimeline} config={config} /> : null}{ventilationSpecial ? <VentilationSpecial data={data} view={view} reload={reload} /> : null}{sunbedSpecial ? <EnergySunbedsSpecial data={sunbedSpecial} /> : null}{circuitSpecial ? <EnergyCircuitLoadsSpecial data={circuitSpecial} reload={reload} /> : null}{data.controlSettings ? <ControlSettingsSpecial settings={data.controlSettings} reload={reload} /> : null}{!ventilationSpecial ? <ModuleCharts charts={data.charts} /> : null}{!hidesGenericTables ? data.tables.map((table, index) => <DataTable key={`${table.title}-${index}`} table={table} config={config} coreUrl={coreUrl} reload={reload} />) : null}{empty && !ventilationSpecial && !sunbedSpecial && !circuitSpecial && !settingsSpecial ? <Panel title={data.title}><div className="p-6 text-sm text-gray-500 dark:text-gray-400">{data.subtitle || "Denne visningen har ingen data i valgt utvalg."}</div></Panel> : null}</div>;
+  const sunSessionsSpecial = module === "soling" && view === "enkeltimer";
+  const hidesGenericTables = Boolean(sunSessionsSpecial || sunbedSpecial || circuitSpecial || settingsSpecial || (ventilationSpecial && view === "innstillinger"));
+  return <div className="space-y-6"><ModuleActions actions={data.actions} reload={reload} accent={config.accent} /><ModuleFilters filters={data.filters} accent={config.accent} />{data.dayNavigation && !data.sunTimeline ? <DayNavigation data={data.dayNavigation} /> : null}{data.uploadEndpoint ? <UploadPanel endpoint={data.uploadEndpoint} reload={reload} accent={config.accent} /> : null}<ModuleCards data={data.cards} config={config} />{data.sunTimeline ? <SunTimelineView timeline={data.sunTimeline} config={config} /> : null}{ventilationSpecial ? <VentilationSpecial data={data} view={view} reload={reload} /> : null}{sunSessionsSpecial ? <SunSessionsSpecial table={data.tables.find((table) => table.title === "Enkeltimer")} reload={reload} /> : null}{sunbedSpecial ? <EnergySunbedsSpecial data={sunbedSpecial} /> : null}{circuitSpecial ? <EnergyCircuitLoadsSpecial data={circuitSpecial} reload={reload} /> : null}{data.controlSettings ? <ControlSettingsSpecial settings={data.controlSettings} reload={reload} /> : null}{!ventilationSpecial ? <ModuleCharts charts={data.charts} /> : null}{!hidesGenericTables ? data.tables.map((table, index) => <DataTable key={`${table.title}-${index}`} table={table} config={config} coreUrl={coreUrl} reload={reload} />) : null}{empty && !ventilationSpecial && !sunSessionsSpecial && !sunbedSpecial && !circuitSpecial && !settingsSpecial ? <Panel title={data.title}><div className="p-6 text-sm text-gray-500 dark:text-gray-400">{data.subtitle || "Denne visningen har ingen data i valgt utvalg."}</div></Panel> : null}</div>;
 }

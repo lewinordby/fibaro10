@@ -144,6 +144,47 @@ export type SunTimeline = {
   nowMarker: number | null;
 };
 
+export type SunSessionSavedImage = {
+  id: number;
+  snapshotId: string;
+  capturedAt: string | null;
+  label: string;
+  imageUrl: string;
+  offsetSeconds: number;
+  offsetLabel: string;
+  deltaSeconds?: number | null;
+  isPrimary?: boolean;
+  source?: string;
+};
+
+export type SunSessionSnapshot = {
+  id: string;
+  capturedAt: string;
+  label: string;
+  filename: string;
+  imageUrl: string;
+  deltaSeconds: number | null;
+  isLinked: boolean;
+};
+
+export type SunSessionImageBrowser = {
+  sessionId: number;
+  startedAt: string | null;
+  targetAt: string | null;
+  targetLabel: string;
+  seriesOffsets: number[];
+  snapshotRoot: string;
+  archiveDay: string;
+  snapshotsFound: number;
+  linked: SunSessionSavedImage | null;
+  savedImages: SunSessionSavedImage[];
+  current: SunSessionSnapshot | null;
+  previousSnapshotId: string | null;
+  nextSnapshotId: string | null;
+  canPrevious: boolean;
+  canNext: boolean;
+};
+
 export type ModuleResponse = {
   title: string;
   subtitle: string;

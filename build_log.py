@@ -12,6 +12,36 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1635",
+        "date": "04.08.2026",
+        "headline": "Bilder og detaljvisning er tilbake på enkelttimer",
+        "title": "Soling-appen har igjen komplett detaljflyt fra soltime til Axis-bildearkiv",
+        "description": (
+            "Migreringen til mikroapper beholdt dataene og bilde-API-et, men den generiske tabellen gjorde "
+            "enkeltimene passive. Soling har nå fått en egen, ekspanderbar visning som viser detaljene for "
+            "soltimen, de fem lagrede bildene og resten av Axis-arkivet i samme arbeidsflate."
+        ),
+        "applications": [
+            "Soling: klikkbare enkelttimer med kompakt sammendrag og full detaljvisning.",
+            "Soling: fem lagrede bilder, sømløs blaing videre i Axis-arkivet og stor bildevisning.",
+            "Soling: valg av hovedbilde lagrer en ny pakke med fem bilder uten å lukke detaljvisningen.",
+            "Soling: SUN2-ID kan kopieres direkte fra den åpne soltimen.",
+            "Felles UI: typed bildekontrakt og lazy-lastet spesialvisning som ikke belaster andre sider ved oppstart.",
+        ],
+        "request": "Gjenopprett funksjonaliteten fra Fibaro10 under Soling - Soltimer - Enkelttimer, spesielt muligheten til å åpne en enkelttime og finne eller velge bilde.",
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Erstatter standardtabellen kun på Enkelttimer med en egen funksjonsrik soltimevisning.",
+            "Beholder eksisterende serverfiltre, søk og paginering.",
+            "Viser metadata, medlemsnummer, bildeantall og status uten å forlate listen.",
+            "Lar bildevelgeren gå automatisk fra de fem lagrede bildene og videre inn i dagsarkivet.",
+            "Beholder knappeplassering og åpen detaljvisning når hovedbildet endres.",
+            "Legger til regresjonskontroll for at bilde- og detaljfunksjonen følger Soling-appen videre.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1634",
         "date": "03.08.2026",
         "headline": "Felles og ryddigere navigasjon i alle fagappene",
