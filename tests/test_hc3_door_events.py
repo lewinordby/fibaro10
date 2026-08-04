@@ -113,7 +113,7 @@ def test_hc3_single_door_scene_script_contains_configured_devices():
         "453",
         "447",
         "413",
-        "499",
+        "541",
         "483",
         "535",
         "489",

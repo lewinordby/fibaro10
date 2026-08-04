@@ -1,4 +1,5 @@
 import { domainApi } from "./api";
+import { DetailRoute } from "./components/DetailPages";
 import { Layout } from "./components/Layout";
 import { ModuleContent } from "./components/ModuleContent";
 import { ErrorState, Loading } from "./components/PageState";
@@ -59,12 +60,28 @@ function RoutedDomainApp({ config }: { config: DomainUiConfig }) {
   const { pathname, search } = useAppLocation();
   const item = findNavigationItem(config, pathname);
   const isOperationsOverview = item.module === "status" && item.view === "drift";
+  const isDetailRoute = (
+    (config.appId === "maintenance" && /^\/besok\/\d+$/.test(pathname))
+    || (config.appId === "system" && /^\/(?:datakilder|build)\/[^/]+$/.test(pathname))
+    || (config.appId === "sun" && /^\/oppgjor\/\d+$/.test(pathname))
+  );
   const result = useApi(
-    async () => isOperationsOverview ? operationsModule(await domainApi.operationsOverview()) : domainApi.module(item.module, item.view, new URLSearchParams(search)),
+    async () => isDetailRoute
+      ? { title: "", subtitle: "", cards: [], tables: [] }
+      : isOperationsOverview
+        ? operationsModule(await domainApi.operationsOverview())
+        : domainApi.module(item.module, item.view, new URLSearchParams(search)),
     `module-${item.module}-${item.view}-${search}`,
   );
   const appConfig = useApi(domainApi.config, "app-config");
-  return <Layout config={config}>{result.loading || appConfig.loading ? <Loading /> : result.error || !result.data ? <ErrorState error={result.error} onRetry={result.reload} /> : <ModuleContent data={result.data} config={config} reload={result.reload} coreUrl={appConfig.data?.fibaro10AppUrl || "http://192.168.20.218:8110"} module={item.module} view={item.view} />}</Layout>;
+  const coreUrl = appConfig.data?.fibaro10AppUrl || "http://192.168.20.218:8110";
+  return <Layout config={config}>{result.loading || appConfig.loading
+    ? <Loading />
+    : result.error || !result.data
+      ? <ErrorState error={result.error} onRetry={result.reload} />
+      : isDetailRoute
+        ? <DetailRoute config={config} pathname={pathname} coreUrl={coreUrl} />
+        : <ModuleContent data={result.data} config={config} reload={result.reload} coreUrl={coreUrl} module={item.module} view={item.view} />}</Layout>;
 }
 
 export function DomainApp({ config }: { config: DomainUiConfig }) {

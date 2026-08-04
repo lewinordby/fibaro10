@@ -19,7 +19,7 @@ MODULES = {
     "auth/me", "modules/admin", "modules/varslinger", "modules/undersystemer", "modules/ideer",
     "modules/mobil", "modules/manual",
 }
-DOMAIN_PATTERN = re.compile(r"(?:actions/(?:admin|system)|admin|system|builds?|data-sources?|notifications?|subsystems?|manual|users?)(?:/.*)?")
+DOMAIN_PATTERN = re.compile(r"(?:actions/(?:admin|system)|admin|system|builds?|data-sources?|import-status|mobile-preview|notifications?|subsystems?|manual|users?)(?:/.*)?")
 
 
 def card(title: str, value: Any, unit: str = "", detail: str = "", tone: str = "status") -> dict[str, Any]:
@@ -130,6 +130,34 @@ async def manual_module(request: Request, client: httpx.AsyncClient, headers: di
     chapter = next((item for item in chapters if item.get("id") == chapter_id), None)
     if not chapter:
         return {"title": "Manual", "subtitle": "Kapittelet finnes ikke", "cards": [], "tables": []}
+    if chapter_id == "hc3-energi" and isinstance(chapter.get("energyQuickappReport"), dict):
+        report = chapter["energyQuickappReport"]
+        summary = report.get("summary") or {}
+        report_tables = []
+        for key, title in (
+            ("findings", "Konklusjoner"),
+            ("groups", "QuickApps og oppsamlinger"),
+            ("gaps", "Reelle og mulige hull"),
+            ("notDirectlyIncluded", "Ikke direkte med"),
+            ("allDevices", "Alle HC3-enheter"),
+        ):
+            values = report.get(key) or []
+            if not values or not isinstance(values[0], dict):
+                continue
+            rows = [scalar_row(row) for row in values]
+            columns = list(dict.fromkeys(column for row in rows for column in row.keys()))
+            report_tables.append({"title": title, "columns": columns, "rows": rows})
+        return {
+            "title": chapter.get("title", "HC3 energioppsamlinger"),
+            "subtitle": f'Sist bygget fra {report.get("createdAt") or "siste HC3-inventar"}',
+            "cards": [
+                card("QuickApps", summary.get("quickApps", 0), "stk", "Summerende oppsamlinger"),
+                card("Direkte medlemmer", summary.get("directMembers", 0), "stk", "Målere i oppsamlingene"),
+                card("Reelle hull", summary.get("realGaps", 0), "stk", "Bør kontrolleres"),
+                card("Alle enheter", summary.get("allDevices", 0), "stk", "Komplett HC3-inventar"),
+            ],
+            "tables": report_tables,
+        }
     tables = []
     labels = {"startLinks": "Start her", "flow": "Arbeidsflyt", "dataSources": "Datakilder", "troubleshooting": "Feils\u00f8king", "checklists": "Sjekklister", "principles": "Prinsipper"}
     for key, value in chapter.items():

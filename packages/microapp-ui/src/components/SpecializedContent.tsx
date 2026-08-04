@@ -2,7 +2,7 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { domainApi } from "../api";
 import { displayCell, nok } from "../format";
 import { useAppSearchParams } from "../router";
-import type { ControlSettings, EnergyCircuit, EnergyCircuitLoadsData, EnergyLoadItem, EnergyNode, JsonRecord, ModuleResponse, SettingsData, VentilationData } from "../types";
+import type { ControlSettings, EnergyCircuit, EnergyCircuitLoadsData, EnergyElviaData, EnergyLoadItem, EnergyNode, JsonRecord, ModuleResponse, SettingsData, VentilationData } from "../types";
 import { Chart, mosaicChartColors, type MosaicChartConfig } from "./Chart";
 import { Panel } from "./Mosaic";
 import { MosaicIcon } from "./MosaicIcon";
@@ -101,6 +101,41 @@ export function EnergySunbedsSpecial({ data }: { data: NonNullable<ModuleRespons
   const roomRows = data.rooms.map((room) => ({ id: room.room_id || room.label, rom: room.label, sun2_id: room.sun2_bed_id, modell: room.bed_model, estimert_w: room.estimate_w, snitt_w: room.avg_w, normalomr\u00e5de: `${value(room.p25_w, " W")} - ${value(room.p75_w, " W")}`, pr\u00f8ver: room.samples_count, solinger: room.sessions_count, kwh_15_min: room.kwh_15_min, m\u00e5lt_kwh: room.estimated_kwh, tillit: room.confidence }));
   const observationRows = data.observations.map((row) => ({ id: row.session_id, tid: row.start, rom: row.label, varighet_min: row.duration_minutes, pr\u00f8ver: row.samples_count, estimert_w: row.avg_w, diff_m\u00e5lt_w: row.avg_observed_w, baseline_w: row.avg_baseline_w, kwh: row.estimated_kwh }));
   return <div className="space-y-5"><Panel title="Metode" subtitle={`${data.dateFrom} - ${data.dateTo}`}><div className="grid gap-3 p-5 text-sm text-gray-600 dark:text-gray-300 sm:grid-cols-2 xl:grid-cols-4"><span><strong>Oppvarming</strong><br />{value(data.summary.warmup_minutes, " min")}</span><span><strong>Nedkjøling</strong><br />{value(data.summary.cooldown_minutes, " min")}</span><span><strong>Sampleintervall</strong><br />{value(data.summary.sample_interval_seconds, " sek")}</span><span><strong>Energisamples</strong><br />{value(data.summary.energy_samples_total)}</span></div></Panel><Panel title="Estimert effekt per solseng"><div className="p-3"><Chart config={chart} height={300} /></div></Panel><Panel title="Estimert effekt per seng"><SimpleTable columns={[{key:"rom",label:"Rom"},{key:"sun2_id",label:"Sun2-ID"},{key:"modell",label:"Modell"},{key:"estimert_w",label:"Estimat"},{key:"snitt_w",label:"Snitt"},{key:"normalområde",label:"Normalområde"},{key:"prøver",label:"Prøver"},{key:"solinger",label:"Solinger"},{key:"kwh_15_min",label:"15 min"},{key:"målt_kwh",label:"Målt kWh"},{key:"tillit",label:"Tillit"}]} rows={roomRows} /></Panel><Panel title="Rene måleobservasjoner" subtitle={`${observationRows.length} observasjoner`}><SimpleTable columns={[{key:"tid",label:"Tid"},{key:"rom",label:"Rom"},{key:"varighet_min",label:"Varighet"},{key:"prøver",label:"Prøver"},{key:"estimert_w",label:"Estimert"},{key:"diff_målt_w",label:"Diff målt"},{key:"baseline_w",label:"Baseline"},{key:"kwh",label:"kWh"}]} rows={observationRows} /></Panel></div>;
+}
+
+export function EnergyElviaSpecial({ data, reload }: { data: EnergyElviaData; reload: () => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const total = data.summary.total;
+  const upload = async () => {
+    if (!file) return;
+    setBusy(true); setMessage("");
+    try {
+      const result = await domainApi.upload(data.uploadEndpoint, file);
+      setMessage(result.message || "Elvia-filen er lest inn");
+      setFile(null);
+      reload();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const summaryRows = [
+    { id: "period", label: "Periode", value: `${data.summary.firstAt || "-"} - ${data.summary.lastAt || "-"}` },
+    { id: "consumption", label: "Forbruk", value: `${value(total.consumption_kwh, " kWh")}` },
+    { id: "production", label: "Produksjon", value: `${value(total.production_kwh, " kWh")}` },
+    { id: "hours", label: "Timer", value: total.hours_count, detail: total.estimated_hours_count ? `${total.estimated_hours_count} estimerte` : "Alle faktiske" },
+  ];
+  const periodRows = data.yearly.map((row, index) => ({ id: index, periode: row.period_label || row.period, forbruk_kwh: row.consumption_kwh, produksjon_kwh: row.production_kwh, timer: row.hours_count, estimerte: row.estimated_hours_count, dager: row.days_count }));
+  return <div className="space-y-5">
+    <Panel title="Elvia-grunnlag" subtitle="Originalfiler beholdes, mens timeverdiene importeres og kontrolleres"><div className="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-4">{summaryRows.map((row) => <div className="rounded-lg bg-gray-50 px-4 py-3 dark:bg-gray-700/35" key={row.id}><span className="text-xs font-semibold uppercase text-gray-400">{row.label}</span><strong className="mt-1 block text-lg text-gray-800 dark:text-gray-100">{row.value}</strong>{row.detail ? <small className="text-gray-400">{row.detail}</small> : null}</div>)}</div></Panel>
+    <Panel title="Last opp Elvia-fil" subtitle="CSV- og regnearkfiler behandles i bakgrunnen"><div className="flex flex-wrap items-center gap-3 p-5"><input className="form-input min-w-64 flex-1" type="file" accept=".csv,.xlsx,.xls" onChange={(event) => setFile(event.target.files?.[0] || null)} /><button className="btn bg-green-600 text-white hover:bg-green-700" disabled={!file || busy} onClick={upload}>{busy ? "Leser inn ..." : "Last opp og les inn"}</button>{message ? <span className="text-sm text-gray-500">{message}</span> : null}</div></Panel>
+    <Panel title="Forbruk per år"><SimpleTable columns={[{key:"periode",label:"År"},{key:"forbruk_kwh",label:"Forbruk kWh"},{key:"produksjon_kwh",label:"Produksjon kWh"},{key:"timer",label:"Timer"},{key:"estimerte",label:"Estimerte"},{key:"dager",label:"Dager"}]} rows={periodRows} /></Panel>
+    <div className="grid gap-5 xl:grid-cols-2"><Panel title="Største dager"><SimpleTable columns={[{key:"period_label",label:"Dag"},{key:"consumption_kwh",label:"Forbruk kWh"},{key:"production_kwh",label:"Produksjon kWh"},{key:"hours_count",label:"Timer"}]} rows={data.topDays} /></Panel><Panel title="Største måneder"><SimpleTable columns={[{key:"period_label",label:"Måned"},{key:"consumption_kwh",label:"Forbruk kWh"},{key:"production_kwh",label:"Produksjon kWh"},{key:"hours_count",label:"Timer"}]} rows={data.topMonths} /></Panel></div>
+    <Panel title="Importhistorikk" subtitle={`${data.imports.length} importer`}><SimpleTable columns={[{key:"created_at",label:"Tid"},{key:"filename",label:"Fil"},{key:"status",label:"Status"},{key:"rows_imported",label:"Rader"},{key:"message",label:"Melding"}]} rows={data.imports} /></Panel>
+  </div>;
 }
 
 type EnergyEditorState = { kind: "node" | "load"; circuit: EnergyCircuit; node?: EnergyNode; load?: EnergyLoadItem; parent?: EnergyNode };

@@ -195,11 +195,153 @@ export type ModuleResponse = {
   filters?: ModuleFilter[];
   dayNavigation?: ModuleDayNavigation | null;
   sunTimeline?: SunTimeline | null;
+  parkingTimeline?: ParkingTimeline | null;
+  kobleReview?: KobleReviewData | null;
   ventilation?: VentilationData | null;
   controlSettings?: ControlSettings | null;
+  energyElvia?: EnergyElviaData | null;
   energySunbeds?: EnergySunbedsData | null;
   energyCircuitLoads?: EnergyCircuitLoadsData | null;
   uploadEndpoint?: string;
+};
+
+export type ParkingTimeline = {
+  selectedDay: string;
+  selectedDayLabel: string;
+  prevDay: string;
+  nextDay: string;
+  capacity: number;
+  occupancyScaleMax: number;
+  spaceRows: Array<{
+    key: string;
+    label: string;
+    spaces: Array<{
+      spaceId: string;
+      label: string;
+      sessions: Array<{
+        id: string;
+        left: number;
+        width: number;
+        title: string;
+        kind: "paid" | "ongoing" | "unpaid" | "overflow";
+        href: string;
+      }>;
+    }>;
+  }>;
+  overflowSessions: JsonRecord[];
+  occupancy: Array<{ left: number; width: number; count: number; height: number; title: string }>;
+  ticks: Array<{ label: string; left: number }>;
+  nowMarker: number | null;
+  summary: JsonRecord;
+};
+
+export type KobleReviewMatch = {
+  id: number;
+  parkingStartAt?: string | null;
+  sunStartedAt?: string | null;
+  deltaMinutes?: number | null;
+  roomLabel?: string | null;
+  userName?: string | null;
+  durationMinutes?: number | null;
+  paidAmountKr?: number | null;
+  feeIncVat?: number | null;
+  sourceSystem?: string | null;
+};
+
+export type KobleReviewCandidate = {
+  id: number;
+  status: string;
+  confidence: number;
+  assessment?: string | null;
+  plate: string;
+  sun2Id: string;
+  vehicleName?: string | null;
+  vehicleArea?: string | null;
+  userName?: string | null;
+  matchesCount: number;
+  parkingMatchCount: number;
+  matchDaysCount: number;
+  plateCandidateCount: number;
+  sun2CandidateCount: number;
+  competitorMatchesCount: number;
+  firstMatchAt?: string | null;
+  lastMatchAt?: string | null;
+  avgDeltaMinutes?: number | null;
+  parkingCount?: number | null;
+  paidTotal?: number | null;
+  matchedPaidTotal?: number | null;
+  note?: string | null;
+  path?: string | null;
+  matches: KobleReviewMatch[];
+};
+
+export type KobleQualifiedRow = {
+  id: number;
+  status: string;
+  confidence: number;
+  plate: string;
+  sun2Id: string;
+  vehicleName?: string | null;
+  vehicleArea?: string | null;
+  userName?: string | null;
+  matchesCount: number;
+  parkingMatchCount: number;
+  matchDaysCount: number;
+  lastMatchAt?: string | null;
+  avgDeltaMinutes?: number | null;
+  parkingCount?: number | null;
+  paidTotal?: number | null;
+  matchedPaidTotal?: number | null;
+  path?: string | null;
+};
+
+export type KobleQualifiedSun2Row = KobleQualifiedRow & {
+  sun2VehicleCount: number;
+  parkingWithoutSunCount: number;
+  parkingMatchShare: number;
+};
+
+export type KobleReviewData = {
+  generatedAt?: string | null;
+  generation: number;
+  minMatches: number;
+  maxMinutes: number;
+  visibleCandidateCount: number;
+  candidateCount: number;
+  strongCandidateCount: number;
+  rawPairCount?: number;
+  rawOneOffPairCount?: number;
+  processedCount: number;
+  matchedCount: number;
+  qualifiedPlateCount?: number;
+  qualifiedPairCount?: number;
+  qualifiedPaidTotal?: number;
+  qualifiedMatchedPaidTotal?: number;
+  qualifiedSun2Rows?: KobleQualifiedSun2Row[];
+  qualifiedRows?: KobleQualifiedRow[];
+  candidates: KobleReviewCandidate[];
+};
+
+export type EnergyElviaSummaryItem = {
+  period?: string | null;
+  period_label?: string | null;
+  consumption_kwh: number;
+  production_kwh: number;
+  hours_count: number;
+  estimated_hours_count: number;
+  days_count: number;
+};
+
+export type EnergyElviaData = {
+  summary: { total: EnergyElviaSummaryItem; firstAt?: string | null; lastAt?: string | null };
+  yearly: EnergyElviaSummaryItem[];
+  topDays: EnergyElviaSummaryItem[];
+  topMonths: EnergyElviaSummaryItem[];
+  imports: JsonRecord[];
+  rows: JsonRecord[];
+  latestImport?: JsonRecord | null;
+  status?: JsonRecord | null;
+  uploadEndpoint: string;
 };
 
 export type VentilationMeasurement = { key: string; label: string; temperature?: number | null; humidity?: number | null; detail?: string };

@@ -1,4 +1,4 @@
-export type IconName = "apps" | "arrow-down" | "arrow-left" | "arrow-right" | "arrow-up" | "bell" | "book" | "building" | "calendar" | "chart" | "chevron-down" | "chevron-up" | "clock" | "compare" | "dashboard" | "door" | "energy" | "external" | "idea" | "light" | "link" | "logout" | "parking" | "refresh" | "robot" | "settings" | "sun" | "tools" | "trend" | "users" | "ventilation" | "warning";
+export type IconName = "apps" | "arrow-down" | "arrow-left" | "arrow-right" | "arrow-up" | "bell" | "book" | "building" | "calendar" | "chart" | "chevron-down" | "chevron-up" | "clock" | "compare" | "copy" | "dashboard" | "door" | "energy" | "external" | "idea" | "light" | "link" | "logout" | "parking" | "refresh" | "robot" | "settings" | "sun" | "tools" | "trend" | "users" | "ventilation" | "warning";
 
 const paths: Record<IconName, string[]> = {
   apps: ["M.06 10.003a1 1 0 0 1 1.948.455c-.019.08.01.152.078.19l5.83 3.333c.053.03.116.03.168 0l5.83-3.333a.163.163 0 0 0 .078-.188 1 1 0 0 1 1.947-.459 2.161 2.161 0 0 1-1.032 2.384l-5.83 3.331a2.168 2.168 0 0 1-2.154 0l-5.83-3.331a2.162 2.162 0 0 1-1.032-2.382Zm7.856-7.981-5.83 3.332a.17.17 0 0 0 0 .295l5.828 3.33c.054.031.118.031.17.002l5.83-3.333a.17.17 0 0 0 0-.294L8.085 2.023a.172.172 0 0 0-.17-.001ZM9.076.285l5.83 3.332c1.458.833 1.458 2.935 0 3.768l-5.83 3.333c-.667.38-1.485.38-2.153-.001l-5.83-3.332c-1.457-.833-1.457-2.935 0-3.767L6.925.285a2.173 2.173 0 0 1 2.15 0Z"],
@@ -15,6 +15,7 @@ const paths: Record<IconName, string[]> = {
   "chevron-up": ["M3.293 10.707a1 1 0 0 0 1.414 0L8 7.414l3.293 3.293a1 1 0 0 0 1.414-1.414l-4-4a1 1 0 0 0-1.414 0l-4 4a1 1 0 0 0 0 1.414Z"],
   clock: ["M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0Zm0 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2Zm1 2v3.586l2.207 2.207-1.414 1.414-2.5-2.5A1 1 0 0 1 7 8V4h2Z"],
   compare: ["M11 1l4 4-4 4V6H4a2 2 0 0 0-2 2H0a4 4 0 0 1 4-4h7V1ZM5 7l-4 4 4 4v-3h7a2 2 0 0 0 2-2h2a4 4 0 0 1-4 4H5v3Z"],
+  copy: ["M5 0h8a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-1v-2h1a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v1H2V3a3 3 0 0 1 3-3ZM3 4h6a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Zm0 2a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1H3Z"],
   dashboard: ["M5.936.278A7.983 7.983 0 0 1 8 0a8 8 0 1 1-8 8c0-.722.104-1.413.278-2.064a1 1 0 1 1 1.932.516A5.99 5.99 0 0 0 2 8a6 6 0 1 0 6-6c-.53 0-1.045.076-1.548.21A1 1 0 1 1 5.936.278Z", "M6.068 7.482A2.003 2.003 0 0 0 8 10a2 2 0 1 0-.518-3.932L3.707 2.293a1 1 0 0 0-1.414 1.414l3.775 3.775Z"],
   door: ["M2 15V1h9v2h3v12h-2V5h-1v10H2Zm2-2h5V3H4v10Zm3-6h1v2H7V7Z"],
   energy: ["M9 0 3 9h4l-1 7 7-10H9V0Z"],

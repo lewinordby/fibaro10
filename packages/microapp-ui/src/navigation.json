@@ -61,6 +61,7 @@
           "icon": "apps",
           "items": [
             { "to": "/kjoretoy", "label": "Register", "icon": "apps", "title": "Kj\u00f8ret\u00f8yregister", "description": "S\u00f8k, eiere og parkeringshistorikk per bil.", "module": "parkering", "view": "kjoretoy", "corePath": "/parkering/kjoretoy" },
+            { "to": "/observerte-biler", "label": "Observerte biler", "icon": "camera", "title": "Observerte biler", "description": "Kameraobservasjoner koblet mot kj\u00f8ret\u00f8yregister og betaling.", "module": "biler", "view": "oversikt", "corePath": "/biler/oversikt" },
             { "to": "/omrade", "label": "Omr\u00e5der", "icon": "compare", "title": "Parkeringsomr\u00e5der", "description": "Geografisk fordeling av kj\u00f8ret\u00f8y og parkeringer.", "module": "parkering", "view": "omrade", "corePath": "/parkering/omrade" },
             { "to": "/oppslag", "label": "Oppslag", "icon": "apps", "title": "Kj\u00f8ret\u00f8yoppslag", "description": "Status og kontroll av eksterne kj\u00f8ret\u00f8yoppslag.", "module": "parkering", "view": "oppslag", "corePath": "/parkering/oppslag" }
           ]
@@ -154,8 +155,9 @@
           "label": "Kontroll",
           "icon": "compare",
           "items": [
-            { "to": "/kontroll", "label": "Sun2-kontroll", "icon": "compare", "title": "Sun2-kontroll", "description": "Visuell kontroll av gjentatte treff og motbevis.", "module": "koble", "view": "sun2-kontroll", "corePath": "/koble/sun2-kontroll" },
+            { "to": "/kontroll", "label": "Sun2-kontroll", "icon": "compare", "title": "Sun2-kontroll", "description": "Visuell kontroll av gjentatte treff og motbevis.", "module": "koble", "view": "sun2", "corePath": "/koble/sun2" },
             { "to": "/biltreff", "label": "Biltreff", "icon": "parking", "title": "Biltreff", "description": "Biler med gjentatte treff mot samme Sun2-ID.", "module": "koble", "view": "biltreff", "corePath": "/koble/biltreff" },
+            { "to": "/kandidater", "label": "Kandidater", "icon": "link", "title": "Kandidater", "description": "Bekreft eller avvis sannsynlige koblinger.", "module": "koble", "view": "kandidater", "corePath": "/koble/kandidater" },
             { "to": "/treffgrunnlag", "label": "Treffgrunnlag", "icon": "chart", "title": "Treffgrunnlag", "description": "Parkeringer og soltimer som ligger bak kandidatene.", "module": "koble", "view": "treffgrunnlag", "corePath": "/koble/treffgrunnlag" }
           ]
         },
@@ -354,7 +356,13 @@
           "items": [
             { "to": "/manual", "label": "Manual", "icon": "book", "title": "Manual", "description": "Kort innf\u00f8ring og inngang til alle kapitler.", "module": "manual", "view": "oversikt", "corePath": "/manual/oversikt" },
             { "to": "/manual/daglig-bruk", "label": "Daglig bruk", "icon": "book", "title": "Daglig bruk", "description": "De viktigste arbeidsflytene i hverdagen.", "module": "manual", "view": "daglig-bruk", "corePath": "/manual/daglig-bruk" },
+            { "to": "/manual/menyvalg", "label": "Menyvalg", "icon": "apps", "title": "Menyvalg", "description": "Forklaring av hvert fagområde og hver arbeidsflate.", "module": "manual", "view": "menyvalg", "corePath": "/manual/menyvalg" },
+            { "to": "/manual/okonomi", "label": "Økonomi", "icon": "chart", "title": "Økonomi", "description": "Omsetning, parkering, soling og oppgjør.", "module": "manual", "view": "okonomi", "corePath": "/manual/okonomi" },
+            { "to": "/manual/bygg-drift", "label": "Bygg og drift", "icon": "building", "title": "Bygg og drift", "description": "Energi, ventilasjon, lys, dører og vedlikehold.", "module": "manual", "view": "bygg-drift", "corePath": "/manual/bygg-drift" },
+            { "to": "/manual/system-underapper", "label": "System og apper", "icon": "settings", "title": "System og underapper", "description": "Tjenester, sideapper og ansvarsområder.", "module": "manual", "view": "system-underapper", "corePath": "/manual/system-underapper" },
             { "to": "/manual/datagrunnlag", "label": "Datagrunnlag", "icon": "book", "title": "Datagrunnlag", "description": "Hvor data kommer fra og hvordan de behandles.", "module": "manual", "view": "datagrunnlag", "corePath": "/manual/datagrunnlag" },
+            { "to": "/manual/hc3-energi", "label": "HC3 energi", "icon": "energy", "title": "HC3 energioppsamlinger", "description": "Alle QuickApps, medlemmer og målere som ikke er med.", "module": "manual", "view": "hc3-energi", "corePath": "/manual/hc3-energi" },
+            { "to": "/manual/rutiner", "label": "Rutiner", "icon": "clock", "title": "Rutiner og kontroll", "description": "Daglige, ukentlige og månedlige kontroller.", "module": "manual", "view": "rutiner", "corePath": "/manual/rutiner" },
             { "to": "/manual/feilsoking", "label": "Feils\u00f8king", "icon": "warning", "title": "Feils\u00f8king", "description": "Systematiske kontroller ved vanlige feil.", "module": "manual", "view": "feilsoking", "corePath": "/manual/feilsoking" },
             { "to": "/manual/menystruktur", "label": "Menystruktur", "icon": "apps", "title": "Menystruktur", "description": "Komplett oversikt over apper, hovedomr\u00e5der og sider.", "module": "manual", "view": "menystruktur", "corePath": "/manual/menystruktur" }
           ]

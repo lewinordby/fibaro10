@@ -171,7 +171,45 @@ def test_system_menu_structure_page_is_available_without_core_data() -> None:
         payload = response.json()
         assert payload["title"] == "Menystruktur"
         assert len(payload["tables"]) == len(APP_MENU_STRUCTURE) + 2
-        assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 81
+        assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 89
+
+
+def test_parity_critical_specialized_views_are_kept_in_microapps() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    module_content = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "ModuleContent.tsx").read_text(encoding="utf-8")
+    navigation = json.loads((repo_root / "packages" / "microapp-ui" / "src" / "navigation.json").read_text(encoding="utf-8"))["apps"]
+    routes = {app["id"]: {item["to"] for group in app["groups"] for item in group["items"]} for app in navigation}
+
+    assert "<LinkReviewSpecial" in module_content
+    assert "<EnergyElviaSpecial" in module_content
+    assert "<BollardsSpecial" in module_content
+    assert "<DoorsSpecial" in module_content
+    assert "<MobilePreviewSpecial" in module_content
+    assert "/observerte-biler" in routes["parking"]
+    assert "/kandidater" in routes["link"]
+    assert "/manual/hc3-energi" in routes["system"]
+
+
+def test_detail_routes_do_not_fall_back_to_generic_module_pages() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    domain_app = (repo_root / "packages" / "microapp-ui" / "src" / "DomainApp.tsx").read_text(encoding="utf-8")
+    details = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "DetailPages.tsx").read_text(encoding="utf-8")
+    assert "isDetailRoute" in domain_app
+    assert "<DetailRoute" in domain_app
+    assert "MaintenanceVisitDetailPage" in details
+    assert "DataSourceDetailPage" in details
+    assert "BuildDetailPage" in details
+    assert "SettlementDetailPage" in details
+
+
+def test_specialized_views_have_narrow_proxy_access() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    parking_backend = (repo_root / "parking_app" / "app" / "main.py").read_text(encoding="utf-8")
+    system_backend = (repo_root / "system_app" / "app" / "main.py").read_text(encoding="utf-8")
+    assert '"cars/day"' in parking_backend
+    assert "unifi-protect/recognitions" in parking_backend
+    assert "import-status" in system_backend
+    assert "mobile-preview" in system_backend
 
 
 def test_operations_door_filter_uses_live_group_keys(monkeypatch) -> None:

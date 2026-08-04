@@ -12,6 +12,40 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1638",
+        "date": "04.08.2026",
+        "headline": "Mikroappene har fått tilbake sentral Fibaro10-funksjonalitet",
+        "title": "Komplett funksjonskontroll og parity-løft for den nye appstacken",
+        "description": (
+            "Den nye mikroappstacken er kontrollert systematisk mot Fibaro10. Generiske tabeller er erstattet "
+            "med fullverdige arbeidsflater der domenet krever bilder, detaljruting, kontrollhandlinger eller "
+            "visuell sammenstilling. Samtidig er proxytilganger, menystruktur og et skjult HC3-døravvik rettet."
+        ),
+        "applications": [
+            "Parkering: observerte biler med kamera, registerstatus, OCR-score, betaling og dagsfiltre.",
+            "Soling: detaljruting for oppgjør og eksisterende komplett bildearbeidsflyt for enkelttimer.",
+            "Koble: kandidater, biltreff, Sun2-kontroll, bekreft/avvis og forklarbart treffgrunnlag.",
+            "Energi: komplett Elvia-import, avstemming, topplister og importhistorikk.",
+            "Bygg og drift: visuell pullertkontroll samt kompakte dør-, solrom- og romkontrollflater.",
+            "Vedlikehold: klikkbare besøk med notat og oppgaver i samme detaljvisning.",
+            "System: klikkbare datakilder/builds, mobilskjermer som faktiske forhåndsvisninger og komplett manual.",
+        ],
+        "request": "Gå nøye gjennom den nye applikasjonsstacken og fiks alle mangler sammenlignet med Fibaro10.",
+        "work_duration": "ca. 2 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Kobler inn egne detaljruter i de generiske mikroappene i stedet for å falle tilbake til listesiden.",
+            "Gjeninnfører observerte biler som selvstendig parkeringsside uten sideinndeling.",
+            "Gjeninnfører pullertarbeidsflaten med referanse, siste bilde, gjennomsiktighet, forskjellsbilde og AI-status.",
+            "Gjeninnfører operativ dørstatus, solromstatus og romkontroll med dato, tidslinje og hendelser.",
+            "Viser mobilflatene i responsivt rutenett og åpner alle manualkapitlene, inkludert komplett HC3-energiinventar.",
+            "Retter Koble-ruten fra feil visningsnøkkel og gjør kandidatbehandling interaktiv.",
+            "Retter HC3-samlescriptets trigger-ID for inngang fra utgått 499 til aktiv 541.",
+            "Legger inn regresjonstester for kritiske parity-funksjoner og avgrensede proxytilganger.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1637",
         "date": "04.08.2026",
         "headline": "Aktive jobber rapporteres som friske",

@@ -25,6 +25,7 @@ app = create_domain_app(
                 "parkering/time-distribution",
                 "parkering/weekly-averages",
                 "parkering/weekly-averages/years",
+                "cars/day",
             },
             "POST": {
                 "actions/parkering/fetch-settlements",
@@ -40,6 +41,7 @@ app = create_domain_app(
                 re.compile(r"parking/vehicles/[a-z0-9-]+"),
                 re.compile(r"settlements/\d+"),
                 re.compile(r"settlements/\d+/attachment"),
+                re.compile(r"unifi-protect/recognitions/\d+/snapshot"),
             ),
             "POST": (re.compile(r"parking/vehicles/[a-z0-9-]+/clear-not-found"),),
         },

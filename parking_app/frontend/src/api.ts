@@ -1,6 +1,7 @@
 import type {
   AppConfig,
   AuthUser,
+  CarsDayResponse,
   ModuleAction,
   ModuleResponse,
   ParkingTimeDistributionResponse,
@@ -44,6 +45,7 @@ export const api = {
   weeklyAverages: (params: URLSearchParams) => request<ParkingWeeklyAveragesResponse>(query("/api/parkering/weekly-averages", params)),
   weeklyYears: (years?: string) => request<ParkingWeeklyYearComparisonResponse>(query("/api/parkering/weekly-averages/years", years ? new URLSearchParams({ years }) : undefined)),
   vehicle: (plate: string) => request<ParkingVehicleDetailResponse>(`/api/parking/vehicles/${encodeURIComponent(plate)}`),
+  carsDay: (day: string) => request<CarsDayResponse>(query("/api/cars/day", new URLSearchParams({ day }))),
   settlement: (id: string) => request<SettlementDetailResponse>(`/api/settlements/${encodeURIComponent(id)}`),
   action: (action: ModuleAction) => request<{ message?: string; status?: string }>(action.path, { method: action.method }),
 };

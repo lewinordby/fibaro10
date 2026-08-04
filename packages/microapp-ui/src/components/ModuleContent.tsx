@@ -9,9 +9,14 @@ import { MosaicIcon } from "./MosaicIcon";
 
 const VentilationSpecialAsync = lazy(() => import("./SpecializedContent").then((module) => ({ default: module.VentilationSpecial })));
 const EnergySunbedsSpecialAsync = lazy(() => import("./SpecializedContent").then((module) => ({ default: module.EnergySunbedsSpecial })));
+const EnergyElviaSpecialAsync = lazy(() => import("./SpecializedContent").then((module) => ({ default: module.EnergyElviaSpecial })));
 const EnergyCircuitLoadsSpecialAsync = lazy(() => import("./SpecializedContent").then((module) => ({ default: module.EnergyCircuitLoadsSpecial })));
 const ControlSettingsSpecialAsync = lazy(() => import("./SpecializedContent").then((module) => ({ default: module.ControlSettingsSpecial })));
 const SunSessionsSpecialAsync = lazy(() => import("./SunSessionsSpecial").then((module) => ({ default: module.SunSessionsSpecial })));
+const LinkReviewSpecialAsync = lazy(() => import("./LinkReviewSpecial").then((module) => ({ default: module.LinkReviewSpecial })));
+const BollardsSpecialAsync = lazy(() => import("./BollardsSpecial").then((module) => ({ default: module.BollardsSpecial })));
+const DoorsSpecialAsync = lazy(() => import("./DoorsSpecial").then((module) => ({ default: module.DoorsSpecial })));
+const MobilePreviewSpecialAsync = lazy(() => import("./MobilePreviewSpecial").then((module) => ({ default: module.MobilePreviewSpecial })));
 
 function SpecializedFallback() {
   return <Panel><div className="p-6 text-sm text-gray-400">Klargjør detaljvisning ...</div></Panel>;
@@ -23,6 +28,10 @@ function VentilationSpecial(props: ComponentProps<typeof VentilationSpecialAsync
 
 function EnergySunbedsSpecial(props: ComponentProps<typeof EnergySunbedsSpecialAsync>) {
   return <Suspense fallback={<SpecializedFallback />}><EnergySunbedsSpecialAsync {...props} /></Suspense>;
+}
+
+function EnergyElviaSpecial(props: ComponentProps<typeof EnergyElviaSpecialAsync>) {
+  return <Suspense fallback={<SpecializedFallback />}><EnergyElviaSpecialAsync {...props} /></Suspense>;
 }
 
 function EnergyCircuitLoadsSpecial(props: ComponentProps<typeof EnergyCircuitLoadsSpecialAsync>) {
@@ -37,6 +46,22 @@ function SunSessionsSpecial(props: ComponentProps<typeof SunSessionsSpecialAsync
   return <Suspense fallback={<SpecializedFallback />}><SunSessionsSpecialAsync {...props} /></Suspense>;
 }
 
+function LinkReviewSpecial(props: ComponentProps<typeof LinkReviewSpecialAsync>) {
+  return <Suspense fallback={<SpecializedFallback />}><LinkReviewSpecialAsync {...props} /></Suspense>;
+}
+
+function BollardsSpecial() {
+  return <Suspense fallback={<SpecializedFallback />}><BollardsSpecialAsync /></Suspense>;
+}
+
+function DoorsSpecial(props: ComponentProps<typeof DoorsSpecialAsync>) {
+  return <Suspense fallback={<SpecializedFallback />}><DoorsSpecialAsync {...props} /></Suspense>;
+}
+
+function MobilePreviewSpecial(props: ComponentProps<typeof MobilePreviewSpecialAsync>) {
+  return <Suspense fallback={<SpecializedFallback />}><MobilePreviewSpecialAsync {...props} /></Suspense>;
+}
+
 const palette = [mosaicChartColors.sky, mosaicChartColors.violet, mosaicChartColors.yellow, mosaicChartColors.green, mosaicChartColors.red, mosaicChartColors.gray];
 const buttonClasses: Record<Accent, string> = { violet: "bg-violet-500 hover:bg-violet-600", sky: "bg-sky-500 hover:bg-sky-600", yellow: "bg-yellow-500 hover:bg-yellow-600", green: "bg-green-500 hover:bg-green-600", red: "bg-red-500 hover:bg-red-600" };
 const linkClasses: Record<Accent, string> = { violet: "text-violet-600 dark:text-violet-400", sky: "text-sky-600 dark:text-sky-400", yellow: "text-yellow-600 dark:text-yellow-400", green: "text-green-600 dark:text-green-400", red: "text-red-600 dark:text-red-400" };
@@ -44,8 +69,17 @@ const linkClasses: Record<Accent, string> = { violet: "text-violet-600 dark:text
 function localPath(path: string | undefined, config: DomainUiConfig) {
   if (!path) return null;
   const parsed = new URL(path, window.location.origin);
-  const item = config.navigation.flatMap((group) => group.items).find((entry) => (entry.corePath || `/${entry.module}/${entry.view}`) === parsed.pathname);
-  return item ? `${item.to}${parsed.search}` : null;
+  const entries = config.navigation.flatMap((group) => group.items);
+  const exact = entries.find((entry) => (entry.corePath || `/${entry.module}/${entry.view}`) === parsed.pathname);
+  if (exact) return `${exact.to}${parsed.search}`;
+  const nested = entries
+    .map((entry) => ({ entry, corePath: entry.corePath || `/${entry.module}/${entry.view}` }))
+    .filter(({ corePath }) => parsed.pathname.startsWith(`${corePath}/`))
+    .sort((left, right) => right.corePath.length - left.corePath.length)[0];
+  if (!nested) return null;
+  const suffix = parsed.pathname.slice(nested.corePath.length);
+  const base = nested.entry.to === "/" ? "" : nested.entry.to;
+  return `${base}${suffix}${parsed.search}` || "/";
 }
 
 function tone(value: string | undefined, fallback: Accent) {
@@ -95,8 +129,11 @@ function RowLink({ path, config, coreUrl, children }: { path: string; config: Do
 function TableCell({ column, row, config, coreUrl }: { column: string; row: ModuleRow; config: DomainUiConfig; coreUrl: string }) {
   const value = row[column];
   const rowPath = typeof row.path === "string" ? row.path : "";
+  const columnPath = typeof row[`${column}_url`] === "string" ? String(row[`${column}_url`]) : "";
+  if (columnPath) return <RowLink path={columnPath} config={config} coreUrl={coreUrl}>{displayCell(column, value)}</RowLink>;
   if (rowPath && (column === "plate" || column === "car_license_number" || column === "period_label" || column === "title" || column === "name")) return <RowLink path={rowPath} config={config} coreUrl={coreUrl}>{displayCell(column, value)}</RowLink>;
   if (column === "path" && typeof value === "string") return <RowLink path={value} config={config} coreUrl={coreUrl}>Åpne</RowLink>;
+  if (typeof value === "string" && (/^https?:\/\//.test(value) || value.startsWith("/")) && /(?:url|lenke|abonner|historikk|forhåndsvisning|forhandsvisning|health)/i.test(column)) return <RowLink path={value} config={config} coreUrl={coreUrl}>Åpne</RowLink>;
   if (column === "status") {
     const label = displayCell(column, value);
     const normalized = String(value || "").toLowerCase();
@@ -128,7 +165,7 @@ function EditDialog({ edit, row, create, close, saved }: { edit: ModuleEditConfi
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/55 p-4" role="dialog" aria-modal="true"><form className="max-h-[90dvh] w-full max-w-3xl overflow-y-auto rounded-xl bg-white shadow-xl dark:bg-gray-800" onSubmit={submit}><header className="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-gray-700"><h2 className="font-semibold text-gray-800 dark:text-gray-100">{create ? "Ny" : "Rediger"} {edit.title.toLowerCase()}</h2><button type="button" className="text-gray-400" onClick={close}>Lukk</button></header><div className={`grid gap-4 p-6 ${edit.layout === "split" ? "md:grid-cols-2" : "grid-cols-1"}`}>{fields.map((field) => <label className={`text-sm font-medium text-gray-600 dark:text-gray-300 ${field.type === "textarea" && field.section === "main" ? "md:row-span-3" : ""}`} key={field.key}>{field.type === "boolean" ? <span className="flex items-center gap-3"><input className="form-checkbox" type="checkbox" checked={Boolean(values[field.key])} onChange={(event) => update(field, event.target.checked)} />{field.label}</span> : <>{field.label}{field.type === "textarea" ? <textarea className="form-textarea mt-1 w-full" rows={field.rows || 5} required={field.required} placeholder={field.placeholder} value={String(values[field.key] || "")} onChange={(event) => update(field, event.target.value)} /> : field.type === "select" ? <select className="form-select mt-1 w-full" required={field.required} value={String(values[field.key] ?? "")} onChange={(event) => update(field, event.target.value)}><option value="">Velg</option>{field.options?.map((option) => <option key={String(option.value)} value={String(option.value)}>{option.label}</option>)}</select> : <input className="form-input mt-1 w-full" type={field.type === "datetime" ? "datetime-local" : field.type === "password" ? "password" : field.type === "number" ? "number" : "text"} required={field.required} placeholder={field.placeholder} value={String(values[field.key] ?? "")} onChange={(event) => update(field, event.target.value)} />}</>}</label>)}</div>{error ? <p className="px-6 pb-2 text-sm text-red-500">{error}</p> : null}<footer className="flex justify-end gap-3 border-t border-gray-100 px-6 py-4 dark:border-gray-700"><button className="btn border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300" type="button" onClick={close}>Avbryt</button><button className="btn bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900" disabled={busy} type="submit">{busy ? "Lagrer ..." : "Lagre"}</button></footer></form></div>;
 }
 
-function DataTable({ table, config, coreUrl, reload }: { table: ModuleTable; config: DomainUiConfig; coreUrl: string; reload: () => void }) {
+export function DataTable({ table, config, coreUrl, reload }: { table: ModuleTable; config: DomainUiConfig; coreUrl: string; reload: () => void }) {
   const [, setParams] = useAppSearchParams();
   const [editing, setEditing] = useState<{ row: ModuleRow; create: boolean } | null>(null);
   const meta = table.meta;
@@ -181,9 +218,25 @@ export function ModuleContent({ data, config, reload, coreUrl, module, view }: {
   const empty = !data.cards.length && !(data.charts?.length) && !data.tables.length && !data.sunTimeline;
   const ventilationSpecial = module === "ventilasjon" && data.ventilation;
   const sunbedSpecial = module === "energi" && view === "forbruk-per-seng" && data.energySunbeds;
+  const elviaSpecial = module === "energi" && view === "elvia" && data.energyElvia;
   const circuitSpecial = module === "energi" && view === "kurs-last" && data.energyCircuitLoads;
   const settingsSpecial = Boolean(data.controlSettings);
   const sunSessionsSpecial = module === "soling" && view === "enkeltimer";
-  const hidesGenericTables = Boolean(sunSessionsSpecial || sunbedSpecial || circuitSpecial || settingsSpecial || (ventilationSpecial && view === "innstillinger"));
-  return <div className="space-y-6"><ModuleActions actions={data.actions} reload={reload} accent={config.accent} /><ModuleFilters filters={data.filters} accent={config.accent} />{data.dayNavigation && !data.sunTimeline ? <DayNavigation data={data.dayNavigation} /> : null}{data.uploadEndpoint ? <UploadPanel endpoint={data.uploadEndpoint} reload={reload} accent={config.accent} /> : null}<ModuleCards data={data.cards} config={config} />{data.sunTimeline ? <SunTimelineView timeline={data.sunTimeline} config={config} /> : null}{ventilationSpecial ? <VentilationSpecial data={data} view={view} reload={reload} /> : null}{sunSessionsSpecial ? <SunSessionsSpecial table={data.tables.find((table) => table.title === "Enkeltimer")} reload={reload} /> : null}{sunbedSpecial ? <EnergySunbedsSpecial data={sunbedSpecial} /> : null}{circuitSpecial ? <EnergyCircuitLoadsSpecial data={circuitSpecial} reload={reload} /> : null}{data.controlSettings ? <ControlSettingsSpecial settings={data.controlSettings} reload={reload} /> : null}{!ventilationSpecial ? <ModuleCharts charts={data.charts} /> : null}{!hidesGenericTables ? data.tables.map((table, index) => <DataTable key={`${table.title}-${index}`} table={table} config={config} coreUrl={coreUrl} reload={reload} />) : null}{empty && !ventilationSpecial && !sunSessionsSpecial && !sunbedSpecial && !circuitSpecial && !settingsSpecial ? <Panel title={data.title}><div className="p-6 text-sm text-gray-500 dark:text-gray-400">{data.subtitle || "Denne visningen har ingen data i valgt utvalg."}</div></Panel> : null}</div>;
+  const linkSpecial = module === "koble" && data.kobleReview;
+  const linkCustomView = Boolean(linkSpecial && ["oversikt", "kandidater", "biltreff", "sun2", "sun2-kontroll"].includes(view));
+  const bollardsSpecial = module === "pullerter";
+  const doorsSpecial = module === "dorer" && ["oversikt", "solrom", "romkontroll-ny2"].includes(view);
+  const mobileSpecial = module === "mobil";
+  const visibleTables = module !== "koble"
+    ? data.tables
+    : view === "treffgrunnlag"
+      ? data.tables.filter((table) => table.title === "Treffgrunnlag")
+      : view === "jobb"
+        ? data.tables.filter((table) => ["Jobbparametere", "Sist behandlet"].includes(table.title))
+        : [];
+  const hidesGenericTables = Boolean(sunSessionsSpecial || sunbedSpecial || elviaSpecial || circuitSpecial || settingsSpecial || linkCustomView || bollardsSpecial || doorsSpecial || mobileSpecial || (ventilationSpecial && view === "innstillinger"));
+  const showActions = module !== "koble" || view === "jobb";
+  const showCards = !elviaSpecial && !(linkSpecial && view !== "oversikt");
+  const showUpload = Boolean(data.uploadEndpoint && !elviaSpecial);
+  return <div className="space-y-6">{showActions ? <ModuleActions actions={data.actions} reload={reload} accent={config.accent} /> : null}{!doorsSpecial ? <ModuleFilters filters={data.filters} accent={config.accent} /> : null}{data.dayNavigation && !data.sunTimeline ? <DayNavigation data={data.dayNavigation} /> : null}{showUpload ? <UploadPanel endpoint={data.uploadEndpoint!} reload={reload} accent={config.accent} /> : null}{showCards && !bollardsSpecial && !doorsSpecial ? <ModuleCards data={data.cards} config={config} /> : null}{data.sunTimeline ? <SunTimelineView timeline={data.sunTimeline} config={config} /> : null}{ventilationSpecial ? <VentilationSpecial data={data} view={view} reload={reload} /> : null}{sunSessionsSpecial ? <SunSessionsSpecial table={data.tables.find((table) => table.title === "Enkeltimer")} reload={reload} /> : null}{elviaSpecial ? <EnergyElviaSpecial data={elviaSpecial} reload={reload} /> : null}{sunbedSpecial ? <EnergySunbedsSpecial data={sunbedSpecial} /> : null}{circuitSpecial ? <EnergyCircuitLoadsSpecial data={circuitSpecial} reload={reload} /> : null}{data.controlSettings ? <ControlSettingsSpecial settings={data.controlSettings} reload={reload} /> : null}{linkSpecial ? <LinkReviewSpecial review={linkSpecial} view={view} reload={reload} /> : null}{bollardsSpecial ? <BollardsSpecial /> : null}{doorsSpecial ? <DoorsSpecial view={view} /> : null}{mobileSpecial ? <MobilePreviewSpecial table={data.tables[0]} /> : null}{!ventilationSpecial && !elviaSpecial && !bollardsSpecial && !doorsSpecial && !mobileSpecial ? <ModuleCharts charts={data.charts} /> : null}{!hidesGenericTables ? visibleTables.map((table, index) => <DataTable key={`${table.title}-${index}`} table={table} config={config} coreUrl={coreUrl} reload={reload} />) : null}{empty && !ventilationSpecial && !sunSessionsSpecial && !sunbedSpecial && !elviaSpecial && !circuitSpecial && !settingsSpecial && !linkSpecial && !bollardsSpecial && !doorsSpecial && !mobileSpecial ? <Panel title={data.title}><div className="p-6 text-sm text-gray-500 dark:text-gray-400">{data.subtitle || "Denne visningen har ingen data i valgt utvalg."}</div></Panel> : null}</div>;
 }

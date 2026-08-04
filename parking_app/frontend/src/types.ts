@@ -263,3 +263,70 @@ export type SettlementDetailResponse = {
   sections: Array<{ title: string; rows: Array<{ label: string; value: unknown; detail?: string }> }>;
   raw: JsonRecord;
 };
+
+export type CarsDayDetection = {
+  recognitionId?: number | null;
+  occurredAt?: string | null;
+  cameraName?: string | null;
+  observedPlate?: string | null;
+  unifiScore?: number | null;
+  snapshotStatus?: string | null;
+  snapshotUrl?: string | null;
+};
+
+export type CarsRegistryValidation = {
+  status: string;
+  is_valid?: boolean | null;
+  country_code?: string | null;
+  country?: string | null;
+  source?: string | null;
+  vehicle_label?: string | null;
+  local_match: boolean;
+  message: string;
+};
+
+export type CarsDayItem = {
+  plate: string;
+  displayValue: string;
+  detectionCount: number;
+  firstDetectedAt?: string | null;
+  lastDetectedAt?: string | null;
+  knownInProtect: boolean;
+  cameraNames: string[];
+  detections: CarsDayDetection[];
+  averageUnifiScore?: number | null;
+  maximumUnifiScore?: number | null;
+  observedPlateValues: string[];
+  mergedVariantCount: number;
+  requiresReview: boolean;
+  registryValidation: CarsRegistryValidation;
+  vehicle?: { name?: string | null; area?: string | null; title?: string | null; path: string } | null;
+  hasPaidSession: boolean;
+  paidSessionCount: number;
+  paidTotalKr: number;
+  paymentStatus: string;
+};
+
+export type CarsDayResponse = {
+  generatedAt?: string | null;
+  selectedDay: string;
+  selectedDayLabel: string;
+  prevDay: string;
+  nextDay: string;
+  isToday: boolean;
+  matchPolicy: { label: string; detail: string };
+  observationWindow: { firstDetectedAt?: string | null; lastDetectedAt?: string | null; spanMinutes: number };
+  summary: {
+    uniquePlates: number;
+    detections: number;
+    paidPlates: number;
+    coveredPlates: number;
+    withoutPayment: number;
+    mergedOcrVariants: number;
+    reviewPlates: number;
+    validatedPlates: number;
+    likelyMisreads: number;
+    pendingValidation: number;
+  };
+  items: CarsDayItem[];
+};
