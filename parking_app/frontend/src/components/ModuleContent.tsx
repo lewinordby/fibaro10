@@ -9,6 +9,9 @@ import type { ModuleAction, ModuleChart, ModuleFilter, ModuleResponse, ModuleRow
 const palette = [mosaicChartColors.sky, mosaicChartColors.violet, mosaicChartColors.yellow, mosaicChartColors.green, mosaicChartColors.red, mosaicChartColors.gray];
 
 export function localParkingPath(path?: string | null) {
+  if (path?.startsWith("/classic/parkering/navn-oppslag")) return `/oppslag/navn${path.includes("?") ? path.slice(path.indexOf("?")) : ""}`;
+  if (path?.startsWith("/classic/parkering/omrade-oppslag")) return `/oppslag/omrade${path.includes("?") ? path.slice(path.indexOf("?")) : ""}`;
+  if (path?.startsWith("/classic/parkering/kjoretoy")) return `/kjoretoy${path.includes("?") ? path.slice(path.indexOf("?")) : ""}`;
   return resolveCorePath(path || undefined, "parking");
 }
 

@@ -12,6 +12,33 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1643",
+        "date": "05.08.2026",
+        "headline": "Parkeringsoppslag virker for vanlige brukere",
+        "title": "Navn- og områdekøene bruker trygg lesetilgang",
+        "description": (
+            "Live-kontrollen av alle mikroappsidene avdekket at de nye navn- og områdekøene svarte med 403 "
+            "for brukere uten administratortilgang. Listene henter nå samme arbeidsgrunnlag gjennom det ordinære "
+            "parkerings-API-et, mens endringer fortsatt krever de opprinnelige beskyttede endepunktene."
+        ),
+        "applications": [
+            "Parkering: manglende navn og område kan leses uten innstillingstilgang.",
+            "Parkering: gamle Classic-lenker åpner de nye lokale oppslagssidene.",
+            "Test: adapterne verifiseres med faktisk tabellutvalg, områdefilter og paginering.",
+        ],
+        "request": "Jeg synes det er masse mangler.",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bytter lesing fra administratorbeskyttede arbeidsliste-endepunkter til ordinær parkeringsmodul.",
+            "Beholder skrivetilgang og administrative handlinger bak eksisterende tilgangskontroll.",
+            "Retter områdelisten for både normal og filtrert tabelltittel.",
+            "Håndterer ugyldige sideparametere uten serverfeil.",
+            "Fjerner en TXT-knapp som ikke hadde et reelt tekstformat bak seg.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1642",
         "date": "04.08.2026",
         "headline": "Paritetskontrollen dekker nå alle mikroappsidene",
