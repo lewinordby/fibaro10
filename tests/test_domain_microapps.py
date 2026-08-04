@@ -202,6 +202,13 @@ def test_detail_routes_do_not_fall_back_to_generic_module_pages() -> None:
     assert "SettlementDetailPage" in details
 
 
+def test_shared_tables_link_build_rows_to_their_detail_page() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    source = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "ModuleContent.tsx").read_text(encoding="utf-8")
+    assert 'column === "build"' in source
+    assert 'column === "headline"' in source
+
+
 def test_specialized_views_have_narrow_proxy_access() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     parking_backend = (repo_root / "parking_app" / "app" / "main.py").read_text(encoding="utf-8")

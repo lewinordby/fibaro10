@@ -12,6 +12,30 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1640",
+        "date": "04.08.2026",
+        "headline": "Buildloggen åpner komplette builddetaljer",
+        "title": "Klikkbare buildrader er gjeninnført i System-appen",
+        "description": (
+            "Den visuelle paritetskontrollen viste at buildtabellen manglet navigasjon selv om detaljsiden var "
+            "ferdig. Buildnummer og overskrift peker nå til builddetaljen med bestilling, beskrivelse, apper, "
+            "endringer, tidsbruk og tilgjengelig kredittinformasjon."
+        ),
+        "applications": [
+            "System: buildnummer og overskrift er klikkbare i buildloggen.",
+            "Felles UI: tabeller forstår build og headline som detaljfelt når raden har en intern sti.",
+        ],
+        "request": "Gå nøye gjennom den nye applikasjonsstacken og fiks alle mangler sammenlignet med Fibaro10.",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Kobler buildnummer og overskrift til eksisterende detaljrute.",
+            "Legger inn regresjonstest for den delte tabellkomponenten.",
+            "Verifiserer navigasjon og innhold i produksjon etter utrulling.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1639",
         "date": "04.08.2026",
         "headline": "Pullertarbeidsflaten er tilgjengelig i Bygg og drift",

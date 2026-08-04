@@ -131,7 +131,7 @@ function TableCell({ column, row, config, coreUrl }: { column: string; row: Modu
   const rowPath = typeof row.path === "string" ? row.path : "";
   const columnPath = typeof row[`${column}_url`] === "string" ? String(row[`${column}_url`]) : "";
   if (columnPath) return <RowLink path={columnPath} config={config} coreUrl={coreUrl}>{displayCell(column, value)}</RowLink>;
-  if (rowPath && (column === "plate" || column === "car_license_number" || column === "period_label" || column === "title" || column === "name")) return <RowLink path={rowPath} config={config} coreUrl={coreUrl}>{displayCell(column, value)}</RowLink>;
+  if (rowPath && (column === "plate" || column === "car_license_number" || column === "period_label" || column === "title" || column === "name" || column === "build" || column === "headline")) return <RowLink path={rowPath} config={config} coreUrl={coreUrl}>{displayCell(column, value)}</RowLink>;
   if (column === "path" && typeof value === "string") return <RowLink path={value} config={config} coreUrl={coreUrl}>Åpne</RowLink>;
   if (typeof value === "string" && (/^https?:\/\//.test(value) || value.startsWith("/")) && /(?:url|lenke|abonner|historikk|forhåndsvisning|forhandsvisning|health)/i.test(column)) return <RowLink path={value} config={config} coreUrl={coreUrl}>Åpne</RowLink>;
   if (column === "status") {
