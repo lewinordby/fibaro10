@@ -12,6 +12,30 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1637",
+        "date": "04.08.2026",
+        "headline": "Aktive jobber rapporteres som friske",
+        "title": "Helsesjekken skiller nå mellom kjørende og ukjente datakilder",
+        "description": (
+            "Den samlede helsesjekken klassifiserte tidligere statusen running som ukjent. Det kunne stoppe en "
+            "utrulling akkurat mens en frisk bakgrunnsjobb arbeidet. Kjørende jobber teller nå som friske, mens "
+            "reelle feil, varsler og ukjente statuser fortsatt behandles separat."
+        ),
+        "applications": [
+            "Fibaro10 helse: aktive bakgrunnsjobber teller som friske datakilder.",
+            "Drift: deploykontrollen kan fullføres mens Koble-motoren eller andre jobber arbeider.",
+        ],
+        "request": "Fullfør 35-dagers bildebuffer og verifiser hele utrullingen uten falske helsesjekkfeil.",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger running til settet av friske datakildestatuser.",
+            "Beholder unknown for statuser systemet faktisk ikke kjenner.",
+            "Legger til regresjonstest for en aktiv bakgrunnsjobb.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1636",
         "date": "04.08.2026",
         "headline": "Axis-råbilder beholdes i 35 dager",

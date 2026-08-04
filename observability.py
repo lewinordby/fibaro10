@@ -48,12 +48,13 @@ def health_payload(
     sources: Optional[Iterable[HealthSourcePayload]] = None,
 ) -> HealthPayload:
     source_rows: List[HealthSourcePayload] = list(sources or [])
+    healthy_statuses = {"ok", "running"}
     source_counts = {
         "total": len(source_rows),
-        "ok": sum(1 for row in source_rows if row.get("status") == "ok"),
+        "ok": sum(1 for row in source_rows if row.get("status") in healthy_statuses),
         "warn": sum(1 for row in source_rows if row.get("status") == "warn"),
         "bad": sum(1 for row in source_rows if row.get("status") == "bad"),
-        "unknown": sum(1 for row in source_rows if row.get("status") not in {"ok", "warn", "bad"}),
+        "unknown": sum(1 for row in source_rows if row.get("status") not in healthy_statuses | {"warn", "bad"}),
     }
     status: HealthStatus = "ok" if database.get("status") == "ok" else "bad"
     if any(row.get("status") == "bad" for row in source_rows):

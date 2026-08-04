@@ -46,6 +46,19 @@ class ObservabilityTests(unittest.TestCase):
         self.assertEqual(payload["status"], "warn")
         self.assertEqual(payload["summary"]["sources"]["warn"], 1)
 
+    def test_health_payload_treats_running_source_as_healthy(self) -> None:
+        payload = health_payload(
+            app_version="1",
+            app_build="1100",
+            app_commit="abc123",
+            started_at="2026-06-10T10:00:00Z",
+            database={"status": "ok"},
+            sources=[{"title": "Koble", "status": "running"}],
+        )
+
+        self.assertEqual(payload["summary"]["sources"]["ok"], 1)
+        self.assertEqual(payload["summary"]["sources"]["unknown"], 0)
+
     def test_storage_tables_are_unique(self) -> None:
         self.assertEqual(len(STORAGE_TABLES), len(set(STORAGE_TABLES)))
 
