@@ -12,6 +12,38 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1642",
+        "date": "04.08.2026",
+        "headline": "Paritetskontrollen dekker nå alle mikroappsidene",
+        "title": "Manglende oppslag, dørvisninger og krysslenker er gjeninnført",
+        "description": (
+            "Den videre kontrollen viste at flere sider fortsatt var skjult, enkelte verktøy sendte brukeren "
+            "tilbake til Classic, og live-testen kontrollerte en utdatert ruteliste. Builden gjeninnfører de "
+            "alternative dørflatene, lager egne oppslagskøer i parkeringsappen, retter lenker mellom fagappene "
+            "og lar live-testen kontrollere hele den delte menydefinisjonen."
+        ),
+        "applications": [
+            "Alle fagapper: Fibaro10-lenker rutes til riktig mikroapp og detaljrute.",
+            "Parkering: native arbeidslister for manglende navn og område erstatter Classic-lenkene.",
+            "Bygg og drift: ti alternative dør- og solromsvisninger er tilgjengelige mens designene vurderes.",
+            "System: idéflatene er delt etter kontroll, innsikt, automatisering og arbeidsflyt.",
+            "Testverktøy: alle 113 menyvalg kontrolleres fra den faktiske navigasjonskilden.",
+        ],
+        "request": "Jeg synes det er masse mangler.",
+        "work_duration": "ca. 2 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Gjeninnfører alternative visninger for Dører, Solrom, Solrom-2 og Dører2.",
+            "Legger til dagsmatrise og avviksutvalg med direkte inngang til romkontroll.",
+            "Legger til paginerte navn- og områdekøer med kopiering og TXT-eksport.",
+            "Fjerner de siste synlige Classic-lenkene fra parkeringsverktøyene.",
+            "Retter ruteoppløsning mellom alle fagappene, også for nested detaljsider og query-parametere.",
+            "Fjerner dobbelt dataoppslag før dør- og pullertvisninger lastes.",
+            "Bygger om live-smoketesten slik at både side og API kontrolleres for hvert menyvalg.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1641",
         "date": "04.08.2026",
         "headline": "Parkering, soling og dører har fått tilbake manglende arbeidsflater",

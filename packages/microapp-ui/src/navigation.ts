@@ -38,3 +38,44 @@ export function findNavigationItem(config: DomainUiConfig, pathname: string): Na
 export function findNavigationGroup(config: DomainUiConfig, item: NavigationItem): NavigationGroup {
   return config.navigation.find((group) => group.items.includes(item)) || config.navigation[0];
 }
+
+type CoreRouteMatch = {
+  app: DomainAppDefinition;
+  item: NavigationItem;
+  corePath: string;
+};
+
+function coreRouteMatches(pathname: string): CoreRouteMatch[] {
+  return definitions.flatMap((app) =>
+    app.navigation.flatMap((group) =>
+      group.items
+        .map((item) => ({
+          app,
+          item,
+          corePath: item.corePath || `/${item.module}/${item.view}`,
+        }))
+        .filter(({ corePath }) => pathname === corePath || pathname.startsWith(`${corePath}/`)),
+    ),
+  );
+}
+
+/** Resolve a Fibaro10 route to the owning microapp, including nested detail routes. */
+export function resolveCorePath(path: string | undefined, currentAppId: AppDockId): string | null {
+  if (!path) return null;
+  const parsed = new URL(path, window.location.origin);
+  if (parsed.origin !== window.location.origin && /^https?:\/\//.test(path)) return path;
+  const match = coreRouteMatches(parsed.pathname).sort(
+    (left, right) => right.corePath.length - left.corePath.length,
+  )[0];
+  if (!match) return null;
+  const suffix = parsed.pathname.slice(match.corePath.length);
+  const base = match.item.to === "/" ? "" : match.item.to;
+  const targetPath = `${base}${suffix}${parsed.search}${parsed.hash}` || "/";
+  if (match.app.appId === currentAppId) return targetPath;
+  const target = new URL(window.location.href);
+  target.port = String(match.app.port);
+  target.pathname = targetPath.split(/[?#]/, 1)[0] || "/";
+  target.search = parsed.search;
+  target.hash = parsed.hash;
+  return target.toString();
+}

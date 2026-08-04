@@ -179,18 +179,21 @@ async def mobile_module(request: Request, client: httpx.AsyncClient, headers: di
 
 async def ideas_module(request: Request, client: httpx.AsyncClient, headers: dict[str, str]) -> dict[str, Any]:
     rows = [
-        {"omr\u00e5de": "Omsetning", "forslag": "Endringsforklaring", "nytte": "H\u00f8y", "status": "Klar \u00e5 bygge", "m\u00e5l": "Vis hvorfor omsetningen endret seg mellom importer."},
-        {"omr\u00e5de": "Omsetning", "forslag": "Samlet oppgj\u00f8rskontroll", "nytte": "H\u00f8y", "status": "B\u00f8r vurderes", "m\u00e5l": "Parkering, soling og produkter i ett kontrollbilde."},
-        {"omr\u00e5de": "Parkering", "forslag": "Kildeavstemming", "nytte": "H\u00f8y", "status": "Klar \u00e5 bygge", "m\u00e5l": "EasyPark, Flowbird, kj\u00f8ret\u00f8y og omr\u00e5de mot hverandre."},
-        {"omr\u00e5de": "Soling", "forslag": "Bildekontrollk\u00f8", "nytte": "Middels", "status": "Klar \u00e5 bygge", "m\u00e5l": "Rask kontroll av manglende og usikre hovedbilder."},
-        {"omr\u00e5de": "Koble", "forslag": "Forklarbar sannsynlighet", "nytte": "H\u00f8y", "status": "Eksperiment", "m\u00e5l": "Vis positive og negative bevis for bil mot Sun2-ID."},
-        {"omr\u00e5de": "Drift", "forslag": "Importkalender", "nytte": "Middels", "status": "Klar \u00e5 bygge", "m\u00e5l": "Planlagt mot faktisk kj\u00f8ring med varighet og avvik."},
-        {"omr\u00e5de": "Energi", "forslag": "Energi mot inntekt", "nytte": "Middels", "status": "Krever datagrunnlag", "m\u00e5l": "Kostnad og margin per dag, time og solseng."},
-        {"omr\u00e5de": "System", "forslag": "Datakvalitet som innboks", "nytte": "H\u00f8y", "status": "B\u00f8r vurderes", "m\u00e5l": "Samle avvik som m\u00e5 rettes, bekreftes eller f\u00f8lges opp."},
+        {"kategori": "kontroll", "omr\u00e5de": "Omsetning", "forslag": "Endringsforklaring", "nytte": "H\u00f8y", "status": "Klar \u00e5 bygge", "m\u00e5l": "Vis hvorfor omsetningen endret seg mellom importer."},
+        {"kategori": "kontroll,innsikt", "omr\u00e5de": "Omsetning", "forslag": "Samlet oppgj\u00f8rskontroll", "nytte": "H\u00f8y", "status": "B\u00f8r vurderes", "m\u00e5l": "Parkering, soling og produkter i ett kontrollbilde."},
+        {"kategori": "kontroll,automatisering", "omr\u00e5de": "Parkering", "forslag": "Kildeavstemming", "nytte": "H\u00f8y", "status": "Klar \u00e5 bygge", "m\u00e5l": "EasyPark, Flowbird, kj\u00f8ret\u00f8y og omr\u00e5de mot hverandre."},
+        {"kategori": "automatisering,arbeidsflyt", "omr\u00e5de": "Soling", "forslag": "Bildekontrollk\u00f8", "nytte": "Middels", "status": "Klar \u00e5 bygge", "m\u00e5l": "Rask kontroll av manglende og usikre hovedbilder."},
+        {"kategori": "innsikt,arbeidsflyt", "omr\u00e5de": "Koble", "forslag": "Forklarbar sannsynlighet", "nytte": "H\u00f8y", "status": "Eksperiment", "m\u00e5l": "Vis positive og negative bevis for bil mot Sun2-ID."},
+        {"kategori": "automatisering", "omr\u00e5de": "Drift", "forslag": "Importkalender", "nytte": "Middels", "status": "Klar \u00e5 bygge", "m\u00e5l": "Planlagt mot faktisk kj\u00f8ring med varighet og avvik."},
+        {"kategori": "innsikt", "omr\u00e5de": "Energi", "forslag": "Energi mot inntekt", "nytte": "Middels", "status": "Krever datagrunnlag", "m\u00e5l": "Kostnad og margin per dag, time og solseng."},
+        {"kategori": "kontroll,automatisering,arbeidsflyt", "omr\u00e5de": "System", "forslag": "Datakvalitet som innboks", "nytte": "H\u00f8y", "status": "B\u00f8r vurderes", "m\u00e5l": "Samle avvik som m\u00e5 rettes, bekreftes eller f\u00f8lges opp."},
     ]
-    ready = sum(1 for row in rows if row["status"] == "Klar \u00e5 bygge")
-    high = sum(1 for row in rows if row["nytte"] == "H\u00f8y")
-    return {"title": "Ideer", "subtitle": "Vurderingsflate f\u00f8r funksjoner flyttes til riktig fagapp", "cards": [card("Forslag", len(rows), "stk"), card("Klar \u00e5 bygge", ready, "stk"), card("H\u00f8y nytte", high, "stk"), card("Omr\u00e5der", len({row["omr\u00e5de"] for row in rows}), "stk")], "tables": [{"title": "Forslag", "columns": ["omr\u00e5de", "forslag", "nytte", "status", "m\u00e5l"], "rows": rows}]}
+    view = request.query_params.get("view", "oversikt")
+    selected = rows if view == "oversikt" else [row for row in rows if view in row["kategori"].split(",")]
+    ready = sum(1 for row in selected if row["status"] == "Klar \u00e5 bygge")
+    high = sum(1 for row in selected if row["nytte"] == "H\u00f8y")
+    titles = {"kontroll": "Kontroll og avvik", "innsikt": "Analyse og innsikt", "automatisering": "Automatisering", "arbeidsflyt": "Arbeidsflyt"}
+    return {"title": titles.get(view, "Ideer"), "subtitle": "Vurderingsflate f\u00f8r funksjoner flyttes til riktig fagapp", "cards": [card("Forslag", len(selected), "stk"), card("Klar \u00e5 bygge", ready, "stk"), card("H\u00f8y nytte", high, "stk"), card("Omr\u00e5der", len({row["omr\u00e5de"] for row in selected}), "stk")], "tables": [{"title": "Forslag", "columns": ["omr\u00e5de", "forslag", "nytte", "status", "m\u00e5l"], "rows": selected}]}
 
 app = create_domain_app(
     DomainAppConfig(

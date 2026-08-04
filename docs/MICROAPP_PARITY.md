@@ -30,7 +30,8 @@ direktelenker skal også virke.
 | Belegg og 23 plasser | Parkering / Dagslinje | Komplett |
 | Kjøretøy, eier og parkeringshistorikk | Parkering / Register | Komplett |
 | Kameraobservasjoner og OCR-kontroll | Parkering / Observerte biler | Komplett |
-| Områder, eksterne oppslag og datakvalitet | Parkering / Områder og Oppslag | Delt |
+| Områder, eksterne oppslag og datakvalitet | Parkering / Områder og Oppslag | Komplett |
+| Arbeidslister for manglende navn og område | Parkering / Navnoppslag og Områdeoppslag | Komplett |
 | Periode-, års-, tidspunkt- og ukeanalyse | Parkering / Analyse | Komplett |
 | ParkNordic-oppgjør og originalbilag | Parkering / Oppgjør | Komplett |
 
@@ -72,9 +73,9 @@ direktelenker skal også virke.
 | Pullert, fasade og trapp med bilder og AI | Bygg og drift / Pullerter | Komplett |
 | Roborock-status og historikk | Bygg og drift / Renhold | Delt |
 
-Tidligere sider med navn som oversikt-ny, romkontroll-ny, romkontroll-ny2, solrom-ny,
-Solrom-2 og Dører2 var parallelle designforsøk. De er arkivert som referansekode. Funksjonene de
-undersøkte er samlet i Dører, Solrom og Romkontroll.
+Alternative sider med navn som oversikt-ny, romkontroll-ny, romkontroll-ny2, solrom-ny,
+Solrom-2 og Dører2 er fortsatt tilgjengelige under **Alternative dørvisninger**. De beholdes som
+egne vurderingsflater inntil brukeren har valgt hvilke visninger som skal være permanente.
 
 ## Energi
 

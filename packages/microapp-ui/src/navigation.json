@@ -64,7 +64,9 @@
             { "to": "/kjoretoy", "label": "Register", "icon": "apps", "title": "Kj\u00f8ret\u00f8yregister", "description": "S\u00f8k, eiere og parkeringshistorikk per bil.", "module": "parkering", "view": "kjoretoy", "corePath": "/parkering/kjoretoy" },
             { "to": "/observerte-biler", "label": "Observerte biler", "icon": "camera", "title": "Observerte biler", "description": "Kameraobservasjoner koblet mot kj\u00f8ret\u00f8yregister og betaling.", "module": "biler", "view": "oversikt", "corePath": "/biler/oversikt" },
             { "to": "/omrade", "label": "Omr\u00e5der", "icon": "compare", "title": "Parkeringsomr\u00e5der", "description": "Geografisk fordeling av kj\u00f8ret\u00f8y og parkeringer.", "module": "parkering", "view": "omrade", "corePath": "/parkering/omrade" },
-            { "to": "/oppslag", "label": "Oppslag", "icon": "apps", "title": "Kj\u00f8ret\u00f8yoppslag", "description": "Status og kontroll av eksterne kj\u00f8ret\u00f8yoppslag.", "module": "parkering", "view": "oppslag", "corePath": "/parkering/oppslag" }
+            { "to": "/oppslag", "label": "Oppslag", "icon": "apps", "title": "Kj\u00f8ret\u00f8yoppslag", "description": "Status og kontroll av eksterne kj\u00f8ret\u00f8yoppslag.", "module": "parkering", "view": "oppslag", "corePath": "/parkering/oppslag" },
+            { "to": "/oppslag/navn", "label": "Navnoppslag", "icon": "users", "title": "Manglende navn", "description": "Arbeidsliste for kj\u00f8ret\u00f8y som mangler eiernavn.", "module": "parkering", "view": "navn-oppslag", "corePath": "/parkering/navn-oppslag" },
+            { "to": "/oppslag/omrade", "label": "Omr\u00e5deoppslag", "icon": "building", "title": "Manglende omr\u00e5de", "description": "Arbeidsliste for kj\u00f8ret\u00f8y som mangler omr\u00e5de.", "module": "parkering", "view": "omrade-oppslag", "corePath": "/parkering/omrade-oppslag" }
           ]
         },
         {
@@ -226,6 +228,22 @@
           ]
         },
         {
+          "label": "Alternative d\u00f8rvisninger",
+          "icon": "compare",
+          "items": [
+            { "to": "/dorer/oversikt-kompakt", "label": "Kompakt oversikt", "icon": "door", "title": "Kompakt d\u00f8roversikt", "description": "Det kompakte oversiktsforslaget fra Fibaro10.", "module": "dorer", "view": "oversikt-ny", "corePath": "/dorer/oversikt-ny" },
+            { "to": "/dorer/romkontroll-original", "label": "Romkontroll original", "icon": "compare", "title": "Romkontroll original", "description": "Den opprinnelige romkontrollen med ett valgt rom.", "module": "dorer", "view": "romkontroll", "corePath": "/dorer/romkontroll" },
+            { "to": "/dorer/dagsmatrise", "label": "Dagsmatrise", "icon": "calendar", "title": "Dagsmatrise solrom", "description": "Alle solrom samlet for valgt dag.", "module": "dorer", "view": "romkontroll-ny", "corePath": "/dorer/romkontroll-ny" },
+            { "to": "/dorer/solrom-kompakt", "label": "Solrom kompakt", "icon": "sun", "title": "Kompakt solromstatus", "description": "Alternativ kompakt visning av solrommene.", "module": "dorer", "view": "solrom-ny", "corePath": "/dorer/solrom-ny" },
+            { "to": "/solrom/dagskontroll", "label": "Solrom dagskontroll", "icon": "calendar", "title": "Solrom dagskontroll", "description": "Dagskontroll fra den egne Solrom-flaten.", "module": "dorer", "view": "solrom-dagskontroll", "corePath": "/solrom/dagskontroll" },
+            { "to": "/solrom2/oversikt", "label": "Solrom-2", "icon": "sun", "title": "Solrom-2 oversikt", "description": "Alternativ solromflate med tydelig avviksfokus.", "module": "dorer", "view": "solrom2-oversikt", "corePath": "/solrom-2/oversikt" },
+            { "to": "/solrom2/dagskontroll", "label": "Solrom-2 dagskontroll", "icon": "calendar", "title": "Solrom-2 dagskontroll", "description": "Dagsmatrise fra Solrom-2.", "module": "dorer", "view": "solrom2-dagskontroll", "corePath": "/solrom-2/dagskontroll" },
+            { "to": "/solrom2/avvik", "label": "Solrom-2 avvik", "icon": "warning", "title": "Solrom-2 avvik", "description": "Rom med varsler, alarmer eller manglende kobling.", "module": "dorer", "view": "solrom2-avvik", "corePath": "/solrom-2/avvik" },
+            { "to": "/dorer2/situasjon", "label": "D\u00f8rer2 situasjon", "icon": "door", "title": "D\u00f8rer2 situasjon", "description": "Situasjonsflaten for solrom og byggd\u00f8rer.", "module": "dorer", "view": "dorer2-oversikt", "corePath": "/dorer2/oversikt" },
+            { "to": "/dorer2/bygg", "label": "D\u00f8rer2 byggd\u00f8rer", "icon": "building", "title": "D\u00f8rer2 byggd\u00f8rer", "description": "Byggd\u00f8rer vurdert mot normalstilling.", "module": "dorer", "view": "dorer2-bygg", "corePath": "/dorer2/bygg" }
+          ]
+        },
+        {
           "label": "Pullerter",
           "icon": "building",
           "items": [
@@ -381,6 +399,10 @@
           "items": [
             { "to": "/build", "label": "Buildlogg", "icon": "clock", "title": "Buildlogg", "description": "Buildnummer, bestillinger, endringer og ber\u00f8rte apper.", "module": "admin", "view": "build", "corePath": "/admin/build" },
             { "to": "/ideer", "label": "Ideer", "icon": "idea", "title": "Ideer", "description": "Forslag til ny funksjonalitet f\u00f8r de flyttes inn i fagappene.", "module": "ideer", "view": "oversikt", "corePath": "/ideer/oversikt" },
+            { "to": "/ideer/kontroll", "label": "Kontrollideer", "icon": "warning", "title": "Kontroll og avvik", "description": "Forslag som gj\u00f8r tall og importer enklere \u00e5 etterpr\u00f8ve.", "module": "ideer", "view": "kontroll", "corePath": "/ideer/kontroll" },
+            { "to": "/ideer/innsikt", "label": "Innsikt", "icon": "chart", "title": "Analyse og innsikt", "description": "Forslag til bedre analyse av historikk og sammenhenger.", "module": "ideer", "view": "innsikt", "corePath": "/ideer/innsikt" },
+            { "to": "/ideer/automatisering", "label": "Automatisering", "icon": "settings", "title": "Automatisering", "description": "Forslag som reduserer manuelt arbeid.", "module": "ideer", "view": "automatisering", "corePath": "/ideer/automatisering" },
+            { "to": "/ideer/arbeidsflyt", "label": "Arbeidsflyt", "icon": "tools", "title": "Arbeidsflyt", "description": "Forslag som gj\u00f8r daglige oppgaver raskere.", "module": "ideer", "view": "arbeidsflyt", "corePath": "/ideer/arbeidsflyt" },
             { "to": "/mobil", "label": "Mobilflater", "icon": "apps", "title": "Mobilflater", "description": "Samlet oversikt over skjermene i mobilappen.", "module": "mobil", "view": "oversikt", "corePath": "/mobil/oversikt" },
             { "to": "/ai", "label": "AI", "icon": "idea", "title": "AI-funksjoner", "description": "Status og innstillinger for lokale og eksterne AI-funksjoner.", "module": "admin", "view": "ai", "corePath": "/admin/ai" }
           ]

@@ -171,7 +171,7 @@ def test_system_menu_structure_page_is_available_without_core_data() -> None:
         payload = response.json()
         assert payload["title"] == "Menystruktur"
         assert len(payload["tables"]) == len(APP_MENU_STRUCTURE) + 2
-        assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 97
+        assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 113
 
 
 def test_parity_critical_specialized_views_are_kept_in_microapps() -> None:
@@ -190,6 +190,20 @@ def test_parity_critical_specialized_views_are_kept_in_microapps() -> None:
     assert {"/", "/oversikt", "/periode", "/sammenligning"} <= routes["sun"]
     assert "/detaljer" in routes["sun"]
     assert {"/dorer/andre", "/dorer/soltimer", "/dorer/alarm", "/dorer/avvik"} <= routes["operations"]
+    assert {
+        "/dorer/oversikt-kompakt",
+        "/dorer/romkontroll-original",
+        "/dorer/dagsmatrise",
+        "/dorer/solrom-kompakt",
+        "/solrom/dagskontroll",
+        "/solrom2/oversikt",
+        "/solrom2/dagskontroll",
+        "/solrom2/avvik",
+        "/dorer2/situasjon",
+        "/dorer2/bygg",
+    } <= routes["operations"]
+    assert {"/oppslag/navn", "/oppslag/omrade"} <= routes["parking"]
+    assert {"/ideer/kontroll", "/ideer/innsikt", "/ideer/automatisering", "/ideer/arbeidsflyt"} <= routes["system"]
     assert "/kandidater" in routes["link"]
     assert "/manual/hc3-energi" in routes["system"]
 
@@ -224,6 +238,13 @@ def test_detail_routes_do_not_fall_back_to_generic_module_pages() -> None:
     assert "SettlementDetailPage" in details
 
 
+def test_self_loading_operations_views_do_not_fetch_the_generic_module_first() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    domain_app = (repo_root / "packages" / "microapp-ui" / "src" / "DomainApp.tsx").read_text(encoding="utf-8")
+    assert 'item.module === "dorer" || item.module === "pullerter"' in domain_app
+    assert "isSelfLoadingOperationsView" in domain_app
+
+
 def test_shared_tables_link_build_rows_to_their_detail_page() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     source = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "ModuleContent.tsx").read_text(encoding="utf-8")
@@ -239,6 +260,17 @@ def test_specialized_views_have_narrow_proxy_access() -> None:
     assert "unifi-protect/recognitions" in parking_backend
     assert "import-status" in system_backend
     assert "mobile-preview" in system_backend
+
+
+def test_core_links_are_resolved_to_the_owning_microapp() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    navigation = (repo_root / "packages" / "microapp-ui" / "src" / "navigation.ts").read_text(encoding="utf-8")
+    shared_module = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "ModuleContent.tsx").read_text(encoding="utf-8")
+    parking_module = (repo_root / "parking_app" / "frontend" / "src" / "components" / "ModuleContent.tsx").read_text(encoding="utf-8")
+    assert "export function resolveCorePath" in navigation
+    assert "coreRouteMatches" in navigation
+    assert "resolveCorePath(path, config.appId)" in shared_module
+    assert 'resolveCorePath(path || undefined, "parking")' in parking_module
 
 
 def test_operations_proxy_allows_bollard_workbench_endpoints() -> None:

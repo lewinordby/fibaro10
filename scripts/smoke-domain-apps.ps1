@@ -26,34 +26,35 @@ if (-not $username -or -not $password) {
     throw "Credential-filen mangler FIBARO10_LIVE_USERNAME eller FIBARO10_LIVE_PASSWORD."
 }
 
-$genericApps = @(
-    @{ Name = "Soling"; Port = 8153; Source = "sun_app/frontend/src/main.tsx" },
-    @{ Name = "Energi"; Port = 8154; Source = "energy_app/frontend/src/main.tsx" },
-    @{ Name = "Bygg og drift"; Port = 8155; Source = "operations_app/frontend/src/main.tsx" },
-    @{ Name = "Vedlikehold"; Port = 8156; Source = "maintenance_app/frontend/src/main.tsx" },
-    @{ Name = "System"; Port = 8157; Source = "system_app/frontend/src/main.tsx" },
-    @{ Name = "Koble"; Port = 8158; Source = "link_app/frontend/src/main.tsx" }
-)
+$navigationPath = Join-Path $repoRoot "packages/microapp-ui/src/navigation.json"
+$navigation = (Get-Content -LiteralPath $navigationPath -Raw -Encoding UTF8 | ConvertFrom-Json).apps
 
-$customChecks = @(
-    @{ App = "Omsetning"; Port = 8151; Route = "/"; Endpoint = "/api/overview"; Kind = "json" },
-    @{ App = "Omsetning"; Port = 8151; Route = "/oversikt"; Endpoint = "/api/modules/omsetning?view=oversikt"; Kind = "module" },
-    @{ App = "Omsetning"; Port = 8151; Route = "/sammenligning"; Endpoint = "/api/status/comparison"; Kind = "json" },
-    @{ App = "Omsetning"; Port = 8151; Route = "/ar"; Endpoint = "/api/omsetning/year-comparison"; Kind = "json" },
-    @{ App = "Omsetning"; Port = 8151; Route = "/maned"; Endpoint = "/api/revenue/month"; Kind = "json" },
-    @{ App = "Parkering"; Port = 8152; Route = "/"; Endpoint = "/api/modules/parkering?view=oversikt"; Kind = "module" },
-    @{ App = "Parkering"; Port = 8152; Route = "/parkeringer"; Endpoint = "/api/modules/parkering?view=parkeringer"; Kind = "module" },
-    @{ App = "Parkering"; Port = 8152; Route = "/dagslinje"; Endpoint = "/api/modules/parkering?view=dagslinje"; Kind = "module" },
-    @{ App = "Parkering"; Port = 8152; Route = "/kjoretoy"; Endpoint = "/api/modules/parkering?view=kjoretoy"; Kind = "module" },
-    @{ App = "Parkering"; Port = 8152; Route = "/omrade"; Endpoint = "/api/modules/parkering?view=omrade"; Kind = "module" },
-    @{ App = "Parkering"; Port = 8152; Route = "/prognose"; Endpoint = "/api/modules/parkering?view=prognose"; Kind = "module" },
-    @{ App = "Parkering"; Port = 8152; Route = "/oppgjor"; Endpoint = "/api/modules/parkering?view=oppgjor"; Kind = "module" },
-    @{ App = "Parkering"; Port = 8152; Route = "/arsutvikling"; Endpoint = "/api/parkering/year-comparison"; Kind = "json" },
-    @{ App = "Parkering"; Port = 8152; Route = "/tidspunkt"; Endpoint = "/api/parkering/time-distribution"; Kind = "json" },
-    @{ App = "Parkering"; Port = 8152; Route = "/ukesnitt"; Endpoint = "/api/parkering/weekly-averages"; Kind = "json" },
-    @{ App = "Parkering"; Port = 8152; Route = "/bilstatistikk"; Endpoint = "/api/modules/parkering?view=bilstatistikk"; Kind = "module" },
-    @{ App = "Parkering"; Port = 8152; Route = "/oppslag"; Endpoint = "/api/modules/parkering?view=oppslag"; Kind = "module" }
-)
+function Resolve-RouteCheck($app, $item) {
+    $key = "$($app.id):$($item.to)"
+    $special = @{
+        "revenue:/" = @{ Endpoint = "/api/overview"; Kind = "json" }
+        "revenue:/maned" = @{ Endpoint = "/api/revenue/month"; Kind = "json" }
+        "revenue:/ar" = @{ Endpoint = "/api/omsetning/year-comparison"; Kind = "json" }
+        "revenue:/sammenligning" = @{ Endpoint = "/api/status/comparison"; Kind = "json" }
+        "parking:/" = @{ Endpoint = "/api/overview"; Kind = "json" }
+        "parking:/periode" = @{ Endpoint = "/api/status/comparison"; Kind = "json" }
+        "parking:/arsutvikling" = @{ Endpoint = "/api/parkering/year-comparison"; Kind = "json" }
+        "parking:/tidspunkt" = @{ Endpoint = "/api/parkering/time-distribution"; Kind = "json" }
+        "parking:/ukesnitt" = @{ Endpoint = "/api/parkering/weekly-averages"; Kind = "json" }
+        "parking:/observerte-biler" = @{ Endpoint = "/api/cars/day"; Kind = "json" }
+        "parking:/oppslag/navn" = @{ Endpoint = "/api/parkering/kjoretoy/mangler-navn?limit=1&offset=0"; Kind = "json" }
+        "parking:/oppslag/omrade" = @{ Endpoint = "/api/parkering/kjoretoy/mangler-omrade?limit=1&offset=0"; Kind = "json" }
+        "sun:/" = @{ Endpoint = "/api/overview"; Kind = "json" }
+        "sun:/periode" = @{ Endpoint = "/api/status/comparison"; Kind = "json" }
+        "sun:/sammenligning" = @{ Endpoint = "/api/soling/year-comparison"; Kind = "json" }
+        "operations:/" = @{ Endpoint = "/api/overview"; Kind = "operations" }
+    }
+    if ($special.ContainsKey($key)) { return $special[$key] }
+    return @{
+        Endpoint = "/api/modules/$([uri]::EscapeDataString($item.module))?view=$([uri]::EscapeDataString($item.view))"
+        Kind = "module"
+    }
+}
 
 $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
 Invoke-WebRequest -UseBasicParsing -Uri "http://${HostAddress}:8151/auth/login" -Method Post -Body @{
@@ -85,24 +86,32 @@ function Invoke-DomainCheck([string]$App, [int]$Port, [string]$Route, [string]$E
     }
 }
 
+function Invoke-FrontendRouteCheck([string]$App, [int]$Port, [string]$Route) {
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    try {
+        $response = Invoke-WebRequest -UseBasicParsing -Uri "http://${HostAddress}:$Port$Route" -WebSession $session -TimeoutSec 30
+        $stopwatch.Stop()
+        if ($response.StatusCode -ne 200 -or $response.Content -notmatch '<div id="root">') {
+            throw "Frontend returnerte ikke app-skallet"
+        }
+        $results.Add([pscustomobject]@{ App = $App; Route = "$Route [side]"; Status = "OK"; Ytelse = if ($stopwatch.ElapsedMilliseconds -gt $WarnAfterMs) { "TREG" } else { "BRA" }; Ms = $stopwatch.ElapsedMilliseconds })
+    } catch {
+        $stopwatch.Stop()
+        $results.Add([pscustomobject]@{ App = $App; Route = "$Route [side]"; Status = "FEIL: $($_.Exception.Message)"; Ytelse = "-"; Ms = $stopwatch.ElapsedMilliseconds })
+    }
+}
+
 foreach ($port in 8150..8158) {
     Invoke-DomainCheck -App "Tjeneste $port" -Port $port -Route "/ready" -Endpoint "/ready" -Kind "json"
 }
 
-foreach ($check in $customChecks) {
-    Invoke-DomainCheck -App $check.App -Port $check.Port -Route $check.Route -Endpoint $check.Endpoint -Kind $check.Kind
-}
-
-foreach ($app in $genericApps) {
-    $sourcePath = Join-Path $repoRoot $app.Source
-    foreach ($line in Get-Content -LiteralPath $sourcePath -Encoding UTF8) {
-        if ($line -notmatch 'to:\s*"(?<route>[^"]+)".*module:\s*"(?<module>[^"]+)".*view:\s*"(?<view>[^"]+)"') { continue }
-        $route = $Matches.route
-        $module = $Matches.module
-        $view = $Matches.view
-        $endpoint = if ($module -eq "status" -and $view -eq "drift") { "/api/overview" } else { "/api/modules/$([uri]::EscapeDataString($module))?view=$([uri]::EscapeDataString($view))" }
-        $kind = if ($endpoint -eq "/api/overview") { "operations" } else { "module" }
-        Invoke-DomainCheck -App $app.Name -Port $app.Port -Route $route -Endpoint $endpoint -Kind $kind
+foreach ($app in $navigation) {
+    foreach ($group in $app.groups) {
+        foreach ($item in $group.items) {
+            $check = Resolve-RouteCheck $app $item
+            Invoke-FrontendRouteCheck -App $app.shortName -Port $app.port -Route $item.to
+            Invoke-DomainCheck -App $app.shortName -Port $app.port -Route $item.to -Endpoint $check.Endpoint -Kind $check.Kind
+        }
     }
 }
 

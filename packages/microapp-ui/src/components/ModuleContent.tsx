@@ -2,6 +2,7 @@ import { lazy, Suspense, type ComponentProps, type FormEvent, useEffect, useMemo
 import { domainApi } from "../api";
 import { displayCell, nok, valueLabel } from "../format";
 import { AppLink, useAppSearchParams } from "../router";
+import { resolveCorePath } from "../navigation";
 import type { Accent, DomainUiConfig, JsonRecord, ModuleAction, ModuleChart, ModuleEditConfig, ModuleEditField, ModuleFilter, ModuleResponse, ModuleRow, ModuleTable, SunTimeline } from "../types";
 import { Chart, mosaicChartColors, type MosaicChartConfig } from "./Chart";
 import { MetricCard, Panel } from "./Mosaic";
@@ -67,19 +68,7 @@ const buttonClasses: Record<Accent, string> = { violet: "bg-violet-500 hover:bg-
 const linkClasses: Record<Accent, string> = { violet: "text-violet-600 dark:text-violet-400", sky: "text-sky-600 dark:text-sky-400", yellow: "text-yellow-600 dark:text-yellow-400", green: "text-green-600 dark:text-green-400", red: "text-red-600 dark:text-red-400" };
 
 function localPath(path: string | undefined, config: DomainUiConfig) {
-  if (!path) return null;
-  const parsed = new URL(path, window.location.origin);
-  const entries = config.navigation.flatMap((group) => group.items);
-  const exact = entries.find((entry) => (entry.corePath || `/${entry.module}/${entry.view}`) === parsed.pathname);
-  if (exact) return `${exact.to}${parsed.search}`;
-  const nested = entries
-    .map((entry) => ({ entry, corePath: entry.corePath || `/${entry.module}/${entry.view}` }))
-    .filter(({ corePath }) => parsed.pathname.startsWith(`${corePath}/`))
-    .sort((left, right) => right.corePath.length - left.corePath.length)[0];
-  if (!nested) return null;
-  const suffix = parsed.pathname.slice(nested.corePath.length);
-  const base = nested.entry.to === "/" ? "" : nested.entry.to;
-  return `${base}${suffix}${parsed.search}` || "/";
+  return resolveCorePath(path, config.appId);
 }
 
 function tone(value: string | undefined, fallback: Accent) {
@@ -225,7 +214,12 @@ export function ModuleContent({ data, config, reload, coreUrl, module, view }: {
   const linkSpecial = module === "koble" && data.kobleReview;
   const linkCustomView = Boolean(linkSpecial && ["oversikt", "kandidater", "biltreff", "sun2", "sun2-kontroll"].includes(view));
   const bollardsSpecial = module === "pullerter";
-  const doorsSpecial = module === "dorer" && ["oversikt", "andre", "solrom", "soltimer", "romkontroll-ny2"].includes(view);
+  const doorsSpecial = module === "dorer" && [
+    "oversikt", "andre", "solrom", "soltimer", "romkontroll-ny2",
+    "oversikt-ny", "romkontroll", "romkontroll-ny", "solrom-ny",
+    "solrom-dagskontroll", "solrom2-oversikt", "solrom2-dagskontroll",
+    "solrom2-avvik", "dorer2-oversikt", "dorer2-bygg",
+  ].includes(view);
   const mobileSpecial = module === "mobil";
   const visibleTables = module !== "koble"
     ? data.tables

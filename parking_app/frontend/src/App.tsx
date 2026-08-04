@@ -10,6 +10,7 @@ const WeeklyPage = lazy(() => import("./pages/WeeklyPage"));
 const VehiclePage = lazy(() => import("./pages/VehiclePage"));
 const SettlementPage = lazy(() => import("./pages/SettlementPage"));
 const ObservedCarsPage = lazy(() => import("./pages/ObservedCarsPage"));
+const LookupPage = lazy(() => import("./pages/LookupPage"));
 const navigation = getDomainConfig("parking");
 
 const moduleRoutes: Record<string, string> = {
@@ -34,6 +35,8 @@ export default function App() {
   else if (pathname === "/tidspunkt") page = <TimeDistributionPage />;
   else if (pathname === "/ukesnitt") page = <WeeklyPage />;
   else if (pathname === "/observerte-biler") page = <ObservedCarsPage />;
+  else if (pathname === "/oppslag/navn") page = <LookupPage mode="navn" />;
+  else if (pathname === "/oppslag/omrade") page = <LookupPage mode="omrade" />;
   else if (vehicle) page = <VehiclePage plate={decodeURIComponent(vehicle[1])} />;
   else if (settlement) page = <SettlementPage id={settlement[1]} />;
   return <DomainLayout config={navigation}><Suspense fallback={<Loading />}>{page}</Suspense></DomainLayout>;

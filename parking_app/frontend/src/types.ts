@@ -254,6 +254,25 @@ export type ParkingVehicleDetailResponse = {
   actions?: ModuleAction[];
 };
 
+export type ParkingLookupRow = {
+  plate: string;
+  navn?: string | null;
+  omrade?: string | null;
+  vehicle?: string | null;
+  make?: string | null;
+  model?: string | null;
+  year?: number | null;
+  parkering_count?: number | null;
+  last_seen?: string | null;
+};
+
+export type ParkingLookupResponse = {
+  count: number;
+  limit: number;
+  offset: number;
+  rows: ParkingLookupRow[];
+};
+
 export type SettlementDetailResponse = {
   id: number;
   title: string;

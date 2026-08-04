@@ -29729,17 +29729,17 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             [
                                 api_tool_row(
                                     "Navnoppslag",
-                                    "/classic/parkering/navn-oppslag",
+                                    "/parkering/navn-oppslag",
                                     f"Koble kjøretøy mot navn/SUN2. {format_short_number(vehicle_name_not_found_count)} er ikke funnet.",
                                     vehicle_missing_name_count,
                                 ),
                                 api_tool_row(
                                     "Områdeoppslag",
-                                    "/classic/parkering/omrade-oppslag",
+                                    "/parkering/omrade-oppslag",
                                     f"Sett område på kjøretøy. {format_short_number(vehicle_area_not_found_count)} er ikke funnet.",
                                     vehicle_missing_area_count,
                                 ),
-                                api_tool_row("Kjøretøyoversikt", "/classic/parkering/kjoretoy", "Full gammel kjøretøyflate med redigering og detaljer.", vehicle_count),
+                                api_tool_row("Kjøretøyoversikt", "/parkering/kjoretoy", "Kjøretøyregister med redigering og detaljer.", vehicle_count),
                             ],
                         ),
                         api_table(

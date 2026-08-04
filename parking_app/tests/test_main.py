@@ -62,6 +62,19 @@ class ParkingAppTest(unittest.TestCase):
         self.assertEqual(vehicle.status_code, 200)
         self.assertEqual(settlement.status_code, 200)
 
+    def test_native_lookup_worklists_are_allowed(self) -> None:
+        core_response = httpx.Response(
+            200,
+            json={"count": 1, "limit": 100, "offset": 0, "rows": [{"plate": "AB12345"}]},
+            request=httpx.Request("GET", "http://fibaro10/api/parkering/kjoretoy/mangler-navn"),
+        )
+        with TestClient(app) as client:
+            with patch.object(client.app.state.core_client, "request", new=AsyncMock(return_value=core_response)) as core_request:
+                response = client.get("/api/parkering/kjoretoy/mangler-navn?limit=100&offset=0")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["rows"][0]["plate"], "AB12345")
+        self.assertEqual(core_request.call_args.args[:2], ("GET", "/api/parkering/kjoretoy/mangler-navn"))
+
     def test_allowed_action_is_forwarded_as_post(self) -> None:
         core_response = httpx.Response(202, json={"message": "Startet"}, request=httpx.Request("POST", "http://fibaro10/api/actions/parkering/refresh"))
         with TestClient(app) as client:

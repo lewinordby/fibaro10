@@ -8,6 +8,7 @@
     "./format": "./src/format.ts",
     "./app-dock": "./src/components/AppDock.tsx",
     "./hooks": "./src/hooks.ts",
+    "./navigation": "./src/navigation.ts",
     "./primitives": "./src/primitives.ts",
     "./router": "./src/router.tsx"
   },

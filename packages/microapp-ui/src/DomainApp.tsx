@@ -66,13 +66,16 @@ function RoutedDomainApp({ config }: { config: DomainUiConfig }) {
   const isCountComparison = item.module === "status" && item.view === "soling-comparison";
   const isYearComparison = config.appId === "sun" && item.module === "soling" && item.view === "sammenligning";
   const isOperationsOverview = item.module === "status" && item.view === "drift";
+  const isSelfLoadingOperationsView = config.appId === "operations" && (
+    item.module === "dorer" || item.module === "pullerter"
+  );
   const isDetailRoute = (
     (config.appId === "maintenance" && /^\/besok\/\d+$/.test(pathname))
     || (config.appId === "system" && /^\/(?:datakilder|build)\/[^/]+$/.test(pathname))
     || (config.appId === "sun" && /^\/oppgjor\/\d+$/.test(pathname))
   );
   const result = useApi(
-    async () => isDetailRoute || isCountDashboard || isCountComparison || isYearComparison
+    async () => isDetailRoute || isCountDashboard || isCountComparison || isYearComparison || isSelfLoadingOperationsView
       ? { title: "", subtitle: "", cards: [], tables: [] }
       : isOperationsOverview
         ? operationsModule(await domainApi.operationsOverview())

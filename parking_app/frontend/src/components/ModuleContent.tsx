@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { displayCell, nok, valueLabel } from "@lilletorget/microapp-ui/format";
 import { Chart, MetricCard, MosaicIcon, Panel, mosaicChartColors, type MosaicChartConfig } from "@lilletorget/microapp-ui/primitives";
+import { resolveCorePath } from "@lilletorget/microapp-ui/navigation";
 import { AppLink, useAppLocation, useAppSearchParams } from "@lilletorget/microapp-ui/router";
 import { api } from "../api";
 import type { ModuleAction, ModuleChart, ModuleFilter, ModuleResponse, ModuleRow, ModuleTable, ParkingTimeline } from "../types";
@@ -8,28 +9,7 @@ import type { ModuleAction, ModuleChart, ModuleFilter, ModuleResponse, ModuleRow
 const palette = [mosaicChartColors.sky, mosaicChartColors.violet, mosaicChartColors.yellow, mosaicChartColors.green, mosaicChartColors.red, mosaicChartColors.gray];
 
 export function localParkingPath(path?: string | null) {
-  if (!path) return null;
-  const parsed = new URL(path, window.location.origin);
-  const pathname = parsed.pathname;
-  const routes: Record<string, string> = {
-    "/parkering/oversikt": "/oversikt",
-    "/parkering/parkeringer": "/parkeringer",
-    "/parkering/dagslinje": "/dagslinje",
-    "/parkering/kjoretoy": "/kjoretoy",
-    "/parkering/omrade": "/omrade",
-    "/parkering/prognose": "/prognose",
-    "/parkering/oppgjor": "/oppgjor",
-    "/parkering/oppslag": "/oppslag",
-    "/parkering/bilstatistikk": "/bilstatistikk",
-    "/parkering/sammenligning": "/arsutvikling",
-    "/parkering/tidspunkt": "/tidspunkt",
-    "/parkering/ukesnitt": "/ukesnitt",
-  };
-  const vehicle = pathname.match(/^\/parkering\/kjoretoy\/([^/]+)$/);
-  if (vehicle) return `/kjoretoy/${vehicle[1]}${parsed.search}`;
-  const settlement = pathname.match(/^\/parkering\/oppgjor\/(\d+)$/);
-  if (settlement) return `/oppgjor/${settlement[1]}${parsed.search}`;
-  return routes[pathname] ? `${routes[pathname]}${parsed.search}` : null;
+  return resolveCorePath(path || undefined, "parking");
 }
 
 function cardTone(tone?: string) {

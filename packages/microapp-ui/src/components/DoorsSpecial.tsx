@@ -78,9 +78,11 @@ function badge(value: string, color: string) {
 }
 
 export function DoorsSpecial({ view }: { view: string }) {
-  if (view === "solrom") return <SunroomStatus />;
-  if (view === "romkontroll-ny2" || view === "soltimer") return <RoomControl />;
-  return <DoorOverview initialFilter={view === "andre" ? "andre" : "all"} />;
+  if (["solrom", "solrom-ny", "solrom2-oversikt"].includes(view)) return <SunroomStatus compact={view === "solrom-ny"} />;
+  if (["romkontroll-ny2", "soltimer", "romkontroll"].includes(view)) return <RoomControl />;
+  if (["romkontroll-ny", "solrom-dagskontroll", "solrom2-dagskontroll"].includes(view)) return <RoomControl matrix />;
+  if (view === "solrom2-avvik") return <RoomControl exceptions />;
+  return <DoorOverview initialFilter={["andre", "dorer2-bygg"].includes(view) ? "andre" : "all"} />;
 }
 
 function DoorOverview({ initialFilter }: { initialFilter: "all" | "andre" }) {
@@ -247,7 +249,7 @@ function DoorCard({ door, sunroom }: { door: RecordValue; sunroom: boolean }) {
   );
 }
 
-function SunroomStatus() {
+function SunroomStatus({ compact = false }: { compact?: boolean }) {
   const result = useApi(
     () => domainApi.get<Sunrooms>("/api/hc3/doors/sunroom-sessions"),
     "door-sunrooms-special",
@@ -311,16 +313,16 @@ function SunroomStatus() {
           Oppdater
         </button>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className={`grid gap-4 ${compact ? "sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-6" : "md:grid-cols-2 xl:grid-cols-3"}`}>
         {data.rooms.map((room) => (
-          <SunroomCard room={room} key={room.deviceKey} />
+          <SunroomCard room={room} compact={compact} key={room.deviceKey} />
         ))}
       </div>
     </div>
   );
 }
 
-function SunroomCard({ room }: { room: RecordValue }) {
+function SunroomCard({ room, compact = false }: { room: RecordValue; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const session = room.session || {};
   const roomNumber = String(
@@ -345,8 +347,8 @@ function SunroomCard({ room }: { room: RecordValue }) {
           </div>
           {badge(room.status || room.doorStateLabel, tone(room.severity))}
         </div>
-        <div className="mt-5 grid grid-cols-3 gap-3 text-sm">
-          <div>
+        <div className={`mt-5 grid gap-3 text-sm ${compact ? "grid-cols-2" : "grid-cols-3"}`}>
+          <div className={compact ? "col-span-2" : ""}>
             <small className="block text-gray-400">Dør</small>
             <strong>{room.doorStateLabel}</strong>
             <p className="text-xs text-gray-400">{room.doorAgeLabel}</p>
@@ -401,7 +403,7 @@ function SunroomCard({ room }: { room: RecordValue }) {
   );
 }
 
-function RoomControl() {
+function RoomControl({ matrix = false, exceptions = false }: { matrix?: boolean; exceptions?: boolean }) {
   const [params, setParams] = useAppSearchParams();
   const day = params.get("day") || localDay();
   const roomParam = params.get("room") || "";
@@ -508,8 +510,90 @@ function RoomControl() {
           );
         })}
       </div>
-      {room ? <RoomDay room={room} day={day} /> : null}
+      {matrix || exceptions ? <RoomMatrix rooms={data.rooms} day={day} exceptions={exceptions} /> : room ? <RoomDay room={room} day={day} /> : null}
     </div>
+  );
+}
+
+function RoomMatrix({
+  rooms,
+  day,
+  exceptions,
+}: {
+  rooms: RecordValue[];
+  day: string;
+  exceptions: boolean;
+}) {
+  const visible = exceptions
+    ? rooms.filter(
+        (room) =>
+          Number(room.summary?.warnings || 0) > 0 ||
+          Number(room.summary?.alerts || 0) > 0 ||
+          Number(room.summary?.matched || 0) < Number(room.summary?.sessions || 0),
+      )
+    : rooms;
+  return (
+    <Panel
+      title={exceptions ? "Avvik og usikre koblinger" : `Dagsmatrise ${day}`}
+      subtitle={
+        exceptions
+          ? `${visible.length} rom krever kontroll`
+          : "Alle solrom samlet for valgt dag"
+      }
+    >
+      <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
+        {visible.map((room) => {
+          const summary = room.summary || {};
+          const alert = Number(summary.alerts || 0) > 0;
+          const warning =
+            Number(summary.warnings || 0) > 0 ||
+            Number(summary.matched || 0) < Number(summary.sessions || 0);
+          return (
+            <AppLink
+              className={`rounded-lg border p-4 text-left transition hover:-translate-y-0.5 ${
+                alert
+                  ? "border-red-300 bg-red-50/60 dark:border-red-900 dark:bg-red-950/20"
+                  : warning
+                    ? "border-yellow-300 bg-yellow-50/60 dark:border-yellow-900 dark:bg-yellow-950/20"
+                    : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
+              }`}
+              to={`/dorer/romkontroll?room=${encodeURIComponent(String(room.displayRoomNumber))}&day=${encodeURIComponent(day)}`}
+              key={room.deviceKey || room.displayRoomNumber}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="text-xs font-semibold uppercase text-gray-400">
+                    {room.sectionTitle}
+                  </span>
+                  <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">
+                    Rom {room.displayRoomNumber}
+                  </h3>
+                </div>
+                {badge(
+                  alert ? "Alarm" : warning ? "Kontroller" : "OK",
+                  alert ? "red" : warning ? "yellow" : "green",
+                )}
+              </div>
+              <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <dt className="text-gray-500">Soltimer</dt>
+                <dd className="text-right font-semibold">{summary.sessions || 0}</dd>
+                <dt className="text-gray-500">Matchet</dt>
+                <dd className="text-right font-semibold">{summary.matched || 0}</dd>
+                <dt className="text-gray-500">Effekt</dt>
+                <dd className="text-right font-semibold">{summary.energyConfirmed || 0}</dd>
+                <dt className="text-gray-500">Varsler</dt>
+                <dd className="text-right font-semibold">
+                  {Number(summary.warnings || 0) + Number(summary.alerts || 0)}
+                </dd>
+              </dl>
+            </AppLink>
+          );
+        })}
+        {!visible.length ? (
+          <div className="p-8 text-sm text-gray-500">Ingen avvik i valgt dag.</div>
+        ) : null}
+      </div>
+    </Panel>
   );
 }
 
