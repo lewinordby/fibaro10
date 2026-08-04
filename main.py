@@ -358,7 +358,7 @@ SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_
 SUN2_AXIS_SNAPSHOT_LINK_ENABLED = os.getenv("SUN2_AXIS_SNAPSHOT_LINK_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
 SUN2_AXIS_SNAPSHOT_LINK_INTERVAL_SECONDS = max(30, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_INTERVAL_SECONDS", "60")))
 SUN2_AXIS_SNAPSHOT_LINK_INITIAL_DELAY_SECONDS = max(0, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_INITIAL_DELAY_SECONDS", "45")))
-SUN2_AXIS_SNAPSHOT_LINK_DAYS = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_DAYS", "7")))
+SUN2_AXIS_SNAPSHOT_LINK_DAYS = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_DAYS", "35")))
 SUN2_AXIS_SNAPSHOT_LINK_LIMIT = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_LIMIT", "5000")))
 SUN2_AXIS_SNAPSHOT_DAY_CACHE_CURRENT_SECONDS = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_DAY_CACHE_CURRENT_SECONDS", "15")))
 SUN2_AXIS_SNAPSHOT_DAY_CACHE_ARCHIVE_SECONDS = max(60, int(os.getenv("SUN2_AXIS_SNAPSHOT_DAY_CACHE_ARCHIVE_SECONDS", "3600")))
@@ -5237,22 +5237,18 @@ async def set_sun2_session_primary_image(
 
 async def link_axis_snapshots_to_sun2_sessions(
     session,
-    days: int = 7,
+    days: int = 35,
     limit: int = 5000,
     tolerance_seconds: int = SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS,
     replace: bool = False,
 ) -> Dict[str, Any]:
-    days = max(1, min(int(days or 7), 3650))
+    days = max(1, min(int(days or 35), 3650))
     limit = max(1, min(int(limit or 5000), 50000))
     tolerance_seconds = max(1, min(int(tolerance_seconds or SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS), 300))
     start_cutoff = local_now_naive() - timedelta(days=days)
-    candidates = axis_snapshot_candidates(
-        start_at=start_cutoff - timedelta(seconds=tolerance_seconds + 60),
-        end_at=local_now_naive() + timedelta(seconds=60),
-    )
     result: Dict[str, Any] = {
         "snapshot_root": str(SUN2_AXIS_SNAPSHOT_ROOT),
-        "snapshots_found": len(candidates),
+        "snapshots_found": 0,
         "sessions_checked": 0,
         "linked": 0,
         "already_linked": 0,
@@ -5267,10 +5263,6 @@ async def link_axis_snapshots_to_sun2_sessions(
         "minute_assumed_second": SUN2_AXIS_SNAPSHOT_MINUTE_ASSUMED_SECOND,
         "tolerance_seconds": tolerance_seconds,
     }
-    if not candidates:
-        return result
-    candidate_times = [item[0] for item in candidates]
-
     rows = (
         await session.execute(
             select(Sun2TanningSession)
@@ -5302,6 +5294,25 @@ async def link_axis_snapshots_to_sun2_sessions(
         existing_by_session[int(session_id)].add(int_or_zero(offset_seconds))
         if captured_at:
             used_snapshot_ids_by_session[int(session_id)].add(axis_snapshot_id(captured_at))
+
+    needed_days: set[date] = set()
+    for row in rows:
+        if not row.id:
+            continue
+        existing_offsets = set() if replace else existing_by_session.get(row.id, set())
+        for offset_seconds, target_at, _is_primary in sun2_session_axis_target_series(row):
+            if offset_seconds in existing_offsets:
+                continue
+            needed_days.add((target_at - timedelta(seconds=tolerance_seconds)).date())
+            needed_days.add((target_at + timedelta(seconds=tolerance_seconds)).date())
+
+    candidates: list[tuple[datetime, Path]] = []
+    for candidate_day in sorted(needed_days):
+        candidates.extend(axis_snapshot_day_candidates(candidate_day))
+    candidates.sort(key=lambda item: item[0])
+    candidate_times = [item[0] for item in candidates]
+    result["snapshots_found"] = len(candidates)
+    result["snapshot_days_checked"] = len(needed_days)
 
     for row in rows:
         if not row.id:

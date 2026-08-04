@@ -59,8 +59,9 @@ services:
     volumes:
       - ${AXIS_HOST_SNAPSHOT_DIR:-./axis_camera_snapshots/snapshots}:/axis_snapshots:ro
     environment:
-      APP_BUILD: ${APP_BUILD:-1635}
+      APP_BUILD: ${APP_BUILD:-1636}
       SUN2_AXIS_SNAPSHOT_ROOT: /axis_snapshots
+      SUN2_AXIS_SNAPSHOT_LINK_DAYS: ${SUN2_AXIS_SNAPSHOT_LINK_DAYS:-35}
       CAR_INFO_LOOKUP_URL: http://car_info_lookup:8126
       OWNTRACKS_SERVICE_URL: http://owntracks_service:8128
       UNIFI_PROTECT_EVENTS_URL: http://unifi_protect_events:8130
@@ -477,7 +478,8 @@ services:
       AXIS_INTERVAL_SECONDS: ${AXIS_INTERVAL_SECONDS:-5}
       AXIS_CAPTURE_START_TIME: ${AXIS_CAPTURE_START_TIME:-06:45}
       AXIS_CAPTURE_END_TIME: ${AXIS_CAPTURE_END_TIME:-23:00}
-      AXIS_RETENTION_DAYS: ${AXIS_RETENTION_DAYS:-7}
+      AXIS_RETENTION_DAYS: ${AXIS_RETENTION_DAYS:-35}
+      AXIS_CLEANUP_INTERVAL_SECONDS: ${AXIS_CLEANUP_INTERVAL_SECONDS:-3600}
       AXIS_AUTH_MODE: ${AXIS_AUTH_MODE:-auto}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8125/health', timeout=5).read()\""]

@@ -12,6 +12,34 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1636",
+        "date": "04.08.2026",
+        "headline": "Axis-råbilder beholdes i 35 dager",
+        "title": "Lengre bildebuffer sikrer soltimer ved forsinket Sun2-import",
+        "description": (
+            "Axis-råarkivet er utvidet fra 7 til 35 dager etter at en forsinket Sun2-import gjorde at "
+            "bilder fra deler av juli ikke lenger kunne kobles til soltimene. Bildekoblingen bruker samme "
+            "35-dagersvindu, mens filrydding og kandidatsøk er strammet inn for å unngå unødvendig diskbelastning."
+        ),
+        "applications": [
+            "Axis snapshots: råbilder beholdes i 35 dager og ryddes maksimalt én gang per time.",
+            "Fibaro10: automatisk kobling mellom Sun2-timer og Axis-bilder søker 35 dager tilbake.",
+            "Sun2: aktiv live-import hvert femte minutt og bildekobling hvert minutt er kontrollert på QNAP.",
+            "Drift: aktiv oppbevaring, importferskhet og lagrede bilder er verifisert mot produksjonsdata.",
+        ],
+        "request": "Øk bildeoppbevaringen til minst 35 dager og sikre at Sun2-import og bildekobling skjer fortløpende slik at bilder ikke går tapt ved forsinkelser.",
+        "work_duration": "ca. 40 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Endrer standard og QNAP-oppsett fra 7 til 35 dagers Axis-retention.",
+            "Utvider bildekoblingens tilbakeblikk fra 7 til 35 dager.",
+            "Begrenser full filrydding til én gang per time i stedet for etter hvert femsekundersbilde.",
+            "Leser bare arkivdager som har soltimer med manglende bilder under automatisk kobling.",
+            "Viser aktiv retention og siste opprydding i Axis health-status.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1635",
         "date": "04.08.2026",
         "headline": "Bilder og detaljvisning er tilbake på enkelttimer",

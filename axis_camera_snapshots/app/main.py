@@ -8,6 +8,7 @@ import os
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
+from time import monotonic
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -28,10 +29,12 @@ DATA_DIR = Path(os.getenv("AXIS_DATA_DIR", "/data"))
 SNAPSHOT_ROOT = Path(os.getenv("AXIS_SNAPSHOT_DIR", str(DATA_DIR / "snapshots")))
 CONFIG_FILE = Path(os.getenv("AXIS_CONFIG_FILE", str(DATA_DIR / "config.json")))
 STATE_FILE = Path(os.getenv("AXIS_STATE_FILE", str(DATA_DIR / "state.json")))
+CLEANUP_INTERVAL_SECONDS = max(300, int(os.getenv("AXIS_CLEANUP_INTERVAL_SECONDS", "3600")))
 
 app = FastAPI(title="Axis camera snapshots")
 capture_task: asyncio.Task | None = None
 capture_lock = asyncio.Lock()
+last_cleanup_monotonic = 0.0
 
 
 @dataclass
@@ -98,7 +101,7 @@ def default_config() -> AxisConfig:
         password=os.getenv("AXIS_PASSWORD", ""),
         snapshot_url=snapshot_url,
         interval_seconds=max(1, int(os.getenv("AXIS_INTERVAL_SECONDS", "5"))),
-        retention_days=max(1, int(os.getenv("AXIS_RETENTION_DAYS", "7"))),
+        retention_days=max(1, int(os.getenv("AXIS_RETENTION_DAYS", "35"))),
         auth_mode=os.getenv("AXIS_AUTH_MODE", "auto").strip().lower(),
         timeout_seconds=max(1.0, float(os.getenv("AXIS_TIMEOUT_SECONDS", "8"))),
         capture_start_time=normalize_time_string(os.getenv("AXIS_CAPTURE_START_TIME", "06:45")),
@@ -224,7 +227,7 @@ async def capture_once() -> Path:
             captures_total=int(state.get("captures_total") or 0) + 1,
         )
         logger.info("Saved Axis snapshot: %s (%s bytes)", target, len(image))
-        delete_old_snapshots(config.retention_days)
+        delete_old_snapshots_if_due(config.retention_days)
         return target
 
 
@@ -242,6 +245,21 @@ def delete_old_snapshots(retention_days: int) -> int:
             logger.exception("Could not delete old snapshot: %s", path)
     if deleted:
         logger.info("Deleted %s old Axis snapshots", deleted)
+    return deleted
+
+
+def delete_old_snapshots_if_due(retention_days: int, *, force: bool = False) -> int:
+    global last_cleanup_monotonic
+    current_monotonic = monotonic()
+    if not force and last_cleanup_monotonic and current_monotonic - last_cleanup_monotonic < CLEANUP_INTERVAL_SECONDS:
+        return 0
+    deleted = delete_old_snapshots(retention_days)
+    last_cleanup_monotonic = current_monotonic
+    save_state(
+        last_cleanup_at=now_local().isoformat(),
+        last_cleanup_deleted=deleted,
+        retention_days=max(1, retention_days),
+    )
     return deleted
 
 
@@ -301,6 +319,9 @@ async def health() -> dict[str, Any]:
         "enabled": config.enabled,
         "within_capture_window": is_within_capture_window(config),
         "capture_window": f"{config.capture_start_time}-{config.capture_end_time}",
+        "retention_days": config.retention_days,
+        "cleanup_interval_seconds": CLEANUP_INTERVAL_SECONDS,
+        "last_cleanup_at": state.get("last_cleanup_at"),
         "last_success_at": state.get("last_success_at"),
         "last_error": state.get("last_error"),
     }
@@ -392,7 +413,7 @@ async def save_settings(
     interval_seconds: int = Form(5),
     capture_start_time: str = Form("06:45"),
     capture_end_time: str = Form("23:00"),
-    retention_days: int = Form(7),
+    retention_days: int = Form(35),
     auth_mode: str = Form("auto"),
     timeout_seconds: float = Form(8.0),
 ) -> RedirectResponse:
