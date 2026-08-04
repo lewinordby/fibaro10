@@ -12,6 +12,32 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1646",
+        "date": "05.08.2026",
+        "headline": "Dynamiske ID-er bevares gjennom alle mikroappene",
+        "title": "Proxyen skiller mellom tilgangskontroll og videresendt URL",
+        "description": (
+            "Live-kontrollen av Roborock avdekket at den delte mikroapp-proxyen gjorde hele URL-stien om til "
+            "små bokstaver. Tillatelseskontrollen skal være bokstav-uavhengig, men eksterne ID-er kan være "
+            "bokstavfølsomme. Proxyen kontrollerer fortsatt en normalisert kopi, mens den originale stien nå "
+            "videresendes urørt til Fibaro10."
+        ),
+        "applications": [
+            "Alle fagapper: dynamiske ID-er i API-ruter beholder store og små bokstaver.",
+            "Bygg og drift: Roborock-DUID-er gir nå riktig robotdetalj.",
+            "Felles backend: tilgangskontrollen er fortsatt case-insensitiv og like stram som før.",
+        ],
+        "request": "Jeg synes det er masse mangler.",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bevarer original URL-sti ved videresending til Fibaro10.",
+            "Bruker kun casefoldet sti til adapter- og tilgangskontroll.",
+            "Legger til regresjonstest som hindrer at bokstavfølsomme ID-er ødelegges igjen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1645",
         "date": "05.08.2026",
         "headline": "Roborock-detaljer åpnes i Bygg og drift",

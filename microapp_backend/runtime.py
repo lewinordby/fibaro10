@@ -165,7 +165,8 @@ def create_domain_app(config: DomainAppConfig) -> FastAPI:
 
     @app.api_route("/api/{core_path:path}", methods=list(PROXY_METHODS))
     async def proxy_core_api(core_path: str, request: Request) -> Response:
-        normalized = core_path.strip("/").casefold()
+        clean_path = core_path.strip("/")
+        normalized = clean_path.casefold()
         if request.method == "GET" and normalized in config.adapters:
             client: httpx.AsyncClient = request.app.state.core_client
             try:
@@ -177,7 +178,7 @@ def create_domain_app(config: DomainAppConfig) -> FastAPI:
             return JSONResponse(payload)
         if not path_allowed(request.method, normalized):
             raise HTTPException(status_code=404, detail=f"Endepunktet er ikke tilgjengelig i {config.short_name}")
-        return proxy_response(await core_request(request, f"api/{normalized}"))
+        return proxy_response(await core_request(request, f"api/{clean_path}"))
 
     @app.get("/auth/login", response_class=HTMLResponse)
     async def login_view(request: Request) -> Response:
