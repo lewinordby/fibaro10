@@ -1,6 +1,7 @@
 const state = {
   data: null,
   currentView: "overview",
+  currentMonitorId: "",
   busy: false,
 };
 
@@ -90,29 +91,36 @@ function setMessage(message, error = false) {
 function routeFromUrl() {
   const params = new URLSearchParams(window.location.search);
   if (params.has("alarm")) return "doors";
+  if (params.has("monitor")) return "bollardDetail";
   if (params.has("incident")) return "bollards";
   const section = params.get("section");
   return { dorer: "doors", pullerter: "bollards", konto: "account" }[section] || "overview";
 }
 
 function routeValue(view) {
-  return { doors: "dorer", bollards: "pullerter", account: "konto" }[view] || "status";
+  return { doors: "dorer", bollards: "pullerter", bollardDetail: "pullerter", account: "konto" }[view] || "status";
 }
 
 function showView(view, { updateUrl = true } = {}) {
   state.currentView = view;
-  for (const name of ["overview", "doors", "bollards", "account"]) {
+  for (const name of ["overview", "doors", "bollards", "bollardDetail", "account"]) {
     $(`#${name}View`)?.classList.toggle("is-hidden", name !== view);
   }
-  $$('[data-view]').forEach((button) => button.classList.toggle("is-active", button.dataset.view === view));
+  const navView = view === "bollardDetail" ? "bollards" : view;
+  $$('[data-view]').forEach((button) => button.classList.toggle("is-active", button.dataset.view === navView));
   if (updateUrl) {
     const url = new URL(window.location.href);
     url.searchParams.set("section", routeValue(view));
     if (view !== "doors") url.searchParams.delete("alarm");
     if (view !== "bollards") url.searchParams.delete("incident");
+    if (view !== "bollardDetail") url.searchParams.delete("monitor");
     window.history.pushState({}, "", `${url.pathname}${url.search}`);
   }
   window.scrollTo({ top: 0, behavior: "auto" });
+}
+
+function monitorIdFromUrl() {
+  return new URLSearchParams(window.location.search).get("monitor") || "";
 }
 
 function statusIcon(kind) {
@@ -262,23 +270,30 @@ function renderDoors() {
 function monitorStatus(item) {
   const normalized = text(item.status).toLowerCase();
   if (normalized === "normal") return ["Normal", "is-ok"];
+  if (normalized === "suspected") return ["Mulig endring", "is-warning"];
   if (["changed", "obscured"].includes(normalized)) return [normalized === "changed" ? "Endring" : "Tildekket", "is-warning"];
   if (["error", "uncalibrated"].includes(normalized)) return [normalized === "error" ? "Feil" : "Mangler referanse", "is-alert"];
   return [severityLabel(normalized), "is-neutral"];
+}
+
+function changeScoreLabel(item) {
+  return item?.changeScore === null || item?.changeScore === undefined
+    ? "Ikke beregnet"
+    : `${Math.round(number(item.changeScore) * 100)} %`;
 }
 
 function imageTime(value) {
   return value ? formatStamp(value, true) : "Ikke tilgjengelig";
 }
 
-function monitorCard(item) {
+function monitorCard(item, { detail = false } = {}) {
   const images = item.images || {};
   const canCompare = Boolean(images.baseline && images.latest);
   const [label, statusClass] = monitorStatus(item);
   const aspect = Math.max(0.45, Math.min(3, number(item.crop?.aspectRatio) || 16 / 9));
   return `
-    <article class="camera-card" data-monitor="${escapeHtml(item.id)}" data-mode="${canCompare ? "compare" : "latest"}">
-      <header><span><small>${item.kind === "stairs" ? "Trapp" : "Pullert"}</small><strong>${escapeHtml(item.name)}</strong></span><b class="status-chip ${statusClass}">${escapeHtml(label)}</b></header>
+    <article class="camera-card ${detail ? "is-detail" : ""}" data-monitor="${escapeHtml(item.id)}" data-mode="${canCompare ? "compare" : "latest"}">
+      ${detail ? "" : `<header><span><small>${item.kind === "stairs" ? "Trapp" : "Pullert"}</small><strong>${escapeHtml(item.name)}</strong></span><b class="status-chip ${statusClass}">${escapeHtml(label)}</b></header>`}
       <div class="image-modes" role="group" aria-label="Bildevisning">
         ${canCompare ? '<button type="button" class="is-active" data-image-mode="compare">Gjennomsiktig</button>' : ""}
         ${images.latest ? '<button type="button" data-image-mode="latest">Siste</button>' : ""}
@@ -300,6 +315,108 @@ function monitorCard(item) {
       ${item.lastError ? `<p class="inline-error">${escapeHtml(item.lastError)}</p>` : ""}
     </article>
   `;
+}
+
+function monitorSummaryCard(item) {
+  const images = item.images || {};
+  const preview = images.latest || images.baseline;
+  const [label, statusClass] = monitorStatus(item);
+  return `
+    <button class="monitor-summary-card" type="button" data-monitor-open="${escapeHtml(item.id)}">
+      <span class="monitor-preview">
+        ${preview ? `<img src="${escapeHtml(preview)}" alt="Siste kontrollbilde fra ${escapeHtml(item.name)}" loading="lazy">` : '<span>Ingen bilde</span>'}
+      </span>
+      <span class="monitor-summary-copy">
+        <small>${item.kind === "stairs" ? "Trapp" : "Pullertfelt"}</small>
+        <strong>${escapeHtml(item.name)}</strong>
+        <time>${escapeHtml(imageTime(item.latestCapturedAt || item.baselineCapturedAt))}</time>
+      </span>
+      <span class="monitor-summary-state"><b class="status-chip ${statusClass}">${escapeHtml(label)}</b><i aria-hidden="true">›</i></span>
+    </button>
+  `;
+}
+
+function incidentMatchesMonitor(incident, monitor) {
+  const key = text(incident?.bollard_key).toLowerCase();
+  const displayName = text(incident?.display_name).toLowerCase();
+  const monitorName = text(monitor?.name).toLowerCase();
+  if (monitor?.assetKey && key === text(monitor.assetKey).toLowerCase()) return true;
+  if (incident?.camera_id && String(incident.camera_id) === String(monitor?.cameraId)) return true;
+  if (displayName && monitorName && (displayName.includes(monitorName) || monitorName.includes(displayName))) return true;
+  if (monitor?.kind === "stairs") return key.includes("trapp");
+  return monitorName.includes("solstudio front") && key === "pullertomrade-solstudio";
+}
+
+function incidentRows(incidents) {
+  if (!incidents.length) return '<p class="empty-state">Ingen hendelser er knyttet til dette kontrollfeltet.</p>';
+  return incidents.slice(0, 40).map((item) => `
+    <article id="incident-${escapeHtml(item.incident_id)}" class="history-row ${severityClass(item.status)}">
+      <span class="event-marker ${["active", "acknowledged"].includes(text(item.status).toLowerCase()) ? "is-alert" : "is-ok"}"></span>
+      <span><small>${escapeHtml(severityLabel(item.status))}</small><strong>${escapeHtml(item.display_name || item.bollard_key || "Kamerahendelse")}</strong><em>${escapeHtml(text(item.notification_status) === "sent" ? "Varsel sendt" : "Registrert av kamerakontrollen")}</em></span>
+      <time>${escapeHtml(formatStamp(item.detected_at))}</time>
+    </article>
+  `).join("");
+}
+
+function openBollardDetail(monitorId, { replace = false } = {}) {
+  if (!monitorId) return;
+  state.currentMonitorId = String(monitorId);
+  renderBollardDetail();
+  showView("bollardDetail", { updateUrl: false });
+  const url = new URL(window.location.href);
+  url.searchParams.set("section", "pullerter");
+  url.searchParams.set("monitor", state.currentMonitorId);
+  url.searchParams.delete("incident");
+  window.history[replace ? "replaceState" : "pushState"]({}, "", `${url.pathname}${url.search}`);
+}
+
+function renderBollardDetail() {
+  const root = $("#bollardDetailView");
+  if (!root) return;
+  const monitors = state.data?.bollards?.monitors || [];
+  const monitorId = state.currentMonitorId || monitorIdFromUrl();
+  const index = monitors.findIndex((item) => String(item.id) === String(monitorId));
+  const item = index >= 0 ? monitors[index] : null;
+  if (!item) {
+    root.innerHTML = `
+      <button class="detail-back-button" type="button" data-back-to-monitors>‹ <span>Kontrollbilder</span></button>
+      <section class="section-block"><p class="empty-state">Kontrollbildet finnes ikke lenger.</p></section>
+    `;
+    $("[data-back-to-monitors]", root)?.addEventListener("click", () => showView("bollards"));
+    return;
+  }
+  state.currentMonitorId = String(item.id);
+  const [statusLabel, statusClass] = monitorStatus(item);
+  const relatedIncidents = (state.data?.bollards?.incidents || []).filter((incident) => incidentMatchesMonitor(incident, item));
+  const previous = monitors[(index - 1 + monitors.length) % monitors.length];
+  const next = monitors[(index + 1) % monitors.length];
+  root.innerHTML = `
+    <div class="detail-toolbar">
+      <button class="detail-back-button" type="button" data-back-to-monitors>‹ <span>Kontrollbilder</span></button>
+      <div class="monitor-pager" aria-label="Bytt kontrollbilde">
+        <button type="button" data-monitor-page="${escapeHtml(previous?.id || item.id)}" aria-label="Forrige kontrollbilde">‹</button>
+        <span>${index + 1} av ${monitors.length}</span>
+        <button type="button" data-monitor-page="${escapeHtml(next?.id || item.id)}" aria-label="Neste kontrollbilde">›</button>
+      </div>
+    </div>
+    <section class="view-head monitor-detail-head">
+      <div><p class="eyebrow">${item.kind === "stairs" ? "Trapp" : "Pullertfelt"}</p><h1>${escapeHtml(item.name)}</h1></div>
+      <span class="count-badge ${statusClass}">${escapeHtml(statusLabel)}</span>
+    </section>
+    <section class="monitor-detail-metrics">
+      <div><small>Siste bilde</small><strong>${escapeHtml(imageTime(item.latestCapturedAt))}</strong></div>
+      <div><small>Sist kontrollert</small><strong>${escapeHtml(imageTime(item.lastCheckedAt))}</strong></div>
+      <div><small>Endringsscore</small><strong>${escapeHtml(changeScoreLabel(item))}</strong></div>
+    </section>
+    ${monitorCard(item, { detail: true })}
+    <section class="section-block">
+      <div class="section-title"><h2>Hendelser for feltet</h2><span>${relatedIncidents.length}</span></div>
+      <div class="event-list">${incidentRows(relatedIncidents)}</div>
+    </section>
+  `;
+  $("[data-back-to-monitors]", root)?.addEventListener("click", () => showView("bollards"));
+  $$('[data-monitor-page]', root).forEach((button) => button.addEventListener("click", () => openBollardDetail(button.dataset.monitorPage, { replace: true })));
+  bindCameraControls(root);
 }
 
 function renderBollards() {
@@ -325,23 +442,15 @@ function renderBollards() {
       <div class="channel-actions">${channel.subscribeUrl ? `<a href="${escapeHtml(channel.subscribeUrl)}">Abonner</a>` : ""}<button id="testBollardButton" type="button">Test</button></div>
     </section>
     <section class="section-block camera-section">
-      <div class="section-title"><h2>Visuell kontroll</h2><span>${monitors.length}</span></div>
-      <div class="camera-list">${monitors.map(monitorCard).join("") || '<p class="empty-state">Ingen kontrollbilder er tilgjengelig.</p>'}</div>
+      <div class="section-title"><h2>Kontrollbilder</h2><span>${monitors.length}</span></div>
+      <div class="monitor-list">${monitors.map(monitorSummaryCard).join("") || '<p class="empty-state">Ingen kontrollbilder er tilgjengelig.</p>'}</div>
     </section>
     <section class="section-block">
       <div class="section-title"><h2>Hendelser</h2><span>${incidents.length}</span></div>
-      <div class="event-list">
-        ${incidents.slice(0, 40).map((item) => `
-          <article id="incident-${escapeHtml(item.incident_id)}" class="history-row ${severityClass(item.status)}">
-            <span class="event-marker ${["active", "acknowledged"].includes(text(item.status).toLowerCase()) ? "is-alert" : "is-ok"}"></span>
-            <span><small>${escapeHtml(severityLabel(item.status))}</small><strong>${escapeHtml(item.display_name || item.bollard_key || "Kamerahendelse")}</strong><em>${escapeHtml(text(item.notification_status) === "sent" ? "Varsel sendt" : "Registrert av kamerakontrollen")}</em></span>
-            <time>${escapeHtml(formatStamp(item.detected_at))}</time>
-          </article>
-        `).join("") || '<p class="empty-state">Ingen kamerahendelser er registrert.</p>'}
-      </div>
+      <div class="event-list">${incidentRows(incidents)}</div>
     </section>
   `;
-  bindCameraControls(root);
+  $$('[data-monitor-open]', root).forEach((button) => button.addEventListener("click", () => openBollardDetail(button.dataset.monitorOpen)));
   $("#testBollardButton", root)?.addEventListener("click", sendBollardTest);
 }
 
@@ -435,6 +544,7 @@ function renderAll() {
   renderOverview();
   renderDoors();
   renderBollards();
+  renderBollardDetail();
   renderAccount();
   const updated = $("#lastUpdated");
   if (updated) updated.textContent = `Oppdatert ${formatAge(state.data?.generatedAt)}`;
@@ -479,16 +589,19 @@ async function loadData({ quiet = false } = {}) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+  state.currentMonitorId = monitorIdFromUrl();
   state.currentView = routeFromUrl();
   $$('[data-view]').forEach((button) => button.addEventListener("click", () => showView(button.dataset.view)));
   $("#refreshButton")?.addEventListener("click", () => loadData());
   window.addEventListener("popstate", () => {
+    state.currentMonitorId = monitorIdFromUrl();
     showView(routeFromUrl(), { updateUrl: false });
+    if (state.currentView === "bollardDetail") renderBollardDetail();
     focusDeepLink();
   });
   document.addEventListener("keydown", (event) => {
     if (!['+', '-', '='].includes(event.key)) return;
-    const visibleCard = $("#bollardsView:not(.is-hidden) .camera-card[data-mode='compare']");
+    const visibleCard = $("#bollardDetailView:not(.is-hidden) .camera-card[data-mode='compare']");
     const slider = visibleCard ? $('input[type="range"]', visibleCard) : null;
     if (!slider) return;
     event.preventDefault();

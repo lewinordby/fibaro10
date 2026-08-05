@@ -75,6 +75,7 @@ class AlarmMobileTests(unittest.IsolatedAsyncioTestCase):
                 "camera_monitors": [
                     {
                         "camera_id": "camera-1",
+                        "asset_key": "test-felt",
                         "camera_name": "G6 Butikk Front",
                         "status": "normal",
                         "latest_url": "/private/latest",
@@ -87,6 +88,7 @@ class AlarmMobileTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(len(result), 1)
         self.assertIn("/api/bollards/cameras/camera-1/latest/crop", result[0]["images"]["latest"])
+        self.assertEqual(result[0]["assetKey"], "test-felt")
         self.assertNotIn("context", result[0])
         self.assertNotIn("AB12345", str(result))
 
@@ -94,7 +96,8 @@ class AlarmMobileTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('id="overviewView"', INDEX_HTML)
         self.assertIn('id="doorsView"', INDEX_HTML)
         self.assertIn('id="bollardsView"', INDEX_HTML)
-        self.assertIn("alarm-mobile.js?v=1", INDEX_HTML)
+        self.assertIn('id="bollardDetailView"', INDEX_HTML)
+        self.assertIn("alarm-mobile.js?v=3", INDEX_HTML)
 
 
 if __name__ == "__main__":

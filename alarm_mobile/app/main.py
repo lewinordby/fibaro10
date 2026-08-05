@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv()
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstrip("/")
-ALARM_MOBILE_BUILD = os.getenv("ALARM_MOBILE_BUILD", "1")
+ALARM_MOBILE_BUILD = os.getenv("ALARM_MOBILE_BUILD", "3")
 SESSION_COOKIE_NAME = "lilletorget_alarm_session"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 SESSION_SECRET = (
@@ -231,6 +231,7 @@ def monitor_payload(payload: dict[str, Any]) -> list[dict[str, Any]]:
             {
                 "id": str(monitor.get("monitor_id") or camera_id),
                 "cameraId": camera_id,
+                "assetKey": asset_key or None,
                 "name": str(monitor.get("display_name") or monitor.get("camera_name") or camera_id),
                 "kind": str(monitor.get("item_type") or "bollards"),
                 "status": str(monitor.get("status") or "unknown"),
@@ -429,7 +430,7 @@ def login_html(error: str, next_path: str) -> str:
   <meta name="theme-color" content="#111827">
   <title>Logg inn · Alarm</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=1">
+  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=3">
 </head>
 <body class="login-body">
   <main class="login-screen">
@@ -459,8 +460,8 @@ INDEX_HTML = """<!doctype html>
   <title>Lilletorget Alarm</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=1">
-  <script src="/assets/alarm-mobile.js?v=1" defer></script>
+  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=3">
+  <script src="/assets/alarm-mobile.js?v=3" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -475,6 +476,7 @@ INDEX_HTML = """<!doctype html>
     <section id="overviewView" class="view"></section>
     <section id="doorsView" class="view is-hidden"></section>
     <section id="bollardsView" class="view is-hidden"></section>
+    <section id="bollardDetailView" class="view is-hidden"></section>
     <section id="accountView" class="view is-hidden"></section>
     <p id="appMessage" class="app-message" role="status"></p>
   </main>

@@ -12,6 +12,38 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1651",
+        "date": "05.08.2026",
+        "headline": "Hvert pullertbilde har nå sin egen kontrollside",
+        "title": "Pullertoversikten er lettere og åpner full visuell kontroll per bildeutsnitt",
+        "description": (
+            "Alarmappens pullertside viser nå en kompakt liste over kontrollfeltene med siste bilde, status "
+            "og bildetid. Hvert felt åpnes på en egen, lenkbar side med referanse, siste bilde, rødt "
+            "forskjellsbilde og gjennomsiktig sammenligning. Detaljsiden viser også kontrolltid, endringsscore, "
+            "relaterte hendelser og forrige/neste-knapper. Oversikten laster bare ett bilde per felt og blir "
+            "dermed raskere og enklere å skanne på mobil."
+        ),
+        "applications": [
+            "Alarm mobil: egen kontrollside for hvert pullert- og trappebilde.",
+            "Fibaro10 kamera-API: eksponerer stabil feltidentitet til alarmappen.",
+            "Docker og driftsoppsett: alarmbuild 3 er satt som ny standard.",
+            "Tester og dokumentasjon: detaljsider, asset-identitet og cacheversjon er dokumentert.",
+        ],
+        "request": "jeg tror jeg vil ha egne sider for hvert pullert bilde",
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Erstatter fire tunge sammenligningskort på oversikten med kompakte, klikkbare kontrollfelt.",
+            "Legger egen detaljvisning med stabil monitor-lenke for hvert bildeutsnitt.",
+            "Bevarer Gjennomsiktig, Siste, Forskjell og Referanse som valg på hver detaljside.",
+            "Legger forrige/neste-navigasjon uten å gå tilbake til oversikten.",
+            "Viser siste bilde, siste kontroll, endringsscore og relevante hendelser samlet.",
+            "Holder Pullerter aktiv i bunnmenyen også på detaljsidene.",
+            "Reduserer bildebelastningen på oversikten til ett miniatyrbilde per kontrollfelt.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1650",
         "date": "05.08.2026",
         "headline": "Vedlikeholdsappen gir raskere registrering og bedre arbeidsoversikt",
