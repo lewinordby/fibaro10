@@ -324,6 +324,10 @@ function renderBollards() {
       <span><strong>Pullertvarsler i ntfy</strong><small>${channel.publishingEnabled ? "Varsling er aktiv" : "Kontroller abonnementet"}</small></span>
       <div class="channel-actions">${channel.subscribeUrl ? `<a href="${escapeHtml(channel.subscribeUrl)}">Abonner</a>` : ""}<button id="testBollardButton" type="button">Test</button></div>
     </section>
+    <section class="section-block camera-section">
+      <div class="section-title"><h2>Visuell kontroll</h2><span>${monitors.length}</span></div>
+      <div class="camera-list">${monitors.map(monitorCard).join("") || '<p class="empty-state">Ingen kontrollbilder er tilgjengelig.</p>'}</div>
+    </section>
     <section class="section-block">
       <div class="section-title"><h2>Hendelser</h2><span>${incidents.length}</span></div>
       <div class="event-list">
@@ -335,10 +339,6 @@ function renderBollards() {
           </article>
         `).join("") || '<p class="empty-state">Ingen kamerahendelser er registrert.</p>'}
       </div>
-    </section>
-    <section class="section-block camera-section">
-      <div class="section-title"><h2>Visuell kontroll</h2><span>${monitors.length}</span></div>
-      <div class="camera-list">${monitors.map(monitorCard).join("") || '<p class="empty-state">Ingen kontrollbilder er tilgjengelig.</p>'}</div>
     </section>
   `;
   bindCameraControls(root);
