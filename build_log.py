@@ -35,9 +35,11 @@ BUILD_LOG = [
         "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
         "changes": [
             "Viser siste utførelse og åpne oppfølgingspunkter per hovedoppgave.",
+            "Viser Ingen registrering på oppgavetyper som ennå ikke har historikk.",
             "Legger filtre for alle, i dag, oppfølging og mine, samt fritekstsøk og trinnvis visning.",
             "Skiller robotvaskere, varmepumper, solsenger, kremautomat og annet med presise oppgavetreff.",
             "Fjerner rå tagglister fra historikken og gir hver post en kompakt, lesbar detaljside.",
+            "Begrenser lange notater til to linjer i listen, med full tekst i detaljvisningen.",
             "Bevarer redigeringsretten til oppretter, men gjør alle poster lesbare for innloggede brukere.",
             "Legger Lagre og ny i en stabil, mobiltilpasset handlingslinje.",
             "Forhindrer at vellykket lagring fremstår som mislykket hvis historikkoppdateringen feiler etterpå.",

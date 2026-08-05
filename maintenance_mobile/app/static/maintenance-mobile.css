@@ -917,8 +917,12 @@ textarea:focus {
 }
 
 .recent-main strong {
+  display: -webkit-box;
+  overflow: hidden;
   font-size: 0.92rem;
   line-height: 1.25;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .recent-target,

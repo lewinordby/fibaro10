@@ -254,7 +254,7 @@ function taskOverview(task) {
   const rows = rowsForTask(task);
   const followUps = rows.filter((row) => Boolean(row.follow_up_needed)).length;
   const latest = rows[0];
-  const parts = [`Sist ${formatTaskRecency(latest?.performed_at)}`];
+  const parts = [latest?.performed_at ? `Sist ${formatTaskRecency(latest.performed_at)}` : "Ingen registrering"];
   if (followUps) parts.push(`${followUps} ${followUps === 1 ? "oppfølging" : "oppfølginger"}`);
   return parts.join(" · ");
 }
