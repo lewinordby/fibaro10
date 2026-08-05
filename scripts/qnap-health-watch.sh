@@ -29,6 +29,7 @@ check system_app curl -fsS --max-time 15 http://192.168.20.218:8157/ready || sta
 check link_app curl -fsS --max-time 15 http://192.168.20.218:8158/ready || status=1
 check online_dashboard curl -fsS --max-time 15 -H "Host: online.lilletorget.net" http://127.0.0.1:8081/health || status=1
 check fibaro10ipad curl -fsS --max-time 15 -H "Host: ipad.lilletorget.net" http://127.0.0.1:8081/health || status=1
+check alarm_mobile curl -fsS --max-time 15 http://192.168.20.218:8114/health || status=1
 check unifi_protect_events curl -fsS --max-time 15 http://192.168.20.218:8130/health || status=1
 check visual_anomaly_service "$DOCKER" exec visual_anomaly_service python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8140/health', timeout=10).read()" || status=1
 

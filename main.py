@@ -215,6 +215,7 @@ NTFY_VENTILATION_TOPIC = os.getenv("NTFY_VENTILATION_TOPIC", f"sun2-ventilasjon-
 NTFY_ACCESS_TOPIC = os.getenv("NTFY_ACCESS_TOPIC", f"sun2-tilgang-{MASTER_ACCESS_KEY_HASH[:12]}")
 NTFY_DOORS_TOPIC = os.getenv("NTFY_DOORS_TOPIC", f"sun2-dorer-{MASTER_ACCESS_KEY_HASH[:12]}")
 NTFY_BOLLARDS_TOPIC = os.getenv("PROTECT_BOLLARD_NTFY_TOPIC", "").strip()
+ALARM_APP_URL = os.getenv("ALARM_APP_URL", "https://alarm.lilletorget.net").rstrip("/")
 if not NTFY_BOLLARDS_TOPIC and MASTER_ACCESS_KEY_HASH:
     NTFY_BOLLARDS_TOPIC = (
         "protect-pullerter-"
@@ -5867,10 +5868,19 @@ def ntfy_subscription_rows(bollard_status: Optional[dict[str, Any]] = None) -> l
     return rows
 
 
-def publish_ntfy_message(topic: str, title: str, message: str, tags: str = "", priority: str = "3") -> None:
+def publish_ntfy_message(
+    topic: str,
+    title: str,
+    message: str,
+    tags: str = "",
+    priority: str = "3",
+    click_url: str = "",
+) -> None:
     headers = {"Title": title, "Priority": priority}
     if tags:
         headers["Tags"] = tags
+    if click_url:
+        headers["Click"] = click_url
     request = urllib.request.Request(
         ntfy_topic_url(topic),
         data=message.encode("utf-8"),
@@ -6023,7 +6033,13 @@ async def publish_ventilation_ntfy(event: VentilationEvent) -> bool:
         return False
 
 
-async def publish_door_ntfy(title: str, message: str, priority: str = "4", tags: str = "door,warning") -> bool:
+async def publish_door_ntfy(
+    title: str,
+    message: str,
+    priority: str = "4",
+    tags: str = "door,warning",
+    click_url: str = "",
+) -> bool:
     try:
         await asyncio.to_thread(
             publish_ntfy_message,
@@ -6032,6 +6048,7 @@ async def publish_door_ntfy(title: str, message: str, priority: str = "4", tags:
             message,
             tags,
             priority,
+            click_url,
         )
         return True
     except Exception as exc:
@@ -12826,7 +12843,16 @@ async def publish_sunroom_door_alerts(items: list[Dict[str, Any]], now: datetime
             message = sunroom_alarm_message(item, now)
             title = "SUN2 dørvarsel"
             tags = "door,rotating_light"
-        sent = await publish_door_ntfy(title, message, priority="4", tags=tags)
+        click_url = f"{ALARM_APP_URL}/?section=dorer"
+        if persisted is not None and persisted.id:
+            click_url = f"{click_url}&alarm={persisted.id}"
+        sent = await publish_door_ntfy(
+            title,
+            message,
+            priority="4",
+            tags=tags,
+            click_url=click_url,
+        )
         if sent:
             sunroom_door_alert_last_sent[key] = now
             sent_count += 1
@@ -14798,6 +14824,7 @@ async def api_test_unifi_protect_bollard_mobile_notification() -> dict[str, Any]
             "Test fra Fibaro10: mobilvarsling for pullert- og trappekontrollen virker. Ingen hendelse er registrert.",
             "white_check_mark,car",
             "4",
+            f"{ALARM_APP_URL}/?section=pullerter",
         )
     except Exception as error:
         logger.warning("Kunne ikke sende testvarsel for pullerter: %s", error, exc_info=True)

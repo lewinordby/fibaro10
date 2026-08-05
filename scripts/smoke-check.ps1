@@ -42,6 +42,8 @@ param(
         "https://owntracks.lilletorget.net/",
         "https://vedl.lilletorget.net/health",
         "https://vedl.lilletorget.net/",
+        "http://192.168.20.218:8114/health",
+        "http://192.168.20.218:8114/",
         "https://ipad.lilletorget.net/health",
         "https://ipad.lilletorget.net/"
     ),

@@ -258,7 +258,7 @@ write_section "Docker images" "$DOCKER" images
 write_section "Docker networks" "$DOCKER" network ls
 write_section "Docker system df" "$DOCKER" system df
 
-for container in postgres-1 easypark_downloader fibaro10 shell_app revenue_app parking_app sun_app energy_app operations_app maintenance_app system_app link_app owntracks_service axis_camera_snapshots car_info_lookup sun2_backfill_downloader sun2_importer sun2_session_scraper parking_sun_linker fibaro10_proxy online_dashboard maintenance_mobile fibaro10ipad unifi_protect_events visual_anomaly_service; do
+for container in postgres-1 easypark_downloader fibaro10 shell_app revenue_app parking_app sun_app energy_app operations_app maintenance_app system_app link_app owntracks_service axis_camera_snapshots car_info_lookup sun2_backfill_downloader sun2_importer sun2_session_scraper parking_sun_linker fibaro10_proxy online_dashboard maintenance_mobile alarm_mobile fibaro10ipad unifi_protect_events visual_anomaly_service; do
     "$DOCKER" inspect "$container" > "$BACKUP_DIR/system/docker-inspect-$container.json" 2>/dev/null || true
 done
 ("$DOCKER" network inspect fibaro10_default > "$BACKUP_DIR/system/docker-network-fibaro10_default.json" 2>/dev/null) || true
@@ -453,6 +453,7 @@ docker ps
 curl http://127.0.0.1:8110/health
 curl http://127.0.0.1:8125/health
 curl http://127.0.0.1:8128/health
+curl http://127.0.0.1:8114/health
 for port in 8150 8151 8152 8153 8154 8155 8156 8157 8158; do curl -fsS "http://127.0.0.1:$port/ready"; done
 ```
 
@@ -469,7 +470,7 @@ cat > "$BACKUP_DIR/CODEX-RESTORE-PROMPT.txt" <<'EOF'
 Du jobber paa en ny QNAP/ny installasjon og skal gjenopprette Fibaro10 fra denne full restore backup-katalogen.
 
 Maal:
-- Sett opp Fibaro10, Lilletorget-skallet og alle fagappene paa port 8150-8158, online dashboard, vedlikeholdsapp, OwnTracks, EasyPark downloader, Axis snapshot-service, nordisk biloppslag, SUN2 scraper og koblingsmotor.
+- Sett opp Fibaro10, Lilletorget-skallet og alle fagappene paa port 8150-8158, online dashboard, vedlikeholdsapp, alarmapp, OwnTracks, EasyPark downloader, Axis snapshot-service, nordisk biloppslag, SUN2 scraper og koblingsmotor.
 - Bruk alle hemmeligheter, passord, tokens, .env-filer, Caddy-data, runtime-data og database-dump fra backupen. Axis-bilder som er knyttet til soltimer ligger i database-dumpen.
 - Ikke utelat noe. Ikke regenerer hemmeligheter hvis de finnes i backupen.
 - Ikke skriv hemmeligheter i chatten; bruk filene direkte.

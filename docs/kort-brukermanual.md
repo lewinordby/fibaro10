@@ -53,6 +53,7 @@ Løsningen består av hovedappen `fibaro10` og flere sideapper. De viktigste er:
 | --- | --- |
 | `online_dashboard` | Begrenset ekstern mobilvisning på `online.lilletorget.net`. |
 | `maintenance_mobile` | Mobil vedlikeholdsregistrering på `vedl.lilletorget.net`. |
+| `alarm_mobile` | Mobil alarmstatus for dører, solrom, pullerter og trapp på `alarm.lilletorget.net`. |
 | `fibaro10ipad` | Egen iPad-flate på `ipad.lilletorget.net`. |
 | `owntracks_service` | Egen OwnTracks HTTP-server, waypoints og sonebesøk på `owntracks.lilletorget.net`. |
 | `axis_camera_snapshots` | Henter og rydder Axis-bilder som kobles til soltimer. |

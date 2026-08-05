@@ -42,6 +42,7 @@ Dette repoet dokumenterer hovedappen `Fibaro10 / Lilletorget drift`, underappene
 | Mappe | Innhold |
 | --- | --- |
 | `maintenance_mobile/README.md` | Mobil vedlikeholdsapp på `vedl.lilletorget.net`. |
+| `alarm_mobile/README.md` | Mobil alarmapp på `alarm.lilletorget.net`. |
 | `car_info_lookup/README.md` | Nordiske kjøretøyoppslag. |
 | `easypark_downloader/README.md` | EasyPark-nedlasting og påloggingsflyt. |
 | `roborock_logger/README.md` | Lokal Roborock-logger og webflate på port 8095. |

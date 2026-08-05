@@ -270,6 +270,10 @@ def bollard_notification_message(incident: Mapping[str, Any]) -> str:
     return f"{display_name} ser ut til å være flyttet. Kontrollér kamera og område."
 
 
+def bollard_alarm_click_url(base_url: str, incident_id: Any) -> str:
+    return f"{str(base_url).rstrip('/')}/?section=pullerter&incident={incident_id}"
+
+
 def normalized_bollard_key(value: str) -> str:
     key = re.sub(r"[^a-z0-9]+", "-", value.strip().casefold()).strip("-")
     if not key:
@@ -779,6 +783,7 @@ class BollardService:
         *,
         ntfy_base_url: str = "https://ntfy.sh",
         ntfy_topic: str = "",
+        alarm_app_url: str = "https://alarm.lilletorget.net",
         visual_ai_url: str = "",
         visual_ai_token: str = "",
         visual_ai_timeout_seconds: int = 30,
@@ -790,6 +795,7 @@ class BollardService:
         self.notification_session = notification_session
         self.ntfy_base_url = ntfy_base_url.rstrip("/")
         self.ntfy_topic = ntfy_topic.strip()
+        self.alarm_app_url = alarm_app_url.rstrip("/")
         self.visual_ai_url = visual_ai_url.rstrip("/")
         self.visual_ai_token = visual_ai_token.strip()
         self.visual_ai_timeout_seconds = max(3, min(120, visual_ai_timeout_seconds))
@@ -2354,6 +2360,7 @@ class BollardService:
                     "Title": "Pullertalarm ved solstudio",
                     "Priority": "5",
                     "Tags": "warning,car",
+                    "Click": bollard_alarm_click_url(self.alarm_app_url, incident["incident_id"]),
                 },
                 timeout=aiohttp.ClientTimeout(total=8),
             ) as response:

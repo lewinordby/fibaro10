@@ -34,6 +34,7 @@ $checks = @(
     @{ Name = "online_dashboard"; Url = "https://online.lilletorget.net/health"; Kind = "ok" },
     @{ Name = "owntracks_proxy"; Url = "https://owntracks.lilletorget.net/health"; Kind = "ok" },
     @{ Name = "maintenance_mobile"; Url = "https://vedl.lilletorget.net/health"; Kind = "ok" },
+    @{ Name = "alarm_mobile"; Url = "http://${HostAddress}:8114/health"; Kind = "ok" },
     @{ Name = "fibaro10ipad"; Url = "https://ipad.lilletorget.net/health"; Kind = "ok" }
 )
 
@@ -114,7 +115,7 @@ if (-not $SkipContainerCheck) {
     $expectedContainers = @(
         "postgres-1", "owntracks_postgres", "owntracks_service", "fibaro10", "shell_app",
         "revenue_app", "parking_app", "sun_app", "energy_app", "operations_app",
-        "maintenance_app", "system_app", "link_app", "online_dashboard", "maintenance_mobile",
+        "maintenance_app", "system_app", "link_app", "online_dashboard", "maintenance_mobile", "alarm_mobile",
         "fibaro10ipad", "axis_camera_snapshots", "car_info_lookup", "sun2_backfill_downloader",
         "sun2_importer", "sun2_session_scraper", "parking_sun_linker", "unifi_protect_events",
         "visual_anomaly_service", "easypark_downloader", "roborock_logger", "fibaro10_proxy"

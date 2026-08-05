@@ -182,6 +182,7 @@ SYSTEM_COMPONENTS = [
     ("fibaro10", "FastAPI/PostgreSQL hovedapp, V2 desktop, API og admin.", "Kritisk", "http://192.168.20.218:8110/"),
     ("online_dashboard", "Ekstern begrenset dashboardflate.", "Høy", "https://online.lilletorget.net/"),
     ("maintenance_mobile", "Mobil registrering av vedlikehold mot samme brukerbase.", "Normal", "https://vedl.lilletorget.net/"),
+    ("alarm_mobile", "Mobil alarmstatus for dører, solrom, pullerter og trapp.", "Høy", "https://alarm.lilletorget.net/"),
     ("fibaro10ipad", "iPad-tilpasset dashboardflate.", "Normal", "https://ipad.lilletorget.net/"),
     ("owntracks_service", "HTTP-mottak, waypoints, lokasjoner og besøk.", "Normal", "https://owntracks.lilletorget.net/"),
     ("owntracks_postgres", "PostgreSQL-database for OwnTracks.", "Høy", "intern"),

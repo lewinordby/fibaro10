@@ -12,6 +12,44 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1649",
+        "date": "05.08.2026",
+        "headline": "Vedlikehold og alarm er nå to målrettede mobilapper",
+        "title": "Ny alarmapp samler dører, solrom, pullerter og trapp med direkte ntfy-lenker",
+        "description": (
+            "Den mobile vedlikeholdsflaten er ryddet og oppgradert med Mosaic-farger, mer kompakt registrering "
+            "og et tydeligere skille mellom oppgavevalg, registrering og historikk. Pullert- og varselmodulen er "
+            "flyttet ut i en selvstendig alarmapp. Alarmappen viser samlet status, aktive døralarmer, romstatus, "
+            "alarmhistorikk, pullert- og trappehendelser samt visuell sammenligning av referanse og siste bilde. "
+            "Nye ntfy-varsler får en sikker dyplenke som åpner riktig alarm eller kamerahendelse etter innlogging."
+        ),
+        "applications": [
+            "Vedlikehold mobil: fokusert Mosaic-basert registreringsflate uten alarm- og kamerakode.",
+            "Alarm mobil: ny separat app på alarm.lilletorget.net og lokal port 8114.",
+            "Fibaro10: døralarmer og testvarsler sender Click-lenke til alarmappen.",
+            "Protect Ledger: pullert- og trappevarsler åpner den konkrete hendelsen i alarmappen.",
+            "Caddy, Docker, helsekontroll, backup og systemdokumentasjon: alarmappen er lagt inn som egen tjeneste.",
+        ],
+        "request": (
+            "ok oppgrader mobil vedlikeholds appen da, jeg tenker også å splitte den i to slik at jeg får en "
+            "helt egen for pullert kontroll som kan hete alarm. her vil jeg også ha inn alarm for dører osv en "
+            "app som kan åpens dirkte fra varslene på melgingssytemet"
+        ),
+        "work_duration": "ca. 2 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fjerner pullertvarsler, kamerabilder og varselabonnement fra vedlikeholdsappen.",
+            "Oppgraderer vedlikeholdsappen til Mosaic-palett med flatere, mer konsistent mobilutforming.",
+            "Oppretter alarm_mobile med felles Fibaro10-brukere, egen økt, PWA-manifest og automatisk oppdatering.",
+            "Viser dørstatus, solrom, aktiv alarm, ventestatus og lagret alarmhistorikk.",
+            "Viser Protect-hendelser og fast bildeutsnitt med referanse, siste bilde, forskjell og gjennomsiktighet.",
+            "Bevarer målsiden gjennom innlogging for direkte åpning fra ntfy.",
+            "Legger Click-header på nye dør-, pullert- og trappevarsler.",
+            "Legger regresjonstester for innlogging, dyplenker, kameraproxy og tjenestedeling.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1648",
         "date": "05.08.2026",
         "headline": "Mobil vedlikehold bryter utdaterte innloggingssløyfer",

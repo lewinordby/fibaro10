@@ -445,6 +445,7 @@ class ProtectEventCollector:
             self.validation_session,
             ntfy_base_url=os.getenv("NTFY_BASE_URL", "https://ntfy.sh").strip(),
             ntfy_topic=bollard_topic,
+            alarm_app_url=os.getenv("ALARM_APP_URL", "https://alarm.lilletorget.net").strip(),
             visual_ai_url=os.getenv("VISUAL_AI_URL", "").strip(),
             visual_ai_token=os.getenv("VISUAL_AI_TOKEN", "").strip(),
             visual_ai_timeout_seconds=max(

@@ -44,8 +44,13 @@ Run "python" @("-m", "unittest", "parking_app.tests.test_main") $repoRoot
 Run "python" @("-m", "unittest", "shell_app.tests.test_main") $repoRoot
 Run "python" @("-m", "pytest", "tests/test_domain_microapps.py", "tests/test_system_inventory.py", "-q") $repoRoot
 Run "python" @("-m", "pytest", "maintenance_mobile/tests", "-q") $repoRoot
+Run "python" @("-m", "pytest", "alarm_mobile/tests", "-q") $repoRoot
 Run "python" @("-m", "pytest", "tests", "-q") (Join-Path $repoRoot "unifi_protect_events")
 Run "python" @("-m", "pytest", "tests/test_profiles.py", "-q") (Join-Path $repoRoot "visual_anomaly_service")
+
+Write-Host "Mobile JavaScript syntax"
+Run "node" @("--check", "maintenance_mobile/app/static/maintenance-mobile.js") $repoRoot
+Run "node" @("--check", "alarm_mobile/app/static/alarm-mobile.js") $repoRoot
 
 Write-Host "Frontend typecheck and build"
 Run $npm @("run", "check") $desktopDir

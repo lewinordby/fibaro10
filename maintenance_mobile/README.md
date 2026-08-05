@@ -1,6 +1,6 @@
 # Lilletorget Vedlikehold mobil
 
-Oppdatert 21.07.2026.
+Oppdatert 05.08.2026.
 
 Egen mobilflate for rask vedlikeholdsregistrering på `https://vedl.lilletorget.net`.
 
@@ -11,7 +11,6 @@ Egen mobilflate for rask vedlikeholdsregistrering på `https://vedl.lilletorget.
 - Gjøre registrering fra mobil raskere enn hovedappen.
 - Automatisk tagge oppgaver etter valgt kategori og valgt utstyr.
 - Vise bare relevante tidligere oppgaver nederst på registreringssiden.
-- La innloggede brukere abonnere på den separate pullertkanalen fra Varsler-siden.
 
 ## Førsteside
 
@@ -40,25 +39,12 @@ Varmepumper:
 
 Egne poster kan åpnes og redigeres av brukeren som opprettet dem.
 
-## Pullertvarsler
+## Alarm og pullertkontroll
 
-Den synlige `Pullertvarsler`-knappen på forsiden og klokkeikonet i topplinjen
-åpner den egne Varsler-siden. Siden kan også åpnes direkte på
-`https://vedl.lilletorget.net/varsler`. Der vises om Protect
-Ledger-overvåkingen er klar, tidspunkt for siste kontroll og antall aktive
-avvik. Knappen `Abonner på pullertvarsler` åpner den separate kanalen direkte i
-ntfy-appen. Etter abonnement kan brukeren sende et kontrollert testvarsel uten
-at det opprettes en falsk pullerthendelse.
-
-Pullertkanalen er ikke den samme som dørvarselkanalen. Bare kort alarmtekst
-sendes til ntfy-tjenesten; bilder, registreringsnummer og analysegrunnlag blir i
-de lokale Fibaro10/Protect Ledger-tjenestene.
-
-Varsler-siden viser også de tre lokale pullertkameraene. For hvert kamera kan
-brukeren veksle mellom siste kontrollbilde, beregnet differanse-overlay og den
-faste referansen. Bildet kan trykkes for full størrelse. Mobilnettleseren henter
-bildene gjennom den innloggede mobilappen; Protect Ledger-token og interne
-bildestier eksponeres ikke.
+Alarmfunksjonene er skilt ut i `alarm_mobile` på
+`https://alarm.lilletorget.net`. Vedlikeholdsappen inneholder derfor bare
+registrering og redigering av vedlikeholdsoppgaver. Alarmappen bruker samme
+Fibaro10-brukerbase og viser dører, solrom, pullerter, trapp og ntfy-abonnement.
 
 ## Samspill med Fibaro10
 
@@ -83,8 +69,6 @@ Besøk kommer fra OwnTracks via Fibaro10 og kobles til vedlikeholdsoppgaver base
 - `FIBARO10_BASE_URL`: intern URL til Fibaro10, normalt `http://fibaro10:8110`.
 - `MAINTENANCE_MOBILE_SESSION_SECRET`: HMAC-secret for mobilappens egen sesjonscookie.
 - `MAINTENANCE_MOBILE_BUILD`: buildnummer som vises i health-responsen.
-
-Kamerakortene på `/varsler` bruker faste, kameraspesifikke utsnitt rundt pullertene. Standardvisningen legger siste bilde gradvis over en tydelig blågrå referanse med en skyver fra 0 til 100 prosent. Full opptakstid vises ved Referanse til venstre og Siste bilde til høyre. Begge bildelag bruker nøyaktig samme faste utsnitt; samme utsnitt brukes også for forskjell, siste bilde og referanse.
 
 ## Drift
 

@@ -205,8 +205,6 @@ const TASKS = [
 
 const state = {
   bootstrap: null,
-  notifications: null,
-  bollardCameras: [],
   selectedTask: null,
   editingLog: null,
   selectedRobots: [],
@@ -254,20 +252,6 @@ function formatStamp(value) {
     month: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(parsed);
-}
-
-function formatImageStamp(value) {
-  if (!value) return "Ikke tilgjengelig";
-  const parsed = new Date(String(value).replace(" ", "T"));
-  if (Number.isNaN(parsed.getTime())) return String(value);
-  return new Intl.DateTimeFormat("no-NO", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
   }).format(parsed);
 }
 
@@ -337,274 +321,11 @@ function showScreen(screenName) {
   $("#taskScreen")?.classList.toggle("is-hidden", screenName !== "tasks");
   $("#entryScreen")?.classList.toggle("is-hidden", screenName !== "entry");
   $("#profileScreen")?.classList.toggle("is-hidden", screenName !== "profile");
-  $("#notificationsScreen")?.classList.toggle("is-hidden", screenName !== "notifications");
-  $("#recentCard")?.classList.toggle("is-hidden", screenName === "profile" || screenName === "notifications");
+  $("#recentCard")?.classList.toggle("is-hidden", screenName === "profile");
   document.body.classList.toggle("entry-mode", screenName === "entry");
   document.body.classList.toggle("profile-mode", screenName === "profile");
-  document.body.classList.toggle("notifications-mode", screenName === "notifications");
   setMessage("");
-  if (screenName === "entry" || screenName === "profile" || screenName === "notifications") setTaskMessage("");
-}
-
-function setNotificationMessage(message, isError = false) {
-  const element = $("#notificationMessage");
-  if (!element) return;
-  element.textContent = message || "";
-  element.classList.toggle("is-error", Boolean(isError));
-}
-
-function renderNotifications() {
-  const payload = state.notifications;
-  const badge = $("#bollardNotificationBadge");
-  const subscribeLink = $("#bollardSubscribeLink");
-  const webLink = $("#bollardWebLink");
-  const testButton = $("#bollardTestButton");
-  if (!payload) return;
-
-  const configured = Boolean(payload.configured);
-  const enabled = Boolean(payload.enabled);
-  const monitoringReady = Boolean(payload.monitoringReady);
-  let badgeText = "Ikke klar";
-  let badgeClass = "is-error";
-  let summary = "Varselkanalen er ikke konfigurert ennå.";
-  if (configured && !enabled) {
-    badgeText = "Av";
-    badgeClass = "is-paused";
-    summary = "Kanalen er klar, men varsling er slått av i Protect Ledger.";
-  } else if (configured && enabled && !monitoringReady) {
-    badgeText = "Venter";
-    badgeClass = "is-paused";
-    summary = "Abonnementet er klart. Overvåkingen venter på komplett kamerastatus.";
-  } else if (configured && enabled && monitoringReady) {
-    badgeText = "Aktiv";
-    badgeClass = "is-ready";
-    summary = "Varsling og automatisk kontroll hvert femte minutt er aktiv.";
-  }
-
-  if (badge) {
-    badge.textContent = badgeText;
-    badge.className = `status-pill ${badgeClass}`;
-  }
-  if ($("#bollardNotificationSummary")) $("#bollardNotificationSummary").textContent = summary;
-  if ($("#bollardMonitoringStatus")) {
-    $("#bollardMonitoringStatus").textContent = monitoringReady ? "Klar" : enabled ? "Venter" : "Av";
-  }
-  if ($("#bollardLastCheck")) $("#bollardLastCheck").textContent = formatStamp(payload.lastCheckAt);
-  if ($("#bollardActiveIncidents")) $("#bollardActiveIncidents").textContent = String(payload.activeIncidents || 0);
-  if ($("#bollardPrivacy")) $("#bollardPrivacy").textContent = safeText(payload.privacy, $("#bollardPrivacy").textContent);
-
-  if (subscribeLink) {
-    subscribeLink.href = payload.subscribeUrl || "#";
-    subscribeLink.classList.toggle("is-disabled", !payload.subscribeUrl);
-    subscribeLink.setAttribute("aria-disabled", payload.subscribeUrl ? "false" : "true");
-  }
-  if (webLink) {
-    webLink.href = payload.webUrl || "#";
-    webLink.classList.toggle("is-hidden", !payload.webUrl);
-  }
-  if (testButton) testButton.disabled = !configured;
-}
-
-async function loadNotifications() {
-  setNotificationMessage("Henter varselstatus...");
-  try {
-    const response = await fetch("/api/notifications", { credentials: "same-origin" });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.detail || payload.message || "Kunne ikke hente varselstatus.");
-    state.notifications = payload;
-    renderNotifications();
-    setNotificationMessage("");
-  } catch (error) {
-    state.notifications = null;
-    const badge = $("#bollardNotificationBadge");
-    if (badge) {
-      badge.textContent = "Feil";
-      badge.className = "status-pill is-error";
-    }
-    setNotificationMessage(error.message || String(error), true);
-  }
-}
-
-function bollardCameraStatus(status) {
-  const labels = {
-    normal: ["Normal", "is-ready"],
-    changed: ["Endring", "is-paused"],
-    obscured: ["Tildekket", "is-paused"],
-    error: ["Feil", "is-error"],
-    waiting: ["Venter", "is-paused"],
-    uncalibrated: ["Mangler referanse", "is-error"],
-  };
-  return labels[safeText(status).toLowerCase()] || ["Ukjent", ""];
-}
-
-function bollardImageLabel(kind) {
-  return { compare: "Overlegg", latest: "Siste bilde", overlay: "Forskjell", baseline: "Referanse" }[kind] || kind;
-}
-
-function bollardCameraCrop(value) {
-  const raw = value && typeof value === "object" ? value : {};
-  const aspectRatio = Math.max(0.35, Math.min(3.2, Number(raw.aspectRatio) || (16 / 9)));
-  return { aspectRatio };
-}
-
-function bollardCropStyle(value) {
-  const crop = bollardCameraCrop(value);
-  return `--crop-aspect:${crop.aspectRatio.toFixed(4)}`;
-}
-
-function renderBollardCameras() {
-  const container = $("#bollardCameraList");
-  if (!container) return;
-  if (!state.bollardCameras.length) {
-    container.innerHTML = '<p class="camera-empty">Ingen kamerabilder er tilgjengelige.</p>';
-    return;
-  }
-  container.innerHTML = state.bollardCameras.map((camera) => {
-    const images = camera.images || {};
-    const canCompare = Boolean(images.baseline && images.latest);
-    const selectedKind = canCompare ? "compare" : images.latest ? "latest" : images.baseline ? "baseline" : "overlay";
-    const selectedBaseUrl = selectedKind === "compare" ? images.baseline : images[selectedKind] || "";
-    const selectedTopUrl = selectedKind === "compare" ? images.latest : "";
-    const cropStyle = bollardCropStyle(camera.crop);
-    const [statusLabel, statusClass] = bollardCameraStatus(camera.status);
-    const modes = [
-      canCompare ? { kind: "compare", baseUrl: images.baseline, topUrl: images.latest } : null,
-      images.overlay ? { kind: "overlay", baseUrl: images.overlay, topUrl: "" } : null,
-      images.latest ? { kind: "latest", baseUrl: images.latest, topUrl: "" } : null,
-      images.baseline ? { kind: "baseline", baseUrl: images.baseline, topUrl: "" } : null,
-    ].filter(Boolean);
-    const buttons = modes.map(({ kind, baseUrl, topUrl }) => `
-        <button class="camera-kind-button ${kind === selectedKind ? "is-active" : ""}" type="button"
-          data-camera-kind="${kind}" data-base-url="${escapeHtml(baseUrl)}" data-top-url="${escapeHtml(topUrl)}">
-          ${bollardImageLabel(kind)}
-        </button>
-      `).join("");
-    return `
-      <article class="bollard-camera-card" data-camera-id="${escapeHtml(camera.cameraId)}" data-selected-kind="${selectedKind}">
-        <div class="bollard-camera-head">
-          <div>
-            <h3>${escapeHtml(camera.cameraName)}</h3>
-            <p>Kontrollert ${escapeHtml(formatStamp(camera.lastCheckedAt))}</p>
-          </div>
-          <span class="status-pill ${statusClass}">${statusLabel}</span>
-        </div>
-        <div class="camera-kind-switch" role="group" aria-label="Velg bilde for ${escapeHtml(camera.cameraName)}">${buttons}</div>
-        ${selectedBaseUrl ? `
-          <div class="bollard-crop-frame" style="${cropStyle}">
-            <img class="bollard-camera-image bollard-base-image" src="${escapeHtml(selectedBaseUrl)}" alt="Referanse fra ${escapeHtml(camera.cameraName)}" loading="lazy" decoding="async">
-            <div class="bollard-overlay-layer ${selectedTopUrl ? "" : "is-hidden"}" style="opacity:.5">
-              <img class="bollard-camera-image bollard-compare-image" src="${escapeHtml(selectedTopUrl || selectedBaseUrl)}" alt="Siste bilde fra ${escapeHtml(camera.cameraName)}" loading="lazy" decoding="async">
-            </div>
-            <div class="bollard-frame-labels" aria-hidden="true">
-              <span class="is-reference">Referanse · ${escapeHtml(formatImageStamp(camera.baselineCapturedAt))}</span>
-              <span class="is-latest">Siste · ${escapeHtml(formatImageStamp(camera.latestCapturedAt))}</span>
-            </div>
-          </div>
-          <label class="bollard-compare-control ${selectedKind === "compare" ? "" : "is-hidden"}">
-            <span class="bollard-opacity-endpoint is-reference"><b>Referanse</b><small>${escapeHtml(formatImageStamp(camera.baselineCapturedAt))}</small></span>
-            <span class="bollard-opacity-endpoint is-latest"><b>Siste bilde <em><strong>50 %</strong></em></b><small>${escapeHtml(formatImageStamp(camera.latestCapturedAt))}</small></span>
-            <input class="bollard-compare-opacity" type="range" min="0" max="100" value="50" aria-label="Gjennomsiktighet for siste bilde fra ${escapeHtml(camera.cameraName)}">
-          </label>
-          <p class="camera-selected-label">Viser <strong>${bollardImageLabel(selectedKind)}</strong> · fast kontrollområde</p>
-        ` : '<p class="camera-empty">Bildet er ikke klart ennå.</p>'}
-        ${camera.lastError ? `<p class="camera-error">${escapeHtml(camera.lastError)}</p>` : ""}
-      </article>
-    `;
-  }).join("");
-
-  container.querySelectorAll("[data-camera-kind]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const card = button.closest(".bollard-camera-card");
-      const kind = button.dataset.cameraKind || "latest";
-      const baseUrl = button.dataset.baseUrl || "";
-      const topUrl = button.dataset.topUrl || "";
-      if (!card || !baseUrl) return;
-      card.dataset.selectedKind = kind;
-      card.querySelectorAll("[data-camera-kind]").forEach((item) => {
-        item.classList.toggle("is-active", item === button);
-      });
-      const baseImage = card.querySelector(".bollard-base-image");
-      const compareImage = card.querySelector(".bollard-compare-image");
-      const overlayLayer = card.querySelector(".bollard-overlay-layer");
-      const compareControl = card.querySelector(".bollard-compare-control");
-      const label = card.querySelector(".camera-selected-label strong");
-      const cameraName = safeText(card.querySelector("h3")?.textContent);
-      if (baseImage) {
-        baseImage.src = baseUrl;
-        baseImage.alt = `${bollardImageLabel(kind)} fra ${cameraName}`;
-      }
-      if (compareImage) {
-        if (topUrl) compareImage.src = topUrl;
-        compareImage.alt = `Siste bilde fra ${cameraName}`;
-      }
-      if (overlayLayer) overlayLayer.classList.toggle("is-hidden", !topUrl);
-      if (compareControl) compareControl.classList.toggle("is-hidden", !topUrl);
-      if (label) label.textContent = bollardImageLabel(kind);
-    });
-  });
-
-  container.querySelectorAll(".bollard-compare-opacity").forEach((input) => {
-    input.addEventListener("input", () => {
-      const card = input.closest(".bollard-camera-card");
-      const overlayLayer = card?.querySelector(".bollard-overlay-layer");
-      const value = card?.querySelector(".bollard-compare-control .is-latest strong");
-      if (overlayLayer) overlayLayer.style.opacity = String(Number(input.value) / 100);
-      if (value) value.textContent = `${Number(input.value)} %`;
-    });
-  });
-}
-
-async function loadBollardCameras() {
-  const message = $("#bollardCameraMessage");
-  const refreshButton = $("#refreshBollardCameras");
-  if (message) {
-    message.textContent = "Henter siste kamerabilder...";
-    message.classList.remove("is-error");
-  }
-  if (refreshButton) refreshButton.disabled = true;
-  try {
-    const response = await fetch("/api/bollards/cameras?geometry=fixed_source_pixel_crop", { credentials: "same-origin" });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.detail || payload.message || "Kunne ikke hente kamerabilder.");
-    state.bollardCameras = Array.isArray(payload.items) ? payload.items : [];
-    renderBollardCameras();
-    if (message) message.textContent = state.bollardCameras.length
-      ? `${state.bollardCameras.length} kontrollområder oppdatert.`
-      : "Ingen kamerabilder er tilgjengelige.";
-  } catch (error) {
-    state.bollardCameras = [];
-    renderBollardCameras();
-    if (message) {
-      message.textContent = error.message || String(error);
-      message.classList.add("is-error");
-    }
-  } finally {
-    if (refreshButton) refreshButton.disabled = false;
-  }
-}
-
-async function loadNotificationPage() {
-  await Promise.all([loadNotifications(), loadBollardCameras()]);
-}
-
-async function sendBollardTestNotification() {
-  const button = $("#bollardTestButton");
-  if (!button || button.disabled) return;
-  button.disabled = true;
-  setNotificationMessage("Sender testvarsel...");
-  try {
-    const response = await fetch("/api/notifications/bollards/test", {
-      method: "POST",
-      credentials: "same-origin",
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.detail || payload.message || "Testvarselet kunne ikke sendes.");
-    setNotificationMessage("Testvarselet er sendt. Kontroller ntfy-appen på mobilen.");
-  } catch (error) {
-    setNotificationMessage(error.message || String(error), true);
-  } finally {
-    button.disabled = !state.notifications?.configured;
-  }
+  if (screenName === "entry" || screenName === "profile") setTaskMessage("");
 }
 
 function renderTasks() {
@@ -1359,20 +1080,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     showScreen("profile");
   });
   $("#profileBackButton")?.addEventListener("click", () => showScreen("tasks"));
-  $("#notificationsButton")?.addEventListener("click", async () => {
-    window.history.pushState({}, "", "/varsler");
-    showScreen("notifications");
-    await loadNotificationPage();
-  });
-  $("#notificationsBackButton")?.addEventListener("click", () => {
-    window.history.pushState({}, "", "/");
-    showScreen("tasks");
-  });
-  $("#bollardSubscribeLink")?.addEventListener("click", (event) => {
-    if (event.currentTarget.getAttribute("aria-disabled") === "true") event.preventDefault();
-  });
-  $("#bollardTestButton")?.addEventListener("click", sendBollardTestNotification);
-  $("#refreshBollardCameras")?.addEventListener("click", loadBollardCameras);
   $("#backButton")?.addEventListener("click", () => {
     state.selectedTask = null;
     state.editingLog = null;
@@ -1398,12 +1105,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("#performed_at")?.addEventListener("change", updateTimeButton);
   try {
     await loadBootstrap();
-    if (window.location.pathname === "/varsler") {
-      showScreen("notifications");
-      await loadNotificationPage();
-    } else {
-      showScreen("tasks");
-    }
+    showScreen("tasks");
   } catch (error) {
     setMessage(error.message || String(error), true);
   }

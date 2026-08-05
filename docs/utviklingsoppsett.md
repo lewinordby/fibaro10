@@ -29,6 +29,7 @@ Per 10.07.2026 bygges/restartes blant annet:
 - `fibaro10`
 - `online_dashboard`
 - `maintenance_mobile`
+- `alarm_mobile`
 - `fibaro10ipad`
 - `axis_camera_snapshots`
 - `car_info_lookup`
@@ -116,6 +117,7 @@ Dette scriptet er isolert: det laster bare opp `v1_reference/` og `docker-compos
 - Online dashboard: `https://online.lilletorget.net`
 - iPad-grensesnitt: `https://ipad.lilletorget.net`
 - Vedlikehold mobil: `https://vedl.lilletorget.net`
+- Alarm mobil: `https://alarm.lilletorget.net` eller lokalt `http://192.168.20.218:8114`
 - OwnTracks: `https://owntracks.lilletorget.net`
 - Systemkart i appen: `http://192.168.20.218:8110/admin/systemkart`
 - Datakilder i appen: `http://192.168.20.218:8110/admin/datakilder`

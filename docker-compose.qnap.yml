@@ -67,6 +67,7 @@ services:
       UNIFI_PROTECT_EVENTS_URL: http://unifi_protect_events:8130
       UNIFI_PROTECT_READ_API_TOKEN: ${UNIFI_PROTECT_READ_API_TOKEN:-}
       UNIFI_PROTECT_API_TIMEOUT_SECONDS: ${UNIFI_PROTECT_API_TIMEOUT_SECONDS:-10}
+      ALARM_APP_URL: ${ALARM_APP_URL:-https://alarm.lilletorget.net}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8110/health', timeout=5).read()\""]
       interval: 30s
@@ -360,6 +361,7 @@ services:
       PROTECT_PLATE_NEGATIVE_CACHE_DAYS: ${PROTECT_PLATE_NEGATIVE_CACHE_DAYS:-7}
       PROTECT_PLATE_RETRY_MINUTES: ${PROTECT_PLATE_RETRY_MINUTES:-30}
       PROTECT_BOLLARD_NTFY_TOPIC: ${PROTECT_BOLLARD_NTFY_TOPIC:-}
+      ALARM_APP_URL: ${ALARM_APP_URL:-https://alarm.lilletorget.net}
       VISUAL_AI_URL: ${VISUAL_AI_URL:-http://visual_anomaly_service:8140}
       VISUAL_AI_TOKEN: ${VISUAL_AI_TOKEN:-}
       VISUAL_AI_TIMEOUT_SECONDS: ${VISUAL_AI_TIMEOUT_SECONDS:-30}
@@ -429,9 +431,32 @@ services:
     environment:
       FIBARO10_BASE_URL: http://fibaro10:8110
       MAINTENANCE_MOBILE_SESSION_SECRET: ${MAINTENANCE_MOBILE_SESSION_SECRET:-}
-      MAINTENANCE_MOBILE_BUILD: ${MAINTENANCE_MOBILE_BUILD:-1466}
+      MAINTENANCE_MOBILE_BUILD: ${MAINTENANCE_MOBILE_BUILD:-1467}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8112/health', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  alarm_mobile:
+    build:
+      context: .
+      dockerfile: alarm_mobile/Dockerfile
+    container_name: alarm_mobile
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - fibaro10
+    ports:
+      - "192.168.20.218:8114:8114"
+    environment:
+      FIBARO10_BASE_URL: http://fibaro10:8110
+      ALARM_MOBILE_SESSION_SECRET: ${ALARM_MOBILE_SESSION_SECRET:-}
+      ALARM_MOBILE_BUILD: ${ALARM_MOBILE_BUILD:-1}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8114/health', timeout=5).read()\""]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -614,6 +639,9 @@ services:
     depends_on:
       - online_dashboard
       - owntracks_service
+      - maintenance_mobile
+      - alarm_mobile
+      - fibaro10ipad
     ports:
       - "8081:80"
       - "8443:443"

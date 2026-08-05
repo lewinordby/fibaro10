@@ -8,6 +8,7 @@ from app.bollards import (
     BOLLARD_CAMERA_ANALYSIS_ZONES,
     FIXED_STRUCTURE_MONITORS,
     TARGET_CAMERA_NAMES,
+    bollard_alarm_click_url,
     bollard_notification_message,
     compare_bollard_region,
     compare_bollard_zones,
@@ -39,6 +40,12 @@ def stabilized_test_scene(object_x: int = 130) -> np.ndarray:
 
 
 class BollardHelpersTests(unittest.TestCase):
+    def test_alarm_click_opens_exact_incident(self):
+        self.assertEqual(
+            bollard_alarm_click_url("https://alarm.lilletorget.net/", 17),
+            "https://alarm.lilletorget.net/?section=pullerter&incident=17",
+        )
+
     def test_hybrid_status_keeps_classical_monitoring_independent(self):
         from app.bollards import BollardService
 

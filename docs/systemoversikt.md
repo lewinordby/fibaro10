@@ -30,6 +30,7 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 | Fibaro10 hovedapp | `http://192.168.20.218:8110/` | Daglig drift, V2 desktop, API og admin. |
 | Online dashboard | `https://online.lilletorget.net/` | Ekstern begrenset mobil/dashboardflate. |
 | Vedlikehold mobil | `https://vedl.lilletorget.net/` | Rask mobilregistrering av vedlikeholdsoppgaver. |
+| Alarm mobil | `https://alarm.lilletorget.net/` | Dør-, solrom-, pullert- og trappealarmer med direkte lenker fra ntfy. |
 | Fibaro10 iPad | `https://ipad.lilletorget.net/` | iPad-tilpasset dashboardflate. |
 | OwnTracks | `https://owntracks.lilletorget.net/` | Lokasjonsmottak, waypoints, opphold og sonebesøk. |
 | Axis snapshots | `http://192.168.20.218:8125/` | Lokal status/test for snapshot-service. |
@@ -49,6 +50,7 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 | `shell_app` | Normal | Intern appvelger, live tjenestestatus og felles inngang til mikroappene. |
 | `online_dashboard` | Høy | Ekstern begrenset dashboardflate. |
 | `maintenance_mobile` | Normal | Mobil vedlikeholdsregistrering mot Fibaro10 API. |
+| `alarm_mobile` | Høy | Mobil alarmflate mot dør- og Protect-API-ene i Fibaro10. |
 | `fibaro10ipad` | Normal | iPad-grensesnitt mot Fibaro10 API. |
 | `revenue_app` | Normal | Fagapp for omsetning på egen port og med egen build. |
 | `parking_app` | Høy | Utskilt parkeringsapp med daglig drift, kjøretøy, oppgjør og analyse på egen port og med egen build. |
@@ -69,7 +71,7 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 | `sun2_backfill_downloader` | Lav/verktøy | Aktiv container som laster ned historiske SUN2 dagsfiler. |
 | `roborock_logger` | Normal | Separat compose/container for Roborock-status, historikk, planer og kartdata. |
 | `parking_sun_linker` | Høy | Bakgrunnsmotor for kobling mellom parkeringer og SUN2-brukere. |
-| `fibaro10_proxy` | Kritisk | Caddy reverse proxy for `online`, `vedl`, `ipad` og `owntracks`. |
+| `fibaro10_proxy` | Kritisk | Caddy reverse proxy for `online`, `vedl`, `alarm`, `ipad` og `owntracks`. |
 | `easypark_downloader` | Kritisk | Separat compose/app for EasyPark-nedlasting og importtrigger. |
 
 ## Offentlig proxy
@@ -81,6 +83,7 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 | `online.lilletorget.net` | `online_dashboard:8111` | Begrenset ekstern flate. |
 | `owntracks.lilletorget.net` | `owntracks_service:8128` | Tokenbeskyttet OwnTracks. Direkte interne `/api/owntracks/*` skjules eksternt. |
 | `vedl.lilletorget.net` | `maintenance_mobile:8112` | Samme brukerbase som Fibaro10. |
+| `alarm.lilletorget.net` | `alarm_mobile:8114` | Samme brukerbase som Fibaro10. Åpnes direkte fra ntfy-varsler. |
 | `ipad.lilletorget.net` | `fibaro10ipad:8113` | Samme brukerbase som Fibaro10. |
 | `192.168.20.218:8150` | `shell_app:8150` | Felles intern inngang og appvelger. |
 | `192.168.20.218:8151` | `revenue_app:8151` | Intern omsetningsapp. Samme brukerbase som Fibaro10. |
@@ -89,6 +92,7 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 | `192.168.20.218:8154` | `energy_app:8154` | Intern energiapp. Samme brukerbase som Fibaro10. |
 | `192.168.20.218:8155` | `operations_app:8155` | Intern bygg- og driftsapp. Samme brukerbase som Fibaro10. |
 | `192.168.20.218:8156` | `maintenance_app:8156` | Intern vedlikeholdsapp. Samme brukerbase som Fibaro10. |
+| `192.168.20.218:8114` | `alarm_mobile:8114` | Lokal reserveadresse for alarmappen. |
 | `192.168.20.218:8157` | `system_app:8157` | Intern systemapp. Samme brukerbase som Fibaro10. |
 | `192.168.20.218:8158` | `link_app:8158` | Intern Koble-app. Samme brukerbase som Fibaro10. |
 
