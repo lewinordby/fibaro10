@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv()
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstrip("/")
-MAINTENANCE_MOBILE_BUILD = os.getenv("MAINTENANCE_MOBILE_BUILD", "1465")
+MAINTENANCE_MOBILE_BUILD = os.getenv("MAINTENANCE_MOBILE_BUILD", "1466")
 SESSION_COOKIE_NAME = "lilletorget_maintenance_session"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 SESSION_SECRET = (
@@ -413,7 +413,14 @@ async def notifications_page(request: Request):
 @app.get("/auth/login", response_class=HTMLResponse)
 async def login_view(request: Request):
     next_path = "/varsler" if request.query_params.get("next") == "/varsler" else "/"
-    if session_credentials(request):
+    credentials = session_credentials(request)
+    if credentials:
+        try:
+            await fibaro_request("/api/auth/me", *credentials, timeout=12)
+        except HTTPException:
+            response = HTMLResponse(login_html("Økten er utløpt. Logg inn på nytt.", next_path=next_path))
+            response.delete_cookie(SESSION_COOKIE_NAME)
+            return response
         return RedirectResponse(next_path, status_code=303)
     return HTMLResponse(login_html(next_path=next_path))
 

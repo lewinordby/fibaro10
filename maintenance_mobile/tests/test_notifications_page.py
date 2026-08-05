@@ -1,6 +1,8 @@
 import unittest
 from urllib.parse import urlencode
+from unittest.mock import AsyncMock, patch
 
+from fastapi import HTTPException
 from starlette.requests import Request
 
 from maintenance_mobile.app.main import (
@@ -42,6 +44,36 @@ class NotificationsPageTests(unittest.IsolatedAsyncioTestCase):
 
         login = await login_view(request_for("/auth/login", query={"next": "/varsler"}))
         self.assertIn('action="/auth/login?next=/varsler"', login.body.decode("utf-8"))
+
+    async def test_stale_session_is_cleared_instead_of_redirecting_forever(self):
+        token = make_session_token("test", "old-password")
+        cookie = f"{SESSION_COOKIE_NAME}={token}"
+
+        with patch(
+            "maintenance_mobile.app.main.fibaro_request",
+            new=AsyncMock(side_effect=HTTPException(status_code=401, detail="Ugyldig bruker")),
+        ):
+            response = await login_view(request_for("/auth/login", cookie=cookie))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Logg inn på nytt", response.body.decode("utf-8"))
+        self.assertIn(SESSION_COOKIE_NAME, response.headers["set-cookie"])
+        self.assertIn("Max-Age=0", response.headers["set-cookie"])
+
+    async def test_valid_session_still_redirects_to_requested_page(self):
+        token = make_session_token("test", "valid-password")
+        cookie = f"{SESSION_COOKIE_NAME}={token}"
+
+        with patch(
+            "maintenance_mobile.app.main.fibaro_request",
+            new=AsyncMock(return_value={"username": "test"}),
+        ):
+            response = await login_view(
+                request_for("/auth/login", query={"next": "/varsler"}, cookie=cookie)
+            )
+
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/varsler")
 
     async def test_authenticated_user_sees_visible_subscription_entry_and_page(self):
         token = make_session_token("test", "test-password")

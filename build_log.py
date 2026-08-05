@@ -12,6 +12,31 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1648",
+        "date": "05.08.2026",
+        "headline": "Mobil vedlikehold bryter utdaterte innloggingssløyfer",
+        "title": "Ugyldige mobiløkter slettes og sender brukeren til reell innlogging",
+        "description": (
+            "Vedlikeholdsappen kunne bli stående i en sløyfe mellom appen og innloggingssiden når den lagrede "
+            "økten fortsatt hadde gyldig signatur, men brukernavnet eller passordet ikke lenger ble godkjent av "
+            "Fibaro10. Innloggingssiden validerer nå økten mot brukerbasen før den videresender brukeren. En "
+            "utdatert økt slettes, og brukeren får et tydelig innloggingsbilde i stedet for en tom eller blinkende app."
+        ),
+        "applications": [
+            "Vedlikehold mobil: robust innlogging etter passordendring eller ugyldig lagret økt.",
+            "Fibaro10: brukerbasen er fortsatt eneste autoritative innloggingskilde.",
+        ],
+        "request": "Kan du sjekke hvorfor mobil appen for vedlikehold ikke funker",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Validerer eksisterende mobiløkt mot /api/auth/me før automatisk videresending.",
+            "Sletter ugyldig økt og viser beskjed om å logge inn på nytt.",
+            "Legger regresjonstester for både utløpt og fortsatt gyldig økt.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1647",
         "date": "05.08.2026",
         "headline": "Tabellsøk fjerner nå alle rader som ikke treffer",
