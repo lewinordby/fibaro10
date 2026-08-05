@@ -27,7 +27,7 @@ BUILD_LOG = [
         "applications": [
             "Vedlikehold mobil: oppgavestatus, søk, filtre, detaljvisning og Lagre og ny.",
             "Fibaro10 API: hele det tilgjengelige vedlikeholdsutvalget på inntil 300 poster brukes i mobilhistorikken.",
-            "Docker og driftsoppsett: mobilbuild 1468 er satt som ny standard.",
+            "Docker og driftsoppsett: mobilbuild 1469 er satt som ny standard.",
             "Tester og dokumentasjon: den nye historikk- og detaljflyten er dekket og beskrevet.",
         ],
         "request": "kan du gå igjennom vedlikeholdsappen og se om du kan gjøre en del forbedringer med hensyn til funksjonalitet og oversikt",

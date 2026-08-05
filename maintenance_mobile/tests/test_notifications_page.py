@@ -59,7 +59,7 @@ class MaintenanceMobileTests(unittest.IsolatedAsyncioTestCase):
 
     def test_alarm_features_are_not_embedded_in_maintenance_app(self):
         self.assertIn("Hva skal registreres?", INDEX_HTML)
-        self.assertIn("maintenance-mobile.js?v=1468", INDEX_HTML)
+        self.assertIn("maintenance-mobile.js?v=1469", INDEX_HTML)
         self.assertNotIn("notificationsScreen", INDEX_HTML)
         self.assertNotIn("Pullert- og trappevarsler", INDEX_HTML)
 

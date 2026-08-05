@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv()
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstrip("/")
-MAINTENANCE_MOBILE_BUILD = os.getenv("MAINTENANCE_MOBILE_BUILD", "1468")
+MAINTENANCE_MOBILE_BUILD = os.getenv("MAINTENANCE_MOBILE_BUILD", "1469")
 SESSION_COOKIE_NAME = "lilletorget_maintenance_session"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 SESSION_SECRET = (
@@ -402,7 +402,7 @@ def login_html(error: str = "", *, next_path: str = "/") -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Logg inn · Vedlikehold</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1468">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1469">
 </head>
 <body class="login-body">
   <main class="login-screen">
@@ -434,8 +434,8 @@ INDEX_HTML = """<!doctype html>
   <title>Lilletorget Vedlikehold</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1468">
-  <script src="/assets/maintenance-mobile.js?v=1468" defer></script>
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1469">
+  <script src="/assets/maintenance-mobile.js?v=1469" defer></script>
 </head>
 <body>
   <header class="app-topbar">
