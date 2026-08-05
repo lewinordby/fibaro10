@@ -10,7 +10,8 @@ Egen mobilflate for rask vedlikeholdsregistrering på `https://vedl.lilletorget.
 - Skrive til samme `maintenance_log_entries`-grunnlag via Fibaro10 API.
 - Gjøre registrering fra mobil raskere enn hovedappen.
 - Automatisk tagge oppgaver etter valgt kategori og valgt utstyr.
-- Vise bare relevante tidligere oppgaver nederst på registreringssiden.
+- Vise når hver oppgavetype sist ble utført og om noe krever oppfølging.
+- Gi søkbar historikk med filter for i dag, oppfølging og egne registreringer.
 
 ## Førsteside
 
@@ -23,6 +24,7 @@ Førstesiden har store raske valg:
 - Annet
 
 Hvert valg åpner en kompakt registreringsside. Tidspunkt settes automatisk til nå, men kan endres fra toppfeltet.
+Hver oppgave viser siste registrering og antall åpne oppfølgingspunkter direkte på startsiden.
 
 ## Kategorier og standardoppgaver
 
@@ -37,7 +39,14 @@ Varmepumper:
 - Valg: `1.etg`, `2.etg`, `VIP`.
 - Standardoppgaver: `Renset filter`, `Endret innstilling`.
 
-Egne poster kan åpnes og redigeres av brukeren som opprettet dem.
+## Historikk og detaljer
+
+- Historikken omfatter inntil de 300 siste postene fra Fibaro10 og kan søkes uten ny serverrunde.
+- Oppgavehistorikken bruker oppgavetagger og objektdata, slik at for eksempel robotvaskere ikke blandes med annet renhold.
+- Alle innloggede brukere kan åpne en post og lese detaljene.
+- Egne poster kan redigeres av brukeren som opprettet dem.
+- `Lagre og ny` oppretter posten og åpner samme oppgavetype på nytt for effektiv serieregistrering.
+- En fullført lagring regnes som vellykket selv om den etterfølgende oppdateringen av historikken skulle feile.
 
 ## Alarm og pullertkontroll
 

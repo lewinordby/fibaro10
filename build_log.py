@@ -12,6 +12,41 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1650",
+        "date": "05.08.2026",
+        "headline": "Vedlikeholdsappen gir raskere registrering og bedre arbeidsoversikt",
+        "title": "Oppgavestatus, søkbar historikk og tydelige detaljer samles i mobilflaten",
+        "description": (
+            "Vedlikeholdsappen viser nå når hver hovedoppgave sist ble utført og markerer åpne "
+            "oppfølgingspunkter allerede på startsiden. Historikken kan filtreres på i dag, oppfølging og "
+            "egne poster, søkes direkte og utvides trinnvis. Oppgavefiltreringen er presisert slik at ulike "
+            "typer renhold ikke blandes sammen. Alle kan lese detaljene i en registrering, mens bare den som "
+            "opprettet posten kan redigere den. Registreringsflyten har fått en egen Lagre og ny-funksjon for "
+            "arbeid på flere enheter og sikrere tilbakemelding når selve lagringen er fullført."
+        ),
+        "applications": [
+            "Vedlikehold mobil: oppgavestatus, søk, filtre, detaljvisning og Lagre og ny.",
+            "Fibaro10 API: hele det tilgjengelige vedlikeholdsutvalget på inntil 300 poster brukes i mobilhistorikken.",
+            "Docker og driftsoppsett: mobilbuild 1468 er satt som ny standard.",
+            "Tester og dokumentasjon: den nye historikk- og detaljflyten er dekket og beskrevet.",
+        ],
+        "request": "kan du gå igjennom vedlikeholdsappen og se om du kan gjøre en del forbedringer med hensyn til funksjonalitet og oversikt",
+        "work_duration": "ca. 1,5 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser siste utførelse og åpne oppfølgingspunkter per hovedoppgave.",
+            "Legger filtre for alle, i dag, oppfølging og mine, samt fritekstsøk og trinnvis visning.",
+            "Skiller robotvaskere, varmepumper, solsenger, kremautomat og annet med presise oppgavetreff.",
+            "Fjerner rå tagglister fra historikken og gir hver post en kompakt, lesbar detaljside.",
+            "Bevarer redigeringsretten til oppretter, men gjør alle poster lesbare for innloggede brukere.",
+            "Legger Lagre og ny i en stabil, mobiltilpasset handlingslinje.",
+            "Forhindrer at vellykket lagring fremstår som mislykket hvis historikkoppdateringen feiler etterpå.",
+            "Escaper dynamiske tekster før de settes inn i generert HTML.",
+            "Fjerner den ubrukte, gamle oppgavelisten fra mobilens JavaScript.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1649",
         "date": "05.08.2026",
         "headline": "Vedlikehold og alarm er nå to målrettede mobilapper",

@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv()
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstrip("/")
-MAINTENANCE_MOBILE_BUILD = os.getenv("MAINTENANCE_MOBILE_BUILD", "1467")
+MAINTENANCE_MOBILE_BUILD = os.getenv("MAINTENANCE_MOBILE_BUILD", "1468")
 SESSION_COOKIE_NAME = "lilletorget_maintenance_session"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 SESSION_SECRET = (
@@ -234,7 +234,7 @@ def bootstrap_payload(
     renhold_payload: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     fields = fields_by_key(module_payload)
-    recent_rows = maintenance_rows(module_payload)[:120]
+    recent_rows = maintenance_rows(module_payload)[:300]
     default_performed_at = (fields.get("performed_at") or {}).get("defaultValue")
     return {
         "user": user_payload,
@@ -402,7 +402,7 @@ def login_html(error: str = "", *, next_path: str = "/") -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Logg inn · Vedlikehold</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1467">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1468">
 </head>
 <body class="login-body">
   <main class="login-screen">
@@ -434,8 +434,8 @@ INDEX_HTML = """<!doctype html>
   <title>Lilletorget Vedlikehold</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1467">
-  <script src="/assets/maintenance-mobile.js?v=1467" defer></script>
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1468">
+  <script src="/assets/maintenance-mobile.js?v=1468" defer></script>
 </head>
 <body>
   <header class="app-topbar">
@@ -514,9 +514,26 @@ INDEX_HTML = """<!doctype html>
 
         <label id="followUpField" class="is-hidden">Oppfølging<textarea id="follow_up_text" name="follow_up_text" rows="3" placeholder="Hva må gjøres videre?"></textarea></label>
 
-        <button id="submitButton" class="primary-button" type="submit">Lagre</button>
+        <div class="form-actions">
+          <button id="submitButton" class="primary-button" type="submit">Lagre</button>
+          <button id="submitNextButton" class="secondary-button" type="submit">Lagre og ny</button>
+        </div>
         <p id="formMessage" class="form-message" role="status"></p>
       </form>
+    </section>
+
+    <section id="detailScreen" class="screen is-hidden">
+      <section class="entry-head sub-topbar detail-head">
+        <button id="detailBackButton" class="back-button" type="button" aria-label="Tilbake">
+          <img src="/static/lilletorget-mark.png" alt="">
+        </button>
+        <div class="entry-title-block">
+          <h1>Vedlikeholdspost</h1>
+          <p class="entry-user-line">Detaljer</p>
+        </div>
+        <span class="sub-topbar-spacer" aria-hidden="true"></span>
+      </section>
+      <article id="detailContent" class="detail-card"></article>
     </section>
 
     <section id="profileScreen" class="screen is-hidden">
@@ -554,7 +571,20 @@ INDEX_HTML = """<!doctype html>
           <p id="recentSubtitle" class="muted">Siste vedlikeholdsposter på tvers av kategorier.</p>
         </div>
       </div>
+      <div class="history-filters" role="group" aria-label="Filtrer historikk">
+        <button type="button" class="is-active" data-history-filter="all" aria-pressed="true">Alle <span>0</span></button>
+        <button type="button" data-history-filter="today" aria-pressed="false">I dag <span>0</span></button>
+        <button type="button" data-history-filter="follow-up" aria-pressed="false">Oppfølging <span>0</span></button>
+        <button type="button" data-history-filter="mine" aria-pressed="false">Mine <span>0</span></button>
+      </div>
+      <label class="history-search">
+        <span class="visually-hidden">Søk i vedlikeholdshistorikken</span>
+        <input id="historySearch" type="search" placeholder="Søk i registreringer" autocomplete="off">
+        <button id="historySearchClear" class="history-search-clear is-hidden" type="button" aria-label="Tøm søk">×</button>
+      </label>
+      <p id="historyResultMeta" class="history-result-meta"></p>
       <div id="recentList" class="recent-list"></div>
+      <button id="historyMoreButton" class="history-more-button is-hidden" type="button">Vis flere</button>
     </section>
   </main>
 </body>

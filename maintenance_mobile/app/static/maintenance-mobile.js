@@ -1,125 +1,3 @@
-const LEGACY_TASKS = [
-  {
-    key: "vacuum-clean",
-    code: "RV",
-    title: "Rens støvsugere",
-    detail: "Renhold",
-    category: "Renhold",
-    targetType: "Renhold",
-    targetName: "Støvsugere",
-    actionType: "Rengjøring",
-    priority: "Normal",
-    status: "Utført",
-    summary: "Rens støvsugere",
-    durationMinutes: 10,
-    initialFocus: "summary",
-    tags: ["Renhold", "Støvsugere", "Rens", "Rutine", "Mobil"],
-  },
-  {
-    key: "bed-check",
-    code: "SS",
-    title: "Sjekk solseng",
-    detail: "Seng",
-    category: "Soling",
-    targetType: "Seng",
-    actionType: "Kontroll",
-    priority: "Normal",
-    status: "Utført",
-    summary: "Sjekk solseng",
-    requiresRoom: true,
-    initialFocus: "room",
-    tags: ["Soling", "Seng", "Kontroll", "Mobil"],
-  },
-  {
-    key: "bed-clean",
-    code: "RS",
-    title: "Rengjør seng",
-    detail: "Seng",
-    category: "Renhold",
-    targetType: "Seng",
-    actionType: "Rengjøring",
-    priority: "Normal",
-    status: "Utført",
-    summary: "Rengjør seng",
-    requiresRoom: true,
-    initialFocus: "room",
-    tags: ["Renhold", "Soling", "Seng", "Mobil"],
-  },
-  {
-    key: "tube-change",
-    code: "BR",
-    title: "Bytt rør",
-    detail: "Seng",
-    category: "Teknisk",
-    targetType: "Seng",
-    actionType: "Bytte",
-    priority: "Høy",
-    status: "Utført",
-    summary: "Bytt rør",
-    requiresRoom: true,
-    initialFocus: "room",
-    tags: ["Teknisk", "Seng", "Rør", "Bytte", "Mobil"],
-  },
-  {
-    key: "ventilation-check",
-    code: "VE",
-    title: "Sjekk ventilasjon",
-    detail: "Bygg",
-    category: "Drift",
-    targetType: "Ventilasjon",
-    actionType: "Kontroll",
-    priority: "Normal",
-    status: "Utført",
-    summary: "Sjekk ventilasjon",
-    initialFocus: "summary",
-    tags: ["Ventilasjon", "Kontroll", "Mobil"],
-  },
-  {
-    key: "light-check",
-    code: "LY",
-    title: "Sjekk lys",
-    detail: "Bygg",
-    category: "Drift",
-    targetType: "Lys",
-    actionType: "Kontroll",
-    priority: "Normal",
-    status: "Utført",
-    summary: "Sjekk lys",
-    initialFocus: "summary",
-    tags: ["Lys", "Kontroll", "Mobil"],
-  },
-  {
-    key: "supplies-refill",
-    code: "PF",
-    title: "Fyll forbruk",
-    detail: "Utstyr",
-    category: "Drift",
-    targetType: "Utstyr",
-    targetName: "Forbruksmateriell",
-    actionType: "Påfyll",
-    priority: "Normal",
-    status: "Utført",
-    summary: "Fyll forbruksmateriell",
-    initialFocus: "summary",
-    tags: ["Utstyr", "Påfyll", "Innkjøp", "Mobil"],
-  },
-  {
-    key: "other-deviation",
-    code: "AV",
-    title: "Annet avvik",
-    detail: "Oppfølging",
-    category: "Avvik",
-    targetType: "Generelt",
-    actionType: "Observasjon",
-    priority: "Høy",
-    status: "Må følges opp",
-    summary: "Avvik eller observasjon",
-    followUpNeeded: true,
-    initialFocus: "followUp",
-    tags: ["Avvik", "Oppfølging", "Mobil"],
-  },
-];
-
 const HEAT_PUMP_TARGETS = [
   { value: "1.etg", label: "1.etg" },
   { value: "2.etg", label: "2.etg" },
@@ -207,9 +85,15 @@ const state = {
   bootstrap: null,
   selectedTask: null,
   editingLog: null,
+  detailLog: null,
+  detailReturnScreen: "tasks",
   selectedRobots: [],
   selectedTargetChoices: [],
   selectedStandardTasks: [],
+  historyFilter: "all",
+  historyQuery: "",
+  historyVisible: 8,
+  currentScreen: "tasks",
   busy: false,
   lastSavedTitle: "",
 };
@@ -253,6 +137,37 @@ function formatStamp(value) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(parsed);
+}
+
+function parsedLocalDate(value) {
+  if (!value) return null;
+  const parsed = new Date(String(value).replace(" ", "T"));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function isToday(value) {
+  const parsed = parsedLocalDate(value);
+  if (!parsed) return false;
+  const today = new Date();
+  return parsed.getFullYear() === today.getFullYear()
+    && parsed.getMonth() === today.getMonth()
+    && parsed.getDate() === today.getDate();
+}
+
+function formatTaskRecency(value) {
+  const parsed = parsedLocalDate(value);
+  if (!parsed) return "Ikke registrert";
+  if (isToday(value)) {
+    return `I dag ${new Intl.DateTimeFormat("no-NO", { hour: "2-digit", minute: "2-digit" }).format(parsed)}`;
+  }
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (parsed.getFullYear() === yesterday.getFullYear()
+    && parsed.getMonth() === yesterday.getMonth()
+    && parsed.getDate() === yesterday.getDate()) {
+    return "I går";
+  }
+  return new Intl.DateTimeFormat("no-NO", { day: "numeric", month: "short" }).format(parsed).replace(".", "");
 }
 
 function formatTimeButton(value) {
@@ -318,22 +233,38 @@ function fillSelect(id, options, selectedValue, includeBlank = false) {
 }
 
 function showScreen(screenName) {
+  state.currentScreen = screenName;
   $("#taskScreen")?.classList.toggle("is-hidden", screenName !== "tasks");
   $("#entryScreen")?.classList.toggle("is-hidden", screenName !== "entry");
+  $("#detailScreen")?.classList.toggle("is-hidden", screenName !== "detail");
   $("#profileScreen")?.classList.toggle("is-hidden", screenName !== "profile");
-  $("#recentCard")?.classList.toggle("is-hidden", screenName === "profile");
+  $("#recentCard")?.classList.toggle("is-hidden", ["profile", "detail"].includes(screenName));
   document.body.classList.toggle("entry-mode", screenName === "entry");
+  document.body.classList.toggle("detail-mode", screenName === "detail");
   document.body.classList.toggle("profile-mode", screenName === "profile");
   setMessage("");
-  if (screenName === "entry" || screenName === "profile") setTaskMessage("");
+  if (["entry", "detail", "profile"].includes(screenName)) setTaskMessage("");
+}
+
+function rowsForTask(task) {
+  return (state.bootstrap?.recent || []).filter((row) => recentRowMatchesTask(row, task));
+}
+
+function taskOverview(task) {
+  const rows = rowsForTask(task);
+  const followUps = rows.filter((row) => Boolean(row.follow_up_needed)).length;
+  const latest = rows[0];
+  const parts = [`Sist ${formatTaskRecency(latest?.performed_at)}`];
+  if (followUps) parts.push(`${followUps} ${followUps === 1 ? "oppfølging" : "oppfølginger"}`);
+  return parts.join(" · ");
 }
 
 function renderTasks() {
   const container = $("#taskGrid");
   if (!container) return;
   container.innerHTML = TASKS.map((task) => `
-    <button class="task-button" type="button" data-task-key="${task.key}">
-      <span class="task-title">${task.title}</span>
+    <button class="task-button" type="button" data-task-key="${escapeHtml(task.key)}">
+      <span class="task-copy"><span class="task-title">${escapeHtml(task.title)}</span><small>${escapeHtml(taskOverview(task))}</small></span>
     </button>
   `).join("");
   container.querySelectorAll("[data-task-key]").forEach((button) => {
@@ -372,8 +303,8 @@ function renderRoomChoices() {
   const selected = $("#room_id")?.value || "";
   const rooms = optionList("room_id");
   container.innerHTML = rooms.map((room) => `
-    <button class="room-chip ${room.value === selected ? "is-active" : ""}" type="button" data-room-id="${room.value}">
-      ${safeText(room.label, room.value)}
+    <button class="room-chip ${room.value === selected ? "is-active" : ""}" type="button" data-room-id="${escapeHtml(room.value)}">
+      ${escapeHtml(safeText(room.label, room.value))}
     </button>
   `).join("");
   container.querySelectorAll("[data-room-id]").forEach((button) => {
@@ -391,8 +322,8 @@ function renderRobotChoices() {
     return;
   }
   container.innerHTML = robots.map((robot) => `
-    <button class="robot-chip ${selected.has(robot.value) ? "is-active" : ""}" type="button" data-robot-id="${robot.value}">
-      ${safeText(robot.label, robot.value)}
+    <button class="robot-chip ${selected.has(robot.value) ? "is-active" : ""}" type="button" data-robot-id="${escapeHtml(robot.value)}">
+      ${escapeHtml(safeText(robot.label, robot.value))}
     </button>
   `).join("");
   container.querySelectorAll("[data-robot-id]").forEach((button) => {
@@ -416,8 +347,8 @@ function renderTargetChoices() {
   const selected = new Set(state.selectedTargetChoices);
   $("#targetChoiceLabel").textContent = state.selectedTask?.targetChoiceLabel || "Valg";
   container.innerHTML = options.map((option) => `
-    <button class="target-choice-chip ${selected.has(option.value) ? "is-active" : ""}" type="button" data-target-choice="${option.value}">
-      ${safeText(option.label, option.value)}
+    <button class="target-choice-chip ${selected.has(option.value) ? "is-active" : ""}" type="button" data-target-choice="${escapeHtml(option.value)}">
+      ${escapeHtml(safeText(option.label, option.value))}
     </button>
   `).join("");
   container.querySelectorAll("[data-target-choice]").forEach((button) => {
@@ -506,8 +437,8 @@ function renderStandardTaskChoices() {
     return;
   }
   container.innerHTML = tasks.map((task) => `
-    <button class="standard-task-chip ${selected.has(task) ? "is-active" : ""}" type="button" data-standard-task="${task}">
-      ${task}
+    <button class="standard-task-chip ${selected.has(task) ? "is-active" : ""}" type="button" data-standard-task="${escapeHtml(task)}">
+      ${escapeHtml(task)}
     </button>
   `).join("");
   container.querySelectorAll("[data-standard-task]").forEach((button) => {
@@ -651,6 +582,7 @@ function focusInitialTaskField(task) {
 function updateSubmitState() {
   const button = $("#submitButton");
   if (!button) return;
+  const repeatButton = $("#submitNextButton");
   const needsRoom = Boolean(state.selectedTask?.requiresRoom);
   const missingRoom = needsRoom && !$("#room_id")?.value;
   const needsRobots = Boolean(state.selectedTask?.requiresRobots);
@@ -659,7 +591,12 @@ function updateSubmitState() {
   const missingTargetChoices = needsTargetChoices && state.selectedTargetChoices.length === 0;
   const needsStandardTask = (state.selectedTask?.standardTasks || []).length > 0;
   const missingStandardTask = needsStandardTask && state.selectedStandardTasks.length === 0;
-  button.disabled = state.busy || missingRoom || missingRobots || missingTargetChoices || missingStandardTask;
+  const disabled = state.busy || missingRoom || missingRobots || missingTargetChoices || missingStandardTask;
+  button.disabled = disabled;
+  if (repeatButton) {
+    repeatButton.disabled = disabled;
+    repeatButton.classList.toggle("is-hidden", Boolean(state.editingLog));
+  }
   if (state.busy) {
     button.textContent = "Lagrer...";
   } else if (missingRoom) {
@@ -798,6 +735,9 @@ function openTask(taskKey) {
   if (!task) return;
   state.selectedTask = task;
   state.editingLog = null;
+  state.historyFilter = "all";
+  state.historyQuery = "";
+  state.historyVisible = 8;
   const taskCategory = $("#taskCategory");
   if (taskCategory) taskCategory.textContent = task.category || "Oppgave";
   $("#taskTitle").textContent = task.title;
@@ -838,12 +778,26 @@ function rowTags(row) {
 function recentRowMatchesTask(row, task) {
   if (!task) return true;
   const tags = rowTags(row);
-  const category = normalizeToken(task.category);
-  if (category && tags.includes(category)) return true;
-  if (category && tags.length) return false;
   const targetType = normalizeToken(row.target_type);
   const actionType = normalizeToken(row.action_type);
   const targetName = normalizeToken(row.target_name);
+  const summary = normalizeToken(row.summary);
+  const key = safeText(task.key);
+  if (key === "robot-cleaners") {
+    return tags.includes("robotvaskere") || targetName.includes("robotvasker") || summary.includes("robotvasker");
+  }
+  if (key === "heat-pumps") {
+    return tags.includes("varmepumper") || targetName.includes("varmepump") || summary.includes("varmepump");
+  }
+  if (key === "sunbeds") {
+    return targetType === "seng" || tags.includes("seng") || tags.includes("soling");
+  }
+  if (key === "cream-machine") {
+    return tags.includes("kremautomat") || targetName.includes("kremautomat") || summary.includes("kremautomat");
+  }
+  if (key === "other") {
+    return targetType === "generelt" || tags.includes("avvik") || tags.includes("observasjon");
+  }
   const taskTargetType = normalizeToken(task.targetType);
   const taskActionType = normalizeToken(task.actionType);
   const taskTargetName = normalizeToken(task.targetName);
@@ -852,59 +806,147 @@ function recentRowMatchesTask(row, task) {
   return false;
 }
 
-function filteredRecentRows() {
+function scopedRecentRows() {
   const rows = state.bootstrap?.recent || [];
-  if (!state.selectedTask) return rows.slice(0, 12);
-  return rows.filter((row) => recentRowMatchesTask(row, state.selectedTask)).slice(0, 12);
+  return state.selectedTask ? rows.filter((row) => recentRowMatchesTask(row, state.selectedTask)) : rows;
+}
+
+function historyFilterMatches(row) {
+  if (state.historyFilter === "today") return isToday(row.performed_at);
+  if (state.historyFilter === "follow-up") return Boolean(row.follow_up_needed);
+  if (state.historyFilter === "mine") return isOwnLog(row);
+  return true;
+}
+
+function historyQueryMatches(row) {
+  const query = normalizeToken(state.historyQuery);
+  if (!query) return true;
+  return [row.summary, row.target_type, row.target_name, row.action_type, row.performed_by, row.follow_up_text, row.tags]
+    .some((value) => normalizeToken(value).includes(query));
+}
+
+function filteredRecentRows() {
+  return scopedRecentRows().filter((row) => historyFilterMatches(row) && historyQueryMatches(row));
+}
+
+function updateHistoryControls(scopedRows, filteredRows) {
+  const counts = {
+    all: scopedRows.length,
+    today: scopedRows.filter((row) => isToday(row.performed_at)).length,
+    "follow-up": scopedRows.filter((row) => Boolean(row.follow_up_needed)).length,
+    mine: scopedRows.filter((row) => isOwnLog(row)).length,
+  };
+  document.querySelectorAll("[data-history-filter]").forEach((button) => {
+    const filter = button.dataset.historyFilter || "all";
+    button.classList.toggle("is-active", filter === state.historyFilter);
+    button.setAttribute("aria-pressed", filter === state.historyFilter ? "true" : "false");
+    const count = button.querySelector("span");
+    if (count) count.textContent = String(counts[filter] || 0);
+  });
+  const search = $("#historySearch");
+  if (search && search.value !== state.historyQuery) search.value = state.historyQuery;
+  $("#historySearchClear")?.classList.toggle("is-hidden", !state.historyQuery);
+  const meta = $("#historyResultMeta");
+  if (meta) meta.textContent = filteredRows.length === scopedRows.length
+    ? `${filteredRows.length} registreringer`
+    : `${filteredRows.length} av ${scopedRows.length} registreringer`;
 }
 
 function renderRecent() {
   const container = $("#recentList");
   if (!container) return;
-  const rows = filteredRecentRows();
+  const scopedRows = scopedRecentRows();
+  const filteredRows = filteredRecentRows();
+  const rows = filteredRows.slice(0, state.historyVisible);
   const title = $("#recentTitle");
   const subtitle = $("#recentSubtitle");
   if (state.selectedTask) {
-    if (title) title.textContent = `Siste ${state.selectedTask.category || state.selectedTask.title}`;
-    if (subtitle) subtitle.textContent = `Viser bare poster som hører til ${state.selectedTask.category || "valgt oppgave"}.`;
+    if (title) title.textContent = state.selectedTask.title;
+    if (subtitle) subtitle.textContent = "Historikk for denne oppgavetypen.";
   } else {
     if (title) title.textContent = "Siste registreringer";
-    if (subtitle) subtitle.textContent = "Siste vedlikeholdsposter på tvers av kategorier.";
+    if (subtitle) subtitle.textContent = "Arbeid og observasjoner fra Lilletorget.";
   }
+  updateHistoryControls(scopedRows, filteredRows);
   if (!rows.length) {
-    const emptyText = state.selectedTask
-      ? `Ingen tidligere poster i ${state.selectedTask.category || state.selectedTask.title}.`
-      : "Ingen vedlikeholdsposter ennå.";
-    container.innerHTML = `<p class="muted">${emptyText}</p>`;
+    const emptyText = state.historyQuery
+      ? "Ingen registreringer samsvarer med søket."
+      : (state.selectedTask ? `Ingen tidligere poster for ${state.selectedTask.title}.` : "Ingen vedlikeholdsposter ennå.");
+    container.innerHTML = `<p class="muted">${escapeHtml(emptyText)}</p>`;
+    $("#historyMoreButton")?.classList.add("is-hidden");
     return;
   }
   container.innerHTML = rows.map((row) => {
     const target = [row.target_type, row.target_name].filter(Boolean).join(" - ");
     const meta = [
       formatStamp(row.performed_at),
-      safeText(row.action_type),
-      safeText(row.priority),
       safeText(row.performed_by),
     ].filter(Boolean).join(" - ");
     const statusClass = row.follow_up_needed ? "is-open" : "";
     const editable = isOwnLog(row);
-    const tagName = editable ? "button" : "article";
-    const actionAttrs = editable ? ` type="button" data-log-id="${row.id}" aria-label="Rediger ${safeText(row.summary, "vedlikeholdspost")}"` : "";
+    const actionLabel = editable ? "Rediger" : "Vis";
+    const actionType = safeText(row.action_type);
+    const duration = Number(row.duration_minutes) > 0 ? `${Number(row.duration_minutes)} min` : "";
     return `
-      <${tagName} class="recent-item ${editable ? "is-editable" : ""}"${actionAttrs}>
+      <button class="recent-item is-editable" type="button" data-log-id="${escapeHtml(row.id)}" data-log-action="${editable ? "edit" : "view"}" aria-label="${actionLabel} ${escapeHtml(safeText(row.summary, "vedlikeholdspost"))}">
         <div class="recent-main">
-          <strong>${safeText(row.summary, "Uten notat")}</strong>
-          <span class="recent-meta">${safeText(target, "Generelt")}</span>
-          <span class="recent-meta">${meta}</span>
-          ${row.tags ? `<span class="recent-tags">${safeText(row.tags)}</span>` : ""}
+          <strong>${escapeHtml(safeText(row.summary, "Uten notat"))}</strong>
+          <span class="recent-target">${escapeHtml([actionType, safeText(target, "Generelt")].filter(Boolean).join(" · "))}</span>
+          <span class="recent-meta">${escapeHtml([meta, duration].filter(Boolean).join(" · "))}</span>
         </div>
-        <span class="recent-status ${statusClass}">${row.follow_up_needed ? "Oppfølging" : safeText(row.status, "Utført")}</span>
-      </${tagName}>
+        <span class="recent-status ${statusClass}">${row.follow_up_needed ? "Oppfølging" : escapeHtml(safeText(row.status, "Utført"))}</span>
+      </button>
     `;
   }).join("");
   container.querySelectorAll("[data-log-id]").forEach((button) => {
-    button.addEventListener("click", () => openLogForEdit(button.dataset.logId));
+    button.addEventListener("click", () => {
+      if (button.dataset.logAction === "edit") openLogForEdit(button.dataset.logId);
+      else openLogDetail(button.dataset.logId);
+    });
   });
+  const more = $("#historyMoreButton");
+  more?.classList.toggle("is-hidden", rows.length >= filteredRows.length);
+  if (more) more.textContent = `Vis flere (${filteredRows.length - rows.length})`;
+}
+
+function openLogDetail(logId) {
+  const row = (state.bootstrap?.recent || []).find((item) => String(item.id) === String(logId));
+  if (!row) {
+    setTaskMessage("Fant ikke vedlikeholdsposten.", true);
+    return;
+  }
+  state.detailReturnScreen = state.currentScreen === "entry" ? "entry" : "tasks";
+  state.detailLog = row;
+  renderLogDetail(row);
+  showScreen("detail");
+  window.scrollTo({ top: 0, behavior: "auto" });
+}
+
+function renderLogDetail(row) {
+  const container = $("#detailContent");
+  if (!container) return;
+  const target = [row.target_type, row.target_name].filter(Boolean).join(" - ") || "Generelt";
+  const followUp = safeText(row.follow_up_text);
+  const editable = isOwnLog(row);
+  container.innerHTML = `
+    <div class="detail-status-line">
+      <span class="recent-status ${row.follow_up_needed ? "is-open" : ""}">${row.follow_up_needed ? "Oppfølging" : escapeHtml(safeText(row.status, "Utført"))}</span>
+      <time>${escapeHtml(formatStamp(row.performed_at))}</time>
+    </div>
+    <section class="detail-summary">
+      <p class="eyebrow">Registrert arbeid</p>
+      <h2>${escapeHtml(safeText(row.summary, "Uten notat"))}</h2>
+    </section>
+    <dl class="detail-facts">
+      <div><dt>Objekt</dt><dd>${escapeHtml(target)}</dd></div>
+      <div><dt>Tiltak</dt><dd>${escapeHtml(safeText(row.action_type, "-"))}</dd></div>
+      <div><dt>Utført av</dt><dd>${escapeHtml(safeText(row.performed_by, "-"))}</dd></div>
+      <div><dt>Varighet</dt><dd>${Number(row.duration_minutes) > 0 ? `${Number(row.duration_minutes)} min` : "-"}</dd></div>
+    </dl>
+    ${row.follow_up_needed || followUp ? `<section class="detail-follow-up"><p class="eyebrow">Oppfølging</p><p>${escapeHtml(followUp || "Må følges opp.")}</p></section>` : ""}
+    ${editable ? `<button id="detailEditButton" class="primary-button" type="button" data-log-id="${escapeHtml(row.id)}">Rediger registreringen</button>` : '<p class="read-only-note">Registreringen kan leses av alle, men bare den som opprettet den kan redigere.</p>'}
+  `;
+  $("#detailEditButton")?.addEventListener("click", () => openLogForEdit(row.id));
 }
 
 function updateHeader() {
@@ -1046,6 +1088,8 @@ async function submitForm(event) {
     return;
   }
   const editing = Boolean(state.editingLog?.id);
+  const saveAndRepeat = !editing && event.submitter?.id === "submitNextButton";
+  const repeatTaskKey = state.selectedTask?.key || "";
   const savedTitle = state.selectedTask?.title || "Vedlikehold";
   state.busy = true;
   updateSubmitState();
@@ -1062,9 +1106,22 @@ async function submitForm(event) {
     state.lastSavedTitle = savedTitle;
     state.selectedTask = null;
     state.editingLog = null;
-    await loadBootstrap();
-    showScreen("tasks");
-    setTaskMessage(`${editing ? "Endret" : "Lagret"}: ${savedTitle}`);
+    let refreshError = "";
+    try {
+      await loadBootstrap();
+    } catch (error) {
+      refreshError = error.message || String(error);
+    }
+    if (saveAndRepeat && repeatTaskKey && !refreshError) {
+      openTask(repeatTaskKey);
+      setMessage(`Lagret: ${savedTitle}. Klar for neste.`);
+    } else {
+      showScreen("tasks");
+      setTaskMessage(refreshError
+        ? `${editing ? "Endret" : "Lagret"}: ${savedTitle}. Listen kunne ikke oppdateres nå.`
+        : `${editing ? "Endret" : "Lagret"}: ${savedTitle}`,
+      Boolean(refreshError));
+    }
   } catch (error) {
     setMessage(error.message || String(error), true);
   } finally {
@@ -1080,13 +1137,39 @@ document.addEventListener("DOMContentLoaded", async () => {
     showScreen("profile");
   });
   $("#profileBackButton")?.addEventListener("click", () => showScreen("tasks"));
+  $("#detailBackButton")?.addEventListener("click", () => showScreen(state.detailReturnScreen || "tasks"));
   $("#backButton")?.addEventListener("click", () => {
     state.selectedTask = null;
     state.editingLog = null;
     state.selectedRobots = [];
     state.selectedTargetChoices = [];
     state.selectedStandardTasks = [];
+    state.historyFilter = "all";
+    state.historyQuery = "";
+    state.historyVisible = 8;
     showScreen("tasks");
+    renderRecent();
+  });
+  document.querySelectorAll("[data-history-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.historyFilter = button.dataset.historyFilter || "all";
+      state.historyVisible = 8;
+      renderRecent();
+    });
+  });
+  $("#historySearch")?.addEventListener("input", (event) => {
+    state.historyQuery = event.target.value || "";
+    state.historyVisible = 8;
+    renderRecent();
+  });
+  $("#historySearchClear")?.addEventListener("click", () => {
+    state.historyQuery = "";
+    state.historyVisible = 8;
+    renderRecent();
+    $("#historySearch")?.focus();
+  });
+  $("#historyMoreButton")?.addEventListener("click", () => {
+    state.historyVisible += 8;
     renderRecent();
   });
   $("#follow_up_needed")?.addEventListener("change", setFollowUpVisible);
@@ -1107,6 +1190,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     await loadBootstrap();
     showScreen("tasks");
   } catch (error) {
-    setMessage(error.message || String(error), true);
+    setTaskMessage(error.message || String(error), true);
   }
 });
