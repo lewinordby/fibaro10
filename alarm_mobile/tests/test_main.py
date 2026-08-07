@@ -9,7 +9,6 @@ from alarm_mobile.app.main import (
     INDEX_HTML,
     SESSION_COOKIE_NAME,
     login_view,
-    make_session_token,
     monitor_payload,
     safe_next_path,
 )
@@ -45,7 +44,7 @@ class AlarmMobileTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(safe_next_path("//example.com/"), "/")
 
     async def test_valid_session_preserves_deep_link(self):
-        token = make_session_token("test", "valid-password")
+        token = "valid-opaque-session"
         cookie = f"{SESSION_COOKIE_NAME}={token}"
         destination = "/?section=pullerter&incident=17"
         with patch(
@@ -59,7 +58,7 @@ class AlarmMobileTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.headers["location"], destination)
 
     async def test_stale_session_is_deleted(self):
-        token = make_session_token("test", "old-password")
+        token = "stale-opaque-session"
         cookie = f"{SESSION_COOKIE_NAME}={token}"
         with patch(
             "alarm_mobile.app.main.fibaro_request",

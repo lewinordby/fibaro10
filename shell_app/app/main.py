@@ -37,6 +37,7 @@ APP_BUILD = os.getenv("SHELL_APP_BUILD", DEFAULT_BUILD)
 APP_COMMIT = os.getenv("SHELL_APP_COMMIT", os.getenv("APP_COMMIT", "unknown"))
 AUTH_USER_COOKIE_NAME = "fibaro10_access_username"
 AUTH_COOKIE_NAME = "fibaro10_access_password"
+AUTH_SESSION_COOKIE_NAME = "fibaro10_session"
 STATIC_DIR = Path(__file__).resolve().parent / "static" / "dist"
 
 
@@ -105,7 +106,7 @@ def forwarded_headers(request: Request, *, accept: str = "application/json") -> 
 
 
 async def current_user(request: Request) -> dict[str, Any]:
-    if not request.cookies.get(AUTH_USER_COOKIE_NAME) or not request.cookies.get(AUTH_COOKIE_NAME):
+    if not request.cookies.get(AUTH_SESSION_COOKIE_NAME):
         raise HTTPException(status_code=401, detail="Innlogging kreves")
     client: httpx.AsyncClient = request.app.state.http
     try:
@@ -199,7 +200,15 @@ async def apps(request: Request) -> dict[str, Any]:
 
 @app.get("/auth/login", response_class=HTMLResponse)
 async def login_view(request: Request) -> Response:
-    if request.cookies.get(AUTH_USER_COOKIE_NAME) and request.cookies.get(AUTH_COOKIE_NAME):
+    if request.cookies.get(AUTH_SESSION_COOKIE_NAME):
+        try:
+            await current_user(request)
+        except HTTPException as exc:
+            if exc.status_code != 401:
+                return HTMLResponse(login_html("Innloggingstjenesten er ikke tilgjengelig."), status_code=502)
+            response = HTMLResponse(login_html("Økten er utløpt. Logg inn på nytt."))
+            response.delete_cookie(AUTH_SESSION_COOKIE_NAME, secure=secure_cookie(request), samesite="lax")
+            return response
         return RedirectResponse("/", status_code=303)
     return HTMLResponse(login_html())
 
@@ -226,7 +235,13 @@ async def login_submit(request: Request) -> Response:
 
 @app.post("/konto/logg-ut")
 async def logout(request: Request) -> RedirectResponse:
+    client: httpx.AsyncClient = request.app.state.http
+    try:
+        await client.delete(f"{FIBARO10_BASE_URL}/api/auth/session", headers=forwarded_headers(request))
+    except httpx.RequestError:
+        pass
     response = RedirectResponse("/auth/login", status_code=303)
+    response.delete_cookie(AUTH_SESSION_COOKIE_NAME, secure=secure_cookie(request), samesite="lax")
     response.delete_cookie(AUTH_USER_COOKIE_NAME, secure=secure_cookie(request), samesite="lax")
     response.delete_cookie(AUTH_COOKIE_NAME, secure=secure_cookie(request), samesite="lax")
     return response
@@ -241,7 +256,7 @@ def index_html() -> str:
 
 @app.get("/{path:path}", response_class=HTMLResponse)
 async def frontend(path: str, request: Request) -> Response:
-    if not request.cookies.get(AUTH_USER_COOKIE_NAME) or not request.cookies.get(AUTH_COOKIE_NAME):
+    if not request.cookies.get(AUTH_SESSION_COOKIE_NAME):
         return RedirectResponse("/auth/login", status_code=303)
     return HTMLResponse(index_html())
 

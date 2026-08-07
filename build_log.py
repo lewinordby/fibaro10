@@ -12,6 +12,40 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1652",
+        "date": "07.08.2026",
+        "headline": "Alle webapper bruker nå sikre og tilbakekallbare økter",
+        "title": "Passord er fjernet fra nettlesercookies og erstattet av sentrale serversesjoner",
+        "description": (
+            "Fibaro10 oppretter nå tilfeldige sesjonstoken som bare lagres som hash i databasen. "
+            "Hovedappen, appskallet, fagappene, online-dashboardet, vedlikeholdsappen, alarmappen og "
+            "iPad-appen bruker samme sesjonsmodell uten å lagre brukerens passord hos klienten. Økter "
+            "kan tilbakekalles, utløper etter 30 dager og blir automatisk ugyldige når brukeren "
+            "deaktiveres eller passordet endres. Eksisterende integrasjonsnøkler er uendret."
+        ),
+        "applications": [
+            "Fibaro10: ny auth_sessions-tabell, sesjons-API og autentisering med ugjenkjennelige token.",
+            "Appskall og fagapper: felles innlogging videresender bare Fibaro10-sesjonen.",
+            "Online dashboard: samme serversesjon uten passordcookie.",
+            "Vedlikehold mobil, Alarm mobil og iPad: lokal cookie inneholder bare et tilbakekallbart token.",
+            "Tester og Docker: sikkerhetsregresjonstest og oppdaterte buildnumre for berørte apper.",
+        ],
+        "request": "sett igang og gjør alt i den rekkefølgen du foreslår",
+        "work_duration": "ca. 1,5 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Lagrer SHA-256-hash av hvert sesjonstoken, aldri selve tokenet eller passordet.",
+            "Knytter økten til aktiv bruker og passordhash ved opprettelse.",
+            "Gjør passordendring og deaktivering til umiddelbar ugyldiggjøring av eksisterende økter.",
+            "Tilbyr eget API for opprettelse og tilbakekalling av økter til mobil- og iPad-appene.",
+            "Fjerner reversibel Base64/HMAC-innpakking av passord fra mobilappene.",
+            "Fjerner passordcookie fra hovedapp, mikroapper og online-dashboard.",
+            "Beholder headerbaserte integrasjonsnøkler for HC3 og bakgrunnstjenester.",
+            "Legger test som kontrollerer at innloggingscookien ikke inneholder passordet.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1651",
         "date": "05.08.2026",
         "headline": "Hvert pullertbilde har nå sin egen kontrollside",

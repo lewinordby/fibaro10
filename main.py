@@ -25,6 +25,7 @@ import mimetypes
 import os
 import re
 import base64
+import secrets
 from urllib.parse import parse_qs, quote, quote_plus, urlencode, urlparse
 import urllib.error
 import urllib.request
@@ -188,6 +189,9 @@ MASTER_ACCESS_KEY_HASH = os.getenv(
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
 AUTH_USER_COOKIE_NAME = "fibaro10_access_username"
 AUTH_COOKIE_NAME = "fibaro10_access_password"
+AUTH_SESSION_COOKIE_NAME = "fibaro10_session"
+AUTH_SESSION_HEADER_NAME = "x-session-token"
+AUTH_SESSION_MAX_AGE_SECONDS = max(3600, int(os.getenv("AUTH_SESSION_MAX_AGE_SECONDS", str(60 * 60 * 24 * 30))))
 ACCESS_FAILED_DISABLE_THRESHOLD = max(1, int(os.getenv("ACCESS_FAILED_DISABLE_THRESHOLD", "3")))
 PUBLIC_PREFIXES = ("/static/", "/assets/")
 PUBLIC_PATHS = {"/health", "/favicon.ico", "/auth/login"}
@@ -471,10 +475,19 @@ async def access_key_middleware(request: Request, call_next):
         request.state.auth_can_settings = True
         return await call_next(request)
 
-    username, password = presented_credentials(request)
-    access_key = await find_access_key(username, password)
+    auth_session_id = None
+    attempted_username = None
+    session_token = presented_session_token(request)
+    if session_token:
+        auth_session = await find_auth_session(session_token)
+        access_key = auth_session[0] if auth_session else None
+        auth_session_id = auth_session[1] if auth_session else None
+    else:
+        username, password = presented_credentials(request)
+        attempted_username = username
+        access_key = await find_access_key(username, password)
     if not access_key:
-        await log_access_attempt(request, False, "missing_or_invalid_key", attempted_username=username)
+        await log_access_attempt(request, False, "missing_or_invalid_session" if session_token else "missing_or_invalid_key", attempted_username=attempted_username)
         if wants_html(request):
             return templates.TemplateResponse(
                 request,
@@ -486,6 +499,7 @@ async def access_key_middleware(request: Request, call_next):
 
     request.state.access_key_id = access_key.id
     request.state.access_key_name = access_key.name
+    request.state.auth_session_id = auth_session_id
     request.state.auth_role = access_role(access_key)
     request.state.auth_is_master = request.state.auth_role == "master"
     request.state.auth_can_settings = request.state.auth_role in ["master", "settings"]
@@ -1686,6 +1700,21 @@ class AccessKey(Base):
     last_ip = Column(String, nullable=True)
     last_user_agent = Column(Text, nullable=True)
     uses_count = Column(Integer, default=0)
+
+
+class AuthSession(Base):
+    __tablename__ = "auth_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    token_hash = Column(String, unique=True, index=True, nullable=False)
+    access_key_id = Column(Integer, index=True, nullable=False)
+    credential_hash_at_issue = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True, nullable=False)
+    expires_at = Column(DateTime, index=True, nullable=False)
+    last_seen_at = Column(DateTime, nullable=True)
+    revoked_at = Column(DateTime, index=True, nullable=True)
+    created_ip = Column(String, nullable=True)
+    user_agent = Column(Text, nullable=True)
 
 
 class AccessLog(Base):
@@ -4604,14 +4633,16 @@ def presented_credentials(request: Request) -> tuple[Optional[str], Optional[str
     username = (
         request.query_params.get("username")
         or request.headers.get("x-access-username")
-        or request.cookies.get(AUTH_USER_COOKIE_NAME)
     )
     password = (
         request.query_params.get("password")
         or request.headers.get("x-access-password")
-        or request.cookies.get(AUTH_COOKIE_NAME)
     )
     return username, password
+
+
+def presented_session_token(request: Request) -> Optional[str]:
+    return request.headers.get(AUTH_SESSION_HEADER_NAME) or request.cookies.get(AUTH_SESSION_COOKIE_NAME)
 
 
 def wants_html(request: Request) -> bool:
@@ -4625,7 +4656,14 @@ def is_public_request(request: Request) -> bool:
         return True
     if request.method == "GET" and (path == "/api/config" or path.startswith("/api/config/")):
         return True
-    return request.method == "POST" and path in {"/events", "/log", "/api/energi/fibaro", "/api/hc3/measurements/log", "/api/hc3/door-events"}
+    return request.method == "POST" and path in {
+        "/events",
+        "/log",
+        "/api/auth/session",
+        "/api/energi/fibaro",
+        "/api/hc3/measurements/log",
+        "/api/hc3/door-events",
+    }
 
 
 async def parse_form_body(request: Request) -> Dict[str, str]:
@@ -4720,6 +4758,78 @@ async def find_access_key(username: Optional[str], password: Optional[str]) -> O
             .where(AccessKey.active == True)
         )
         return result.scalars().first()
+
+
+def hash_auth_session_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+async def create_auth_session(access_key: AccessKey, request: Request) -> str:
+    token = secrets.token_urlsafe(32)
+    now_value = datetime.utcnow()
+    async with async_session() as session:
+        session.add(
+            AuthSession(
+                token_hash=hash_auth_session_token(token),
+                access_key_id=access_key.id,
+                credential_hash_at_issue=access_key.key_hash,
+                created_at=now_value,
+                expires_at=now_value + timedelta(seconds=AUTH_SESSION_MAX_AGE_SECONDS),
+                created_ip=client_ip(request),
+                user_agent=request.headers.get("user-agent", ""),
+            )
+        )
+        await session.execute(
+            delete(AuthSession).where(
+                or_(
+                    AuthSession.expires_at <= now_value,
+                    and_(AuthSession.revoked_at.is_not(None), AuthSession.revoked_at <= now_value - timedelta(days=7)),
+                )
+            )
+        )
+        await session.commit()
+    return token
+
+
+async def find_auth_session(token: Optional[str]) -> Optional[tuple[AccessKey, int]]:
+    if not token:
+        return None
+    now_value = datetime.utcnow()
+    async with async_session() as session:
+        result = await session.execute(
+            select(AuthSession, AccessKey)
+            .join(AccessKey, AccessKey.id == AuthSession.access_key_id)
+            .where(AuthSession.token_hash == hash_auth_session_token(token))
+            .where(AuthSession.revoked_at.is_(None))
+            .where(AuthSession.expires_at > now_value)
+            .where(AccessKey.active == True)
+            .limit(1)
+        )
+        row = result.first()
+        if not row:
+            return None
+        auth_session, access_key = row
+        if not secrets.compare_digest(auth_session.credential_hash_at_issue, access_key.key_hash):
+            auth_session.revoked_at = now_value
+            await session.commit()
+            return None
+        if auth_session.last_seen_at is None or auth_session.last_seen_at < now_value - timedelta(minutes=5):
+            auth_session.last_seen_at = now_value
+            await session.commit()
+        return access_key, auth_session.id
+
+
+async def revoke_auth_session(session_id: Optional[int]) -> None:
+    if not session_id:
+        return
+    async with async_session() as session:
+        await session.execute(
+            update(AuthSession)
+            .where(AuthSession.id == session_id)
+            .where(AuthSession.revoked_at.is_(None))
+            .values(revoked_at=datetime.utcnow())
+        )
+        await session.commit()
 
 
 def require_master(request: Request):
@@ -15500,32 +15610,57 @@ async def login_submit(request: Request):
         )
     response = RedirectResponse("/status/omsetning", status_code=303)
     secure_cookie = should_use_secure_cookie(request)
+    session_token = await create_auth_session(access_key, request)
     response.set_cookie(
-        AUTH_USER_COOKIE_NAME,
-        username,
-        max_age=60 * 60 * 24 * 365,
+        AUTH_SESSION_COOKIE_NAME,
+        session_token,
+        max_age=AUTH_SESSION_MAX_AGE_SECONDS,
         httponly=True,
         secure=secure_cookie,
         samesite="lax",
     )
-    response.set_cookie(
-        AUTH_COOKIE_NAME,
-        password,
-        max_age=60 * 60 * 24 * 365,
-        httponly=True,
-        secure=secure_cookie,
-        samesite="lax",
-    )
+    response.delete_cookie(AUTH_USER_COOKIE_NAME)
+    response.delete_cookie(AUTH_COOKIE_NAME)
     await log_access_attempt(request, True, "login", access_key)
     return response
 
 
 @app.post("/konto/logg-ut")
-async def logout():
+async def logout(request: Request):
+    await revoke_auth_session(getattr(request.state, "auth_session_id", None))
     response = RedirectResponse("/auth/login", status_code=303)
+    response.delete_cookie(AUTH_SESSION_COOKIE_NAME)
     response.delete_cookie(AUTH_USER_COOKIE_NAME)
     response.delete_cookie(AUTH_COOKIE_NAME)
     return response
+
+
+@app.post("/api/auth/session")
+async def api_auth_session_create(request: Request):
+    try:
+        payload = await request.json()
+    except (ValueError, json.JSONDecodeError):
+        payload = {}
+    username = normalize_username(str(payload.get("username") or "")) if isinstance(payload, dict) else ""
+    password = str(payload.get("password") or "").strip() if isinstance(payload, dict) else ""
+    access_key = await find_access_key(username, password)
+    if not access_key:
+        await log_access_attempt(request, False, "failed_session_login", attempted_username=username)
+        raise HTTPException(status_code=401, detail="Ugyldig brukernavn eller passord")
+    session_token = await create_auth_session(access_key, request)
+    await log_access_attempt(request, True, "session_login", access_key)
+    return {
+        "sessionToken": session_token,
+        "expiresIn": AUTH_SESSION_MAX_AGE_SECONDS,
+        "username": access_key.name,
+        "role": access_role(access_key),
+    }
+
+
+@app.delete("/api/auth/session")
+async def api_auth_session_delete(request: Request):
+    await revoke_auth_session(getattr(request.state, "auth_session_id", None))
+    return {"ok": True}
 
 
 @app.get("/api/auth/me")

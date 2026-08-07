@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 AUTH_USER_COOKIE_NAME = "fibaro10_access_username"
 AUTH_COOKIE_NAME = "fibaro10_access_password"
+AUTH_SESSION_COOKIE_NAME = "fibaro10_session"
 PROXY_METHODS = ("GET", "POST", "PATCH", "PUT", "DELETE")
 ProxyAdapter = Callable[[Request, httpx.AsyncClient, dict[str, str]], Awaitable[dict[str, Any]]]
 
@@ -182,8 +183,17 @@ def create_domain_app(config: DomainAppConfig) -> FastAPI:
 
     @app.get("/auth/login", response_class=HTMLResponse)
     async def login_view(request: Request) -> Response:
-        if request.cookies.get(AUTH_USER_COOKIE_NAME) and request.cookies.get(AUTH_COOKIE_NAME):
-            return RedirectResponse("/", status_code=303)
+        if request.cookies.get(AUTH_SESSION_COOKIE_NAME):
+            client: httpx.AsyncClient = request.app.state.core_client
+            try:
+                validation = await client.get("/api/auth/me", headers=forwarded_headers(request))
+            except httpx.RequestError:
+                return HTMLResponse(login_html("Fibaro10 er ikke tilgjengelig akkurat nå."), status_code=502)
+            if validation.status_code == 200:
+                return RedirectResponse("/", status_code=303)
+            response = HTMLResponse(login_html("Økten er utløpt. Logg inn på nytt."))
+            response.delete_cookie(AUTH_SESSION_COOKIE_NAME, secure=secure_cookie(request), samesite="lax")
+            return response
         return HTMLResponse(login_html())
 
     @app.post("/auth/login")
@@ -206,7 +216,13 @@ def create_domain_app(config: DomainAppConfig) -> FastAPI:
 
     @app.post("/konto/logg-ut")
     async def logout(request: Request) -> RedirectResponse:
+        client: httpx.AsyncClient = request.app.state.core_client
+        try:
+            await client.delete("/api/auth/session", headers=forwarded_headers(request))
+        except httpx.RequestError:
+            pass
         response = RedirectResponse("/auth/login", status_code=303)
+        response.delete_cookie(AUTH_SESSION_COOKIE_NAME, secure=secure_cookie(request), samesite="lax")
         response.delete_cookie(AUTH_USER_COOKIE_NAME, secure=secure_cookie(request), samesite="lax")
         response.delete_cookie(AUTH_COOKIE_NAME, secure=secure_cookie(request), samesite="lax")
         return response
@@ -216,7 +232,7 @@ def create_domain_app(config: DomainAppConfig) -> FastAPI:
         normalized = path.strip("/").casefold()
         if any(pattern.fullmatch(normalized) for pattern in config.resource_patterns):
             return proxy_response(await core_request(request, normalized))
-        if not request.cookies.get(AUTH_USER_COOKIE_NAME) or not request.cookies.get(AUTH_COOKIE_NAME):
+        if not request.cookies.get(AUTH_SESSION_COOKIE_NAME):
             return RedirectResponse("/auth/login", status_code=303)
         return HTMLResponse(index_html())
 

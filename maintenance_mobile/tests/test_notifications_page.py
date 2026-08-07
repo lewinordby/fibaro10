@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 from fastapi import HTTPException
 from starlette.requests import Request
 
-from maintenance_mobile.app.main import INDEX_HTML, SESSION_COOKIE_NAME, login_view, make_session_token
+from maintenance_mobile.app.main import INDEX_HTML, SESSION_COOKIE_NAME, login_view
 
 
 def request_for(path: str, *, query: dict[str, str] | None = None, cookie: str = "") -> Request:
@@ -30,7 +30,7 @@ def request_for(path: str, *, query: dict[str, str] | None = None, cookie: str =
 
 class MaintenanceMobileTests(unittest.IsolatedAsyncioTestCase):
     async def test_stale_session_is_cleared_instead_of_redirecting_forever(self):
-        token = make_session_token("test", "old-password")
+        token = "stale-opaque-session"
         cookie = f"{SESSION_COOKIE_NAME}={token}"
 
         with patch(
@@ -45,7 +45,7 @@ class MaintenanceMobileTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Max-Age=0", response.headers["set-cookie"])
 
     async def test_valid_session_redirects_to_maintenance_home(self):
-        token = make_session_token("test", "valid-password")
+        token = "valid-opaque-session"
         cookie = f"{SESSION_COOKIE_NAME}={token}"
 
         with patch(

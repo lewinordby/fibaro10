@@ -1,12 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-import base64
-import hashlib
-import hmac
 import json
 import os
-import time
 from datetime import datetime
 from html import escape
 from typing import Any, Optional
@@ -24,19 +20,12 @@ load_dotenv()
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstrip("/")
 FIBARO10_APP_URL = os.getenv("FIBARO10_APP_URL", "http://192.168.20.218:8110").rstrip("/")
-APP_BUILD = os.getenv("FIBARO10_IPAD_APP_BUILD", os.getenv("APP_BUILD", "1476"))
+APP_BUILD = os.getenv("FIBARO10_IPAD_APP_BUILD", os.getenv("APP_BUILD", "1477"))
 APP_COMMIT = os.getenv("FIBARO10_IPAD_APP_COMMIT", os.getenv("APP_COMMIT", "unknown"))
 ASSET_VERSION = f"{APP_BUILD}-{APP_COMMIT[:7]}"
 
 SESSION_COOKIE_NAME = "lilletorget_ipad_session"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
-SESSION_SECRET = (
-    os.getenv("FIBARO10_IPAD_SESSION_SECRET")
-    or os.getenv("MAINTENANCE_MOBILE_SESSION_SECRET")
-    or os.getenv("PUBLIC_DASHBOARD_SESSION_SECRET")
-    or os.getenv("PUBLIC_DASHBOARD_PASSWORD")
-    or "change-this-fibaro10-ipad-secret"
-)
 
 ALLOWED_MODULES: dict[str, set[str]] = {
     "parkering": {"oversikt", "parkeringer", "dagslinje", "kjoretoy", "prognose"},
@@ -63,58 +52,15 @@ def normalize_username(value: Any) -> str:
     return str(value or "").strip().casefold()
 
 
-def b64_encode(value: bytes) -> str:
-    return base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")
+def session_token(request: Request) -> Optional[str]:
+    return request.cookies.get(SESSION_COOKIE_NAME) or None
 
 
-def b64_decode(value: str) -> bytes:
-    padding = "=" * (-len(value) % 4)
-    return base64.urlsafe_b64decode((value + padding).encode("ascii"))
-
-
-def sign_payload(payload: str) -> str:
-    return hmac.new(SESSION_SECRET.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
-
-
-def make_session_token(username: str, password: str) -> str:
-    payload = {
-        "u": normalize_username(username),
-        "p": password,
-        "iat": int(time.time()),
-    }
-    body = b64_encode(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
-    return f"{body}.{sign_payload(body)}"
-
-
-def read_session_token(token: str) -> Optional[tuple[str, str]]:
-    if not token or "." not in token:
-        return None
-    body, signature = token.rsplit(".", 1)
-    if not hmac.compare_digest(sign_payload(body), signature):
-        return None
-    try:
-        payload = json.loads(b64_decode(body).decode("utf-8"))
-    except (ValueError, json.JSONDecodeError):
-        return None
-    issued_at = int(payload.get("iat") or 0)
-    if issued_at <= 0 or time.time() - issued_at > SESSION_MAX_AGE_SECONDS:
-        return None
-    username = normalize_username(payload.get("u"))
-    password = str(payload.get("p") or "")
-    if not username or not password:
-        return None
-    return username, password
-
-
-def session_credentials(request: Request) -> Optional[tuple[str, str]]:
-    return read_session_token(request.cookies.get(SESSION_COOKIE_NAME, ""))
-
-
-def require_session(request: Request) -> tuple[str, str]:
-    credentials = session_credentials(request)
-    if not credentials:
+def require_session(request: Request) -> str:
+    token = session_token(request)
+    if not token:
         raise HTTPException(status_code=401, detail="Ikke innlogget")
-    return credentials
+    return token
 
 
 def secure_cookie(request: Request) -> bool:
@@ -124,8 +70,7 @@ def secure_cookie(request: Request) -> bool:
 
 def fibaro_request_sync(
     path: str,
-    username: str,
-    password: str,
+    session_token_value: str,
     *,
     method: str = "GET",
     payload: Optional[dict[str, Any]] = None,
@@ -134,10 +79,10 @@ def fibaro_request_sync(
     data = None
     headers = {
         "Accept": "application/json",
-        "X-Access-Username": username,
-        "X-Access-Password": password,
         "User-Agent": "lilletorget-ipad/1",
     }
+    if session_token_value:
+        headers["X-Session-Token"] = session_token_value
     if payload is not None:
         data = json.dumps(payload, ensure_ascii=False, default=json_safe).encode("utf-8")
         headers["Content-Type"] = "application/json"
@@ -165,8 +110,7 @@ def fibaro_request_sync(
 
 async def fibaro_request(
     path: str,
-    username: str,
-    password: str,
+    session_token_value: str,
     *,
     method: str = "GET",
     payload: Optional[dict[str, Any]] = None,
@@ -175,17 +119,16 @@ async def fibaro_request(
     return await asyncio.to_thread(
         fibaro_request_sync,
         path,
-        username,
-        password,
+        session_token_value,
         method=method,
         payload=payload,
         timeout=timeout,
     )
 
 
-async def optional_fibaro_request(path: str, username: str, password: str, *, timeout: int = 25) -> dict[str, Any]:
+async def optional_fibaro_request(path: str, session_token_value: str, *, timeout: int = 25) -> dict[str, Any]:
     try:
-        payload = await fibaro_request(path, username, password, timeout=timeout)
+        payload = await fibaro_request(path, session_token_value, timeout=timeout)
     except HTTPException as exc:
         return {"error": str(exc.detail), "statusCode": exc.status_code}
     if isinstance(payload, dict):
@@ -237,14 +180,21 @@ async def manifest():
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    if not session_credentials(request):
+    if not session_token(request):
         return RedirectResponse("/auth/login", status_code=303)
     return HTMLResponse(INDEX_HTML)
 
 
 @app.get("/auth/login", response_class=HTMLResponse)
 async def login_view(request: Request):
-    if session_credentials(request):
+    token = session_token(request)
+    if token:
+        try:
+            await fibaro_request("/api/auth/me", token, timeout=12)
+        except HTTPException:
+            response = HTMLResponse(login_html("Økten er utløpt. Logg inn på nytt."))
+            response.delete_cookie(SESSION_COOKIE_NAME)
+            return response
         return RedirectResponse("/", status_code=303)
     return HTMLResponse(login_html())
 
@@ -259,7 +209,13 @@ async def login_submit(request: Request):
         error = "Brukernavn og passord må fylles ut."
     else:
         try:
-            await fibaro_request("/api/auth/me", username, password, timeout=12)
+            session_payload = await fibaro_request(
+                "/api/auth/session",
+                "",
+                method="POST",
+                payload={"username": username, "password": password},
+                timeout=12,
+            )
         except HTTPException:
             error = "Ugyldig brukernavn eller passord."
     if error:
@@ -267,7 +223,7 @@ async def login_submit(request: Request):
     response = RedirectResponse("/", status_code=303)
     response.set_cookie(
         SESSION_COOKIE_NAME,
-        make_session_token(username, password),
+        str(session_payload.get("sessionToken") or ""),
         max_age=SESSION_MAX_AGE_SECONDS,
         httponly=True,
         secure=secure_cookie(request),
@@ -277,7 +233,13 @@ async def login_submit(request: Request):
 
 
 @app.post("/konto/logg-ut")
-async def logout():
+async def logout(request: Request):
+    token = session_token(request)
+    if token:
+        try:
+            await fibaro_request("/api/auth/session", token, method="DELETE", timeout=8)
+        except HTTPException:
+            pass
     response = RedirectResponse("/auth/login", status_code=303)
     response.delete_cookie(SESSION_COOKIE_NAME)
     return response
@@ -290,11 +252,11 @@ async def go(path: str = "/"):
 
 @app.get("/api/bootstrap")
 async def api_bootstrap(request: Request):
-    username, password = require_session(request)
+    token = require_session(request)
     user_payload, overview_payload, health_payload = await asyncio.gather(
-        fibaro_request("/api/auth/me", username, password, timeout=12),
-        fibaro_request("/api/overview", username, password, timeout=25),
-        optional_fibaro_request("/health?details=true", username, password, timeout=20),
+        fibaro_request("/api/auth/me", token, timeout=12),
+        fibaro_request("/api/overview", token, timeout=25),
+        optional_fibaro_request("/health?details=true", token, timeout=20),
     )
     return {
         "generatedAt": datetime.now().isoformat(),
@@ -312,7 +274,7 @@ async def api_bootstrap(request: Request):
 
 @app.get("/api/module/{module}")
 async def api_module(module: str, request: Request, view: Optional[str] = None, day: Optional[str] = None):
-    username, password = require_session(request)
+    token = require_session(request)
     module_key = str(module or "").strip().casefold()
     view_key = str(view or "").strip().casefold()
     allowed_views = ALLOWED_MODULES.get(module_key)
@@ -326,13 +288,13 @@ async def api_module(module: str, request: Request, view: Optional[str] = None, 
     if day:
         params["day"] = day
     query = f"?{urlencode(params)}" if params else ""
-    return await fibaro_request(f"/api/modules/{module_key}{query}", username, password, timeout=30)
+    return await fibaro_request(f"/api/modules/{module_key}{query}", token, timeout=30)
 
 
 @app.get("/api/doors")
 async def api_doors(request: Request):
-    username, password = require_session(request)
-    return await fibaro_request("/api/hc3/doors/status", username, password, timeout=20)
+    token = require_session(request)
+    return await fibaro_request("/api/hc3/doors/status", token, timeout=20)
 
 
 def login_html(error: str = "") -> str:

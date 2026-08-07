@@ -1,12 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-import base64
-import hashlib
-import hmac
 import json
 import os
-import time
 from datetime import datetime
 from html import escape
 from typing import Any, Optional
@@ -26,12 +22,6 @@ FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstri
 ALARM_MOBILE_BUILD = os.getenv("ALARM_MOBILE_BUILD", "3")
 SESSION_COOKIE_NAME = "lilletorget_alarm_session"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
-SESSION_SECRET = (
-    os.getenv("ALARM_MOBILE_SESSION_SECRET")
-    or os.getenv("MAINTENANCE_MOBILE_SESSION_SECRET")
-    or os.getenv("PUBLIC_DASHBOARD_SESSION_SECRET")
-    or "change-this-alarm-mobile-secret"
-)
 
 app = FastAPI(title="Lilletorget Alarm", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -48,56 +38,15 @@ def json_safe(value: Any) -> Any:
     return str(value)
 
 
-def b64_encode(value: bytes) -> str:
-    return base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")
+def session_token(request: Request) -> Optional[str]:
+    return request.cookies.get(SESSION_COOKIE_NAME) or None
 
 
-def b64_decode(value: str) -> bytes:
-    return base64.urlsafe_b64decode((value + "=" * (-len(value) % 4)).encode("ascii"))
-
-
-def sign_payload(payload: str) -> str:
-    return hmac.new(SESSION_SECRET.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
-
-
-def make_session_token(username: str, password: str) -> str:
-    body = b64_encode(
-        json.dumps(
-            {"u": normalize_username(username), "p": password, "iat": int(time.time())},
-            ensure_ascii=False,
-            separators=(",", ":"),
-        ).encode("utf-8")
-    )
-    return f"{body}.{sign_payload(body)}"
-
-
-def read_session_token(token: str) -> Optional[tuple[str, str]]:
-    if not token or "." not in token:
-        return None
-    body, signature = token.rsplit(".", 1)
-    if not hmac.compare_digest(sign_payload(body), signature):
-        return None
-    try:
-        payload = json.loads(b64_decode(body).decode("utf-8"))
-        issued_at = int(payload.get("iat") or 0)
-    except (ValueError, json.JSONDecodeError):
-        return None
-    if issued_at <= 0 or time.time() - issued_at > SESSION_MAX_AGE_SECONDS:
-        return None
-    username = normalize_username(payload.get("u"))
-    password = str(payload.get("p") or "")
-    return (username, password) if username and password else None
-
-
-def session_credentials(request: Request) -> Optional[tuple[str, str]]:
-    return read_session_token(request.cookies.get(SESSION_COOKIE_NAME, ""))
-
-
-def require_session(request: Request) -> tuple[str, str]:
-    credentials = session_credentials(request)
-    if not credentials:
+def require_session(request: Request) -> str:
+    token = session_token(request)
+    if not token:
         raise HTTPException(status_code=401, detail="Ikke innlogget")
-    return credentials
+    return token
 
 
 def secure_cookie(request: Request) -> bool:
@@ -114,8 +63,7 @@ def safe_next_path(value: Any) -> str:
 
 def fibaro_request_sync(
     path: str,
-    username: str,
-    password: str,
+    session_token_value: str,
     *,
     method: str = "GET",
     payload: Optional[dict[str, Any]] = None,
@@ -124,10 +72,10 @@ def fibaro_request_sync(
     data = None
     headers = {
         "Accept": "application/json",
-        "X-Access-Username": username,
-        "X-Access-Password": password,
         "User-Agent": "lilletorget-alarm-mobile/1",
     }
+    if session_token_value:
+        headers["X-Session-Token"] = session_token_value
     if payload is not None:
         data = json.dumps(payload, ensure_ascii=False, default=json_safe).encode("utf-8")
         headers["Content-Type"] = "application/json"
@@ -155,8 +103,7 @@ def fibaro_request_sync(
 
 async def fibaro_request(
     path: str,
-    username: str,
-    password: str,
+    session_token_value: str,
     *,
     method: str = "GET",
     payload: Optional[dict[str, Any]] = None,
@@ -165,21 +112,19 @@ async def fibaro_request(
     return await asyncio.to_thread(
         fibaro_request_sync,
         path,
-        username,
-        password,
+        session_token_value,
         method=method,
         payload=payload,
         timeout=timeout,
     )
 
 
-def fibaro_binary_request_sync(path: str, username: str, password: str, *, timeout: int = 25) -> tuple[bytes, str]:
+def fibaro_binary_request_sync(path: str, session_token_value: str, *, timeout: int = 25) -> tuple[bytes, str]:
     request = UrlRequest(
         f"{FIBARO10_BASE_URL}{path}",
         headers={
             "Accept": "image/jpeg",
-            "X-Access-Username": username,
-            "X-Access-Password": password,
+            "X-Session-Token": session_token_value,
             "User-Agent": "lilletorget-alarm-mobile/1",
         },
         method="GET",
@@ -194,8 +139,8 @@ def fibaro_binary_request_sync(path: str, username: str, password: str, *, timeo
         raise HTTPException(status_code=502, detail=f"Fibaro10 er ikke tilgjengelig: {exc.reason}") from exc
 
 
-async def fibaro_binary_request(path: str, username: str, password: str) -> tuple[bytes, str]:
-    return await asyncio.to_thread(fibaro_binary_request_sync, path, username, password)
+async def fibaro_binary_request(path: str, session_token_value: str) -> tuple[bytes, str]:
+    return await asyncio.to_thread(fibaro_binary_request_sync, path, session_token_value)
 
 
 def monitor_payload(payload: dict[str, Any]) -> list[dict[str, Any]]:
@@ -247,19 +192,19 @@ def monitor_payload(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return items
 
 
-async def safe_fibaro(path: str, username: str, password: str) -> tuple[Any, Optional[str]]:
+async def safe_fibaro(path: str, session_token_value: str) -> tuple[Any, Optional[str]]:
     try:
-        return await fibaro_request(path, username, password), None
+        return await fibaro_request(path, session_token_value), None
     except HTTPException as exc:
         return None, str(exc.detail)
 
 
-async def alarm_bootstrap(username: str, password: str) -> dict[str, Any]:
+async def alarm_bootstrap(session_token_value: str) -> dict[str, Any]:
     user_result, doors_result, bollards_result, notifications_result = await asyncio.gather(
-        safe_fibaro("/api/auth/me", username, password),
-        safe_fibaro("/api/hc3/doors/alarm?history_limit=150", username, password),
-        safe_fibaro("/api/unifi-protect/bollards", username, password),
-        safe_fibaro("/api/system/notifications", username, password),
+        safe_fibaro("/api/auth/me", session_token_value),
+        safe_fibaro("/api/hc3/doors/alarm?history_limit=150", session_token_value),
+        safe_fibaro("/api/unifi-protect/bollards", session_token_value),
+        safe_fibaro("/api/system/notifications", session_token_value),
     )
     errors = {
         name: error
@@ -275,7 +220,7 @@ async def alarm_bootstrap(username: str, password: str) -> dict[str, Any]:
     return {
         "generatedAt": datetime.now().astimezone().isoformat(),
         "build": ALARM_MOBILE_BUILD,
-        "user": user_result[0] or {"username": username},
+        "user": user_result[0] or {"username": "Innlogget"},
         "doors": doors_result[0] or {},
         "bollards": {
             "summary": bollards.get("summary") or {},
@@ -316,7 +261,7 @@ async def manifest():
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    if not session_credentials(request):
+    if not session_token(request):
         destination = safe_next_path(f"{request.url.path}?{request.url.query}" if request.url.query else request.url.path)
         return RedirectResponse(f"/auth/login?next={quote(destination, safe='')}", status_code=303)
     return HTMLResponse(INDEX_HTML)
@@ -325,10 +270,10 @@ async def index(request: Request):
 @app.get("/auth/login", response_class=HTMLResponse)
 async def login_view(request: Request):
     next_path = safe_next_path(request.query_params.get("next"))
-    credentials = session_credentials(request)
-    if credentials:
+    token = session_token(request)
+    if token:
         try:
-            await fibaro_request("/api/auth/me", *credentials, timeout=12)
+            await fibaro_request("/api/auth/me", token, timeout=12)
         except HTTPException:
             response = HTMLResponse(login_html("Økten er utløpt. Logg inn på nytt.", next_path))
             response.delete_cookie(SESSION_COOKIE_NAME)
@@ -348,7 +293,13 @@ async def login_submit(request: Request):
         error = "Brukernavn og passord må fylles ut."
     else:
         try:
-            await fibaro_request("/api/auth/me", username, password, timeout=12)
+            session_payload = await fibaro_request(
+                "/api/auth/session",
+                "",
+                method="POST",
+                payload={"username": username, "password": password},
+                timeout=12,
+            )
         except HTTPException:
             error = "Ugyldig brukernavn eller passord."
     if error:
@@ -356,7 +307,7 @@ async def login_submit(request: Request):
     response = RedirectResponse(next_path, status_code=303)
     response.set_cookie(
         SESSION_COOKIE_NAME,
-        make_session_token(username, password),
+        str(session_payload.get("sessionToken") or ""),
         max_age=SESSION_MAX_AGE_SECONDS,
         httponly=True,
         secure=secure_cookie(request),
@@ -366,7 +317,13 @@ async def login_submit(request: Request):
 
 
 @app.post("/konto/logg-ut")
-async def logout():
+async def logout(request: Request):
+    token = session_token(request)
+    if token:
+        try:
+            await fibaro_request("/api/auth/session", token, method="DELETE", timeout=8)
+        except HTTPException:
+            pass
     response = RedirectResponse("/auth/login", status_code=303)
     response.delete_cookie(SESSION_COOKIE_NAME)
     return response
@@ -374,14 +331,14 @@ async def logout():
 
 @app.get("/api/bootstrap")
 async def api_bootstrap(request: Request):
-    return await alarm_bootstrap(*require_session(request))
+    return await alarm_bootstrap(require_session(request))
 
 
 @app.post("/api/notifications/bollards/test")
 async def api_bollard_test(request: Request):
     return await fibaro_request(
         "/api/unifi-protect/bollards/mobile-notifications/test",
-        *require_session(request),
+        require_session(request),
         method="POST",
     )
 
@@ -390,12 +347,12 @@ async def api_bollard_test(request: Request):
 async def api_door_room(request: Request, room_id: str):
     return await fibaro_request(
         f"/api/hc3/doors/sunroom-sessions/{quote(room_id, safe='')}",
-        *require_session(request),
+        require_session(request),
     )
 
 
 async def image_response(request: Request, path: str) -> Response:
-    content, content_type = await fibaro_binary_request(path, *require_session(request))
+    content, content_type = await fibaro_binary_request(path, require_session(request))
     return Response(content=content, media_type=content_type, headers={"Cache-Control": "private, no-store"})
 
 

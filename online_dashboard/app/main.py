@@ -6,6 +6,7 @@ import asyncio
 import json
 import os
 import re
+import secrets
 import time
 from typing import Any, Optional
 from urllib.parse import quote, quote_plus, urlencode, urlparse
@@ -29,6 +30,8 @@ elif DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
 LOCAL_TZ = ZoneInfo("Europe/Oslo")
 AUTH_USER_COOKIE_NAME = "fibaro10_access_username"
 AUTH_COOKIE_NAME = "fibaro10_access_password"
+AUTH_SESSION_COOKIE_NAME = "fibaro10_session"
+AUTH_SESSION_MAX_AGE_SECONDS = max(3600, int(os.getenv("AUTH_SESSION_MAX_AGE_SECONDS", str(60 * 60 * 24 * 30))))
 SNAPSHOT_SESSION_COOKIE_NAME = "lilletorget_online_session"
 PUBLIC_PATHS = {"/health", "/favicon.ico", "/auth/login"}
 PUBLIC_PREFIXES = ("/static/",)
@@ -344,13 +347,6 @@ def state_class(value: Any) -> str:
     return "is-unknown"
 
 
-def presented_credentials(request: Request) -> tuple[Optional[str], Optional[str]]:
-    return (
-        request.cookies.get(AUTH_USER_COOKIE_NAME),
-        request.cookies.get(AUTH_COOKIE_NAME),
-    )
-
-
 async def find_access_key(username: Optional[str], password: Optional[str]) -> Optional[dict[str, Any]]:
     if not username or not password:
         return None
@@ -361,7 +357,7 @@ async def find_access_key(username: Optional[str], password: Optional[str]) -> O
             await session.execute(
                 text(
                     """
-                    select id, name, key_prefix, role, is_master, active
+                    select id, name, key_hash, key_prefix, role, is_master, active
                     from access_keys
                     where name = :name and key_hash = :hash and active = true
                     limit 1
@@ -371,6 +367,85 @@ async def find_access_key(username: Optional[str], password: Optional[str]) -> O
             )
         ).mappings().first()
         return dict(row) if row else None
+
+
+def auth_session_hash(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+async def create_auth_session(access_key: dict[str, Any], request: Request) -> str:
+    token = secrets.token_urlsafe(32)
+    now_value = datetime.utcnow()
+    async with async_session() as session:
+        await session.execute(
+            text(
+                """
+                insert into auth_sessions
+                    (token_hash, access_key_id, credential_hash_at_issue, created_at, expires_at, created_ip, user_agent)
+                values
+                    (:token_hash, :access_key_id, :credential_hash, :created_at, :expires_at, :created_ip, :user_agent)
+                """
+            ),
+            {
+                "token_hash": auth_session_hash(token),
+                "access_key_id": access_key["id"],
+                "credential_hash": access_key["key_hash"],
+                "created_at": now_value,
+                "expires_at": now_value + timedelta(seconds=AUTH_SESSION_MAX_AGE_SECONDS),
+                "created_ip": client_ip(request),
+                "user_agent": request.headers.get("user-agent", ""),
+            },
+        )
+        await session.commit()
+    return token
+
+
+async def find_auth_session(token: Optional[str]) -> Optional[dict[str, Any]]:
+    if not token:
+        return None
+    async with async_session() as session:
+        row = (
+            await session.execute(
+                text(
+                    """
+                    select s.id as auth_session_id, s.credential_hash_at_issue,
+                           k.id, k.name, k.key_hash, k.key_prefix, k.role, k.is_master, k.active
+                    from auth_sessions s
+                    join access_keys k on k.id = s.access_key_id
+                    where s.token_hash = :token_hash
+                      and s.revoked_at is null
+                      and s.expires_at > :now_value
+                      and k.active = true
+                    limit 1
+                    """
+                ),
+                {"token_hash": auth_session_hash(token), "now_value": datetime.utcnow()},
+            )
+        ).mappings().first()
+        if not row:
+            return None
+        result = dict(row)
+        if not secrets.compare_digest(str(result.get("credential_hash_at_issue") or ""), str(result.get("key_hash") or "")):
+            await session.execute(
+                text("update auth_sessions set revoked_at = :now_value where id = :session_id"),
+                {"now_value": datetime.utcnow(), "session_id": result["auth_session_id"]},
+            )
+            await session.commit()
+            return None
+        result.pop("credential_hash_at_issue", None)
+        result.pop("key_hash", None)
+        return result
+
+
+async def revoke_auth_session(token: Optional[str]) -> None:
+    if not token:
+        return
+    async with async_session() as session:
+        await session.execute(
+            text("update auth_sessions set revoked_at = :now_value where token_hash = :token_hash and revoked_at is null"),
+            {"now_value": datetime.utcnow(), "token_hash": auth_session_hash(token)},
+        )
+        await session.commit()
 
 
 def client_ip(request: Request) -> str:
@@ -1556,10 +1631,9 @@ async def auth_middleware(request: Request, call_next):
 
     if path in PUBLIC_PATHS or any(path.startswith(prefix) for prefix in PUBLIC_PREFIXES):
         return await call_next(request)
-    username, password = presented_credentials(request)
-    access_key = await find_access_key(username, password)
+    access_key = await find_auth_session(request.cookies.get(AUTH_SESSION_COOKIE_NAME))
     if not access_key:
-        await log_access_attempt(request, False, "online_missing_or_invalid_key", attempted_username=username)
+        await log_access_attempt(request, False, "online_missing_or_invalid_session")
         if wants_html(request):
             return RedirectResponse("/auth/login", status_code=303)
         return JSONResponse({"detail": "Ugyldig eller manglende innlogging"}, status_code=401)
@@ -2277,15 +2351,26 @@ async def login_submit(request: Request):
     response = RedirectResponse("/", status_code=303)
     forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip().lower()
     secure_cookie = request.url.scheme == "https" or forwarded_proto == "https"
-    response.set_cookie(AUTH_USER_COOKIE_NAME, username, max_age=60 * 60 * 24 * 365, httponly=True, secure=secure_cookie, samesite="lax")
-    response.set_cookie(AUTH_COOKIE_NAME, password, max_age=60 * 60 * 24 * 365, httponly=True, secure=secure_cookie, samesite="lax")
+    session_token = await create_auth_session(access_key, request)
+    response.set_cookie(
+        AUTH_SESSION_COOKIE_NAME,
+        session_token,
+        max_age=AUTH_SESSION_MAX_AGE_SECONDS,
+        httponly=True,
+        secure=secure_cookie,
+        samesite="lax",
+    )
+    response.delete_cookie(AUTH_USER_COOKIE_NAME)
+    response.delete_cookie(AUTH_COOKIE_NAME)
     await log_access_attempt(request, True, "online_login", access_key)
     return response
 
 
 @app.post("/logg-ut")
-async def logout():
+async def logout(request: Request):
+    await revoke_auth_session(request.cookies.get(AUTH_SESSION_COOKIE_NAME))
     response = RedirectResponse("/auth/login", status_code=303)
+    response.delete_cookie(AUTH_SESSION_COOKIE_NAME)
     response.delete_cookie(AUTH_USER_COOKIE_NAME)
     response.delete_cookie(AUTH_COOKIE_NAME)
     response.delete_cookie(SNAPSHOT_SESSION_COOKIE_NAME)
