@@ -32,9 +32,15 @@ function Get-DeployPlan([string[]]$ChangedFiles, [bool]$ForceAll = $false) {
         elseif ($path -match '^roborock_logger/') {
             $deployRoborock = $true
         }
-        elseif ($path -match '^packages/' -or $path -match '^microapp_backend/') {
+        elseif ($path -match '^microapp_backend/') {
             foreach ($service in $microApps) { [void]$services.Add($service) }
-            if ($path -match '^packages/') { [void]$services.Add("shell_app") }
+            foreach ($service in @("fibaro10", "shell_app", "online_dashboard")) {
+                [void]$services.Add($service)
+            }
+        }
+        elseif ($path -match '^packages/') {
+            foreach ($service in $microApps) { [void]$services.Add($service) }
+            [void]$services.Add("shell_app")
         }
         elseif ($path -match '^(revenue_app|parking_app|sun_app|energy_app|operations_app|maintenance_app|system_app|link_app|shell_app|owntracks_service|unifi_protect_events|visual_anomaly_service|online_dashboard|maintenance_mobile|alarm_mobile|fibaro10ipad|axis_camera_snapshots|car_info_lookup|sun2_backfill_downloader|sun2_importer|sun2_session_scraper|parking_sun_linker)/') {
             [void]$services.Add($Matches[1])

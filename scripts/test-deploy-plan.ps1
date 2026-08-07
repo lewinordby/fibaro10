@@ -11,6 +11,13 @@ if ($shared.All -or $shared.Services.Count -ne 9 -or "shell_app" -notin $shared.
     throw "Shared UI deploy plan is wrong: $($shared | ConvertTo-Json -Compress)"
 }
 
+$sharedBackend = Get-DeployPlan -ChangedFiles @("microapp_backend/pwa.py")
+foreach ($requiredService in @("fibaro10", "shell_app", "online_dashboard")) {
+    if ($sharedBackend.All -or $sharedBackend.Services.Count -ne 11 -or $requiredService -notin $sharedBackend.Services) {
+        throw "Shared backend deploy plan is wrong: $($sharedBackend | ConvertTo-Json -Compress)"
+    }
+}
+
 $easyPark = Get-DeployPlan -ChangedFiles @("easypark_downloader/app/main.py")
 if (-not $easyPark.EasyPark -or $easyPark.Services.Count -ne 0) {
     throw "EasyPark deploy plan is wrong: $($easyPark | ConvertTo-Json -Compress)"

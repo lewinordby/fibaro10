@@ -12,6 +12,30 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1666",
+        "date": "07.08.2026",
+        "headline": "Deploy-planen kjenner alle brukere av felles PWA-kode",
+        "title": "Delt backend utloser komplett og presis tjenesteutrulling",
+        "description": (
+            "Produksjonskontrollen viste at Online Dashboard kopierer den samme backend-pakken som Fibaro10, "
+            "appvelgeren og fagappene. Avhengighetskartet inkluderer na alle elleve berorte tjenester nar denne "
+            "pakken endres, uten a utvide utrullingen til datainnhentere eller andre uavhengige tjenester."
+        ),
+        "applications": [
+            "QNAP deploy: komplett avhengighetskart for felles mikroapp-backend.",
+            "Online Dashboard: automatisk med i senere utrullinger av PWA- og runtime-endringer.",
+        ],
+        "request": "kan du sorge for et orntlig pwa manifest i alle appene",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Velger Fibaro10, appvelgeren, Online Dashboard og alle atte fagapper ved backend-endringer.",
+            "Beholder separat og smal utrulling for den delte frontendpakken.",
+            "Legger til regresjonstest av den komplette tjenestelisten.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1665",
         "date": "07.08.2026",
         "headline": "PWA-runtime starter uten unodvendige avhengigheter",
