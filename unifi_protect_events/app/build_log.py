@@ -5,11 +5,32 @@ from typing import Any
 
 
 PROTECT_LEDGER_VERSION = os.getenv("PROTECT_LEDGER_VERSION", "1")
-PROTECT_LEDGER_BUILD = os.getenv("PROTECT_LEDGER_BUILD", "17")
+PROTECT_LEDGER_BUILD = os.getenv("PROTECT_LEDGER_BUILD", "18")
 PROTECT_LEDGER_COMMIT = os.getenv("PROTECT_LEDGER_COMMIT", "unknown")
 
 
 PROTECT_LEDGER_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "18",
+        "date": "07.08.2026",
+        "headline": "Oppdatert og sikker Python-plattform",
+        "title": "Protect Ledger bruker samme reviderte webplattform som resten av løsningen",
+        "description": (
+            "Aiohttp er oppdatert til siste korrigerte versjon, og tjenestens komplette "
+            "avhengighetstre er kontrollert automatisk mot kjente sårbarheter."
+        ),
+        "request": "sett igang og gjør alt i den rekkefølgen du foreslår",
+        "changes": [
+            "Oppdaterer aiohttp fra 3.14.2 til 3.14.3.",
+            "Inkluderer Protect Ledger i den felles pip-audit-kontrollen.",
+            "Bevarer eksisterende bildeanalyse og hendelseslogikk uendret.",
+        ],
+        "applications": [
+            "Protect Ledger: oppdatert HTTP-klient/serveravhengighet.",
+            "Fibaro10 build 1654: felles Python-sikkerhetsrevisjon.",
+        ],
+    },
     {
         "version": "1",
         "build": "17",

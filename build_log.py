@@ -12,6 +12,39 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1654",
+        "date": "07.08.2026",
+        "headline": "Alle Python-tjenester er samlet på en revidert og sikker plattform",
+        "title": "Automatisk avhengighetskontroll beskytter hovedapp, mikroapper og innsamlere",
+        "description": (
+            "Alle aktive Python-tjenester er oppdatert til en felles FastAPI-versjon og korrigerte "
+            "utgaver av aiohttp, python-multipart og python-dotenv. En ny pip-audit-kontroll finner "
+            "automatisk alle requirements-filer, følger hele avhengighetstreet og stopper builden ved "
+            "kjente sårbarheter. Identiske og uendrede oppsett gjenbruker et ferskt kontrollresultat, "
+            "slik at den grundige kontrollen ikke gjør hver liten build unødvendig treg."
+        ),
+        "applications": [
+            "Fibaro10: FastAPI 0.139.2 og automatisk pip-audit i lokal kvalitetssjekk.",
+            "Appskall og alle fagapper: felles FastAPI og python-multipart.",
+            "OwnTracks: oppdatert FastAPI og python-dotenv.",
+            "Protect Ledger: oppdatert aiohttp og eget build 18.",
+            "Innsamlingstjenester: standardisert FastAPI og full transitiv sikkerhetskontroll.",
+        ],
+        "request": "sett igang og gjør alt i den rekkefølgen du foreslår",
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Oppdaterer FastAPI til 0.139.2 i alle aktive tjenester.",
+            "Oppdaterer aiohttp til 3.14.3, python-multipart til 0.0.32 og python-dotenv til 1.2.2.",
+            "Legger pip-audit 2.10.1 i utviklingsmiljøet.",
+            "Oppdager requirements-filer automatisk og slår sammen identiske avhengighetssett.",
+            "Kontrollerer også transitive pakker og feiler tydelig ved funn eller oppløsningsfeil.",
+            "Mellomlagrer kun vellykkede, uendrede revisjoner i inntil 24 timer.",
+            "Dokumenterer --force for full kontroll uavhengig av mellomlager.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1653",
         "date": "07.08.2026",
         "headline": "Varsler sendes na fra en varig ko uten a blokkere HC3",

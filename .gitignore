@@ -4,6 +4,7 @@ __pycache__/
 **/dist/
 *.tsbuildinfo
 .codex-*.log
+.audit-cache/
 output/
 tmp/
 .env

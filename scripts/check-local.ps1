@@ -37,6 +37,9 @@ Run "python" (@("-m", "py_compile") + $pythonFiles) $repoRoot
 Run "python" @("-c", "from build_log import APP_BUILD; assert APP_BUILD == open('BUILD', encoding='utf-8').read().strip()") $repoRoot
 Run "python" @("-m", "pip", "check") $repoRoot
 
+Write-Host "Python dependency security audit"
+Run "python" @("scripts/audit_python_dependencies.py") $repoRoot
+
 Write-Host "Python unit tests"
 Run "python" @("-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py") $repoRoot
 Run "python" @("-m", "unittest", "revenue_app.tests.test_main") $repoRoot
