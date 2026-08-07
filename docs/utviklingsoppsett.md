@@ -163,7 +163,19 @@ QNAP-backup-scriptet ligger i `scripts/qnap-backup.sh` og tar vare paa alle runt
 sh /share/CACHEDEV1_DATA/Public/containerdata/fibaro10/scripts/qnap-backup.sh
 ```
 
-Backuper lagres under `/share/CACHEDEV3_DATA/fibaro10_archive/fibaro10_backups`, og de 20 nyeste beholdes. Axis snapshot-arkivet er flyttet til eget arkivvolum og tas ikke med i standard backup.
+Backuper lagres under `/share/CACHEDEV3_DATA/fibaro10_archive/fibaro10_backups`, og de 20 nyeste beholdes. Backupen bygges i en midlertidig katalog og blir ikke synlig som ferdig før begge PostgreSQL-dumpene er validert. Hver backup har `CHECKSUMS.sha256`, `BACKUP_MANIFEST.txt`, og siste resultat ligger i `LATEST_STATUS.txt`. Axis snapshot-arkivet er flyttet til eget arkivvolum og tas ikke med i standard backup; bilder som er knyttet til soltimer ligger i PostgreSQL.
+
+En ekstra kopi til en annen maskin eller et montert eksternt mål kan aktiveres uten kodeendring:
+
+```sh
+BACKUP_REPLICA_TARGET='backup@annen-maskin:/backup/fibaro10' sh scripts/qnap-backup.sh
+```
+
+Lokal backup regnes fortsatt som fullført hvis den eksterne kopien feiler, men `LATEST_STATUS.txt` settes til `warning` og `replica_status=error`.
+
+Teknisk historikk ryddes automatisk av Fibaro10. Vellykkede tilgangs- og importlogger beholdes 90 dager, feil beholdes 365 dager, sendte ntfy-køposter 30 dager og utløpte sesjoner 30 dager. Parkering, soling, energi, dokumenter, bilder, dørhistorikk og alarmer slettes ikke av denne jobben.
+
+Docker vedlikeholdes ukentlig med `scripts/qnap-docker-maintenance.sh`. Scriptet sletter bare ubrukte bygglag og ubrukte images eldre enn syv dager. Kjørende containere, nettverk i bruk og Docker-volumer berøres ikke.
 
 ## Restore-test
 

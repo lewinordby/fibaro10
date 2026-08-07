@@ -140,11 +140,23 @@ export SYSTEM_APP_BUILD=`$(cat system_app/BUILD)
 export LINK_APP_BUILD=`$(cat link_app/BUILD)
 "$Docker" compose -f docker-compose.qnap.yml config --quiet
 "$Docker" rm -f owntracks_mqtt >/dev/null 2>&1 || true
-"$Docker" compose -f docker-compose.qnap.yml up -d --build --force-recreate owntracks_service fibaro10_proxy
-"$Docker" compose -f docker-compose.qnap.yml up -d --build fibaro10 shell_app revenue_app parking_app sun_app energy_app operations_app maintenance_app system_app link_app online_dashboard maintenance_mobile alarm_mobile fibaro10ipad axis_camera_snapshots car_info_lookup sun2_backfill_downloader sun2_importer sun2_session_scraper parking_sun_linker
-"$Docker" compose -f docker-compose.qnap.yml --profile unifi-protect up -d --build unifi_protect_events visual_anomaly_service
+"$Docker" compose -f docker-compose.qnap.yml --profile unifi-protect up -d --build --remove-orphans
+ready=0
+while [ "`$ready" -lt 60 ]; do
+    curl -fsS --max-time 5 http://192.168.20.218:8110/health >/dev/null 2>&1 && break
+    ready=`$((ready + 1))
+    sleep 2
+done
+curl -fsS --max-time 5 http://192.168.20.218:8110/health >/dev/null
 (cd easypark_downloader && "$Docker" compose up -d --build)
 (cd roborock_logger && "$Docker" compose -f docker-compose.qnap.yml up -d --build)
+roborock_ready=0
+while [ "`$roborock_ready" -lt 30 ]; do
+    curl -fsS --max-time 5 http://192.168.20.218:8095/health >/dev/null 2>&1 && break
+    roborock_ready=`$((roborock_ready + 1))
+    sleep 2
+done
+curl -fsS --max-time 180 http://192.168.20.218:8095/sync-now >/dev/null
 "$Docker" exec fibaro10_proxy caddy validate --config /etc/caddy/Caddyfile || { "$Docker" logs --tail=80 fibaro10_proxy; exit 1; }
 "$Docker" compose -f docker-compose.qnap.yml ps
 (cd easypark_downloader && "$Docker" compose ps)

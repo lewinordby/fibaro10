@@ -208,6 +208,7 @@ MET_LAT = env_float("MET_LAT", "61.1153")
 MET_LON = env_float("MET_LON", "10.4662")
 MET_USER_AGENT = os.getenv("MET_USER_AGENT", "fibaro10/1.0 http://192.168.20.218:8110")
 MET_WEATHER_CACHE = {"expires": datetime.min, "value": None}
+met_weather_fetch_lock: Optional[asyncio.Lock] = None
 SUMMARY_CACHE_TTL = timedelta(minutes=5)
 SUMMARY_CACHE: Dict[str, Dict[str, Any]] = {}
 SUNBED_POWER_ANALYSIS_CACHE_TTL = timedelta(
@@ -262,6 +263,23 @@ NTFY_OUTBOX_RETRY_MAX_SECONDS = max(
 )
 NTFY_OUTBOX_STALE_LOCK_SECONDS = max(30, int(os.getenv("NTFY_OUTBOX_STALE_LOCK_SECONDS", "300")))
 notification_outbox_task: Optional[asyncio.Task] = None
+OPERATIONAL_RETENTION_ENABLED = os.getenv("OPERATIONAL_RETENTION_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
+OPERATIONAL_RETENTION_INTERVAL_HOURS = max(1, int(os.getenv("OPERATIONAL_RETENTION_INTERVAL_HOURS", "24")))
+OPERATIONAL_RETENTION_INITIAL_DELAY_SECONDS = max(5, int(os.getenv("OPERATIONAL_RETENTION_INITIAL_DELAY_SECONDS", "60")))
+ACCESS_LOG_SUCCESS_RETENTION_DAYS = max(7, int(os.getenv("ACCESS_LOG_SUCCESS_RETENTION_DAYS", "90")))
+ACCESS_LOG_FAILURE_RETENTION_DAYS = max(30, int(os.getenv("ACCESS_LOG_FAILURE_RETENTION_DAYS", "365")))
+IMPORT_JOB_SUCCESS_RETENTION_DAYS = max(7, int(os.getenv("IMPORT_JOB_SUCCESS_RETENTION_DAYS", "90")))
+IMPORT_JOB_FAILURE_RETENTION_DAYS = max(30, int(os.getenv("IMPORT_JOB_FAILURE_RETENTION_DAYS", "365")))
+NOTIFICATION_SENT_RETENTION_DAYS = max(7, int(os.getenv("NOTIFICATION_SENT_RETENTION_DAYS", "30")))
+AUTH_SESSION_RETENTION_DAYS = max(7, int(os.getenv("AUTH_SESSION_RETENTION_DAYS", "30")))
+operational_retention_task: Optional[asyncio.Task] = None
+OPERATIONAL_RETENTION_STATE: Dict[str, Any] = {
+    "status": "waiting" if OPERATIONAL_RETENTION_ENABLED else "disabled",
+    "lastRunAt": None,
+    "lastSuccessAt": None,
+    "lastError": None,
+    "deleted": {},
+}
 SUNROOM_DOOR_MONITOR_ENABLED = os.getenv("SUNROOM_DOOR_MONITOR_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
 SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS = max(30, int(os.getenv("SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS", "60")))
 SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS = max(0, int(os.getenv("SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS", "20")))
@@ -4158,6 +4176,26 @@ STARTUP_COLUMNS = {
 
 PERFORMANCE_INDEXES = [
     (
+        "ix_access_logs_retention",
+        "CREATE INDEX IF NOT EXISTS ix_access_logs_retention "
+        "ON access_logs (success, timestamp)",
+    ),
+    (
+        "ix_import_job_runs_retention",
+        "CREATE INDEX IF NOT EXISTS ix_import_job_runs_retention "
+        "ON import_job_runs (ok, finished_at)",
+    ),
+    (
+        "ix_notification_outbox_retention",
+        "CREATE INDEX IF NOT EXISTS ix_notification_outbox_retention "
+        "ON notification_outbox (status, sent_at)",
+    ),
+    (
+        "ix_auth_sessions_retention",
+        "CREATE INDEX IF NOT EXISTS ix_auth_sessions_retention "
+        "ON auth_sessions (expires_at, revoked_at)",
+    ),
+    (
         "ix_energy_loads_power_profile",
         "CREATE INDEX IF NOT EXISTS ix_energy_loads_power_profile "
         "ON energy_loads (power_profile)",
@@ -6224,6 +6262,77 @@ async def notification_outbox_status(session) -> dict[str, Any]:
     }
 
 
+async def cleanup_operational_history_once(now_value: Optional[datetime] = None) -> dict[str, int]:
+    now_value = now_value or datetime.utcnow()
+    cutoffs = {
+        "access_success": now_value - timedelta(days=ACCESS_LOG_SUCCESS_RETENTION_DAYS),
+        "access_failure": now_value - timedelta(days=ACCESS_LOG_FAILURE_RETENTION_DAYS),
+        "import_success": now_value - timedelta(days=IMPORT_JOB_SUCCESS_RETENTION_DAYS),
+        "import_failure": now_value - timedelta(days=IMPORT_JOB_FAILURE_RETENTION_DAYS),
+        "notification_sent": now_value - timedelta(days=NOTIFICATION_SENT_RETENTION_DAYS),
+        "auth_session": now_value - timedelta(days=AUTH_SESSION_RETENTION_DAYS),
+    }
+    statements = {
+        "accessLogsSuccess": delete(AccessLog).where(
+            AccessLog.success.is_(True),
+            AccessLog.timestamp < cutoffs["access_success"],
+        ),
+        "accessLogsFailure": delete(AccessLog).where(
+            AccessLog.success.is_not(True),
+            AccessLog.timestamp < cutoffs["access_failure"],
+        ),
+        "importRunsSuccess": delete(ImportJobRun).where(
+            ImportJobRun.ok.is_(True),
+            ImportJobRun.finished_at < cutoffs["import_success"],
+        ),
+        "importRunsFailure": delete(ImportJobRun).where(
+            ImportJobRun.ok.is_not(True),
+            ImportJobRun.finished_at < cutoffs["import_failure"],
+        ),
+        "notificationsSent": delete(NotificationOutbox).where(
+            NotificationOutbox.status == "sent",
+            NotificationOutbox.sent_at < cutoffs["notification_sent"],
+        ),
+        "authSessions": delete(AuthSession).where(
+            or_(
+                AuthSession.expires_at < cutoffs["auth_session"],
+                and_(AuthSession.revoked_at.isnot(None), AuthSession.revoked_at < cutoffs["auth_session"]),
+            )
+        ),
+    }
+    deleted: dict[str, int] = {}
+    async with async_session() as session:
+        for key, statement in statements.items():
+            result = await session.execute(statement)
+            deleted[key] = max(0, int(result.rowcount or 0))
+        await session.commit()
+    return deleted
+
+
+async def operational_retention_worker() -> None:
+    await asyncio.sleep(OPERATIONAL_RETENTION_INITIAL_DELAY_SECONDS)
+    while True:
+        run_at = datetime.utcnow()
+        OPERATIONAL_RETENTION_STATE["status"] = "running"
+        OPERATIONAL_RETENTION_STATE["lastRunAt"] = api_local_iso(run_at)
+        try:
+            deleted = await cleanup_operational_history_once(run_at)
+            OPERATIONAL_RETENTION_STATE.update(
+                status="ok",
+                lastSuccessAt=api_local_iso(datetime.utcnow()),
+                lastError=None,
+                deleted=deleted,
+            )
+            if any(deleted.values()):
+                logger.info("Operational retention removed rows: %s", deleted)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            OPERATIONAL_RETENTION_STATE.update(status="error", lastError=str(exc)[:1000])
+            logger.exception("Operational retention failed")
+        await asyncio.sleep(OPERATIONAL_RETENTION_INTERVAL_HOURS * 3600)
+
+
 def bollard_mobile_notification_payload(status: dict[str, Any]) -> dict[str, Any]:
     settings = status.get("settings") if isinstance(status.get("settings"), dict) else {}
     summary = status.get("summary") if isinstance(status.get("summary"), dict) else {}
@@ -6821,13 +6930,49 @@ def fetch_met_weather() -> Optional[Dict[str, Any]]:
 
 
 async def met_weather_cached() -> Optional[Dict[str, Any]]:
+    global met_weather_fetch_lock
     now_value = datetime.utcnow()
     if MET_WEATHER_CACHE["expires"] > now_value:
         return MET_WEATHER_CACHE["value"]
-    value = await asyncio.to_thread(fetch_met_weather)
-    MET_WEATHER_CACHE["value"] = value
-    MET_WEATHER_CACHE["expires"] = met_next_fetch_after(value, now_value) if value else now_value + timedelta(minutes=5)
-    return value
+    if met_weather_fetch_lock is None:
+        met_weather_fetch_lock = asyncio.Lock()
+    async with met_weather_fetch_lock:
+        now_value = datetime.utcnow()
+        if MET_WEATHER_CACHE["expires"] > now_value:
+            return MET_WEATHER_CACHE["value"]
+        started_at = local_now_naive()
+        started_perf = perf_counter()
+        value = await asyncio.to_thread(fetch_met_weather)
+        finished_at = local_now_naive()
+        MET_WEATHER_CACHE["value"] = value
+        MET_WEATHER_CACHE["expires"] = met_next_fetch_after(value, now_value) if value else now_value + timedelta(minutes=5)
+        try:
+            async with async_session() as session:
+                await record_import_job(
+                    session,
+                    "yr_weather_refresh",
+                    ok=value is not None,
+                    started_at=started_at,
+                    finished_at=finished_at,
+                    records_imported=1 if value is not None else 0,
+                    records_total=1,
+                    duration_seconds=round(perf_counter() - started_perf, 3),
+                    message=(
+                        f"Ny prognose hentet fra MET ({value.get('text') or value.get('symbol_code') or 'værdata'})."
+                        if value is not None
+                        else "MET svarte ikke med en gyldig prognose; prøver igjen om 5 minutter."
+                    ),
+                    raw={
+                        "endpoint": value.get("raw_endpoint") if value else None,
+                        "forecastTime": value.get("forecast_time") if value else None,
+                        "nextFetchAfter": MET_WEATHER_CACHE["expires"].replace(tzinfo=timezone.utc).isoformat(),
+                        "cacheRefresh": True,
+                    },
+                )
+                await session.commit()
+        except Exception:
+            logger.warning("Could not persist MET refresh status", exc_info=True)
+        return value
 
 
 def build_now_status(latest_sample, latest_light_sample, latest_light, latest_yr_sample=None):
@@ -14923,7 +15068,7 @@ async def recent_ai_logs(limit: int = 10) -> list[AiQueryLog]:
 
 @app.on_event("startup")
 async def startup():
-    global svv_sync_task, hc3_door_poll_task, sun2_axis_snapshot_link_task, sunroom_door_monitor_task, owntracks_visit_sync_task, notification_outbox_task
+    global svv_sync_task, hc3_door_poll_task, sun2_axis_snapshot_link_task, sunroom_door_monitor_task, owntracks_visit_sync_task, notification_outbox_task, operational_retention_task
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         for table_name, columns in STARTUP_COLUMNS.items():
@@ -15014,15 +15159,20 @@ async def startup():
         owntracks_visit_sync_task = asyncio.create_task(owntracks_site_visit_sync_worker())
     if notification_outbox_task is None or notification_outbox_task.done():
         notification_outbox_task = asyncio.create_task(notification_outbox_worker(), name="ntfy-outbox")
+    if OPERATIONAL_RETENTION_ENABLED and (operational_retention_task is None or operational_retention_task.done()):
+        operational_retention_task = asyncio.create_task(operational_retention_worker(), name="operational-retention")
 
 
 @app.on_event("shutdown")
 async def shutdown_notification_outbox():
-    global notification_outbox_task
-    if notification_outbox_task is not None:
-        notification_outbox_task.cancel()
-        await asyncio.gather(notification_outbox_task, return_exceptions=True)
-        notification_outbox_task = None
+    global notification_outbox_task, operational_retention_task
+    tasks = [task for task in (notification_outbox_task, operational_retention_task) if task is not None]
+    for task in tasks:
+        task.cancel()
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+    notification_outbox_task = None
+    operational_retention_task = None
 
 
 def protect_ledger_client() -> ProtectLedgerClient:
@@ -15810,6 +15960,22 @@ async def health(details: bool = Query(False)):
     )
     if notifications is not None:
         payload["notifications"] = notifications
+    if details:
+        payload["maintenance"] = {
+            "retention": {
+                **OPERATIONAL_RETENTION_STATE,
+                "enabled": OPERATIONAL_RETENTION_ENABLED,
+                "intervalHours": OPERATIONAL_RETENTION_INTERVAL_HOURS,
+                "policyDays": {
+                    "successfulAccessLogs": ACCESS_LOG_SUCCESS_RETENTION_DAYS,
+                    "failedAccessLogs": ACCESS_LOG_FAILURE_RETENTION_DAYS,
+                    "successfulImportRuns": IMPORT_JOB_SUCCESS_RETENTION_DAYS,
+                    "failedImportRuns": IMPORT_JOB_FAILURE_RETENTION_DAYS,
+                    "sentNotifications": NOTIFICATION_SENT_RETENTION_DAYS,
+                    "expiredAuthSessions": AUTH_SESSION_RETENTION_DAYS,
+                },
+            }
+        }
     if status_code == 200:
         return payload
     return JSONResponse(payload, status_code=status_code)
@@ -20739,7 +20905,8 @@ async def update_parking_sun_link_import_status(session: Any, state: ParkingSunL
     row.expected_interval_minutes = definition.get("expected_interval_minutes")
     row.warning_after_minutes = definition.get("warning_after_minutes")
     row.records_imported = int_or_zero(state.processed_count)
-    row.records_total = int_or_zero(state.candidate_count)
+    # Candidate count is an outcome, not the total number of parking rows.
+    row.records_total = None
     row.next_expected_at = (state.last_worker_seen_at or now_value) + timedelta(minutes=definition.get("expected_interval_minutes") or 10)
     row.message = state.status_text
     row.raw = api_parking_sun_link_state_row(state)
@@ -33417,16 +33584,6 @@ async def log_event(data: EventDataIn):
                     message=f"Lux {data.lux:.0f}" if data.lux is not None else "5-minutters sample mottatt",
                     raw={"event_id": event_id, "yr_sample_id": yr_sample_id},
                 )
-                if yr_sample_id:
-                    await record_import_job(
-                        session,
-                        "yr_weather_refresh",
-                        source="MET/Yr",
-                        records_imported=1,
-                        records_total=1,
-                        message="Yr-data lagret sammen med luxsample",
-                        raw={"yr_sample_id": yr_sample_id},
-                    )
                 await session.commit()
             return {"status": "ok", "id": event_id, "table": "utelys_samples", "yr_sample_id": yr_sample_id}
         event = light_from_payload(data)
@@ -33452,16 +33609,6 @@ async def log_event(data: EventDataIn):
                     message=f"Modus {data.mode}" if data.mode else "5-minutters sample mottatt",
                     raw={"event_id": event_id, "yr_sample_id": yr_sample_id},
                 )
-                if yr_sample_id:
-                    await record_import_job(
-                        session,
-                        "yr_weather_refresh",
-                        source="MET/Yr",
-                        records_imported=1,
-                        records_total=1,
-                        message="Yr-data lagret sammen med ventilasjonssample",
-                        raw={"yr_sample_id": yr_sample_id},
-                    )
                 await session.commit()
             return {"status": "ok", "id": event_id, "table": "ventilasjon_samples", "yr_sample_id": yr_sample_id}
         event = vent_from_payload(data)

@@ -25,6 +25,9 @@ cd "$RemoteDir"
 backup_dir=`$(BACKUP_ROOT="$BackupRoot" POSTGRES_CONTAINER="$PostgresContainer" POSTGRES_USER="$PostgresUser" POSTGRES_DB="$PostgresDb" OWNTRACKS_POSTGRES_CONTAINER="$OwnTracksPostgresContainer" OWNTRACKS_POSTGRES_USER="$OwnTracksPostgresUser" OWNTRACKS_POSTGRES_DB="$OwnTracksPostgresDb" BACKUP_SNAPSHOTS="$snapshotValue" sh scripts/qnap-backup.sh </dev/null)
 test -d "`$backup_dir"
 echo "Backup: `$backup_dir"
+test -s "`$backup_dir/CHECKSUMS.sha256"
+(cd "`$backup_dir" && sha256sum -c CHECKSUMS.sha256 >/dev/null)
+echo "Checksums: OK"
 if [ "$snapshotValue" != "1" ]; then
     echo "Snapshots: SKIPPED for verification"
 fi

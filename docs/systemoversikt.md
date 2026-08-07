@@ -133,8 +133,11 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 - Protect-bilder ligger på SSD-arkivvolumet via `UNIFI_PROTECT_HOST_SNAPSHOT_DIR`.
 - AI-modeller og kalibreringsmetadata ligger på SSD via `VISUAL_AI_HOST_DATA_DIR` og tas med i nattlig backup.
 - Deploy-backuper lagres i `/share/CACHEDEV3_DATA/fibaro10_archive/fibaro10_deploy_backups`.
-- Nattlig/manuel full backup håndteres av `scripts/qnap-backup.sh` og inkluderer separate SQL-dumper for Fibaro10 og OwnTracks samt Roborock-data.
+- Nattlig/manuell full backup håndteres av `scripts/qnap-backup.sh` og inkluderer separate SQL-dumper for Fibaro10 og OwnTracks samt Roborock-data. Backupen publiseres atomisk med SHA-256-kontrollsummer og kan replikeres til en annen maskin med `BACKUP_REPLICA_TARGET`.
 - Restore-test kjøres fra Windows med `scripts/verify-qnap-backup.ps1` og leser begge SQL-dumpene inn i midlertidige databaser.
+- `scripts/qnap-health-watch.sh` kontrollerer alle webtjenester, begge nattbackupene og ledig plass på Vol1-Vol3 hvert femte minutt.
+- `scripts/qnap-docker-maintenance.sh` rydder ukentlig ubrukte bygglag og images eldre enn syv dager, men aldri containere eller datavolumer.
+- Fibaro10 beholder tekniske suksesslogger i 90 dager, tekniske feillogger i 365 dager og sendte varslingskøposter i 30 dager. Virksomhetsdata har ingen automatisk retention.
 
 ## Kvalitetssjekk
 
@@ -143,7 +146,7 @@ Standard deploy går gjennom:
 1. `scripts/check-local.ps1`
 2. Git push til `main`
 3. QNAP backup av runtimefiler/data
-4. Compose-validering og `docker compose up -d --build` for kjernen, fagappene og alle aktive importer-/bakgrunnstjenester
+4. Compose-validering og én samlet `docker compose up -d --build` for kjernen, fagappene og alle aktive importer-/bakgrunnstjenester
 5. Health-check av 24 HTTP-endepunkter, 23 datakilder og alle forventede containere
 6. Smoke-check av interne flater, importører og eksterne proxyadresser
 7. Innlogget live-smoke gjennom desktop- og fagapprutene, med p50/p95-måling

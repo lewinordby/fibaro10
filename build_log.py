@@ -12,6 +12,39 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1655",
+        "date": "07.08.2026",
+        "headline": "Driften er ryddet, etterprovbar og vesentlig lettere a vedlikeholde",
+        "title": "En deployrunde, atomisk backup, sannferdig datakildestatus og kontrollert retention",
+        "description": (
+            "Deploy bygger na hovedstakken bare en gang og venter pa kjernen for avhengige tjenester synkroniseres. "
+            "Nattbackup skrives forst til en midlertidig katalog, validerer begge databasedumpene og publiseres atomisk "
+            "med kontrollsummer og status. Yr markeres bare som oppdatert ved et reelt MET-kall. Teknisk logghistorikk "
+            "ryddes etter dokumenterte grenser uten a berore virksomhetsdata."
+        ),
+        "applications": [
+            "Fibaro10: korrekt Yr-status, retention-arbeider, helseinfo og riktige koblingsteller.",
+            "QNAP: utvidet helseovervaking, backupstatus og ukentlig trygg Docker-opprydding.",
+            "Deploy: en samlet Compose-build og kontrollert Roborock-synk etter restart.",
+            "EasyPark og Roborock: interne portbindinger og Docker-healthchecks.",
+            "Dokumentasjon: driftsgrenser, backupkopi og restore-cron er beskrevet.",
+        ],
+        "request": "sett igang og gjor alt i den rekkefolgen du foreslar",
+        "work_duration": "ca. 1,5 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Fjerner doble Docker-builds fra standard deploy.",
+            "Venter pa Fibaro10 og tvinger en fersk Roborock-synk etter deploy.",
+            "Gjor nattbackup atomisk og krever gyldige Fibaro10- og OwnTracks-dumper.",
+            "Lager SHA-256-kontrollsummer, siste-status og valgfri rsync-replika.",
+            "Overvaker alle kjernetjenester, nattbackup, restore-backup og ledig diskplass hvert femte minutt.",
+            "Rydder bare tekniske logger etter 30, 90 eller 365 dager; forretningsdata beholdes.",
+            "Fjerner gamle ubrukte Docker-images og byggcache ukentlig uten a rore volumdata.",
+            "Registrerer Yr-jobben kun nar MET faktisk kontaktes.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1654",
         "date": "07.08.2026",
         "headline": "Alle Python-tjenester er samlet på en revidert og sikker plattform",

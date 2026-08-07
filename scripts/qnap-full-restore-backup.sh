@@ -444,6 +444,8 @@ Minimum for ny backup:
 ```sh
 20 3 * * * cd /share/CACHEDEV1_DATA/Public/containerdata/fibaro10 && sh scripts/qnap-backup.sh >> /share/CACHEDEV3_DATA/fibaro10_archive/fibaro10_backups/qnap-backup.log 2>&1
 10 4 * * * cd /share/CACHEDEV1_DATA/Public/containerdata/fibaro10 && sh scripts/qnap-full-restore-backup.sh >> /share/CACHEDEV3_DATA/fibaro10_archive/full_restore_backup/full-restore-backup.log 2>&1
+*/5 * * * * cd /share/CACHEDEV1_DATA/Public/containerdata/fibaro10 && sh scripts/qnap-health-watch.sh >/dev/null 2>&1
+40 5 * * 0 cd /share/CACHEDEV1_DATA/Public/containerdata/fibaro10 && sh scripts/qnap-docker-maintenance.sh >/dev/null 2>&1
 ```
 
 ## 9. Kontroll
