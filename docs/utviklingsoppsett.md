@@ -117,44 +117,25 @@ Dette scriptet er isolert: det laster bare opp `v1_reference/` og `docker-compos
 - QNAP: `192.168.20.218`
 - SSH-alias: `qnap-fibaro10`
 - Appmappe: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`
-- Intern app (anbefalt): `https://192.168.20.218:8443`
+- Intern app (anbefalt): `https://fibaro10.lilletorget.net:8443`
 - Intern HTTP-reserve og API-adresse: `http://192.168.20.218:8110`
 - Online dashboard: `https://online.lilletorget.net`
 - iPad-grensesnitt: `https://ipad.lilletorget.net`
 - Vedlikehold mobil: `https://vedl.lilletorget.net`
 - Alarm mobil: `https://alarm.lilletorget.net` eller lokalt `http://192.168.20.218:8114`
 - OwnTracks: `https://owntracks.lilletorget.net`
-- Systemkart i appen: `https://192.168.20.218:8443/admin/systemkart`
-- Datakilder i appen: `https://192.168.20.218:8443/admin/datakilder`
+- Systemkart i appen: `https://fibaro10.lilletorget.net:8443/admin/systemkart`
+- Datakilder i appen: `https://fibaro10.lilletorget.net:8443/admin/datakilder`
 - Docker: `/share/CACHEDEV1_DATA/.qpkg/container-station/usr/bin/.libs/docker`
 - Git paa QNAP leveres via Entware i `/opt/bin/git`.
 
 ### Intern HTTPS
 
-Hovedappen bruker Caddys interne sertifikatmyndighet og er bare tilgjengelig paa
-lokalnettet. QNAP eksponerer ikke en ny WAN-port; den eksisterende containerporten
-for HTTPS brukes som `8443` paa lokalnettet. Caddy avviser dessuten klienter som
-ikke kommer fra et privat IP-nett.
-
-Rotsertifikatet ligger i File Station under
-`Public/Fibaro10-HTTPS/fibaro10-internal-ca.crt`. Paa en ny Windows-maskin kan det
-installeres og verifiseres med:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-internal-https-ca.ps1
-```
-
-Windows viser en sikkerhetsdialog fordi et nytt lokalt rotsertifikat skal klareres.
-Kontroller at navnet er `Caddy Local Authority - 2026 ECC Root`, og bekreft dialogen.
-
-En PC som bare har VPN-tilgang kan laste ned samme sertifikat fra den interne
-bootstrap-adressen `http://192.168.20.218:8081/fibaro10-internal-ca.crt`. Adressen
-virker bare fra private LAN- og VPN-adresser. Installer sertifikatet for gjeldende
-bruker i lageret `Klarerte rotsertifiseringsinstanser`, og start nettleseren paa nytt.
-
-Nettbrett og telefoner maa faa det samme rotsertifikatet installert som klarert
-sertifikatmyndighet. Etterpaa aapnes `https://192.168.20.218:8443`, og den gamle
-Fibaro10-snarveien erstattes med en ny PWA-installasjon fra HTTPS-adressen.
+Hovedappen og mikroappene bruker offentlig DNS og et offentlig betrodd Let's Encrypt-
+sertifikat. DNS-navnene peker til QNAPs private adresse, og virker derfor bare pa
+lokalnettet eller via VPN. Det skal ikke installeres lokal DNS eller rotsertifikat pa
+PC, nettbrett eller telefon. Se `docs/intern-https.md` for alle navn, fornyelse,
+sikkerhet og gjenoppretting.
 
 ## Gmail-importer
 

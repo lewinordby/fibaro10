@@ -27,7 +27,6 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 | Vedlikehold | `https://vedlikehold.lilletorget.net:8443/` | Besøk, oppgaver og vedlikeholdshistorikk. |
 | System | `https://system.lilletorget.net:8443/` | Datakilder, brukere, build, manual, varslinger og systemstatus. |
 | Koble | `https://koble.lilletorget.net:8443/` | Kandidater og kontroll av koblinger mellom biler og Sun2-ID. |
-| Fibaro10 hovedapp | `https://192.168.20.218:8443/` | Anbefalt intern HTTPS-flate for daglig drift og installert PWA. |
 | Fibaro10 | `https://fibaro10.lilletorget.net:8443/` | Hovedapp med offentlig betrodd HTTPS, kun tilgjengelig internt/VPN. |
 | Fibaro10 HTTP-reserve | `http://192.168.20.218:8110/` | Teknisk reserve, API og helsesjekker. |
 | Online dashboard | `https://online.lilletorget.net/` | Ekstern begrenset mobil/dashboardflate. |
@@ -82,22 +81,22 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 
 | Domene | Intern tjeneste | Kommentar |
 | --- | --- | --- |
-| `192.168.20.218:8443` | `fibaro10:8110` | Kun lokalnett, internt CA-sertifikat og ekstra sperre mot offentlige IP-adresser. |
+| `fibaro10.lilletorget.net:8443` | `fibaro10:8110` | Hovedapp med offentlig betrodd sertifikat, kun LAN/VPN. |
+| `app.lilletorget.net:8443` | `shell_app:8150` | Felles intern appvelger. |
+| `omsetning.lilletorget.net:8443` | `revenue_app:8151` | Intern omsetningsapp. |
+| `parkering.lilletorget.net:8443` | `parking_app:8152` | Intern parkeringsapp. |
+| `soling.lilletorget.net:8443` | `sun_app:8153` | Intern solingsapp. |
+| `energi.lilletorget.net:8443` | `energy_app:8154` | Intern energiapp. |
+| `drift.lilletorget.net:8443` | `operations_app:8155` | Intern bygg- og driftsapp. |
+| `vedlikehold.lilletorget.net:8443` | `maintenance_app:8156` | Intern vedlikeholdsapp. |
+| `system.lilletorget.net:8443` | `system_app:8157` | Intern systemapp. |
+| `koble.lilletorget.net:8443` | `link_app:8158` | Intern Koble-app. |
 | `online.lilletorget.net` | `online_dashboard:8111` | Begrenset ekstern flate. |
 | `owntracks.lilletorget.net` | `owntracks_service:8128` | Tokenbeskyttet OwnTracks. Direkte interne `/api/owntracks/*` skjules eksternt. |
 | `vedl.lilletorget.net` | `maintenance_mobile:8112` | Samme brukerbase som Fibaro10. |
 | `alarm.lilletorget.net` | `alarm_mobile:8114` | Samme brukerbase som Fibaro10. Åpnes direkte fra ntfy-varsler. |
 | `ipad.lilletorget.net` | `fibaro10ipad:8113` | Samme brukerbase som Fibaro10. |
-| `192.168.20.218:8150` | `shell_app:8150` | Felles intern inngang og appvelger. |
-| `192.168.20.218:8151` | `revenue_app:8151` | Intern omsetningsapp. Samme brukerbase som Fibaro10. |
-| `192.168.20.218:8152` | `parking_app:8152` | Intern parkeringsapp. Samme brukerbase som Fibaro10. |
-| `192.168.20.218:8153` | `sun_app:8153` | Intern solingsapp. Samme brukerbase som Fibaro10. |
-| `192.168.20.218:8154` | `energy_app:8154` | Intern energiapp. Samme brukerbase som Fibaro10. |
-| `192.168.20.218:8155` | `operations_app:8155` | Intern bygg- og driftsapp. Samme brukerbase som Fibaro10. |
-| `192.168.20.218:8156` | `maintenance_app:8156` | Intern vedlikeholdsapp. Samme brukerbase som Fibaro10. |
 | `192.168.20.218:8114` | `alarm_mobile:8114` | Lokal reserveadresse for alarmappen. |
-| `192.168.20.218:8157` | `system_app:8157` | Intern systemapp. Samme brukerbase som Fibaro10. |
-| `192.168.20.218:8158` | `link_app:8158` | Intern Koble-app. Samme brukerbase som Fibaro10. |
 
 ## Datakilder
 

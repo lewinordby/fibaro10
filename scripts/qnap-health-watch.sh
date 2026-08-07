@@ -41,7 +41,7 @@ file_is_fresh() {
 }
 
 check fibaro10 curl -fsS --max-time 15 http://192.168.20.218:8110/health
-check fibaro10_https curl -kfsS --max-time 15 https://192.168.20.218:8443/health
+check fibaro10_https curl -fsS --max-time 15 https://fibaro10.lilletorget.net:8443/health
 check shell_app curl -fsS --max-time 15 http://192.168.20.218:8150/ready
 check revenue_app curl -fsS --max-time 15 http://192.168.20.218:8151/ready
 check parking_app curl -fsS --max-time 15 http://192.168.20.218:8152/ready

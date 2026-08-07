@@ -12,6 +12,32 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1675",
+        "date": "07.08.2026",
+        "headline": "Gammel lokal CA er fjernet helt",
+        "title": "Overvaking og manualer bruker na bare offentlig betrodd HTTPS",
+        "description": (
+            "Den midlertidige IP-baserte HTTPS-losningen er ryddet ut etter at de nye "
+            "domenenavnene ble satt i drift. QNAP kontrollerer na bade tilgjengelighet og "
+            "sertifikattillit uten a omga TLS-verifisering."
+        ),
+        "applications": [
+            "QNAP-overvaking: verifiserer Let's Encrypt-sertifikatet pa domenenavnet.",
+            "Systemdokumentasjon: kun gjeldende adresser og gjenopprettingsrutiner.",
+            "Utviklingsoppsett: ingen lokal CA-installasjon pa nye maskiner.",
+        ],
+        "request": "Fullfor overgangen og fjern alle rester etter lokal DNS og lokale sertifikater.",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Fjerner det utdaterte Windows-scriptet for installasjon av lokal rot-CA.",
+            "Erstatter IP-adresser og CA-instruksjoner med de ti nye HTTPS-navnene.",
+            "Lar helsevaktens HTTPS-kontroll feile ved ugyldig eller utlopet sertifikat.",
+            "Beholder tidligere buildbeskrivelse som historikk, men ikke som driftsinstruksjon.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1674",
         "date": "07.08.2026",
         "headline": "Betrodd HTTPS for alle interne apper",
