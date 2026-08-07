@@ -157,11 +157,11 @@ export function Layout({ config, children }: { config: DomainUiConfig; children:
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const item = useMemo(() => findNavigationItem(config, location.pathname), [config, location.pathname]);
   const group = useMemo(() => findNavigationGroup(config, item), [config, item]);
-  const shellUrl = appConfig.data?.shellAppUrl || "http://192.168.20.218:8150";
+  const shellUrl = appConfig.data?.shellAppUrl || "https://app.lilletorget.net:8443";
 
   return (
     <div className="flex h-[100dvh] overflow-hidden">
-      <Sidebar config={config} activeGroup={group} open={sidebarOpen} setOpen={setSidebarOpen} coreUrl={appConfig.data?.fibaro10AppUrl || "http://192.168.20.218:8110"} build={appConfig.data?.build || "-"} />
+      <Sidebar config={config} activeGroup={group} open={sidebarOpen} setOpen={setSidebarOpen} coreUrl={appConfig.data?.fibaro10AppUrl || "https://fibaro10.lilletorget.net:8443"} build={appConfig.data?.build || "-"} />
       <div className="relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
         <Header title={item.title || item.label} open={sidebarOpen} setOpen={setSidebarOpen} username={user.data?.username || "Bruker"} activeApp={config.appId} shellUrl={shellUrl} />
         <ContextNavigation group={group} item={item} accent={config.accent} />

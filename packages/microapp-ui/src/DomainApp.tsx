@@ -83,7 +83,7 @@ function RoutedDomainApp({ config }: { config: DomainUiConfig }) {
     `module-${item.module}-${item.view}-${search}`,
   );
   const appConfig = useApi(domainApi.config, "app-config");
-  const coreUrl = appConfig.data?.fibaro10AppUrl || "http://192.168.20.218:8110";
+  const coreUrl = appConfig.data?.fibaro10AppUrl || "https://fibaro10.lilletorget.net:8443";
   return <Layout config={config}>{result.loading || appConfig.loading
     ? <Loading />
     : result.error || !result.data

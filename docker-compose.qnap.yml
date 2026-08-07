@@ -130,8 +130,8 @@ services:
       - "192.168.20.218:8151:8151"
     environment:
       FIBARO10_BASE_URL: http://fibaro10:8110
-      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
-      SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
+      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net:8443}
+      SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net:8443}
       REVENUE_APP_BUILD: ${REVENUE_APP_BUILD:-28}
       REVENUE_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
@@ -156,8 +156,8 @@ services:
       - "192.168.20.218:8152:8152"
     environment:
       FIBARO10_BASE_URL: http://fibaro10:8110
-      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
-      SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
+      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net:8443}
+      SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net:8443}
       PARKING_APP_BUILD: ${PARKING_APP_BUILD:-20}
       PARKING_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
@@ -182,8 +182,8 @@ services:
       - "192.168.20.218:8153:8153"
     environment:
       FIBARO10_BASE_URL: http://fibaro10:8110
-      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
-      SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
+      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net:8443}
+      SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net:8443}
       SUN_APP_BUILD: ${SUN_APP_BUILD:-20}
       SUN_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
@@ -208,8 +208,8 @@ services:
       - "192.168.20.218:8154:8154"
     environment:
       FIBARO10_BASE_URL: http://fibaro10:8110
-      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
-      SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
+      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net:8443}
+      SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net:8443}
       ENERGY_APP_BUILD: ${ENERGY_APP_BUILD:-17}
       ENERGY_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
@@ -234,8 +234,8 @@ services:
       - "192.168.20.218:8155:8155"
     environment:
       FIBARO10_BASE_URL: http://fibaro10:8110
-      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
-      SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
+      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net:8443}
+      SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net:8443}
       OPERATIONS_APP_BUILD: ${OPERATIONS_APP_BUILD:-23}
       OPERATIONS_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
@@ -260,8 +260,8 @@ services:
       - "192.168.20.218:8156:8156"
     environment:
       FIBARO10_BASE_URL: http://fibaro10:8110
-      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
-      SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
+      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net:8443}
+      SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net:8443}
       MAINTENANCE_APP_BUILD: ${MAINTENANCE_APP_BUILD:-16}
       MAINTENANCE_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
@@ -286,8 +286,8 @@ services:
       - "192.168.20.218:8157:8157"
     environment:
       FIBARO10_BASE_URL: http://fibaro10:8110
-      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
-      SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
+      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net:8443}
+      SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net:8443}
       SYSTEM_APP_BUILD: ${SYSTEM_APP_BUILD:-22}
       SYSTEM_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
@@ -312,8 +312,8 @@ services:
       - "192.168.20.218:8158:8158"
     environment:
       FIBARO10_BASE_URL: http://fibaro10:8110
-      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
-      SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
+      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net:8443}
+      SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net:8443}
       LINK_APP_BUILD: ${LINK_APP_BUILD:-15}
       LINK_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
@@ -336,22 +336,22 @@ services:
     environment:
       FIBARO10_BASE_URL: http://fibaro10:8110
       REVENUE_BASE_URL: http://revenue_app:8151
-      REVENUE_APP_URL: ${REVENUE_APP_URL:-http://192.168.20.218:8151}
+      REVENUE_APP_URL: ${REVENUE_APP_URL:-https://omsetning.lilletorget.net:8443}
       PARKING_BASE_URL: http://parking_app:8152
-      PARKING_APP_URL: ${PARKING_APP_URL:-http://192.168.20.218:8152}
+      PARKING_APP_URL: ${PARKING_APP_URL:-https://parkering.lilletorget.net:8443}
       SUN_BASE_URL: http://sun_app:8153
-      SUN_APP_URL: ${SUN_APP_URL:-http://192.168.20.218:8153}
+      SUN_APP_URL: ${SUN_APP_URL:-https://soling.lilletorget.net:8443}
       ENERGY_BASE_URL: http://energy_app:8154
-      ENERGY_APP_URL: ${ENERGY_APP_URL:-http://192.168.20.218:8154}
+      ENERGY_APP_URL: ${ENERGY_APP_URL:-https://energi.lilletorget.net:8443}
       OPERATIONS_BASE_URL: http://operations_app:8155
-      OPERATIONS_APP_URL: ${OPERATIONS_APP_URL:-http://192.168.20.218:8155}
+      OPERATIONS_APP_URL: ${OPERATIONS_APP_URL:-https://drift.lilletorget.net:8443}
       MAINTENANCE_BASE_URL: http://maintenance_app:8156
-      MAINTENANCE_APP_URL: ${MAINTENANCE_APP_URL:-http://192.168.20.218:8156}
+      MAINTENANCE_APP_URL: ${MAINTENANCE_APP_URL:-https://vedlikehold.lilletorget.net:8443}
       SYSTEM_BASE_URL: http://system_app:8157
-      SYSTEM_APP_URL: ${SYSTEM_APP_URL:-http://192.168.20.218:8157}
+      SYSTEM_APP_URL: ${SYSTEM_APP_URL:-https://system.lilletorget.net:8443}
       LINK_BASE_URL: http://link_app:8158
-      LINK_APP_URL: ${LINK_APP_URL:-http://192.168.20.218:8158}
-      SHELL_APP_URL: ${SHELL_APP_URL:-http://192.168.20.218:8150}
+      LINK_APP_URL: ${LINK_APP_URL:-https://koble.lilletorget.net:8443}
+      SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net:8443}
       SHELL_APP_BUILD: ${SHELL_APP_BUILD:-26}
       SHELL_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
@@ -512,7 +512,7 @@ services:
       - fibaro10
     environment:
       FIBARO10_BASE_URL: http://fibaro10:8110
-      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
+      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net:8443}
       FIBARO10_IPAD_APP_BUILD: ${FIBARO10_IPAD_APP_BUILD:-1477}
       FIBARO10_IPAD_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
@@ -670,7 +670,7 @@ services:
       start_period: 30s
 
   fibaro10_proxy:
-    image: caddy:2-alpine
+    image: caddy:2.10.2-alpine
     container_name: fibaro10_proxy
     restart: unless-stopped
     depends_on:
@@ -679,6 +679,16 @@ services:
       - maintenance_mobile
       - alarm_mobile
       - fibaro10ipad
+      - fibaro10
+      - shell_app
+      - revenue_app
+      - parking_app
+      - sun_app
+      - energy_app
+      - operations_app
+      - maintenance_app
+      - system_app
+      - link_app
     ports:
       - "8081:80"
       - "8443:443"
@@ -686,6 +696,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ${FIBARO10_CADDY_DATA_DIR:-fibaro10_caddy_data}:/data
       - ${FIBARO10_CADDY_CONFIG_DIR:-fibaro10_caddy_config}:/config
+      - ${FIBARO10_TLS_CERT_DIR:-/share/CACHEDEV2_DATA/fibaro10_runtime/caddy/lego}:/certs:ro
     healthcheck:
       test: ["CMD-SHELL", "caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1"]
       interval: 30s

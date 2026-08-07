@@ -1,7 +1,7 @@
 # Lilletorget Parkering
 
 Selvstendig fagapplikasjon for parkering. Appen kjører ved siden av Fibaro10
-på `http://192.168.20.218:8152` og bruker Fibaro10 som avgrenset data- og
+på `https://parkering.lilletorget.net:8443` og bruker Fibaro10 som avgrenset data- og
 autentiserings-API.
 
 ## Funksjoner

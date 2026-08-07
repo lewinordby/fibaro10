@@ -1,0 +1,69 @@
+#!/bin/sh
+set -eu
+
+REPO_ROOT="${FIBARO10_REPO_ROOT:-/share/CACHEDEV1_DATA/Public/containerdata/fibaro10}"
+ENV_FILE="${FIBARO10_ENV_FILE:-$REPO_ROOT/.env}"
+DOCKER="${DOCKER_BIN:-/share/CACHEDEV1_DATA/.qpkg/container-station/usr/bin/.libs/docker}"
+CERT_DIR="${FIBARO10_TLS_CERT_DIR:-/share/CACHEDEV2_DATA/fibaro10_runtime/caddy/lego}"
+LEGO_IMAGE="${FIBARO10_LEGO_IMAGE:-goacme/lego:v4.26.0}"
+PRIMARY_DOMAIN="fibaro10.lilletorget.net"
+CERT_FILE="$CERT_DIR/certificates/$PRIMARY_DOMAIN.crt"
+
+if [ ! -f "$ENV_FILE" ]; then
+    echo "Mangler miljofil: $ENV_FILE" >&2
+    exit 1
+fi
+
+email="$(sed -n 's/^LETSENCRYPT_EMAIL=//p' "$ENV_FILE" | tail -n 1)"
+if [ -z "$email" ]; then
+    echo "LETSENCRYPT_EMAIL mangler i $ENV_FILE" >&2
+    exit 1
+fi
+
+mkdir -p "$CERT_DIR"
+before="missing"
+if [ -f "$CERT_FILE" ]; then
+    before="$(sha256sum "$CERT_FILE" | awk '{print $1}')"
+fi
+
+set -- \
+    --path /data \
+    --email "$email" \
+    --accept-tos \
+    --dns domeneshop \
+    --dns.resolvers 1.1.1.1:53 \
+    --domains fibaro10.lilletorget.net \
+    --domains app.lilletorget.net \
+    --domains omsetning.lilletorget.net \
+    --domains parkering.lilletorget.net \
+    --domains soling.lilletorget.net \
+    --domains energi.lilletorget.net \
+    --domains drift.lilletorget.net \
+    --domains vedlikehold.lilletorget.net \
+    --domains system.lilletorget.net \
+    --domains koble.lilletorget.net
+
+if [ -f "$CERT_FILE" ]; then
+    action="renew"
+    "$DOCKER" run --rm \
+        --env-file "$ENV_FILE" \
+        -v "$CERT_DIR:/data" \
+        "$LEGO_IMAGE" "$@" renew --days 30
+else
+    action="issue"
+    "$DOCKER" run --rm \
+        --env-file "$ENV_FILE" \
+        -v "$CERT_DIR:/data" \
+        "$LEGO_IMAGE" "$@" run
+fi
+
+after="$(sha256sum "$CERT_FILE" | awk '{print $1}')"
+if [ "$before" != "$after" ]; then
+    echo "HTTPS-sertifikatet er oppdatert ($action)."
+    if "$DOCKER" inspect fibaro10_proxy >/dev/null 2>&1; then
+        "$DOCKER" kill --signal USR1 fibaro10_proxy >/dev/null
+        echo "Caddy har lastet sertifikatet på nytt."
+    fi
+else
+    echo "HTTPS-sertifikatet er fortsatt gyldig; ingen omlasting nødvendig."
+fi

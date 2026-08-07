@@ -71,6 +71,7 @@ SUN2_DAILY_DATA_DIR="${SUN2_DAILY_DATA_DIR:-$(env_value sun2_importer/.env SUN2_
 SUN2_SESSION_SCRAPER_HOST_DATA_DIR="${SUN2_SESSION_SCRAPER_HOST_DATA_DIR:-$(env_value .env SUN2_SESSION_SCRAPER_HOST_DATA_DIR)}"
 FIBARO10_CADDY_DATA_DIR="${FIBARO10_CADDY_DATA_DIR:-$(env_value .env FIBARO10_CADDY_DATA_DIR)}"
 FIBARO10_CADDY_CONFIG_DIR="${FIBARO10_CADDY_CONFIG_DIR:-$(env_value .env FIBARO10_CADDY_CONFIG_DIR)}"
+FIBARO10_TLS_CERT_DIR="${FIBARO10_TLS_CERT_DIR:-$(env_value .env FIBARO10_TLS_CERT_DIR)}"
 VISUAL_AI_HOST_DATA_DIR="${VISUAL_AI_HOST_DATA_DIR:-$(env_value .env VISUAL_AI_HOST_DATA_DIR)}"
 OWNTRACKS_POSTGRES_USER="${OWNTRACKS_POSTGRES_USER:-$(env_value .env OWNTRACKS_POSTGRES_USER)}"
 OWNTRACKS_POSTGRES_USER="${OWNTRACKS_POSTGRES_USER:-owntracks}"
@@ -93,6 +94,7 @@ copy_dir "${SUN2_DAILY_DATA_DIR:-sun2_daily_data}" "$partial_dir/sun2_daily_data
 copy_dir "${SUN2_SESSION_SCRAPER_HOST_DATA_DIR:-sun2_session_scraper/data}" "$partial_dir/sun2_session_scraper/data"
 copy_dir "${FIBARO10_CADDY_DATA_DIR:-}" "$partial_dir/caddy/data"
 copy_dir "${FIBARO10_CADDY_CONFIG_DIR:-}" "$partial_dir/caddy/config"
+copy_dir "${FIBARO10_TLS_CERT_DIR:-}" "$partial_dir/caddy/lego"
 copy_dir "${VISUAL_AI_HOST_DATA_DIR:-visual_anomaly_service/data}" "$partial_dir/visual_anomaly_service/data"
 
 if [ "$BACKUP_SNAPSHOTS" != "0" ] && [ -n "$AXIS_HOST_SNAPSHOT_DIR" ] && [ -d "$AXIS_HOST_SNAPSHOT_DIR" ]; then

@@ -157,6 +157,7 @@ SUN2_DAILY_DATA_DIR="${SUN2_DAILY_DATA_DIR:-$(env_value sun2_importer/.env SUN2_
 SUN2_SESSION_SCRAPER_HOST_DATA_DIR="${SUN2_SESSION_SCRAPER_HOST_DATA_DIR:-$(env_value .env SUN2_SESSION_SCRAPER_HOST_DATA_DIR)}"
 FIBARO10_CADDY_DATA_DIR="${FIBARO10_CADDY_DATA_DIR:-$(env_value .env FIBARO10_CADDY_DATA_DIR)}"
 FIBARO10_CADDY_CONFIG_DIR="${FIBARO10_CADDY_CONFIG_DIR:-$(env_value .env FIBARO10_CADDY_CONFIG_DIR)}"
+FIBARO10_TLS_CERT_DIR="${FIBARO10_TLS_CERT_DIR:-$(env_value .env FIBARO10_TLS_CERT_DIR)}"
 VISUAL_AI_HOST_DATA_DIR="${VISUAL_AI_HOST_DATA_DIR:-$(env_value .env VISUAL_AI_HOST_DATA_DIR)}"
 
 log "Starting full restore backup to $BACKUP_DIR"
@@ -228,6 +229,7 @@ sync_dir_if_exists "${SUN2_DAILY_DATA_DIR:-sun2_daily_data}" "$BACKUP_DIR/runtim
 sync_dir_if_exists "${SUN2_SESSION_SCRAPER_HOST_DATA_DIR:-sun2_session_scraper/data}" "$BACKUP_DIR/runtime/sun2_session_scraper/data"
 sync_dir_if_exists "${FIBARO10_CADDY_DATA_DIR:-}" "$BACKUP_DIR/runtime/caddy/data"
 sync_dir_if_exists "${FIBARO10_CADDY_CONFIG_DIR:-}" "$BACKUP_DIR/runtime/caddy/config"
+sync_dir_if_exists "${FIBARO10_TLS_CERT_DIR:-}" "$BACKUP_DIR/runtime/caddy/lego"
 sync_dir_if_exists "${VISUAL_AI_HOST_DATA_DIR:-visual_anomaly_service/data}" "$BACKUP_DIR/runtime/visual_anomaly_service/data"
 
 log "Discovering and copying Docker host mounts"
@@ -288,6 +290,7 @@ Hvis volum-idene blir annerledes paa ny QNAP maa stiene i `.env` justeres for:
 - `SUN2_SESSION_SCRAPER_HOST_DATA_DIR`
 - `FIBARO10_CADDY_DATA_DIR`
 - `FIBARO10_CADDY_CONFIG_DIR`
+- `FIBARO10_TLS_CERT_DIR`
 - `VISUAL_AI_HOST_DATA_DIR`
 
 ## 2. Legg tilbake repo

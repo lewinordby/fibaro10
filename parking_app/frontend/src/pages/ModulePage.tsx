@@ -11,5 +11,5 @@ export default function ModulePage({ view }: { view: string }) {
   const config = useApi(api.config, "app-config-module");
   if (result.loading || config.loading) return <Loading />;
   if (result.error || !result.data) return <ErrorState error={result.error} onRetry={result.reload} />;
-  return <ModuleContent data={result.data} reload={result.reload} fibaroUrl={config.data?.fibaro10AppUrl || "http://192.168.20.218:8110"} />;
+  return <ModuleContent data={result.data} reload={result.reload} fibaroUrl={config.data?.fibaro10AppUrl || "https://fibaro10.lilletorget.net:8443"} />;
 }

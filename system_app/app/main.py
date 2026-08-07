@@ -14,7 +14,7 @@ from system_app.app.menu_structure import menu_structure_module
 
 APP_DIR = Path(__file__).resolve().parents[1]
 SHELL_BASE_URL = os.getenv("SHELL_BASE_URL", "http://shell_app:8150").rstrip("/")
-SHELL_APP_URL = os.getenv("SHELL_APP_URL", "http://192.168.20.218:8150").rstrip("/")
+SHELL_APP_URL = os.getenv("SHELL_APP_URL", "https://app.lilletorget.net:8443").rstrip("/")
 MODULES = {
     "auth/me", "modules/admin", "modules/varslinger", "modules/undersystemer", "modules/ideer",
     "modules/mobil", "modules/manual",

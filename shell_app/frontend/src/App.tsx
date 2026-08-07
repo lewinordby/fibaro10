@@ -219,7 +219,7 @@ export default function App() {
     <div className="flex h-[100dvh] overflow-hidden">
       <Sidebar apps={activeApps} config={config} open={sidebarOpen} setOpen={setSidebarOpen} />
       <div className="relative flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
-        <Header open={sidebarOpen} setOpen={setSidebarOpen} user={user} refreshing={refreshing} refresh={() => void load(true)} shellUrl={config?.shellUrl || "http://192.168.20.218:8150"} />
+        <Header open={sidebarOpen} setOpen={setSidebarOpen} user={user} refreshing={refreshing} refresh={() => void load(true)} shellUrl={config?.shellUrl || "https://app.lilletorget.net:8443"} />
         <main className="grow">
           <div className="px-4 py-6 sm:px-6 lg:px-8 w-full max-w-[96rem] mx-auto">
             {loading ? <div className="flex min-h-96 flex-col items-center justify-center gap-3 text-gray-400 dark:text-gray-500"><Spinner size={28} /><strong className="text-sm">Henter apper</strong></div> : null}

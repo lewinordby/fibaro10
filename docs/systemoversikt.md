@@ -18,17 +18,18 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 
 | Flate | URL | Formål |
 | --- | --- | --- |
-| Lilletorget-skall | `http://192.168.20.218:8150/` | Felles intern appvelger og live tjenestestatus. |
-| Omsetning | `http://192.168.20.218:8151/` | Utskilt fagapp for omsetning og sammenligning. |
-| Parkering | `http://192.168.20.218:8152/` | Utskilt fagapp for parkeringer, kjøretøy, oppgjør og analyse. |
-| Soling | `http://192.168.20.218:8153/` | Soltimer, dagslinje, bilder, produkter, medlemmer og oppgjør. |
-| Energi | `http://192.168.20.218:8154/` | Sanntidsforbruk, Elvia, kurs/last og analyse per solseng. |
-| Bygg og drift | `http://192.168.20.218:8155/` | Ventilasjon, lys, dører, solrom, pullerter og renhold. |
-| Vedlikehold | `http://192.168.20.218:8156/` | Besøk, oppgaver og vedlikeholdshistorikk. |
-| System | `http://192.168.20.218:8157/` | Datakilder, brukere, build, manual, varslinger og systemstatus. |
-| Koble | `http://192.168.20.218:8158/` | Kandidater og kontroll av koblinger mellom biler og Sun2-ID. |
+| Lilletorget-skall | `https://app.lilletorget.net:8443/` | Felles intern appvelger og live tjenestestatus. |
+| Omsetning | `https://omsetning.lilletorget.net:8443/` | Utskilt fagapp for omsetning og sammenligning. |
+| Parkering | `https://parkering.lilletorget.net:8443/` | Utskilt fagapp for parkeringer, kjøretøy, oppgjør og analyse. |
+| Soling | `https://soling.lilletorget.net:8443/` | Soltimer, dagslinje, bilder, produkter, medlemmer og oppgjør. |
+| Energi | `https://energi.lilletorget.net:8443/` | Sanntidsforbruk, Elvia, kurs/last og analyse per solseng. |
+| Bygg og drift | `https://drift.lilletorget.net:8443/` | Ventilasjon, lys, dører, solrom, pullerter og renhold. |
+| Vedlikehold | `https://vedlikehold.lilletorget.net:8443/` | Besøk, oppgaver og vedlikeholdshistorikk. |
+| System | `https://system.lilletorget.net:8443/` | Datakilder, brukere, build, manual, varslinger og systemstatus. |
+| Koble | `https://koble.lilletorget.net:8443/` | Kandidater og kontroll av koblinger mellom biler og Sun2-ID. |
 | Fibaro10 hovedapp | `https://192.168.20.218:8443/` | Anbefalt intern HTTPS-flate for daglig drift og installert PWA. |
-| Fibaro10 HTTP-reserve | `http://192.168.20.218:8110/` | Intern reserve, API og tekniske helsesjekker. |
+| Fibaro10 | `https://fibaro10.lilletorget.net:8443/` | Hovedapp med offentlig betrodd HTTPS, kun tilgjengelig internt/VPN. |
+| Fibaro10 HTTP-reserve | `http://192.168.20.218:8110/` | Teknisk reserve, API og helsesjekker. |
 | Online dashboard | `https://online.lilletorget.net/` | Ekstern begrenset mobil/dashboardflate. |
 | Vedlikehold mobil | `https://vedl.lilletorget.net/` | Rask mobilregistrering av vedlikeholdsoppgaver. |
 | Alarm mobil | `https://alarm.lilletorget.net/` | Dør-, solrom-, pullert- og trappealarmer med direkte lenker fra ntfy. |

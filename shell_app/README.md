@@ -1,7 +1,7 @@
 # Lilletorget-skall
 
 Intern inngang til de brukerrettede mikroappene. Skallet kjører på
-`http://192.168.20.218:8150` og inneholder bare appregister, helsestatus,
+`https://app.lilletorget.net:8443` og inneholder bare appregister, helsestatus,
 innlogging og navigasjon.
 
 Skallet har ingen fagdata eller forretningslogikk. Det validerer brukeren mot

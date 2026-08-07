@@ -12,6 +12,39 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1674",
+        "date": "07.08.2026",
+        "headline": "Betrodd HTTPS for alle interne apper",
+        "title": "Offentlig DNS gir sikker intern tilgang uten lokale sertifikater",
+        "description": (
+            "Fibaro10 og de ni mikroappene har fatt egne navn under lilletorget.net og et "
+            "offentlig betrodd Let's Encrypt-sertifikat. Navnene peker til QNAPs private "
+            "adresse, slik at nettleserne godtar HTTPS uten at appene eksponeres pa internett."
+        ),
+        "applications": [
+            "Fibaro10 og appvelger: nye faste HTTPS-adresser.",
+            "Alle domenemikroapper: sikker navigasjon mellom egne vertsnavn.",
+            "QNAP/Caddy: felles sertifikat, privat tilgangskontroll og nattlig fornyelse.",
+            "Domeneshop: idempotent administrasjon av private A-poster i offentlig DNS.",
+            "Systemdokumentasjon: adresser, drift, sikkerhet og gjenoppretting.",
+        ],
+        "request": (
+            "Gjor alt om slik at vi bade far HTTPS og slipper lokal DNS og lokale "
+            "sertifikater, men behold tjenestene kun internt."
+        ),
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Oppretter ti offentlige DNS-navn som peker til privat IP 192.168.20.218.",
+            "Utsteder ett SAN-sertifikat med DNS-01, uten apning av porter fra internett.",
+            "Lar Caddy lese sertifikatet skrivebeskyttet uten tilgang til DNS-nokkelen.",
+            "Avviser trafikk til de interne vertsnavnene fra adresser utenfor private nett.",
+            "Oppdaterer appvelger, krysslenker og dokumentasjon til de nye HTTPS-navnene.",
+            "Automatiserer sertifikatfornyelse og beholder direkte HTTP som teknisk reserve.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1673",
         "date": "07.08.2026",
         "headline": "Hovedappen far intern HTTPS uten ny internetteksponering",

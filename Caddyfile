@@ -1,6 +1,5 @@
 {
 	admin off
-	default_sni 192.168.20.218
 }
 
 (asset_cache) {
@@ -10,28 +9,10 @@
 	header @static_assets Cache-Control "public, max-age=3600, must-revalidate"
 }
 
-# Bootstrap endpoint for VPN/LAN clients that do not trust the private CA yet.
-http://192.168.20.218 {
-	@outside_lan not remote_ip private_ranges
-	respond @outside_lan "Not found" 404
-
-	handle /fibaro10-internal-ca.crt {
-		header Content-Type "application/x-x509-ca-cert"
-		header Content-Disposition "attachment; filename=fibaro10-internal-ca.crt"
-		rewrite * /root.crt
-		root * /data/caddy/pki/authorities/local
-		file_server
-	}
-
-	respond "Not found" 404
-}
-
-# Internal-only HTTPS endpoint. Docker publishes container port 443 as LAN port
-# 8443; the private CA root must be trusted on each client device.
-https://192.168.20.218 {
-	tls internal
+(internal_app) {
 	encode zstd gzip
 	import asset_cache
+	tls /certs/certificates/fibaro10.lilletorget.net.crt /certs/certificates/fibaro10.lilletorget.net.key
 
 	header {
 		Strict-Transport-Security "max-age=31536000"
@@ -42,11 +23,62 @@ https://192.168.20.218 {
 
 	@outside_lan not remote_ip private_ranges
 	respond @outside_lan "Not found" 404
+}
+
+# These names exist in public DNS, but resolve to the private QNAP address.
+# DNS-01 gives them publicly trusted certificates without exposing an app.
+https://fibaro10.lilletorget.net {
+	import internal_app
 
 	reverse_proxy fibaro10:8110 {
 		header_up Host {host}
 		header_up X-Real-IP {remote_host}
 	}
+}
+
+https://app.lilletorget.net {
+	import internal_app
+	reverse_proxy shell_app:8150
+}
+
+https://omsetning.lilletorget.net {
+	import internal_app
+	reverse_proxy revenue_app:8151
+}
+
+https://parkering.lilletorget.net {
+	import internal_app
+	reverse_proxy parking_app:8152
+}
+
+https://soling.lilletorget.net {
+	import internal_app
+	reverse_proxy sun_app:8153
+}
+
+https://energi.lilletorget.net {
+	import internal_app
+	reverse_proxy energy_app:8154
+}
+
+https://drift.lilletorget.net {
+	import internal_app
+	reverse_proxy operations_app:8155
+}
+
+https://vedlikehold.lilletorget.net {
+	import internal_app
+	reverse_proxy maintenance_app:8156
+}
+
+https://system.lilletorget.net {
+	import internal_app
+	reverse_proxy system_app:8157
+}
+
+https://koble.lilletorget.net {
+	import internal_app
+	reverse_proxy link_app:8158
 }
 
 online.lilletorget.net {
