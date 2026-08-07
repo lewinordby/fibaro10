@@ -44,6 +44,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base, load_only
 from dateutil import parser as dtparser
 load_dotenv()
+from application_lifecycle import BackgroundTaskSupervisor, create_lifespan
 from build_log import APP_BUILD, APP_VERSION, BUILD_LOG, api_build_log_row, build_log_entry_by_build, normalized_build_log_entry
 from api_contracts import admin_build_payload, admin_builds_payload
 from api_types import ModuleCardPayload, ModuleTablePayload
@@ -61,6 +62,7 @@ from energy_helpers import (
 )
 from import_jobs import IMPORT_JOB_DEFINITIONS, IMPORT_JOB_NUMBER_BY_NAME
 from observability import cache_control_for_path, health_payload, response_timing_headers
+from operational_retention import OperationalRetentionPolicy, execute_retention_statements
 from unifi_protect_client import ProtectLedgerClient, ProtectLedgerError
 from pdf_exports import build_table_pdf, pdf_response
 from parking_vehicle_helpers import (
@@ -241,8 +243,6 @@ SVV_RETRY_AFTER_HOURS = max(1, int(os.getenv("SVV_RETRY_AFTER_HOURS", "24")))
 SVV_TRANSIENT_RETRY_AFTER_MINUTES = max(5, int(os.getenv("SVV_TRANSIENT_RETRY_AFTER_MINUTES", "30")))
 SVV_PERMANENT_NO_DATA_STATUSES = {204, 400, 404}
 SVV_TRANSIENT_STATUSES = {429, 500, 502, 503, 504}
-svv_sync_task: Optional[asyncio.Task] = None
-hc3_door_poll_task: Optional[asyncio.Task] = None
 hc3_door_unexpected_verified_until: Dict[int, datetime] = {}
 CAR_INFO_LOOKUP_URL = os.getenv("CAR_INFO_LOOKUP_URL", "http://127.0.0.1:8126").rstrip("/")
 CAR_INFO_APP_TOKEN = os.getenv("CAR_INFO_APP_TOKEN", "").strip()
@@ -262,7 +262,6 @@ NTFY_OUTBOX_RETRY_MAX_SECONDS = max(
     int(os.getenv("NTFY_OUTBOX_RETRY_MAX_SECONDS", "900")),
 )
 NTFY_OUTBOX_STALE_LOCK_SECONDS = max(30, int(os.getenv("NTFY_OUTBOX_STALE_LOCK_SECONDS", "300")))
-notification_outbox_task: Optional[asyncio.Task] = None
 OPERATIONAL_RETENTION_ENABLED = os.getenv("OPERATIONAL_RETENTION_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
 OPERATIONAL_RETENTION_INTERVAL_HOURS = max(1, int(os.getenv("OPERATIONAL_RETENTION_INTERVAL_HOURS", "24")))
 OPERATIONAL_RETENTION_INITIAL_DELAY_SECONDS = max(5, int(os.getenv("OPERATIONAL_RETENTION_INITIAL_DELAY_SECONDS", "60")))
@@ -272,7 +271,14 @@ IMPORT_JOB_SUCCESS_RETENTION_DAYS = max(7, int(os.getenv("IMPORT_JOB_SUCCESS_RET
 IMPORT_JOB_FAILURE_RETENTION_DAYS = max(30, int(os.getenv("IMPORT_JOB_FAILURE_RETENTION_DAYS", "365")))
 NOTIFICATION_SENT_RETENTION_DAYS = max(7, int(os.getenv("NOTIFICATION_SENT_RETENTION_DAYS", "30")))
 AUTH_SESSION_RETENTION_DAYS = max(7, int(os.getenv("AUTH_SESSION_RETENTION_DAYS", "30")))
-operational_retention_task: Optional[asyncio.Task] = None
+OPERATIONAL_RETENTION_POLICY = OperationalRetentionPolicy(
+    access_success_days=ACCESS_LOG_SUCCESS_RETENTION_DAYS,
+    access_failure_days=ACCESS_LOG_FAILURE_RETENTION_DAYS,
+    import_success_days=IMPORT_JOB_SUCCESS_RETENTION_DAYS,
+    import_failure_days=IMPORT_JOB_FAILURE_RETENTION_DAYS,
+    notification_sent_days=NOTIFICATION_SENT_RETENTION_DAYS,
+    auth_session_days=AUTH_SESSION_RETENTION_DAYS,
+)
 OPERATIONAL_RETENTION_STATE: Dict[str, Any] = {
     "status": "waiting" if OPERATIONAL_RETENTION_ENABLED else "disabled",
     "lastRunAt": None,
@@ -393,10 +399,8 @@ SUN2_AXIS_SNAPSHOT_LINK_DAYS = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_DAY
 SUN2_AXIS_SNAPSHOT_LINK_LIMIT = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_LIMIT", "5000")))
 SUN2_AXIS_SNAPSHOT_DAY_CACHE_CURRENT_SECONDS = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_DAY_CACHE_CURRENT_SECONDS", "15")))
 SUN2_AXIS_SNAPSHOT_DAY_CACHE_ARCHIVE_SECONDS = max(60, int(os.getenv("SUN2_AXIS_SNAPSHOT_DAY_CACHE_ARCHIVE_SECONDS", "3600")))
-sun2_axis_snapshot_link_task: Optional[asyncio.Task] = None
 sun2_axis_snapshot_link_lock: Optional[asyncio.Lock] = None
 axis_snapshot_day_cache: Dict[tuple[str, str], Dict[str, Any]] = {}
-sunroom_door_monitor_task: Optional[asyncio.Task] = None
 sunroom_door_alert_last_sent: Dict[str, datetime] = {}
 OWNTRACKS_SERVICE_URL = os.getenv("OWNTRACKS_SERVICE_URL", "http://owntracks_service:8128").rstrip("/")
 UNIFI_PROTECT_EVENTS_URL = os.getenv("UNIFI_PROTECT_EVENTS_URL", "http://unifi_protect_events:8130").rstrip("/")
@@ -417,7 +421,6 @@ SITE_VISIT_MAINTENANCE_LINK_MARGIN_MINUTES = max(
     0,
     int(os.getenv("SITE_VISIT_MAINTENANCE_LINK_MARGIN_MINUTES", "30")),
 )
-owntracks_visit_sync_task: Optional[asyncio.Task] = None
 owntracks_visit_sync_lock: Optional[asyncio.Lock] = None
 SECURITY_HSTS_ENABLED = os.getenv("SECURITY_HSTS_ENABLED", "false").strip().lower() in {"1", "true", "yes", "ja"}
 SECURITY_HSTS_MAX_AGE_SECONDS = max(0, int(os.getenv("SECURITY_HSTS_MAX_AGE_SECONDS", str(60 * 60 * 24 * 180))))
@@ -438,7 +441,11 @@ MOBILE_PREVIEW_SCREENS = [
 MOBILE_PREVIEW_MONEY_KEYS = {"omsetning", "omsetning-uke"}
 
 
-app = FastAPI(title="Fibaro10")
+background_tasks = BackgroundTaskSupervisor(logger)
+app = FastAPI(
+    title="Fibaro10",
+    lifespan=create_lifespan(lambda: startup(), lambda: shutdown_application()),
+)
 app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 DESKTOP_V2_DIST = Path(__file__).parent / "desktop_v2" / "dist"
@@ -6263,15 +6270,8 @@ async def notification_outbox_status(session) -> dict[str, Any]:
 
 
 async def cleanup_operational_history_once(now_value: Optional[datetime] = None) -> dict[str, int]:
-    now_value = now_value or datetime.utcnow()
-    cutoffs = {
-        "access_success": now_value - timedelta(days=ACCESS_LOG_SUCCESS_RETENTION_DAYS),
-        "access_failure": now_value - timedelta(days=ACCESS_LOG_FAILURE_RETENTION_DAYS),
-        "import_success": now_value - timedelta(days=IMPORT_JOB_SUCCESS_RETENTION_DAYS),
-        "import_failure": now_value - timedelta(days=IMPORT_JOB_FAILURE_RETENTION_DAYS),
-        "notification_sent": now_value - timedelta(days=NOTIFICATION_SENT_RETENTION_DAYS),
-        "auth_session": now_value - timedelta(days=AUTH_SESSION_RETENTION_DAYS),
-    }
+    now_value = now_value or datetime.now(timezone.utc).replace(tzinfo=None)
+    cutoffs = OPERATIONAL_RETENTION_POLICY.cutoffs(now_value)
     statements = {
         "accessLogsSuccess": delete(AccessLog).where(
             AccessLog.success.is_(True),
@@ -6300,26 +6300,20 @@ async def cleanup_operational_history_once(now_value: Optional[datetime] = None)
             )
         ),
     }
-    deleted: dict[str, int] = {}
-    async with async_session() as session:
-        for key, statement in statements.items():
-            result = await session.execute(statement)
-            deleted[key] = max(0, int(result.rowcount or 0))
-        await session.commit()
-    return deleted
+    return await execute_retention_statements(async_session, statements)
 
 
 async def operational_retention_worker() -> None:
     await asyncio.sleep(OPERATIONAL_RETENTION_INITIAL_DELAY_SECONDS)
     while True:
-        run_at = datetime.utcnow()
+        run_at = datetime.now(timezone.utc).replace(tzinfo=None)
         OPERATIONAL_RETENTION_STATE["status"] = "running"
         OPERATIONAL_RETENTION_STATE["lastRunAt"] = api_local_iso(run_at)
         try:
             deleted = await cleanup_operational_history_once(run_at)
             OPERATIONAL_RETENTION_STATE.update(
                 status="ok",
-                lastSuccessAt=api_local_iso(datetime.utcnow()),
+                lastSuccessAt=api_local_iso(datetime.now(timezone.utc).replace(tzinfo=None)),
                 lastError=None,
                 deleted=deleted,
             )
@@ -6931,13 +6925,13 @@ def fetch_met_weather() -> Optional[Dict[str, Any]]:
 
 async def met_weather_cached() -> Optional[Dict[str, Any]]:
     global met_weather_fetch_lock
-    now_value = datetime.utcnow()
+    now_value = datetime.now(timezone.utc).replace(tzinfo=None)
     if MET_WEATHER_CACHE["expires"] > now_value:
         return MET_WEATHER_CACHE["value"]
     if met_weather_fetch_lock is None:
         met_weather_fetch_lock = asyncio.Lock()
     async with met_weather_fetch_lock:
-        now_value = datetime.utcnow()
+        now_value = datetime.now(timezone.utc).replace(tzinfo=None)
         if MET_WEATHER_CACHE["expires"] > now_value:
             return MET_WEATHER_CACHE["value"]
         started_at = local_now_naive()
@@ -10911,7 +10905,7 @@ def merged_extra(data: EventDataIn):
 
 def light_from_payload(data: EventDataIn) -> OutdoorLightEvent:
     return OutdoorLightEvent(
-        timestamp=data.timestamp or datetime.utcnow(),
+        timestamp=data.timestamp or datetime.now(timezone.utc).replace(tzinfo=None),
         event_type=data.event_type,
         action=data.action,
         device_key=data.device_key,
@@ -15066,9 +15060,7 @@ async def recent_ai_logs(limit: int = 10) -> list[AiQueryLog]:
         return result.scalars().all()
 
 
-@app.on_event("startup")
 async def startup():
-    global svv_sync_task, hc3_door_poll_task, sun2_axis_snapshot_link_task, sunroom_door_monitor_task, owntracks_visit_sync_task, notification_outbox_task, operational_retention_task
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         for table_name, columns in STARTUP_COLUMNS.items():
@@ -15147,32 +15139,23 @@ async def startup():
             await get_or_create_config(session, config_key)
         await seed_energy_circuits(session)
         await session.commit()
-    if SVV_SYNC_ENABLED and SVV_API_KEY and svv_sync_task is None:
-        svv_sync_task = asyncio.create_task(parking_vehicle_svv_worker())
-    if SUN2_AXIS_SNAPSHOT_LINK_ENABLED and sun2_axis_snapshot_link_task is None:
-        sun2_axis_snapshot_link_task = asyncio.create_task(sun2_axis_snapshot_link_worker())
-    if SUNROOM_DOOR_MONITOR_ENABLED and sunroom_door_monitor_task is None:
-        sunroom_door_monitor_task = asyncio.create_task(sunroom_door_monitor_worker())
-    if HC3_DOOR_UNEXPECTED_CHECK_ENABLED and hc3_door_poll_task is None:
-        hc3_door_poll_task = asyncio.create_task(hc3_door_poll_worker())
-    if OWNTRACKS_VISIT_SYNC_ENABLED and owntracks_visit_sync_task is None:
-        owntracks_visit_sync_task = asyncio.create_task(owntracks_site_visit_sync_worker())
-    if notification_outbox_task is None or notification_outbox_task.done():
-        notification_outbox_task = asyncio.create_task(notification_outbox_worker(), name="ntfy-outbox")
-    if OPERATIONAL_RETENTION_ENABLED and (operational_retention_task is None or operational_retention_task.done()):
-        operational_retention_task = asyncio.create_task(operational_retention_worker(), name="operational-retention")
+    if SVV_SYNC_ENABLED and SVV_API_KEY:
+        background_tasks.start("svv-sync", parking_vehicle_svv_worker)
+    if SUN2_AXIS_SNAPSHOT_LINK_ENABLED:
+        background_tasks.start("sun2-axis-snapshot-link", sun2_axis_snapshot_link_worker)
+    if SUNROOM_DOOR_MONITOR_ENABLED:
+        background_tasks.start("sunroom-door-monitor", sunroom_door_monitor_worker)
+    if HC3_DOOR_UNEXPECTED_CHECK_ENABLED:
+        background_tasks.start("hc3-door-poll", hc3_door_poll_worker)
+    if OWNTRACKS_VISIT_SYNC_ENABLED:
+        background_tasks.start("owntracks-visit-sync", owntracks_site_visit_sync_worker)
+    background_tasks.start("ntfy-outbox", notification_outbox_worker)
+    if OPERATIONAL_RETENTION_ENABLED:
+        background_tasks.start("operational-retention", operational_retention_worker)
 
 
-@app.on_event("shutdown")
-async def shutdown_notification_outbox():
-    global notification_outbox_task, operational_retention_task
-    tasks = [task for task in (notification_outbox_task, operational_retention_task) if task is not None]
-    for task in tasks:
-        task.cancel()
-    if tasks:
-        await asyncio.gather(*tasks, return_exceptions=True)
-    notification_outbox_task = None
-    operational_retention_task = None
+async def shutdown_application():
+    await background_tasks.stop_all()
 
 
 def protect_ledger_client() -> ProtectLedgerClient:

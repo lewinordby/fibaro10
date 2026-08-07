@@ -26,6 +26,8 @@ function NormalizeRemote([string]$script) {
     $script -replace "`r`n", "`n" -replace "`r", "`n"
 }
 
+. (Join-Path $PSScriptRoot "deploy-plan.ps1")
+
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Set-Location $repoRoot
 if (-not $Git) {
@@ -68,6 +70,23 @@ git rev-parse --is-inside-work-tree >/dev/null
 "@
 
 Run "ssh" @("-i", $IdentityFile, "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", $QnapHost, (NormalizeRemote $preflight))
+
+$targetCommit = (& $Git rev-parse HEAD).Trim()
+$remoteCommitOutput = & ssh -i $IdentityFile -o BatchMode=yes $QnapHost "cd '$RemoteDir' && git rev-parse HEAD"
+$remoteCommitOk = $LASTEXITCODE -eq 0
+$remoteCommit = if ($remoteCommitOk) { ([string]($remoteCommitOutput | Select-Object -Last 1)).Trim() } else { "" }
+$forceFullDeploy = -not $remoteCommitOk -or -not $remoteCommit
+$changedFiles = @()
+if (-not $forceFullDeploy) {
+    $changedFiles = @(& $Git diff --name-only $remoteCommit $targetCommit)
+    if ($LASTEXITCODE -ne 0) { $forceFullDeploy = $true }
+}
+$deployPlan = Get-DeployPlan -ChangedFiles $changedFiles -ForceAll $forceFullDeploy
+$composeServices = [string]::Join(" ", $deployPlan.Services)
+$deployAllValue = if ($deployPlan.All) { "1" } else { "0" }
+$deployEasyParkValue = if ($deployPlan.EasyPark) { "1" } else { "0" }
+$deployRoborockValue = if ($deployPlan.Roborock) { "1" } else { "0" }
+Write-Host "Deploy plan: services=[$composeServices], EasyPark=$deployEasyParkValue, Roborock=$deployRoborockValue, full=$deployAllValue"
 
 $remote = @"
 set -e
@@ -140,7 +159,14 @@ export SYSTEM_APP_BUILD=`$(cat system_app/BUILD)
 export LINK_APP_BUILD=`$(cat link_app/BUILD)
 "$Docker" compose -f docker-compose.qnap.yml config --quiet
 "$Docker" rm -f owntracks_mqtt >/dev/null 2>&1 || true
-"$Docker" compose -f docker-compose.qnap.yml --profile unifi-protect up -d --build --remove-orphans
+if [ "$deployAllValue" = "1" ]; then
+    "$Docker" compose -f docker-compose.qnap.yml --profile unifi-protect up -d --build --remove-orphans
+elif [ -n "$composeServices" ]; then
+    echo "Building changed services: $composeServices"
+    "$Docker" compose -f docker-compose.qnap.yml --profile unifi-protect up -d --build --no-deps $composeServices
+else
+    echo "No container images are affected by this revision."
+fi
 ready=0
 while [ "`$ready" -lt 60 ]; do
     curl -fsS --max-time 5 http://192.168.20.218:8110/health >/dev/null 2>&1 && break
@@ -148,8 +174,12 @@ while [ "`$ready" -lt 60 ]; do
     sleep 2
 done
 curl -fsS --max-time 5 http://192.168.20.218:8110/health >/dev/null
-(cd easypark_downloader && "$Docker" compose up -d --build)
-(cd roborock_logger && "$Docker" compose -f docker-compose.qnap.yml up -d --build)
+if [ "$deployEasyParkValue" = "1" ]; then
+    (cd easypark_downloader && "$Docker" compose up -d --build)
+fi
+if [ "$deployRoborockValue" = "1" ]; then
+    (cd roborock_logger && "$Docker" compose -f docker-compose.qnap.yml up -d --build)
+fi
 roborock_ready=0
 while [ "`$roborock_ready" -lt 30 ]; do
     curl -fsS --max-time 5 http://192.168.20.218:8095/health >/dev/null 2>&1 && break

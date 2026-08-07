@@ -4,7 +4,7 @@ set -eu
 DOCKER="${DOCKER:-/share/CACHEDEV1_DATA/.qpkg/container-station/usr/bin/.libs/docker}"
 LOG_FILE="${LOG_FILE:-/share/CACHEDEV1_DATA/Public/containerdata/logs/fibaro10-docker-maintenance.log}"
 STATUS_FILE="${STATUS_FILE:-/share/CACHEDEV1_DATA/Public/containerdata/logs/fibaro10-docker-maintenance-status.txt}"
-KEEP_HOURS="${KEEP_HOURS:-168}"
+KEEP_HOURS="${KEEP_HOURS:-336}"
 LOCK_DIR="${LOCK_DIR:-/tmp/fibaro10-docker-maintenance.lock}"
 
 mkdir -p "$(dirname "$LOG_FILE")" "$(dirname "$STATUS_FILE")"

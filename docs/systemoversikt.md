@@ -136,7 +136,7 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 - Nattlig/manuell full backup håndteres av `scripts/qnap-backup.sh` og inkluderer separate SQL-dumper for Fibaro10 og OwnTracks samt Roborock-data. Backupen publiseres atomisk med SHA-256-kontrollsummer og kan replikeres til en annen maskin med `BACKUP_REPLICA_TARGET`.
 - Restore-test kjøres fra Windows med `scripts/verify-qnap-backup.ps1` og leser begge SQL-dumpene inn i midlertidige databaser.
 - `scripts/qnap-health-watch.sh` kontrollerer alle webtjenester, begge nattbackupene og ledig plass på Vol1-Vol3 hvert femte minutt.
-- `scripts/qnap-docker-maintenance.sh` rydder ukentlig ubrukte bygglag og images eldre enn syv dager, men aldri containere eller datavolumer.
+- `scripts/qnap-docker-maintenance.sh` rydder ukentlig ubrukte bygglag og images eldre enn 14 dager, men aldri containere eller datavolumer. Dette bevarer normalt minst ett tidligere byggesett som cache.
 - Fibaro10 beholder tekniske suksesslogger i 90 dager, tekniske feillogger i 365 dager og sendte varslingskøposter i 30 dager. Virksomhetsdata har ingen automatisk retention.
 
 ## Kvalitetssjekk

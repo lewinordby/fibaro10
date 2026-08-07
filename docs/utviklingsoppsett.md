@@ -85,6 +85,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-qnap.ps1
 
 `desktop_v2/scripts/smoke-live.mjs` sjekker alltid QNAP `/health`. Hvis `.env.live-smoke` finnes, logger den i tillegg inn med `fibaro-smoke` og gaar gjennom alle desktop-rutene som ogsaa brukes av lokal UI-smoke. Deploy-scriptet kjorer denne live-smoken automatisk etter vanlig smoke.
 
+Standard deploy sammenligner QNAP-commit med commiten som skal rulles ut og bygger bare tjenestene som faktisk er berort. Endringer i `main.py` eller `desktop_v2` bygger for eksempel bare `fibaro10`, mens endringer i felles mikroapp-pakker bygger de ni berorte appene. EasyPark og Roborock bygges bare nar deres egne filer eller felles Compose-oppsett er endret. Ukjente filtyper utloser bevisst full rebuild. Selve deployplanen kan regresjonstestes med `scripts/test-deploy-plan.ps1`.
+
 ## V1-referanse
 
 V1 er en valgfri frakoblet referansevisning, ikke en gammel live-app mot produksjonsdatabasen.
@@ -175,7 +177,7 @@ Lokal backup regnes fortsatt som fullført hvis den eksterne kopien feiler, men 
 
 Teknisk historikk ryddes automatisk av Fibaro10. Vellykkede tilgangs- og importlogger beholdes 90 dager, feil beholdes 365 dager, sendte ntfy-køposter 30 dager og utløpte sesjoner 30 dager. Parkering, soling, energi, dokumenter, bilder, dørhistorikk og alarmer slettes ikke av denne jobben.
 
-Docker vedlikeholdes ukentlig med `scripts/qnap-docker-maintenance.sh`. Scriptet sletter bare ubrukte bygglag og ubrukte images eldre enn syv dager. Kjørende containere, nettverk i bruk og Docker-volumer berøres ikke.
+Docker vedlikeholdes ukentlig med `scripts/qnap-docker-maintenance.sh`. Scriptet sletter bare ubrukte bygglag og ubrukte images eldre enn 14 dager, slik at minst ett ukentlig byggesett normalt beholdes som cache. Kjørende containere, nettverk i bruk og Docker-volumer berøres ikke.
 
 ## Restore-test
 

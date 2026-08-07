@@ -12,6 +12,37 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1658",
+        "date": "07.08.2026",
+        "headline": "Bakgrunnsjobber stopper kontrollert og deploy bygger bare berorte tjenester",
+        "title": "FastAPI-livssyklus, samlet task-overvaking og endringsstyrt QNAP-deploy",
+        "description": (
+            "Alle sju langkjorende jobbene eies na av en felles task-manager og avsluttes samlet ved omstart. "
+            "FastAPIs utgatte on_event-kroker er erstattet med lifespan, og teknisk retention er skilt ut fra "
+            "hovedmodulen. Deploy analyserer filendringene og bygger bare berorte containere, med full rebuild "
+            "som sikker standard nar en endring ikke kan klassifiseres."
+        ),
+        "applications": [
+            "Fibaro10 API: moderne livssyklus og kontrollert start/stopp av alle bakgrunnsjobber.",
+            "QNAP deploy: endringsstyrt bygging av hovedapp, mikroapper og innsamlingstjenester.",
+            "QNAP Docker: 14 dagers cachevindu for raskere ukentlige bygg.",
+            "Tester og dokumentasjon: egen test av deployplan og task-manager.",
+        ],
+        "request": "sett igang og gjor alt i den rekkefolgen du foreslar",
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Erstatter FastAPI on_event med lifespan uten a endre API-kontrakter.",
+            "Samler alle sju bakgrunnsjobber i BackgroundTaskSupervisor.",
+            "Kansellerer og avventer samtlige jobber ved nedstenging, ikke bare ntfy og retention.",
+            "Flytter retention-policy og databasekjoring til en egen modul.",
+            "Velger Compose-tjenester ut fra Git-diffen mellom QNAP og ny commit.",
+            "Unngar a bygge EasyPark, Roborock og AI-modellen ved urelaterte frontend- og API-endringer.",
+            "Beholder Docker-byggcache i 14 dager og tester deployklassifiseringen automatisk.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1657",
         "date": "07.08.2026",
         "headline": "Hovedgrensesnittet utnytter iPad-bredden uten horisontal scrolling",

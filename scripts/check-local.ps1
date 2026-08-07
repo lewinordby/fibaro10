@@ -51,6 +51,9 @@ Run "python" @("-m", "pytest", "alarm_mobile/tests", "-q") $repoRoot
 Run "python" @("-m", "pytest", "tests", "-q") (Join-Path $repoRoot "unifi_protect_events")
 Run "python" @("-m", "pytest", "tests/test_profiles.py", "-q") (Join-Path $repoRoot "visual_anomaly_service")
 
+Write-Host "QNAP deploy plan tests"
+Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "test-deploy-plan.ps1")) $repoRoot
+
 Write-Host "Mobile JavaScript syntax"
 Run "node" @("--check", "maintenance_mobile/app/static/maintenance-mobile.js") $repoRoot
 Run "node" @("--check", "alarm_mobile/app/static/alarm-mobile.js") $repoRoot
