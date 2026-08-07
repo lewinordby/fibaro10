@@ -653,12 +653,12 @@ def likely_plate_variants(left: Mapping[str, Any], right: Mapping[str, Any], max
     distance_limit = 1 if max(len(left_plate), len(right_plate)) <= 6 else 2
     if plate_edit_distance(left_plate, right_plate) > distance_limit:
         return False
-    for left_detection in left.get("detections") or []:
+    for left_detection in left.get("quality_detections") or left.get("detections") or []:
         left_at = parse_timestamp(left_detection.get("occurred_at"))
         left_camera = left_detection.get("camera_id") or left_detection.get("camera_name")
         if not left_at or not left_camera:
             continue
-        for right_detection in right.get("detections") or []:
+        for right_detection in right.get("quality_detections") or right.get("detections") or []:
             right_at = parse_timestamp(right_detection.get("occurred_at"))
             right_camera = right_detection.get("camera_id") or right_detection.get("camera_name")
             if right_at and left_camera == right_camera and abs((left_at - right_at).total_seconds()) <= maximum_seconds:
@@ -736,18 +736,108 @@ async def daily_license_plates(
     *,
     from_at: datetime,
     to_at: datetime,
+    include_detections: bool = True,
+    plate: str = "",
 ) -> dict[str, Any]:
     """Return one complete row per plate while retaining every detection for the day."""
+    plate_value = plate_validation.compact_plate(plate)
+    plate_filter = "AND r.normalized_value = $4" if plate_value else ""
+    query_arguments: tuple[Any, ...] = (
+        (console_key, from_at, to_at, plate_value)
+        if plate_value
+        else (console_key, from_at, to_at)
+    )
+    detection_rollup = """
+        , detection_rollup AS (
+            SELECT normalized_value AS plate,
+                   jsonb_agg(
+                       jsonb_build_object(
+                           'recognition_id', recognition_id,
+                           'occurred_at', occurred_at,
+                           'camera_id', camera_id,
+                           'camera_name', camera_name,
+                           'source_event_id', source_event_id,
+                           'unifi_score', unifi_score,
+                           'snapshot_url', snapshot_url,
+                           'snapshot_status', snapshot_status,
+                           'snapshot_captured_at', snapshot_captured_at,
+                           'snapshot_target_at', snapshot_target_at,
+                           'snapshot_time_offset_ms', snapshot_time_offset_ms,
+                           'snapshot_source', snapshot_source,
+                           'snapshot_camera_id', snapshot_camera_id
+                       ) ORDER BY occurred_at ASC, recognition_id ASC
+                   ) AS detections
+            FROM plate_rows
+            GROUP BY normalized_value
+        )
+    """ if include_detections else ""
+    detection_select = "d.detections" if include_detections else """
+        CASE
+            WHEN p.first_recognition_id = p.last_recognition_id THEN jsonb_build_array(
+                jsonb_build_object(
+                    'recognition_id', first_row.recognition_id,
+                    'occurred_at', first_row.occurred_at,
+                    'camera_id', first_row.camera_id,
+                    'camera_name', first_row.camera_name,
+                    'source_event_id', first_row.source_event_id,
+                    'unifi_score', first_row.unifi_score,
+                    'snapshot_url', first_row.snapshot_url,
+                    'snapshot_status', first_row.snapshot_status,
+                    'snapshot_captured_at', first_row.snapshot_captured_at,
+                    'snapshot_target_at', first_row.snapshot_target_at,
+                    'snapshot_time_offset_ms', first_row.snapshot_time_offset_ms,
+                    'snapshot_source', first_row.snapshot_source,
+                    'snapshot_camera_id', first_row.snapshot_camera_id
+                )
+            )
+            ELSE jsonb_build_array(
+                jsonb_build_object(
+                    'recognition_id', first_row.recognition_id,
+                    'occurred_at', first_row.occurred_at,
+                    'camera_id', first_row.camera_id,
+                    'camera_name', first_row.camera_name,
+                    'source_event_id', first_row.source_event_id,
+                    'unifi_score', first_row.unifi_score,
+                    'snapshot_url', first_row.snapshot_url,
+                    'snapshot_status', first_row.snapshot_status,
+                    'snapshot_captured_at', first_row.snapshot_captured_at,
+                    'snapshot_target_at', first_row.snapshot_target_at,
+                    'snapshot_time_offset_ms', first_row.snapshot_time_offset_ms,
+                    'snapshot_source', first_row.snapshot_source,
+                    'snapshot_camera_id', first_row.snapshot_camera_id
+                ),
+                jsonb_build_object(
+                    'recognition_id', last_row.recognition_id,
+                    'occurred_at', last_row.occurred_at,
+                    'camera_id', last_row.camera_id,
+                    'camera_name', last_row.camera_name,
+                    'source_event_id', last_row.source_event_id,
+                    'unifi_score', last_row.unifi_score,
+                    'snapshot_url', last_row.snapshot_url,
+                    'snapshot_status', last_row.snapshot_status,
+                    'snapshot_captured_at', last_row.snapshot_captured_at,
+                    'snapshot_target_at', last_row.snapshot_target_at,
+                    'snapshot_time_offset_ms', last_row.snapshot_time_offset_ms,
+                    'snapshot_source', last_row.snapshot_source,
+                    'snapshot_camera_id', last_row.snapshot_camera_id
+                )
+            )
+        END
+    """
+    detection_join = "LEFT JOIN detection_rollup d ON d.plate = p.plate" if include_detections else """
+        LEFT JOIN plate_rows first_row ON first_row.recognition_id = p.first_recognition_id
+        LEFT JOIN plate_rows last_row ON last_row.recognition_id = p.last_recognition_id
+    """
     rows = await pool.fetch(
-        """
+        f"""
         WITH plate_rows AS (
             SELECT r.recognition_id, r.value, r.normalized_value, r.is_known,
                    r.camera_id, r.camera_name, r.source_event_id, r.occurred_at,
                    COALESCE(
                        e.score,
                        CASE
-                           WHEN jsonb_typeof(r.raw #> '{sourceEvent,score}') = 'number'
-                           THEN (r.raw #>> '{sourceEvent,score}')::double precision
+                           WHEN jsonb_typeof(r.raw #> '{{sourceEvent,score}}') = 'number'
+                           THEN (r.raw #>> '{{sourceEvent,score}}')::double precision
                        END
                    ) AS unifi_score,
                    CASE
@@ -785,6 +875,7 @@ async def daily_license_plates(
               AND COALESCE(r.source_device, '') <> 'FAKE_MAC'
               AND r.occurred_at >= $2
               AND r.occurred_at < $3
+              {plate_filter}
         ), plate_totals AS (
             SELECT normalized_value AS plate,
                    (array_agg(value ORDER BY occurred_at DESC, recognition_id DESC))[1] AS display_value,
@@ -798,27 +889,20 @@ async def daily_license_plates(
                    bool_or(is_known IS TRUE) AS known_in_protect,
                    array_agg(DISTINCT COALESCE(camera_name, camera_id))
                        FILTER (WHERE COALESCE(camera_name, camera_id) IS NOT NULL) AS camera_names,
-                   jsonb_agg(
-                       jsonb_build_object(
-                           'recognition_id', recognition_id,
-                           'occurred_at', occurred_at,
-                           'camera_id', camera_id,
-                           'camera_name', camera_name,
-                           'source_event_id', source_event_id,
-                           'unifi_score', unifi_score,
-                           'snapshot_url', snapshot_url,
-                           'snapshot_status', snapshot_status,
-                           'snapshot_captured_at', snapshot_captured_at,
-                           'snapshot_target_at', snapshot_target_at,
-                           'snapshot_time_offset_ms', snapshot_time_offset_ms,
-                           'snapshot_source', snapshot_source,
-                           'snapshot_camera_id', snapshot_camera_id
-                       ) ORDER BY occurred_at ASC, recognition_id ASC
-                   ) AS detections
+                   (array_agg(recognition_id ORDER BY occurred_at ASC, recognition_id ASC))[1]
+                       AS first_recognition_id,
+                   (array_agg(recognition_id ORDER BY occurred_at DESC, recognition_id DESC))[1]
+                       AS last_recognition_id,
+                   array_agg(occurred_at ORDER BY occurred_at ASC, recognition_id ASC)
+                       AS detection_times,
+                   array_agg(camera_id ORDER BY occurred_at ASC, recognition_id ASC)
+                       AS detection_camera_ids
             FROM plate_rows
             GROUP BY normalized_value
         )
+        {detection_rollup}
         SELECT p.*,
+               {detection_select} AS detections,
                v.status AS validation_status,
                v.is_valid AS validation_is_valid,
                v.likely_misread AS validation_likely_misread,
@@ -831,19 +915,25 @@ async def daily_license_plates(
                v.checked_at AS validation_checked_at,
                v.next_check_at AS validation_next_check_at
         FROM plate_totals p
+        {detection_join}
         LEFT JOIN unifi_protect_plate_validations v
           ON v.console_key = $1 AND v.plate = p.plate
         ORDER BY p.last_detected_at DESC, p.plate ASC
         """,
-        console_key,
-        from_at,
-        to_at,
+        *query_arguments,
     )
     items = []
     for row in rows:
         item = dict(row)
         if isinstance(item.get("detections"), str):
             item["detections"] = json.loads(item["detections"])
+        item["quality_detections"] = [
+            {"occurred_at": occurred_at, "camera_id": camera_id}
+            for occurred_at, camera_id in zip(
+                item.get("detection_times") or [],
+                item.get("detection_camera_ids") or [],
+            )
+        ]
         item["validation"] = plate_validation.public_validation(item)
         for key in list(item):
             if key.startswith("validation_"):
@@ -851,6 +941,9 @@ async def daily_license_plates(
         items.append(item)
 
     add_plate_quality(items)
+    for item in items:
+        item.pop("quality_detections", None)
+        item.pop("detection_camera_ids", None)
     return {
         "from": from_at,
         "to": to_at,

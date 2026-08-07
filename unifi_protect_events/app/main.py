@@ -2107,6 +2107,8 @@ async def api_v1_daily_license_plates(
     request: Request,
     from_at: datetime = Query(alias="from"),
     to_at: datetime = Query(alias="to"),
+    include_detections: bool = Query(default=True),
+    plate: str = Query(default=""),
 ) -> dict[str, Any]:
     current = active_collector()
     require_read_api(request, current)
@@ -2119,6 +2121,8 @@ async def api_v1_daily_license_plates(
         current.settings.console_key,
         from_at=from_at,
         to_at=to_at,
+        include_detections=include_detections,
+        plate=plate,
     )
 
 

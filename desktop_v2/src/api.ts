@@ -2149,6 +2149,13 @@ export type CarsDayResponse = {
   items: CarsDayItem[];
 };
 
+export type CarsDayDetectionsResponse = {
+  plate: string;
+  selectedDay: string;
+  detectionCount: number;
+  detections: CarsDayDetection[];
+};
+
 export type MaintenanceSiteVisitField = {
   label: string;
   value: unknown;
@@ -2573,6 +2580,13 @@ export function fetchParkingVehicleDetail(plate: string): Promise<ParkingVehicle
 
 export function fetchCarsDay(day: string): Promise<CarsDayResponse> {
   return apiGet<CarsDayResponse>(`/api/cars/day?day=${encodeURIComponent(day)}`, "no-store");
+}
+
+export function fetchCarsDayDetections(day: string, plate: string): Promise<CarsDayDetectionsResponse> {
+  return apiGet<CarsDayDetectionsResponse>(
+    `/api/cars/day/${encodeURIComponent(plate)}/detections?day=${encodeURIComponent(day)}`,
+    "no-store",
+  );
 }
 
 export function fetchMaintenanceSiteVisitDetail(visitId: string | number): Promise<MaintenanceSiteVisitDetailResponse> {

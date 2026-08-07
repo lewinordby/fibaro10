@@ -12,6 +12,37 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1662",
+        "date": "07.08.2026",
+        "headline": "Tunge dagsoversikter lastes raskt uten a miste detaljene",
+        "title": "Lett biloversikt, behovslastede kamerahendelser og varme analysecacher",
+        "description": (
+            "Første ytelsestrinn reduserer mengden data som ma bygges og sendes nar biloversikten apnes. "
+            "Tabellen far fortsatt korrekte summer, kvalitet, betalingstider og første/siste bilde, mens hele "
+            "kameraarkivet hentes først nar en bil ekspanderes. Energiresultatet varmes i bakgrunnen, og nye "
+            "databaseindekser styrker bil- og prognosesporringene."
+        ),
+        "applications": [
+            "Fibaro10: lett dags-API, kort servercache, energicache og optimaliserte bildesvar.",
+            "Protect Ledger: sammendragsmodus og detaljoppslag for ett registreringsnummer.",
+            "Desktop: behovslasting av komplett deteksjonsliste i biloversikten.",
+            "PostgreSQL: nye leseindekser for normaliserte bilnummer og prognosehistorikk.",
+        ],
+        "request": "gjør dette i den rekkefølgen",
+        "work_duration": "ca. 2 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Reduserer dagsresponsen for observerte biler fra komplett hendelsesarkiv til første/siste bilde og lett beregningsgrunnlag.",
+            "Henter alle kameraobservasjoner separat og bare nar brukeren apner bilen.",
+            "Bevarer full score, deteksjonsantall, betalingsdekning og OCR-variantkontroll.",
+            "Cacher dagens bilsammendrag i 20 sekunder og historiske dager i 30 minutter.",
+            "Varmer standardanalysen for solsengforbruk automatisk i bakgrunnen.",
+            "Gir referansebilder og løpende kontrollbilder en kontrollert nettlesercache.",
+            "Legger til uttrykksindekser for normaliserte registreringsnummer og en sammensatt prognoseindeks.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1661",
         "date": "07.08.2026",
         "headline": "Yr-status oppdateres igjen ved hvert reelle MET-kall",

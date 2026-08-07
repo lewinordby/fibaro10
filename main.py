@@ -9,7 +9,7 @@ from collections import defaultdict
 from functools import lru_cache
 from statistics import median
 from types import SimpleNamespace
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Mapping, Optional
 from time import monotonic, perf_counter
 import asyncio
 from bisect import bisect_left, bisect_right
@@ -216,6 +216,9 @@ SUMMARY_CACHE: Dict[str, Dict[str, Any]] = {}
 SUNBED_POWER_ANALYSIS_CACHE_TTL = timedelta(
     minutes=max(3, int(os.getenv("SUNBED_POWER_ANALYSIS_CACHE_MINUTES", "10")))
 )
+SUNBED_POWER_CACHE_WARM_ENABLED = os.getenv("SUNBED_POWER_CACHE_WARM_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
+CARS_DAY_CACHE_TTL = timedelta(seconds=max(5, int(os.getenv("CARS_DAY_CACHE_SECONDS", "20"))))
+CARS_HISTORY_CACHE_TTL = timedelta(minutes=max(5, int(os.getenv("CARS_HISTORY_CACHE_MINUTES", "30"))))
 NTFY_BASE_URL = os.getenv("NTFY_BASE_URL", "https://ntfy.sh").rstrip("/")
 NTFY_LIGHTS_TOPIC = os.getenv("NTFY_LIGHTS_TOPIC", f"sun2-lys-{MASTER_ACCESS_KEY_HASH[:12]}")
 NTFY_VENTILATION_TOPIC = os.getenv("NTFY_VENTILATION_TOPIC", f"sun2-ventilasjon-{MASTER_ACCESS_KEY_HASH[:12]}")
@@ -10890,6 +10893,24 @@ async def load_sunbed_power_analysis(
     return value
 
 
+async def sunbed_power_cache_warm_worker() -> None:
+    refresh_seconds = max(60.0, SUNBED_POWER_ANALYSIS_CACHE_TTL.total_seconds() / 2)
+    while True:
+        try:
+            async with async_session() as session:
+                await load_sunbed_power_analysis(
+                    session,
+                    None,
+                    None,
+                    datetime.now(LOCAL_TZ).date(),
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.warning("Kunne ikke varme cache for energiforbruk per seng", exc_info=True)
+        await asyncio.sleep(refresh_seconds)
+
+
 def merged_extra(data: EventDataIn):
     extra = dict(data.extra or {})
     if data.device_key:
@@ -15152,6 +15173,8 @@ async def startup():
     background_tasks.start("ntfy-outbox", notification_outbox_worker)
     if OPERATIONAL_RETENTION_ENABLED:
         background_tasks.start("operational-retention", operational_retention_worker)
+    if SUNBED_POWER_CACHE_WARM_ENABLED:
+        background_tasks.start("sunbed-power-cache-warm", sunbed_power_cache_warm_worker)
 
 
 async def shutdown_application():
@@ -15459,6 +15482,7 @@ def cars_group_daily_recognitions(recognition_items: list[Dict[str, Any]]) -> li
         combined = deepcopy(canonical_source)
         observed_values = sorted({raw_plate for raw_plate, _ in members})
         detections: list[Dict[str, Any]] = []
+        detection_times: list[Any] = []
         camera_names: set[str] = set()
         known_in_protect = False
         for raw_plate, member in members:
@@ -15466,6 +15490,7 @@ def cars_group_daily_recognitions(recognition_items: list[Dict[str, Any]]) -> li
             for camera_name in member.get("camera_names") or []:
                 if camera_name:
                     camera_names.add(str(camera_name))
+            detection_times.extend(member.get("detection_times") or [])
             raw_detections = member.get("detections") or []
             if isinstance(raw_detections, str):
                 try:
@@ -15489,9 +15514,10 @@ def cars_group_daily_recognitions(recognition_items: list[Dict[str, Any]]) -> li
             {
                 "plate": plate_value,
                 "display_value": canonical_source.get("display_value") or plate_value,
-                "detection_count": len(detections)
-                or sum(int_or_zero(member.get("detection_count")) for _, member in members),
+                "detection_count": sum(int_or_zero(member.get("detection_count")) for _, member in members)
+                or len(detections),
                 "detections": detections,
+                "detection_times": sorted(detection_times, key=lambda value: str(value)),
                 "camera_names": sorted(camera_names),
                 "known_in_protect": known_in_protect,
                 "observed_plate_values": observed_values,
@@ -15502,6 +15528,32 @@ def cars_group_daily_recognitions(recognition_items: list[Dict[str, Any]]) -> li
         )
         result.append(combined)
     return result
+
+
+def cars_public_detection(detection: Mapping[str, Any], plate_value: str) -> Dict[str, Any]:
+    occurred_at = cars_recognition_local_datetime(detection.get("occurred_at"))
+    source_event_id = str(detection.get("source_event_id") or "").strip()
+    recognition_id = detection.get("recognition_id")
+    return {
+        "recognitionId": recognition_id,
+        "occurredAt": api_local_iso(occurred_at),
+        "cameraId": detection.get("camera_id"),
+        "cameraName": detection.get("camera_name"),
+        "observedPlate": compact_plate(detection.get("observed_plate")) or plate_value,
+        "sourceEventId": source_event_id or None,
+        "unifiScore": cars_unifi_score(detection.get("unifi_score")),
+        "snapshotStatus": detection.get("snapshot_status"),
+        "snapshotCapturedAt": detection.get("snapshot_captured_at"),
+        "snapshotTargetAt": detection.get("snapshot_target_at"),
+        "snapshotTimeOffsetMs": detection.get("snapshot_time_offset_ms"),
+        "snapshotSource": detection.get("snapshot_source"),
+        "snapshotCameraId": detection.get("snapshot_camera_id"),
+        "snapshotUrl": (
+            f"/api/unifi-protect/recognitions/{int(recognition_id)}/snapshot"
+            if recognition_id is not None and detection.get("snapshot_url")
+            else None
+        ),
+    }
 
 
 def cars_daily_payment_metrics(
@@ -15560,13 +15612,24 @@ async def api_cars_day(response: Response, day: Optional[str] = None) -> dict[st
     response.headers["Cache-Control"] = "no-store, max-age=0"
     selected_day = parse_day(day)
     today = datetime.now(LOCAL_TZ).date()
+    cache_key = f"cars_day:{selected_day.isoformat()}"
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    cached = SUMMARY_CACHE.get(cache_key)
+    if cached and cached.get("expires", datetime.min) > now_utc:
+        response.headers["X-Data-Cache"] = "hit"
+        return deepcopy(cached["value"])
+    response.headers["X-Data-Cache"] = "miss"
     day_start = datetime.combine(selected_day, time.min)
     day_end = day_start + timedelta(days=1)
     day_start_aware = day_start.replace(tzinfo=LOCAL_TZ)
     day_end_aware = day_end.replace(tzinfo=LOCAL_TZ)
     ledger = await protect_ledger_json(
         "daily_license_plates",
-        **{"from": day_start_aware.isoformat(), "to": day_end_aware.isoformat()},
+        **{
+            "from": day_start_aware.isoformat(),
+            "to": day_end_aware.isoformat(),
+            "include_detections": False,
+        },
     )
     recognition_items = cars_group_daily_recognitions(list(ledger.get("items") or []))
     plate_values = sorted(
@@ -15655,35 +15718,24 @@ async def api_cars_day(response: Response, day: Optional[str] = None) -> dict[st
         for detection in raw_detections:
             if not isinstance(detection, dict):
                 continue
-            occurred_at = cars_recognition_local_datetime(detection.get("occurred_at"))
-            if occurred_at:
-                detection_datetimes.append(occurred_at)
-            source_event_id = str(detection.get("source_event_id") or "").strip()
-            unifi_score = cars_unifi_score(detection.get("unifi_score"))
+            public_detection = cars_public_detection(detection, plate_value)
+            unifi_score = public_detection["unifiScore"]
             if unifi_score is not None:
                 unifi_scores.append(unifi_score)
-            detections.append(
-                {
-                    "recognitionId": detection.get("recognition_id"),
-                    "occurredAt": api_local_iso(occurred_at),
-                    "cameraId": detection.get("camera_id"),
-                    "cameraName": detection.get("camera_name"),
-                    "observedPlate": compact_plate(detection.get("observed_plate")) or plate_value,
-                    "sourceEventId": source_event_id or None,
-                    "unifiScore": unifi_score,
-                    "snapshotStatus": detection.get("snapshot_status"),
-                    "snapshotCapturedAt": detection.get("snapshot_captured_at"),
-                    "snapshotTargetAt": detection.get("snapshot_target_at"),
-                    "snapshotTimeOffsetMs": detection.get("snapshot_time_offset_ms"),
-                    "snapshotSource": detection.get("snapshot_source"),
-                    "snapshotCameraId": detection.get("snapshot_camera_id"),
-                    "snapshotUrl": (
-                        f"/api/unifi-protect/recognitions/{int(detection['recognition_id'])}/snapshot"
-                        if detection.get("recognition_id") is not None and detection.get("snapshot_url")
-                        else None
-                    ),
-                }
+            detections.append(public_detection)
+
+        detection_datetimes = [
+            value
+            for value in (
+                cars_recognition_local_datetime(raw_value)
+                for raw_value in source_item.get("detection_times") or []
             )
+            if value
+        ] or [
+            value
+            for value in (cars_recognition_local_datetime(item.get("occurredAt")) for item in detections)
+            if value
+        ]
 
         parking_sessions = parking_by_plate.get(plate_value, [])
         paid_sessions = [parking for parking in parking_sessions if parking["isPaid"]]
@@ -15695,11 +15747,11 @@ async def api_cars_day(response: Response, day: Optional[str] = None) -> dict[st
 
         first_detected_at = min(detection_datetimes) if detection_datetimes else cars_recognition_local_datetime(source_item.get("first_detected_at"))
         last_detected_at = max(detection_datetimes) if detection_datetimes else cars_recognition_local_datetime(source_item.get("last_detected_at"))
-        average_unifi_score = (
-            round(sum(unifi_scores) / len(unifi_scores), 1)
-            if unifi_scores
-            else cars_unifi_score(source_item.get("average_unifi_score"))
-        )
+        average_unifi_score = cars_unifi_score(source_item.get("average_unifi_score"))
+        if average_unifi_score is None and unifi_scores:
+            average_unifi_score = round(sum(unifi_scores) / len(unifi_scores), 1)
+        minimum_unifi_score = cars_unifi_score(source_item.get("minimum_unifi_score"))
+        maximum_unifi_score = cars_unifi_score(source_item.get("maximum_unifi_score"))
         registry_validation = source_item.get("validation") if isinstance(source_item.get("validation"), dict) else {
             "status": "pending",
             "is_valid": None,
@@ -15719,9 +15771,9 @@ async def api_cars_day(response: Response, day: Optional[str] = None) -> dict[st
                 "cameraNames": list(source_item.get("camera_names") or []),
                 "detections": detections,
                 "averageUnifiScore": average_unifi_score,
-                "minimumUnifiScore": min(unifi_scores) if unifi_scores else cars_unifi_score(source_item.get("minimum_unifi_score")),
-                "maximumUnifiScore": max(unifi_scores) if unifi_scores else cars_unifi_score(source_item.get("maximum_unifi_score")),
-                "scoredDetectionCount": len(unifi_scores) or int_or_zero(source_item.get("scored_detection_count")),
+                "minimumUnifiScore": minimum_unifi_score if minimum_unifi_score is not None else (min(unifi_scores) if unifi_scores else None),
+                "maximumUnifiScore": maximum_unifi_score if maximum_unifi_score is not None else (max(unifi_scores) if unifi_scores else None),
+                "scoredDetectionCount": int_or_zero(source_item.get("scored_detection_count")) or len(unifi_scores),
                 "confidenceLevel": cars_confidence_level(average_unifi_score),
                 "matchingReadCount": int_or_zero(source_item.get("detection_count")) or len(detections),
                 "observedPlateValues": list(source_item.get("observed_plate_values") or [plate_value]),
@@ -15764,7 +15816,7 @@ async def api_cars_day(response: Response, day: Optional[str] = None) -> dict[st
     observation_datetimes = [value for value in observation_datetimes if value]
     observation_start_at = min(observation_datetimes) if observation_datetimes else None
     observation_end_at = max(observation_datetimes) if observation_datetimes else None
-    return {
+    value = {
         "generatedAt": api_local_iso(local_now_naive()),
         "selectedDay": selected_day.isoformat(),
         "selectedDayLabel": selected_day.strftime("%d.%m.%Y"),
@@ -15800,6 +15852,59 @@ async def api_cars_day(response: Response, day: Optional[str] = None) -> dict[st
         },
         "items": items,
     }
+    cache_ttl = CARS_DAY_CACHE_TTL if selected_day == today else CARS_HISTORY_CACHE_TTL
+    SUMMARY_CACHE[cache_key] = {"expires": now_utc + cache_ttl, "value": deepcopy(value)}
+    return value
+
+
+@app.get("/api/cars/day/{plate}/detections")
+async def api_cars_day_detections(plate: str, day: Optional[str] = None) -> dict[str, Any]:
+    selected_day = parse_day(day)
+    plate_value = compact_plate(plate)
+    if not plate_value:
+        raise HTTPException(status_code=400, detail="Registreringsnummer mangler")
+    today = datetime.now(LOCAL_TZ).date()
+    cache_key = f"cars_day_detections:{selected_day.isoformat()}:{plate_value}"
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    cached = SUMMARY_CACHE.get(cache_key)
+    if cached and cached.get("expires", datetime.min) > now_utc:
+        return deepcopy(cached["value"])
+
+    day_start = datetime.combine(selected_day, time.min).replace(tzinfo=LOCAL_TZ)
+    day_end = (datetime.combine(selected_day, time.min) + timedelta(days=1)).replace(tzinfo=LOCAL_TZ)
+    ledger = await protect_ledger_json(
+        "daily_license_plates",
+        **{
+            "from": day_start.isoformat(),
+            "to": day_end.isoformat(),
+            "include_detections": True,
+            "plate": plate_value,
+        },
+    )
+    grouped = cars_group_daily_recognitions(list(ledger.get("items") or []))
+    source_item = next(
+        (
+            item
+            for item in grouped
+            if compact_plate(item.get("plate") or item.get("display_value")) == plate_value
+        ),
+        None,
+    )
+    raw_detections = list((source_item or {}).get("detections") or [])
+    detections = [
+        cars_public_detection(detection, plate_value)
+        for detection in raw_detections
+        if isinstance(detection, Mapping)
+    ]
+    value = {
+        "plate": plate_value,
+        "selectedDay": selected_day.isoformat(),
+        "detectionCount": int_or_zero((source_item or {}).get("detection_count")) or len(detections),
+        "detections": detections,
+    }
+    cache_ttl = CARS_DAY_CACHE_TTL if selected_day == today else CARS_HISTORY_CACHE_TTL
+    SUMMARY_CACHE[cache_key] = {"expires": now_utc + cache_ttl, "value": deepcopy(value)}
+    return value
 
 
 @app.get("/api/unifi-protect/events/{source_event_id}/snapshot")
@@ -15822,6 +15927,14 @@ async def api_unifi_protect_recognition_snapshot(recognition_id: int) -> Respons
     return Response(content=content, media_type=content_type, headers={"Cache-Control": "private, max-age=3600"})
 
 
+def bollard_image_cache_control(kind: str, *, historical: bool = False) -> str:
+    if historical:
+        return "private, max-age=86400, immutable"
+    if kind == "baseline":
+        return "private, max-age=300"
+    return "private, max-age=15, stale-while-revalidate=30"
+
+
 @app.get("/api/unifi-protect/bollards/regions/{region_id}/baseline")
 async def api_unifi_protect_bollard_baseline(region_id: int) -> Response:
     client = protect_ledger_client()
@@ -15829,7 +15942,7 @@ async def api_unifi_protect_bollard_baseline(region_id: int) -> Response:
         content, content_type = await asyncio.to_thread(client.bollard_region_baseline, region_id)
     except ProtectLedgerError as error:
         raise HTTPException(status_code=error.status_code, detail=error.message) from error
-    return Response(content=content, media_type=content_type, headers={"Cache-Control": "no-store"})
+    return Response(content=content, media_type=content_type, headers={"Cache-Control": bollard_image_cache_control("baseline")})
 
 
 @app.get("/api/unifi-protect/bollards/cameras/{camera_id}/{kind}")
@@ -15843,7 +15956,7 @@ async def api_unifi_protect_bollard_camera_image(camera_id: str, kind: str) -> R
         )
     except ProtectLedgerError as error:
         raise HTTPException(status_code=error.status_code, detail=error.message) from error
-    return Response(content=content, media_type=content_type, headers={"Cache-Control": "no-store"})
+    return Response(content=content, media_type=content_type, headers={"Cache-Control": bollard_image_cache_control(kind)})
 
 
 @app.get("/api/unifi-protect/bollards/cameras/{camera_id}/{kind}/crop")
@@ -15857,7 +15970,7 @@ async def api_unifi_protect_bollard_camera_crop(camera_id: str, kind: str) -> Re
         )
     except ProtectLedgerError as error:
         raise HTTPException(status_code=error.status_code, detail=error.message) from error
-    return Response(content=content, media_type=content_type, headers={"Cache-Control": "no-store"})
+    return Response(content=content, media_type=content_type, headers={"Cache-Control": bollard_image_cache_control(kind)})
 
 
 @app.get("/api/unifi-protect/bollards/assets/{asset_key}/{kind}")
@@ -15871,7 +15984,7 @@ async def api_unifi_protect_bollard_asset_image(asset_key: str, kind: str) -> Re
         )
     except ProtectLedgerError as error:
         raise HTTPException(status_code=error.status_code, detail=error.message) from error
-    return Response(content=content, media_type=content_type, headers={"Cache-Control": "no-store"})
+    return Response(content=content, media_type=content_type, headers={"Cache-Control": bollard_image_cache_control(kind)})
 
 
 @app.get("/api/unifi-protect/bollards/incidents/{incident_id}/images/{camera_id}/{kind}")
@@ -15890,7 +16003,11 @@ async def api_unifi_protect_bollard_incident_image(
         )
     except ProtectLedgerError as error:
         raise HTTPException(status_code=error.status_code, detail=error.message) from error
-    return Response(content=content, media_type=content_type, headers={"Cache-Control": "no-store"})
+    return Response(
+        content=content,
+        media_type=content_type,
+        headers={"Cache-Control": bollard_image_cache_control(kind, historical=True)},
+    )
 
 
 @app.get("/health")

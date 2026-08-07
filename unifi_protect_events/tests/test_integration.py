@@ -151,6 +151,40 @@ class RecognitionQueryTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("/api/v1/recognitions/", pool.query)
         self.assertIn("GROUP BY normalized_value", pool.query)
 
+    async def test_daily_plate_summary_keeps_timestamps_but_not_full_rollup(self):
+        pool = _SearchPool()
+        from_at = datetime(2026, 7, 21, 0, 0, tzinfo=timezone.utc)
+        to_at = datetime(2026, 7, 22, 0, 0, tzinfo=timezone.utc)
+
+        await daily_license_plates(
+            pool,
+            "console",
+            from_at=from_at,
+            to_at=to_at,
+            include_detections=False,
+        )
+
+        self.assertEqual(pool.arguments, ("console", from_at, to_at))
+        self.assertIn("AS detection_times", pool.query)
+        self.assertIn("first_recognition_id", pool.query)
+        self.assertNotIn("detection_rollup AS", pool.query)
+
+    async def test_daily_plate_detail_can_be_bounded_to_one_plate(self):
+        pool = _SearchPool()
+        from_at = datetime(2026, 7, 21, 0, 0, tzinfo=timezone.utc)
+        to_at = datetime(2026, 7, 22, 0, 0, tzinfo=timezone.utc)
+
+        await daily_license_plates(
+            pool,
+            "console",
+            from_at=from_at,
+            to_at=to_at,
+            plate=" ab 12345 ",
+        )
+
+        self.assertEqual(pool.arguments, ("console", from_at, to_at, "AB12345"))
+        self.assertIn("r.normalized_value = $4", pool.query)
+
 
 class PlateQualityTests(unittest.TestCase):
     def test_registry_validation_payload_distinguishes_no_match_from_transient_error(self):

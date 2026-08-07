@@ -5,11 +5,34 @@ from typing import Any
 
 
 PROTECT_LEDGER_VERSION = os.getenv("PROTECT_LEDGER_VERSION", "1")
-PROTECT_LEDGER_BUILD = os.getenv("PROTECT_LEDGER_BUILD", "18")
+PROTECT_LEDGER_BUILD = os.getenv("PROTECT_LEDGER_BUILD", "19")
 PROTECT_LEDGER_COMMIT = os.getenv("PROTECT_LEDGER_COMMIT", "unknown")
 
 
 PROTECT_LEDGER_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "19",
+        "date": "07.08.2026",
+        "headline": "Rask dagsoversikt med komplett detaljarkiv ved behov",
+        "title": "Skiltjournalen skiller lett listegrunnlag fra full deteksjonshistorikk",
+        "description": (
+            "Protect Ledger kan na levere et lite dagsammendrag med første og siste bilde, alle tidspunkter "
+            "og komplett kvalitetsgrunnlag. Hele deteksjonslisten kan samtidig avgrenses til ett skilt og "
+            "hentes først nar brukeren ber om detaljene."
+        ),
+        "request": "gjør dette i den rekkefølgen",
+        "changes": [
+            "Legger til include_detections for lett eller komplett dagsrespons.",
+            "Legger til plate-filter for rask detaljhenting av ett registreringsnummer.",
+            "Bevarer full OCR-variantkontroll med et separat, lett tids- og kameragrunnlag.",
+            "Tester bade sammendragsmodus og avgrenset detaljsporring.",
+        ],
+        "applications": [
+            "Protect Ledger: dagsaggregat og internt lese-API.",
+            "Fibaro10 build 1662: rask observerte-biler-side.",
+        ],
+    },
     {
         "version": "1",
         "build": "18",

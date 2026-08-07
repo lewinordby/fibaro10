@@ -16,7 +16,7 @@ import "dayjs/locale/nb";
 import { useMemo, useState } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 
-import { fetchCarsDay, type CarsDayDetection, type CarsDayItem, type CarsDayParkingSession } from "../api";
+import { fetchCarsDay, fetchCarsDayDetections, type CarsDayDetection, type CarsDayItem, type CarsDayParkingSession } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { PageHeader } from "../components/PageHeader";
 import { PeriodNavigator } from "../components/PeriodNavigator";
@@ -225,17 +225,25 @@ function RegistrationOverview({ item }: { item: CarsDayItem }) {
 }
 
 function DetectionDetails({ item, selectedDay }: { item: CarsDayItem; selectedDay: string }) {
+  const { data, error, loading } = useApiQuery(
+    queryKeys.carsDayDetections(selectedDay, item.plate),
+    () => fetchCarsDayDetections(selectedDay, item.plate),
+    { staleTime: selectedDay === dayjs().format("YYYY-MM-DD") ? 20_000 : 30 * 60_000 },
+  );
+  const detections = data?.detections ?? item.detections;
   return (
     <div className="cars-detection-details">
       <div className="cars-detail-heading">
         <div>
           <strong>Hele dagen for {item.plate}</strong>
-          <span>{item.detections.length} kameraobservasjon{item.detections.length === 1 ? "" : "er"}</span>
+          <span>{data?.detectionCount ?? item.detectionCount} kameraobservasjon{(data?.detectionCount ?? item.detectionCount) === 1 ? "" : "er"}</span>
         </div>
         <PaymentSessions sessions={item.paidSessions} selectedDay={selectedDay} />
       </div>
       <div className="cars-detection-grid">
-        {item.detections.map((detection, index) => (
+        {loading && !data ? <Typography.Text type="secondary">Henter alle kameraobservasjonene â€¦</Typography.Text> : null}
+        {error && !data ? <Typography.Text type="danger">Kunne ikke hente hele deteksjonslisten: {error.message}</Typography.Text> : null}
+        {detections.map((detection, index) => (
           <div className="cars-detection-item" key={detection.recognitionId ?? `${detection.occurredAt}-${index}`}>
             <EyeOutlined />
             <strong>{timeLabel(detection.occurredAt)}</strong>
@@ -526,7 +534,7 @@ export default function CarsPage() {
           size="small"
           tableLayout="fixed"
           pagination={{ pageSize: 50, showSizeChanger: true, pageSizeOptions: [25, 50, 100], showTotal: (total) => `${total} biler` }}
-          expandable={{ expandedRowRender: (item) => <DetectionDetails item={item} selectedDay={selectedDay} />, rowExpandable: (item) => item.detections.length > 0 }}
+          expandable={{ expandedRowRender: (item) => <DetectionDetails item={item} selectedDay={selectedDay} />, rowExpandable: (item) => item.detectionCount > 0 }}
           locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Ingen skilt detektert denne dagen" /> }}
         />
         <Typography.Text className="cars-table-note" type="secondary">

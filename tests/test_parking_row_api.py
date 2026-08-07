@@ -259,15 +259,67 @@ class ParkingRowApiTests(unittest.TestCase):
 
 
 class CarsDayApiTests(unittest.IsolatedAsyncioTestCase):
-    async def test_cars_day_is_rebuilt_without_http_cache(self):
-        response = main.Response()
-        with patch.object(main, "protect_ledger_json", new=AsyncMock(return_value={"items": []})):
-            payload = await main.api_cars_day(response=response, day="2026-07-21")
+    async def test_cars_day_uses_light_ledger_payload_and_server_cache(self):
+        main.clear_summary_cache("cars_day")
+        ledger = AsyncMock(return_value={"items": []})
+        try:
+            with patch.object(main, "protect_ledger_json", new=ledger):
+                first_response = main.Response()
+                first = await main.api_cars_day(response=first_response, day="2026-07-21")
+                second_response = main.Response()
+                second = await main.api_cars_day(response=second_response, day="2026-07-21")
+        finally:
+            main.clear_summary_cache("cars_day")
 
-        self.assertEqual(response.headers["Cache-Control"], "no-store, max-age=0")
-        self.assertEqual(payload["selectedDay"], "2026-07-21")
-        self.assertEqual(payload["items"], [])
-        self.assertEqual(payload["summary"]["uniquePlates"], 0)
+        self.assertEqual(first_response.headers["Cache-Control"], "no-store, max-age=0")
+        self.assertEqual(first_response.headers["X-Data-Cache"], "miss")
+        self.assertEqual(second_response.headers["X-Data-Cache"], "hit")
+        self.assertEqual(first, second)
+        self.assertEqual(first["selectedDay"], "2026-07-21")
+        self.assertEqual(first["items"], [])
+        self.assertEqual(first["summary"]["uniquePlates"], 0)
+        self.assertEqual(ledger.await_count, 1)
+
+    async def test_cars_day_requests_summary_mode_from_ledger(self):
+        main.clear_summary_cache("cars_day")
+        ledger = AsyncMock(return_value={"items": []})
+        try:
+            with patch.object(main, "protect_ledger_json", new=ledger):
+                await main.api_cars_day(response=main.Response(), day="2026-07-20")
+        finally:
+            main.clear_summary_cache("cars_day")
+
+        self.assertFalse(ledger.await_args.kwargs["include_detections"])
+
+    async def test_cars_day_detection_detail_is_loaded_for_one_plate(self):
+        main.clear_summary_cache("cars_day_detections")
+        ledger = AsyncMock(
+            return_value={
+                "items": [
+                    {
+                        "plate": "AB12345",
+                        "detection_count": 1,
+                        "detections": [
+                            {
+                                "recognition_id": 42,
+                                "occurred_at": "2026-07-21T10:15:30+02:00",
+                                "snapshot_url": "/api/v1/recognitions/42/snapshot",
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+        try:
+            with patch.object(main, "protect_ledger_json", new=ledger):
+                payload = await main.api_cars_day_detections("AB12345", day="2026-07-21")
+        finally:
+            main.clear_summary_cache("cars_day_detections")
+
+        self.assertTrue(ledger.await_args.kwargs["include_detections"])
+        self.assertEqual(ledger.await_args.kwargs["plate"], "AB12345")
+        self.assertEqual(payload["detectionCount"], 1)
+        self.assertEqual(payload["detections"][0]["recognitionId"], 42)
 
 
 if __name__ == "__main__":

@@ -21,6 +21,7 @@ export const queryKeys = {
   maintenanceSiteVisit: (visitId: string) => ["maintenance", "site-visit", visitId] as const,
   parkingVehicle: (plate: string) => ["parking", "vehicle", plate] as const,
   carsDay: (day: string) => ["cars", "day", day] as const,
+  carsDayDetections: (day: string, plate: string) => ["cars", "day", day, plate, "detections"] as const,
   revenueMonth: (month = "") => ["revenue", "month", month] as const,
   parkingTimeDistribution: (params = "") => ["parking", "time-distribution", params] as const,
   parkingWeeklyAverages: (params = "") => ["parking", "weekly-averages", params] as const,

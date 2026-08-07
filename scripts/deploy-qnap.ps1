@@ -145,6 +145,7 @@ mkdir -p visual_anomaly_service/data
 [ -d "`$legacy_sun2_dir" ] && (cd "`$legacy_sun2_dir" && "$Docker" compose down || true)
 export APP_COMMIT=`$(git rev-parse --short HEAD)
 export APP_BUILD=`$(cat BUILD)
+export PROTECT_LEDGER_BUILD=`$(cat unifi_protect_events/BUILD)
 export OWNTRACKS_APP_BUILD=`$(cat owntracks_service/BUILD)
 export SHELL_APP_BUILD=`$(cat shell_app/BUILD)
 export REVENUE_APP_BUILD=`$(cat revenue_app/BUILD)
