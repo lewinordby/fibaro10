@@ -69,7 +69,8 @@ function Test-Payload($Payload, [string]$Kind) {
     } elseif ($Payload.PSObject.Properties.Name -contains "state" -and $Payload.state.PSObject.Properties.Name -contains "last_error") {
         $lastError = $Payload.state.last_error
     }
-    if ($lastError) {
+    $isTransient = $Payload.PSObject.Properties.Name -contains "transient" -and $Payload.transient -eq $true
+    if ($lastError -and -not $isTransient) {
         throw "Siste jobbfeil: $lastError"
     }
     return "OK"
@@ -113,7 +114,7 @@ if (-not $SkipContainerCheck) {
         throw "Mangler SSH-nokkel for containerkontroll: $IdentityFile"
     }
     $expectedContainers = @(
-        "postgres-1", "owntracks_postgres", "owntracks_service", "fibaro10", "shell_app",
+        "postgres-1", "owntracks_postgres", "owntracks_service", "fibaro10", "fibaro10_worker", "shell_app",
         "revenue_app", "parking_app", "sun_app", "energy_app", "operations_app",
         "maintenance_app", "system_app", "link_app", "online_dashboard", "maintenance_mobile", "alarm_mobile",
         "fibaro10ipad", "axis_camera_snapshots", "car_info_lookup", "sun2_backfill_downloader",
@@ -129,6 +130,16 @@ for name in $($expectedContainers -join " "); do
     fi
     "$Docker" inspect --format '{{.Name}}|{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "`$name" | sed 's#^/##'
 done
+slot=`$(cat /share/CACHEDEV3_DATA/fibaro10_runtime/active-slot 2>/dev/null || true)
+case "`$slot" in
+    blue|green) active_core="fibaro10_`$slot" ;;
+    *) active_core="fibaro10_active" ;;
+esac
+if ! "$Docker" inspect "`$active_core" >/dev/null 2>&1; then
+    echo "`$active_core|missing|missing"
+else
+    "$Docker" inspect --format '{{.Name}}|{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "`$active_core" | sed 's#^/##'
+fi
 "@
     $remote = $remote -replace "`r`n", "`n" -replace "`r", "`n"
     $containerLines = & ssh -i $IdentityFile -o BatchMode=yes -o ConnectTimeout=8 $QnapHost $remote

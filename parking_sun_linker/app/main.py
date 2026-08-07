@@ -23,6 +23,7 @@ HTTP_TIMEOUT_SECONDS = max(5, int(os.getenv("KOBLE_HTTP_TIMEOUT_SECONDS", "30"))
 RUN_ON_START = os.getenv("KOBLE_RUN_ON_START", "true").strip().lower() in {"1", "true", "yes", "ja"}
 LOOP_SLEEP_SECONDS = max(0.05, float(os.getenv("KOBLE_LOOP_SLEEP_SECONDS", "0.2")))
 BATCH_SIZE = max(1, min(100, int(os.getenv("KOBLE_BATCH_SIZE", "25"))))
+ERROR_GRACE_SECONDS = max(15, int(os.getenv("KOBLE_ERROR_GRACE_SECONDS", "90")))
 
 Base = declarative_base()
 app = FastAPI(title="Fibaro10 parking sun linker")
@@ -37,6 +38,8 @@ state: dict[str, Any] = {
     "last_action": "init",
     "last_success_at": None,
     "last_error": None,
+    "last_error_at": None,
+    "consecutive_errors": 0,
     "last_parking_id": None,
     "last_plate": None,
     "last_config": None,
@@ -139,11 +142,19 @@ async def post_status(config: dict[str, Any], status: str, status_text: str, las
     try:
         await fibaro_post("/api/koble/worker/status", payload)
         if last_error:
-            set_state(last_error=last_error)
+            set_state(
+                last_error=last_error,
+                last_error_at=utcnow_iso(),
+                consecutive_errors=int(state.get("consecutive_errors") or 0) + 1,
+            )
         else:
-            set_state(last_success_at=utcnow_iso(), last_error=None)
+            set_state(last_success_at=utcnow_iso(), last_error=None, last_error_at=None, consecutive_errors=0)
     except Exception as exc:
-        set_state(last_error=f"Statusrapport feilet: {exc}")
+        set_state(
+            last_error=f"Statusrapport feilet: {exc}",
+            last_error_at=utcnow_iso(),
+            consecutive_errors=int(state.get("consecutive_errors") or 0) + 1,
+        )
 
 
 async def next_parkings(session, config: dict[str, Any], limit: int) -> list[tuple[ParkingSession, str]]:
@@ -262,6 +273,8 @@ async def process_batch(config: dict[str, Any]) -> bool:
         last_action="processed",
         last_success_at=utcnow_iso(),
         last_error=None,
+        last_error_at=None,
+        consecutive_errors=0,
         last_parking_id=int(last_processed["parking_record_id"]),
         last_plate=last_processed["plate"],
         processed_since_start=int(state.get("processed_since_start") or 0) + len(processed_rows),
@@ -294,10 +307,16 @@ async def worker_loop() -> None:
             set_state(running=False, last_action="cancelled")
             raise
         except Exception as exc:
-            set_state(last_action="error", last_error=str(exc))
+            consecutive_errors = int(state.get("consecutive_errors") or 0) + 1
+            set_state(
+                last_action="error",
+                last_error=str(exc),
+                last_error_at=utcnow_iso(),
+                consecutive_errors=consecutive_errors,
+            )
             if config:
                 await post_status(config, "feil", f"Koblingsworker feilet: {exc}", str(exc))
-            await asyncio.sleep(30)
+            await asyncio.sleep(min(30, 2 ** min(consecutive_errors, 5)))
 
 
 @app.on_event("startup")
@@ -319,8 +338,24 @@ async def shutdown() -> None:
 
 @app.get("/health")
 async def health() -> dict[str, Any]:
+    error_age_seconds = None
+    if state.get("last_error_at"):
+        try:
+            error_at = datetime.fromisoformat(str(state["last_error_at"]))
+            error_age_seconds = max(0.0, (datetime.now(timezone.utc) - error_at).total_seconds())
+        except (TypeError, ValueError):
+            error_age_seconds = None
+    transient_error = bool(
+        state.get("last_error")
+        and error_age_seconds is not None
+        and error_age_seconds <= ERROR_GRACE_SECONDS
+        and int(state.get("consecutive_errors") or 0) < 4
+    )
     return {
-        "ok": not state.get("last_error"),
+        "ok": not state.get("last_error") or transient_error,
+        "transient": transient_error,
+        "error_age_seconds": round(error_age_seconds, 1) if error_age_seconds is not None else None,
+        "error_grace_seconds": ERROR_GRACE_SECONDS,
         "time": utcnow_iso(),
         "state": state,
         "fibaro10_base_url": FIBARO10_BASE_URL,

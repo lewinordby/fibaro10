@@ -12,6 +12,33 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1669",
+        "date": "07.08.2026",
+        "headline": "Fibaro10 far kontrollert kjernesvitsj uten vanlig webnedetid",
+        "title": "To webspor, stabil gateway og separat bakgrunnsworker",
+        "description": (
+            "Ny Fibaro10-kode startes na i et inaktivt webspor og ma bestaa health- og buildkontroll for "
+            "trafikken flyttes. En stabil Caddy-gateway beholder port 8110, mens alle tidsstyrte og "
+            "kontinuerlige bakgrunnsjobber kjorer i en separat worker for a unngaa dobbeltkjoring."
+        ),
+        "applications": [
+            "Fibaro10: blue/green webkjerne og egen worker.",
+            "QNAP deploy: kontrollert sporbytte med readiness og buildverifisering.",
+            "Koble: rask retry og avgrenset toleranse for kortvarig kjernesvitsj.",
+        ],
+        "request": "Gjor utrulling tryggere med naer null nedetid og retry for avhengige tjenester.",
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Lar fibaro10-navnet og port 8110 vaere en stabil intern gateway.",
+            "Veksler mellom fibaro10_blue og fibaro10_green etter full readiness-kontroll.",
+            "Flytter bakgrunnsjobber til fibaro10_worker og hindrer doble jobber i websporene.",
+            "Lar EasyPark og Roborock sta urort ved endringer i hovedstackens Compose-fil.",
+            "Gjor koblingsmotorens korte gjenoppkobling synlig uten falsk systemfeil.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1668",
         "date": "07.08.2026",
         "headline": "Ytelsestrinnet avsluttes med realistisk live-kontroll",

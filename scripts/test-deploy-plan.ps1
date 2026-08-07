@@ -29,13 +29,25 @@ if ($multiple.All -or ($multiple.Services -join ",") -ne "fibaro10,unifi_protect
 }
 
 $deployScript = Get-Content -LiteralPath (Join-Path $PSScriptRoot "deploy-qnap.ps1") -Raw
-if ($deployScript -notmatch '\$hasComposeServicesValue' -or $deployScript -match 'elif \[ -n "\$composeServices" \]') {
+if ($deployScript -notmatch '\$coreDeployValue' -or $deployScript -notmatch 'deploy-core-qnap\.sh' -or $deployScript -match 'elif \[ -n "\$composeServices" \]') {
     throw "Deploy script must use the boolean service flag for multi-service plans."
 }
 
+$coreGateway = Get-DeployPlan -ChangedFiles @("Caddyfile.core")
+if ($coreGateway.All -or ($coreGateway.Services -join ",") -ne "fibaro10") {
+    throw "Core gateway deploy plan is wrong: $($coreGateway | ConvertTo-Json -Compress)"
+}
+
 $full = Get-DeployPlan -ChangedFiles @("docker-compose.qnap.yml")
-if (-not $full.All -or -not $full.EasyPark -or -not $full.Roborock -or $full.Services.Count -lt 20) {
+if (-not $full.All -or $full.EasyPark -or $full.Roborock -or $full.Services.Count -lt 20) {
     throw "Full deploy plan is wrong: $($full | ConvertTo-Json -Compress)"
+}
+
+$coreCompose = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\docker-compose.qnap.yml") -Raw
+foreach ($required in @("fibaro10_blue", "fibaro10_green", "fibaro10_worker", "Caddyfile.core")) {
+    if ($coreCompose -notmatch [regex]::Escape($required)) {
+        throw "Core Compose architecture is missing $required."
+    }
 }
 
 Write-Output "Deploy plan tests OK"

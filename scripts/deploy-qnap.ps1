@@ -82,12 +82,15 @@ if (-not $forceFullDeploy) {
     if ($LASTEXITCODE -ne 0) { $forceFullDeploy = $true }
 }
 $deployPlan = Get-DeployPlan -ChangedFiles $changedFiles -ForceAll $forceFullDeploy
-$composeServices = [string]::Join(" ", $deployPlan.Services)
-$hasComposeServicesValue = if ($deployPlan.Services.Count -gt 0) { "1" } else { "0" }
+$coreDeployValue = if ("fibaro10" -in $deployPlan.Services) { "1" } else { "0" }
+$standardServices = @($deployPlan.Services | Where-Object { $_ -ne "fibaro10" })
+$composeServices = [string]::Join(" ", $standardServices)
+$displayServices = [string]::Join(" ", $deployPlan.Services)
+$hasComposeServicesValue = if ($standardServices.Count -gt 0) { "1" } else { "0" }
 $deployAllValue = if ($deployPlan.All) { "1" } else { "0" }
 $deployEasyParkValue = if ($deployPlan.EasyPark) { "1" } else { "0" }
 $deployRoborockValue = if ($deployPlan.Roborock) { "1" } else { "0" }
-Write-Host "Deploy plan: services=[$composeServices], EasyPark=$deployEasyParkValue, Roborock=$deployRoborockValue, full=$deployAllValue"
+Write-Host "Deploy plan: services=[$displayServices], core=$coreDeployValue, EasyPark=$deployEasyParkValue, Roborock=$deployRoborockValue, full=$deployAllValue"
 
 $remote = @"
 set -e
@@ -161,13 +164,14 @@ export SYSTEM_APP_BUILD=`$(cat system_app/BUILD)
 export LINK_APP_BUILD=`$(cat link_app/BUILD)
 "$Docker" compose -f docker-compose.qnap.yml config --quiet
 "$Docker" rm -f owntracks_mqtt >/dev/null 2>&1 || true
-if [ "$deployAllValue" = "1" ]; then
-    "$Docker" compose -f docker-compose.qnap.yml --profile unifi-protect up -d --build --remove-orphans
-elif [ "$hasComposeServicesValue" = "1" ]; then
+if [ "$coreDeployValue" = "1" ]; then
+    sh scripts/deploy-core-qnap.sh "$Docker"
+fi
+if [ "$hasComposeServicesValue" = "1" ]; then
     echo "Building changed services: $composeServices"
     "$Docker" compose -f docker-compose.qnap.yml --profile unifi-protect up -d --build --no-deps $composeServices
 else
-    echo "No container images are affected by this revision."
+    echo "No additional Compose services are affected by this revision."
 fi
 ready=0
 while [ "`$ready" -lt 60 ]; do
@@ -190,6 +194,7 @@ while [ "`$roborock_ready" -lt 30 ]; do
 done
 curl -fsS --max-time 180 http://192.168.20.218:8095/sync-now >/dev/null
 "$Docker" exec fibaro10_proxy caddy validate --config /etc/caddy/Caddyfile || { "$Docker" logs --tail=80 fibaro10_proxy; exit 1; }
+"$Docker" exec fibaro10 caddy validate --config /etc/caddy/Caddyfile || { "$Docker" logs --tail=80 fibaro10; exit 1; }
 "$Docker" compose -f docker-compose.qnap.yml ps
 (cd easypark_downloader && "$Docker" compose ps)
 echo "Backup: `$backup_dir"

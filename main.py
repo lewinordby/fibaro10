@@ -229,6 +229,13 @@ SUNBED_POWER_ANALYSIS_CACHE_TTL = timedelta(
 SUNBED_POWER_CACHE_WARM_ENABLED = os.getenv("SUNBED_POWER_CACHE_WARM_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
 CARS_DAY_CACHE_TTL = timedelta(seconds=max(5, int(os.getenv("CARS_DAY_CACHE_SECONDS", "20"))))
 CARS_HISTORY_CACHE_TTL = timedelta(minutes=max(5, int(os.getenv("CARS_HISTORY_CACHE_MINUTES", "30"))))
+FIBARO10_PROCESS_ROLE = os.getenv("FIBARO10_PROCESS_ROLE", "combined").strip().lower() or "combined"
+FIBARO10_BACKGROUND_TASKS_ENABLED = os.getenv("FIBARO10_BACKGROUND_TASKS_ENABLED", "true").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "ja",
+}
 NTFY_BASE_URL = os.getenv("NTFY_BASE_URL", "https://ntfy.sh").rstrip("/")
 NTFY_LIGHTS_TOPIC = os.getenv("NTFY_LIGHTS_TOPIC", f"sun2-lys-{MASTER_ACCESS_KEY_HASH[:12]}")
 NTFY_VENTILATION_TOPIC = os.getenv("NTFY_VENTILATION_TOPIC", f"sun2-ventilasjon-{MASTER_ACCESS_KEY_HASH[:12]}")
@@ -15180,6 +15187,9 @@ async def startup():
             await get_or_create_config(session, config_key)
         await seed_energy_circuits(session)
         await session.commit()
+    if not FIBARO10_BACKGROUND_TASKS_ENABLED:
+        logger.info("Background tasks disabled for Fibaro10 process role %s", FIBARO10_PROCESS_ROLE)
+        return
     if SVV_SYNC_ENABLED and SVV_API_KEY:
         background_tasks.start("svv-sync", parking_vehicle_svv_worker)
     if SUN2_AXIS_SNAPSHOT_LINK_ENABLED:
@@ -16088,6 +16098,11 @@ async def health(details: bool = Query(False)):
     )
     if notifications is not None:
         payload["notifications"] = notifications
+    payload["runtime"] = {
+        "role": FIBARO10_PROCESS_ROLE,
+        "backgroundTasksEnabled": FIBARO10_BACKGROUND_TASKS_ENABLED,
+        "backgroundTasks": list(background_tasks.running_names()),
+    }
     if details:
         payload["maintenance"] = {
             "retention": {

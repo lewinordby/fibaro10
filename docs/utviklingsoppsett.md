@@ -85,7 +85,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-qnap.ps1
 
 `desktop_v2/scripts/smoke-live.mjs` sjekker alltid QNAP `/health`. Hvis `.env.live-smoke` finnes, logger den i tillegg inn med `fibaro-smoke` og gaar gjennom alle desktop-rutene som ogsaa brukes av lokal UI-smoke. Deploy-scriptet kjorer denne live-smoken automatisk etter vanlig smoke.
 
-Standard deploy sammenligner QNAP-commit med commiten som skal rulles ut og bygger bare tjenestene som faktisk er berort. Endringer i `main.py` eller `desktop_v2` bygger for eksempel bare `fibaro10`, mens endringer i felles mikroapp-pakker bygger de ni berorte appene. EasyPark og Roborock bygges bare nar deres egne filer eller felles Compose-oppsett er endret. Ukjente filtyper utloser bevisst full rebuild. Selve deployplanen kan regresjonstestes med `scripts/test-deploy-plan.ps1`.
+Standard deploy sammenligner QNAP-commit med commiten som skal rulles ut og bygger bare tjenestene som faktisk er berort. Endringer i `main.py` eller `desktop_v2` rulles ut med to kjernespor: ny versjon bygges og helsesjekkes i det inaktive sporet, den stabile `fibaro10`-gatewayen flytter trafikken, og forrige spor stoppes forst etter et vellykket bytte. Bakgrunnsjobbene kjorer i `fibaro10_worker` og startes pa ny versjon etter at webtrafikken er flyttet. EasyPark og Roborock bygges bare nar deres egne filer endres; en endring i hovedstackens Compose-fil starter dem ikke pa nytt. Ukjente filtyper utloser bevisst full rebuild av hovedstacken. Selve deployplanen kan regresjonstestes med `scripts/test-deploy-plan.ps1`.
+
+Aktivt kjernespor lagres pa QNAP i `/share/CACHEDEV3_DATA/fibaro10_runtime/active-slot`. `scripts/deploy-core-qnap.sh` eier byttet og skal ikke kalles manuelt uten at `APP_BUILD` og `APP_COMMIT` er satt. Vanlig inngang er alltid `scripts/deploy-qnap.ps1`.
 
 ## V1-referanse
 

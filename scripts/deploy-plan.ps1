@@ -23,6 +23,9 @@ function Get-DeployPlan([string[]]$ChangedFiles, [bool]$ForceAll = $false) {
         if ($path -eq "docker-compose.qnap.yml" -or $path -eq ".dockerignore") {
             $deployAll = $true
         }
+        elseif ($path -eq "Caddyfile.core") {
+            [void]$services.Add("fibaro10")
+        }
         elseif ($path -eq "Caddyfile") {
             [void]$services.Add("fibaro10_proxy")
         }
@@ -64,8 +67,6 @@ function Get-DeployPlan([string[]]$ChangedFiles, [bool]$ForceAll = $false) {
 
     if ($deployAll) {
         foreach ($service in $allServices) { [void]$services.Add($service) }
-        $deployEasyPark = $true
-        $deployRoborock = $true
     }
 
     [pscustomobject]@{
