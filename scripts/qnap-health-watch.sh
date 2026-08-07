@@ -29,6 +29,17 @@ check() {
     printf '%s %s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$result" "$name" | tee -a "$LOG_FILE" >> "$status_tmp"
 }
 
+file_is_fresh() {
+    file="$1"
+    max_age_seconds="$2"
+    test -f "$file" || return 1
+    grep -Eq '^status=(ok|warning)$' "$file" || return 1
+    modified_at="$(stat -c %Y "$file" 2>/dev/null)" || return 1
+    now="$(date +%s)"
+    age_seconds=$((now - modified_at))
+    test "$age_seconds" -ge 0 && test "$age_seconds" -le "$max_age_seconds"
+}
+
 check fibaro10 curl -fsS --max-time 15 http://192.168.20.218:8110/health
 check shell_app curl -fsS --max-time 15 http://192.168.20.218:8150/ready
 check revenue_app curl -fsS --max-time 15 http://192.168.20.218:8151/ready
@@ -54,8 +65,8 @@ check roborock_logger curl -fsS --max-time 15 http://192.168.20.218:8095/health
 check sun2_backfill_downloader curl -fsS --max-time 15 http://192.168.20.218:8097/json
 check sun2_importer curl -fsS --max-time 15 http://192.168.20.218:8096/json
 check sun2_session_scraper curl -fsS --max-time 15 http://192.168.20.218:8099/json
-check nightly_backup sh -c "test -f '$BACKUP_ROOT/LATEST_STATUS.txt' && grep -Eq '^status=(ok|warning)$' '$BACKUP_ROOT/LATEST_STATUS.txt' && find '$BACKUP_ROOT/LATEST_STATUS.txt' -mmin -1560 -print -quit | grep -q ."
-check full_restore_backup sh -c "test -f '$FULL_BACKUP_STATUS' && grep -Eq '^status=(ok|warning)$' '$FULL_BACKUP_STATUS' && find '$FULL_BACKUP_STATUS' -mmin -2940 -print -quit | grep -q ."
+check nightly_backup file_is_fresh "$BACKUP_ROOT/LATEST_STATUS.txt" 93600
+check full_restore_backup file_is_fresh "$FULL_BACKUP_STATUS" 176400
 check volume_1_free sh -c "test \$(df -Pk /share/CACHEDEV1_DATA | awk 'NR==2 {print 100-\$5}') -ge 10"
 check volume_2_free sh -c "test \$(df -Pk /share/CACHEDEV2_DATA | awk 'NR==2 {print 100-\$5}') -ge 10"
 check volume_3_free sh -c "test \$(df -Pk /share/CACHEDEV3_DATA | awk 'NR==2 {print 100-\$5}') -ge 10"

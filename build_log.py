@@ -12,6 +12,30 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1656",
+        "date": "07.08.2026",
+        "headline": "Backupovervakningen er kompatibel med QNAP og viser riktig status",
+        "title": "Filalder kontrolleres uten avhengighet til GNU find",
+        "description": (
+            "QNAP bruker BusyBox-verktøy som ikke stotter find-flagget som den nye overvakingen brukte. "
+            "Backuper var gyldige og ferske, men ble derfor feilaktig vist som feilet. Kontrollen leser na "
+            "filens Unix-tidsstempel direkte og validerer samtidig at backupstatus er ok eller warning."
+        ),
+        "applications": [
+            "QNAP helseovervaking: korrekt kontroll av nattbackup og full restore-backup.",
+            "Fibaro10: nytt buildnummer og sporbar korrigering i buildloggen.",
+        ],
+        "request": "sett igang og gjor alt i den rekkefolgen du foreslar",
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Erstatter BusyBox-inkompatibel find -quit med stat-basert alderskontroll.",
+            "Beholder krav om gyldig statusinnhold og avviser tidsstempler fra fremtiden.",
+            "Bruker eksplisitte grenser pa 26 timer for nattbackup og 49 timer for full restore-backup.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1655",
         "date": "07.08.2026",
         "headline": "Driften er ryddet, etterprovbar og vesentlig lettere a vedlikeholde",
