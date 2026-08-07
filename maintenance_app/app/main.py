@@ -18,6 +18,8 @@ app = create_domain_app(
         commit_env="MAINTENANCE_APP_COMMIT",
         app_dir=APP_DIR,
         port=8156,
+        pwa_description="Vedlikeholdsoppgaver og besøkslogg for Lilletorget.",
+        pwa_theme_color="#0f766e",
         allowed_paths={"GET": {"auth/me", "modules/vedlikehold"}},
         allowed_patterns={method: (DOMAIN_PATTERN,) for method in ("GET", "POST", "PATCH", "PUT", "DELETE")},
     )

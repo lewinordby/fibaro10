@@ -19,6 +19,8 @@ app = create_domain_app(
         commit_env="LINK_APP_COMMIT",
         app_dir=APP_DIR,
         port=8158,
+        pwa_description="Kontroll og kobling av parkeringer mot Sun2-kunder.",
+        pwa_theme_color="#7c3aed",
         allowed_paths={"GET": MODULES},
         allowed_patterns={method: (DOMAIN_PATTERN,) for method in ("GET", "POST", "PATCH", "PUT", "DELETE")},
     )

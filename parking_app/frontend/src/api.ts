@@ -1,6 +1,7 @@
 import type {
   AppConfig,
   AuthUser,
+  CarsDayDetectionsResponse,
   CarsDayResponse,
   ModuleAction,
   ModuleResponse,
@@ -48,6 +49,7 @@ export const api = {
   vehicle: (plate: string) => request<ParkingVehicleDetailResponse>(`/api/parking/vehicles/${encodeURIComponent(plate)}`),
   lookup: (mode: "navn" | "omrade", limit: number, offset: number) => request<ParkingLookupResponse>(query(`/api/parkering/kjoretoy/mangler-${mode}`, new URLSearchParams({ limit: String(limit), offset: String(offset) }))),
   carsDay: (day: string) => request<CarsDayResponse>(query("/api/cars/day", new URLSearchParams({ day }))),
+  carDetections: (plate: string, day: string) => request<CarsDayDetectionsResponse>(query(`/api/cars/day/${encodeURIComponent(plate)}/detections`, new URLSearchParams({ day }))),
   settlement: (id: string) => request<SettlementDetailResponse>(`/api/settlements/${encodeURIComponent(id)}`),
   action: (action: ModuleAction) => request<{ message?: string; status?: string }>(action.path, { method: action.method }),
 };

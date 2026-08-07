@@ -14,16 +14,31 @@ class ParkingAppTest(unittest.TestCase):
         with TestClient(app) as client:
             health = client.get("/health")
             config = client.get("/api/app/config")
+            manifest = client.get("/manifest.webmanifest")
+            icon = client.get("/pwa-icon-512.png")
         self.assertEqual(health.status_code, 200)
         self.assertEqual(health.json()["service"], "parking_app")
         self.assertEqual(config.status_code, 200)
         self.assertEqual(config.json()["name"], "Lilletorget Parkering")
+        self.assertEqual(manifest.status_code, 200)
+        self.assertEqual(manifest.json()["name"], "Lilletorget Parkering")
+        self.assertEqual(manifest.json()["theme_color"], "#0284c7")
+        self.assertTrue(manifest.headers["content-type"].startswith("application/manifest+json"))
+        self.assertEqual(icon.status_code, 200)
 
     def test_frontend_redirects_to_login_without_cookies(self) -> None:
         with TestClient(app, follow_redirects=False) as client:
             response = client.get("/parkeringer")
         self.assertEqual(response.status_code, 303)
         self.assertEqual(response.headers["location"], "/auth/login")
+
+    def test_frontend_exposes_manifest_and_apple_metadata(self) -> None:
+        with TestClient(app) as client:
+            response = client.get("/observerte-biler", cookies={"fibaro10_session": "test"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.text.count('rel="manifest"'), 1)
+        self.assertIn('rel="apple-touch-icon"', response.text)
+        self.assertIn('name="theme-color"', response.text)
 
     def test_proxy_rejects_unrelated_endpoints(self) -> None:
         with TestClient(app) as client:
@@ -61,6 +76,19 @@ class ParkingAppTest(unittest.TestCase):
                 settlement = client.get("/api/settlements/42")
         self.assertEqual(vehicle.status_code, 200)
         self.assertEqual(settlement.status_code, 200)
+
+    def test_car_detection_detail_path_is_allowed(self) -> None:
+        core_response = httpx.Response(
+            200,
+            json={"plate": "AB12345", "detections": [{"recognitionId": 42}]},
+            request=httpx.Request("GET", "http://fibaro10/api/cars/day/AB12345/detections"),
+        )
+        with TestClient(app) as client:
+            with patch.object(client.app.state.core_client, "request", new=AsyncMock(return_value=core_response)) as core_request:
+                response = client.get("/api/cars/day/AB12345/detections?day=2026-08-07")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["detections"][0]["recognitionId"], 42)
+        self.assertEqual(str(core_request.call_args.kwargs["params"]), "day=2026-08-07")
 
     def test_native_lookup_worklists_are_allowed(self) -> None:
         core_response = httpx.Response(

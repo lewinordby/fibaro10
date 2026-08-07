@@ -14,6 +14,30 @@ OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
     {
         "version": "1",
+        "build": "29",
+        "date": "07.08.2026",
+        "headline": "OwnTracks kan installeres med egen PWA-identitet",
+        "title": "Manifest, appikoner og installasjonsmetadata er standardisert",
+        "description": (
+            "OwnTracks-flaten har fått eget Lilletorget-manifest med korrekte ikoner for PC, Android og Apple-enheter. "
+            "Manifest og ikoner leveres fra det samme testede PWA-laget som resten av appene."
+        ),
+        "applications": [
+            "OwnTracks frontend: manifest-, tema- og Apple-metadata.",
+            "OwnTracks backend: offentlige og cachede manifest- og ikonruter.",
+            "Docker: felles PWA-runtime inkluderes i OwnTracks-image.",
+        ],
+        "request": "kan du sørge for et orntlig pwa manifest i alle appene",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger inn appnavn, beskrivelse, temafarge, kategorier, scope og standalone-visning.",
+            "Bruker faktiske 192- og 512-pikslers ikoner samt maskable-ikon.",
+            "Beholder posisjonsdata og beregningslogikk uendret.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "27",
         "date": "03.08.2026",
         "headline": "Oppdatert frontendgrunnlag",

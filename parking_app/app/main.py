@@ -49,6 +49,9 @@ app = create_domain_app(
         commit_env="PARKING_APP_COMMIT",
         app_dir=APP_DIR,
         port=8152,
+        pwa_description="Parkeringer, kjøretøy, betaling og parkeringsanalyse for Lilletorget.",
+        pwa_theme_color="#0284c7",
+        pwa_categories=("business", "navigation", "productivity"),
         allowed_paths={
             "GET": {
                 "auth/me",
@@ -73,6 +76,7 @@ app = create_domain_app(
         allowed_patterns={
             "GET": (
                 re.compile(r"parking/vehicles/[a-z0-9-]+"),
+                re.compile(r"cars/day/[a-z0-9-]+/detections"),
                 re.compile(r"parkering/kjoretoy/mangler-(?:navn|omrade)"),
                 re.compile(r"settlements/\d+"),
                 re.compile(r"settlements/\d+/attachment"),

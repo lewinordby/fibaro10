@@ -2393,6 +2393,39 @@ OWNTRACKS_ADMIN_HTML = """
 
 
 app = FastAPI(title="OwnTracks service")
+OWNTRACKS_PWA_MANIFEST = {
+    "id": "/",
+    "name": "Lilletorget OwnTracks",
+    "short_name": "OwnTracks",
+    "description": "Posisjoner, steder og besøkslogg for Lilletorget.",
+    "lang": "nb-NO",
+    "dir": "ltr",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "display_override": ["standalone", "minimal-ui"],
+    "orientation": "any",
+    "background_color": "#f8fafc",
+    "theme_color": "#2563eb",
+    "categories": ["navigation", "lifestyle", "productivity"],
+    "prefer_related_applications": False,
+    "icons": [
+        {"src": "/pwa-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+        {"src": "/pwa-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+        {"src": "/pwa-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+    ],
+    "launch_handler": {"client_mode": "navigate-existing"},
+}
+OWNTRACKS_PWA_HEAD = (
+    '<meta name="theme-color" content="#2563eb">'
+    '<meta name="mobile-web-app-capable" content="yes">'
+    '<meta name="apple-mobile-web-app-capable" content="yes">'
+    '<meta name="apple-mobile-web-app-title" content="OwnTracks">'
+    '<link rel="manifest" href="/manifest.webmanifest">'
+    '<link rel="icon" href="/pwa-icon-192.png" type="image/png">'
+    '<link rel="apple-touch-icon" href="/apple-touch-icon.png">'
+)
+OWNTRACKS_PWA_DIR = Path(__file__).resolve().parent
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 if (FRONTEND_DIST / "assets").exists():
     app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="owntracks_assets")
@@ -2408,7 +2441,40 @@ def on_startup() -> None:
 def owntracks_admin_response() -> Response:
     if FRONTEND_INDEX.exists():
         return FileResponse(FRONTEND_INDEX)
-    return HTMLResponse(OWNTRACKS_ADMIN_HTML)
+    return HTMLResponse(OWNTRACKS_ADMIN_HTML.replace("</head>", f"{OWNTRACKS_PWA_HEAD}</head>", 1))
+
+
+@app.get("/manifest.webmanifest", include_in_schema=False)
+def pwa_manifest() -> Response:
+    return Response(
+        json.dumps(OWNTRACKS_PWA_MANIFEST, ensure_ascii=False, separators=(",", ":")),
+        media_type="application/manifest+json",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
+def pwa_icon(filename: str) -> FileResponse:
+    return FileResponse(
+        OWNTRACKS_PWA_DIR / filename,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
+
+
+@app.get("/pwa-icon-192.png", include_in_schema=False)
+def pwa_icon_192() -> FileResponse:
+    return pwa_icon("pwa-icon-192.png")
+
+
+@app.get("/pwa-icon-512.png", include_in_schema=False)
+@app.get("/apple-touch-icon.png", include_in_schema=False)
+def pwa_icon_512() -> FileResponse:
+    return pwa_icon("pwa-icon-512.png")
+
+
+@app.get("/pwa-icon-maskable-512.png", include_in_schema=False)
+def pwa_icon_maskable() -> FileResponse:
+    return pwa_icon("pwa-icon-maskable-512.png")
 
 
 @app.get("/", response_model=None)

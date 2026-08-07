@@ -293,6 +293,13 @@ export type CarsDayDetection = {
   snapshotUrl?: string | null;
 };
 
+export type CarsDayDetectionsResponse = {
+  plate: string;
+  selectedDay: string;
+  detectionCount: number;
+  detections: CarsDayDetection[];
+};
+
 export type CarsRegistryValidation = {
   status: string;
   is_valid?: boolean | null;

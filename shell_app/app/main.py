@@ -9,8 +9,11 @@ from typing import Any, AsyncIterator
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+
+from microapp_backend import PwaConfig, inject_pwa_head, pwa_head_tags, register_pwa
+from microapp_backend.pwa import PWA_ICON_PATH
 
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstrip("/")
@@ -39,6 +42,13 @@ AUTH_USER_COOKIE_NAME = "fibaro10_access_username"
 AUTH_COOKIE_NAME = "fibaro10_access_password"
 AUTH_SESSION_COOKIE_NAME = "fibaro10_session"
 STATIC_DIR = Path(__file__).resolve().parent / "static" / "dist"
+PWA = PwaConfig(
+    name="Lilletorget Apper",
+    short_name="Apper",
+    description="Appvelger og samlet inngang til Lilletorget-systemet.",
+    theme_color="#4f46e5",
+    categories=("business", "productivity", "utilities"),
+)
 
 
 APP_DEFINITIONS: list[dict[str, Any]] = [
@@ -85,6 +95,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Lilletorget", docs_url=None, redoc_url=None, lifespan=lifespan)
+register_pwa(app, PWA)
 if STATIC_DIR.exists():
     app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
 
@@ -169,8 +180,8 @@ async def ready(request: Request) -> JSONResponse:
 
 
 @app.get("/favicon.ico")
-async def favicon() -> Response:
-    return Response(status_code=204)
+async def favicon() -> FileResponse:
+    return FileResponse(PWA_ICON_PATH, media_type="image/png")
 
 
 @app.get("/api/app/config")
@@ -250,8 +261,11 @@ async def logout(request: Request) -> RedirectResponse:
 def index_html() -> str:
     index_path = STATIC_DIR / "index.html"
     if not index_path.exists():
-        return "<!doctype html><html lang='no'><body><h1>Frontend er ikke bygget</h1></body></html>"
-    return index_path.read_text(encoding="utf-8")
+        return inject_pwa_head(
+            "<!doctype html><html lang='no'><head><title>Frontend mangler</title></head><body><h1>Frontend er ikke bygget</h1></body></html>",
+            PWA,
+        )
+    return inject_pwa_head(index_path.read_text(encoding="utf-8"), PWA)
 
 
 @app.get("/{path:path}", response_class=HTMLResponse)
@@ -267,7 +281,7 @@ def login_html(error: str = "") -> str:
     css_href = match.group(1) if match else ""
     error_html = f'<div class="mt-5 rounded-lg bg-red-500/20 px-3 py-2 text-sm text-red-700">{error}</div>' if error else ""
     return f"""<!doctype html>
-<html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>Logg inn - Apper</title><link rel="stylesheet" href="{css_href}"></head>
+<html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>Logg inn - Apper</title>{pwa_head_tags(PWA)}<link rel="stylesheet" href="{css_href}"></head>
 <body class="font-inter antialiased bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400">
 <main class="bg-white dark:bg-gray-900"><div class="flex min-h-[100dvh] flex-col justify-center"><div class="mx-auto w-full max-w-sm px-4 py-8">
 <h1 class="mb-2 text-3xl font-bold text-gray-800 dark:text-gray-100">Velkommen tilbake</h1><p class="mb-6 text-sm text-gray-500 dark:text-gray-400">Bruk samme konto som i Fibaro10.</p>

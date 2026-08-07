@@ -16,6 +16,9 @@ app = create_domain_app(
         commit_env="REVENUE_APP_COMMIT",
         app_dir=APP_DIR,
         port=8151,
+        pwa_description="Omsetning, utvikling og periodesammenligninger for Lilletorget.",
+        pwa_theme_color="#e11d48",
+        pwa_categories=("business", "finance", "productivity"),
         allowed_paths={
             "GET": {
                 "auth/me",

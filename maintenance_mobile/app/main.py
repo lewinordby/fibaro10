@@ -224,16 +224,30 @@ async def favicon():
 async def manifest():
     return JSONResponse(
         {
+            "id": "/",
             "name": "Lilletorget Vedlikehold",
             "short_name": "Vedlikehold",
+            "description": "Rask registrering og oppfølging av vedlikehold på Lilletorget.",
+            "lang": "nb-NO",
+            "dir": "ltr",
             "start_url": "/",
+            "scope": "/",
             "display": "standalone",
+            "display_override": ["standalone", "minimal-ui"],
+            "orientation": "portrait",
             "background_color": "#f4f7fb",
             "theme_color": "#755ff8",
+            "categories": ["business", "productivity", "utilities"],
+            "prefer_related_applications": False,
             "icons": [
-                {"src": "/static/lilletorget-favicon.png", "sizes": "512x512", "type": "image/png"},
+                {"src": "/static/pwa-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+                {"src": "/static/pwa-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+                {"src": "/static/pwa-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
             ],
-        }
+            "launch_handler": {"client_mode": "navigate-existing"},
+        },
+        media_type="application/manifest+json",
+        headers={"Cache-Control": "public, max-age=3600"},
     )
 
 
@@ -360,7 +374,13 @@ def login_html(error: str = "", *, next_path: str = "/") -> str:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#755ff8">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Vedlikehold">
   <title>Logg inn · Vedlikehold</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/static/pwa-icon-512.png">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
   <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1469">
 </head>
@@ -391,8 +411,12 @@ INDEX_HTML = """<!doctype html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#755ff8">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Vedlikehold">
   <title>Lilletorget Vedlikehold</title>
   <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/static/pwa-icon-512.png">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
   <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1469">
   <script src="/assets/maintenance-mobile.js?v=1469" defer></script>

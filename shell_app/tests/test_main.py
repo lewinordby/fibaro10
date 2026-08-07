@@ -18,9 +18,12 @@ class ShellAppTest(unittest.TestCase):
         with TestClient(app) as client:
             health = client.get("/health")
             config = client.get("/api/app/config")
+            manifest = client.get("/manifest.webmanifest")
         self.assertEqual(health.status_code, 200)
         self.assertEqual(health.json()["service"], "shell_app")
         self.assertEqual(config.json()["shellUrl"], "http://192.168.20.218:8150")
+        self.assertEqual(manifest.json()["name"], "Lilletorget Apper")
+        self.assertEqual(manifest.json()["display"], "standalone")
 
     def test_frontend_redirects_without_login(self) -> None:
         with TestClient(app, follow_redirects=False) as client:

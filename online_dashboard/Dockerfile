@@ -9,6 +9,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY online_dashboard ./online_dashboard
+COPY microapp_backend ./microapp_backend
 COPY static ./static
 
 EXPOSE 8111

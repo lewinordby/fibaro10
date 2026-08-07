@@ -11,8 +11,10 @@ from typing import Any, AsyncIterator, Awaitable, Callable, Pattern
 import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+
+from .pwa import PWA_ICON_PATH, PwaConfig, inject_pwa_head, pwa_head_tags, register_pwa
 
 
 AUTH_USER_COOKIE_NAME = "fibaro10_access_username"
@@ -35,6 +37,10 @@ class DomainAppConfig:
     allowed_patterns: dict[str, tuple[Pattern[str], ...]] = field(default_factory=dict)
     resource_patterns: tuple[Pattern[str], ...] = field(default_factory=tuple)
     adapters: dict[str, ProxyAdapter] = field(default_factory=dict)
+    pwa_description: str = "Operativ arbeidsflate for Lilletorget."
+    pwa_theme_color: str = "#4f46e5"
+    pwa_background_color: str = "#f8fafc"
+    pwa_categories: tuple[str, ...] = ("business", "productivity")
 
     def build(self) -> str:
         build_file = self.app_dir / "BUILD"
@@ -50,6 +56,14 @@ def create_domain_app(config: DomainAppConfig) -> FastAPI:
     commit = os.getenv(config.commit_env, os.getenv("APP_COMMIT", "unknown"))
     started_at = os.getenv(f"{config.service.upper()}_STARTED_AT", "runtime")
     static_dir = config.app_dir / "app" / "static" / "dist"
+    pwa = PwaConfig(
+        name=config.name,
+        short_name=config.short_name,
+        description=config.pwa_description,
+        theme_color=config.pwa_theme_color,
+        background_color=config.pwa_background_color,
+        categories=config.pwa_categories,
+    )
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -63,6 +77,7 @@ def create_domain_app(config: DomainAppConfig) -> FastAPI:
         await application.state.core_client.aclose()
 
     app = FastAPI(title=config.name, docs_url=None, redoc_url=None, lifespan=lifespan)
+    register_pwa(app, pwa)
     app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
     if static_dir.exists():
         app.mount("/assets", StaticFiles(directory=static_dir / "assets"), name="assets")
@@ -116,15 +131,18 @@ def create_domain_app(config: DomainAppConfig) -> FastAPI:
     def index_html() -> str:
         index_path = static_dir / "index.html"
         if not index_path.exists():
-            return "<!doctype html><html lang='no'><body><h1>Frontend er ikke bygget</h1></body></html>"
-        return index_path.read_text(encoding="utf-8")
+            return inject_pwa_head(
+                "<!doctype html><html lang='no'><head><title>Frontend mangler</title></head><body><h1>Frontend er ikke bygget</h1></body></html>",
+                pwa,
+            )
+        return inject_pwa_head(index_path.read_text(encoding="utf-8"), pwa)
 
     def login_html(error: str = "") -> str:
         match = re.search(r'href="(/assets/[^"]+\.css)"', index_html())
         css_href = match.group(1) if match else ""
         error_html = f'<div class="mt-5 rounded-lg bg-red-500/20 px-3 py-2 text-sm text-red-700">{error}</div>' if error else ""
         return f"""<!doctype html>
-<html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>Logg inn - {config.short_name}</title><link rel="stylesheet" href="{css_href}"></head>
+<html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>Logg inn - {config.short_name}</title>{pwa_head_tags(pwa)}<link rel="stylesheet" href="{css_href}"></head>
 <body class="font-inter antialiased bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400">
 <main class="bg-white dark:bg-gray-900"><div class="flex min-h-[100dvh] flex-col justify-center"><div class="mx-auto w-full max-w-sm px-4 py-8">
 <h1 class="mb-2 text-3xl font-bold text-gray-800 dark:text-gray-100">{config.short_name}</h1><p class="mb-6 text-sm text-gray-500 dark:text-gray-400">Bruk samme konto som i Fibaro10.</p>
@@ -157,8 +175,8 @@ def create_domain_app(config: DomainAppConfig) -> FastAPI:
         return JSONResponse({"ok": True, "service": config.service, "core": "ready"})
 
     @app.get("/favicon.ico")
-    async def favicon() -> Response:
-        return Response(status_code=204)
+    async def favicon() -> FileResponse:
+        return FileResponse(PWA_ICON_PATH, media_type="image/png")
 
     @app.get("/api/app/config")
     async def app_config() -> dict[str, str]:

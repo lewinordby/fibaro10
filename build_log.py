@@ -12,6 +12,36 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1664",
+        "date": "07.08.2026",
+        "headline": "Alle aktive brukerflater får komplett PWA-identitet",
+        "title": "Felles manifest, eksakte appikoner og korrekt installasjonsmetadata",
+        "description": (
+            "Fibaro10, appvelgeren, alle åtte fagapper og de separate mobilflatene bruker nå en samlet "
+            "PWA-standard. Hver app har eget navn, beskrivelse, temafarge og kategori, mens felles kode sikrer "
+            "korrekt MIME-type, cache, Apple-metadata og vedlikeholdbare manifest fremover."
+        ),
+        "applications": [
+            "Fibaro10 og Online Dashboard: komplett manifest og metadata i hovedflatene.",
+            "Appvelger, Omsetning, Parkering, Soling, Energi, Bygg og drift, Vedlikehold, System og Koble: felles PWA-runtime.",
+            "Vedlikehold mobil, Alarm og iPad: oppgraderte installasjonsmanifest og Apple-metadata.",
+            "OwnTracks: eget manifest og PWA-identitet i den separate applikasjonen.",
+            "Parkering: kompakt biloversikt og behovslasting av kamerabilder fullført samtidig.",
+        ],
+        "request": "kan du sørge for et orntlig pwa manifest i alle appene",
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger inn id, scope, start_url, standalone-visning, språk, retning, orientering, kategorier og appbeskrivelse.",
+            "Leverer manifest som application/manifest+json med kontrollert cache.",
+            "Lager faktiske 192- og 512-pikslers PNG-ikoner samt en separat polstret maskable-variant.",
+            "Legger til theme-color, appnavn, Apple standalone-metadata og apple-touch-icon i HTML.",
+            "Holder dynamiske driftsdata utenfor offline-cache for å unngå å vise foreldet status.",
+            "Tester manifestkontrakten, faktiske bildedimensjoner, offentlige ikonruter og HTML-integrasjon.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1663",
         "date": "07.08.2026",
         "headline": "Selektiv deploy handterer flere tjenester i samme utrulling",

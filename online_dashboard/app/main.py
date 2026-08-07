@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from microapp_backend import PwaConfig, inject_pwa_head, register_pwa
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -33,7 +34,16 @@ AUTH_COOKIE_NAME = "fibaro10_access_password"
 AUTH_SESSION_COOKIE_NAME = "fibaro10_session"
 AUTH_SESSION_MAX_AGE_SECONDS = max(3600, int(os.getenv("AUTH_SESSION_MAX_AGE_SECONDS", str(60 * 60 * 24 * 30))))
 SNAPSHOT_SESSION_COOKIE_NAME = "lilletorget_online_session"
-PUBLIC_PATHS = {"/health", "/favicon.ico", "/auth/login"}
+PUBLIC_PATHS = {
+    "/health",
+    "/favicon.ico",
+    "/auth/login",
+    "/manifest.webmanifest",
+    "/pwa-icon-192.png",
+    "/pwa-icon-512.png",
+    "/pwa-icon-maskable-512.png",
+    "/apple-touch-icon.png",
+}
 PUBLIC_PREFIXES = ("/static/",)
 ACCESS_FAILED_DISABLE_THRESHOLD = max(1, int(os.getenv("ACCESS_FAILED_DISABLE_THRESHOLD", "3")))
 ONLINE_ACCESS_LOG_COOLDOWN_SECONDS = max(0, int(os.getenv("ONLINE_ACCESS_LOG_COOLDOWN_SECONDS", "0")))
@@ -104,6 +114,15 @@ OTHER_DOOR_KEYS = [str(item["device_key"]) for item in OTHER_DOOR_CONFIG if item
 OTHER_DOOR_BY_KEY = {str(item["device_key"]): item for item in OTHER_DOOR_CONFIG}
 
 app = FastAPI(title="Lilletorget online", docs_url=None, redoc_url=None)
+ONLINE_PWA = PwaConfig(
+    name="Lilletorget Mobil",
+    short_name="Lilletorget",
+    description="Mobil status for soling, parkering, energi og byggdrift på Lilletorget.",
+    theme_color="#0f172a",
+    orientation="portrait",
+    categories=("business", "productivity", "utilities"),
+)
+register_pwa(app, ONLINE_PWA)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
@@ -2240,7 +2259,7 @@ async def ensure_snapshot_table() -> None:
 
 def render_login(error: str = "") -> HTMLResponse:
     return HTMLResponse(
-        LOGIN_HTML.replace("{{ error }}", error),
+        inject_pwa_head(LOGIN_HTML.replace("{{ error }}", error), ONLINE_PWA),
         status_code=401 if error else 200,
     )
 
@@ -2477,7 +2496,7 @@ async def dashboard(request: Request):
     html = html.replace("{{ door_alarm_cards }}", render_door_alarm_dashboard_cards(data.get("door_alarm") or {}))
     html = html.replace("{{ other_door_summary }}", render_other_door_summary(data.get("other_doors") or []))
     html = html.replace("{{ other_door_cards }}", render_door_dashboard_cards(data.get("other_doors") or []))
-    return HTMLResponse(html)
+    return HTMLResponse(inject_pwa_head(html, ONLINE_PWA))
 
 
 @app.get("/soling", response_class=HTMLResponse)
@@ -3638,7 +3657,7 @@ def render_detail_page(title: str, subtitle: str, body: str, icon: str = "", her
     }
     for key, value in replacements.items():
         html = html.replace(key, value)
-    return HTMLResponse(html)
+    return HTMLResponse(inject_pwa_head(html, ONLINE_PWA))
 
 
 LOGIN_HTML = """<!doctype html>

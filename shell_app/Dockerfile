@@ -23,6 +23,7 @@ WORKDIR /app
 COPY shell_app/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 COPY shell_app ./shell_app
+COPY microapp_backend ./microapp_backend
 COPY --from=frontend_builder /workspace/shell_app/frontend/dist ./shell_app/app/static/dist
 
 EXPOSE 8150

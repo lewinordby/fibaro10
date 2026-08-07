@@ -37,6 +37,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from microapp_backend import PwaConfig, register_pwa
 from pydantic import BaseModel, Field
 from sqlalchemy import Boolean, BigInteger, Column, Date, DateTime, Float, ForeignKey, Integer, JSON, LargeBinary, String, Text, UniqueConstraint, and_, case, cast, delete, func, literal, or_, select, text as sql_text, tuple_, union_all, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -196,7 +197,16 @@ AUTH_SESSION_HEADER_NAME = "x-session-token"
 AUTH_SESSION_MAX_AGE_SECONDS = max(3600, int(os.getenv("AUTH_SESSION_MAX_AGE_SECONDS", str(60 * 60 * 24 * 30))))
 ACCESS_FAILED_DISABLE_THRESHOLD = max(1, int(os.getenv("ACCESS_FAILED_DISABLE_THRESHOLD", "3")))
 PUBLIC_PREFIXES = ("/static/", "/assets/")
-PUBLIC_PATHS = {"/health", "/favicon.ico", "/auth/login"}
+PUBLIC_PATHS = {
+    "/health",
+    "/favicon.ico",
+    "/auth/login",
+    "/manifest.webmanifest",
+    "/pwa-icon-192.png",
+    "/pwa-icon-512.png",
+    "/pwa-icon-maskable-512.png",
+    "/apple-touch-icon.png",
+}
 
 
 def env_float(name: str, default: str) -> float:
@@ -448,6 +458,16 @@ background_tasks = BackgroundTaskSupervisor(logger)
 app = FastAPI(
     title="Fibaro10",
     lifespan=create_lifespan(lambda: startup(), lambda: shutdown_application()),
+)
+register_pwa(
+    app,
+    PwaConfig(
+        name="Lilletorget Fibaro10",
+        short_name="Fibaro10",
+        description="Samlet operativ styring, analyse og administrasjon for Lilletorget.",
+        theme_color="#4f46e5",
+        categories=("business", "productivity", "utilities"),
+    ),
 )
 app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -15759,6 +15779,11 @@ async def api_cars_day(response: Response, day: Optional[str] = None) -> dict[st
             "message": "Venter på validering i Protect Ledger",
             "sources": {},
         }
+        public_registry_validation = {
+            key: value
+            for key, value in registry_validation.items()
+            if key != "sources"
+        }
         ledger_variant_candidates = source_item.get("ocr_variant_candidates") or []
         items.append(
             {
@@ -15769,7 +15794,7 @@ async def api_cars_day(response: Response, day: Optional[str] = None) -> dict[st
                 "lastDetectedAt": api_local_iso(last_detected_at),
                 "knownInProtect": bool(source_item.get("known_in_protect")),
                 "cameraNames": list(source_item.get("camera_names") or []),
-                "detections": detections,
+                "detections": [],
                 "averageUnifiScore": average_unifi_score,
                 "minimumUnifiScore": minimum_unifi_score if minimum_unifi_score is not None else (min(unifi_scores) if unifi_scores else None),
                 "maximumUnifiScore": maximum_unifi_score if maximum_unifi_score is not None else (max(unifi_scores) if unifi_scores else None),
@@ -15790,7 +15815,7 @@ async def api_cars_day(response: Response, day: Optional[str] = None) -> dict[st
                     for candidate in ledger_variant_candidates
                     if isinstance(candidate, dict)
                 ],
-                "registryValidation": registry_validation,
+                "registryValidation": public_registry_validation,
                 "likelyMisread": bool(source_item.get("likely_misread")),
                 "presentationStatus": source_item.get("presentation_status") or "pending_review",
                 "requiresReview": bool(source_item.get("requires_review")),
@@ -15809,9 +15834,12 @@ async def api_cars_day(response: Response, day: Optional[str] = None) -> dict[st
     covered_count = sum(1 for item in items if item["coveredDetectionCount"] > 0)
     paid_count = sum(1 for item in items if item["hasPaidSession"])
     observation_datetimes = [
-        cars_recognition_local_datetime(detection.get("occurredAt"))
+        value
         for item in items
-        for detection in item.get("detections") or []
+        for value in (
+            cars_recognition_local_datetime(item.get("firstDetectedAt")),
+            cars_recognition_local_datetime(item.get("lastDetectedAt")),
+        )
     ]
     observation_datetimes = [value for value in observation_datetimes if value]
     observation_start_at = min(observation_datetimes) if observation_datetimes else None

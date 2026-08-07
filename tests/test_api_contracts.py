@@ -95,3 +95,8 @@ class AdminBuildApiIntegrationTests(unittest.TestCase):
         static_response = client.get("/static/lilletorget-favicon.png")
         self.assertEqual(static_response.status_code, 200)
         self.assertIn("must-revalidate", static_response.headers["cache-control"])
+
+        manifest_response = client.get("/manifest.webmanifest")
+        self.assertEqual(manifest_response.status_code, 200)
+        self.assertEqual(manifest_response.json()["short_name"], "Fibaro10")
+        self.assertTrue(manifest_response.headers["content-type"].startswith("application/manifest+json"))
