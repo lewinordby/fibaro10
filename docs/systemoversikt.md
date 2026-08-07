@@ -1,6 +1,6 @@
 # Systemoversikt
 
-Oppdatert 02.08.2026.
+Oppdatert 07.08.2026.
 
 Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene er `docker-compose.qnap.yml`, `Caddyfile`, `system_inventory.py`, `import_jobs.py` og siste QNAP-status.
 
@@ -10,7 +10,7 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 - 26 komponenter er aktive i daglig drift eller som aktivt verktøy.
 - 24 komponenter har webflate eller lokal statusflate.
 - 23 datakilder/importjobber er aktive i Fibaro10.
-- Produksjonsbuild ved siste sjekk: Fibaro10 build `1633`.
+- Produksjonsbuild ved siste sjekk: Fibaro10 build `1673`.
 - QNAP-appmappe: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`.
 - Backup/arkivvolum: `/share/CACHEDEV3_DATA/fibaro10_archive`.
 
@@ -27,7 +27,8 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 | Vedlikehold | `http://192.168.20.218:8156/` | Besøk, oppgaver og vedlikeholdshistorikk. |
 | System | `http://192.168.20.218:8157/` | Datakilder, brukere, build, manual, varslinger og systemstatus. |
 | Koble | `http://192.168.20.218:8158/` | Kandidater og kontroll av koblinger mellom biler og Sun2-ID. |
-| Fibaro10 hovedapp | `http://192.168.20.218:8110/` | Daglig drift, V2 desktop, API og admin. |
+| Fibaro10 hovedapp | `https://192.168.20.218:8443/` | Anbefalt intern HTTPS-flate for daglig drift og installert PWA. |
+| Fibaro10 HTTP-reserve | `http://192.168.20.218:8110/` | Intern reserve, API og tekniske helsesjekker. |
 | Online dashboard | `https://online.lilletorget.net/` | Ekstern begrenset mobil/dashboardflate. |
 | Vedlikehold mobil | `https://vedl.lilletorget.net/` | Rask mobilregistrering av vedlikeholdsoppgaver. |
 | Alarm mobil | `https://alarm.lilletorget.net/` | Dør-, solrom-, pullert- og trappealarmer med direkte lenker fra ntfy. |
@@ -71,15 +72,16 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 | `sun2_backfill_downloader` | Lav/verktøy | Aktiv container som laster ned historiske SUN2 dagsfiler. |
 | `roborock_logger` | Normal | Separat compose/container for Roborock-status, historikk, planer og kartdata. |
 | `parking_sun_linker` | Høy | Bakgrunnsmotor for kobling mellom parkeringer og SUN2-brukere. |
-| `fibaro10_proxy` | Kritisk | Caddy reverse proxy for `online`, `vedl`, `alarm`, `ipad` og `owntracks`. |
+| `fibaro10_proxy` | Kritisk | Caddy reverse proxy for offentlige mobilflater og intern HTTPS til Fibaro10. |
 | `easypark_downloader` | Kritisk | Separat compose/app for EasyPark-nedlasting og importtrigger. |
 
-## Offentlig proxy
+## Proxy og intern HTTPS
 
 `Caddyfile` eksponerer disse domenene:
 
 | Domene | Intern tjeneste | Kommentar |
 | --- | --- | --- |
+| `192.168.20.218:8443` | `fibaro10:8110` | Kun lokalnett, internt CA-sertifikat og ekstra sperre mot offentlige IP-adresser. |
 | `online.lilletorget.net` | `online_dashboard:8111` | Begrenset ekstern flate. |
 | `owntracks.lilletorget.net` | `owntracks_service:8128` | Tokenbeskyttet OwnTracks. Direkte interne `/api/owntracks/*` skjules eksternt. |
 | `vedl.lilletorget.net` | `maintenance_mobile:8112` | Samme brukerbase som Fibaro10. |

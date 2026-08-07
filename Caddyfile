@@ -9,6 +9,29 @@
 	header @static_assets Cache-Control "public, max-age=3600, must-revalidate"
 }
 
+# Internal-only HTTPS endpoint. Docker publishes container port 443 as LAN port
+# 8443; the private CA root must be trusted on each client device.
+https://192.168.20.218 {
+	tls internal
+	encode zstd gzip
+	import asset_cache
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	@outside_lan not remote_ip private_ranges
+	respond @outside_lan "Not found" 404
+
+	reverse_proxy fibaro10:8110 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+	}
+}
+
 online.lilletorget.net {
 	encode zstd gzip
 	import asset_cache

@@ -117,16 +117,36 @@ Dette scriptet er isolert: det laster bare opp `v1_reference/` og `docker-compos
 - QNAP: `192.168.20.218`
 - SSH-alias: `qnap-fibaro10`
 - Appmappe: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`
-- Intern app: `http://192.168.20.218:8110`
+- Intern app (anbefalt): `https://192.168.20.218:8443`
+- Intern HTTP-reserve og API-adresse: `http://192.168.20.218:8110`
 - Online dashboard: `https://online.lilletorget.net`
 - iPad-grensesnitt: `https://ipad.lilletorget.net`
 - Vedlikehold mobil: `https://vedl.lilletorget.net`
 - Alarm mobil: `https://alarm.lilletorget.net` eller lokalt `http://192.168.20.218:8114`
 - OwnTracks: `https://owntracks.lilletorget.net`
-- Systemkart i appen: `http://192.168.20.218:8110/admin/systemkart`
-- Datakilder i appen: `http://192.168.20.218:8110/admin/datakilder`
+- Systemkart i appen: `https://192.168.20.218:8443/admin/systemkart`
+- Datakilder i appen: `https://192.168.20.218:8443/admin/datakilder`
 - Docker: `/share/CACHEDEV1_DATA/.qpkg/container-station/usr/bin/.libs/docker`
 - Git paa QNAP leveres via Entware i `/opt/bin/git`.
+
+### Intern HTTPS
+
+Hovedappen bruker Caddys interne sertifikatmyndighet og er bare tilgjengelig paa
+lokalnettet. QNAP eksponerer ikke en ny WAN-port; den eksisterende containerporten
+for HTTPS brukes som `8443` paa lokalnettet. Caddy avviser dessuten klienter som
+ikke kommer fra et privat IP-nett.
+
+Rotsertifikatet ligger i File Station under
+`Public/Fibaro10-HTTPS/fibaro10-internal-ca.crt`. Paa en ny Windows-maskin kan det
+installeres og verifiseres med:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-internal-https-ca.ps1
+```
+
+Nettbrett og telefoner maa faa det samme rotsertifikatet installert som klarert
+sertifikatmyndighet. Etterpaa aapnes `https://192.168.20.218:8443`, og den gamle
+Fibaro10-snarveien erstattes med en ny PWA-installasjon fra HTTPS-adressen.
 
 ## Gmail-importer
 

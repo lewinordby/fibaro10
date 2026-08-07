@@ -12,6 +12,33 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1673",
+        "date": "07.08.2026",
+        "headline": "Hovedappen far intern HTTPS uten ny internetteksponering",
+        "title": "Lokal TLS, klienttillit og helsekontroll er satt opp samlet",
+        "description": (
+            "Fibaro10 kan na brukes som installert PWA fra en sikker lokal adresse. "
+            "Caddy utsteder og fornyer sertifikatet internt, mens HTTP-port 8110 beholdes "
+            "som teknisk reserve for tjenester og feilsoking."
+        ),
+        "applications": [
+            "Fibaro10: ny anbefalt intern HTTPS-adresse.",
+            "QNAP/Caddy: lokal sertifikatmyndighet og tilgang bare fra private nett.",
+            "Utviklingsoppsett: automatisert installasjon av CA-sertifikat pa Windows.",
+        ],
+        "request": "sett opp https, men bare internt",
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Legger hovedappen pa https://192.168.20.218:8443.",
+            "Avviser foresporsler til HTTPS-ruten fra adresser utenfor private nett.",
+            "Beholder intern HTTP pa port 8110 uten endringer i tjenesteavhengigheter.",
+            "Overvaker den nye TLS-ruten i QNAPs faste helsekontroll.",
+            "Lagrer CA-sertifikatet i Public og legger til installasjonsskript for nye PC-er.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1672",
         "date": "07.08.2026",
         "headline": "Aktive driftsforhold samles i ett hendelsessenter",
