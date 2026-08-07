@@ -12,6 +12,30 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1668",
+        "date": "07.08.2026",
+        "headline": "Ytelsestrinnet avsluttes med realistisk live-kontroll",
+        "title": "Bilbilder testes gjennom den nye behovslastede detaljruten",
+        "description": (
+            "Biloversikten sender na en kompakt liste og henter kamerabilder forst nar en bil apnes. "
+            "Live-testen fulgte fortsatt den gamle, tunge datakontrakten og varslet derfor feilaktig om "
+            "manglende bilder. Testen bruker na samme liste- og detaljflyt som brukergrensesnittet."
+        ),
+        "applications": [
+            "Fibaro10: live-test av biler og Protect-bilder.",
+            "Parkering: verifisering av behovslastede observasjoner.",
+        ],
+        "request": "Fortsett med de fem planlagte forbedringstrinnene i riktig rekkefolge.",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Henter observasjonsdetaljer for siste bil for bildekontrollen i live-testen.",
+            "Beholder den kompakte dagslisten uten innebygde bildefunn.",
+            "Verifiserer kald og varm responstid for biloversikt og energianalyse i produksjon.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1667",
         "date": "07.08.2026",
         "headline": "PWA kan installeres allerede fra innloggingssiden",

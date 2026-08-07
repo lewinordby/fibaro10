@@ -213,7 +213,18 @@ async function smokeCarsRegistryFilter(page) {
     });
     const score90 = items.filter((item) => Number(item?.maximumUnifiScore ?? item?.averageUnifiScore) >= 90);
     const latest = items[0] || null;
-    const latestImages = await Promise.all((latest?.detections || []).map(async (detection) => {
+    let latestDetections = latest?.detections || [];
+    if (latest?.plate && latestDetections.length === 0) {
+      const detailResponse = await fetch(
+        `/api/cars/day/${encodeURIComponent(latest.plate)}/detections?day=${encodeURIComponent(payload.selectedDay || "")}`,
+        { cache: "no-store" },
+      );
+      if (!detailResponse.ok) {
+        throw new Error(`/api/cars/day/${latest.plate}/detections svarte HTTP ${detailResponse.status}`);
+      }
+      latestDetections = (await detailResponse.json())?.detections || [];
+    }
+    const latestImages = await Promise.all(latestDetections.map(async (detection) => {
       if (!detection?.snapshotUrl) return { ok: false, status: 0, size: 0, contentType: "" };
       const imageResponse = await fetch(detection.snapshotUrl, { cache: "no-store" });
       const content = imageResponse.ok ? await imageResponse.arrayBuffer() : new ArrayBuffer(0);
