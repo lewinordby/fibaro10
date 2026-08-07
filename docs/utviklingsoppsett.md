@@ -147,6 +147,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-internal-h
 Windows viser en sikkerhetsdialog fordi et nytt lokalt rotsertifikat skal klareres.
 Kontroller at navnet er `Caddy Local Authority - 2026 ECC Root`, og bekreft dialogen.
 
+En PC som bare har VPN-tilgang kan laste ned samme sertifikat fra den interne
+bootstrap-adressen `http://192.168.20.218:8081/fibaro10-internal-ca.crt`. Adressen
+virker bare fra private LAN- og VPN-adresser. Installer sertifikatet for gjeldende
+bruker i lageret `Klarerte rotsertifiseringsinstanser`, og start nettleseren paa nytt.
+
 Nettbrett og telefoner maa faa det samme rotsertifikatet installert som klarert
 sertifikatmyndighet. Etterpaa aapnes `https://192.168.20.218:8443`, og den gamle
 Fibaro10-snarveien erstattes med en ny PWA-installasjon fra HTTPS-adressen.

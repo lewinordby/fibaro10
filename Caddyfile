@@ -10,6 +10,22 @@
 	header @static_assets Cache-Control "public, max-age=3600, must-revalidate"
 }
 
+# Bootstrap endpoint for VPN/LAN clients that do not trust the private CA yet.
+http://192.168.20.218 {
+	@outside_lan not remote_ip private_ranges
+	respond @outside_lan "Not found" 404
+
+	handle /fibaro10-internal-ca.crt {
+		header Content-Type "application/x-x509-ca-cert"
+		header Content-Disposition "attachment; filename=fibaro10-internal-ca.crt"
+		rewrite * /root.crt
+		root * /data/caddy/pki/authorities/local
+		file_server
+	}
+
+	respond "Not found" 404
+}
+
 # Internal-only HTTPS endpoint. Docker publishes container port 443 as LAN port
 # 8443; the private CA root must be trusted on each client device.
 https://192.168.20.218 {
