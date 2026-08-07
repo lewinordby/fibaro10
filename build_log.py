@@ -12,6 +12,31 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1670",
+        "date": "07.08.2026",
+        "headline": "Bilobservasjoner skilles ut som forste rene hoveddomene",
+        "title": "OCR-, score- og parkeringskobling flyttes ut av main.py",
+        "description": (
+            "Den samlede logikken for observerte biler er flyttet til cars_domain.py. Hovedappen beholder "
+            "de samme funksjonsnavnene, rutene og JSON-feltene, mens domenet kan testes og videreutvikles "
+            "uten a arbeide direkte i den store applikasjonsfilen."
+        ),
+        "applications": [
+            "Fibaro10: gradvis oppdeling av hovedkoden.",
+            "Biler og parkering: OCR-varianter, Unifi-score, snapshots og betalingskobling.",
+        ],
+        "request": "Del main.py gradvis opp etter domene uten a endre API-kontrakter.",
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Oppretter en selvstendig cars_domain-modul med ni domenefunksjoner.",
+            "Fjerner den dupliserte implementasjonen fra main.py og importerer samme offentlige navn.",
+            "Beholder tidssoneformat, OCR-gruppering, scoregrenser og betalingsberegning uendret.",
+            "Verifiserer eksisterende kontrakt med 18 fokuserte bil- og parkeringstester.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1669",
         "date": "07.08.2026",
         "headline": "Fibaro10 far kontrollert kjernesvitsj uten vanlig webnedetid",
