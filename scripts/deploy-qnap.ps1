@@ -90,6 +90,7 @@ $hasComposeServicesValue = if ($standardServices.Count -gt 0) { "1" } else { "0"
 $deployAllValue = if ($deployPlan.All) { "1" } else { "0" }
 $deployEasyParkValue = if ($deployPlan.EasyPark) { "1" } else { "0" }
 $deployRoborockValue = if ($deployPlan.Roborock) { "1" } else { "0" }
+$restartProxyValue = if (@($changedFiles | Where-Object { ([string]$_).Replace("\", "/") -eq "Caddyfile" }).Count -gt 0) { "1" } else { "0" }
 Write-Host "Deploy plan: services=[$displayServices], core=$coreDeployValue, EasyPark=$deployEasyParkValue, Roborock=$deployRoborockValue, full=$deployAllValue"
 
 $remote = @"
@@ -172,6 +173,10 @@ if [ "$hasComposeServicesValue" = "1" ]; then
     "$Docker" compose -f docker-compose.qnap.yml --profile unifi-protect up -d --build --no-deps $composeServices
 else
     echo "No additional Compose services are affected by this revision."
+fi
+if [ "$restartProxyValue" = "1" ]; then
+    echo "Restarting fibaro10_proxy to activate the mounted Caddyfile"
+    "$Docker" compose -f docker-compose.qnap.yml restart fibaro10_proxy
 fi
 ready=0
 while [ "`$ready" -lt 60 ]; do
