@@ -16,7 +16,7 @@ Deploy er nå vesentlig raskere og mindre risikofylt: en endring som bare berør
 | QNAP-drift | 1655-1656 | Atomisk backup, restore-verifikasjon, lagringsgrenser, sannferdig datakildestatus og trygg Docker-retention. |
 | Grensesnitt | 1657 | Hovedappen utnytter iPad-bredden uten horisontal scrolling og har innholdsbasert dashboardgrid. |
 | Applivssyklus og deploy | 1658-1659 | Moderne FastAPI-lifespan, kontrollert start/stopp av sju jobber og selektiv QNAP-deploy. |
-| Sluttkontroll | 1660 | Samlet lokal, produksjonsmessig og dokumentert verifikasjon. |
+| Sluttkontroll | 1660-1661 | Samlet lokal, produksjonsmessig og dokumentert verifikasjon. Kontrollen fant og rettet JSON-serialisering av MET-status. |
 
 ## Verifisert 7. august 2026
 

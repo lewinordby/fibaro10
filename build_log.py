@@ -12,6 +12,30 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1661",
+        "date": "07.08.2026",
+        "headline": "Yr-status oppdateres igjen ved hvert reelle MET-kall",
+        "title": "MET-tidspunkt serialiseres trygt i datakildeloggen",
+        "description": (
+            "Sluttkontrollen avdekket at selve MET-kallet og lagringen av Yr-data lyktes, mens statusloggen "
+            "ble avvist fordi prognosetidspunktet var et datetime-objekt i et JSON-felt. Tidspunktet gjores na "
+            "om til ISO-tekst for lagring, og en regresjonstest kontrollerer at hele statuspayloaden kan JSON-serialiseres."
+        ),
+        "applications": [
+            "Fibaro10: korrekt status for datakilde 3, Yr API.",
+            "Tester: regresjonsvern for MET-statusens JSON-data.",
+        ],
+        "request": "sett igang og gjor alt i den rekkefolgen du foreslar",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Serialiserer forecastTime som ISO-tekst for import_job_runs og import_job_status.",
+            "Tester eksplisitt at MET-statusens raw-felt kan behandles av standard JSON-serializer.",
+            "Beholder prinsippet om at Yr-status bare oppdateres etter et reelt MET-kall.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1660",
         "date": "07.08.2026",
         "headline": "Hele kvalitetsloftet er verifisert og dokumentert fra kode til QNAP",

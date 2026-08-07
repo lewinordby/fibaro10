@@ -1,4 +1,5 @@
 import os
+import json
 import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
@@ -58,6 +59,9 @@ class OperationalMaintenanceTests(unittest.IsolatedAsyncioTestCase):
         fetch.assert_awaited_once()
         record.assert_awaited_once()
         self.assertEqual(record.await_args.args[1], "yr_weather_refresh")
+        raw = record.await_args.kwargs["raw"]
+        self.assertEqual(raw["forecastTime"], now_value.isoformat())
+        json.dumps(raw)
         self.assertTrue(session.committed)
 
     async def test_retention_only_deletes_operational_history(self) -> None:

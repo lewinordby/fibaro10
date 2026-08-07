@@ -6958,7 +6958,7 @@ async def met_weather_cached() -> Optional[Dict[str, Any]]:
                     ),
                     raw={
                         "endpoint": value.get("raw_endpoint") if value else None,
-                        "forecastTime": value.get("forecast_time") if value else None,
+                        "forecastTime": json_value(value.get("forecast_time")) if value else None,
                         "nextFetchAfter": MET_WEATHER_CACHE["expires"].replace(tzinfo=timezone.utc).isoformat(),
                         "cacheRefresh": True,
                     },
