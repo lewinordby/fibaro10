@@ -12,6 +12,38 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1653",
+        "date": "07.08.2026",
+        "headline": "Varsler sendes na fra en varig ko uten a blokkere HC3",
+        "title": "Lys, ventilasjon, tilgang og doralarm bruker en robust ntfy-utko med automatisk retry",
+        "description": (
+            "Fibaro10 lagrer na hvert ntfy-varsel i PostgreSQL for det sendes. Lys- og ventilasjonshendelser "
+            "lagres i samme transaksjon som varselet, slik at en treg eller utilgjengelig meldingstjeneste ikke "
+            "kan forsinke HC3 eller skape hull mellom hendelseslogg og varsling. En egen bakgrunnsarbeider sender "
+            "meldingene, prover automatisk pa nytt med kontrollert ventetid og tar opp igjen avbrutte jobber etter omstart."
+        ),
+        "applications": [
+            "Fibaro10: ny notification_outbox-tabell og bakgrunnsarbeider for ntfy.",
+            "HC3-integrasjon: lys- og ventilasjonshendelser svarer uten a vente pa ekstern nettverkstrafikk.",
+            "Doralarm: alarmen markeres som lagt i ko og oppdateres til sendt nar ntfy har bekreftet leveransen.",
+            "System/ntfy: viser antall ventende, aktive, retry og sendte varsler.",
+            "Helsekontroll og tester: utkostatus, atomisk lagring og fravaer av synkrone nettverkskall er kontrollert.",
+        ],
+        "request": "sett igang og gjor alt i den rekkefolgen du foreslar",
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Legger alle ntfy-meldinger i PostgreSQL for sending.",
+            "Bruker radlasing slik at bare en arbeider kan sende samme melding om gangen.",
+            "Gjenopptar meldinger som var under sending da tjenesten ble startet pa nytt.",
+            "Prover mislykkede leveranser pa nytt med eksponentiell ventetid opp til 15 minutter.",
+            "Knytter doralarmvarsler til alarmraden og oppdaterer sendestatus etter faktisk levering.",
+            "Viser leveringsstatus i detaljert health-respons og ntfy-oversikten.",
+            "Legger databaseendringen som en eksplisitt, repeterbar migrering.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1652",
         "date": "07.08.2026",
         "headline": "Alle webapper bruker nå sikre og tilbakekallbare økter",

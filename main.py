@@ -254,6 +254,14 @@ CAR_INFO_AUTO_TRIGGER_MAX_PER_SVV_RUN = max(0, min(5, int(os.getenv("CAR_INFO_AU
 MOBILE_PREVIEW_REFRESH_SECONDS = max(15, int(os.getenv("MOBILE_PREVIEW_REFRESH_SECONDS", "60")))
 NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
+NTFY_OUTBOX_POLL_SECONDS = max(0.25, env_float("NTFY_OUTBOX_POLL_SECONDS", "1"))
+NTFY_OUTBOX_RETRY_BASE_SECONDS = max(1, int(os.getenv("NTFY_OUTBOX_RETRY_BASE_SECONDS", "5")))
+NTFY_OUTBOX_RETRY_MAX_SECONDS = max(
+    NTFY_OUTBOX_RETRY_BASE_SECONDS,
+    int(os.getenv("NTFY_OUTBOX_RETRY_MAX_SECONDS", "900")),
+)
+NTFY_OUTBOX_STALE_LOCK_SECONDS = max(30, int(os.getenv("NTFY_OUTBOX_STALE_LOCK_SECONDS", "300")))
+notification_outbox_task: Optional[asyncio.Task] = None
 SUNROOM_DOOR_MONITOR_ENABLED = os.getenv("SUNROOM_DOOR_MONITOR_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
 SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS = max(30, int(os.getenv("SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS", "60")))
 SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS = max(0, int(os.getenv("SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS", "20")))
@@ -1715,6 +1723,28 @@ class AuthSession(Base):
     revoked_at = Column(DateTime, index=True, nullable=True)
     created_ip = Column(String, nullable=True)
     user_agent = Column(Text, nullable=True)
+
+
+class NotificationOutbox(Base):
+    __tablename__ = "notification_outbox"
+
+    id = Column(BigInteger, primary_key=True, index=True)
+    topic = Column(Text, nullable=False)
+    title = Column(Text, nullable=False)
+    message = Column(Text, nullable=False)
+    tags = Column(Text, nullable=True)
+    priority = Column(String, nullable=False, default="3")
+    click_url = Column(Text, nullable=True)
+    status = Column(String, nullable=False, default="pending", index=True)
+    attempts = Column(Integer, nullable=False, default=0)
+    next_attempt_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    locked_at = Column(DateTime, nullable=True, index=True)
+    sent_at = Column(DateTime, nullable=True, index=True)
+    last_error = Column(Text, nullable=True)
+    related_type = Column(String, nullable=True, index=True)
+    related_id = Column(BigInteger, nullable=True, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
 
 class AccessLog(Base):
@@ -6001,6 +6031,199 @@ def publish_ntfy_message(
         pass
 
 
+def notification_retry_delay_seconds(attempts: int) -> int:
+    exponent = max(0, min(16, int(attempts or 0) - 1))
+    return min(NTFY_OUTBOX_RETRY_MAX_SECONDS, NTFY_OUTBOX_RETRY_BASE_SECONDS * (2**exponent))
+
+
+def notification_outbox_row(
+    topic: str,
+    title: str,
+    message: str,
+    tags: str = "",
+    priority: str = "3",
+    click_url: str = "",
+    related_type: str = "",
+    related_id: Optional[int] = None,
+) -> NotificationOutbox:
+    now = datetime.utcnow()
+    return NotificationOutbox(
+        topic=topic.strip(),
+        title=title.strip(),
+        message=message.strip(),
+        tags=tags.strip() or None,
+        priority=str(priority or "3"),
+        click_url=click_url.strip() or None,
+        status="pending",
+        attempts=0,
+        next_attempt_at=now,
+        related_type=related_type.strip() or None,
+        related_id=related_id,
+        created_at=now,
+        updated_at=now,
+    )
+
+
+async def enqueue_ntfy_message(
+    topic: str,
+    title: str,
+    message: str,
+    tags: str = "",
+    priority: str = "3",
+    click_url: str = "",
+    related_type: str = "",
+    related_id: Optional[int] = None,
+    session=None,
+) -> bool:
+    if not topic.strip() or not message.strip():
+        return False
+    row = notification_outbox_row(
+        topic,
+        title,
+        message,
+        tags,
+        priority,
+        click_url,
+        related_type,
+        related_id,
+    )
+    if session is not None:
+        session.add(row)
+        await session.flush()
+        return True
+    async with async_session() as own_session:
+        own_session.add(row)
+        await own_session.commit()
+    return True
+
+
+async def claim_notification_outbox_row() -> Optional[dict[str, Any]]:
+    now = datetime.utcnow()
+    stale_before = now - timedelta(seconds=NTFY_OUTBOX_STALE_LOCK_SECONDS)
+    eligible = or_(
+        NotificationOutbox.status.in_(("pending", "retry")),
+        and_(
+            NotificationOutbox.status == "sending",
+            or_(NotificationOutbox.locked_at.is_(None), NotificationOutbox.locked_at < stale_before),
+        ),
+    )
+    async with async_session() as session:
+        row = (
+            await session.execute(
+                select(NotificationOutbox)
+                .where(eligible)
+                .where(NotificationOutbox.next_attempt_at <= now)
+                .order_by(NotificationOutbox.next_attempt_at.asc(), NotificationOutbox.id.asc())
+                .with_for_update(skip_locked=True)
+                .limit(1)
+            )
+        ).scalars().first()
+        if row is None:
+            return None
+        row.status = "sending"
+        row.attempts = int(row.attempts or 0) + 1
+        row.locked_at = now
+        row.updated_at = now
+        await session.commit()
+        return {
+            "id": row.id,
+            "topic": row.topic,
+            "title": row.title,
+            "message": row.message,
+            "tags": row.tags or "",
+            "priority": row.priority or "3",
+            "click_url": row.click_url or "",
+            "attempts": row.attempts,
+            "related_type": row.related_type,
+            "related_id": row.related_id,
+        }
+
+
+async def finish_notification_outbox_row(item: dict[str, Any], error: Optional[Exception] = None) -> None:
+    now = datetime.utcnow()
+    async with async_session() as session:
+        row = await session.get(NotificationOutbox, item["id"])
+        if row is None:
+            return
+        row.locked_at = None
+        row.updated_at = now
+        if error is None:
+            row.status = "sent"
+            row.sent_at = now
+            row.last_error = None
+            if row.related_type == "alarm_event" and row.related_id:
+                alarm = await session.get(AlarmEvent, row.related_id)
+                if alarm is not None:
+                    alarm.notification_status = "sent"
+                    alarm.notification_count = int(alarm.notification_count or 0) + 1
+                    alarm.first_notification_at = alarm.first_notification_at or now
+                    alarm.last_notification_at = now
+                    alarm.updated_at = now
+        else:
+            row.status = "retry"
+            row.last_error = str(error)[:2000]
+            row.next_attempt_at = now + timedelta(seconds=notification_retry_delay_seconds(row.attempts))
+        await session.commit()
+
+
+async def notification_outbox_worker() -> None:
+    while True:
+        try:
+            item = await claim_notification_outbox_row()
+            if item is None:
+                await asyncio.sleep(NTFY_OUTBOX_POLL_SECONDS)
+                continue
+            try:
+                await asyncio.to_thread(
+                    publish_ntfy_message,
+                    item["topic"],
+                    item["title"],
+                    item["message"],
+                    item["tags"],
+                    item["priority"],
+                    item["click_url"],
+                )
+            except Exception as exc:
+                logger.warning(
+                    "NTFY-varsel %s feilet (forsok %s), prover igjen: %s",
+                    item["id"],
+                    item["attempts"],
+                    exc,
+                )
+                await finish_notification_outbox_row(item, exc)
+            else:
+                await finish_notification_outbox_row(item)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Uventet feil i NTFY-utkoarbeider")
+            await asyncio.sleep(max(1.0, NTFY_OUTBOX_POLL_SECONDS))
+
+
+async def notification_outbox_status(session) -> dict[str, Any]:
+    rows = (
+        await session.execute(
+            select(NotificationOutbox.status, func.count(NotificationOutbox.id)).group_by(NotificationOutbox.status)
+        )
+    ).all()
+    counts = {str(status): int(count or 0) for status, count in rows}
+    oldest = (
+        await session.execute(
+            select(func.min(NotificationOutbox.created_at)).where(
+                NotificationOutbox.status.in_(("pending", "retry", "sending"))
+            )
+        )
+    ).scalar_one_or_none()
+    return {
+        "status": "warning" if counts.get("retry", 0) else "ok",
+        "pending": counts.get("pending", 0),
+        "sending": counts.get("sending", 0),
+        "retrying": counts.get("retry", 0),
+        "sent": counts.get("sent", 0),
+        "oldestPendingAt": api_local_iso(oldest),
+    }
+
+
 def bollard_mobile_notification_payload(status: dict[str, Any]) -> dict[str, Any]:
     settings = status.get("settings") if isinstance(status.get("settings"), dict) else {}
     summary = status.get("summary") if isinstance(status.get("summary"), dict) else {}
@@ -6050,24 +6273,22 @@ async def publish_access_ntfy(
         f"IP: {ip or '-'}."
     )
     try:
-        await asyncio.to_thread(
-            publish_ntfy_message,
+        return await enqueue_ntfy_message(
             NTFY_ACCESS_TOPIC,
             "SUN2 brukeraktivitet",
             message,
             "bust_in_silhouette",
             "3",
         )
-        return True
     except Exception as exc:
-        logger.warning("Kunne ikke sende NTFY-varsel for tilgang: %s", exc, exc_info=True)
+        logger.warning("Kunne ikke legge NTFY-varsel for tilgang i ko: %s", exc, exc_info=True)
         return False
 
 
-async def publish_light_ntfy(event: OutdoorLightEvent) -> bool:
+def light_ntfy_payload(event: OutdoorLightEvent) -> Optional[dict[str, Any]]:
     state = state_from_event(event)
     if state is None:
-        return False
+        return None
     action = "P\u00c5" if state else "AV"
     device_name = event.device_name or event.device_key or "Ukjent lys"
     pieces = [f"{device_name} er {action}."]
@@ -6076,25 +6297,30 @@ async def publish_light_ntfy(event: OutdoorLightEvent) -> bool:
     detail = clean_display_text(event.reason or event.source or "")
     if detail:
         pieces.append(f"\u00c5rsak: {detail}.")
+    return {
+        "topic": NTFY_LIGHTS_TOPIC,
+        "title": f"SUN2 lys {action}",
+        "message": " ".join(pieces),
+        "tags": "bulb",
+        "priority": "3",
+    }
+
+
+async def publish_light_ntfy(event: OutdoorLightEvent) -> bool:
+    payload = light_ntfy_payload(event)
+    if payload is None:
+        return False
     try:
-        await asyncio.to_thread(
-            publish_ntfy_message,
-            NTFY_LIGHTS_TOPIC,
-            f"SUN2 lys {action}",
-            " ".join(pieces),
-            "bulb",
-            "3",
-        )
-        return True
+        return await enqueue_ntfy_message(**payload)
     except Exception as exc:
-        logger.warning("Kunne ikke sende NTFY-varsel for lys: %s", exc, exc_info=True)
+        logger.warning("Kunne ikke legge NTFY-varsel for lys i ko: %s", exc, exc_info=True)
         return False
 
 
-async def publish_ventilation_ntfy(event: VentilationEvent) -> bool:
+def ventilation_ntfy_payload(event: VentilationEvent) -> Optional[dict[str, Any]]:
     state = state_from_event(event)
     if state is None:
-        return False
+        return None
     action = "P\u00c5" if state else "AV"
     device_name = event.device_name or event.device_key or "Ukjent vifte"
     pieces = [f"{device_name} er {action}."]
@@ -6128,18 +6354,23 @@ async def publish_ventilation_ntfy(event: VentilationEvent) -> bool:
     detail = clean_display_text(event.reason or event.source or "")
     if detail:
         pieces.append(f"\u00c5rsak: {detail}.")
+    return {
+        "topic": NTFY_VENTILATION_TOPIC,
+        "title": f"SUN2 ventilasjon {action}",
+        "message": " ".join(pieces),
+        "tags": "dash",
+        "priority": "3",
+    }
+
+
+async def publish_ventilation_ntfy(event: VentilationEvent) -> bool:
+    payload = ventilation_ntfy_payload(event)
+    if payload is None:
+        return False
     try:
-        await asyncio.to_thread(
-            publish_ntfy_message,
-            NTFY_VENTILATION_TOPIC,
-            f"SUN2 ventilasjon {action}",
-            " ".join(pieces),
-            "dash",
-            "3",
-        )
-        return True
+        return await enqueue_ntfy_message(**payload)
     except Exception as exc:
-        logger.warning("Kunne ikke sende NTFY-varsel for ventilasjon: %s", exc, exc_info=True)
+        logger.warning("Kunne ikke legge NTFY-varsel for ventilasjon i ko: %s", exc, exc_info=True)
         return False
 
 
@@ -6149,20 +6380,24 @@ async def publish_door_ntfy(
     priority: str = "4",
     tags: str = "door,warning",
     click_url: str = "",
+    related_type: str = "",
+    related_id: Optional[int] = None,
+    session=None,
 ) -> bool:
     try:
-        await asyncio.to_thread(
-            publish_ntfy_message,
+        return await enqueue_ntfy_message(
             NTFY_DOORS_TOPIC,
             title,
             message,
             tags,
             priority,
             click_url,
+            related_type,
+            related_id,
+            session,
         )
-        return True
     except Exception as exc:
-        logger.warning("Kunne ikke sende NTFY-varsel for dorer: %s", exc, exc_info=True)
+        logger.warning("Kunne ikke legge NTFY-varsel for dorer i ko: %s", exc, exc_info=True)
         return False
 
 
@@ -12962,12 +13197,15 @@ async def publish_sunroom_door_alerts(items: list[Dict[str, Any]], now: datetime
             priority="4",
             tags=tags,
             click_url=click_url,
+            related_type="alarm_event" if persisted is not None else "",
+            related_id=persisted.id if persisted is not None else None,
+            session=session,
         )
         if sent:
             sunroom_door_alert_last_sent[key] = now
             sent_count += 1
             logger.warning(
-                "Sunroom door alert sendt: room=%s bed=%s reason=%s door_changed=%s checked=%s",
+                "Sunroom door alert lagt i ko: room=%s bed=%s reason=%s door_changed=%s checked=%s",
                 item.get("roomId"),
                 item.get("sun2BedId"),
                 item.get("alarmReason") or "overstay",
@@ -12975,11 +13213,7 @@ async def publish_sunroom_door_alerts(items: list[Dict[str, Any]], now: datetime
                 now.isoformat(),
             )
         if persisted is not None:
-            persisted.notification_status = "sent" if sent else "failed"
-            if sent:
-                persisted.notification_count = int(persisted.notification_count or 0) + 1
-                persisted.first_notification_at = persisted.first_notification_at or now
-                persisted.last_notification_at = now
+            persisted.notification_status = "queued" if sent else "failed"
             persisted.updated_at = now
     if session is not None:
         await session.flush()
@@ -13542,9 +13776,17 @@ def apply_common_filters(stmt, model, event_type, action, device_key, device_id,
     return stmt
 
 
-async def save_record(record) -> int:
+async def save_record(record, notification: Optional[dict[str, Any]] = None) -> int:
     async with async_session() as session:
         session.add(record)
+        await session.flush()
+        if notification:
+            await enqueue_ntfy_message(
+                **notification,
+                related_type=getattr(record, "__tablename__", record.__class__.__name__),
+                related_id=getattr(record, "id", None),
+                session=session,
+            )
         await session.commit()
         await session.refresh(record)
         return record.id
@@ -14681,7 +14923,7 @@ async def recent_ai_logs(limit: int = 10) -> list[AiQueryLog]:
 
 @app.on_event("startup")
 async def startup():
-    global svv_sync_task, hc3_door_poll_task, sun2_axis_snapshot_link_task, sunroom_door_monitor_task, owntracks_visit_sync_task
+    global svv_sync_task, hc3_door_poll_task, sun2_axis_snapshot_link_task, sunroom_door_monitor_task, owntracks_visit_sync_task, notification_outbox_task
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         for table_name, columns in STARTUP_COLUMNS.items():
@@ -14770,6 +15012,17 @@ async def startup():
         hc3_door_poll_task = asyncio.create_task(hc3_door_poll_worker())
     if OWNTRACKS_VISIT_SYNC_ENABLED and owntracks_visit_sync_task is None:
         owntracks_visit_sync_task = asyncio.create_task(owntracks_site_visit_sync_worker())
+    if notification_outbox_task is None or notification_outbox_task.done():
+        notification_outbox_task = asyncio.create_task(notification_outbox_worker(), name="ntfy-outbox")
+
+
+@app.on_event("shutdown")
+async def shutdown_notification_outbox():
+    global notification_outbox_task
+    if notification_outbox_task is not None:
+        notification_outbox_task.cancel()
+        await asyncio.gather(notification_outbox_task, return_exceptions=True)
+        notification_outbox_task = None
 
 
 def protect_ledger_client() -> ProtectLedgerClient:
@@ -15511,11 +15764,13 @@ async def api_unifi_protect_bollard_incident_image(
 async def health(details: bool = Query(False)):
     database = {"status": "ok", "detail": "SELECT 1 OK"}
     sources = []
+    notifications = None
     status_code = 200
     try:
         async with async_session() as session:
             await session.execute(sql_text("SELECT 1"))
             if details:
+                notifications = await notification_outbox_status(session)
                 rows = await import_status_rows(session)
                 for row in rows:
                     stamp = row.get("last_success_at") or row.get("last_run_at")
@@ -15553,6 +15808,8 @@ async def health(details: bool = Query(False)):
         database=database,
         sources=sources,
     )
+    if notifications is not None:
+        payload["notifications"] = notifications
     if status_code == 200:
         return payload
     return JSONResponse(payload, status_code=status_code)
@@ -16351,6 +16608,8 @@ async def api_system_notifications():
     except Exception:
         logger.debug("Kunne ikke lese pullertstatus for ntfy-oversikten", exc_info=True)
     subscriptions = ntfy_subscription_rows(bollard_status)
+    async with async_session() as session:
+        delivery = await notification_outbox_status(session)
     return {
         "generatedAt": api_local_iso(local_now_naive()),
         "provider": ntfy_host(),
@@ -16360,6 +16619,7 @@ async def api_system_notifications():
             "configured": sum(1 for row in subscriptions if row["configured"]),
             "publishing": sum(1 for row in subscriptions if row["publishingEnabled"]),
         },
+        "delivery": delivery,
         "subscriptions": subscriptions,
         "setup": [
             "Installer ntfy-appen på telefonen eller nettbrettet.",
@@ -33170,9 +33430,14 @@ async def log_event(data: EventDataIn):
                 await session.commit()
             return {"status": "ok", "id": event_id, "table": "utelys_samples", "yr_sample_id": yr_sample_id}
         event = light_from_payload(data)
-        event_id = await save_record(event)
-        ntfy_sent = await publish_light_ntfy(event)
-        return {"status": "ok", "id": event_id, "table": "utelys_events", "ntfy_sent": ntfy_sent}
+        notification = light_ntfy_payload(event)
+        event_id = await save_record(event, notification=notification)
+        return {
+            "status": "ok",
+            "id": event_id,
+            "table": "utelys_events",
+            "ntfy_queued": notification is not None,
+        }
     if system in {"ventilasjon", "ventilation", "vent"}:
         if data.event_type in {"sample", "sample_5min", "sample_15min", "learning_sample"}:
             yr_sample_id = await save_yr_sample_for_payload(data)
@@ -33200,9 +33465,14 @@ async def log_event(data: EventDataIn):
                 await session.commit()
             return {"status": "ok", "id": event_id, "table": "ventilasjon_samples", "yr_sample_id": yr_sample_id}
         event = vent_from_payload(data)
-        event_id = await save_record(event)
-        ntfy_sent = await publish_ventilation_ntfy(event)
-        return {"status": "ok", "id": event_id, "table": "ventilasjon_events", "ntfy_sent": ntfy_sent}
+        notification = ventilation_ntfy_payload(event)
+        event_id = await save_record(event, notification=notification)
+        return {
+            "status": "ok",
+            "id": event_id,
+            "table": "ventilasjon_events",
+            "ntfy_queued": notification is not None,
+        }
     event_id = await save_record(generic_from_payload(data))
     return {"status": "ok", "id": event_id, "table": "event_data"}
 
