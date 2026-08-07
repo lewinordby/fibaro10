@@ -1980,6 +1980,55 @@ export type EnergyNodesLiveResponse = {
   aggregateMeters?: Record<string, EnergyAggregateLive>;
 };
 
+export type ReconciliationCheck = {
+  id: string;
+  domain: string;
+  title: string;
+  period: string;
+  status: "ok" | "warning" | "critical" | "missing" | "info" | string;
+  status_label: string;
+  actual_label: string;
+  actual_value?: number | null;
+  reference_label: string;
+  reference_value?: number | null;
+  difference?: number | null;
+  difference_percent?: number | null;
+  unit: string;
+  absolute_tolerance: number;
+  percent_tolerance: number;
+  allowed_difference: number;
+  confidence?: number | null;
+  detail: string;
+  path: string;
+  updated_at?: string | null;
+};
+
+export type ReconciliationSummary = {
+  total: number;
+  ok: number;
+  warning: number;
+  critical: number;
+  missing: number;
+  info: number;
+  attention: number;
+  overall_status: string;
+  overall_label: string;
+};
+
+export type ReconciliationGroup = {
+  id: string;
+  title: string;
+  description: string;
+  summary: ReconciliationSummary;
+  checks: ReconciliationCheck[];
+};
+
+export type ReconciliationData = {
+  generated_at: string;
+  summary: ReconciliationSummary;
+  groups: ReconciliationGroup[];
+};
+
 export type ModuleResponse = {
   title: string;
   subtitle: string;
@@ -1997,6 +2046,7 @@ export type ModuleResponse = {
   energyElvia?: EnergyElviaData | null;
   energySunbeds?: EnergySunbedsData | null;
   energyCircuitLoads?: EnergyCircuitLoadsData | null;
+  reconciliation?: ReconciliationData | null;
   uploadEndpoint?: string;
 };
 

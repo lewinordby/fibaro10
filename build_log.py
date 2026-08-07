@@ -12,6 +12,34 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1671",
+        "date": "07.08.2026",
+        "headline": "Samlet avstemming viser avvik pa tvers av systemene",
+        "title": "Oppgjor, energi, dorer og kobling vurderes med samme kontrollmotor",
+        "description": (
+            "Admin/Kontroll er bygget om fra en lenkesamling til en samlet kontrolljournal. En ny, ren "
+            "domenemotor beregner differanse, prosent, toleranse, alvorlighet og manglende grunnlag likt "
+            "for parkering, soling, Elvia/HC3, solrom og koblingsjobben."
+        ),
+        "applications": [
+            "Fibaro10: ny avstemmingsmotor og samlet kontroll-API.",
+            "Desktop: kompakt kontrolljournal med direkte lenker til kilde og detaljside.",
+            "System-appen: de samme kontrollradene er tilgjengelige gjennom modulkontrakten.",
+        ],
+        "request": "Bygg en samlet avstemmings- og avviksmotor pa tvers av losningen.",
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Innfører felles statuser for stemmer, kontroller, avvik og manglende grunnlag.",
+            "Kontrollerer de seks nyeste oppgjorsperiodene for parkering og soling.",
+            "Sammenligner siste Elvia-dag med tidsjustert HC3 realtime-grunnlag.",
+            "Tar med aktive solromalarmer og helsen til koblingsmotoren.",
+            "Viser systemverdi, referanse, avvik i kroner/kWh og prosent i faste kolonner.",
+            "Legger til isolerte tester for nullreferanse, toleransegrenser og statusprioritet.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1670",
         "date": "07.08.2026",
         "headline": "Bilobservasjoner skilles ut som forste rene hoveddomene",

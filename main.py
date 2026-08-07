@@ -60,6 +60,13 @@ from cars_domain import (
     cars_recognition_local_datetime,
     cars_unifi_score,
 )
+from reconciliation_domain import (
+    evaluate_reconciliation,
+    reconciliation_difference,
+    reconciliation_group,
+    reconciliation_summary,
+    state_reconciliation,
+)
 from energy_helpers import (
     circuit_technical_label,
     energy_circuit_is_sunbed,
@@ -28543,9 +28550,8 @@ async def fetch_parking_settlements_from_gmail(session, since_days: int = 370, l
 
 
 def reconciliation_diff(system_value: Optional[float], settlement_value: Optional[float]) -> Optional[float]:
-    if system_value is None or settlement_value is None:
-        return None
-    return round(float_or_zero(system_value) - float_or_zero(settlement_value), 2)
+    difference = reconciliation_difference(system_value, settlement_value)
+    return round(difference, 2) if difference is not None else None
 
 
 def reconciliation_status(system_value: Optional[float], settlement_value: Optional[float], diff_value: Optional[float]) -> str:
@@ -28553,9 +28559,19 @@ def reconciliation_status(system_value: Optional[float], settlement_value: Optio
         return "Mangler oppgjør"
     if system_value is None:
         return "Mangler systemgrunnlag"
-    if diff_value is not None and abs(diff_value) <= 1:
-        return "OK"
-    return "Avvik"
+    result = evaluate_reconciliation(
+        check_id="legacy-settlement-control",
+        domain="Oppgjør",
+        title="Oppgjørskontroll",
+        actual_label="System",
+        actual_value=system_value,
+        reference_label="Oppgjør",
+        reference_value=settlement_value,
+        unit="kr",
+        absolute_tolerance=1,
+        critical_multiplier=1,
+    )
+    return "OK" if result["status"] == "ok" else "Avvik"
 
 
 def settlement_amount_sum(*values: Optional[float]) -> Optional[float]:
@@ -28656,10 +28672,16 @@ async def revenue_settlement_reconciliation_rows(session, limit: int = 36) -> li
         rows.append(
             {
                 "period_label": period_label,
+                "period_start": start,
+                "period_end": end,
+                "parking_settlement_id": parking_row.id if parking_row else None,
+                "parking_settlement_imported_at": parking_row.imported_at if parking_row else None,
                 "parking_system_ex_vat": parking_system_ex,
                 "parking_settlement_ex_vat": parking_settlement_ex,
                 "parking_diff_ex_vat": parking_diff,
                 "parking_control_status": parking_status,
+                "sun_settlement_id": sun_row.id if sun_row else None,
+                "sun_settlement_imported_at": sun_row.imported_at if sun_row else None,
                 "sun_system_ex_vat": sun_system_ex,
                 "sun_settlement_ex_vat": sun_settlement_ex,
                 "sun_diff_ex_vat": sun_diff,
@@ -28671,6 +28693,196 @@ async def revenue_settlement_reconciliation_rows(session, limit: int = 36) -> li
             }
         )
     return rows
+
+
+async def latest_energy_reconciliation_check(session) -> Dict[str, Any]:
+    latest_day = (
+        await session.execute(select(func.max(EnergyHourlyConsumption.stat_date)))
+    ).scalar_one_or_none()
+    if not latest_day:
+        return evaluate_reconciliation(
+            check_id="energy-elvia-hc3-missing",
+            domain="Energi",
+            title="Elvia mot HC3",
+            actual_label="HC3 realtime",
+            actual_value=None,
+            reference_label="Elvia",
+            reference_value=None,
+            unit="kWh",
+            detail="Ingen Elvia-timer er importert.",
+            path="/energi/elvia-kontroll",
+        )
+
+    day_start = datetime.combine(latest_day, time.min)
+    day_end = day_start + timedelta(days=1)
+    compare_start = day_start + ENERGY_HC3_HOURLY_DISPLAY_OFFSET
+    compare_end = day_end + ENERGY_HC3_HOURLY_DISPLAY_OFFSET
+    elvia_result = (
+        await session.execute(
+            select(
+                func.sum(EnergyHourlyConsumption.consumption_kwh),
+                func.count(func.distinct(EnergyHourlyConsumption.hour)),
+                func.max(EnergyHourlyConsumption.measured_at),
+            ).where(EnergyHourlyConsumption.stat_date == latest_day)
+        )
+    ).one()
+    hc3_result = (
+        await session.execute(
+            select(
+                func.sum(EnergyFibaroSample.inntak_delta_kwh),
+                func.count(EnergyFibaroSample.id),
+                func.max(EnergyFibaroSample.bucket_start),
+            )
+            .where(EnergyFibaroSample.bucket_start >= compare_start)
+            .where(EnergyFibaroSample.bucket_start < compare_end)
+        )
+    ).one()
+    elvia_total = parse_settlement_number(elvia_result[0])
+    hc3_total = parse_settlement_number(hc3_result[0])
+    elvia_hours = int_or_zero(elvia_result[1])
+    hc3_samples = int_or_zero(hc3_result[1])
+    confidence = min(100.0, round((elvia_hours / 24) * 100, 1)) if elvia_hours else 0.0
+    return evaluate_reconciliation(
+        check_id=f"energy-elvia-hc3-{latest_day.isoformat()}",
+        domain="Energi",
+        title="Elvia mot HC3",
+        actual_label="HC3 realtime",
+        actual_value=hc3_total,
+        reference_label="Elvia",
+        reference_value=elvia_total,
+        unit="kWh",
+        period=latest_day.isoformat(),
+        absolute_tolerance=1.0,
+        percent_tolerance=2.0,
+        critical_multiplier=3.0,
+        confidence=confidence,
+        detail=f"{elvia_hours}/24 Elvia-timer og {hc3_samples} HC3-samples. HC3-delta er tidsjustert -1 time.",
+        path=f"/energi/elvia-kontroll?day={latest_day.isoformat()}",
+        updated_at=max(
+            [value for value in (elvia_result[2], hc3_result[2]) if value is not None],
+            default=None,
+        ),
+    )
+
+
+async def build_reconciliation_control(session, now_dt: datetime) -> Dict[str, Any]:
+    settlement_rows = await revenue_settlement_reconciliation_rows(session, limit=6)
+    settlement_checks: list[Dict[str, Any]] = []
+    for row in settlement_rows:
+        period_label = str(row.get("period_label") or row.get("period_start") or "Ukjent periode")
+        parking_id = row.get("parking_settlement_id")
+        sun_id = row.get("sun_settlement_id")
+        settlement_checks.append(
+            evaluate_reconciliation(
+                check_id=f"parking-settlement-{row.get('period_start')}",
+                domain="Parkering",
+                title="Parkeringsoppgjør",
+                actual_label="EasyPark + Flowbird",
+                actual_value=row.get("parking_system_ex_vat"),
+                reference_label="ParkNordic-oppgjør",
+                reference_value=row.get("parking_settlement_ex_vat"),
+                unit="kr eks. mva",
+                period=period_label,
+                absolute_tolerance=1.0,
+                critical_multiplier=3.0,
+                confidence=100 if parking_id else None,
+                detail="Kontrollerer månedssum i Fibaro10 mot brutto mynt/kort og EasyPark i originalbilaget.",
+                path=f"/parkering/oppgjor/{parking_id}" if parking_id else "/parkering/oppgjor",
+                updated_at=row.get("parking_settlement_imported_at"),
+            )
+        )
+        settlement_checks.append(
+            evaluate_reconciliation(
+                check_id=f"sun-settlement-{row.get('period_start')}",
+                domain="Soling",
+                title="Solingsoppgjør",
+                actual_label="SUN2 solomsetning",
+                actual_value=row.get("sun_system_ex_vat"),
+                reference_label="Altera-oppgjør",
+                reference_value=row.get("sun_settlement_ex_vat"),
+                unit="kr eks. mva",
+                period=period_label,
+                absolute_tolerance=1.0,
+                critical_multiplier=3.0,
+                confidence=100 if sun_id else None,
+                detail="Kontrollerer intern SUN2-omsetning mot solomsetning lest fra kreditnotaen.",
+                path=f"/soling/oppgjor/{sun_id}" if sun_id else "/soling/oppgjor",
+                updated_at=row.get("sun_settlement_imported_at"),
+            )
+        )
+
+    energy_check = await latest_energy_reconciliation_check(session)
+    door_payload = await sunroom_door_alarm_payload(session, history_limit=50)
+    door_summary = dict(door_payload.get("summary") or {})
+    active_door_alarms = int_or_zero(door_summary.get("alarm"))
+    watched_doors = int_or_zero(door_summary.get("watch"))
+    door_status = "critical" if active_door_alarms else "warning" if watched_doors else "ok"
+    door_check = state_reconciliation(
+        check_id="doors-sun-session-control",
+        domain="Dører",
+        title="Solromdør mot soltime",
+        status=door_status,
+        value_label="Aktive alarmer",
+        value=active_door_alarms,
+        unit="stk",
+        period="Nå",
+        detail=f"{watched_doors} rom venter på soltime; {int_or_zero(door_summary.get('historyActive'))} aktive historikkposter.",
+        path="/dorer/avvik",
+        updated_at=door_payload.get("generatedAt"),
+        confidence=100,
+    )
+
+    link_state = await get_parking_sun_link_state(session)
+    worker_age_seconds = (
+        max(0.0, (now_dt - normalize_local_naive(link_state.last_worker_seen_at)).total_seconds())
+        if link_state.last_worker_seen_at
+        else None
+    )
+    if link_state.last_error:
+        link_status = "critical"
+    elif not link_state.enabled or worker_age_seconds is None or worker_age_seconds > 180:
+        link_status = "warning"
+    else:
+        link_status = "ok"
+    link_check = state_reconciliation(
+        check_id="parking-sun-link-worker",
+        domain="Koble",
+        title="Parkering mot SUN2",
+        status=link_status,
+        value_label="Sterke kandidater",
+        value=int_or_zero(link_state.strong_candidate_count),
+        unit="stk",
+        period=f"Generasjon {int_or_zero(link_state.generation)}",
+        detail=(
+            link_state.last_error
+            or f"{int_or_zero(link_state.processed_count)} parkeringer kontrollert; "
+            f"{int_or_zero(link_state.candidate_count)} kandidater. {link_state.status_text or ''}".strip()
+        ),
+        path="/koble/oversikt",
+        updated_at=link_state.last_worker_seen_at or link_state.updated_at,
+        confidence=100 if link_status == "ok" else 70,
+    )
+
+    groups = [
+        reconciliation_group(
+            "settlements",
+            "Oppgjør",
+            "De seks nyeste periodene, sammenlignet mot originalbilag.",
+            settlement_checks,
+        ),
+        reconciliation_group(
+            "operations",
+            "Løpende kontroller",
+            "Energi, solrom og koblingsmotor vurdert med samme statusmodell.",
+            [energy_check, door_check, link_check],
+        ),
+    ]
+    checks = [check for group in groups for check in group["checks"]]
+    return {
+        "generated_at": api_local_iso(now_dt),
+        "summary": reconciliation_summary(checks),
+        "groups": groups,
+    }
 
 
 async def energy_elvia_control_module_payload(session, selected_day: date, today: date) -> Dict[str, Any]:
@@ -31308,6 +31520,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             urgent_task_count = sum(1 for row in admin_task_rows if row["severity"] in {"Kritisk", "Høy"})
             actions = []
             charts = []
+            reconciliation = None
             admin_cards = [
                 api_card("Oppgaver", len(admin_task_rows), "stk", f"{urgent_task_count} kritisk/høy", "status", href="/admin/oppgaver"),
                 api_card("Build", APP_BUILD, "", BUILD_LOG[0]["title"], "status", href="/admin/build"),
@@ -31381,77 +31594,78 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     ),
                 ]
             elif view == "kontroll":
-                parking_settlement_count = (
-                    await session.execute(
-                        select(func.count(SettlementImport.id)).where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
-                    )
-                ).scalar_one()
-                sun_settlement_count = (
-                    await session.execute(
-                        select(func.count(SettlementImport.id)).where(SettlementImport.provider == SUN_SETTLEMENT_PROVIDER)
-                    )
-                ).scalar_one()
-                datasource_issue_count = sum(1 for row in import_rows if row["status"] != "ok")
-                data_quality_issue_count = len([row for row in admin_task_rows if row["domain"] in {"Datakvalitet", "Datakilde"}])
+                reconciliation = await build_reconciliation_control(session, now_dt)
+                reconciliation_summary_row = reconciliation["summary"]
+                reconciliation_checks = [
+                    check
+                    for group in reconciliation["groups"]
+                    for check in group["checks"]
+                ]
                 admin_cards = [
-                    api_card("Parkering", parking_settlement_count, "oppgjør", "ParkNordic mot EasyPark/Flowbird", "parking", href="/parkering/oppgjor"),
-                    api_card("Soling", sun_settlement_count, "oppgjør", "Altera/Sun2 mot intern omsetning", "sun2", href="/soling/oppgjor"),
-                    api_card("Energi", "Elvia", "", "Elvia mot HC3 og realtime grunnlag", "energy", href="/energi/elvia-kontroll"),
-                    api_card("Avvik", datasource_issue_count + data_quality_issue_count, "stk", "Datakilder og datakvalitet", "status", href="/admin/datakvalitet"),
+                    api_card(
+                        "Samlet status",
+                        reconciliation_summary_row["overall_label"],
+                        "",
+                        f"{reconciliation_summary_row['total']} kontroller vurdert",
+                        "status",
+                        href="/admin/kontroll",
+                    ),
+                    api_card(
+                        "Stemmer",
+                        reconciliation_summary_row["ok"],
+                        "stk",
+                        "Innenfor definert toleranse",
+                        "status",
+                        href="/admin/kontroll",
+                    ),
+                    api_card(
+                        "Avvik",
+                        reconciliation_summary_row["critical"],
+                        "stk",
+                        "Krever kontroll",
+                        "revenue" if reconciliation_summary_row["critical"] else "status",
+                        href="/admin/kontroll",
+                    ),
+                    api_card(
+                        "Mangler grunnlag",
+                        reconciliation_summary_row["missing"],
+                        "stk",
+                        "Bilag eller systemdata mangler",
+                        "status",
+                        href="/admin/kontroll",
+                    ),
                 ]
                 tables = [
                     api_table(
-                        "Kontrollflater",
-                        ["domain", "control", "source", "compared_with", "cadence", "path", "purpose"],
+                        "Avstemminger",
                         [
-                            {
-                                "domain": "Parkering",
-                                "control": "Oppgjør",
-                                "source": "ParkNordic / EasyPark",
-                                "compared_with": "Fibaro10 EasyPark + flowbird-parknordic",
-                                "cadence": "Månedlig",
-                                "path": "/parkering/oppgjor",
-                                "purpose": "Kontrollere brutto mynt/kort og EasyPark-beløp mot oppgjørsskjema.",
-                            },
-                            {
-                                "domain": "Soling",
-                                "control": "Oppgjør",
-                                "source": "Altera kreditnota",
-                                "compared_with": "Sun2 solomsetning og produktsalg",
-                                "cadence": "Månedlig",
-                                "path": "/soling/oppgjor",
-                                "purpose": "Finne avvik mellom oppgjør og intern omsetning, blant annet bonus/korreksjoner.",
-                            },
-                            {
-                                "domain": "Energi",
-                                "control": "Elvia-kontroll",
-                                "source": "Elvia timesfil",
-                                "compared_with": "HC3 realtime energilogging",
-                                "cadence": "Månedlig / ved import",
-                                "path": "/energi/elvia-kontroll",
-                                "purpose": "Sammenligne strømforbruk fra nettselskap mot egne målinger.",
-                            },
-                            {
-                                "domain": "System",
-                                "control": "Datakvalitet",
-                                "source": "Fibaro10-tabeller og importstatus",
-                                "compared_with": "Definerte kvalitetsmål",
-                                "cadence": "Løpende",
-                                "path": "/admin/datakvalitet",
-                                "purpose": "Finne manglende kjøretøydata, gamle datakilder og andre oppfølgingspunkter.",
-                            },
+                            "status_label",
+                            "domain",
+                            "title",
+                            "period",
+                            "actual_label",
+                            "actual_value",
+                            "reference_label",
+                            "reference_value",
+                            "difference",
+                            "difference_percent",
+                            "unit",
+                            "detail",
+                            "path",
                         ],
+                        reconciliation_checks,
                     ),
                     api_table(
-                        "Kontrollstatus",
+                        "Kontrollregler",
                         ["key", "value"],
                         api_config_value_rows(
                             {
-                                "parkering_oppgjor": parking_settlement_count,
-                                "soling_oppgjor": sun_settlement_count,
-                                "datakilder_med_varsel": datasource_issue_count,
-                                "datakvalitet_oppgaver": data_quality_issue_count,
-                                "apne_oppgaver": len(admin_task_rows),
+                                "oppgjor_toleranse": "1 kr eks. mva",
+                                "energi_toleranse": "maks 1 kWh eller 2 %",
+                                "energi_kritisk": "over 3 ganger toleransen",
+                                "dorkontroll": "ingen aktive alarmer",
+                                "koblingsjobb": "aktiv worker sett siste 3 min",
+                                "generert": reconciliation["generated_at"],
                             }
                         ),
                     ),
@@ -31707,6 +31921,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "charts": charts,
                 "tables": tables,
                 "actions": actions,
+                "reconciliation": reconciliation,
             }
 
     raise HTTPException(status_code=404, detail="Ukjent v2-modul")

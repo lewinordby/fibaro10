@@ -33,6 +33,7 @@ const EnergyElviaPage = lazy(() => import("./EnergyElviaPage"));
 const EnergySunbedsPage = lazy(() => import("./EnergySunbedsPage"));
 const EnergyCircuitLoadsPage = lazy(() => import("./EnergyCircuitLoadsPage"));
 const ModuleChartPanel = lazy(() => import("./module/ModuleChartPanel"));
+const ReconciliationPage = lazy(() => import("./ReconciliationPage"));
 const VentilationPage = lazy(() => import("./VentilationPage"));
 
 const MINUTE = 60_000;
@@ -235,6 +236,13 @@ export default function ModulePage({ module }: { module: string }) {
     return (
       <Suspense fallback={<LoadingBlock />}>
         <EnergyCircuitLoadsPage data={data} onReload={reloadModule} />
+      </Suspense>
+    );
+  }
+  if (module === "admin" && safeView === "kontroll" && data.reconciliation) {
+    return (
+      <Suspense fallback={<LoadingBlock />}>
+        <ReconciliationPage data={data.reconciliation} />
       </Suspense>
     );
   }
