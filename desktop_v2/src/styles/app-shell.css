@@ -7,6 +7,7 @@
   top: 0;
   height: 100vh;
   overflow: auto;
+  scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--active-module-color) 22%, var(--line-strong)) transparent;
   transition: all 0.18s ease;
@@ -233,6 +234,22 @@
   align-items: center;
   min-width: 0;
   flex: 1;
+}
+
+@media (max-width: 1180px) {
+  .app-header {
+    gap: 8px;
+    padding-inline: 12px;
+  }
+
+  .profile-button {
+    width: 36px;
+    padding: 4px;
+  }
+
+  .profile-name {
+    display: none;
+  }
 }
 
 .main-menu-toggle {

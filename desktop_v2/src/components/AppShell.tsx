@@ -35,6 +35,13 @@ function defaultScreenTheme(): ScreenTheme {
   return tabletLike ? "dark" : "standard";
 }
 
+function defaultMenuHidden(): boolean {
+  const stored = window.localStorage.getItem(MENU_HIDDEN_STORAGE_KEY);
+  if (stored === "1") return true;
+  if (stored === "0") return false;
+  return window.matchMedia("(max-width: 1180px)").matches;
+}
+
 function userInitial(user?: AuthUser | null): string {
   const name = user?.username?.trim();
   return name ? name.slice(0, 1).toUpperCase() : "";
@@ -148,7 +155,7 @@ type AppShellProps = {
 export function AppShell({ activeView, children, module, viewItems }: AppShellProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const [menuHidden, setMenuHidden] = useState(() => window.localStorage.getItem(MENU_HIDDEN_STORAGE_KEY) === "1");
+  const [menuHidden, setMenuHidden] = useState(defaultMenuHidden);
   const [screenTheme, setScreenTheme] = useState<ScreenTheme>(defaultScreenTheme);
   const { data: user = null } = useQuery<AuthUser | null>({
     queryKey: queryKeys.auth.currentUser(),
@@ -189,6 +196,7 @@ export function AppShell({ activeView, children, module, viewItems }: AppShellPr
             {module && viewItems.length > 1 ? (
               <Segmented
                 className="module-view-switcher top-view-switcher"
+                aria-label="Undersider"
                 value={activeView}
                 options={viewItems.map((item) => ({ label: item.label, value: item.key }))}
                 onChange={(next) => navigate(modulePath(module, String(next)))}

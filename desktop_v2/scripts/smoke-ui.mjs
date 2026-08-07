@@ -193,6 +193,67 @@ const healthPayload = {
   storage: ["import_job_status", "parkering", "sun2_tanning_sessions"],
 };
 
+function statusPeriodsPayload() {
+  const definitions = [
+    { key: "today", title: "I dag", scale: 1, previous: "I g\u00e5r", extra: "Samme ukedag forrige uke", full: "Hele g\u00e5rsdagen" },
+    { key: "week", title: "Denne uke", scale: 8, previous: "Forrige uke", extra: "Samme uke 2025", full: "Hele forrige uke" },
+    { key: "month", title: "Denne m\u00e5ned", scale: 24, previous: "Forrige m\u00e5ned", extra: "Samme m\u00e5ned 2025", full: "Hele forrige m\u00e5ned" },
+    { key: "year", title: "Dette \u00e5r", scale: 620, previous: "2025", extra: "2024", full: "Hele 2025" },
+  ];
+  return definitions.map(({ key, title, scale, previous, extra, full }, index) => {
+    const sol = 1850 * scale;
+    const parking = 5350 * scale;
+    const previousSol = Math.round(sol * 0.92);
+    const previousParking = Math.round(parking * 0.86);
+    const extraSol = Math.round(sol * 0.89);
+    const extraParking = Math.round(parking * 0.8);
+    return {
+      key,
+      title,
+      sol,
+      solCount: 10 * scale,
+      parking,
+      parkingCount: 62 * scale,
+      total: sol + parking,
+      rank: key === "today" ? { rank: 5, label: "5. beste", basis: "Historiske dager", totalDays: 200 } : null,
+      previousSol,
+      previousSolCount: 9 * scale,
+      previousParking,
+      previousParkingCount: 58 * scale,
+      previousTotal: previousSol + previousParking,
+      previousLabel: previous,
+      previousFullLabel: full,
+      previousFullSol: Math.round(sol * (1.7 + index * 0.08)),
+      previousFullSolCount: 17 * scale,
+      previousFullParking: Math.round(parking * (1.65 + index * 0.08)),
+      previousFullParkingCount: 96 * scale,
+      previousFullTotal: Math.round((sol + parking) * (1.66 + index * 0.08)),
+      solAsOfLabel: "kl 12:32",
+      parkingAsOfLabel: "kl 12:00",
+      previousSolAsOfLabel: "kl 12:32",
+      previousParkingAsOfLabel: "kl 12:00",
+      extraComparisons: [
+        {
+          label: extra,
+          sol: extraSol,
+          solCount: 8 * scale,
+          parking: extraParking,
+          parkingCount: 52 * scale,
+          total: extraSol + extraParking,
+          solAsOfLabel: "kl 12:32",
+          parkingAsOfLabel: "kl 12:00",
+          fullLabel: `Hele ${extra.toLowerCase()}`,
+          fullSol: Math.round(sol * (1.5 + index * 0.08)),
+          fullSolCount: 15 * scale,
+          fullParking: Math.round(parking * (1.48 + index * 0.08)),
+          fullParkingCount: 86 * scale,
+          fullTotal: Math.round((sol + parking) * (1.49 + index * 0.08)),
+        },
+      ],
+    };
+  });
+}
+
 function revenueMonthPayload() {
   const rows = Array.from({ length: 7 }, (_, index) => {
     const day = String(index + 1).padStart(2, "0");
@@ -1448,7 +1509,7 @@ const server = http.createServer((request, response) => {
       generatedAt: "2026-06-10T12:00:00",
       operatingWindow: { label: "Åpent", detail: "Stenger 23:00", open: true },
       cards: [],
-      statusPeriods: [],
+      statusPeriods: statusPeriodsPayload(),
       latestItems: [],
       services: healthPayload.sources.map((source) => ({
         sourceNo: source.sourceNo,
@@ -1549,6 +1610,49 @@ async function smokeShellControls(page) {
   console.log("UI shell controls OK");
 }
 
+async function smokeTabletLayout(page) {
+  await page.setViewportSize({ width: 1024, height: 1366 });
+  await page.goto(`${baseUrl}/status/omsetning`, { waitUntil: "load" });
+  await page.evaluate(() => localStorage.removeItem("fibaro10:mainMenuHidden"));
+  await page.reload({ waitUntil: "load" });
+  await page.locator(".app-shell").waitFor({ timeout: 8000 });
+  await waitForShellClass(page, "main-menu-hidden", true);
+  await page.locator(".status-period-card").first().waitFor({ timeout: 8000 });
+  if (await page.locator(".status-period-card").count() < 4) {
+    throw new Error("Dashboardet rendret ikke alle fire periodekortene i iPad-testen");
+  }
+
+  const layout = async () => page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+    cards: [...document.querySelectorAll(".status-period-card")].slice(0, 2).map((element) => {
+      const rect = element.getBoundingClientRect();
+      return { right: rect.right, top: rect.top, width: rect.width };
+    }),
+  }));
+  const hiddenLayout = await layout();
+  if (hiddenLayout.scrollWidth > hiddenLayout.clientWidth + 1) {
+    throw new Error(`iPad-layout med skjult meny er ${hiddenLayout.scrollWidth - hiddenLayout.clientWidth}px for bred`);
+  }
+  if (hiddenLayout.cards.length === 2 && Math.abs(hiddenLayout.cards[0].top - hiddenLayout.cards[1].top) > 1) {
+    throw new Error("iPad-layout med skjult meny viser ikke dashboardet i to kolonner");
+  }
+
+  await page.getByRole("button", { name: /vis hovedmeny/i }).click();
+  await waitForShellClass(page, "main-menu-hidden", false);
+  const visibleLayout = await layout();
+  if (visibleLayout.scrollWidth > visibleLayout.clientWidth + 1) {
+    throw new Error(`iPad-layout med synlig meny er ${visibleLayout.scrollWidth - visibleLayout.clientWidth}px for bred`);
+  }
+  if (visibleLayout.cards.some((card) => card.right > visibleLayout.clientWidth + 1)) {
+    throw new Error("Dashboardkort havner utenfor iPad-visningen med synlig meny");
+  }
+
+  await page.evaluate(() => localStorage.setItem("fibaro10:mainMenuHidden", "0"));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  console.log("UI iPad layout OK");
+}
+
 async function auditStandardThemeAccentContrast(page) {
   const results = await page.evaluate(() => {
     const parseRgb = (value) => {
@@ -1623,6 +1727,7 @@ async function run() {
     });
 
     await smokeShellControls(page);
+    await smokeTabletLayout(page);
     await page.evaluate(() => localStorage.setItem("fibaro10:screenTheme", "standard"));
     await page.reload({ waitUntil: "load" });
     await page.locator(".app-shell.theme-standard").waitFor({ timeout: 8000 });
@@ -1637,6 +1742,9 @@ async function run() {
         await smokeBollardVisualControl(page);
       }
       if (screenshotPath && screenshotRoute === route.path) {
+        if (route.path.startsWith("/status/")) {
+          await page.locator(".status-period-card").first().waitFor({ timeout: 8000 });
+        }
         await fs.mkdir(path.dirname(screenshotPath), { recursive: true });
         await page.screenshot({ path: screenshotPath, fullPage: true });
       }

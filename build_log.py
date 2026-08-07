@@ -12,6 +12,34 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1657",
+        "date": "07.08.2026",
+        "headline": "Hovedgrensesnittet utnytter iPad-bredden uten horisontal scrolling",
+        "title": "Innholdsbasert dashboardgrid og et roligere appskall pa smalere skjermer",
+        "description": (
+            "Den tidligere globale minstebredden tvang hovedappen til a bli bredere enn en iPad i staende visning. "
+            "Appen bruker na faktisk tilgjengelig innholdsbredde, skjuler sidemenyen som fornuftig standard pa smalere "
+            "skjermer og tilpasser dashboardkort og sidehoder uten a fjerne funksjoner eller menysider."
+        ),
+        "applications": [
+            "Fibaro10 desktop: responsivt appskall, dashboardgrid og sidehoder.",
+            "Frontendtest: egen staende iPad-kontroll med meny bade skjult og synlig.",
+        ],
+        "request": "sett igang og gjor alt i den rekkefolgen du foreslar",
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Reduserer dokumentets minstebredde fra 1180 til 960 piksler.",
+            "Lar nye iPad-visninger starte med skjult sidemeny, men respekterer lagret brukervalg.",
+            "Styrer dashboardets en- eller tokolonnevisning etter reell innholdsbredde.",
+            "Lar sidehoder bryte ryddig nar sidemenyen gir mindre arbeidsflate.",
+            "Komprimerer profilfelt og toppfelt pa smalere skjermer.",
+            "Legger til meningsfull etikett pa den horisontale undermenyen.",
+            "Tester automatisk at 1024 piksler ikke gir horisontal scrolling eller avkuttede kort.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1656",
         "date": "07.08.2026",
         "headline": "Backupovervakningen er kompatibel med QNAP og viser riktig status",
