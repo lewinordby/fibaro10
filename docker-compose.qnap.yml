@@ -21,6 +21,8 @@ x-fibaro10-core: &fibaro10-core
     - .env.hc3-watchdog
   volumes:
     - ${AXIS_HOST_SNAPSHOT_DIR:-./axis_camera_snapshots/snapshots}:/axis_snapshots:ro
+    - ${FIBARO10_NIGHTLY_BACKUP_STATUS_DIR:-/share/CACHEDEV3_DATA/fibaro10_archive/fibaro10_backups}:/system_backup_status/nightly:ro
+    - ${FIBARO10_FULL_BACKUP_STATUS_DIR:-/share/CACHEDEV3_DATA/fibaro10_archive/full_restore_backup/latest}:/system_backup_status/full:ro
   healthcheck:
     test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8110/health', timeout=5).read()\""]
     interval: 10s

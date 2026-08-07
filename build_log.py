@@ -12,6 +12,35 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1672",
+        "date": "07.08.2026",
+        "headline": "Aktive driftsforhold samles i ett hendelsessenter",
+        "title": "Datakilder, dører, pullerter, backup og varselkø behandles på samme sted",
+        "description": (
+            "Varslinger er bygget om fra en ren ntfy-kanalliste til et operativt hendelsessenter. "
+            "Kildesystemene beholder eierskapet til status og historikk, mens Fibaro10 normaliserer "
+            "alvorlighet, anbefalt handling og manuell kvittering i en samlet arbeidsflate."
+        ),
+        "applications": [
+            "Fibaro10: samlet hendelses-API og vedvarende kvitteringer/kommentarer.",
+            "Desktop: kompakt hendelsesjournal, driftsvern og ntfy-abonnementer.",
+            "QNAP: backupstatus monteres lesbart og uten skrivetilgang i webkjernen.",
+            "PostgreSQL: egen tabell for kvitteringsstatus og operatørnotat.",
+        ],
+        "request": "Fortsett med siste trinn og bygg et samlet operativt hendelses- og varslingssenter.",
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Samler trege og feilede datakilder, aktive døralarmer og pullerthendelser.",
+            "Viser nattbackup, gjenopprettingsbackup, ntfy-kø, datakilder og pullertkontroll som driftsvern.",
+            "Lar master kvittere, åpne igjen og kommentere hver aktive hendelse.",
+            "Sørger for at en ny feil på samme kilde blir ubehandlet selv om en eldre feil var kvittert.",
+            "Beholder abonnementslenker og personverninformasjon i sammenleggbare seksjoner.",
+            "Legger til isolerte tester for statusfiler, backupalder, prioritering og kvitteringsgyldighet.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1671",
         "date": "07.08.2026",
         "headline": "Samlet avstemming viser avvik pa tvers av systemene",

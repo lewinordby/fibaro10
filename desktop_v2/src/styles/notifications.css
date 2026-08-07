@@ -1,0 +1,187 @@
+.incident-page {
+  display: grid;
+  gap: 14px;
+  max-width: 1720px;
+  margin: 0 auto;
+}
+
+.incident-heading,
+.incident-list-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.incident-heading h1,
+.incident-list-heading h2 {
+  margin: 2px 0 0;
+  color: var(--text);
+  letter-spacing: 0;
+}
+
+.incident-heading h1 { font-size: 24px; }
+.incident-list-heading h2 { font-size: 18px; }
+.incident-heading p { margin: 4px 0 0; color: var(--muted); }
+.incident-kicker { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; }
+
+.incident-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.incident-summary > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  min-height: 64px;
+  padding: 12px 16px;
+  border-left: 3px solid var(--border);
+}
+
+.incident-summary > div + div { border-top: 0; }
+.incident-summary span { color: var(--muted); font-weight: 600; }
+.incident-summary strong { color: var(--text); font-size: 24px; }
+.incident-summary .tone-critical { border-left-color: var(--red); }
+.incident-summary .tone-warning { border-left-color: var(--amber); }
+.incident-summary .tone-ok { border-left-color: var(--green); }
+.incident-summary .tone-attention { border-left-color: var(--blue); }
+
+.incident-controls {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.incident-control {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 62px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.incident-control:hover { border-color: var(--blue); background: var(--surface-soft); }
+.incident-control-icon { color: var(--green); font-size: 17px; }
+.incident-control.status-warning .incident-control-icon { color: var(--amber); }
+.incident-control.status-critical .incident-control-icon { color: var(--red); }
+.incident-control strong,
+.incident-control small { display: block; }
+.incident-control small { margin-top: 2px; color: var(--muted); line-height: 1.3; }
+
+.incident-workspace {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.incident-list-heading { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.incident-table-head,
+.incident-row {
+  display: grid;
+  grid-template-columns: 120px minmax(280px, 1.35fr) 128px minmax(230px, 1fr) 88px;
+  gap: 14px;
+  align-items: center;
+}
+
+.incident-table-head {
+  padding: 8px 16px;
+  color: var(--muted);
+  background: var(--surface-soft);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.incident-row {
+  position: relative;
+  min-height: 94px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.incident-row::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--amber);
+}
+
+.incident-row.severity-critical::before { background: var(--red); }
+.incident-row.is-acknowledged { opacity: .72; }
+.incident-severity { display: grid; grid-template-columns: auto 1fr; gap: 2px 7px; color: var(--amber); }
+.incident-severity svg { grid-row: 1 / span 2; margin-top: 2px; }
+.severity-critical .incident-severity { color: var(--red); }
+.incident-severity small { color: var(--muted); }
+.incident-main span { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.incident-main strong { display: block; margin-top: 2px; color: var(--text); font-size: 14px; }
+.incident-main p,
+.incident-action-copy { margin: 3px 0 0; color: var(--muted); line-height: 1.35; }
+.incident-time { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+
+.incident-secondary { border-color: var(--border); background: var(--surface); }
+.incident-channel-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.incident-channel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+}
+.incident-channel > div:first-child { grid-row: 1 / span 2; }
+.incident-channel span,
+.incident-channel strong { display: block; }
+.incident-channel span { color: var(--muted); font-size: 11px; text-transform: uppercase; }
+.incident-channel strong { margin-top: 2px; color: var(--text); }
+.incident-channel p { margin: 4px 0 0; color: var(--muted); }
+.incident-setup ol { margin: 0 0 12px; padding-left: 20px; }
+.incident-setup p { margin: 0; color: var(--muted); }
+
+.incident-dialog { display: grid; gap: 14px; }
+.incident-dialog-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--muted); }
+.incident-dialog > p { margin: 0; color: var(--text); }
+.incident-recommendation { display: grid; gap: 4px; padding: 12px; border-left: 3px solid var(--blue); background: var(--surface-soft); }
+.incident-recommendation span { color: var(--muted); }
+.incident-note-label { color: var(--text); font-weight: 700; }
+.incident-dialog > small { color: var(--muted); }
+
+@media (max-width: 1250px) {
+  .incident-controls { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .incident-table-head,
+  .incident-row { grid-template-columns: 110px minmax(250px, 1.3fr) 120px minmax(190px, 1fr) 84px; gap: 10px; }
+}
+
+@media (max-width: 900px) {
+  .incident-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .incident-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .incident-table-head { display: none; }
+  .incident-row { grid-template-columns: 110px minmax(0, 1fr) auto; }
+  .incident-time,
+  .incident-action-copy { grid-column: 2 / -1; }
+  .incident-channel-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 620px) {
+  .incident-heading,
+  .incident-list-heading { align-items: stretch; flex-direction: column; }
+  .incident-summary,
+  .incident-controls { grid-template-columns: 1fr; }
+  .incident-row { grid-template-columns: 1fr auto; }
+  .incident-severity,
+  .incident-main,
+  .incident-time,
+  .incident-action-copy { grid-column: 1 / -1; }
+}

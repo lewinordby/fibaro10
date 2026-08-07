@@ -67,6 +67,13 @@ from reconciliation_domain import (
     reconciliation_summary,
     state_reconciliation,
 )
+from incident_domain import (
+    apply_incident_reviews,
+    backup_control,
+    incident_summary,
+    operational_incident,
+    parse_status_text,
+)
 from energy_helpers import (
     circuit_technical_label,
     energy_circuit_is_sunbed,
@@ -444,6 +451,13 @@ OWNTRACKS_SERVICE_URL = os.getenv("OWNTRACKS_SERVICE_URL", "http://owntracks_ser
 UNIFI_PROTECT_EVENTS_URL = os.getenv("UNIFI_PROTECT_EVENTS_URL", "http://unifi_protect_events:8130").rstrip("/")
 UNIFI_PROTECT_READ_API_TOKEN = os.getenv("UNIFI_PROTECT_READ_API_TOKEN", "").strip()
 UNIFI_PROTECT_API_TIMEOUT_SECONDS = max(1, int(os.getenv("UNIFI_PROTECT_API_TIMEOUT_SECONDS", "10")))
+NIGHTLY_BACKUP_STATUS_PATH = Path(
+    os.getenv("NIGHTLY_BACKUP_STATUS_PATH", "/system_backup_status/nightly/LATEST_STATUS.txt")
+)
+FULL_BACKUP_STATUS_PATH = Path(
+    os.getenv("FULL_BACKUP_STATUS_PATH", "/system_backup_status/full/BACKUP_STATUS.txt")
+)
+bollard_incident_failure_started_at: Optional[datetime] = None
 OWNTRACKS_VISIT_SYNC_ENABLED = os.getenv("OWNTRACKS_VISIT_SYNC_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
 OWNTRACKS_VISIT_SYNC_INTERVAL_SECONDS = max(30, int(os.getenv("OWNTRACKS_VISIT_SYNC_INTERVAL_SECONDS", "60")))
 OWNTRACKS_VISIT_SYNC_LOOKBACK_HOURS = max(1, int(os.getenv("OWNTRACKS_VISIT_SYNC_LOOKBACK_HOURS", str(24 * 14))))
@@ -881,6 +895,19 @@ class AlarmEvent(Base):
     created_at = Column(DateTime, index=True, nullable=False, default=local_now_naive)
     updated_at = Column(DateTime, index=True, nullable=False, default=local_now_naive)
     raw = Column(JSON, nullable=True)
+
+
+class OperationalIncidentReview(Base):
+    __tablename__ = "operational_incident_reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    incident_key = Column(String, unique=True, index=True, nullable=False)
+    status = Column(String, index=True, nullable=False, default="acknowledged")
+    note = Column(Text, nullable=True)
+    reviewed_at = Column(DateTime, index=True, nullable=False, default=local_now_naive)
+    reviewed_by = Column(String, nullable=True)
+    created_at = Column(DateTime, index=True, nullable=False, default=local_now_naive)
+    updated_at = Column(DateTime, index=True, nullable=False, default=local_now_naive)
 
 
 class ImportJobStatus(Base):
@@ -16671,18 +16698,281 @@ async def api_admin_manual():
     return admin_manual_payload()
 
 
+def operational_incident_review_payload(row: OperationalIncidentReview) -> Dict[str, Any]:
+    return {
+        "status": row.status,
+        "note": row.note or "",
+        "reviewed_at": row.reviewed_at,
+        "reviewed_by": row.reviewed_by,
+    }
+
+
+def read_operational_status_file(path: Path) -> dict[str, str]:
+    try:
+        return parse_status_text(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError):
+        return {}
+
+
+def import_incident_recommended_action(row: Mapping[str, Any]) -> str:
+    status_text = str(row.get("status_text") or "").casefold()
+    if "feil" in status_text:
+        return "Åpne datakilden, les siste feilmelding og kjør jobben på nytt når årsaken er rettet."
+    if "mangler" in status_text:
+        return "Kontroller at kilden er konfigurert og at første vellykkede import er gjennomført."
+    return "Kontroller tidsplan, avhengigheter og siste vellykkede kjøring før tallene brukes."
+
+
+def backup_incident_from_control(control: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
+    status = str(control.get("status") or "unknown")
+    if status == "ok":
+        return None
+    observed_at = control.get("updatedAt") or datetime(2000, 1, 1)
+    return operational_incident(
+        key=f"backup:{control.get('key')}",
+        domain="Backup",
+        title=str(control.get("title") or "Backup"),
+        detail=str(control.get("detail") or "Backupstatus må kontrolleres."),
+        severity="critical" if status == "critical" else "warning",
+        source="QNAP backup",
+        started_at=observed_at,
+        observed_at=observed_at,
+        recommended_action="Kontroller siste statusfil, diskplass og backupjobben før neste planlagte kjøring.",
+        path=str(control.get("path") or "/manual/oversikt"),
+    )
+
+
+async def build_operational_incident_center(
+    session,
+    now_dt: datetime,
+    bollard_status: Optional[Mapping[str, Any]],
+    bollard_error: Optional[str],
+    bollard_error_started_at: Optional[datetime],
+) -> Dict[str, Any]:
+    import_rows = await import_status_rows(session)
+    delivery = await notification_outbox_status(session)
+    controls: list[Dict[str, Any]] = []
+    incidents: list[Dict[str, Any]] = []
+
+    bad_sources = [row for row in import_rows if row.get("status") == "bad"]
+    warning_sources = [row for row in import_rows if row.get("status") == "warn"]
+    source_control_status = "critical" if bad_sources else "warning" if warning_sources else "ok"
+    controls.append(
+        {
+            "key": "data-sources",
+            "title": "Datakilder",
+            "status": source_control_status,
+            "statusLabel": "OK" if source_control_status == "ok" else "Feil" if bad_sources else "Kontroller",
+            "detail": f"{len(import_rows) - len(bad_sources) - len(warning_sources)}/{len(import_rows)} OK; {len(warning_sources)} trege; {len(bad_sources)} feil eller gamle.",
+            "updatedAt": api_local_iso(now_dt),
+            "path": "/admin/datakilder",
+        }
+    )
+    for row in bad_sources + warning_sources:
+        status = str(row.get("status") or "bad")
+        started_at = row.get("last_failed_at") or row.get("last_run_at") or row.get("last_success_at")
+        if status == "warn" and row.get("last_success_at") and row.get("expected_interval_minutes"):
+            started_at = row["last_success_at"] + timedelta(minutes=int(row["expected_interval_minutes"]))
+        started_at = started_at or datetime(2000, 1, 1)
+        detail_parts = [str(row.get("status_text") or "Datakilden må kontrolleres")]
+        if row.get("age"):
+            detail_parts.append(f"alder {row['age']}")
+        if row.get("message"):
+            detail_parts.append(str(row["message"]))
+        incidents.append(
+            operational_incident(
+                key=f"source:{row.get('job_name')}",
+                domain="Datakilder",
+                title=str(row.get("title") or row.get("job_name") or "Datakilde"),
+                detail=" · ".join(detail_parts),
+                severity="critical" if status == "bad" else "warning",
+                source=str(row.get("source") or row.get("category") or "Import"),
+                started_at=started_at,
+                observed_at=row.get("last_failed_at") or row.get("last_run_at") or row.get("last_success_at"),
+                recommended_action=import_incident_recommended_action(row),
+                path=f"/admin/datakilder/{quote(str(row.get('job_name') or ''))}",
+                metadata={"status": status, "sourceNo": row.get("source_no")},
+            )
+        )
+
+    nightly_control = backup_control(
+        key="nightly-backup",
+        title="Nattbackup",
+        values=read_operational_status_file(NIGHTLY_BACKUP_STATUS_PATH),
+        now=now_dt,
+        warning_after_hours=24,
+        critical_after_hours=26,
+    )
+    restore_control = backup_control(
+        key="full-restore-backup",
+        title="Gjenopprettingsbackup",
+        values=read_operational_status_file(FULL_BACKUP_STATUS_PATH),
+        now=now_dt,
+        warning_after_hours=48,
+        critical_after_hours=49,
+    )
+    controls.extend([nightly_control, restore_control])
+    incidents.extend(
+        incident
+        for incident in (
+            backup_incident_from_control(nightly_control),
+            backup_incident_from_control(restore_control),
+        )
+        if incident is not None
+    )
+
+    delivery_status = str(delivery.get("status") or "ok")
+    controls.append(
+        {
+            "key": "notification-delivery",
+            "title": "Varselutsending",
+            "status": "warning" if delivery_status == "warning" else "ok",
+            "statusLabel": "Kontroller" if delivery_status == "warning" else "OK",
+            "detail": f"{int_or_zero(delivery.get('pending'))} venter; {int_or_zero(delivery.get('retrying'))} prøves på nytt.",
+            "updatedAt": delivery.get("oldestPendingAt"),
+            "path": "/varslinger/oversikt",
+        }
+    )
+    if int_or_zero(delivery.get("retrying")):
+        incidents.append(
+            operational_incident(
+                key="notifications:delivery-retry",
+                domain="Varslinger",
+                title="Varsler prøves på nytt",
+                detail=f"{int_or_zero(delivery.get('retrying'))} varsler ligger i retry-kø.",
+                severity="warning",
+                source="ntfy-utkø",
+                started_at=delivery.get("oldestPendingAt") or now_dt,
+                observed_at=now_dt,
+                recommended_action="Kontroller ntfy-tilgang og siste feilmelding dersom køen ikke tømmes automatisk.",
+                path="/varslinger/oversikt",
+            )
+        )
+
+    door_rows = (
+        await session.execute(
+            select(AlarmEvent)
+            .where(AlarmEvent.domain == "doors", AlarmEvent.status == "active")
+            .order_by(AlarmEvent.detected_at.desc(), AlarmEvent.id.desc())
+        )
+    ).scalars().all()
+    for row in door_rows:
+        incidents.append(
+            operational_incident(
+                key=f"door:{row.event_key}",
+                domain="Dører",
+                title=row.title,
+                detail=row.detail or "Aktiv døralarm.",
+                severity="critical" if row.severity == "alert" else "warning",
+                source="Solromkontroll",
+                started_at=row.detected_at,
+                observed_at=row.last_observed_at,
+                recommended_action="Kontroller rommet og den tilhørende soltimen. Alarmen løses automatisk når tilstanden opphører.",
+                path=f"/dorer/alarm?alarm={row.id}",
+                metadata={"alarmId": row.id, "notificationStatus": row.notification_status},
+            )
+        )
+
+    bollard_incidents = list((bollard_status or {}).get("incidents") or [])
+    active_bollards = [
+        row for row in bollard_incidents if str(row.get("status") or "").strip().lower() in {"active", "acknowledged"}
+    ]
+    if bollard_error:
+        controls.append(
+            {
+                "key": "bollards",
+                "title": "Pullertkontroll",
+                "status": "critical",
+                "statusLabel": "Feil",
+                "detail": bollard_error,
+                "updatedAt": api_local_iso(now_dt),
+                "path": "/pullerter/oversikt",
+            }
+        )
+        incidents.append(
+            operational_incident(
+                key="bollards:service-unavailable",
+                domain="Pullerter",
+                title="Pullertkontrollen svarer ikke",
+                detail=bollard_error,
+                severity="critical",
+                source="Protect Ledger",
+                started_at=bollard_error_started_at or now_dt,
+                observed_at=now_dt,
+                recommended_action="Åpne pullertoversikten og kontroller Protect Ledger-tjenesten og kameraene.",
+                path="/pullerter/oversikt",
+            )
+        )
+    else:
+        runtime = dict((bollard_status or {}).get("runtime") or {})
+        ready = bool(dict((bollard_status or {}).get("summary") or {}).get("monitoring_ready"))
+        control_status = "critical" if not runtime.get("running", True) or not ready else "warning" if active_bollards else "ok"
+        controls.append(
+            {
+                "key": "bollards",
+                "title": "Pullertkontroll",
+                "status": control_status,
+                "statusLabel": "OK" if control_status == "ok" else "Kontroller" if control_status == "warning" else "Feil",
+                "detail": f"{len(active_bollards)} aktive hendelser; siste kontroll {runtime.get('last_success_at') or runtime.get('last_run_at') or '-'}.",
+                "updatedAt": runtime.get("last_success_at") or runtime.get("last_run_at"),
+                "path": "/pullerter/oversikt",
+            }
+        )
+        for row in active_bollards:
+            severity = str(row.get("severity") or "warning").lower()
+            incidents.append(
+                operational_incident(
+                    key=f"bollard:{row.get('incident_id')}",
+                    domain="Pullerter",
+                    title=str(row.get("display_name") or "Visuell endring"),
+                    detail="Bekreftet visuell endring som fortsatt er aktiv.",
+                    severity="critical" if severity in {"critical", "alert", "high"} else "warning",
+                    source="Protect Ledger",
+                    started_at=row.get("detected_at") or now_dt,
+                    observed_at=row.get("last_observed_at") or row.get("detected_at"),
+                    recommended_action="Sammenlign referanse og siste bilde, og kvitter hendelsen etter fysisk eller visuell kontroll.",
+                    path="/pullerter/oversikt",
+                    metadata={"incidentId": row.get("incident_id")},
+                )
+            )
+
+    review_rows = (await session.execute(select(OperationalIncidentReview))).scalars().all()
+    review_by_key = {row.incident_key: operational_incident_review_payload(row) for row in review_rows}
+    reviewed_incidents = apply_incident_reviews(incidents, review_by_key)
+    return {
+        "summary": incident_summary(reviewed_incidents),
+        "controls": controls,
+        "incidents": reviewed_incidents,
+        "delivery": delivery,
+    }
+
+
 @app.get("/api/system/notifications")
 async def api_system_notifications():
+    global bollard_incident_failure_started_at
+
+    now_dt = local_now_naive()
     bollard_status = None
+    bollard_error = None
     try:
         bollard_status = await protect_ledger_json("bollards")
-    except Exception:
+        bollard_incident_failure_started_at = None
+    except Exception as exc:
+        bollard_error = str(getattr(exc, "detail", None) or exc or "Pullerttjenesten svarer ikke")
+        if bollard_incident_failure_started_at is None:
+            bollard_incident_failure_started_at = now_dt
         logger.debug("Kunne ikke lese pullertstatus for ntfy-oversikten", exc_info=True)
     subscriptions = ntfy_subscription_rows(bollard_status)
     async with async_session() as session:
-        delivery = await notification_outbox_status(session)
+        incident_center = await build_operational_incident_center(
+            session,
+            now_dt,
+            bollard_status,
+            bollard_error,
+            bollard_incident_failure_started_at,
+        )
     return {
-        "generatedAt": api_local_iso(local_now_naive()),
+        "generatedAt": api_local_iso(now_dt),
         "provider": ntfy_host(),
         "providerUrl": NTFY_BASE_URL,
         "summary": {
@@ -16690,7 +16980,10 @@ async def api_system_notifications():
             "configured": sum(1 for row in subscriptions if row["configured"]),
             "publishing": sum(1 for row in subscriptions if row["publishingEnabled"]),
         },
-        "delivery": delivery,
+        "incidentSummary": incident_center["summary"],
+        "controls": incident_center["controls"],
+        "incidents": incident_center["incidents"],
+        "delivery": incident_center["delivery"],
         "subscriptions": subscriptions,
         "setup": [
             "Installer ntfy-appen på telefonen eller nettbrettet.",
@@ -16699,6 +16992,54 @@ async def api_system_notifications():
             "Bruk Åpne kanal for å kontrollere meldingshistorikken i nettleseren.",
         ],
         "privacy": "Abonnementslenkene inneholder private kanalnavn. Ikke del dem. Fibaro10 sender bare varseltekst til ntfy; kamera- og analysedata forblir lokale.",
+    }
+
+
+@app.post("/api/system/incidents/{incident_key}/review")
+async def api_system_incident_review(request: Request, incident_key: str):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    try:
+        payload = await request.json()
+    except (ValueError, json.JSONDecodeError):
+        payload = {}
+    state = str(payload.get("state") or "acknowledged").strip().lower() if isinstance(payload, dict) else ""
+    note = str(payload.get("note") or "").strip() if isinstance(payload, dict) else ""
+    if state not in {"acknowledged", "open"}:
+        raise HTTPException(status_code=400, detail="Ugyldig kvitteringsstatus")
+    if len(note) > 2000:
+        raise HTTPException(status_code=400, detail="Kommentaren kan ikke være lengre enn 2000 tegn")
+    normalized_key = str(incident_key or "").strip()
+    if not normalized_key or len(normalized_key) > 500:
+        raise HTTPException(status_code=400, detail="Ugyldig hendelsesnøkkel")
+    now_dt = local_now_naive()
+    username = getattr(request.state, "access_key_name", "") or "master"
+    async with async_session() as session:
+        row = (
+            await session.execute(
+                select(OperationalIncidentReview).where(
+                    OperationalIncidentReview.incident_key == normalized_key
+                )
+            )
+        ).scalars().first()
+        if row is None:
+            row = OperationalIncidentReview(
+                incident_key=normalized_key,
+                created_at=now_dt,
+            )
+            session.add(row)
+        row.status = state
+        row.note = note or None
+        row.reviewed_at = now_dt
+        row.reviewed_by = username
+        row.updated_at = now_dt
+        await session.commit()
+        await session.refresh(row)
+    return {
+        "status": "ok",
+        "message": "Hendelsen er kvittert." if state == "acknowledged" else "Hendelsen er åpnet igjen.",
+        "review": operational_incident_review_payload(row),
     }
 
 

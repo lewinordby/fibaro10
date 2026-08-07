@@ -1393,6 +1393,14 @@ async function smokeBollardVisualControl(page) {
   console.log("UI bollard visual control OK");
 }
 
+async function smokeIncidentReview(page) {
+  await page.getByRole("button", { name: "Behandle" }).first().click();
+  await page.getByLabel("Kommentar").fill("Kontrollert i UI-smoke");
+  await page.getByRole("button", { name: "Bekreft lest" }).click();
+  await page.getByText("Hendelsen er kvittert.", { exact: true }).waitFor({ timeout: 5000 });
+  console.log("UI incident review OK");
+}
+
 function systemNotificationsPayload() {
   const channel = (key, title, area, publishingEnabled = true) => ({
     key,
@@ -1411,6 +1419,35 @@ function systemNotificationsPayload() {
     provider: "ntfy.sh",
     providerUrl: "https://ntfy.sh",
     summary: { channels: 5, configured: 5, publishing: 5 },
+    incidentSummary: { active: 1, critical: 1, warning: 0, info: 0, acknowledged: 0, unreviewed: 1, domains: 1 },
+    controls: [
+      { key: "data-sources", title: "Datakilder", status: "critical", statusLabel: "Feil", detail: "22/23 OK; 1 feil.", path: "/admin/datakilder" },
+      { key: "nightly-backup", title: "Nattbackup", status: "ok", statusLabel: "OK", detail: "Sist fullført i natt.", path: "/manual/oversikt" },
+      { key: "full-restore-backup", title: "Gjenopprettingsbackup", status: "ok", statusLabel: "OK", detail: "Sist fullført i går.", path: "/manual/oversikt" },
+      { key: "notification-delivery", title: "Varselutsending", status: "ok", statusLabel: "OK", detail: "Ingen varsler venter.", path: "/varslinger/oversikt" },
+      { key: "bollards", title: "Pullertkontroll", status: "ok", statusLabel: "OK", detail: "Ingen aktive hendelser.", path: "/pullerter/oversikt" },
+    ],
+    incidents: [
+      {
+        key: "source:easypark_parking_import",
+        domain: "Datakilder",
+        title: "EasyPark import",
+        detail: "Siste import feilet.",
+        severity: "critical",
+        severityLabel: "Kritisk",
+        source: "EasyPark",
+        startedAt: "2026-06-10T11:50:00",
+        observedAt: "2026-06-10T12:00:00",
+        recommendedAction: "Les siste feilmelding og kjør importen på nytt.",
+        path: "/admin/datakilder/easypark_parking_import",
+        metadata: {},
+        reviewState: "open",
+        reviewedAt: null,
+        reviewedBy: null,
+        reviewNote: "",
+      },
+    ],
+    delivery: { status: "ok", pending: 0, sending: 0, retrying: 0, sent: 12, oldestPendingAt: null },
     subscriptions: [
       channel("doors", "Døralarmer", "Dører og solrom"),
       channel("bollards", "Pullerter og trapp", "Kamera og bygg"),
@@ -1473,6 +1510,9 @@ const server = http.createServer((request, response) => {
   if (url.pathname === "/api/admin/builds/smoke") return sendJson(response, buildEntry);
   if (url.pathname === "/api/manual" || url.pathname === "/api/admin/manual") return sendJson(response, manualPayload);
   if (url.pathname === "/api/system/notifications") return sendJson(response, systemNotificationsPayload());
+  if (url.pathname.startsWith("/api/system/incidents/") && request.method === "POST") {
+    return sendJson(response, { status: "ok", message: "Hendelsen er kvittert." });
+  }
   if (url.pathname === "/api/system/subsystems") return sendJson(response, systemSubsystemsPayload());
   if (url.pathname === "/api/revenue/month") return sendJson(response, revenueMonthPayload());
   if (url.pathname === "/api/status/comparison") return sendJson(response, statusComparisonPayload());
@@ -1740,6 +1780,9 @@ async function run() {
       }
       if (route.path === "/pullerter/oversikt") {
         await smokeBollardVisualControl(page);
+      }
+      if (route.path === "/varslinger/oversikt") {
+        await smokeIncidentReview(page);
       }
       if (screenshotPath && screenshotRoute === route.path) {
         if (route.path.startsWith("/status/")) {

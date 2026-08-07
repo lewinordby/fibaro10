@@ -2401,6 +2401,35 @@ export type NtfySubscription = {
   webUrl: string;
 };
 
+export type OperationalControl = {
+  key: string;
+  title: string;
+  status: "ok" | "warning" | "critical" | "unknown" | string;
+  statusLabel: string;
+  detail: string;
+  updatedAt?: string | null;
+  path: string;
+};
+
+export type OperationalIncident = {
+  key: string;
+  domain: string;
+  title: string;
+  detail: string;
+  severity: "critical" | "warning" | "info" | string;
+  severityLabel: string;
+  source: string;
+  startedAt?: string | null;
+  observedAt?: string | null;
+  recommendedAction: string;
+  path: string;
+  metadata: JsonRecord;
+  reviewState: "open" | "acknowledged" | string;
+  reviewedAt?: string | null;
+  reviewedBy?: string | null;
+  reviewNote?: string | null;
+};
+
 export type SystemNotificationsResponse = {
   generatedAt: string;
   provider: string;
@@ -2409,6 +2438,25 @@ export type SystemNotificationsResponse = {
     channels: number;
     configured: number;
     publishing: number;
+  };
+  incidentSummary: {
+    active: number;
+    critical: number;
+    warning: number;
+    info: number;
+    acknowledged: number;
+    unreviewed: number;
+    domains: number;
+  };
+  controls: OperationalControl[];
+  incidents: OperationalIncident[];
+  delivery: {
+    status: string;
+    pending: number;
+    sending: number;
+    retrying: number;
+    sent: number;
+    oldestPendingAt?: string | null;
   };
   subscriptions: NtfySubscription[];
   setup: string[];
@@ -2472,6 +2520,24 @@ export function fetchOverview(): Promise<OverviewResponse> {
 
 export function fetchSystemNotifications(): Promise<SystemNotificationsResponse> {
   return apiGet<SystemNotificationsResponse>("/api/system/notifications", "no-store");
+}
+
+export async function reviewOperationalIncident(
+  incidentKey: string,
+  state: "acknowledged" | "open",
+  note: string,
+): Promise<JsonRecord> {
+  const response = await fetch(`/api/system/incidents/${encodeURIComponent(incidentKey)}/review`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify({ state, note }),
+  });
+  const payload = (await response.json().catch(() => null)) as JsonRecord | null;
+  if (!response.ok) {
+    throw new Error(String(payload?.message || payload?.detail || `${response.status} ${response.statusText}`));
+  }
+  return payload ?? {};
 }
 
 export function fetchSystemSubsystems(): Promise<SystemSubsystemsResponse> {
