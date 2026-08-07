@@ -12,6 +12,30 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1667",
+        "date": "07.08.2026",
+        "headline": "PWA kan installeres allerede fra innloggingssiden",
+        "title": "Hovedappen og iPad-flaten annonserer manifestet for innlogging",
+        "description": (
+            "Manifest og appikoner var tilgjengelige offentlig, men innloggingssidene til Fibaro10 og iPad "
+            "manglet lenken nettleseren bruker for a oppdage en installerbar app. De samme PWA- og Apple-"
+            "metadataene som brukes etter innlogging er na ogsa med for autentiseringsoverflaten."
+        ),
+        "applications": [
+            "Fibaro10: komplett PWA-metadata pa innloggingssiden.",
+            "Lilletorget iPad: komplett PWA-metadata pa innloggingssiden.",
+        ],
+        "request": "kan du sorge for et orntlig pwa manifest i alle appene",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Legger manifest, temafarge og Apple standalone-metadata pa begge innloggingssidene.",
+            "Gjor installasjon tilgjengelig for brukeren for autentisering.",
+            "Legger til statisk kontrakttest for installasjonsmetadata for innlogging.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1666",
         "date": "07.08.2026",
         "headline": "Deploy-planen kjenner alle brukere av felles PWA-kode",

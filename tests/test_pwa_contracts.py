@@ -110,3 +110,16 @@ def test_pwa_import_does_not_load_domain_runtime_dependencies() -> None:
     )
 
     assert check.returncode == 0, check.stderr
+
+
+def test_login_surfaces_advertise_pwa_before_authentication() -> None:
+    root = Path(__file__).resolve().parents[1]
+    sources = (
+        (root / "templates" / "login.html").read_text(encoding="utf-8"),
+        (root / "fibaro10ipad" / "app" / "main.py").read_text(encoding="utf-8"),
+    )
+
+    for source in sources:
+        assert 'rel="manifest" href="/manifest.webmanifest"' in source
+        assert 'name="apple-mobile-web-app-capable" content="yes"' in source
+        assert 'rel="apple-touch-icon"' in source
