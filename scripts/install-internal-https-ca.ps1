@@ -20,7 +20,9 @@ if ($LASTEXITCODE -ne 0) {
     throw "Could not download the Fibaro10 internal CA certificate from QNAP."
 }
 
-& certutil.exe -user -addstore Root $targetCertificate | Out-Null
+Write-Host "Windows asks you to approve the local Fibaro10 certificate authority."
+Write-Host "Confirm the security dialog to continue."
+& certutil.exe -user -f -addstore Root $targetCertificate
 if ($LASTEXITCODE -ne 0) {
     throw "Could not install the Fibaro10 internal CA certificate."
 }

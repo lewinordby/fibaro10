@@ -144,6 +144,9 @@ installeres og verifiseres med:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-internal-https-ca.ps1
 ```
 
+Windows viser en sikkerhetsdialog fordi et nytt lokalt rotsertifikat skal klareres.
+Kontroller at navnet er `Caddy Local Authority - 2026 ECC Root`, og bekreft dialogen.
+
 Nettbrett og telefoner maa faa det samme rotsertifikatet installert som klarert
 sertifikatmyndighet. Etterpaa aapnes `https://192.168.20.218:8443`, og den gamle
 Fibaro10-snarveien erstattes med en ny PWA-installasjon fra HTTPS-adressen.
