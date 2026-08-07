@@ -87,7 +87,7 @@ export const smokeRoutes = [
   { path: "/renhold/oversikt", name: "Renhold oversikt" },
   { path: "/renhold/roboter", name: "Renhold roboter" },
   { path: "/mobil/oversikt", name: "Mobil oversikt" },
-  { path: "/varslinger/oversikt", name: "System varslinger", expectedTexts: ["Hendelser og varslinger", "Nattbackup", "EasyPark import", "Behandle"] },
+  { path: "/varslinger/oversikt", name: "System varslinger", expectedTexts: ["Hendelser og varslinger", "Nattbackup", "Varselkanaler"] },
   { path: "/undersystemer/oversikt", name: "System undersystemer", expectedTexts: ["Undersystemer", "Fibaro10 hovedgrensesnitt", "Vedlikehold mobil", "OwnTracks"] },
   { path: "/manual/oversikt", name: "Manual oversikt", expectedTexts: ["Lilletorget drift", "Undersider"] },
   { path: "/manual/daglig-bruk", name: "Manual daglig bruk", expectedTexts: ["Daglig bruk"] },
