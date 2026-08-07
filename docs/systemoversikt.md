@@ -146,8 +146,8 @@ Standard deploy går gjennom:
 1. `scripts/check-local.ps1`
 2. Git push til `main`
 3. QNAP backup av runtimefiler/data
-4. Compose-validering og én samlet `docker compose up -d --build` for kjernen, fagappene og alle aktive importer-/bakgrunnstjenester
-5. Health-check av 24 HTTP-endepunkter, 23 datakilder og alle forventede containere
+4. Git-diff mot kjørende QNAP-commit og bygging av bare berørte tjenester. Ukjente endringer gir full rebuild som sikker fallback.
+5. Health-check av 25 HTTP-endepunkter, 23 datakilder og alle forventede containere
 6. Smoke-check av interne flater, importører og eksterne proxyadresser
 7. Innlogget live-smoke gjennom desktop- og fagapprutene, med p50/p95-måling
 
@@ -164,3 +164,5 @@ Mikroappene har i tillegg egne, raskere løp:
 - `scripts/smoke-domain-apps.ps1` for alle registrerte fagappruter.
 
 Dette er den normale veien for å holde produksjon og dokumentert systemtilstand synkronisert.
+
+Siste samlede og daterte verifikasjon ligger i `docs/kvalitetsstatus-2026-08-07.md`.

@@ -1,6 +1,6 @@
 # Dokumentasjonsoversikt
 
-Oppdatert 12.07.2026.
+Oppdatert 07.08.2026.
 
 Dette repoet dokumenterer hovedappen `Fibaro10 / Lilletorget drift`, underappene som kjører ved siden av den, HC3-scriptene og importjobbene som fyller databasen.
 
@@ -22,6 +22,7 @@ Dette repoet dokumenterer hovedappen `Fibaro10 / Lilletorget drift`, underappene
 | --- | --- |
 | `docs/kort-brukermanual.md` | Kort operativ manual: hva du kan se/gjøre, hvor du starter, og hvordan du feilsøker vanlige avvik. |
 | `docs/systemoversikt.md` | Dagens systemkart: komponenter, webflater, porter, proxy, datakilder og backup. |
+| `docs/kvalitetsstatus-2026-08-07.md` | Verifisert kvalitetsstatus etter stabilitets-, drifts-, design- og deployloftet i build 1652-1660. |
 | `docs/utviklingsoppsett.md` | Lokal utvikling på Windows, ny PC, deploy til QNAP, smoke, backup og restore-test. |
 | `docs/desktop-v2.md` | Faktisk V2-meny, ruter, frontendstruktur og API-flater. |
 | `docs/funksjonsstruktur.md` | Prinsipper og gjeldende funksjonsdeling for hovedmenyene. |

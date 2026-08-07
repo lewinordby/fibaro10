@@ -12,6 +12,33 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1660",
+        "date": "07.08.2026",
+        "headline": "Hele kvalitetsloftet er verifisert og dokumentert fra kode til QNAP",
+        "title": "Samlet kvalitetsstatus etter sju trinn med stabilitet, drift, design og deploy",
+        "description": (
+            "Den avsluttende kontrollen samler resultatene fra hele forbedringslopet. Alle lokale tester, "
+            "alle produksjonscontainere, hovedappens innloggede ruter og mikroappenes readiness- og sideruter "
+            "er kontrollert. Selektiv deploy er i tillegg bevist i produksjon ved at bare Fibaro10 ble bygget "
+            "uten omstart av EasyPark, Roborock eller de ovrige tjenestene."
+        ),
+        "applications": [
+            "Fibaro10 og fagapper: samlet funksjons-, ytelses- og produksjonskontroll.",
+            "QNAP: bekreftet containerhelse, backupvern og selektiv deploy.",
+            "Dokumentasjon: ny datert kvalitetsstatus og oppdatert driftsbeskrivelse.",
+        ],
+        "request": "sett igang og gjor alt i den rekkefolgen du foreslar",
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Dokumenterer gjennomforte tiltak og verifiserte testresultater for build 1652-1660.",
+            "Bekrefter 25 friske tjenester, 113 innloggede hovedruter og 235 mikroappkontroller.",
+            "Oppdaterer systemoversikten til endringsstyrt deploy med full rebuild som sikker fallback.",
+            "Synliggjor gjenstaende ikke-blokkerende ytelses- og vedlikeholdspunkter.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1659",
         "date": "07.08.2026",
         "headline": "QNAP finner Git-commit og kan velge riktig selektiv deployplan",
