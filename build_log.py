@@ -12,6 +12,31 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1665",
+        "date": "07.08.2026",
+        "headline": "PWA-runtime starter uten unodvendige avhengigheter",
+        "title": "Delt pakke laster bare domenekode nar en fagapp trenger den",
+        "description": (
+            "Produksjonskontrollen av build 1664 avdekket at Fibaro10 lastet mikroapp-runtime samtidig med "
+            "PWA-hjelperen. Hovedappen bruker ikke denne runtime-koden og har derfor heller ikke dens HTTP-"
+            "avhengighet. Importen er na behovsstyrt, slik at hovedappen starter med sitt opprinnelige, mindre "
+            "avhengighetssett, mens fagappene fortsatt far hele runtime-miljoet."
+        ),
+        "applications": [
+            "Fibaro10: oppstart rettet etter produksjonskontroll av PWA-integrasjonen.",
+            "Felles mikroapp-backend: behovsstyrt lasting av domenekode.",
+        ],
+        "request": "kan du sorge for et orntlig pwa manifest i alle appene",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Skiller PWA-import fra HTTP-runtime som bare fagappene trenger.",
+            "Legger til regresjonstest som bekrefter at PWA-import ikke laster domenekoden.",
+            "Kontrollerer hovedappens faktiske containeroppstart som del av utrullingen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1664",
         "date": "07.08.2026",
         "headline": "Alle aktive brukerflater får komplett PWA-identitet",

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import subprocess
+import sys
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -88,3 +90,23 @@ def test_brand_icon_is_square_and_nonempty() -> None:
     assert png_dimensions(PWA_ICON_192_PATH) == (192, 192)
     assert png_dimensions(PWA_ICON_512_PATH) == (512, 512)
     assert png_dimensions(PWA_MASKABLE_ICON_PATH) == (512, 512)
+
+
+def test_pwa_import_does_not_load_domain_runtime_dependencies() -> None:
+    check = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import sys; "
+                "from microapp_backend import PwaConfig, register_pwa; "
+                "assert 'microapp_backend.runtime' not in sys.modules"
+            ),
+        ],
+        cwd=Path(__file__).resolve().parents[1],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert check.returncode == 0, check.stderr
