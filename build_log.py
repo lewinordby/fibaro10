@@ -12,6 +12,31 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1659",
+        "date": "07.08.2026",
+        "headline": "QNAP finner Git-commit og kan velge riktig selektiv deployplan",
+        "title": "QNAP-profil lastes for commit-oppslag for deploy",
+        "description": (
+            "Forste produksjonsprove av endringsstyrt deploy viste at et separat SSH-oppslag ikke hadde QNAPs "
+            "Entware-profil i miljoet. Git ble derfor ikke funnet, og den sikre fallbacken valgte full rebuild. "
+            "Commit-oppslaget laster na samme profil som resten av deployen, slik at berorte tjenester kan "
+            "klassifiseres korrekt."
+        ),
+        "applications": [
+            "QNAP deploy: korrekt Git-oppslag og selektiv tjenesteplan.",
+            "Fibaro10: nytt buildnummer og sporbar produksjonskorrigering.",
+        ],
+        "request": "sett igang og gjor alt i den rekkefolgen du foreslar",
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Laster /opt/etc/profile for SSH-kommandoen som leser gjeldende QNAP-commit.",
+            "Beholder full rebuild som sikker fallback dersom commit fortsatt ikke kan leses.",
+            "Verifiserer det korrigerte commit-oppslaget direkte mot QNAP.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1658",
         "date": "07.08.2026",
         "headline": "Bakgrunnsjobber stopper kontrollert og deploy bygger bare berorte tjenester",

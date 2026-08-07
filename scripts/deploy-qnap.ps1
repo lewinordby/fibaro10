@@ -72,7 +72,7 @@ git rev-parse --is-inside-work-tree >/dev/null
 Run "ssh" @("-i", $IdentityFile, "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", $QnapHost, (NormalizeRemote $preflight))
 
 $targetCommit = (& $Git rev-parse HEAD).Trim()
-$remoteCommitOutput = & ssh -i $IdentityFile -o BatchMode=yes $QnapHost "cd '$RemoteDir' && git rev-parse HEAD"
+$remoteCommitOutput = & ssh -i $IdentityFile -o BatchMode=yes $QnapHost "source /opt/etc/profile 2>/dev/null || true; cd '$RemoteDir' && git rev-parse HEAD"
 $remoteCommitOk = $LASTEXITCODE -eq 0
 $remoteCommit = if ($remoteCommitOk) { ([string]($remoteCommitOutput | Select-Object -Last 1)).Trim() } else { "" }
 $forceFullDeploy = -not $remoteCommitOk -or -not $remoteCommit
