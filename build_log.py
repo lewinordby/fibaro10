@@ -12,6 +12,30 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1663",
+        "date": "07.08.2026",
+        "headline": "Selektiv deploy handterer flere tjenester i samme utrulling",
+        "title": "Quoting-feil i tjenestelisten er rettet og verifisert",
+        "description": (
+            "Forste utrullingsforsok av build 1662 valgte korrekt Fibaro10 og Protect Ledger, men shell-testen "
+            "for en ikke-tom tjenesteliste tolket de to navnene som flere operatorer og hoppet over byggingen. "
+            "Produksjonen fortsatte pa build 1661 uten nedetid. Betingelsen bruker na et eksplisitt boolsk flagg."
+        ),
+        "applications": [
+            "QNAP deploy: robust selektiv utrulling av en eller flere Compose-tjenester.",
+            "Fibaro10 og Protect Ledger: ny produksjonsutrulling av ytelsesbygget.",
+        ],
+        "request": "gjør dette i den rekkefølgen",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Erstatter shell-test av tjenestetekst med et eksplisitt 0/1-flagg.",
+            "Beholder EasyPark=0, Roborock=0 og full=0 for denne utrullingen.",
+            "Logger at build 1662 aldri erstattet den friske produksjonscontaineren.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1662",
         "date": "07.08.2026",
         "headline": "Tunge dagsoversikter lastes raskt uten a miste detaljene",

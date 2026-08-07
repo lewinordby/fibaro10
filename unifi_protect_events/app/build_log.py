@@ -5,11 +5,32 @@ from typing import Any
 
 
 PROTECT_LEDGER_VERSION = os.getenv("PROTECT_LEDGER_VERSION", "1")
-PROTECT_LEDGER_BUILD = os.getenv("PROTECT_LEDGER_BUILD", "19")
+PROTECT_LEDGER_BUILD = os.getenv("PROTECT_LEDGER_BUILD", "20")
 PROTECT_LEDGER_COMMIT = os.getenv("PROTECT_LEDGER_COMMIT", "unknown")
 
 
 PROTECT_LEDGER_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "20",
+        "date": "07.08.2026",
+        "headline": "Korrigert selektiv utrulling med flere berorte tjenester",
+        "title": "Protect Ledger 19 leveres sammen med deployrettingen",
+        "description": (
+            "Forste utrullingsforsok bygget ingen containere fordi shell-betingelsen ikke handterte to "
+            "tjenestenavn. Build 20 inneholder samme ytelsesforbedring som build 19 og markerer den "
+            "korrigerte, verifiserte produksjonsutrullingen."
+        ),
+        "request": "gjør dette i den rekkefølgen",
+        "changes": [
+            "Beholder lett dagsammendrag og avgrenset detaljhenting fra build 19.",
+            "Utrulles med en eksplisitt boolsk tjenestetest som takler flere containere.",
+        ],
+        "applications": [
+            "Protect Ledger: produksjonsleveranse av den nye skiltjournalen.",
+            "Fibaro10 build 1663: korrigert selektiv deploy.",
+        ],
+    },
     {
         "version": "1",
         "build": "19",

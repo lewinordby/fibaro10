@@ -83,6 +83,7 @@ if (-not $forceFullDeploy) {
 }
 $deployPlan = Get-DeployPlan -ChangedFiles $changedFiles -ForceAll $forceFullDeploy
 $composeServices = [string]::Join(" ", $deployPlan.Services)
+$hasComposeServicesValue = if ($deployPlan.Services.Count -gt 0) { "1" } else { "0" }
 $deployAllValue = if ($deployPlan.All) { "1" } else { "0" }
 $deployEasyParkValue = if ($deployPlan.EasyPark) { "1" } else { "0" }
 $deployRoborockValue = if ($deployPlan.Roborock) { "1" } else { "0" }
@@ -162,7 +163,7 @@ export LINK_APP_BUILD=`$(cat link_app/BUILD)
 "$Docker" rm -f owntracks_mqtt >/dev/null 2>&1 || true
 if [ "$deployAllValue" = "1" ]; then
     "$Docker" compose -f docker-compose.qnap.yml --profile unifi-protect up -d --build --remove-orphans
-elif [ -n "$composeServices" ]; then
+elif [ "$hasComposeServicesValue" = "1" ]; then
     echo "Building changed services: $composeServices"
     "$Docker" compose -f docker-compose.qnap.yml --profile unifi-protect up -d --build --no-deps $composeServices
 else
