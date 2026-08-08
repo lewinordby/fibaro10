@@ -1953,8 +1953,8 @@ body.appkit-mobile .dashboard-performance-head > div {
 }
 
 body.appkit-mobile .dashboard-performance-head span {
-    color: rgb(255 255 255 / 66%);
-    font-size: 0.7rem;
+    color: rgb(255 255 255 / 84%);
+    font-size: 0.72rem;
     font-weight: 700;
 }
 
@@ -1965,8 +1965,8 @@ body.appkit-mobile .dashboard-performance-head strong {
 
 body.appkit-mobile .dashboard-performance-head > small {
     max-width: 160px;
-    color: rgb(255 255 255 / 58%);
-    font-size: 0.66rem;
+    color: rgb(255 255 255 / 78%);
+    font-size: 0.69rem;
     font-weight: 600;
     line-height: 1.35;
     text-align: right;
@@ -1994,7 +1994,7 @@ body.appkit-mobile .dashboard-performance-comparisons > a {
 body.appkit-mobile .dashboard-performance-comparisons span {
     min-height: 2.4em;
     color: #5f6b7d;
-    font-size: 0.68rem;
+    font-size: 0.7rem;
     font-weight: 700;
     line-height: 1.2;
 }
@@ -2021,7 +2021,7 @@ body.appkit-mobile .dashboard-performance-comparisons .is-negative {
 
 body.appkit-mobile .dashboard-performance-comparisons small {
     color: #748095;
-    font-size: 0.63rem;
+    font-size: 0.66rem;
     line-height: 1.3;
 }
 
@@ -2040,8 +2040,8 @@ body.appkit-mobile .dashboard-performance-stat {
     align-items: baseline;
     gap: 2px 8px;
     min-width: 0;
-    color: rgb(255 255 255 / 60%);
-    font-size: 0.68rem;
+    color: rgb(255 255 255 / 80%);
+    font-size: 0.7rem;
 }
 
 body.appkit-mobile .dashboard-performance-stat > span {
@@ -2063,8 +2063,8 @@ body.appkit-mobile .dashboard-performance-stat small {
     grid-column: 1 / -1;
     min-width: 0;
     overflow: hidden;
-    color: rgb(255 255 255 / 48%);
-    font-size: 0.62rem;
+    color: rgb(255 255 255 / 74%);
+    font-size: 0.66rem;
     line-height: 1.25;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -2183,39 +2183,39 @@ body.appkit-mobile .appkit-footer .is-primary span {
 }
 
 body.appkit-mobile .appkit-footer .nav-sun svg {
-    color: #b66b13;
+    color: var(--appkit-sun-ink);
 }
 
 body.appkit-mobile .appkit-footer .nav-parking svg {
-    color: #2f6fbd;
+    color: var(--appkit-parking-ink);
 }
 
 body.appkit-mobile .appkit-footer .nav-energy svg {
-    color: #2d876e;
+    color: var(--appkit-energy-ink);
 }
 
 body.appkit-mobile .appkit-footer .nav-drift svg {
-    color: #705faf;
+    color: var(--appkit-drift-ink);
 }
 
 body.appkit-mobile .appkit-footer .nav-sun.is-active {
     background: color-mix(in srgb, var(--appkit-sun) 17%, var(--appkit-surface));
-    color: #9a5a10;
+    color: var(--appkit-sun-ink);
 }
 
 body.appkit-mobile .appkit-footer .nav-parking.is-active {
     background: color-mix(in srgb, var(--appkit-parking) 14%, var(--appkit-surface));
-    color: #245da8;
+    color: var(--appkit-parking-ink);
 }
 
 body.appkit-mobile .appkit-footer .nav-energy.is-active {
     background: color-mix(in srgb, var(--appkit-energy) 16%, var(--appkit-surface));
-    color: #28755f;
+    color: var(--appkit-energy-ink);
 }
 
 body.appkit-mobile .appkit-footer .nav-drift.is-active {
-    background: color-mix(in srgb, #967adc 16%, var(--appkit-surface));
-    color: #62549b;
+    background: color-mix(in srgb, var(--appkit-drift) 16%, var(--appkit-surface));
+    color: var(--appkit-drift-ink);
 }
 
 body.appkit-mobile .appkit-footer .nav-status.is-primary:not(.is-active) svg {
@@ -2226,18 +2226,18 @@ body.appkit-mobile .appkit-footer .nav-status.is-primary:not(.is-active) svg {
 
 body.appkit-mobile .appkit-footer .nav-status.is-primary.is-active {
     background: color-mix(in srgb, var(--appkit-revenue) 13%, var(--appkit-surface));
-    color: #b84452;
+    color: var(--appkit-revenue-ink);
 }
 
 body.appkit-mobile .appkit-footer .nav-status.is-primary.is-active svg {
     background: color-mix(in srgb, var(--appkit-revenue) 13%, var(--appkit-surface));
-    color: #b84452;
+    color: var(--appkit-revenue-ink);
     box-shadow: 0 6px 16px color-mix(in srgb, var(--appkit-revenue) 22%, transparent);
 }
 
 /* Purpose-built dark palette: neutral layers carry the layout; color carries meaning. */
 :root[data-theme="dark"] body.appkit-mobile {
-    --temperature: #b8a7f0;
+    --temperature: var(--appkit-drift);
 }
 
 :root[data-theme="dark"] body.appkit-mobile .topbar,

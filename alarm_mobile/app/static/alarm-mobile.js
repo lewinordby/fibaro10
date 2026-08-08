@@ -483,6 +483,10 @@ function renderAccount() {
       <div><dt>Alarm-build</dt><dd>${escapeHtml(state.data?.build || "-")}</dd></div>
       <div><dt>Sist oppdatert</dt><dd>${escapeHtml(formatStamp(state.data?.generatedAt, true))}</dd></div>
     </dl>
+    <button class="appkit-theme-setting" type="button" data-toggle-theme>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.2A8.5 8.5 0 0 1 8.8 4a7.8 7.8 0 1 0 11.2 11.2Z"/></svg>
+      <span><strong>Utseende</strong><small data-theme-label>${document.documentElement.dataset.theme === "dark" ? "Lyst tema" : "Mørkt tema"}</small></span>
+    </button>
     <form method="post" action="/konto/logg-ut"><button class="logout-button" type="submit">Logg ut</button></form>
   `;
 }

@@ -2,12 +2,12 @@
 
 :root {
   color-scheme: light;
-  --appkit-page: #f1f3f5;
+  --appkit-page: #eef2f5;
   --appkit-surface: #ffffff;
-  --appkit-surface-soft: #f6f7f9;
-  --appkit-text: #20252b;
-  --appkit-muted: #7d838c;
-  --appkit-line: #e2e5e9;
+  --appkit-surface-soft: #f4f7f9;
+  --appkit-text: #192129;
+  --appkit-muted: #65717d;
+  --appkit-line: #d6dde4;
   --appkit-highlight: #4a89dc;
   --appkit-highlight-dark: #3473c8;
   --appkit-highlight-soft: #edf5ff;
@@ -19,6 +19,12 @@
   --appkit-warning: #f6bb42;
   --appkit-danger: #ed5565;
   --appkit-success: #37bc9b;
+  --appkit-sun-ink: #965b0a;
+  --appkit-parking-ink: #285f9f;
+  --appkit-energy-ink: #1f725d;
+  --appkit-revenue-ink: #a63d4b;
+  --appkit-drift: #705faf;
+  --appkit-drift-ink: #5f4f99;
   --appkit-radius: 8px;
   --appkit-shadow: 0 6px 18px rgb(27 34 44 / 8%);
   --appkit-shadow-raised: 0 12px 32px rgb(27 34 44 / 13%);
@@ -30,12 +36,12 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --appkit-page: #10161c;
-  --appkit-surface: #19222b;
-  --appkit-surface-soft: #222d38;
-  --appkit-text: #f5f7fa;
-  --appkit-muted: #a5b1bf;
-  --appkit-line: #303d49;
+  --appkit-page: #0f151b;
+  --appkit-surface: #18212a;
+  --appkit-surface-soft: #222d37;
+  --appkit-text: #f2f5f8;
+  --appkit-muted: #b1bdc9;
+  --appkit-line: #374552;
   --appkit-highlight: #75b3f5;
   --appkit-highlight-dark: #9ac9fb;
   --appkit-highlight-soft: #1b3044;
@@ -47,6 +53,12 @@
   --appkit-warning: #f3bb4b;
   --appkit-danger: #ff7d89;
   --appkit-success: #58cbaa;
+  --appkit-sun-ink: #f3bb4b;
+  --appkit-parking-ink: #75b3f5;
+  --appkit-energy-ink: #58cbaa;
+  --appkit-revenue-ink: #ff7d89;
+  --appkit-drift: #b8a7f0;
+  --appkit-drift-ink: #b8a7f0;
   --appkit-shadow: 0 1px 2px rgb(0 0 0 / 24%), 0 8px 20px rgb(0 0 0 / 14%);
   --appkit-shadow-raised: 0 2px 4px rgb(0 0 0 / 26%), 0 14px 30px rgb(0 0 0 / 20%);
 }
@@ -93,6 +105,17 @@ body.appkit-mobile h6 {
 
 body.appkit-mobile p {
   color: inherit;
+}
+
+body.appkit-mobile ::placeholder {
+  color: color-mix(in srgb, var(--appkit-muted) 76%, transparent);
+  opacity: 1;
+}
+
+body.appkit-mobile input,
+body.appkit-mobile select,
+body.appkit-mobile textarea {
+  accent-color: var(--appkit-highlight);
 }
 
 body.appkit-mobile button,
@@ -188,7 +211,7 @@ body.appkit-mobile textarea:focus-visible {
   overflow: hidden;
   margin-top: 2px;
   color: var(--appkit-muted);
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -307,8 +330,8 @@ body.appkit-mobile textarea:focus-visible {
 .appkit-glance-kicker {
   display: block;
   margin-bottom: 2px;
-  color: rgb(255 255 255 / 62%);
-  font-size: 0.7rem;
+  color: rgb(255 255 255 / 78%);
+  font-size: 0.72rem;
   font-weight: 700;
 }
 
@@ -342,8 +365,8 @@ body.appkit-mobile textarea:focus-visible {
 }
 
 .appkit-glance-metrics small {
-  color: rgb(255 255 255 / 58%) !important;
-  font-size: 0.66rem;
+  color: rgb(255 255 255 / 74%) !important;
+  font-size: 0.7rem;
 }
 
 .appkit-content-title {
@@ -363,7 +386,7 @@ body.appkit-mobile textarea:focus-visible {
 
 .appkit-content-title span {
   color: var(--appkit-muted);
-  font-size: 0.7rem;
+  font-size: 0.72rem;
 }
 
 .appkit-icon-tile {
@@ -416,7 +439,7 @@ body.appkit-mobile .card-style {
 .appkit-kicker {
   margin: 0 0 2px;
   color: var(--appkit-highlight);
-  font-size: 0.67rem;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0;
   text-transform: uppercase;
@@ -455,7 +478,7 @@ body.appkit-mobile .card-style {
   border-radius: 7px;
   background: transparent;
   color: var(--appkit-muted);
-  font-size: 0.66rem;
+  font-size: 0.71rem;
   font-weight: 650;
   line-height: 1;
   text-decoration: none;
@@ -525,6 +548,50 @@ body.appkit-mobile .card-style {
   background: var(--appkit-surface-soft);
   color: var(--appkit-text);
   box-shadow: none;
+}
+
+.appkit-theme-setting {
+  display: grid;
+  width: 100%;
+  min-height: 48px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border: 1px solid var(--appkit-line);
+  border-radius: 7px;
+  background: var(--appkit-surface-soft);
+  color: var(--appkit-text);
+  text-align: left;
+}
+
+.appkit-theme-setting:active {
+  background: var(--appkit-highlight-soft);
+}
+
+.appkit-theme-setting svg {
+  width: 22px;
+  height: 22px;
+  margin: auto;
+  fill: none;
+  stroke: var(--appkit-highlight);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.appkit-theme-setting span {
+  display: grid;
+  gap: 1px;
+}
+
+.appkit-theme-setting strong {
+  font-size: 0.82rem;
+}
+
+.appkit-theme-setting small {
+  color: var(--appkit-muted);
+  font-size: 0.72rem;
 }
 
 .appkit-chip {

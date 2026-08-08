@@ -32,8 +32,8 @@ def test_shared_appkit_assets_are_versioned_in_repo() -> None:
 def test_all_mobile_shells_load_the_shared_theme() -> None:
     for html in (ALARM_HTML, MAINTENANCE_HTML, DASHBOARD_HTML, DETAIL_HTML, LOGIN_HTML):
         assert "/appkit-assets/vendor/appkit-style.css?v=1" in html
-        assert "/appkit-assets/lilletorget-appkit.css?v=3" in html
-        assert "/appkit-assets/lilletorget-appkit.js?v=4" in html
+        assert "/appkit-assets/lilletorget-appkit.css?v=4" in html
+        assert "/appkit-assets/lilletorget-appkit.js?v=5" in html
         assert 'class="appkit-mobile theme-light' in html
 
 
@@ -114,9 +114,10 @@ def test_online_dark_theme_has_dedicated_surfaces_navigation_and_brand_assets() 
     assert "lilletorget-wordmark-dark.svg?v=1694" in LOGIN_HTML
 
     shared_css = (ROOT / "packages" / "mobile-appkit" / "lilletorget-appkit.css").read_text(encoding="utf-8")
-    assert "--appkit-page: #10161c" in shared_css
-    assert "--appkit-surface: #19222b" in shared_css
-    assert "--appkit-line: #303d49" in shared_css
+    assert "--appkit-page: #0f151b" in shared_css
+    assert "--appkit-surface: #18212a" in shared_css
+    assert "--appkit-line: #374552" in shared_css
+    assert "--appkit-muted: #b1bdc9" in shared_css
 
     css = (static_root / "online-dashboard.css").read_text(encoding="utf-8")
     for selector in (
@@ -167,3 +168,12 @@ def test_shared_theme_explicitly_allows_touch_scrolling() -> None:
     assert "touch-action: pan-y" in source
     assert "-webkit-overflow-scrolling: touch" in source
     assert "#page" in source and "overflow: visible !important" in source
+
+
+def test_shared_theme_keeps_small_mobile_text_readable() -> None:
+    source = (ROOT / "packages" / "mobile-appkit" / "lilletorget-appkit.css").read_text(encoding="utf-8")
+    assert "--appkit-muted: #65717d" in source
+    assert "--appkit-muted: #b1bdc9" in source
+    assert ".appkit-footer a," in source
+    assert "font-size: 0.71rem" in source
+    assert "font-size: 0.72rem" in source

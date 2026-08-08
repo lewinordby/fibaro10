@@ -4101,14 +4101,14 @@ LOGIN_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" content="#eef2f5">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png?v=1681">
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
-  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=3">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1699">
-  <script src="/appkit-assets/lilletorget-appkit.js?v=4" defer></script>
+  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1700">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-page">
   <div id="preloader" aria-hidden="true"></div>
@@ -4141,15 +4141,15 @@ DASHBOARD_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" content="#eef2f5">
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png?v=1681">
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
-  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=3">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1699">
-  <script src="/appkit-assets/lilletorget-appkit.js?v=4" defer></script>
+  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1700">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
   <div id="preloader" aria-hidden="true"></div>
@@ -4289,14 +4289,14 @@ DETAIL_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" content="#eef2f5">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png?v=1681">
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
-  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=3">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1699">
-  <script src="/appkit-assets/lilletorget-appkit.js?v=4" defer></script>
+  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1700">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
   <div id="preloader" aria-hidden="true"></div>

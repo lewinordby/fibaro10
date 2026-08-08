@@ -12,6 +12,35 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1700",
+        "date": "08.08.2026",
+        "headline": "Mobiltemaet er ryddet og gjort mer lesbart",
+        "title": "Felles kontrast, typografi og temavalg i Dashboard, Vedlikehold og Alarm",
+        "description": (
+            "Mobilappene bruker nå en strammere felles palett med tydeligere skille mellom side, kort og "
+            "kontroller. Sekundærtekst, navigasjon og forklaringer er gjort større og mer kontrastrike, "
+            "mens områdefargene fortsatt følger soling, parkering, omsetning, energi og drift."
+        ),
+        "applications": [
+            "Online dashboard: forbedret lesbarhet, temafarger og toppkort.",
+            "Vedlikehold mobil: standardiserte områdefarger og nytt tema-valg under Konto.",
+            "Alarm mobil: standardisert tema og nytt tema-valg under Konto.",
+            "Mobile AppKit: oppdatert felles palett, typografi, skjema og PWA-farge.",
+        ],
+        "request": "Rydde grundig i hele temaet og optimalisere mobilappene for best mulig lesbarhet.",
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Øker kontrasten i både lyst og mørkt tema.",
+            "Hever den minste navigasjons- og forklaringsteksten uten å gjøre sidene store.",
+            "Samler områdefargene i felles semantiske variabler.",
+            "Gjør fargen i nettleserens PWA-felt lik det valgte temaet.",
+            "Legger tema-valg på Konto-siden i Vedlikehold og Alarm.",
+            "Versjonerer alle berørte mobilressurser for sikker oppdatering.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1699",
         "date": "08.08.2026",
         "headline": "Toppkortene viser alle nøkkeltall uten overlapp",

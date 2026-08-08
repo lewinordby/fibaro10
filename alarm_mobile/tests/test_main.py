@@ -96,8 +96,8 @@ class AlarmMobileTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('id="doorsView"', INDEX_HTML)
         self.assertIn('id="bollardsView"', INDEX_HTML)
         self.assertIn('id="bollardDetailView"', INDEX_HTML)
-        self.assertIn("alarm-mobile.js?v=7", INDEX_HTML)
-        self.assertIn("/appkit-assets/lilletorget-appkit.css?v=3", INDEX_HTML)
+        self.assertIn("alarm-mobile.js?v=8", INDEX_HTML)
+        self.assertIn("/appkit-assets/lilletorget-appkit.css?v=4", INDEX_HTML)
         self.assertIn('class="appkit-footer bottom-nav"', INDEX_HTML)
 
 

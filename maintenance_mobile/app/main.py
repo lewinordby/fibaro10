@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv()
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstrip("/")
-MAINTENANCE_MOBILE_BUILD = os.getenv("MAINTENANCE_MOBILE_BUILD", "1474")
+MAINTENANCE_MOBILE_BUILD = os.getenv("MAINTENANCE_MOBILE_BUILD", "1475")
 SESSION_COOKIE_NAME = "lilletorget_maintenance_session"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 
@@ -375,7 +375,7 @@ def login_html(error: str = "", *, next_path: str = "/") -> str:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" content="#eef2f5">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Vedlikehold">
@@ -385,9 +385,9 @@ def login_html(error: str = "", *, next_path: str = "/") -> str:
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png?v=1681">
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
-  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=3">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1474">
-  <script src="/appkit-assets/lilletorget-appkit.js?v=4" defer></script>
+  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1475">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-body">
   <div id="preloader" aria-hidden="true"></div>
@@ -417,7 +417,7 @@ INDEX_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" content="#eef2f5">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Vedlikehold">
@@ -427,10 +427,10 @@ INDEX_HTML = """<!doctype html>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png?v=1681">
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
-  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=3">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1474">
-  <script src="/appkit-assets/lilletorget-appkit.js?v=4" defer></script>
-  <script src="/assets/maintenance-mobile.js?v=1474" defer></script>
+  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1475">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
+  <script src="/assets/maintenance-mobile.js?v=1475" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
   <div id="preloader" aria-hidden="true"></div>
@@ -540,6 +540,10 @@ INDEX_HTML = """<!doctype html>
           </div>
         </div>
         <dl id="profileDetails" class="profile-details"></dl>
+        <button class="appkit-theme-setting" type="button" data-toggle-theme>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.2A8.5 8.5 0 0 1 8.8 4a7.8 7.8 0 1 0 11.2 11.2Z"/></svg>
+          <span><strong>Utseende</strong><small data-theme-label>Mørkt tema</small></span>
+        </button>
         <form method="post" action="/konto/logg-ut">
           <button class="primary-button logout-button" type="submit">Logg ut</button>
         </form>

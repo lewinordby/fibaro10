@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv()
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstrip("/")
-ALARM_MOBILE_BUILD = os.getenv("ALARM_MOBILE_BUILD", "7")
+ALARM_MOBILE_BUILD = os.getenv("ALARM_MOBILE_BUILD", "8")
 SESSION_COOKIE_NAME = "lilletorget_alarm_session"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 
@@ -401,7 +401,7 @@ def login_html(error: str, next_path: str) -> str:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" content="#eef2f5">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Alarm">
@@ -411,9 +411,9 @@ def login_html(error: str, next_path: str) -> str:
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png?v=1681">
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
-  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=3">
-  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=7">
-  <script src="/appkit-assets/lilletorget-appkit.js?v=4" defer></script>
+  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
+  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=8">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-body">
   <div id="preloader" aria-hidden="true"></div>
@@ -440,7 +440,7 @@ INDEX_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" content="#eef2f5">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Alarm">
@@ -450,10 +450,10 @@ INDEX_HTML = """<!doctype html>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png?v=1681">
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
-  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=3">
-  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=7">
-  <script src="/appkit-assets/lilletorget-appkit.js?v=4" defer></script>
-  <script src="/assets/alarm-mobile.js?v=7" defer></script>
+  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
+  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=8">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
+  <script src="/assets/alarm-mobile.js?v=8" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
   <div id="preloader" aria-hidden="true"></div>

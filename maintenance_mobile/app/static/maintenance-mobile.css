@@ -282,7 +282,7 @@ body.profile-mode .app-shell {
 .task-button::after {
   margin-left: auto;
   color: #9ca3af;
-  content: "›";
+  content: "\203A";
   font-size: 1.5rem;
   font-weight: 500;
   line-height: 1;
@@ -1497,17 +1497,17 @@ body.appkit-mobile .task-button {
 }
 
 body.appkit-mobile .task-button:nth-child(1) { border-left-color: var(--appkit-energy); }
-body.appkit-mobile .task-button:nth-child(2) { border-left-color: #5d9cec; }
+body.appkit-mobile .task-button:nth-child(2) { border-left-color: var(--appkit-parking); }
 body.appkit-mobile .task-button:nth-child(3) { border-left-color: var(--appkit-sun); }
-body.appkit-mobile .task-button:nth-child(4) { border-left-color: #967adc; }
-body.appkit-mobile .task-button:nth-child(5) { border-left-color: #aab2bd; }
+body.appkit-mobile .task-button:nth-child(4) { border-left-color: var(--appkit-drift); }
+body.appkit-mobile .task-button:nth-child(5) { border-left-color: var(--appkit-muted); }
 
 body.appkit-mobile .task-button::after {
   position: absolute;
   top: 50%;
   right: 15px;
   color: var(--appkit-muted);
-  content: "›";
+  content: "\203A";
   font-size: 1.45rem;
   font-weight: 400;
   transform: translateY(-52%);
