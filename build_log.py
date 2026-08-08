@@ -12,6 +12,31 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1691",
+        "date": "08.08.2026",
+        "headline": "Bunnmenyen viser nå områdefargene",
+        "title": "Aktivt menyvalg følger fargen til Soling, Parkering, Energi og Drift",
+        "description": (
+            "Det valgte området i mobilappens bunnmeny har fått en tydelig områdefarge, "
+            "mens inaktive valg holdes rolige og grå."
+        ),
+        "applications": [
+            "Online dashboard: områdefarger på mobilens bunnmeny.",
+        ],
+        "request": "det er fortsatt ikke farge på knappene",
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser Soling med oransje aktiv knapp.",
+            "Viser Parkering med blå aktiv knapp.",
+            "Viser Energi med grønn aktiv knapp.",
+            "Viser Drift med lilla aktiv knapp.",
+            "Gjør den hevede Status-knappen grå når et annet område er aktivt.",
+            "Legger til regresjonstest og visuell kontroll av alle områdefargene.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1690",
         "date": "08.08.2026",
         "headline": "Energi og Drift har fått tydelige statuspaneler",

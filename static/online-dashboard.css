@@ -2130,6 +2130,37 @@ body.appkit-mobile .appkit-footer .is-primary span {
     font-weight: 750;
 }
 
+body.appkit-mobile .appkit-footer .nav-sun.is-active {
+    background: color-mix(in srgb, var(--appkit-sun) 17%, var(--appkit-surface));
+    color: #9a5a10;
+}
+
+body.appkit-mobile .appkit-footer .nav-parking.is-active {
+    background: color-mix(in srgb, var(--appkit-parking) 14%, var(--appkit-surface));
+    color: #245da8;
+}
+
+body.appkit-mobile .appkit-footer .nav-energy.is-active {
+    background: color-mix(in srgb, var(--appkit-energy) 16%, var(--appkit-surface));
+    color: #28755f;
+}
+
+body.appkit-mobile .appkit-footer .nav-drift.is-active {
+    background: color-mix(in srgb, #967adc 16%, var(--appkit-surface));
+    color: #62549b;
+}
+
+body.appkit-mobile .appkit-footer .nav-status.is-primary:not(.is-active) svg {
+    background: #eef1f5;
+    color: #687386;
+    box-shadow: 0 5px 14px rgb(24 34 53 / 14%);
+}
+
+body.appkit-mobile .appkit-footer .nav-status.is-primary.is-active svg {
+    background: var(--appkit-highlight);
+    color: #fff;
+}
+
 body.appkit-mobile .detail-hero {
     min-height: 74px;
     padding: 10px 4px;

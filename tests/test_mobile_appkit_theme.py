@@ -12,6 +12,7 @@ from online_dashboard.app.main import (  # noqa: E402
     DASHBOARD_HTML,
     DETAIL_HTML,
     LOGIN_HTML,
+    mobile_nav,
     money_delta,
     target_progress_text,
 )
@@ -41,6 +42,23 @@ def test_mobile_apps_have_stable_bottom_navigation() -> None:
     assert 'class="appkit-footer bottom-nav"' in ALARM_HTML
     assert "{{ mobile_nav }}" in DASHBOARD_HTML
     assert "{{ mobile_nav }}" in DETAIL_HTML
+
+
+def test_online_bottom_navigation_uses_area_colors_for_active_item() -> None:
+    expected = {
+        "sun": "nav-sun is-active",
+        "parking": "nav-parking is-active",
+        "energy": "nav-energy is-active",
+        "drift": "nav-drift is-active",
+    }
+    for active, active_classes in expected.items():
+        html = mobile_nav(active)
+        assert active_classes in html
+        assert 'nav-status is-primary"' in html
+
+    css = (ROOT / "static" / "online-dashboard.css").read_text(encoding="utf-8")
+    for selector in (".nav-sun.is-active", ".nav-parking.is-active", ".nav-energy.is-active", ".nav-drift.is-active"):
+        assert selector in css
 
 
 def test_mobile_apps_use_appkit_dashboard_patterns() -> None:

@@ -384,7 +384,7 @@ def online_app():
         "detail_icon": mobile.metric_icon("temperature"),
         "detail_class": "detail-temperature",
         "hero_note": "",
-        "mobile_nav": mobile.mobile_nav("temperature"),
+        "mobile_nav": mobile.mobile_nav("drift"),
     }
     for key, value in drift_values.items():
         drift_html = drift_html.replace("{{ " + key + " }}", value)

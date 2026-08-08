@@ -4051,12 +4051,12 @@ MOBILE_NAV_ITEMS = (
 def mobile_nav(active: str) -> str:
     links = []
     for key, href, label, icon in MOBILE_NAV_ITEMS:
-        classes = []
+        classes = [f"nav-{key}"]
         if key == "status":
             classes.append("is-primary")
         if key == active:
             classes.append("is-active")
-        class_attr = f' class="{" ".join(classes)}"' if classes else ""
+        class_attr = f' class="{" ".join(classes)}"'
         current = ' aria-current="page"' if key == active else ""
         links.append(
             f'<a href="{href}"{class_attr}{current}><svg viewBox="0 0 24 24" aria-hidden="true">{icon}</svg><span>{label}</span></a>'
@@ -4094,7 +4094,7 @@ LOGIN_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1690">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1691">
   <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-page">
@@ -4134,7 +4134,7 @@ DASHBOARD_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1690">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1691">
   <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
@@ -4271,7 +4271,7 @@ DETAIL_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1690">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1691">
   <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
