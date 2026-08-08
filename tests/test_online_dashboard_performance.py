@@ -35,6 +35,8 @@ def test_generic_performance_panel_supports_operational_status() -> None:
     assert "Klima" in html
     assert "Ventilasjon" in html
     assert "<em>" not in html
+    assert html.count('class="dashboard-performance-stat"') == 2
+    assert '<span>Solrom</span><strong>7 ledige</strong><small>5 i bruk</small>' in html
 
 
 def test_drift_performance_uses_door_climate_and_fan_status() -> None:

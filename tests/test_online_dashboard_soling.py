@@ -29,6 +29,13 @@ class OnlineDashboardSolingTests(unittest.TestCase):
         self.assertIn("7 igjen til hele gårsdagen", html)
         self.assertIn("Soltid", html)
         self.assertIn("Omsetning", html)
+        self.assertEqual(html.count('class="dashboard-performance-stat"'), 2)
+        self.assertIn('<span>Soltid</span><strong>6,7 t</strong><small>20 min i snitt</small>', html)
+
+    def test_room_display_name_does_not_duplicate_prefix(self) -> None:
+        self.assertEqual(online_main.room_display_name("Rom 6 Super+"), "Rom 6 Super+")
+        self.assertEqual(online_main.room_display_name("6 Super+"), "Rom 6 Super+")
+        self.assertEqual(online_main.room_display_name(None), "")
 
     def test_today_session_list_shows_clock_without_date(self) -> None:
         html = online_main.render_today_soling_list(

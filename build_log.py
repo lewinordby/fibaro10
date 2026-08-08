@@ -12,6 +12,31 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1699",
+        "date": "08.08.2026",
+        "headline": "Toppkortene viser alle nøkkeltall uten overlapp",
+        "title": "Soling, parkering, energi og drift har fått en robust statistikkrad",
+        "description": (
+            "Statistikkfeltene i toppkortene er bygget om slik at etikett, verdi og forklaring har faste "
+            "plasser. Lange tekster kan dermed ikke lenger kollapse etiketten eller legge innhold oppå "
+            "hverandre. Samtidig er dobbelt romprefiks på siste soling fjernet."
+        ),
+        "applications": [
+            "Online dashboard: forbedret felles toppkort for soling, parkering, energi og drift.",
+        ],
+        "request": "Kontrollere og rette feil i det øverste feltet, spesielt på soling og parkering.",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Deler hvert nøkkeltall i eksplisitt etikett, verdi og forklaring.",
+            "Lar forklaring få en egen linje uten at kortene blir unødvendig høye.",
+            "Bruker samme robuste struktur i alle toppkort og på hoveddashboardet.",
+            "Fjerner teksten Rom Rom når romnavnet allerede inneholder prefikset.",
+            "Versjonerer CSS slik at installerte PWA-er laster rettingen med en gang.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1698",
         "date": "08.08.2026",
         "headline": "Statusstripene på mørke dørkort er tydelige igjen",

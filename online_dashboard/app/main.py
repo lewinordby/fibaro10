@@ -736,6 +736,13 @@ def target_kwh_progress_text(current: Any, target: Any, label: str) -> str:
     return f"{fmt_kwh(abs(difference))} igjen til {label}"
 
 
+def room_display_name(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text or text.casefold().startswith("rom "):
+        return text
+    return f"Rom {text}"
+
+
 def render_performance_panel(
     *,
     modifier: str,
@@ -755,7 +762,13 @@ def render_performance_panel(
         for comparison_label, value, percent, state, note, href in comparisons
     )
     stat_html = "".join(
-        f"<span>{escape(stat_label)} <strong>{escape(stat_value)}</strong><small>{escape(stat_note)}</small></span>"
+        (
+            '<div class="dashboard-performance-stat">'
+            f"<span>{escape(stat_label)}</span>"
+            f"<strong>{escape(stat_value)}</strong>"
+            f"<small>{escape(stat_note)}</small>"
+            "</div>"
+        )
         for stat_label, stat_value, stat_note in stats
     )
     return f"""
@@ -2707,8 +2720,8 @@ async def dashboard(request: Request):
         </a>
       </div>
       <div class="dashboard-performance-split">
-        <span>Soling <strong>{fmt_money(soling_amount)}</strong><small>{soling_share}%</small></span>
-        <span>Parkering <strong>{fmt_money(parking_amount)}</strong><small>{parking_share}%</small></span>
+        <div class="dashboard-performance-stat"><span>Soling</span><strong>{fmt_money(soling_amount)}</strong><small>{soling_share}%</small></div>
+        <div class="dashboard-performance-stat"><span>Parkering</span><strong>{fmt_money(parking_amount)}</strong><small>{parking_share}%</small></div>
       </div>
     </section>
         """
@@ -2804,8 +2817,8 @@ async def soling_detail(request: Request):
     amount = lambda value: fmt_amount(value) if can_view_money else ""
     session_import_at = data["session_import"].get("updated_at")
     latest_soling_at = data["latest_soling"].get("started_at")
-    latest_soling_room = str(data["latest_soling"].get("room") or "").strip()
-    latest_soling_detail = f"Rom {latest_soling_room}" if latest_soling_room else fmt_date(latest_soling_at)
+    latest_soling_room = room_display_name(data["latest_soling"].get("room"))
+    latest_soling_detail = latest_soling_room or fmt_date(latest_soling_at)
     rows = []
     if SOURCE_MODE:
         rows = await many_mappings(
@@ -4094,7 +4107,7 @@ LOGIN_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=3">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1698">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1699">
   <script src="/appkit-assets/lilletorget-appkit.js?v=4" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-page">
@@ -4135,7 +4148,7 @@ DASHBOARD_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=3">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1698">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1699">
   <script src="/appkit-assets/lilletorget-appkit.js?v=4" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
@@ -4282,7 +4295,7 @@ DETAIL_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=3">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1698">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1699">
   <script src="/appkit-assets/lilletorget-appkit.js?v=4" defer></script>
 </head>
 <body class="appkit-mobile theme-light">

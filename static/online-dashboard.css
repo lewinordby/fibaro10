@@ -2034,27 +2034,40 @@ body.appkit-mobile .dashboard-performance-split {
     border-top: 1px solid rgb(255 255 255 / 10%);
 }
 
-body.appkit-mobile .dashboard-performance-split > span {
+body.appkit-mobile .dashboard-performance-stat {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: baseline;
-    gap: 6px;
+    gap: 2px 8px;
     min-width: 0;
     color: rgb(255 255 255 / 60%);
     font-size: 0.68rem;
 }
 
-body.appkit-mobile .dashboard-performance-split strong {
+body.appkit-mobile .dashboard-performance-stat > span {
+    min-width: 0;
     overflow: hidden;
-    color: #fff;
-    font-size: 0.78rem;
+    font-weight: 700;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-body.appkit-mobile .dashboard-performance-split small {
+body.appkit-mobile .dashboard-performance-stat strong {
+    color: #fff;
+    font-size: 0.78rem;
+    text-align: right;
+    white-space: nowrap;
+}
+
+body.appkit-mobile .dashboard-performance-stat small {
+    grid-column: 1 / -1;
+    min-width: 0;
+    overflow: hidden;
     color: rgb(255 255 255 / 48%);
     font-size: 0.62rem;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 body.appkit-mobile .metric-grid {
@@ -2317,13 +2330,14 @@ body.appkit-mobile .appkit-footer .nav-status.is-primary.is-active svg {
 
 :root[data-theme="dark"] body.appkit-mobile .dashboard-performance-head span,
 :root[data-theme="dark"] body.appkit-mobile .dashboard-performance-head > small,
-:root[data-theme="dark"] body.appkit-mobile .dashboard-performance-split > span,
-:root[data-theme="dark"] body.appkit-mobile .dashboard-performance-split small {
+:root[data-theme="dark"] body.appkit-mobile .dashboard-performance-stat,
+:root[data-theme="dark"] body.appkit-mobile .dashboard-performance-stat > span,
+:root[data-theme="dark"] body.appkit-mobile .dashboard-performance-stat small {
     color: var(--appkit-muted);
 }
 
 :root[data-theme="dark"] body.appkit-mobile .dashboard-performance-head strong,
-:root[data-theme="dark"] body.appkit-mobile .dashboard-performance-split strong {
+:root[data-theme="dark"] body.appkit-mobile .dashboard-performance-stat strong {
     color: var(--appkit-text);
 }
 

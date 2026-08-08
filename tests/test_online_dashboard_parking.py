@@ -28,6 +28,7 @@ class OnlineDashboardParkingTests(unittest.TestCase):
         self.assertIn("-2 stk", html)
         self.assertIn("9 igjen til hele gårsdagen", html)
         self.assertIn("neste import kl 16:00", html)
+        self.assertEqual(html.count('class="dashboard-performance-stat"'), 2)
         self.assertIn("Aktive nå", html)
 
     def test_today_parking_list_shows_clock_without_date(self) -> None:
