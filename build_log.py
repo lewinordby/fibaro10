@@ -12,6 +12,30 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1702",
+        "date": "08.08.2026",
+        "headline": "Mobilflatene består siste lesbarhetskontroll",
+        "title": "Ingen tekstoverflyt og ingen synlig tekst under 11 piksler på hovedflatene",
+        "description": (
+            "Den siste kontrollen på en 390 piksler bred mobilskjerm avdekket ett historikkfilter som "
+            "manglet åtte piksler. Kolonnene fordeler nå bredden etter innholdet, og de siste små "
+            "hjelpetekstene er løftet til samme lesbare minstestørrelse."
+        ),
+        "applications": [
+            "Online dashboard: siste små status- og hjelpetekster er forstørret.",
+            "Vedlikehold mobil: historikkfilteret fordeler plassen uten overflyt.",
+        ],
+        "request": "Rydde grundig i hele temaet og optimalisere mobilappene for best mulig lesbarhet.",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Gir Følg opp-filteret mer plass uten å redusere skriftstørrelsen.",
+            "Standardiserer de siste hjelpetekstene til minst 0,7 rem.",
+            "Versjonerer mobilressursene for umiddelbar PWA-oppdatering.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1701",
         "date": "08.08.2026",
         "headline": "De siste små mobiltekstene er gjort lesbare",

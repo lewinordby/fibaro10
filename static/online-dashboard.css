@@ -888,7 +888,7 @@ h2 { font-size: 1.05rem; }
 .lux-pill span {
     display: block;
     color: var(--muted);
-    font-size: .67rem;
+    font-size: .7rem;
     text-transform: uppercase;
     font-weight: 900;
 }
@@ -958,7 +958,7 @@ h2 { font-size: 1.05rem; }
     border-radius: 999px;
     background: rgba(6, 22, 66, .045);
     color: var(--navy);
-    font-size: .68rem;
+    font-size: .7rem;
     font-weight: 900;
 }
 .door-mini-grid,
@@ -2021,7 +2021,7 @@ body.appkit-mobile .dashboard-performance-comparisons .is-negative {
 
 body.appkit-mobile .dashboard-performance-comparisons small {
     color: #748095;
-    font-size: 0.66rem;
+    font-size: 0.7rem;
     line-height: 1.3;
 }
 
@@ -2064,7 +2064,7 @@ body.appkit-mobile .dashboard-performance-stat small {
     min-width: 0;
     overflow: hidden;
     color: rgb(255 255 255 / 74%);
-    font-size: 0.66rem;
+    font-size: 0.7rem;
     line-height: 1.25;
     text-overflow: ellipsis;
     white-space: nowrap;

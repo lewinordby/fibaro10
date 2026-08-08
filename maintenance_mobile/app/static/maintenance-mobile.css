@@ -794,7 +794,7 @@ textarea:focus {
 
 .history-filters {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: 0.9fr 0.9fr 1.25fr 0.9fr;
   gap: 0.28rem;
   margin-bottom: 0.55rem;
   padding: 0.22rem;
