@@ -44,7 +44,7 @@ PUBLIC_PATHS = {
     "/pwa-icon-maskable-512.png",
     "/apple-touch-icon.png",
 }
-PUBLIC_PREFIXES = ("/static/",)
+PUBLIC_PREFIXES = ("/static/", "/appkit-assets/")
 ACCESS_FAILED_DISABLE_THRESHOLD = max(1, int(os.getenv("ACCESS_FAILED_DISABLE_THRESHOLD", "3")))
 ONLINE_ACCESS_LOG_COOLDOWN_SECONDS = max(0, int(os.getenv("ONLINE_ACCESS_LOG_COOLDOWN_SECONDS", "0")))
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://192.168.20.218:8109").rstrip("/")
@@ -118,12 +118,13 @@ ONLINE_PWA = PwaConfig(
     name="Lilletorget Mobil",
     short_name="Lilletorget",
     description="Mobil status for soling, parkering, energi og byggdrift på Lilletorget.",
-    theme_color="#0f172a",
+    theme_color="#4a89dc",
     orientation="portrait",
     categories=("business", "productivity", "utilities"),
 )
 register_pwa(app, ONLINE_PWA)
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/appkit-assets", StaticFiles(directory="packages/mobile-appkit"), name="appkit-assets")
 
 engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
@@ -2460,6 +2461,7 @@ async def dashboard(request: Request):
         "{{ latest_parking }}": latest_parking,
         "{{ parking_time }}": fmt_time(data["parking_import"].get("updated_at")) if data["parking_import"].get("updated_at") else fmt_time(data["parking"].get("updated_at")),
         "{{ revenue_card }}": revenue_card,
+        "{{ mobile_nav }}": mobile_nav("status"),
         "{{ energy_icon }}": metric_icon("energy"),
         "{{ energy_watt }}": fmt_watt(data["energy_now"].get("inntak_w")),
         "{{ energy_kwh }}": fmt_kwh(data["energy_today"].get("kwh")),
@@ -3644,6 +3646,25 @@ def metric_icon(name: str) -> str:
     return METRIC_ICONS.get(name, "")
 
 
+MOBILE_NAV_ITEMS = (
+    ("status", "/", "Status", '<path d="M4 13h6V4H4v9Zm10 7h6v-9h-6v9ZM4 20h6v-3H4v3Zm10-13h6V4h-6v3Z"/>'),
+    ("sun", "/soling", "Soling", '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/>'),
+    ("parking", "/parkering", "Parkering", '<circle cx="12" cy="12" r="9"/><path d="M10 17V7h3.1a3 3 0 0 1 0 6H10"/>'),
+    ("energy", "/energi", "Energi", '<path d="m13 2-7 12h6l-1 8 7-12h-6l1-8Z"/>'),
+    ("drift", "/temperatur", "Drift", '<path d="M14 4.5a4 4 0 0 0-5.2 5.2L3.5 15 9 20.5l5.3-5.3A4 4 0 0 0 19.5 10l-3 3-2.5-2.5 3-3A4 4 0 0 0 14 4.5Z"/>'),
+)
+
+
+def mobile_nav(active: str) -> str:
+    links = []
+    for key, href, label, icon in MOBILE_NAV_ITEMS:
+        current = ' class="is-active" aria-current="page"' if key == active else ""
+        links.append(
+            f'<a href="{href}"{current}><svg viewBox="0 0 24 24" aria-hidden="true">{icon}</svg><span>{label}</span></a>'
+        )
+    return '<nav class="appkit-footer" style="--appkit-nav-count:5" aria-label="Mobilnavigasjon">' + "".join(links) + "</nav>"
+
+
 def render_detail_page(title: str, subtitle: str, body: str, icon: str = "", hero_note: str = "") -> HTMLResponse:
     html = DETAIL_HTML
     detail_class = f"detail-{icon}" if icon else "detail-default"
@@ -3654,6 +3675,9 @@ def render_detail_page(title: str, subtitle: str, body: str, icon: str = "", her
         "{{ detail_icon }}": metric_icon(icon),
         "{{ detail_class }}": detail_class,
         "{{ hero_note }}": hero_note,
+        "{{ mobile_nav }}": mobile_nav(
+            {"sun": "sun", "parking": "parking", "energy": "energy"}.get(icon, "drift")
+        ),
     }
     for key, value in replacements.items():
         html = html.replace(key, value)
@@ -3664,23 +3688,30 @@ LOGIN_HTML = """<!doctype html>
 <html lang="no">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1589">
+  <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
+  <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
+  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1590">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
 </head>
-<body class="login-page">
-  <main class="login-shell">
+<body class="appkit-mobile theme-light login-page">
+  <div id="preloader" aria-hidden="true"></div>
+  <main class="appkit-login login-shell">
     <section class="login-brand">
       <div class="brand-frame">
         <img src="/static/lilletorget-login.png" alt="Lilletorget solsenter og parkering">
       </div>
     </section>
-    <section class="login-card">
+    <section class="appkit-login-panel login-card">
+      <img class="appkit-login-brand" src="/static/lilletorget-text.png" alt="Lilletorget">
       <p class="eyebrow">Lilletorget</p>
       <h1>Logg inn</h1>
       <p class="lead">Nøkkeltall for soling, parkering, lys og ventilasjon.</p>
-      <form method="post" action="/auth/login">
+      <form method="post" action="/auth/login" class="appkit-form">
         <label>Brukernavn<input name="username" autocomplete="username" placeholder="Skriv brukernavn" required></label>
         <label>Passord<input name="password" type="password" autocomplete="current-password" placeholder="Skriv passord" required></label>
         <button type="submit">Logg inn</button>
@@ -3696,19 +3727,27 @@ DASHBOARD_HTML = """<!doctype html>
 <html lang="no">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1589">
+  <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
+  <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
+  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1590">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
 </head>
-<body>
-  <header class="topbar">
-    <a class="logo-link" href="/" aria-label="Til forsiden">
-      <img src="/static/lilletorget-text.png" alt="Lilletorget">
+<body class="appkit-mobile theme-light">
+  <div id="preloader" aria-hidden="true"></div>
+  <div id="page">
+  <header class="appkit-header topbar">
+    <a class="appkit-brand-action logo-link" href="/" aria-label="Til forsiden">
+      <img src="/static/lilletorget-mark.png" alt="">
     </a>
+    <div class="appkit-header-title">Lilletorget<span class="appkit-header-subtitle">Nøkkeltall</span></div>
     <form method="post" action="/logg-ut">
-      <button class="logout-button" type="submit" aria-label="Logg ut" title="Logg ut">
+      <button class="appkit-header-action logout-button" type="submit" aria-label="Logg ut" title="Logg ut">
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
           <path d="M12 3v8" />
           <path d="M7.1 6.5a8 8 0 1 0 9.8 0" />
@@ -3716,7 +3755,7 @@ DASHBOARD_HTML = """<!doctype html>
       </button>
     </form>
   </header>
-  <main class="dashboard">
+  <main class="appkit-page-content has-footer dashboard">
     <section class="pulse-grid">
       <article class="pulse-card accent-open">
         <span>Åpningstid</span>
@@ -3823,6 +3862,8 @@ DASHBOARD_HTML = """<!doctype html>
       {{ other_door_cards }}
     </a>
   </main>
+  {{ mobile_nav }}
+  </div>
 </body>
 </html>"""
 
@@ -3831,18 +3872,26 @@ DETAIL_HTML = """<!doctype html>
 <html lang="no">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1589">
+  <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
+  <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
+  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1590">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
 </head>
-<body>
-  <header class="topbar">
-    <a class="logo-link" href="/" aria-label="Til forsiden">
-      <img src="/static/lilletorget-text.png" alt="Lilletorget">
+<body class="appkit-mobile theme-light">
+  <div id="preloader" aria-hidden="true"></div>
+  <div id="page">
+  <header class="appkit-header topbar">
+    <a class="appkit-brand-action logo-link" href="/" aria-label="Til forsiden">
+      <img src="/static/lilletorget-mark.png" alt="">
     </a>
+    <div class="appkit-header-title">Lilletorget<span class="appkit-header-subtitle">{{ title }}</span></div>
     <form method="post" action="/logg-ut">
-      <button class="logout-button" type="submit" aria-label="Logg ut" title="Logg ut">
+      <button class="appkit-header-action logout-button" type="submit" aria-label="Logg ut" title="Logg ut">
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
           <path d="M12 3v8" />
           <path d="M7.1 6.5a8 8 0 1 0 9.8 0" />
@@ -3850,13 +3899,14 @@ DETAIL_HTML = """<!doctype html>
       </button>
     </form>
   </header>
-  <main class="dashboard detail-page {{ detail_class }}">
+  <main class="appkit-page-content has-footer dashboard detail-page {{ detail_class }}">
     <section class="detail-hero">
       <div class="detail-title">{{ detail_icon }}<h1>{{ title }}</h1></div>
       {{ hero_note }}
     </section>
     {{ body }}
   </main>
+  {{ mobile_nav }}
   <script>
     document.querySelectorAll(".detail-action").forEach((form) => {
       form.addEventListener("submit", () => {
@@ -3867,5 +3917,6 @@ DETAIL_HTML = """<!doctype html>
       });
     });
   </script>
+  </div>
 </body>
 </html>"""

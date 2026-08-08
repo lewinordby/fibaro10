@@ -1,6 +1,6 @@
 # Systemoversikt
 
-Oppdatert 07.08.2026.
+Oppdatert 08.08.2026.
 
 Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene er `docker-compose.qnap.yml`, `Caddyfile`, `system_inventory.py`, `import_jobs.py` og siste QNAP-status.
 
@@ -10,7 +10,7 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 - 26 komponenter er aktive i daglig drift eller som aktivt verktøy.
 - 24 komponenter har webflate eller lokal statusflate.
 - 23 datakilder/importjobber er aktive i Fibaro10.
-- Produksjonsbuild ved siste sjekk: Fibaro10 build `1673`.
+- Produksjonsbuild ved siste sjekk: Fibaro10 build `1677`.
 - QNAP-appmappe: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`.
 - Backup/arkivvolum: `/share/CACHEDEV3_DATA/fibaro10_archive`.
 
@@ -42,6 +42,12 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 | Roborock logger | `http://192.168.20.218:8095/` | Lokal status/API for robotstøvsugere og sync. |
 | SUN2 importer | `http://192.168.20.218:8096/` | Verktøy for historiske/daglige SUN2-romsummer. |
 | SUN2 backfill | `http://192.168.20.218:8097/` | Verktøy for historisk SUN2-filnedlasting. |
+
+De tre mobilflatene `online_dashboard`, `maintenance_mobile` og `alarm_mobile`
+bruker et felles, kjøpt AppKit Mobile-tema fra `packages/mobile-appkit`. Pakken
+eier typografi, farger, safe-area, toppfelt, bunnnavigasjon, skjemaer og
+lyst/mørkt systemtema. Appenes dataflyt og domenevisninger ligger fortsatt i
+hver enkelt app.
 
 ## Docker-tjenester på QNAP
 

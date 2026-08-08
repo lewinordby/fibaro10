@@ -9,6 +9,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY alarm_mobile ./alarm_mobile
+COPY packages/mobile-appkit ./packages/mobile-appkit
 COPY static ./static
 
 EXPOSE 8114

@@ -11,6 +11,11 @@ if ($shared.All -or $shared.Services.Count -ne 9 -or "shell_app" -notin $shared.
     throw "Shared UI deploy plan is wrong: $($shared | ConvertTo-Json -Compress)"
 }
 
+$mobileTheme = Get-DeployPlan -ChangedFiles @("packages/mobile-appkit/lilletorget-appkit.css")
+if ($mobileTheme.All -or ($mobileTheme.Services -join ",") -ne "online_dashboard,maintenance_mobile,alarm_mobile") {
+    throw "Mobile theme deploy plan is wrong: $($mobileTheme | ConvertTo-Json -Compress)"
+}
+
 $sharedBackend = Get-DeployPlan -ChangedFiles @("microapp_backend/pwa.py")
 foreach ($requiredService in @("fibaro10", "shell_app", "online_dashboard")) {
     if ($sharedBackend.All -or $sharedBackend.Services.Count -ne 11 -or $requiredService -notin $sharedBackend.Services) {

@@ -4,6 +4,13 @@ Oppdatert 05.08.2026.
 
 Egen mobilflate for rask vedlikeholdsregistrering på `https://vedl.lilletorget.net`.
 
+## Mobiltema
+
+Appen bruker det kjøpte AppKit Mobile-temaet via den delte pakken
+`packages/mobile-appkit`. Toppfelt, bunnnavigasjon, kort, skjemaer, knapper,
+safe-area og lyst/mørkt systemtema er felles med de andre mobilappene. Selve
+registreringsflyten og Fibaro10-API-et er uendret.
+
 ## Formål
 
 - Bruke samme brukernavn/passord som Fibaro10.

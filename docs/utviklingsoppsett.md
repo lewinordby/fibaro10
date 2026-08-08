@@ -81,6 +81,18 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-qnap.ps1
 
 `qnap-status.ps1` viser QNAP host, git commit/status, compose-status, siste containerlogger og health-watch-logg. Loggutskrift redakterer `username=` og `password=` query-parametre.
 
+Mobilappene deler det kjøpte AppKit-temaet i `packages/mobile-appkit`. Endringer
+i denne pakken bygger bare `online_dashboard`, `maintenance_mobile` og
+`alarm_mobile`. Innloggede flater kan forhåndsvises lokalt uten produksjonsdata:
+
+```powershell
+python scripts/mobile_appkit_preview.py maintenance --port 18112
+python scripts/mobile_appkit_preview.py alarm --port 18114
+```
+
+Begge forhåndsvisningene godtar vilkårlig brukernavn og passord og leverer bare
+ufarlige eksempeldata.
+
 `smoke-check.ps1` sjekker de viktigste sidene etter deploy. Auth-beskyttede sider kan svare `401` eller `403`; det regnes som OK naar health-endepunktene svarer og auth-laget beskytter siden.
 
 `desktop_v2/scripts/smoke-live.mjs` sjekker alltid QNAP `/health`. Hvis `.env.live-smoke` finnes, logger den i tillegg inn med `fibaro-smoke` og gaar gjennom alle desktop-rutene som ogsaa brukes av lokal UI-smoke. Deploy-scriptet kjorer denne live-smoken automatisk etter vanlig smoke.

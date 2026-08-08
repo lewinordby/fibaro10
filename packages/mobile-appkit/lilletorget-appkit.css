@@ -1,0 +1,478 @@
+@charset "UTF-8";
+
+:root {
+  color-scheme: light;
+  --appkit-page: #f4f5f7;
+  --appkit-surface: #ffffff;
+  --appkit-surface-soft: #f8f9fb;
+  --appkit-text: #1f1f1f;
+  --appkit-muted: #727272;
+  --appkit-line: #e4e7eb;
+  --appkit-highlight: #4a89dc;
+  --appkit-highlight-dark: #3473c8;
+  --appkit-highlight-soft: #edf5ff;
+  --appkit-sun: #f6bb42;
+  --appkit-sun-dark: #d99b20;
+  --appkit-parking: #4a89dc;
+  --appkit-energy: #37bc9b;
+  --appkit-revenue: #ed5565;
+  --appkit-warning: #f6bb42;
+  --appkit-danger: #ed5565;
+  --appkit-success: #37bc9b;
+  --appkit-radius: 8px;
+  --appkit-shadow: 0 2px 10px rgb(15 23 42 / 7%);
+  --appkit-shadow-raised: 0 8px 24px rgb(15 23 42 / 10%);
+  --appkit-header-height: 58px;
+  --appkit-footer-height: 64px;
+  --appkit-safe-top: env(safe-area-inset-top, 0px);
+  --appkit-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --appkit-page: #111418;
+  --appkit-surface: #1b2026;
+  --appkit-surface-soft: #222830;
+  --appkit-text: #f4f6f8;
+  --appkit-muted: #aab2bd;
+  --appkit-line: #303842;
+  --appkit-highlight: #5d9cec;
+  --appkit-highlight-dark: #77aced;
+  --appkit-highlight-soft: #1d3047;
+  --appkit-shadow: 0 2px 12px rgb(0 0 0 / 24%);
+  --appkit-shadow-raised: 0 10px 28px rgb(0 0 0 / 34%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: var(--appkit-page);
+  -webkit-text-size-adjust: 100%;
+}
+
+body.appkit-mobile {
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+  background: var(--appkit-page) !important;
+  color: var(--appkit-text) !important;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  font-size: 14px;
+  line-height: 1.45 !important;
+  overscroll-behavior-y: none;
+}
+
+body.appkit-mobile h1,
+body.appkit-mobile h2,
+body.appkit-mobile h3,
+body.appkit-mobile h4,
+body.appkit-mobile h5,
+body.appkit-mobile h6 {
+  color: var(--appkit-text);
+  font-family: inherit !important;
+  letter-spacing: 0;
+}
+
+body.appkit-mobile p {
+  color: inherit;
+}
+
+body.appkit-mobile button,
+body.appkit-mobile input,
+body.appkit-mobile select,
+body.appkit-mobile textarea {
+  font: inherit;
+  letter-spacing: 0;
+}
+
+body.appkit-mobile button,
+body.appkit-mobile a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.appkit-mobile button:focus-visible,
+body.appkit-mobile a:focus-visible,
+body.appkit-mobile input:focus-visible,
+body.appkit-mobile select:focus-visible,
+body.appkit-mobile textarea:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--appkit-highlight) 35%, transparent);
+  outline-offset: 2px;
+}
+
+#page {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+#preloader {
+  position: fixed;
+  z-index: 9999;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--appkit-page);
+  opacity: 1;
+  transition: opacity 180ms ease, visibility 180ms ease;
+}
+
+#preloader::after {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--appkit-line);
+  border-top-color: var(--appkit-highlight);
+  border-radius: 50%;
+  content: "";
+  animation: appkit-spin 700ms linear infinite;
+}
+
+#preloader.is-complete {
+  visibility: hidden;
+  opacity: 0;
+}
+
+@keyframes appkit-spin {
+  to { transform: rotate(360deg); }
+}
+
+.appkit-header {
+  position: sticky;
+  z-index: 100;
+  top: 0;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) 46px;
+  min-height: calc(var(--appkit-header-height) + var(--appkit-safe-top));
+  align-items: center;
+  gap: 8px;
+  padding: max(6px, var(--appkit-safe-top)) 10px 6px;
+  border-bottom: 1px solid var(--appkit-line);
+  background: color-mix(in srgb, var(--appkit-surface) 94%, transparent);
+  box-shadow: 0 1px 8px rgb(15 23 42 / 5%);
+  backdrop-filter: blur(18px);
+}
+
+.appkit-header-title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--appkit-text);
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.appkit-header-subtitle {
+  display: block;
+  overflow: hidden;
+  margin-top: 2px;
+  color: var(--appkit-muted);
+  font-size: 0.68rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.appkit-header-action,
+.appkit-brand-action {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--appkit-text);
+  text-decoration: none;
+}
+
+.appkit-header-action:active,
+.appkit-brand-action:active {
+  background: var(--appkit-surface-soft);
+  transform: scale(0.96);
+}
+
+.appkit-brand-action img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+}
+
+.appkit-header-action svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.appkit-page-content {
+  width: min(100%, 780px);
+  margin: 0 auto;
+  padding: 12px 12px calc(22px + var(--appkit-safe-bottom));
+}
+
+.appkit-page-content.has-footer {
+  padding-bottom: calc(var(--appkit-footer-height) + 22px + var(--appkit-safe-bottom));
+}
+
+.appkit-card,
+body.appkit-mobile .card-style {
+  overflow: hidden;
+  border: 1px solid var(--appkit-line);
+  border-radius: var(--appkit-radius);
+  background: var(--appkit-surface);
+  box-shadow: var(--appkit-shadow);
+}
+
+.appkit-section-title {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--appkit-line);
+}
+
+.appkit-section-title h2,
+.appkit-section-title h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.appkit-kicker {
+  margin: 0 0 2px;
+  color: var(--appkit-highlight);
+  font-size: 0.67rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.appkit-muted {
+  color: var(--appkit-muted) !important;
+}
+
+.appkit-footer {
+  position: fixed;
+  z-index: 110;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--appkit-nav-count, 4), minmax(0, 1fr));
+  min-height: calc(var(--appkit-footer-height) + var(--appkit-safe-bottom));
+  padding: 4px 8px max(4px, var(--appkit-safe-bottom));
+  border-top: 1px solid var(--appkit-line);
+  background: color-mix(in srgb, var(--appkit-surface) 96%, transparent);
+  box-shadow: 0 -6px 22px rgb(15 23 42 / 7%);
+  backdrop-filter: blur(18px);
+}
+
+.appkit-footer a,
+.appkit-footer button {
+  display: grid;
+  min-width: 0;
+  min-height: 54px;
+  padding: 5px 3px 3px;
+  place-items: center;
+  align-content: center;
+  gap: 2px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--appkit-muted);
+  font-size: 0.66rem;
+  font-weight: 650;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.appkit-footer a.is-active,
+.appkit-footer button.is-active,
+.appkit-footer a[aria-current="page"] {
+  background: var(--appkit-highlight-soft);
+  color: var(--appkit-highlight);
+}
+
+.appkit-footer svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.appkit-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: var(--appkit-highlight);
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--appkit-highlight) 24%, transparent);
+}
+
+.appkit-button.secondary {
+  border-color: var(--appkit-line);
+  background: var(--appkit-surface-soft);
+  color: var(--appkit-text);
+  box-shadow: none;
+}
+
+.appkit-chip {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  padding: 0 9px;
+  border: 1px solid var(--appkit-line);
+  border-radius: 999px;
+  background: var(--appkit-surface-soft);
+  color: var(--appkit-muted);
+  font-size: 0.71rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.appkit-chip.is-success {
+  border-color: color-mix(in srgb, var(--appkit-success) 35%, var(--appkit-line));
+  background: color-mix(in srgb, var(--appkit-success) 12%, var(--appkit-surface));
+  color: var(--appkit-success);
+}
+
+.appkit-chip.is-warning {
+  border-color: color-mix(in srgb, var(--appkit-warning) 40%, var(--appkit-line));
+  background: color-mix(in srgb, var(--appkit-warning) 14%, var(--appkit-surface));
+  color: var(--appkit-sun-dark);
+}
+
+.appkit-chip.is-danger {
+  border-color: color-mix(in srgb, var(--appkit-danger) 36%, var(--appkit-line));
+  background: color-mix(in srgb, var(--appkit-danger) 12%, var(--appkit-surface));
+  color: var(--appkit-danger);
+}
+
+.appkit-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--appkit-muted);
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.appkit-form input,
+.appkit-form select,
+.appkit-form textarea {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid var(--appkit-line);
+  border-radius: 7px;
+  background: var(--appkit-surface-soft);
+  color: var(--appkit-text);
+  font-size: 0.94rem;
+}
+
+.appkit-form textarea {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.appkit-login {
+  display: grid;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: max(30px, var(--appkit-safe-top)) 18px max(30px, var(--appkit-safe-bottom));
+  place-items: center;
+  background: var(--appkit-page);
+}
+
+.appkit-login-panel {
+  width: min(100%, 410px);
+  padding: 24px;
+  border: 1px solid var(--appkit-line);
+  border-radius: var(--appkit-radius);
+  background: var(--appkit-surface);
+  box-shadow: var(--appkit-shadow-raised);
+}
+
+.appkit-login-brand {
+  display: block;
+  width: min(250px, 75%);
+  max-height: 72px;
+  margin: 0 auto 22px;
+  object-fit: contain;
+}
+
+.appkit-login-panel h1 {
+  margin: 0;
+  font-size: 1.55rem;
+}
+
+.appkit-login-panel > p {
+  margin: 7px 0 18px;
+  color: var(--appkit-muted);
+}
+
+.appkit-login-panel form {
+  display: grid;
+  gap: 14px;
+}
+
+.appkit-login-panel button[type="submit"] {
+  min-height: 46px;
+  margin-top: 2px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--appkit-highlight);
+  color: #fff;
+  font-weight: 750;
+}
+
+.appkit-theme-button .theme-light-icon,
+:root[data-theme="dark"] .appkit-theme-button .theme-dark-icon {
+  display: none;
+}
+
+:root[data-theme="dark"] .appkit-theme-button .theme-light-icon {
+  display: block;
+}
+
+@media (min-width: 700px) {
+  .appkit-footer {
+    right: max(0px, calc((100vw - 780px) / 2));
+    left: max(0px, calc((100vw - 780px) / 2));
+    border-right: 1px solid var(--appkit-line);
+    border-left: 1px solid var(--appkit-line);
+    border-radius: 8px 8px 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

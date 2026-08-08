@@ -348,3 +348,327 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; }
 }
+
+/* AppKit Mobile integration */
+body.appkit-mobile {
+  --gray-50: var(--appkit-surface-soft);
+  --gray-100: var(--appkit-page);
+  --gray-200: var(--appkit-line);
+  --gray-300: color-mix(in srgb, var(--appkit-muted) 45%, var(--appkit-line));
+  --gray-500: var(--appkit-muted);
+  --gray-600: color-mix(in srgb, var(--appkit-text) 70%, var(--appkit-muted));
+  --gray-700: var(--appkit-text);
+  --gray-900: var(--appkit-text);
+  --violet-50: var(--appkit-highlight-soft);
+  --violet-200: color-mix(in srgb, var(--appkit-highlight) 30%, var(--appkit-line));
+  --violet-600: var(--appkit-highlight);
+  --violet-700: var(--appkit-highlight-dark);
+  --sky-50: color-mix(in srgb, var(--appkit-parking) 12%, var(--appkit-surface));
+  --sky-700: var(--appkit-parking);
+  --green-50: color-mix(in srgb, var(--appkit-success) 12%, var(--appkit-surface));
+  --green-700: var(--appkit-success);
+  --yellow-50: color-mix(in srgb, var(--appkit-warning) 14%, var(--appkit-surface));
+  --yellow-700: var(--appkit-sun-dark);
+  --red-50: color-mix(in srgb, var(--appkit-danger) 12%, var(--appkit-surface));
+  --red-700: var(--appkit-danger);
+  --surface: var(--appkit-surface);
+  --radius: var(--appkit-radius);
+  --shadow: var(--appkit-shadow);
+  background: var(--appkit-page);
+}
+
+body.appkit-mobile .topbar {
+  position: sticky;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) 46px;
+  min-height: calc(var(--appkit-header-height) + var(--appkit-safe-top));
+  gap: 8px;
+  padding: max(6px, var(--appkit-safe-top)) 10px 6px;
+  border-color: var(--appkit-line);
+  background: color-mix(in srgb, var(--appkit-surface) 94%, transparent);
+  box-shadow: 0 1px 8px rgb(15 23 42 / 5%);
+}
+
+body.appkit-mobile .topbar .brand-mark {
+  width: 42px;
+  height: 42px;
+}
+
+body.appkit-mobile .brand-copy {
+  display: block;
+  min-width: 0;
+  color: var(--appkit-text);
+  text-align: center;
+}
+
+body.appkit-mobile .brand-copy strong {
+  display: block;
+  color: var(--appkit-text);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+body.appkit-mobile .brand-copy span {
+  color: var(--appkit-muted);
+  font-size: 0.67rem;
+}
+
+body.appkit-mobile .icon-button {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--appkit-text);
+}
+
+body.appkit-mobile .icon-button:active {
+  background: var(--appkit-surface-soft);
+}
+
+body.appkit-mobile .app-shell {
+  width: min(100%, 780px);
+  padding: 10px 10px calc(var(--appkit-footer-height) + 20px + var(--appkit-safe-bottom));
+}
+
+body.appkit-mobile .view {
+  gap: 8px;
+}
+
+body.appkit-mobile .status-hero,
+body.appkit-mobile .summary-card,
+body.appkit-mobile .section-block,
+body.appkit-mobile .channel-row,
+body.appkit-mobile .source-error,
+body.appkit-mobile .account-card,
+body.appkit-mobile .account-details,
+body.appkit-mobile .metric-strip,
+body.appkit-mobile .camera-card,
+body.appkit-mobile .monitor-detail-metrics {
+  border-color: var(--appkit-line);
+  border-radius: var(--appkit-radius);
+  background: var(--appkit-surface);
+  box-shadow: var(--appkit-shadow);
+}
+
+body.appkit-mobile .status-hero {
+  min-height: 82px;
+  padding: 12px;
+  border-left: 1px solid var(--appkit-line);
+  border-top: 3px solid var(--appkit-success);
+}
+
+body.appkit-mobile .status-hero.is-alert {
+  border-left-color: var(--appkit-line);
+  border-top-color: var(--appkit-danger);
+}
+
+body.appkit-mobile .status-hero-icon,
+body.appkit-mobile .summary-icon,
+body.appkit-mobile .account-initial {
+  border-radius: 50%;
+}
+
+body.appkit-mobile .status-hero h1 {
+  color: var(--appkit-text);
+  font-size: 1.24rem;
+}
+
+body.appkit-mobile .summary-grid {
+  gap: 8px;
+}
+
+body.appkit-mobile .summary-card {
+  min-height: 76px;
+  padding: 10px;
+}
+
+body.appkit-mobile .summary-card strong,
+body.appkit-mobile .section-title h2,
+body.appkit-mobile .view-head h1,
+body.appkit-mobile .room-card-head strong,
+body.appkit-mobile .monitor-summary-copy strong,
+body.appkit-mobile .account-card strong {
+  color: var(--appkit-text);
+}
+
+body.appkit-mobile .section-title {
+  min-height: 44px;
+  padding: 9px 11px;
+  border-color: var(--appkit-line);
+}
+
+body.appkit-mobile .view-head {
+  min-height: 48px;
+  padding: 3px 2px;
+}
+
+body.appkit-mobile .view-head h1 {
+  font-size: 1.22rem;
+}
+
+body.appkit-mobile .metric-strip div,
+body.appkit-mobile .event-row,
+body.appkit-mobile .history-row,
+body.appkit-mobile .monitor-summary-card,
+body.appkit-mobile .account-details div,
+body.appkit-mobile .compare-footer,
+body.appkit-mobile .monitor-detail-metrics div {
+  border-color: var(--appkit-line);
+}
+
+body.appkit-mobile .room-grid {
+  gap: 7px;
+  padding: 8px;
+}
+
+body.appkit-mobile .room-card {
+  gap: 7px;
+  padding: 10px;
+  border-color: var(--appkit-line);
+  border-radius: 7px;
+  background: var(--appkit-surface-soft);
+}
+
+body.appkit-mobile .camera-list {
+  gap: 8px;
+  padding: 8px;
+}
+
+body.appkit-mobile .monitor-summary-card {
+  min-height: 88px;
+  border-color: var(--appkit-line);
+}
+
+body.appkit-mobile .monitor-summary-card:active,
+body.appkit-mobile .image-modes button,
+body.appkit-mobile .monitor-pager button {
+  background: var(--appkit-surface-soft);
+}
+
+body.appkit-mobile .image-modes button,
+body.appkit-mobile .monitor-pager button {
+  border-color: var(--appkit-line);
+  border-radius: 6px;
+  color: var(--appkit-muted);
+}
+
+body.appkit-mobile .image-modes button.is-active {
+  border-color: color-mix(in srgb, var(--appkit-highlight) 35%, var(--appkit-line));
+  background: var(--appkit-highlight-soft);
+  color: var(--appkit-highlight);
+}
+
+body.appkit-mobile .channel-row a,
+body.appkit-mobile .channel-row button {
+  min-height: 36px;
+  border-color: color-mix(in srgb, var(--appkit-highlight) 30%, var(--appkit-line));
+  border-radius: 7px;
+  background: var(--appkit-highlight-soft);
+  color: var(--appkit-highlight);
+}
+
+body.appkit-mobile .detail-back-button {
+  min-height: 40px;
+  border-radius: 7px;
+  color: var(--appkit-highlight);
+}
+
+body.appkit-mobile .count-badge,
+body.appkit-mobile .status-chip {
+  border-radius: 999px;
+}
+
+body.appkit-mobile .logout-button {
+  min-height: 44px;
+  border-color: color-mix(in srgb, var(--appkit-danger) 45%, var(--appkit-line));
+  border-radius: 7px;
+  background: var(--appkit-surface);
+  color: var(--appkit-danger);
+}
+
+body.appkit-mobile .bottom-nav {
+  position: fixed;
+  min-height: calc(var(--appkit-footer-height) + var(--appkit-safe-bottom));
+  padding: 4px 8px max(4px, var(--appkit-safe-bottom));
+  border-color: var(--appkit-line);
+  background: color-mix(in srgb, var(--appkit-surface) 96%, transparent);
+  box-shadow: 0 -6px 22px rgb(15 23 42 / 7%);
+}
+
+body.appkit-mobile .bottom-nav button {
+  min-height: 54px;
+  border-radius: 7px;
+  color: var(--appkit-muted);
+}
+
+body.appkit-mobile .bottom-nav button.is-active {
+  background: var(--appkit-highlight-soft);
+  color: var(--appkit-highlight);
+}
+
+body.appkit-mobile .login-screen {
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: max(26px, var(--appkit-safe-top)) 18px max(26px, var(--appkit-safe-bottom));
+}
+
+body.appkit-mobile .login-panel {
+  width: min(100%, 410px);
+  padding: 24px;
+  border-color: var(--appkit-line);
+  border-radius: var(--appkit-radius);
+  background: var(--appkit-surface);
+  box-shadow: var(--appkit-shadow-raised);
+}
+
+body.appkit-mobile .login-logo.appkit-login-brand {
+  width: min(250px, 75%);
+  height: auto;
+  max-height: 72px;
+  margin: 0 auto 16px;
+}
+
+body.appkit-mobile .login-panel h1 {
+  color: var(--appkit-text);
+  font-size: 1.5rem;
+}
+
+body.appkit-mobile .login-form input {
+  border-color: var(--appkit-line);
+  border-radius: 7px;
+  background: var(--appkit-surface-soft);
+  color: var(--appkit-text);
+}
+
+body.appkit-mobile .login-form button {
+  border-radius: 7px;
+  background: var(--appkit-highlight);
+}
+
+body.appkit-mobile .login-error,
+body.appkit-mobile .source-error,
+body.appkit-mobile .inline-error {
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--appkit-danger) 12%, var(--appkit-surface));
+  color: var(--appkit-danger);
+}
+
+@media (max-width: 520px) {
+  body.appkit-mobile .summary-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  body.appkit-mobile .app-shell {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+}
+
+@media (max-width: 380px) {
+  body.appkit-mobile .summary-grid {
+    grid-template-columns: 1fr;
+  }
+}

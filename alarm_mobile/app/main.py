@@ -19,13 +19,14 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv()
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstrip("/")
-ALARM_MOBILE_BUILD = os.getenv("ALARM_MOBILE_BUILD", "3")
+ALARM_MOBILE_BUILD = os.getenv("ALARM_MOBILE_BUILD", "4")
 SESSION_COOKIE_NAME = "lilletorget_alarm_session"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 
 app = FastAPI(title="Lilletorget Alarm", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/assets", StaticFiles(directory="alarm_mobile/app/static"), name="assets")
+app.mount("/appkit-assets", StaticFiles(directory="packages/mobile-appkit"), name="appkit-assets")
 
 
 def normalize_username(value: Any) -> str:
@@ -259,8 +260,8 @@ async def manifest():
             "display": "standalone",
             "display_override": ["standalone", "minimal-ui"],
             "orientation": "portrait",
-            "background_color": "#f3f4f6",
-            "theme_color": "#111827",
+            "background_color": "#f4f5f7",
+            "theme_color": "#4a89dc",
             "categories": ["business", "productivity", "utilities"],
             "prefer_related_applications": False,
             "icons": [
@@ -400,7 +401,7 @@ def login_html(error: str, next_path: str) -> str:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#111827">
+  <meta name="theme-color" content="#ffffff">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Alarm">
@@ -408,17 +409,22 @@ def login_html(error: str, next_path: str) -> str:
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/static/pwa-icon-512.png">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=3">
+  <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
+  <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
+  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
+  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=4">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
 </head>
-<body class="login-body">
-  <main class="login-screen">
-    <img class="login-logo" src="/static/lilletorget-mark.png" alt="Lilletorget">
-    <section class="login-panel">
+<body class="appkit-mobile theme-light login-body">
+  <div id="preloader" aria-hidden="true"></div>
+  <main class="appkit-login login-screen">
+    <section class="appkit-login-panel login-panel">
+      <img class="login-logo appkit-login-brand" src="/static/lilletorget-text.png" alt="Lilletorget">
       <p class="eyebrow">Lilletorget</p>
       <h1>Alarm</h1>
       <p class="muted">Logg inn med samme bruker som i Fibaro10.</p>
       {error_html}
-      <form class="login-form" method="post" action="{action}">
+      <form class="appkit-form login-form" method="post" action="{action}">
         <label>Brukernavn<input name="username" autocomplete="username" required autofocus></label>
         <label>Passord<input type="password" name="password" autocomplete="current-password" required></label>
         <button type="submit">Logg inn</button>
@@ -434,7 +440,7 @@ INDEX_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#111827">
+  <meta name="theme-color" content="#ffffff">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Alarm">
@@ -442,19 +448,25 @@ INDEX_HTML = """<!doctype html>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/static/pwa-icon-512.png">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=3">
-  <script src="/assets/alarm-mobile.js?v=3" defer></script>
+  <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
+  <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
+  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
+  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=4">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
+  <script src="/assets/alarm-mobile.js?v=4" defer></script>
 </head>
-<body>
-  <header class="topbar">
-    <img class="brand-mark" src="/static/lilletorget-mark.png" alt="">
-    <div class="brand-copy"><strong>Alarm</strong><span id="lastUpdated">Henter status</span></div>
-    <button id="refreshButton" class="icon-button" type="button" aria-label="Oppdater" title="Oppdater">
+<body class="appkit-mobile theme-light">
+  <div id="preloader" aria-hidden="true"></div>
+  <div id="page">
+  <header class="appkit-header topbar">
+    <a class="appkit-brand-action" href="/" aria-label="Alarmstatus"><img class="brand-mark" src="/static/lilletorget-mark.png" alt=""></a>
+    <div class="appkit-header-title brand-copy"><strong>Alarm</strong><span id="lastUpdated" class="appkit-header-subtitle">Henter status</span></div>
+    <button id="refreshButton" class="appkit-header-action icon-button" type="button" aria-label="Oppdater" title="Oppdater">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/></svg>
     </button>
   </header>
 
-  <main class="app-shell">
+  <main class="appkit-page-content has-footer app-shell">
     <section id="overviewView" class="view"></section>
     <section id="doorsView" class="view is-hidden"></section>
     <section id="bollardsView" class="view is-hidden"></section>
@@ -463,7 +475,7 @@ INDEX_HTML = """<!doctype html>
     <p id="appMessage" class="app-message" role="status"></p>
   </main>
 
-  <nav class="bottom-nav" aria-label="Alarmnavigasjon">
+  <nav class="appkit-footer bottom-nav" style="--appkit-nav-count:4" aria-label="Alarmnavigasjon">
     <button type="button" data-view="overview" class="is-active">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18M7 16l4-5 4 3 5-7"/></svg><span>Status</span>
     </button>
@@ -477,5 +489,6 @@ INDEX_HTML = """<!doctype html>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8"/></svg><span>Konto</span>
     </button>
   </nav>
+  </div>
 </body>
 </html>"""

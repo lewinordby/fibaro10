@@ -232,6 +232,15 @@ function fillSelect(id, options, selectedValue, includeBlank = false) {
   }
 }
 
+function setMobileNavActive(key) {
+  document.querySelectorAll("[data-mobile-nav]").forEach((button) => {
+    const active = button.dataset.mobileNav === key;
+    button.classList.toggle("is-active", active);
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+}
+
 function showScreen(screenName) {
   state.currentScreen = screenName;
   $("#taskScreen")?.classList.toggle("is-hidden", screenName !== "tasks");
@@ -242,6 +251,7 @@ function showScreen(screenName) {
   document.body.classList.toggle("entry-mode", screenName === "entry");
   document.body.classList.toggle("detail-mode", screenName === "detail");
   document.body.classList.toggle("profile-mode", screenName === "profile");
+  setMobileNavActive(screenName === "profile" ? "profile" : "tasks");
   setMessage("");
   if (["entry", "detail", "profile"].includes(screenName)) setTaskMessage("");
 }
@@ -1132,6 +1142,21 @@ async function submitForm(event) {
 
 document.addEventListener("DOMContentLoaded", async () => {
   $("#maintenanceForm")?.addEventListener("submit", submitForm);
+  document.querySelectorAll("[data-mobile-nav]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const target = button.dataset.mobileNav;
+      if (target === "profile") {
+        renderProfile();
+        showScreen("profile");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+      showScreen("tasks");
+      setMobileNavActive(target === "history" ? "history" : "tasks");
+      const destination = target === "history" ? $("#recentCard") : $("#taskScreen");
+      destination?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
   $("#profileButton")?.addEventListener("click", () => {
     renderProfile();
     showScreen("profile");

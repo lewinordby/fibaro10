@@ -18,13 +18,14 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv()
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstrip("/")
-MAINTENANCE_MOBILE_BUILD = os.getenv("MAINTENANCE_MOBILE_BUILD", "1469")
+MAINTENANCE_MOBILE_BUILD = os.getenv("MAINTENANCE_MOBILE_BUILD", "1470")
 SESSION_COOKIE_NAME = "lilletorget_maintenance_session"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 
 app = FastAPI(title="Lilletorget Vedlikehold", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/assets", StaticFiles(directory="maintenance_mobile/app/static"), name="assets")
+app.mount("/appkit-assets", StaticFiles(directory="packages/mobile-appkit"), name="appkit-assets")
 
 
 def json_safe(value: Any) -> Any:
@@ -235,8 +236,8 @@ async def manifest():
             "display": "standalone",
             "display_override": ["standalone", "minimal-ui"],
             "orientation": "portrait",
-            "background_color": "#f4f7fb",
-            "theme_color": "#755ff8",
+            "background_color": "#f4f5f7",
+            "theme_color": "#4a89dc",
             "categories": ["business", "productivity", "utilities"],
             "prefer_related_applications": False,
             "icons": [
@@ -374,7 +375,7 @@ def login_html(error: str = "", *, next_path: str = "/") -> str:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#755ff8">
+  <meta name="theme-color" content="#ffffff">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Vedlikehold">
@@ -382,19 +383,25 @@ def login_html(error: str = "", *, next_path: str = "/") -> str:
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/static/pwa-icon-512.png">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1469">
+  <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
+  <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
+  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1470">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
 </head>
-<body class="login-body">
-  <main class="login-screen">
+<body class="appkit-mobile theme-light login-body">
+  <div id="preloader" aria-hidden="true"></div>
+  <main class="appkit-login login-screen">
     <section class="login-brand">
       <img src="/static/lilletorget-login.png" alt="Lilletorget">
     </section>
-    <section class="login-panel">
+    <section class="appkit-login-panel login-panel">
+      <img class="appkit-login-brand" src="/static/lilletorget-text.png" alt="Lilletorget">
       <p class="eyebrow">Lilletorget</p>
       <h1>Vedlikehold</h1>
       <p class="muted">Samme brukere som Fibaro10. Alle innloggede brukere kan registrere arbeid og observasjoner.</p>
       {error_html}
-      <form method="post" action="{login_action}" class="login-form">
+      <form method="post" action="{login_action}" class="appkit-form login-form">
         <label>Brukernavn<input name="username" autocomplete="username" required autofocus></label>
         <label>Passord<input type="password" name="password" autocomplete="current-password" required></label>
         <button type="submit">Logg inn</button>
@@ -410,7 +417,7 @@ INDEX_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#755ff8">
+  <meta name="theme-color" content="#ffffff">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Vedlikehold">
@@ -418,20 +425,26 @@ INDEX_HTML = """<!doctype html>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/static/pwa-icon-512.png">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1469">
-  <script src="/assets/maintenance-mobile.js?v=1469" defer></script>
+  <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
+  <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
+  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1470">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
+  <script src="/assets/maintenance-mobile.js?v=1470" defer></script>
 </head>
-<body>
-  <header class="app-topbar">
-    <div class="brand-logo">
+<body class="appkit-mobile theme-light">
+  <div id="preloader" aria-hidden="true"></div>
+  <div id="page">
+  <header class="appkit-header app-topbar">
+    <a class="appkit-brand-action brand-logo" href="/" aria-label="Oppgaver">
       <img src="/static/lilletorget-mark.png" alt="">
-    </div>
+    </a>
     <strong class="brand-title">Lilletorget, <span>vedlikehold</span></strong>
-    <button id="profileButton" class="user-button" type="button" title="Bruker" aria-label="Åpne brukerprofil">
+    <button id="profileButton" class="appkit-header-action user-button" type="button" title="Bruker" aria-label="Åpne brukerprofil">
         <span id="topUserInitial" class="user-initial" aria-hidden="true">?</span>
     </button>
   </header>
-  <main class="app-shell">
+  <main class="appkit-page-content has-footer app-shell">
     <section id="taskScreen" class="screen">
       <section class="task-hero">
         <h1>Hva skal registreres?</h1>
@@ -571,5 +584,17 @@ INDEX_HTML = """<!doctype html>
       <button id="historyMoreButton" class="history-more-button is-hidden" type="button">Vis flere</button>
     </section>
   </main>
+  <nav class="appkit-footer maintenance-nav" style="--appkit-nav-count:3" aria-label="Vedlikeholdsnavigasjon">
+    <button type="button" class="is-active" data-mobile-nav="tasks" aria-current="page">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16M7 2v6M17 9v6M7 16v6"/></svg><span>Oppgaver</span>
+    </button>
+    <button type="button" data-mobile-nav="history">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"/></svg><span>Historikk</span>
+    </button>
+    <button type="button" data-mobile-nav="profile">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8"/></svg><span>Konto</span>
+    </button>
+  </nav>
+  </div>
 </body>
 </html>"""

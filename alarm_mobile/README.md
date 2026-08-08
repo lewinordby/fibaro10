@@ -9,6 +9,13 @@ Mobilflate for operative varsler ved Lilletorget.
 
 Appen bruker samme brukerbase som Fibaro10, men har egen innloggingsøkt og eget domene.
 
+## Mobiltema
+
+Appen bruker det kjøpte AppKit Mobile-temaet via den delte pakken
+`packages/mobile-appkit`. Temaet gir samme toppfelt, bunnnavigasjon, kort,
+berøringsflater, safe-area og lyst/mørkt systemtema som de andre mobilappene.
+Alarmstatus, dørdata, kontrollbilder og direkte ntfy-lenker er beholdt uendret.
+
 ## Kontrollbilder
 
 Pullertsiden viser en lett liste med siste bilde, status og bildetid for hvert kontrollfelt:

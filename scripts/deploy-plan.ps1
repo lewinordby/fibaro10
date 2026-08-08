@@ -41,6 +41,11 @@ function Get-DeployPlan([string[]]$ChangedFiles, [bool]$ForceAll = $false) {
                 [void]$services.Add($service)
             }
         }
+        elseif ($path -match '^packages/mobile-appkit/') {
+            foreach ($service in @("online_dashboard", "maintenance_mobile", "alarm_mobile")) {
+                [void]$services.Add($service)
+            }
+        }
         elseif ($path -match '^packages/') {
             foreach ($service in $microApps) { [void]$services.Add($service) }
             [void]$services.Add("shell_app")

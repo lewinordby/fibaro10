@@ -12,6 +12,40 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1677",
+        "date": "08.08.2026",
+        "headline": "AppKit gir mobilappene ett gjennomført designsystem",
+        "title": "Tre mobilflater er bygget om med det kjøpte AppKit Mobile-temaet",
+        "description": (
+            "Online dashboard, vedlikeholdsmobil og alarmmobil bruker nå samme "
+            "AppKit-baserte fundament. Arbeidsflyter, API-er og data er beholdt, mens "
+            "innlogging, toppfelt, bunnnavigasjon, kort, skjemaer, safe-area og "
+            "lyst/mørkt systemtema er gjort konsistente og mobiltilpassede."
+        ),
+        "applications": [
+            "Online dashboard: ny AppKit-innlogging, navigasjon og kortpresentasjon.",
+            "Vedlikehold mobil: kompakt oppgaveliste, registrering, historikk og konto.",
+            "Alarm mobil: konsekvent status-, dør-, pullert- og kontovisning.",
+            "Felles mobilpakke: kjøpt AppKit-kilde, lokale designregler og temaoppførsel.",
+            "Deploy: mobiltema bygger bare de tre appene som faktisk bruker pakken.",
+        ],
+        "request": (
+            "nå har jeg kjøpt nytt mobil team som jeg vil du skal implemntere i "
+            "mobil appene, det ligger på dokuments"
+        ),
+        "work_duration": "ca. 2 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Importerer original AppKit CSS fra den kjøpte ThemeForest-pakken med dokumentert opphav.",
+            "Oppretter en delt mobilpakke som unngår tre kopier og senere designavvik.",
+            "Beholder områdefargene for parkering, soling, energi, omsetning og alarm.",
+            "Legger inn automatisk lyst/mørkt tema, PWA-farger og iOS/Android safe-area.",
+            "Tester innlogging, dynamiske mobilskjermer, JavaScript, Python og deployplan.",
+            "Legger til ufarlig lokal forhåndsvisning for rask visuell kvalitetssikring.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1676",
         "date": "08.08.2026",
         "headline": "Vanlig HTTPS fungerer uten portnummer",

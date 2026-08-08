@@ -10,6 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY online_dashboard ./online_dashboard
 COPY microapp_backend ./microapp_backend
+COPY packages/mobile-appkit ./packages/mobile-appkit
 COPY static ./static
 
 EXPOSE 8111

@@ -1146,3 +1146,346 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 }
+
+/* AppKit Mobile integration */
+body.appkit-mobile {
+  --navy: var(--appkit-text);
+  --muted: var(--appkit-muted);
+  --line: var(--appkit-line);
+  --surface: var(--appkit-surface);
+  --bg: var(--appkit-page);
+  --teal: var(--appkit-highlight);
+  --teal-dark: var(--appkit-highlight-dark);
+  --teal-soft: var(--appkit-highlight-soft);
+  --gold: var(--appkit-sun);
+  --blue: var(--appkit-parking);
+  --green: var(--appkit-success);
+  --red: var(--appkit-danger);
+  --radius-lg: var(--appkit-radius);
+  --radius-md: 7px;
+  --shadow: var(--appkit-shadow);
+  --shadow-soft: none;
+  background: var(--appkit-page);
+}
+
+body.appkit-mobile .app-topbar {
+  position: sticky;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) 46px;
+  min-height: calc(var(--appkit-header-height) + var(--appkit-safe-top));
+  gap: 8px;
+  padding: max(6px, var(--appkit-safe-top)) 10px 6px;
+  border-bottom: 1px solid var(--appkit-line);
+  background: color-mix(in srgb, var(--appkit-surface) 94%, transparent);
+  box-shadow: 0 1px 8px rgb(15 23 42 / 5%);
+}
+
+body.appkit-mobile .app-topbar::after {
+  display: none;
+}
+
+body.appkit-mobile .brand-logo img {
+  width: 42px;
+  height: 42px;
+}
+
+body.appkit-mobile .brand-title {
+  padding: 0;
+  color: var(--appkit-text);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+body.appkit-mobile .brand-title span {
+  color: var(--appkit-highlight);
+  font-weight: 700;
+}
+
+body.appkit-mobile .user-button {
+  width: 44px;
+  height: 44px;
+}
+
+body.appkit-mobile .user-initial {
+  width: 36px;
+  height: 36px;
+  border-color: color-mix(in srgb, var(--appkit-highlight) 28%, var(--appkit-line));
+  background: var(--appkit-highlight-soft);
+  color: var(--appkit-highlight);
+  font-size: 0.86rem;
+}
+
+body.appkit-mobile .app-shell {
+  width: min(100%, 780px);
+  padding: 10px 10px calc(var(--appkit-footer-height) + 20px + var(--appkit-safe-bottom));
+}
+
+body.entry-mode .maintenance-nav,
+body.detail-mode .maintenance-nav {
+  display: none;
+}
+
+body.entry-mode .app-shell,
+body.detail-mode .app-shell {
+  padding-bottom: calc(18px + var(--appkit-safe-bottom));
+}
+
+body.appkit-mobile .screen {
+  gap: 8px;
+}
+
+body.appkit-mobile .task-hero {
+  padding: 4px 2px 2px;
+}
+
+body.appkit-mobile .task-hero h1 {
+  color: var(--appkit-text);
+  font-size: 1.08rem;
+  font-weight: 700;
+}
+
+body.appkit-mobile .task-grid {
+  gap: 7px;
+}
+
+body.appkit-mobile .entry-card,
+body.appkit-mobile .detail-card,
+body.appkit-mobile .profile-card,
+body.appkit-mobile .recent-card,
+body.appkit-mobile .task-button {
+  border-color: var(--appkit-line);
+  border-radius: var(--appkit-radius);
+  background: var(--appkit-surface);
+  box-shadow: var(--appkit-shadow);
+}
+
+body.appkit-mobile .task-button {
+  position: relative;
+  min-height: 58px;
+  overflow: hidden;
+  padding: 7px 38px 7px 15px;
+  border-left: 4px solid var(--appkit-highlight);
+  transition: background 140ms ease, transform 140ms ease;
+}
+
+body.appkit-mobile .task-button:nth-child(1) { border-left-color: var(--appkit-energy); }
+body.appkit-mobile .task-button:nth-child(2) { border-left-color: #5d9cec; }
+body.appkit-mobile .task-button:nth-child(3) { border-left-color: var(--appkit-sun); }
+body.appkit-mobile .task-button:nth-child(4) { border-left-color: #967adc; }
+body.appkit-mobile .task-button:nth-child(5) { border-left-color: #aab2bd; }
+
+body.appkit-mobile .task-button::after {
+  position: absolute;
+  top: 50%;
+  right: 15px;
+  color: var(--appkit-muted);
+  content: "›";
+  font-size: 1.45rem;
+  font-weight: 400;
+  transform: translateY(-52%);
+}
+
+body.appkit-mobile .task-button:active {
+  background: var(--appkit-surface-soft);
+  transform: scale(0.992);
+}
+
+body.appkit-mobile .task-title {
+  color: var(--appkit-text);
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+body.appkit-mobile .task-copy small {
+  color: var(--appkit-muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+body.appkit-mobile .sub-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  min-height: calc(var(--appkit-header-height) + var(--appkit-safe-top));
+  padding: max(6px, var(--appkit-safe-top)) 4px 6px;
+  border-bottom: 1px solid var(--appkit-line);
+  background: color-mix(in srgb, var(--appkit-surface) 94%, transparent);
+  box-shadow: 0 1px 8px rgb(15 23 42 / 5%);
+  backdrop-filter: blur(18px);
+}
+
+body.appkit-mobile .sub-topbar::after {
+  display: none;
+}
+
+body.appkit-mobile .entry-title-block h1,
+body.appkit-mobile .entry-title-block .entry-title-line {
+  color: var(--appkit-text);
+  font-size: 1rem;
+}
+
+body.appkit-mobile .entry-title-line > span:first-child {
+  margin-right: 2px;
+}
+
+body.appkit-mobile .back-button {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+body.appkit-mobile .back-button img {
+  width: 38px;
+  height: 38px;
+}
+
+body.appkit-mobile .entry-card,
+body.appkit-mobile .profile-card,
+body.appkit-mobile .detail-card {
+  padding: 12px;
+}
+
+body.appkit-mobile label,
+body.appkit-mobile .field-label {
+  color: var(--appkit-muted);
+}
+
+body.appkit-mobile input,
+body.appkit-mobile select,
+body.appkit-mobile textarea {
+  border-color: var(--appkit-line);
+  border-radius: 7px;
+  background: var(--appkit-surface-soft);
+  color: var(--appkit-text);
+}
+
+body.appkit-mobile .room-quick-grid button,
+body.appkit-mobile .robot-quick-grid button,
+body.appkit-mobile .target-choice-grid button,
+body.appkit-mobile .standard-task-grid button,
+body.appkit-mobile .history-filters button {
+  border-color: var(--appkit-line);
+  border-radius: 7px;
+  background: var(--appkit-surface-soft);
+  color: var(--appkit-muted);
+}
+
+body.appkit-mobile .room-quick-grid button.is-active,
+body.appkit-mobile .robot-quick-grid button.is-active,
+body.appkit-mobile .target-choice-grid button.is-active,
+body.appkit-mobile .standard-task-grid button.is-active,
+body.appkit-mobile .history-filters button.is-active {
+  border-color: color-mix(in srgb, var(--appkit-highlight) 36%, var(--appkit-line));
+  background: var(--appkit-highlight-soft);
+  color: var(--appkit-highlight);
+}
+
+body.appkit-mobile .primary-button,
+body.appkit-mobile .login-form button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--appkit-highlight);
+  color: #fff;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--appkit-highlight) 24%, transparent);
+}
+
+body.appkit-mobile .secondary-button,
+body.appkit-mobile .history-more-button {
+  min-height: 44px;
+  border: 1px solid var(--appkit-line);
+  border-radius: 7px;
+  background: var(--appkit-surface-soft);
+  color: var(--appkit-text);
+  box-shadow: none;
+}
+
+body.appkit-mobile .form-actions {
+  border-radius: 8px 8px 0 0;
+  background: color-mix(in srgb, var(--appkit-surface) 94%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+body.appkit-mobile .recent-card {
+  margin-top: 8px;
+  padding: 12px;
+}
+
+body.appkit-mobile .section-head h2 {
+  color: var(--appkit-text);
+  font-size: 1rem;
+}
+
+body.appkit-mobile .recent-list {
+  border-color: var(--appkit-line);
+  border-radius: 7px;
+  background: var(--appkit-surface-soft);
+}
+
+body.appkit-mobile .recent-row,
+body.appkit-mobile .detail-facts div {
+  border-color: var(--appkit-line);
+}
+
+body.appkit-mobile .detail-facts dd,
+body.appkit-mobile .detail-summary h2 {
+  color: var(--appkit-text);
+}
+
+body.appkit-mobile .login-screen {
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: max(26px, var(--appkit-safe-top)) 18px max(26px, var(--appkit-safe-bottom));
+}
+
+body.appkit-mobile .login-brand {
+  display: none;
+}
+
+body.appkit-mobile .login-panel {
+  width: min(100%, 410px);
+  padding: 24px;
+  border-color: var(--appkit-line);
+  border-radius: var(--appkit-radius);
+  background: var(--appkit-surface);
+  box-shadow: var(--appkit-shadow-raised);
+}
+
+body.appkit-mobile .login-panel h1 {
+  color: var(--appkit-text);
+  font-size: 1.5rem;
+}
+
+body.appkit-mobile .login-error,
+body.appkit-mobile .task-message.is-error {
+  border-color: color-mix(in srgb, var(--appkit-danger) 38%, var(--appkit-line));
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--appkit-danger) 12%, var(--appkit-surface));
+  color: var(--appkit-danger);
+}
+
+:root[data-theme="dark"] body.appkit-mobile .detail-follow-up {
+  background: color-mix(in srgb, var(--appkit-warning) 12%, var(--appkit-surface));
+}
+
+:root[data-theme="dark"] body.appkit-mobile .detail-follow-up p:last-child {
+  color: var(--appkit-warning);
+}
+
+@media (max-width: 430px) {
+  body.appkit-mobile .app-shell,
+  body.entry-mode .app-shell,
+  body.detail-mode .app-shell,
+  body.profile-mode .app-shell {
+    --shell-x: 10px;
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  body.appkit-mobile .task-button {
+    min-height: 56px;
+    padding: 7px 36px 7px 13px;
+  }
+}
