@@ -1868,38 +1868,130 @@ body.appkit-mobile .dashboard {
     padding-top: 8px;
 }
 
-body.appkit-mobile .dashboard-glance {
-    min-height: 164px;
-    background: linear-gradient(135deg, #282b30 0%, #34383e 100%);
-}
-
-body.appkit-mobile .dashboard-glance-head {
-    position: relative;
-    z-index: 1;
-}
-
-body.appkit-mobile .dashboard-glance h2 {
+body.appkit-mobile .dashboard-performance {
+    padding: 15px;
+    border: 1px solid rgb(255 255 255 / 8%);
+    border-radius: var(--appkit-radius);
+    background: #292d33;
     color: #fff;
-    font-size: 1.48rem;
+    box-shadow: var(--appkit-shadow-raised);
 }
 
-body.appkit-mobile .dashboard-glance-detail {
-    display: block;
-    margin-top: 3px;
-    font-size: 0.72rem;
+body.appkit-mobile .dashboard-performance-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+body.appkit-mobile .dashboard-performance-head > div {
+    display: grid;
+    gap: 1px;
+}
+
+body.appkit-mobile .dashboard-performance-head span {
+    color: rgb(255 255 255 / 66%);
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+body.appkit-mobile .dashboard-performance-head strong {
+    font-size: 1.75rem;
+    line-height: 1.05;
+}
+
+body.appkit-mobile .dashboard-performance-head > small {
+    max-width: 160px;
+    color: rgb(255 255 255 / 58%);
+    font-size: 0.66rem;
     font-weight: 600;
-    opacity: 0.68;
+    line-height: 1.35;
+    text-align: right;
 }
 
-body.appkit-mobile .dashboard-glance .appkit-glance-metrics > a {
+body.appkit-mobile .dashboard-performance-comparisons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 13px;
+}
+
+body.appkit-mobile .dashboard-performance-comparisons > a {
+    display: grid;
     min-width: 0;
+    gap: 4px;
+    padding: 10px;
+    border: 1px solid rgb(255 255 255 / 10%);
+    border-radius: 7px;
+    background: rgb(255 255 255 / 5%);
     color: #fff;
     text-decoration: none;
 }
 
-body.appkit-mobile .dashboard-glance .appkit-glance-metrics > a + a {
-    padding-left: 10px;
-    border-left: 1px solid rgb(255 255 255 / 15%);
+body.appkit-mobile .dashboard-performance-comparisons span {
+    min-height: 2.4em;
+    color: rgb(255 255 255 / 70%);
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+body.appkit-mobile .dashboard-performance-comparisons strong {
+    font-size: 0.98rem;
+    line-height: 1.15;
+}
+
+body.appkit-mobile .dashboard-performance-comparisons strong em {
+    margin-left: 2px;
+    font-size: 0.7rem;
+    font-style: normal;
+    font-weight: 700;
+}
+
+body.appkit-mobile .dashboard-performance-comparisons .is-positive {
+    color: #72d394;
+}
+
+body.appkit-mobile .dashboard-performance-comparisons .is-negative {
+    color: #ff8e8e;
+}
+
+body.appkit-mobile .dashboard-performance-comparisons small {
+    color: rgb(255 255 255 / 52%);
+    font-size: 0.63rem;
+    line-height: 1.3;
+}
+
+body.appkit-mobile .dashboard-performance-split {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 11px;
+    border-top: 1px solid rgb(255 255 255 / 10%);
+}
+
+body.appkit-mobile .dashboard-performance-split > span {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+    color: rgb(255 255 255 / 60%);
+    font-size: 0.68rem;
+}
+
+body.appkit-mobile .dashboard-performance-split strong {
+    overflow: hidden;
+    color: #fff;
+    font-size: 0.78rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body.appkit-mobile .dashboard-performance-split small {
+    color: rgb(255 255 255 / 48%);
+    font-size: 0.62rem;
 }
 
 body.appkit-mobile .metric-grid {

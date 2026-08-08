@@ -12,6 +12,30 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1684",
+        "date": "08.08.2026",
+        "headline": "Dashboard viser hvordan dagen ligger an",
+        "title": "Statusfeltet er bygget om til en kompakt omsetningsanalyse",
+        "description": (
+            "Det mørke feltet gjentok tidligere tallene i kortene under. Det viser nå samlet "
+            "omsetning, fordeling mellom soling og parkering, avvik mot samme tidspunkt i går "
+            "og forrige uke, samt hva som gjenstår for å nå hele referansedagen."
+        ),
+        "applications": [
+            "Online dashboard: mer informativ startside med sammenlignbar omsetning.",
+        ],
+        "request": "jeg synse også det sorte statusfelte kommer dårlig til nytte da det stort sett ikke tilfører noe",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bygger om det mørke statusfeltet til en kompakt analyse av dagen så langt.",
+            "Sammenligner soling og parkering mot egne, korrekte oppdateringstidspunkt.",
+            "Viser avvik i kroner og prosent samt gjenstående omsetning mot hele referansedagen.",
+            "Beholder åpningstatus og stengetid i undertittelen på topplinjen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1683",
         "date": "08.08.2026",
         "headline": "Dashboard har bare én overskrift",

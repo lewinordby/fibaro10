@@ -675,6 +675,26 @@ def compare_short(current: Any, previous: Any, label: str) -> str:
     return f"{sign}{fmt_int(abs(diff))} mot {label}"
 
 
+def money_delta(current: Any, reference: Any) -> tuple[str, str, str]:
+    current_value = float(current or 0)
+    reference_value = float(reference or 0)
+    difference = current_value - reference_value
+    sign = "+" if difference >= 0 else "-"
+    percent = (difference / reference_value * 100) if reference_value else None
+    percent_text = f"{sign}{abs(percent):.0f}%".replace(".", ",") if percent is not None else "-"
+    state = "is-positive" if difference >= 0 else "is-negative"
+    return f"{sign}{fmt_money(abs(difference))}", percent_text, state
+
+
+def target_progress_text(current: Any, target: Any, label: str) -> str:
+    current_value = float(current or 0)
+    target_value = float(target or 0)
+    difference = current_value - target_value
+    if difference >= 0:
+        return f"{fmt_money(difference)} over {label}"
+    return f"{fmt_money(abs(difference))} igjen til {label}"
+
+
 def operating_window(now: datetime) -> dict[str, Any]:
     open_at = datetime.combine(now.date(), datetime.min.time()).replace(hour=7)
     close_at = datetime.combine(now.date(), datetime.min.time()).replace(hour=23)
@@ -1813,7 +1833,18 @@ async def source_dashboard_data() -> dict[str, Any]:
         soling_reference_at = soling.get("updated_at")
     if not isinstance(soling_reference_at, datetime):
         soling_reference_at = now
+    yesterday_soling_same_time_end = datetime.combine(yesterday, soling_reference_at.time())
     last_week_soling_same_time_end = datetime.combine(last_week_same_day, soling_reference_at.time())
+    soling_yesterday_same_time = await one_mapping(
+        """
+        select count(*) as count,
+               coalesce(sum(duration_minutes), 0) as minutes,
+               coalesce(sum(paid_amount_kr), 0) as amount
+        from sun2_tanning_sessions
+        where started_at >= :start and started_at < :end
+        """,
+        {"start": yesterday_start, "end": yesterday_soling_same_time_end},
+    )
     soling_last_week_same_time = await one_mapping(
         """
         select count(*) as count,
@@ -1836,6 +1867,7 @@ async def source_dashboard_data() -> dict[str, Any]:
     parking_reference_at = parking_import.get("updated_at")
     if not isinstance(parking_reference_at, datetime):
         parking_reference_at = now
+    yesterday_same_time_end = datetime.combine(yesterday, parking_reference_at.time())
     last_week_same_time_end = datetime.combine(last_week_same_day, parking_reference_at.time())
     parking = await one_mapping(
         """
@@ -1856,6 +1888,15 @@ async def source_dashboard_data() -> dict[str, Any]:
         where start_time >= :start and start_time < :end
         """,
         {"start": yesterday_start, "end": yesterday_end},
+    )
+    parking_yesterday_same_time = await one_mapping(
+        """
+        select count(*) as count,
+               coalesce(sum(fee_inc_vat), 0) as amount
+        from parkering
+        where start_time >= :start and start_time < :end
+        """,
+        {"start": yesterday_start, "end": yesterday_same_time_end},
     )
     parking_last_week_same_day = await one_mapping(
         """
@@ -1990,6 +2031,7 @@ async def source_dashboard_data() -> dict[str, Any]:
         "open_state": operating_window(now),
         "soling": soling,
         "soling_yesterday": soling_yesterday,
+        "soling_yesterday_same_time": soling_yesterday_same_time,
         "soling_last_week_same_day": soling_last_week_same_day,
         "soling_last_week_same_time": soling_last_week_same_time,
         "soling_two_weeks_same_day": soling_two_weeks_same_day,
@@ -2002,6 +2044,7 @@ async def source_dashboard_data() -> dict[str, Any]:
         "parking_import": parking_import,
         "parking": parking,
         "parking_yesterday": parking_yesterday,
+        "parking_yesterday_same_time": parking_yesterday_same_time,
         "parking_last_week_same_day": parking_last_week_same_day,
         "parking_last_week_same_time": parking_last_week_same_time,
         "parking_two_weeks_same_day": parking_two_weeks_same_day,
@@ -2039,7 +2082,9 @@ async def source_dashboard_data() -> dict[str, Any]:
     data["revenue"] = {
         "today": amount_sum(data["soling"].get("amount"), data["parking"].get("amount")),
         "yesterday": amount_sum(data["soling_yesterday"].get("amount"), data["parking_yesterday"].get("amount")),
+        "yesterday_same_time": amount_sum(data["soling_yesterday_same_time"].get("amount"), data["parking_yesterday_same_time"].get("amount")),
         "last_week_same_day": amount_sum(data["soling_last_week_same_day"].get("amount"), data["parking_last_week_same_day"].get("amount")),
+        "last_week_same_time": amount_sum(data["soling_last_week_same_time"].get("amount"), data["parking_last_week_same_time"].get("amount")),
         "two_weeks_same_day": amount_sum(data["soling_two_weeks_same_day"].get("amount"), data["parking_two_weeks_same_day"].get("amount")),
         "week": amount_sum(data["soling_week"].get("amount"), data["parking_week"].get("amount")),
         "previous_week": amount_sum(data["soling_previous_week"].get("amount"), data["parking_previous_week"].get("amount")),
@@ -2084,6 +2129,7 @@ async def latest_snapshot_payload() -> dict[str, Any]:
             "open_state": operating_window(now),
             "soling": {},
             "soling_yesterday": {},
+            "soling_yesterday_same_time": {},
             "soling_last_week_same_day": {},
             "soling_last_week_same_time": {},
             "soling_two_weeks_same_day": {},
@@ -2096,6 +2142,7 @@ async def latest_snapshot_payload() -> dict[str, Any]:
             "parking_import": {},
             "parking": {},
             "parking_yesterday": {},
+            "parking_yesterday_same_time": {},
             "parking_last_week_same_day": {},
             "parking_last_week_same_time": {},
             "parking_two_weeks_same_day": {},
@@ -2415,8 +2462,44 @@ async def dashboard(request: Request):
     if data["latest_parking"].get("start_time"):
         plate_suffix = f" · {latest_parking_plate}" if latest_parking_plate else ""
         latest_parking = f"Siste {fmt_time(data['latest_parking'].get('start_time'))}{plate_suffix}"
+    dashboard_highlight = ""
     revenue_card = ""
     if show_revenue:
+        revenue_today = float(data["revenue"].get("today") or 0)
+        revenue_yesterday_same_time = float(data["revenue"].get("yesterday_same_time") or 0)
+        revenue_last_week_same_time = float(data["revenue"].get("last_week_same_time") or 0)
+        yesterday_delta, yesterday_percent, yesterday_state = money_delta(revenue_today, revenue_yesterday_same_time)
+        last_week_delta, last_week_percent, last_week_state = money_delta(revenue_today, revenue_last_week_same_time)
+        soling_amount = float(data["soling"].get("amount") or 0)
+        parking_amount = float(data["parking"].get("amount") or 0)
+        soling_share = round(soling_amount / revenue_today * 100) if revenue_today else 0
+        parking_share = max(0, 100 - soling_share) if revenue_today else 0
+        soling_updated = data["session_import"].get("updated_at") or data["soling"].get("updated_at")
+        parking_updated = data["parking_import"].get("updated_at") or data["parking"].get("updated_at")
+        dashboard_highlight = f"""
+    <section class="dashboard-performance" aria-label="Omsetning så langt i dag">
+      <div class="dashboard-performance-head">
+        <div><span>Dagen så langt</span><strong>{fmt_money(revenue_today)}</strong></div>
+        <small>Soling kl {fmt_time(soling_updated)} · parkering kl {fmt_time(parking_updated)}</small>
+      </div>
+      <div class="dashboard-performance-comparisons">
+        <a href="/omsetning">
+          <span>I går samme tidspunkt</span>
+          <strong class="{yesterday_state}">{yesterday_delta} <em>{yesterday_percent}</em></strong>
+          <small>{target_progress_text(revenue_today, data["revenue"].get("yesterday"), "hele gårsdagen")}</small>
+        </a>
+        <a href="/omsetning">
+          <span>Samme ukedag forrige uke</span>
+          <strong class="{last_week_state}">{last_week_delta} <em>{last_week_percent}</em></strong>
+          <small>{target_progress_text(revenue_today, data["revenue"].get("last_week_same_day"), "hele referansedagen")}</small>
+        </a>
+      </div>
+      <div class="dashboard-performance-split">
+        <span>Soling <strong>{fmt_money(soling_amount)}</strong><small>{soling_share}%</small></span>
+        <span>Parkering <strong>{fmt_money(parking_amount)}</strong><small>{parking_share}%</small></span>
+      </div>
+    </section>
+        """
         revenue_card = f"""
       <article class="metric-card accent-revenue revenue-card" data-revenue-card="1">
         <a class="card-link revenue-main-link" href="/omsetning" aria-label="Apne omsetning">
@@ -2460,6 +2543,7 @@ async def dashboard(request: Request):
         "{{ parking_month_amount }}": money(data["parking_month"].get("amount")),
         "{{ latest_parking }}": latest_parking,
         "{{ parking_time }}": fmt_time(data["parking_import"].get("updated_at")) if data["parking_import"].get("updated_at") else fmt_time(data["parking"].get("updated_at")),
+        "{{ dashboard_highlight }}": dashboard_highlight,
         "{{ revenue_card }}": revenue_card,
         "{{ mobile_nav }}": mobile_nav("status"),
         "{{ energy_icon }}": metric_icon("energy"),
@@ -3701,7 +3785,7 @@ LOGIN_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1683">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1684">
   <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-page">
@@ -3741,7 +3825,7 @@ DASHBOARD_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1683">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1684">
   <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
@@ -3751,7 +3835,7 @@ DASHBOARD_HTML = """<!doctype html>
     <a class="appkit-brand-action logo-link" href="/" aria-label="Til forsiden">
       <img src="/static/lilletorget-mark.svg?v=1681" alt="">
     </a>
-    <div class="appkit-header-title">Dashboard<span class="appkit-header-subtitle">Lilletorget</span></div>
+    <div class="appkit-header-title">Dashboard<span class="appkit-header-subtitle">{{ open_label }} · {{ open_detail }}</span></div>
     <form method="post" action="/logg-ut">
       <button class="appkit-header-action logout-button" type="submit" aria-label="Logg ut" title="Logg ut">
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
@@ -3762,19 +3846,7 @@ DASHBOARD_HTML = """<!doctype html>
     </form>
   </header>
   <main class="appkit-page-content has-footer dashboard">
-    <section class="appkit-glance dashboard-glance">
-      <div class="dashboard-glance-head">
-        <span class="appkit-glance-kicker">Status akkurat nå</span>
-        <h2>{{ open_label }}</h2>
-        <small class="dashboard-glance-detail">{{ open_detail }}</small>
-      </div>
-      <div class="appkit-glance-metrics" style="--appkit-metric-count:3">
-        <a href="/energi"><strong>{{ energy_watt }}</strong><small>Strøm nå</small></a>
-        <a href="/soling"><strong>{{ soling_count }}</strong><small>Solinger i dag</small></a>
-        <a href="/parkering"><strong>{{ parking_count }}</strong><small>Parkeringer</small></a>
-      </div>
-    </section>
-
+    {{ dashboard_highlight }}
     <div class="appkit-content-title"><h2>Nøkkeltall</h2><span>I dag mot i går</span></div>
     <section class="metric-grid">
       <a class="metric-card accent-sun card-link" href="/soling">
@@ -3890,7 +3962,7 @@ DETAIL_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1683">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1684">
   <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light">

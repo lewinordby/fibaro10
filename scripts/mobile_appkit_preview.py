@@ -223,6 +223,19 @@ def online_app():
         "sun_icon": mobile.metric_icon("sun"),
         "parking_icon": mobile.metric_icon("parking"),
         "energy_icon": mobile.metric_icon("energy"),
+        "dashboard_highlight": (
+            '<section class="dashboard-performance">'
+            '<div class="dashboard-performance-head"><div><span>Dagen så langt</span>'
+            '<strong>11 840 kr</strong></div><small>Soling kl 14:27 · parkering kl 14:00</small></div>'
+            '<div class="dashboard-performance-comparisons">'
+            '<a href="#"><span>I går samme tidspunkt</span><strong class="is-positive">+920 kr <em>+8%</em></strong>'
+            '<small>1 760 kr igjen til hele gårsdagen</small></a>'
+            '<a href="#"><span>Samme ukedag forrige uke</span><strong class="is-negative">-640 kr <em>-5%</em></strong>'
+            '<small>2 310 kr igjen til hele referansedagen</small></a></div>'
+            '<div class="dashboard-performance-split">'
+            '<span>Soling <strong>4 120 kr</strong><small>35%</small></span>'
+            '<span>Parkering <strong>7 720 kr</strong><small>65%</small></span></div></section>'
+        ),
         "revenue_card": (
             '<article class="metric-card accent-revenue revenue-card">'
             '<a class="card-link revenue-main-link" href="#">'

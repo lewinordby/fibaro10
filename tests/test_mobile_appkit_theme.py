@@ -8,7 +8,13 @@ os.environ.setdefault(
 
 from alarm_mobile.app.main import INDEX_HTML as ALARM_HTML  # noqa: E402
 from maintenance_mobile.app.main import INDEX_HTML as MAINTENANCE_HTML  # noqa: E402
-from online_dashboard.app.main import DASHBOARD_HTML, DETAIL_HTML, LOGIN_HTML  # noqa: E402
+from online_dashboard.app.main import (  # noqa: E402
+    DASHBOARD_HTML,
+    DETAIL_HTML,
+    LOGIN_HTML,
+    money_delta,
+    target_progress_text,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,7 +46,8 @@ def test_mobile_apps_have_stable_bottom_navigation() -> None:
 def test_mobile_apps_use_appkit_dashboard_patterns() -> None:
     assert "appkit-glance maintenance-glance" in MAINTENANCE_HTML
     assert "is-active is-primary" in MAINTENANCE_HTML
-    assert "dashboard-glance" in DASHBOARD_HTML
+    assert "{{ dashboard_highlight }}" in DASHBOARD_HTML
+    assert '<section class="metric-grid">' in DASHBOARD_HTML
     assert "appkit-content-title" in DASHBOARD_HTML
 
 
@@ -52,9 +59,17 @@ def test_online_detail_pages_use_the_fixed_header_as_the_only_title() -> None:
 
 def test_online_dashboard_uses_the_fixed_header_as_the_only_title() -> None:
     assert '<div class="appkit-header-title">Dashboard' in DASHBOARD_HTML
+    assert '<span class="appkit-header-subtitle">{{ open_label }} · {{ open_detail }}</span>' in DASHBOARD_HTML
     assert "dashboard-page-title" not in DASHBOARD_HTML
+    assert "dashboard-glance" not in DASHBOARD_HTML
     assert "Driftsoversikt" not in DASHBOARD_HTML
-    assert '<small class="dashboard-glance-detail">{{ open_detail }}</small>' in DASHBOARD_HTML
+
+
+def test_dashboard_performance_helpers_show_direction_and_full_day_target() -> None:
+    assert money_delta(11_840, 10_920) == ("+920 kr", "+8%", "is-positive")
+    assert money_delta(11_840, 12_480) == ("-640 kr", "-5%", "is-negative")
+    assert target_progress_text(11_840, 13_600, "hele gårsdagen") == "1 760 kr igjen til hele gårsdagen"
+    assert target_progress_text(14_100, 13_600, "hele gårsdagen") == "500 kr over hele gårsdagen"
 
 
 def test_mobile_shells_use_the_vector_brand_mark() -> None:
