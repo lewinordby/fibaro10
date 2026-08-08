@@ -59,11 +59,17 @@ class MaintenanceMobileTests(unittest.IsolatedAsyncioTestCase):
 
     def test_alarm_features_are_not_embedded_in_maintenance_app(self):
         self.assertIn("Ny registrering", INDEX_HTML)
-        self.assertIn("maintenance-mobile.js?v=1473", INDEX_HTML)
+        self.assertIn("maintenance-mobile.js?v=1474", INDEX_HTML)
         self.assertIn("/appkit-assets/lilletorget-appkit.css?v=1", INDEX_HTML)
         self.assertIn('class="appkit-footer maintenance-nav"', INDEX_HTML)
         self.assertNotIn("notificationsScreen", INDEX_HTML)
         self.assertNotIn("Pullert- og trappevarsler", INDEX_HTML)
+
+    def test_subviews_reuse_the_single_app_header(self):
+        self.assertEqual(INDEX_HTML.count('class="appkit-header app-topbar"'), 1)
+        self.assertNotIn('class="entry-head sub-topbar"', INDEX_HTML)
+        self.assertIn('id="appHeaderTitle"', INDEX_HTML)
+        self.assertIn('class="entry-context"', INDEX_HTML)
 
     def test_history_and_detail_tools_are_available(self):
         self.assertIn('id="detailScreen"', INDEX_HTML)

@@ -12,6 +12,35 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1679",
+        "date": "08.08.2026",
+        "headline": "Vedlikeholdsappen har bare én topplinje",
+        "title": "Undersidene gjenbruker den faste AppKit-toppen",
+        "description": (
+            "Registrering, detaljer og brukerprofil oppretter ikke lenger hver sin "
+            "lokale topplinje. Den faste toppen blir stående og skifter tittel etter "
+            "innholdet, mens tidspunkt og bruker vises kompakt i skjemaet."
+        ),
+        "applications": [
+            "Vedlikehold mobil: felles topp for forside, registrering, detaljer og konto.",
+            "Vedlikehold mobil: logoen fungerer som tilbakehandling på undersider.",
+            "Vedlikehold mobil: tidspunkt og registrerende bruker er samlet i skjemaet.",
+        ],
+        "request": (
+            "jeg liker ikke at den får dobbelt topp når man f.eks trykker på "
+            "varmeumper, det er bedre å finne en løsning så det bare blir den øverste toppen"
+        ),
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fjerner de dupliserte lokale toppene fra registrering, detalj og profil.",
+            "Oppdaterer den faste topptittelen dynamisk for valgt oppgave og visning.",
+            "Beholder enkel tilgang til tidspunkt uten å lage et nytt visuelt toppnivå.",
+            "Legger til test som hindrer at doble topplinjer blir gjeninnført.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1678",
         "date": "08.08.2026",
         "headline": "Mobilappene er visuelt bygget om med AppKit",

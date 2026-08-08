@@ -249,6 +249,33 @@ function setMobileNavActive(key) {
   });
 }
 
+function updateAppHeader(screenName) {
+  const title = $("#appHeaderTitle");
+  const subtitle = $("#appHeaderSubtitle");
+  const backButton = $("#backButton");
+  let titleText = "Vedlikehold";
+  let subtitleText = "Lilletorget";
+
+  if (screenName === "entry") {
+    titleText = safeText(state.selectedTask?.title, "Vedlikehold");
+    subtitleText = state.editingLog ? "Rediger registrering" : "Ny registrering";
+  } else if (screenName === "detail") {
+    titleText = "Vedlikeholdspost";
+    subtitleText = "Detaljer";
+  } else if (screenName === "profile") {
+    titleText = "Bruker";
+    subtitleText = "Konto og utlogging";
+  }
+
+  if (title) title.textContent = titleText;
+  if (subtitle) subtitle.textContent = subtitleText;
+  if (backButton) {
+    const isSubview = screenName !== "tasks";
+    backButton.classList.toggle("is-back", isSubview);
+    backButton.setAttribute("aria-label", isSubview ? "Tilbake" : "Oppgaver");
+  }
+}
+
 function showScreen(screenName) {
   state.currentScreen = screenName;
   $("#taskScreen")?.classList.toggle("is-hidden", screenName !== "tasks");
@@ -259,6 +286,7 @@ function showScreen(screenName) {
   document.body.classList.toggle("entry-mode", screenName === "entry");
   document.body.classList.toggle("detail-mode", screenName === "detail");
   document.body.classList.toggle("profile-mode", screenName === "profile");
+  updateAppHeader(screenName);
   setMobileNavActive(screenName === "profile" ? "profile" : "tasks");
   setMessage("");
   if (["entry", "detail", "profile"].includes(screenName)) setTaskMessage("");
@@ -764,12 +792,6 @@ function openTask(taskKey) {
   state.historyFilter = "all";
   state.historyQuery = "";
   state.historyVisible = 8;
-  const taskCategory = $("#taskCategory");
-  if (taskCategory) taskCategory.textContent = task.category || "Oppgave";
-  $("#taskTitle").textContent = task.title;
-  $("#taskSubtitle").textContent = task.requiresRoom
-    ? "Velg seng/rom og lagre posten."
-    : (targetChoiceOptions(task).length ? "Velg enhet og oppgave, og lagre posten." : "Fyll eventuelt inn notat og lagre posten.");
   setTaskDefaults(task);
   showScreen("entry");
   renderRecent();
@@ -787,8 +809,6 @@ function openLogForEdit(logId) {
     return;
   }
   setFormFromLog(row);
-  $("#taskTitle").textContent = safeText(row.summary, "Vedlikehold");
-  $("#taskSubtitle").textContent = "";
   showScreen("entry");
   renderRecent();
   focusAfterScreenChange("#summary", { select: true, scroll: true });
@@ -1177,9 +1197,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderProfile();
     showScreen("profile");
   });
-  $("#profileBackButton")?.addEventListener("click", () => showScreen("tasks"));
-  $("#detailBackButton")?.addEventListener("click", () => showScreen(state.detailReturnScreen || "tasks"));
   $("#backButton")?.addEventListener("click", () => {
+    if (state.currentScreen === "tasks") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    if (state.currentScreen === "detail" && state.detailReturnScreen === "entry") {
+      showScreen("entry");
+      renderRecent();
+      return;
+    }
     state.selectedTask = null;
     state.editingLog = null;
     state.selectedRobots = [];

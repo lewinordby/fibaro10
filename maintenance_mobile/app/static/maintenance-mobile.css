@@ -1705,7 +1705,90 @@ body.appkit-mobile .task-message.is-error {
 body.appkit-mobile.entry-mode .app-topbar,
 body.appkit-mobile.detail-mode .app-topbar,
 body.appkit-mobile.profile-mode .app-topbar {
+  display: grid;
+}
+
+body.appkit-mobile .brand-logo {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+body.appkit-mobile .brand-logo::after {
+  position: absolute;
+  top: 50%;
+  left: -1px;
   display: none;
+  width: 16px;
+  height: 16px;
+  border-bottom: 2px solid var(--appkit-highlight);
+  border-left: 2px solid var(--appkit-highlight);
+  content: "";
+  transform: translateY(-50%) rotate(45deg);
+}
+
+body.appkit-mobile .brand-logo.is-back::after {
+  display: block;
+}
+
+body.appkit-mobile .brand-logo.is-back img {
+  width: 34px;
+  height: 34px;
+  transform: translateX(6px);
+}
+
+body.appkit-mobile .entry-context {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 1px 8px;
+  border-bottom: 1px solid var(--appkit-line);
+}
+
+body.appkit-mobile .entry-context .time-button {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 7px 3px 3px;
+  border-radius: 7px;
+  color: var(--appkit-highlight);
+}
+
+body.appkit-mobile .entry-context .time-button:active {
+  background: var(--appkit-highlight-soft);
+}
+
+body.appkit-mobile .entry-context .time-button svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+body.appkit-mobile .entry-context .time-button strong {
+  color: var(--appkit-text);
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+body.appkit-mobile .entry-context .entry-user-line {
+  display: block;
+  overflow: hidden;
+  margin: 0;
+  color: var(--appkit-muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @media (max-width: 430px) {

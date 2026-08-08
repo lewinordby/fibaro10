@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv()
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstrip("/")
-MAINTENANCE_MOBILE_BUILD = os.getenv("MAINTENANCE_MOBILE_BUILD", "1473")
+MAINTENANCE_MOBILE_BUILD = os.getenv("MAINTENANCE_MOBILE_BUILD", "1474")
 SESSION_COOKIE_NAME = "lilletorget_maintenance_session"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 
@@ -386,7 +386,7 @@ def login_html(error: str = "", *, next_path: str = "/") -> str:
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1473">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1474">
   <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-body">
@@ -428,18 +428,18 @@ INDEX_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1473">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1474">
   <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
-  <script src="/assets/maintenance-mobile.js?v=1473" defer></script>
+  <script src="/assets/maintenance-mobile.js?v=1474" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
   <div id="preloader" aria-hidden="true"></div>
   <div id="page">
   <header class="appkit-header app-topbar">
-    <a class="appkit-brand-action brand-logo" href="/" aria-label="Oppgaver">
+    <button id="backButton" class="appkit-brand-action brand-logo" type="button" aria-label="Oppgaver">
       <img src="/static/lilletorget-mark.png" alt="">
-    </a>
-    <div class="appkit-header-title">Vedlikehold<span class="appkit-header-subtitle">Lilletorget</span></div>
+    </button>
+    <div class="appkit-header-title"><span id="appHeaderTitle">Vedlikehold</span><span id="appHeaderSubtitle" class="appkit-header-subtitle">Lilletorget</span></div>
     <button id="profileButton" class="appkit-header-action user-button" type="button" title="Bruker" aria-label="Åpne brukerprofil">
         <span id="topUserInitial" class="user-initial" aria-hidden="true">?</span>
     </button>
@@ -467,20 +467,15 @@ INDEX_HTML = """<!doctype html>
     </section>
 
     <section id="entryScreen" class="screen is-hidden">
-      <section class="entry-head sub-topbar">
-        <button id="backButton" class="back-button" type="button" aria-label="Tilbake">
-          <img src="/static/lilletorget-mark.png" alt="">
-        </button>
-        <div class="entry-title-block">
-          <h1 class="entry-title-line"><span id="taskTitle">Vedlikehold</span><button id="timeButton" class="time-button" type="button" aria-expanded="false"><span aria-hidden="true">, </span><strong id="timeButtonLabel">N&aring;</strong></button></h1>
-          <p id="taskSubtitle" class="muted"></p>
-          <p id="entryUserLine" class="entry-user-line"></p>
-        </div>
-        <span class="sub-topbar-spacer" aria-hidden="true"></span>
-      </section>
-
       <form id="maintenanceForm" class="entry-card">
         <input id="performed_by" name="performed_by" type="hidden">
+        <div class="entry-context">
+          <button id="timeButton" class="time-button" type="button" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5l3.2 1.8"/></svg>
+            <strong id="timeButtonLabel">N&aring;</strong>
+          </button>
+          <span id="entryUserLine" class="entry-user-line"></span>
+        </div>
         <div id="timeField" class="time-field is-hidden">
           <label>Tidspunkt<input id="performed_at" name="performed_at" type="datetime-local" required></label>
         </div>
@@ -532,31 +527,10 @@ INDEX_HTML = """<!doctype html>
     </section>
 
     <section id="detailScreen" class="screen is-hidden">
-      <section class="entry-head sub-topbar detail-head">
-        <button id="detailBackButton" class="back-button" type="button" aria-label="Tilbake">
-          <img src="/static/lilletorget-mark.png" alt="">
-        </button>
-        <div class="entry-title-block">
-          <h1>Vedlikeholdspost</h1>
-          <p class="entry-user-line">Detaljer</p>
-        </div>
-        <span class="sub-topbar-spacer" aria-hidden="true"></span>
-      </section>
       <article id="detailContent" class="detail-card"></article>
     </section>
 
     <section id="profileScreen" class="screen is-hidden">
-      <section class="entry-head sub-topbar profile-head">
-        <button id="profileBackButton" class="back-button" type="button" aria-label="Tilbake">
-          <img src="/static/lilletorget-mark.png" alt="">
-        </button>
-        <div class="entry-title-block">
-          <h1>Bruker</h1>
-          <p class="entry-user-line">Konto og utlogging</p>
-        </div>
-        <span class="sub-topbar-spacer" aria-hidden="true"></span>
-      </section>
-
       <section class="profile-card">
         <div class="profile-identity">
           <span id="profileInitial" class="profile-initial" aria-hidden="true">?</span>
