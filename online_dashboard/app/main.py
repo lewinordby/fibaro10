@@ -4094,8 +4094,8 @@ LOGIN_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1692">
-  <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1693">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=3" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-page">
   <div id="preloader" aria-hidden="true"></div>
@@ -4134,8 +4134,8 @@ DASHBOARD_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1692">
-  <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1693">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=3" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
   <div id="preloader" aria-hidden="true"></div>
@@ -4145,7 +4145,16 @@ DASHBOARD_HTML = """<!doctype html>
       <img src="/static/lilletorget-mark.svg?v=1681" alt="">
     </a>
     <div class="appkit-header-title">Dashboard<span class="appkit-header-subtitle">{{ open_label }} · {{ open_detail }}</span></div>
-    <form method="post" action="/logg-ut">
+    <form class="appkit-header-actions" method="post" action="/logg-ut">
+      <button class="appkit-header-action appkit-theme-button" type="button" data-toggle-theme aria-label="Bytt tema" title="Bytt tema">
+        <svg class="theme-dark-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none">
+          <path d="M20 15.2A8.5 8.5 0 0 1 8.8 4a7.8 7.8 0 1 0 11.2 11.2Z" />
+        </svg>
+        <svg class="theme-light-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="3.5" />
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+        </svg>
+      </button>
       <button class="appkit-header-action logout-button" type="submit" aria-label="Logg ut" title="Logg ut">
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
           <path d="M12 3v8" />
@@ -4271,8 +4280,8 @@ DETAIL_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1692">
-  <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1693">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=3" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
   <div id="preloader" aria-hidden="true"></div>
@@ -4282,7 +4291,16 @@ DETAIL_HTML = """<!doctype html>
       <img src="/static/lilletorget-mark.svg?v=1681" alt="">
     </a>
     <div class="appkit-header-title">{{ title }}<span class="appkit-header-subtitle">Lilletorget</span></div>
-    <form method="post" action="/logg-ut">
+    <form class="appkit-header-actions" method="post" action="/logg-ut">
+      <button class="appkit-header-action appkit-theme-button" type="button" data-toggle-theme aria-label="Bytt tema" title="Bytt tema">
+        <svg class="theme-dark-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none">
+          <path d="M20 15.2A8.5 8.5 0 0 1 8.8 4a7.8 7.8 0 1 0 11.2 11.2Z" />
+        </svg>
+        <svg class="theme-light-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="3.5" />
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+        </svg>
+      </button>
       <button class="appkit-header-action logout-button" type="submit" aria-label="Logg ut" title="Logg ut">
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
           <path d="M12 3v8" />

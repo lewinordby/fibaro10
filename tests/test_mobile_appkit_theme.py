@@ -33,7 +33,7 @@ def test_all_mobile_shells_load_the_shared_theme() -> None:
     for html in (ALARM_HTML, MAINTENANCE_HTML, DASHBOARD_HTML, DETAIL_HTML, LOGIN_HTML):
         assert "/appkit-assets/vendor/appkit-style.css?v=1" in html
         assert "/appkit-assets/lilletorget-appkit.css?v=2" in html
-        assert "/appkit-assets/lilletorget-appkit.js?v=2" in html
+        assert "/appkit-assets/lilletorget-appkit.js?v=3" in html
         assert 'class="appkit-mobile theme-light' in html
 
 
@@ -63,6 +63,8 @@ def test_online_bottom_navigation_uses_area_colors_for_active_item() -> None:
         assert selector in css
     for selector in (".nav-sun svg", ".nav-parking svg", ".nav-energy svg", ".nav-drift svg"):
         assert selector in css
+    assert ".nav-status.is-primary.is-active" in css
+    assert ".nav-status.is-primary:not(.is-active) svg" in css
 
 
 def test_mobile_apps_use_appkit_dashboard_patterns() -> None:
@@ -85,6 +87,22 @@ def test_online_dashboard_uses_the_fixed_header_as_the_only_title() -> None:
     assert "dashboard-page-title" not in DASHBOARD_HTML
     assert "dashboard-glance" not in DASHBOARD_HTML
     assert "Driftsoversikt" not in DASHBOARD_HTML
+
+
+def test_online_pages_offer_a_persistent_light_dark_theme_toggle() -> None:
+    for html in (DASHBOARD_HTML, DETAIL_HTML):
+        assert 'class="appkit-header-action appkit-theme-button"' in html
+        assert "data-toggle-theme" in html
+        assert 'class="theme-dark-icon"' in html
+        assert 'class="theme-light-icon"' in html
+
+    script = (ROOT / "packages" / "mobile-appkit" / "lilletorget-appkit.js").read_text(encoding="utf-8")
+    assert 'const storageKey = "lilletorget-mobile-theme"' in script
+    assert 'body.classList.remove("theme-dark", "theme-light")' in script
+    assert 'node.setAttribute("aria-label", actionLabel)' in script
+
+    css = (ROOT / "static" / "online-dashboard.css").read_text(encoding="utf-8")
+    assert ':root[data-theme="dark"] body.appkit-mobile .dashboard-performance-comparisons > a' in css
 
 
 def test_dashboard_performance_helpers_show_direction_and_full_day_target() -> None:

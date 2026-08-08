@@ -12,6 +12,34 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1693",
+        "date": "08.08.2026",
+        "headline": "Rødt Dashboard-valg og lys/mørk temabryter",
+        "title": "Mobilgrensesnittet har konsekvente områdefarger og et varig temavalg",
+        "description": (
+            "Dashboard beholder sitt røde symbol, men bruker nå den samme rolige aktive "
+            "markeringen som de øvrige områdene i stedet for et hvitt symbol på helblå flate. "
+            "En kompakt sol/måne-knapp i toppfeltet lar brukeren velge lyst eller mørkt tema, "
+            "og valget huskes på enheten."
+        ),
+        "applications": [
+            "Online dashboard: konsekvent tilstandsdesign på Dashboard-knappen og temavelger.",
+            "Mobile AppKit: tilgjengelig og varig lys/mørk temastyring.",
+        ],
+        "request": "Dashboard skal ha den røde fargen, og det må være mulig å velge mørkt eller lyst tema.",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Beholder rødt Dashboard-symbol både i aktiv og inaktiv tilstand.",
+            "Bruker svak rød bakgrunn og rød tekst når Dashboard er valgt.",
+            "Beholder den hevede midtplasseringen uten den tidligere helblå spesialstilen.",
+            "Legger temabryteren ved siden av utlogging uten en ekstra topprad.",
+            "Husker valgt tema lokalt og følger enhetens preferanse første gang.",
+            "Kontrollerer mobilvisningen ved 390 x 844 piksler uten overflyt.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1692",
         "date": "08.08.2026",
         "headline": "Områdesymbolene beholder fargen",

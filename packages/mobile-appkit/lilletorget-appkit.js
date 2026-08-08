@@ -11,15 +11,21 @@
 
   const applyTheme = (theme, persist = false) => {
     const dark = theme === "dark";
+    const actionLabel = dark ? "Bytt til lyst tema" : "Bytt til m\u00f8rkt tema";
     root.dataset.theme = dark ? "dark" : "light";
-    body.classList.toggle("theme-dark", dark);
-    body.classList.toggle("theme-light", !dark);
+    body.classList.remove("theme-dark", "theme-light");
+    body.classList.toggle("appkit-theme-dark", dark);
+    body.classList.toggle("appkit-theme-light", !dark);
     document.querySelector('meta[name="theme-color"]')?.setAttribute(
       "content",
       dark ? "#15191f" : "#ffffff",
     );
     document.querySelectorAll("[data-theme-label]").forEach((node) => {
       node.textContent = dark ? "Lyst tema" : "M\u00f8rkt tema";
+    });
+    document.querySelectorAll("[data-toggle-theme]").forEach((node) => {
+      node.setAttribute("aria-label", actionLabel);
+      node.setAttribute("title", actionLabel);
     });
     if (persist) window.localStorage.setItem(storageKey, dark ? "dark" : "light");
   };
