@@ -8,6 +8,28 @@ from online_dashboard.app import main as online_main  # noqa: E402
 
 
 class OnlineDashboardParkingTests(unittest.TestCase):
+    def test_count_performance_has_parking_variant_and_update_time(self) -> None:
+        html = online_main.render_count_performance(
+            modifier="parking",
+            label="Parkeringer så langt i dag",
+            current_count=42,
+            updated_text="Oppdatert kl 14:00 · neste import kl 16:00",
+            yesterday_same_time=38,
+            yesterday_total=51,
+            last_week_same_time=44,
+            last_week_total=57,
+            href="/parkering",
+            stats=[("Omsetning", "3 528 kr", "84 kr i snitt"), ("Aktive nå", "8", "pågående parkeringer")],
+        )
+
+        self.assertIn("detail-performance-parking", html)
+        self.assertIn("Parkeringer så langt i dag", html)
+        self.assertIn("+4 stk", html)
+        self.assertIn("-2 stk", html)
+        self.assertIn("9 igjen til hele gårsdagen", html)
+        self.assertIn("neste import kl 16:00", html)
+        self.assertIn("Aktive nå", html)
+
     def test_today_parking_list_shows_clock_without_date(self) -> None:
         html = online_main.render_parking_vehicle_list(
             [

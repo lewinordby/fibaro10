@@ -257,7 +257,19 @@ def online_app():
         return HTMLResponse(html)
 
     parking_html = mobile.DETAIL_HTML
-    parking_body = mobile.detail_stats(
+    parking_body = mobile.render_count_performance(
+        modifier="parking",
+        label="Parkeringer så langt i dag",
+        current_count=42,
+        updated_text="Oppdatert kl 14:00 · neste import kl 16:00",
+        yesterday_same_time=38,
+        yesterday_total=51,
+        last_week_same_time=44,
+        last_week_total=57,
+        href="#",
+        stats=[("Omsetning", "3 528 kr", "84 kr i snitt"), ("Aktive nå", "8", "pågående parkeringer")],
+    )
+    parking_body += mobile.detail_stats(
         [
             ("I dag", "42", "4 220 kr - 11 % over forrige uke"),
             ("I går", "38", "3 870 kr"),
@@ -281,6 +293,43 @@ def online_app():
     @preview.get("/parkering", response_class=HTMLResponse)
     async def parking() -> HTMLResponse:
         return HTMLResponse(parking_html)
+
+    soling_html = mobile.DETAIL_HTML
+    soling_body = mobile.render_count_performance(
+        modifier="sun",
+        label="Solinger så langt i dag",
+        current_count=20,
+        updated_text="Oppdatert kl 14:27",
+        yesterday_same_time=18,
+        yesterday_total=27,
+        last_week_same_time=25,
+        last_week_total=31,
+        href="#",
+        stats=[("Soltid", "6,7 t", "20 min i snitt"), ("Omsetning", "4 060 kr", "203 kr i snitt")],
+    )
+    soling_body += mobile.detail_stats(
+        [
+            ("I dag", "20", "4 060 kr - 5 færre enn forrige uke"),
+            ("I går", "27", "5 120 kr"),
+            ("Denne uken", "116", "23 740 kr"),
+            ("Denne måneden", "383", "78 330 kr"),
+        ]
+    )
+    soling_values = {
+        "title": "Soling",
+        "subtitle": "Dagens solinger",
+        "body": soling_body,
+        "detail_icon": mobile.metric_icon("sun"),
+        "detail_class": "detail-sun",
+        "hero_note": "",
+        "mobile_nav": mobile.mobile_nav("sun"),
+    }
+    for key, value in soling_values.items():
+        soling_html = soling_html.replace("{{ " + key + " }}", value)
+
+    @preview.get("/soling", response_class=HTMLResponse)
+    async def soling() -> HTMLResponse:
+        return HTMLResponse(soling_html)
 
     return preview
 

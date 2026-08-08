@@ -1877,6 +1877,20 @@ body.appkit-mobile .dashboard-performance {
     box-shadow: var(--appkit-shadow-raised);
 }
 
+body.appkit-mobile .detail-performance {
+    margin-bottom: 2px;
+}
+
+body.appkit-mobile .detail-performance-parking {
+    border-color: #3975c4;
+    background: #245da8;
+}
+
+body.appkit-mobile .detail-performance-sun {
+    border-color: #c98225;
+    background: #ad6618;
+}
+
 body.appkit-mobile .dashboard-performance-head {
     display: flex;
     align-items: flex-end;

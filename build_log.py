@@ -12,6 +12,31 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1688",
+        "date": "08.08.2026",
+        "headline": "Parkering og Soling har fått egne styringsfelt",
+        "title": "Mobilområdene sammenligner nå dagens aktivitet på samme måte som Dashboard",
+        "description": (
+            "Parkering og Soling har fått hvert sitt kompakte styringsfelt med antall hittil i dag, "
+            "tidsriktige sammenligninger mot i går og forrige uke samt relevante støtteverdier."
+        ),
+        "applications": [
+            "Online dashboard: nytt styringsfelt på Parkering.",
+            "Online dashboard: nytt styringsfelt på Soling.",
+        ],
+        "request": "jeg ser ingen slik felt i mobil appen selv om du sier du er ferdig",
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser parkeringer hittil i dag med sammenligning på EasyParks siste oppdateringstidspunkt.",
+            "Viser solinger hittil i dag med sammenligning på Sun2s siste oppdateringstidspunkt.",
+            "Beholder grå sammenligningsfelt uten rammer på begge sider.",
+            "Viser omsetning, snitt, aktive parkeringer og soltid der det er relevant.",
+            "Bruker parkeringsblått og en dempet solfarge for tydelig områdeidentitet.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1687",
         "date": "08.08.2026",
         "headline": "Sammenligningsfeltene er grå uten rammer",

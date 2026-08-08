@@ -686,6 +686,17 @@ def money_delta(current: Any, reference: Any) -> tuple[str, str, str]:
     return f"{sign}{fmt_money(abs(difference))}", percent_text, state
 
 
+def count_delta(current: Any, reference: Any) -> tuple[str, str, str]:
+    current_value = int(current or 0)
+    reference_value = int(reference or 0)
+    difference = current_value - reference_value
+    sign = "+" if difference >= 0 else "-"
+    percent = (difference / reference_value * 100) if reference_value else None
+    percent_text = f"{sign}{abs(percent):.0f}%".replace(".", ",") if percent is not None else "-"
+    state = "is-positive" if difference >= 0 else "is-negative"
+    return f"{sign}{fmt_int(abs(difference))} stk", percent_text, state
+
+
 def target_progress_text(current: Any, target: Any, label: str) -> str:
     current_value = float(current or 0)
     target_value = float(target or 0)
@@ -693,6 +704,57 @@ def target_progress_text(current: Any, target: Any, label: str) -> str:
     if difference >= 0:
         return f"{fmt_money(difference)} over {label}"
     return f"{fmt_money(abs(difference))} igjen til {label}"
+
+
+def target_count_progress_text(current: Any, target: Any, label: str) -> str:
+    current_value = int(current or 0)
+    target_value = int(target or 0)
+    difference = current_value - target_value
+    if difference >= 0:
+        return f"{fmt_int(difference)} over {label}"
+    return f"{fmt_int(abs(difference))} igjen til {label}"
+
+
+def render_count_performance(
+    *,
+    modifier: str,
+    label: str,
+    current_count: Any,
+    updated_text: str,
+    yesterday_same_time: Any,
+    yesterday_total: Any,
+    last_week_same_time: Any,
+    last_week_total: Any,
+    href: str,
+    stats: list[tuple[str, str, str]],
+) -> str:
+    yesterday_delta, yesterday_percent, yesterday_state = count_delta(current_count, yesterday_same_time)
+    last_week_delta, last_week_percent, last_week_state = count_delta(current_count, last_week_same_time)
+    stat_html = "".join(
+        f"<span>{escape(stat_label)} <strong>{stat_value}</strong><small>{escape(stat_note)}</small></span>"
+        for stat_label, stat_value, stat_note in stats
+    )
+    return f"""
+    <section class="dashboard-performance detail-performance detail-performance-{escape(modifier)}" aria-label="{escape(label)}">
+      <div class="dashboard-performance-head">
+        <div><span>{escape(label)}</span><strong>{fmt_int(current_count)}</strong></div>
+        <small>{escape(updated_text)}</small>
+      </div>
+      <div class="dashboard-performance-comparisons">
+        <a href="{escape(href)}">
+          <span>I går samme tidspunkt</span>
+          <strong class="{yesterday_state}">{yesterday_delta} <em>{yesterday_percent}</em></strong>
+          <small>{target_count_progress_text(current_count, yesterday_total, "hele gårsdagen")}</small>
+        </a>
+        <a href="{escape(href)}">
+          <span>Samme ukedag forrige uke</span>
+          <strong class="{last_week_state}">{last_week_delta} <em>{last_week_percent}</em></strong>
+          <small>{target_count_progress_text(current_count, last_week_total, "hele referansedagen")}</small>
+        </a>
+      </div>
+      <div class="dashboard-performance-split">{stat_html}</div>
+    </section>
+    """
 
 
 def operating_window(now: datetime) -> dict[str, Any]:
@@ -2613,7 +2675,40 @@ async def soling_detail(request: Request):
     )
     if can_view_money:
         soling_today_detail = f"{amount(data['soling'].get('amount'))} - {soling_today_detail}"
-    body = detail_stats(
+    soling_count = int(data["soling"].get("count") or 0)
+    soling_minutes = float(data["soling"].get("minutes") or 0)
+    soling_amount = float(data["soling"].get("amount") or 0)
+    soling_stats = [
+        (
+            "Soltid",
+            f"{soling_minutes / 60:.1f} t".replace(".", ","),
+            f"{soling_minutes / soling_count:.0f} min i snitt" if soling_count else "Ingen solinger ennå",
+        ),
+        (
+            "Siste soling",
+            fmt_clock(latest_soling_at),
+            latest_soling_detail,
+        ),
+    ]
+    if can_view_money:
+        soling_stats[1] = (
+            "Omsetning",
+            fmt_amount(soling_amount),
+            f"{fmt_money(soling_amount / soling_count)} i snitt" if soling_count else "Ingen solinger ennå",
+        )
+    performance = render_count_performance(
+        modifier="sun",
+        label="Solinger så langt i dag",
+        current_count=soling_count,
+        updated_text=f"Oppdatert kl {fmt_time(session_import_at or data['soling'].get('updated_at'))}",
+        yesterday_same_time=data["soling_yesterday_same_time"].get("count"),
+        yesterday_total=data["soling_yesterday"].get("count"),
+        last_week_same_time=data["soling_last_week_same_time"].get("count"),
+        last_week_total=data["soling_last_week_same_day"].get("count"),
+        href="/soling",
+        stats=soling_stats,
+    )
+    body = performance + detail_stats(
         [
             ("Siste soling", fmt_clock(latest_soling_at), latest_soling_detail),
             (
@@ -2797,7 +2892,36 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
     )
     if can_view_money:
         parking_today_detail = f"{amount(data['parking'].get('amount'))} - {parking_today_detail}"
-    body = detail_stats(
+    parking_count = int(data["parking"].get("count") or 0)
+    parking_amount = float(data["parking"].get("amount") or 0)
+    parking_active = int(data["parking"].get("active_count") or 0)
+    parking_stats = [
+        ("Aktive nå", fmt_int(parking_active), "pågående parkeringer"),
+        ("Siste parkering", fmt_clock(data["latest_parking"].get("start_time")), "registrert start"),
+    ]
+    if can_view_money:
+        parking_stats[0] = (
+            "Omsetning",
+            fmt_amount(parking_amount),
+            f"{fmt_money(parking_amount / parking_count)} i snitt" if parking_count else "Ingen parkeringer ennå",
+        )
+        parking_stats[1] = ("Aktive nå", fmt_int(parking_active), "pågående parkeringer")
+    updated_text = f"Oppdatert kl {fmt_time(parking_import_at or data['parking'].get('updated_at'))}"
+    if parking_next_import_at:
+        updated_text += f" · neste import kl {fmt_time(parking_next_import_at)}"
+    performance = render_count_performance(
+        modifier="parking",
+        label="Parkeringer så langt i dag",
+        current_count=parking_count,
+        updated_text=updated_text,
+        yesterday_same_time=data["parking_yesterday_same_time"].get("count"),
+        yesterday_total=data["parking_yesterday"].get("count"),
+        last_week_same_time=data["parking_last_week_same_time"].get("count"),
+        last_week_total=data["parking_last_week_same_day"].get("count"),
+        href="/parkering",
+        stats=parking_stats,
+    )
+    body = performance + detail_stats(
         [
             (
                 "I dag",
@@ -3785,7 +3909,7 @@ LOGIN_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1687">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1688">
   <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-page">
@@ -3825,7 +3949,7 @@ DASHBOARD_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1687">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1688">
   <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
@@ -3962,7 +4086,7 @@ DETAIL_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1687">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1688">
   <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light">

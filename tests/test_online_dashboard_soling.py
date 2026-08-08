@@ -8,6 +8,28 @@ from online_dashboard.app import main as online_main  # noqa: E402
 
 
 class OnlineDashboardSolingTests(unittest.TestCase):
+    def test_count_performance_uses_count_comparisons_and_supporting_stats(self) -> None:
+        html = online_main.render_count_performance(
+            modifier="sun",
+            label="Solinger så langt i dag",
+            current_count=20,
+            updated_text="Oppdatert kl 14:25",
+            yesterday_same_time=18,
+            yesterday_total=27,
+            last_week_same_time=25,
+            last_week_total=31,
+            href="/soling",
+            stats=[("Soltid", "6,7 t", "20 min i snitt"), ("Omsetning", "4 060 kr", "203 kr i snitt")],
+        )
+
+        self.assertIn("detail-performance-sun", html)
+        self.assertIn("Solinger så langt i dag", html)
+        self.assertIn("+2 stk", html)
+        self.assertIn("-5 stk", html)
+        self.assertIn("7 igjen til hele gårsdagen", html)
+        self.assertIn("Soltid", html)
+        self.assertIn("Omsetning", html)
+
     def test_today_session_list_shows_clock_without_date(self) -> None:
         html = online_main.render_today_soling_list(
             [
