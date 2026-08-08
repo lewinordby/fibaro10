@@ -385,7 +385,7 @@ def login_html(error: str = "", *, next_path: str = "/") -> str:
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png?v=1681">
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
-  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
+  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=3">
   <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1474">
   <script src="/appkit-assets/lilletorget-appkit.js?v=4" defer></script>
 </head>
@@ -427,7 +427,7 @@ INDEX_HTML = """<!doctype html>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png?v=1681">
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
-  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
+  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=3">
   <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1474">
   <script src="/appkit-assets/lilletorget-appkit.js?v=4" defer></script>
   <script src="/assets/maintenance-mobile.js?v=1474" defer></script>

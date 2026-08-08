@@ -2222,23 +2222,23 @@ body.appkit-mobile .appkit-footer .nav-status.is-primary.is-active svg {
     box-shadow: 0 6px 16px color-mix(in srgb, var(--appkit-revenue) 22%, transparent);
 }
 
-/* Purpose-built dark palette: area colors are accents, not full bright surfaces. */
+/* Purpose-built dark palette: neutral layers carry the layout; color carries meaning. */
 :root[data-theme="dark"] body.appkit-mobile {
-    --temperature: #ad98e3;
+    --temperature: #b8a7f0;
 }
 
 :root[data-theme="dark"] body.appkit-mobile .topbar,
 :root[data-theme="dark"] body.appkit-mobile .appkit-footer {
-    border-color: #35414d;
-    background: rgb(23 29 36 / 96%);
-    box-shadow: 0 8px 24px rgb(0 0 0 / 24%);
+    border-color: var(--appkit-line);
+    background: rgb(20 27 35 / 97%);
+    box-shadow: 0 1px 0 rgb(255 255 255 / 2%), 0 8px 24px rgb(0 0 0 / 18%);
 }
 
 :root[data-theme="dark"] body.appkit-mobile .appkit-theme-button,
 :root[data-theme="dark"] body.appkit-mobile .logout-button {
-    border-color: #3a4653;
-    background: #202832;
-    color: #bdc6d1;
+    border-color: var(--appkit-line);
+    background: #1d2731;
+    color: #b7c2ce;
 }
 
 :root[data-theme="dark"] body.appkit-mobile .metric-card,
@@ -2250,45 +2250,51 @@ body.appkit-mobile .appkit-footer .nav-status.is-primary.is-active svg {
 :root[data-theme="dark"] body.appkit-mobile .detail-stats article,
 :root[data-theme="dark"] body.appkit-mobile .revenue-week-chart,
 :root[data-theme="dark"] body.appkit-mobile .revenue-selected-day {
-    border-color: #35414d;
-    background: #1b222a;
-    box-shadow: 0 8px 22px rgb(0 0 0 / 22%);
+    border-color: var(--appkit-line);
+    background: var(--appkit-surface);
+    box-shadow: var(--appkit-shadow);
 }
 
 :root[data-theme="dark"] body.appkit-mobile .state-card,
 :root[data-theme="dark"] body.appkit-mobile .door-dashboard-card {
-    border-color: #394652;
-    background: #242d36;
+    border-color: #34424f;
+    background: var(--appkit-surface-soft);
 }
 
 :root[data-theme="dark"] body.appkit-mobile .dashboard-performance {
-    border-color: #854650;
-    background: #35242a;
+    border-color: var(--appkit-line);
+    border-top: 3px solid var(--appkit-revenue);
+    background: var(--appkit-surface);
+    box-shadow: var(--appkit-shadow-raised);
 }
 
 :root[data-theme="dark"] body.appkit-mobile .detail-performance-parking {
-    border-color: #3d6fae;
-    background: #17283d;
+    border-color: var(--appkit-line);
+    border-top-color: var(--appkit-parking);
+    background: var(--appkit-surface);
 }
 
 :root[data-theme="dark"] body.appkit-mobile .detail-performance-sun {
-    border-color: #9a681f;
-    background: #302617;
+    border-color: var(--appkit-line);
+    border-top-color: var(--appkit-sun);
+    background: var(--appkit-surface);
 }
 
 :root[data-theme="dark"] body.appkit-mobile .detail-performance-energy {
-    border-color: #33836e;
-    background: #173029;
+    border-color: var(--appkit-line);
+    border-top-color: var(--appkit-energy);
+    background: var(--appkit-surface);
 }
 
 :root[data-theme="dark"] body.appkit-mobile .detail-performance-drift {
-    border-color: #7161a4;
-    background: #29243a;
+    border-color: var(--appkit-line);
+    border-top-color: var(--temperature);
+    background: var(--appkit-surface);
 }
 
 :root[data-theme="dark"] body.appkit-mobile .dashboard-performance-comparisons > a {
-    border: 1px solid #3a4652;
-    background: #171d24;
+    border: 1px solid #2d3945;
+    background: #131b23;
     color: var(--appkit-text);
 }
 
@@ -2298,43 +2304,87 @@ body.appkit-mobile .appkit-footer .nav-status.is-primary.is-active svg {
 }
 
 :root[data-theme="dark"] body.appkit-mobile .dashboard-performance-comparisons .is-positive {
-    color: #69d3a9;
+    color: #68d8b7;
 }
 
 :root[data-theme="dark"] body.appkit-mobile .dashboard-performance-comparisons .is-negative {
-    color: #ff8793;
+    color: #ff8d98;
 }
 
 :root[data-theme="dark"] body.appkit-mobile .dashboard-performance-split {
-    border-top-color: rgb(255 255 255 / 14%);
+    border-top-color: var(--appkit-line);
+}
+
+:root[data-theme="dark"] body.appkit-mobile .dashboard-performance-head span,
+:root[data-theme="dark"] body.appkit-mobile .dashboard-performance-head > small,
+:root[data-theme="dark"] body.appkit-mobile .dashboard-performance-split > span,
+:root[data-theme="dark"] body.appkit-mobile .dashboard-performance-split small {
+    color: var(--appkit-muted);
+}
+
+:root[data-theme="dark"] body.appkit-mobile .dashboard-performance-head strong,
+:root[data-theme="dark"] body.appkit-mobile .dashboard-performance-split strong {
+    color: var(--appkit-text);
+}
+
+:root[data-theme="dark"] body.appkit-mobile .notice,
+:root[data-theme="dark"] body.appkit-mobile .parking-status,
+:root[data-theme="dark"] body.appkit-mobile .state-pill {
+    border-color: var(--appkit-line);
+    background: var(--appkit-surface-soft);
+    color: var(--appkit-muted);
+}
+
+:root[data-theme="dark"] body.appkit-mobile .progress {
+    background: #131b23;
+}
+
+:root[data-theme="dark"] body.appkit-mobile .parking-icon .parking-cutout {
+    fill: var(--appkit-surface);
 }
 
 :root[data-theme="dark"] body.appkit-mobile .appkit-footer .nav-sun svg,
 :root[data-theme="dark"] body.appkit-mobile .appkit-footer .nav-sun.is-active {
-    color: #f1b640;
+    color: var(--appkit-sun);
 }
 
 :root[data-theme="dark"] body.appkit-mobile .appkit-footer .nav-parking svg,
 :root[data-theme="dark"] body.appkit-mobile .appkit-footer .nav-parking.is-active {
-    color: #78aef0;
+    color: var(--appkit-parking);
 }
 
 :root[data-theme="dark"] body.appkit-mobile .appkit-footer .nav-energy svg,
 :root[data-theme="dark"] body.appkit-mobile .appkit-footer .nav-energy.is-active {
-    color: #61cdb2;
+    color: var(--appkit-energy);
 }
 
 :root[data-theme="dark"] body.appkit-mobile .appkit-footer .nav-drift svg,
 :root[data-theme="dark"] body.appkit-mobile .appkit-footer .nav-drift.is-active {
-    color: #ad98e3;
+    color: var(--temperature);
+}
+
+:root[data-theme="dark"] body.appkit-mobile .appkit-footer .nav-sun.is-active {
+    background: color-mix(in srgb, var(--appkit-sun) 10%, var(--appkit-surface));
+}
+
+:root[data-theme="dark"] body.appkit-mobile .appkit-footer .nav-parking.is-active {
+    background: color-mix(in srgb, var(--appkit-parking) 10%, var(--appkit-surface));
+}
+
+:root[data-theme="dark"] body.appkit-mobile .appkit-footer .nav-energy.is-active {
+    background: color-mix(in srgb, var(--appkit-energy) 10%, var(--appkit-surface));
+}
+
+:root[data-theme="dark"] body.appkit-mobile .appkit-footer .nav-drift.is-active {
+    background: color-mix(in srgb, var(--temperature) 10%, var(--appkit-surface));
 }
 
 :root[data-theme="dark"] body.appkit-mobile .appkit-footer .nav-status.is-primary:not(.is-active) svg,
 :root[data-theme="dark"] body.appkit-mobile .appkit-footer .nav-status.is-primary.is-active,
 :root[data-theme="dark"] body.appkit-mobile .appkit-footer .nav-status.is-primary.is-active svg {
-    border-color: #1b222a;
-    background: #3a252c;
-    color: #ff8793;
+    border-color: var(--appkit-surface);
+    background: color-mix(in srgb, var(--appkit-revenue) 13%, var(--appkit-surface));
+    color: var(--appkit-revenue);
 }
 
 :root[data-theme="dark"] body.appkit-mobile .appkit-footer .nav-status.is-primary:not(.is-active) svg {

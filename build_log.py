@@ -12,6 +12,38 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1695",
+        "date": "08.08.2026",
+        "headline": "Mørkt tema er tegnet opp på nytt med et tydelig flatehierarki",
+        "title": "Nøytrale hovedflater, rene områdesignaler og færre tunge rammer i mobilappene",
+        "description": (
+            "Mørk modus er vurdert på nytt i faktisk mobilvisning. Sidebakgrunn, hovedkort og innfelte "
+            "kontroller har fått tre klart adskilte nivåer. De store brune, blå, grønne og lilla "
+            "statusflatene er erstattet med nøytrale paneler hvor områdefargen brukes i en presis topplinje, "
+            "symboler og aktive menyvalg. Komponenter som tidligere beholdt en lys bakgrunn er også rettet."
+        ),
+        "applications": [
+            "Mobile AppKit: nytt mørkt fargesystem for alle mobile flater og skjemaer.",
+            "Online dashboard: ny mørk profil for Dashboard, Parkering, Soling, Energi og Drift.",
+            "Alarm og Vedlikehold: mottar den oppdaterte delte mørke grunnprofilen.",
+        ],
+        "request": "gå ijgennom det mørke tema det er fortsatt ikke bra",
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Etablerer tre nøytrale mørke flatenivåer med tydelig, men rolig separasjon.",
+            "Fjerner heldekkende, grumsete områdefarger fra de store statuspanelene.",
+            "Bruker rød, blå, gul, grønn og lilla som semantiske aksenter.",
+            "Reduserer skygger og rammevekt for et flatere og mer moderne uttrykk.",
+            "Retter mørk bakgrunn på informasjonsfelt, statusmerker, fremdrift og innfelte sammenligninger.",
+            "Gjør aktive valg i bunnmenyen roligere uten å miste områdefargen.",
+            "Versjonerer den delte CSS-filen på nytt slik at mobilene ikke beholder gammel profil.",
+            "Oppdaterer pypdf til 6.15.0 etter at kvalitetskontrollen fant to nye sikkerhetsvarsler.",
+            "Oppdaterer låst nanoid-versjon til 3.3.18 i alle frontendpakkene etter et nytt sikkerhetsvarsel.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1694",
         "date": "08.08.2026",
         "headline": "Mørkt tema er bygget som en egen visuell profil",

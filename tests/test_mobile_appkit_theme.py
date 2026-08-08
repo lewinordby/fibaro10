@@ -32,7 +32,7 @@ def test_shared_appkit_assets_are_versioned_in_repo() -> None:
 def test_all_mobile_shells_load_the_shared_theme() -> None:
     for html in (ALARM_HTML, MAINTENANCE_HTML, DASHBOARD_HTML, DETAIL_HTML, LOGIN_HTML):
         assert "/appkit-assets/vendor/appkit-style.css?v=1" in html
-        assert "/appkit-assets/lilletorget-appkit.css?v=2" in html
+        assert "/appkit-assets/lilletorget-appkit.css?v=3" in html
         assert "/appkit-assets/lilletorget-appkit.js?v=4" in html
         assert 'class="appkit-mobile theme-light' in html
 
@@ -114,9 +114,9 @@ def test_online_dark_theme_has_dedicated_surfaces_navigation_and_brand_assets() 
     assert "lilletorget-wordmark-dark.svg?v=1694" in LOGIN_HTML
 
     shared_css = (ROOT / "packages" / "mobile-appkit" / "lilletorget-appkit.css").read_text(encoding="utf-8")
-    assert "--appkit-page: #12171d" in shared_css
-    assert "--appkit-surface: #1b222a" in shared_css
-    assert "--appkit-line: #34404c" in shared_css
+    assert "--appkit-page: #10161c" in shared_css
+    assert "--appkit-surface: #19222b" in shared_css
+    assert "--appkit-line: #303d49" in shared_css
 
     css = (static_root / "online-dashboard.css").read_text(encoding="utf-8")
     for selector in (
@@ -128,6 +128,9 @@ def test_online_dark_theme_has_dedicated_surfaces_navigation_and_brand_assets() 
         ':root[data-theme="dark"] body.appkit-mobile .appkit-footer .nav-status.is-primary:not(.is-active) svg',
     ):
         assert selector in css
+    assert "border-top: 3px solid var(--appkit-revenue)" in css
+    assert ':root[data-theme="dark"] body.appkit-mobile .notice' in css
+    assert "background: var(--appkit-surface-soft)" in css
 
 
 def test_dashboard_performance_helpers_show_direction_and_full_day_target() -> None:

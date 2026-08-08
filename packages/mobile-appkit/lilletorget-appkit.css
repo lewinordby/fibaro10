@@ -30,17 +30,25 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --appkit-page: #12171d;
-  --appkit-surface: #1b222a;
-  --appkit-surface-soft: #242d36;
-  --appkit-text: #f3f6fa;
-  --appkit-muted: #aeb8c5;
-  --appkit-line: #34404c;
-  --appkit-highlight: #6ba7f0;
-  --appkit-highlight-dark: #8abbf5;
-  --appkit-highlight-soft: #1d3148;
-  --appkit-shadow: 0 8px 22px rgb(0 0 0 / 24%);
-  --appkit-shadow-raised: 0 14px 34px rgb(0 0 0 / 34%);
+  --appkit-page: #10161c;
+  --appkit-surface: #19222b;
+  --appkit-surface-soft: #222d38;
+  --appkit-text: #f5f7fa;
+  --appkit-muted: #a5b1bf;
+  --appkit-line: #303d49;
+  --appkit-highlight: #75b3f5;
+  --appkit-highlight-dark: #9ac9fb;
+  --appkit-highlight-soft: #1b3044;
+  --appkit-sun: #f3bb4b;
+  --appkit-sun-dark: #f3bb4b;
+  --appkit-parking: #75b3f5;
+  --appkit-energy: #58cbaa;
+  --appkit-revenue: #ff7d89;
+  --appkit-warning: #f3bb4b;
+  --appkit-danger: #ff7d89;
+  --appkit-success: #58cbaa;
+  --appkit-shadow: 0 1px 2px rgb(0 0 0 / 24%), 0 8px 20px rgb(0 0 0 / 14%);
+  --appkit-shadow-raised: 0 2px 4px rgb(0 0 0 / 26%), 0 14px 30px rgb(0 0 0 / 20%);
 }
 
 * {
@@ -635,6 +643,43 @@ body.appkit-mobile .card-style {
 
 :root[data-theme="dark"] .appkit-theme-button .theme-light-icon {
   display: block;
+}
+
+/* Dark mode uses restrained neutral layers. Area colors remain signals. */
+:root[data-theme="dark"] .appkit-header,
+:root[data-theme="dark"] .appkit-footer {
+  border-color: var(--appkit-line);
+  background: rgb(20 27 35 / 97%);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 2%), 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+:root[data-theme="dark"] .appkit-card,
+:root[data-theme="dark"] body.appkit-mobile .card-style,
+:root[data-theme="dark"] .appkit-login-panel {
+  border-color: var(--appkit-line);
+  background: var(--appkit-surface);
+  box-shadow: var(--appkit-shadow);
+}
+
+:root[data-theme="dark"] .appkit-header-action:active,
+:root[data-theme="dark"] .appkit-brand-action:active,
+:root[data-theme="dark"] .appkit-footer a.is-active,
+:root[data-theme="dark"] .appkit-footer button.is-active,
+:root[data-theme="dark"] .appkit-footer a[aria-current="page"] {
+  background: color-mix(in srgb, var(--appkit-highlight) 11%, var(--appkit-surface));
+}
+
+:root[data-theme="dark"] .appkit-form input,
+:root[data-theme="dark"] .appkit-form select,
+:root[data-theme="dark"] .appkit-form textarea {
+  border-color: var(--appkit-line);
+  background: #131b23;
+  color: var(--appkit-text);
+}
+
+:root[data-theme="dark"] .appkit-chip {
+  border-color: var(--appkit-line);
+  background: var(--appkit-surface-soft);
 }
 
 @media (min-width: 700px) {

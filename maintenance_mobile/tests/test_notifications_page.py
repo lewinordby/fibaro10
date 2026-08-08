@@ -60,7 +60,7 @@ class MaintenanceMobileTests(unittest.IsolatedAsyncioTestCase):
     def test_alarm_features_are_not_embedded_in_maintenance_app(self):
         self.assertIn("Ny registrering", INDEX_HTML)
         self.assertIn("maintenance-mobile.js?v=1474", INDEX_HTML)
-        self.assertIn("/appkit-assets/lilletorget-appkit.css?v=2", INDEX_HTML)
+        self.assertIn("/appkit-assets/lilletorget-appkit.css?v=3", INDEX_HTML)
         self.assertIn('class="appkit-footer maintenance-nav"', INDEX_HTML)
         self.assertNotIn("notificationsScreen", INDEX_HTML)
         self.assertNotIn("Pullert- og trappevarsler", INDEX_HTML)
