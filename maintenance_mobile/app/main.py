@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv()
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstrip("/")
-MAINTENANCE_MOBILE_BUILD = os.getenv("MAINTENANCE_MOBILE_BUILD", "1470")
+MAINTENANCE_MOBILE_BUILD = os.getenv("MAINTENANCE_MOBILE_BUILD", "1472")
 SESSION_COOKIE_NAME = "lilletorget_maintenance_session"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 
@@ -386,7 +386,7 @@ def login_html(error: str = "", *, next_path: str = "/") -> str:
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1470">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1472">
   <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-body">
@@ -428,9 +428,9 @@ INDEX_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1470">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1472">
   <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
-  <script src="/assets/maintenance-mobile.js?v=1470" defer></script>
+  <script src="/assets/maintenance-mobile.js?v=1472" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
   <div id="preloader" aria-hidden="true"></div>

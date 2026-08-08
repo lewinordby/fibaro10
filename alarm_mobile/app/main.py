@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv()
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstrip("/")
-ALARM_MOBILE_BUILD = os.getenv("ALARM_MOBILE_BUILD", "4")
+ALARM_MOBILE_BUILD = os.getenv("ALARM_MOBILE_BUILD", "6")
 SESSION_COOKIE_NAME = "lilletorget_alarm_session"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 
@@ -412,7 +412,7 @@ def login_html(error: str, next_path: str) -> str:
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=4">
+  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=6">
   <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-body">
@@ -451,9 +451,9 @@ INDEX_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=4">
+  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=6">
   <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
-  <script src="/assets/alarm-mobile.js?v=4" defer></script>
+  <script src="/assets/alarm-mobile.js?v=6" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
   <div id="preloader" aria-hidden="true"></div>
