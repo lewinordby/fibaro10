@@ -12,6 +12,29 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1685",
+        "date": "08.08.2026",
+        "headline": "Styringskortet har fått blå bakgrunn",
+        "title": "Dagens omsetningsanalyse er tydeligere markert",
+        "description": (
+            "Det øverste styringskortet på Dashboard har fått en dempet blå bakgrunn. "
+            "Kontrastfargene for positive og negative avvik er samtidig justert for "
+            "god lesbarhet."
+        ),
+        "applications": [
+            "Online dashboard: blått styringskort med forbedret kontrast.",
+        ],
+        "request": "hva om bakgrunnen på den øverste hadde vært blå kan du prøve det",
+        "work_duration": "ca. 5 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Endrer styringskortet fra mørkegrått til dempet kongeblått.",
+            "Lysner grønt og rødt slik at avvik fortsatt er tydelige.",
+            "Bumper stilversjonen for å unngå gammel PWA-cache.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1684",
         "date": "08.08.2026",
         "headline": "Dashboard viser hvordan dagen ligger an",
