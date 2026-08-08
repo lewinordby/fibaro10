@@ -1870,9 +1870,9 @@ body.appkit-mobile .dashboard {
 
 body.appkit-mobile .dashboard-performance {
     padding: 15px;
-    border: 1px solid #3975c4;
+    border: 1px solid #d25b68;
     border-radius: var(--appkit-radius);
-    background: #245da8;
+    background: #b84452;
     color: #fff;
     box-shadow: var(--appkit-shadow-raised);
 }

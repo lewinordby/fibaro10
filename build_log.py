@@ -12,6 +12,28 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1689",
+        "date": "08.08.2026",
+        "headline": "Omsetningsfeltet bruker nå omsetningsfargen",
+        "title": "Omsetning, Parkering og Soling har konsekvente områdefarger",
+        "description": (
+            "Styringsfeltet på Dashboard er endret fra parkeringsblått til en mørkere variant "
+            "av den etablerte røde omsetningsfargen."
+        ),
+        "applications": [
+            "Online dashboard: konsekvent omsetningsfarge på Dashboard.",
+        ],
+        "request": "da burde vi ant også bruke fargen på omsetnings kortet også jfr omsetnings fargen",
+        "work_duration": "ca. 5 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Endrer bakgrunnen på omsetningsfeltet fra blått til dempet rødt.",
+            "Beholder de grå sammenligningsfeltene uten rammer.",
+            "Bruker en mørkere rødtone for tilstrekkelig kontrast mot hvit tekst.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1688",
         "date": "08.08.2026",
         "headline": "Parkering og Soling har fått egne styringsfelt",

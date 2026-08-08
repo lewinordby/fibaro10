@@ -3909,7 +3909,7 @@ LOGIN_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1688">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1689">
   <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-page">
@@ -3949,7 +3949,7 @@ DASHBOARD_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1688">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1689">
   <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
@@ -4086,7 +4086,7 @@ DETAIL_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1688">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1689">
   <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
