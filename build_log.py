@@ -12,6 +12,28 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1686",
+        "date": "08.08.2026",
+        "headline": "Sammenligningene er nå blå",
+        "title": "Styringskortet har fått en mer helhetlig fargeflate",
+        "description": (
+            "De to sammenligningsfeltene i det blå styringskortet er endret fra "
+            "gråtonet til en mørkere blå nyanse med diskret blå kant."
+        ),
+        "applications": [
+            "Online dashboard: helhetlig blått styringskort.",
+        ],
+        "request": "hva om de to feltene ikke i den blå hadde vært grå",
+        "work_duration": "ca. 5 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Erstatter gråtonet bakgrunn i sammenligningsfeltene med mørkere blått.",
+            "Gir feltene en blå kant som skiller dem uten å bryte helheten.",
+            "Bumper stilversjonen for å unngå gammel PWA-cache.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1685",
         "date": "08.08.2026",
         "headline": "Styringskortet har fått blå bakgrunn",
