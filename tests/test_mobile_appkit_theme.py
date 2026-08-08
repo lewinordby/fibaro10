@@ -135,6 +135,8 @@ def test_online_dark_theme_has_dedicated_surfaces_navigation_and_brand_assets() 
     assert ':root[data-theme="dark"] body.appkit-mobile .door-control-row' in css
     assert '.door-mini-card.is-solrom.is-open' in css
     assert '.door-mini-card.is-solrom.is-closed' in css
+    assert "border-left-color: var(--appkit-energy)" in css
+    assert "border-left-color: var(--appkit-revenue)" in css
     assert "background: var(--appkit-surface-soft)" in css
 
 

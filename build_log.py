@@ -12,6 +12,30 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1698",
+        "date": "08.08.2026",
+        "headline": "Statusstripene på mørke dørkort er tydelige igjen",
+        "title": "Grønn og rød kant viser dørstatus uten å gjøre hele kortet fargesterkt",
+        "description": (
+            "Den maskinelle stilkontrollen viste at den generelle mørke kortkanten overstyrte den smale "
+            "statusstripen. Statusstripen er nå definert eksplisitt etter mørk temaramme, med omvendt "
+            "semantikk for solrom og vanlig semantikk for øvrige dører."
+        ),
+        "applications": [
+            "Online dashboard: gjenopprettet semantiske statusstriper på mørke dørkort.",
+        ],
+        "request": "Fullføre rettingen av dørkortene i skjermbildet med korrekt statusfarge.",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser grønn kant for ledige solrom og lukkede vanlige dører.",
+            "Viser rød kant for solrom i bruk og åpne vanlige dører.",
+            "Beholder nøytrale mørke kortflater og tydelig tekstkontrast.",
+            "Versjonerer CSS for sikker oppdatering i installert PWA.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1697",
         "date": "08.08.2026",
         "headline": "Solrommenes statusfarger følger betydningen ledig og i bruk",
