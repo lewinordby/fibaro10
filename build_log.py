@@ -12,6 +12,33 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1696",
+        "date": "08.08.2026",
+        "headline": "Dørkort og eldre innfelte flater er rettet i mørkt tema",
+        "title": "Solrom og andre dører har nå mørke kort med tydelig status og lesbar tekst",
+        "description": (
+            "Den visuelle kontrollen av Drift avdekket at de kompakte dørkortene fortsatt brukte en "
+            "hardkodet hvit bakgrunn fra før Mobile AppKit ble innført. Kortene har fått egne mørke "
+            "flater, riktig tekstkontrast og diskrete statusfarger. Samme rettelse er brukt på øvrige "
+            "eldre innfelte komponenter som ellers kunne få lys bakgrunn i mørk modus."
+        ),
+        "applications": [
+            "Online dashboard: rettet mørkt tema for solrom, andre dører og dørkontroll.",
+            "Online dashboard: sikret mørke flater for eldre omsetnings- og detaljkomponenter.",
+        ],
+        "request": "Skjermbilde som viser hvite dørkort med uleselig lys tekst i mørkt tema.",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fjerner hardkodet hvit bakgrunn fra dørkort i mørk modus.",
+            "Gir korttitler, status og tid riktig kontrast mot mørk flate.",
+            "Beholder grønn og rød dørstatus som dempede aksenter i stedet for heldekkende farge.",
+            "Retter tilsvarende arv i dørkontroll, ukevalg, diagramknapp og innfelte omsetningskort.",
+            "Versjonerer dashboard-CSS på nytt for å tømme gammel mobilbuffer.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1695",
         "date": "08.08.2026",
         "headline": "Mørkt tema er tegnet opp på nytt med et tydelig flatehierarki",

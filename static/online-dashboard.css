@@ -2335,6 +2335,65 @@ body.appkit-mobile .appkit-footer .nav-status.is-primary.is-active svg {
     color: var(--appkit-muted);
 }
 
+/* Legacy nested cards need an explicit dark surface; several predate AppKit. */
+:root[data-theme="dark"] body.appkit-mobile .door-mini-card,
+:root[data-theme="dark"] body.appkit-mobile .other-door-card,
+:root[data-theme="dark"] body.appkit-mobile .door-control-row,
+:root[data-theme="dark"] body.appkit-mobile .revenue-selected-grid article,
+:root[data-theme="dark"] body.appkit-mobile .detail-action,
+:root[data-theme="dark"] body.appkit-mobile .revenue-week-nav a,
+:root[data-theme="dark"] body.appkit-mobile .revenue-chart-link {
+    border-color: #34424f;
+    background: #131b23;
+    color: var(--appkit-text);
+    box-shadow: none;
+}
+
+:root[data-theme="dark"] body.appkit-mobile .door-mini-card strong,
+:root[data-theme="dark"] body.appkit-mobile .door-mini-card span,
+:root[data-theme="dark"] body.appkit-mobile .other-door-card strong,
+:root[data-theme="dark"] body.appkit-mobile .revenue-selected-grid strong {
+    color: var(--appkit-text);
+}
+
+:root[data-theme="dark"] body.appkit-mobile .door-mini-card small,
+:root[data-theme="dark"] body.appkit-mobile .other-door-card span,
+:root[data-theme="dark"] body.appkit-mobile .other-door-card small,
+:root[data-theme="dark"] body.appkit-mobile .revenue-selected-grid span,
+:root[data-theme="dark"] body.appkit-mobile .revenue-selected-grid small {
+    color: var(--appkit-muted);
+}
+
+:root[data-theme="dark"] body.appkit-mobile .door-mini-card.is-open,
+:root[data-theme="dark"] body.appkit-mobile .other-door-card.is-open {
+    background: color-mix(in srgb, var(--appkit-revenue) 5%, #131b23);
+}
+
+:root[data-theme="dark"] body.appkit-mobile .door-mini-card.is-closed,
+:root[data-theme="dark"] body.appkit-mobile .other-door-card.is-closed {
+    background: color-mix(in srgb, var(--appkit-energy) 5%, #131b23);
+}
+
+:root[data-theme="dark"] body.appkit-mobile .door-mini-card.is-alarm {
+    border-color: color-mix(in srgb, var(--appkit-revenue) 46%, #34424f);
+    background: color-mix(in srgb, var(--appkit-revenue) 10%, #131b23);
+}
+
+:root[data-theme="dark"] body.appkit-mobile .door-mini-card.is-watch,
+:root[data-theme="dark"] body.appkit-mobile .door-control-row.is-waiting,
+:root[data-theme="dark"] body.appkit-mobile .door-control-row.is-warning {
+    border-color: color-mix(in srgb, var(--appkit-sun) 42%, #34424f);
+    background: color-mix(in srgb, var(--appkit-sun) 7%, #131b23);
+}
+
+:root[data-theme="dark"] body.appkit-mobile .door-control-row.is-active {
+    background: color-mix(in srgb, var(--appkit-parking) 7%, #131b23);
+}
+
+:root[data-theme="dark"] body.appkit-mobile .door-control-row.is-alert {
+    background: color-mix(in srgb, var(--appkit-revenue) 8%, #131b23);
+}
+
 :root[data-theme="dark"] body.appkit-mobile .progress {
     background: #131b23;
 }
