@@ -331,7 +331,7 @@ def login_html(error: str = "") -> str:
 <body class="login-body">
   <main class="login-screen">
     <section class="login-brand" aria-label="Lilletorget iPad">
-      <img src="/static/lilletorget-mark.png" alt="">
+      <img src="/static/lilletorget-mark.svg?v=1681" alt="">
       <p>Lilletorget</p>
       <h1>iPad</h1>
       <span>Driftsflate for 13 tommer iPad Pro</span>
@@ -372,7 +372,7 @@ INDEX_HTML = f"""<!doctype html>
   <main class="ipad-app">
     <aside class="app-rail" aria-label="Hovedmeny">
       <a class="rail-brand" href="/" aria-label="Lilletorget iPad">
-        <img src="/static/lilletorget-mark.png" alt="">
+        <img src="/static/lilletorget-mark.svg?v=1681" alt="">
         <span>Lilletorget</span>
         <small>iPad</small>
       </a>

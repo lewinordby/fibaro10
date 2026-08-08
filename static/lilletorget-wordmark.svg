@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 156" role="img" aria-labelledby="title desc">
+  <title id="title">Lilletorget</title>
+  <desc id="desc">Lilletorget, soling og parkering</desc>
+  <g transform="translate(8 10)">
+    <g fill="none" stroke="#D99A16" stroke-width="5.5" stroke-linecap="round">
+      <circle cx="64" cy="64" r="34" />
+      <path d="M64 6v12M64 110v12M6 64h12M110 64h12M22.99 22.99l8.49 8.49M96.52 96.52l8.49 8.49M22.99 105.01l8.49-8.49M96.52 31.48l8.49-8.49" />
+    </g>
+    <path d="M49 101V38h17c13 0 21 7.5 21 19s-8 19-21 19H49" fill="none" stroke="#071B44" stroke-width="8.5" stroke-linecap="square" stroke-linejoin="round" />
+  </g>
+  <text x="154" y="81" fill="#071B44" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="57" font-weight="520">Lilletorget</text>
+  <text x="158" y="117" fill="#66738A" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="17" font-weight="650" letter-spacing="3.4">SOLING <tspan fill="#D99A16">·</tspan> PARKERING</text>
+</svg>

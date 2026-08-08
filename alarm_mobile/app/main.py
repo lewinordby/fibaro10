@@ -265,9 +265,9 @@ async def manifest():
             "categories": ["business", "productivity", "utilities"],
             "prefer_related_applications": False,
             "icons": [
-                {"src": "/static/pwa-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
-                {"src": "/static/pwa-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
-                {"src": "/static/pwa-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+                {"src": "/static/pwa-icon-192.png?v=1681", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+                {"src": "/static/pwa-icon-512.png?v=1681", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+                {"src": "/static/pwa-icon-maskable-512.png?v=1681", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
             ],
             "launch_handler": {"client_mode": "navigate-existing"},
         },
@@ -407,8 +407,8 @@ def login_html(error: str, next_path: str) -> str:
   <meta name="apple-mobile-web-app-title" content="Alarm">
   <title>Logg inn · Alarm</title>
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="apple-touch-icon" href="/static/pwa-icon-512.png">
-  <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
+  <link rel="apple-touch-icon" href="/static/pwa-icon-512.png?v=1681">
+  <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png?v=1681">
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
@@ -419,7 +419,7 @@ def login_html(error: str, next_path: str) -> str:
   <div id="preloader" aria-hidden="true"></div>
   <main class="appkit-login login-screen">
     <section class="appkit-login-panel login-panel">
-      <img class="login-logo appkit-login-brand" src="/static/lilletorget-text.png" alt="Lilletorget">
+      <img class="login-logo appkit-login-brand" src="/static/lilletorget-wordmark.svg?v=1681" alt="Lilletorget">
       <p class="eyebrow">Lilletorget</p>
       <h1>Alarm</h1>
       <p class="muted">Logg inn med samme bruker som i Fibaro10.</p>
@@ -446,8 +446,8 @@ INDEX_HTML = """<!doctype html>
   <meta name="apple-mobile-web-app-title" content="Alarm">
   <title>Lilletorget Alarm</title>
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="apple-touch-icon" href="/static/pwa-icon-512.png">
-  <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
+  <link rel="apple-touch-icon" href="/static/pwa-icon-512.png?v=1681">
+  <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png?v=1681">
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
@@ -459,7 +459,7 @@ INDEX_HTML = """<!doctype html>
   <div id="preloader" aria-hidden="true"></div>
   <div id="page">
   <header class="appkit-header topbar">
-    <a class="appkit-brand-action" href="/" aria-label="Alarmstatus"><img class="brand-mark" src="/static/lilletorget-mark.png" alt=""></a>
+    <a class="appkit-brand-action" href="/" aria-label="Alarmstatus"><img class="brand-mark" src="/static/lilletorget-mark.svg?v=1681" alt=""></a>
     <div class="appkit-header-title brand-copy"><strong>Alarmstatus</strong><span id="lastUpdated" class="appkit-header-subtitle">Henter status</span></div>
     <button id="refreshButton" class="appkit-header-action icon-button" type="button" aria-label="Oppdater" title="Oppdater">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/></svg>

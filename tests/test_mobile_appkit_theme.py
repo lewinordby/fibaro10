@@ -48,3 +48,17 @@ def test_online_detail_pages_use_the_fixed_header_as_the_only_title() -> None:
     assert '<div class="appkit-header-title">{{ title }}' in DETAIL_HTML
     assert '<span class="appkit-header-subtitle">Lilletorget</span>' in DETAIL_HTML
     assert '<section class="detail-hero">' not in DETAIL_HTML
+
+
+def test_mobile_shells_use_the_vector_brand_mark() -> None:
+    for name in ("lilletorget-mark.svg", "lilletorget-mark-mono.svg", "lilletorget-wordmark.svg"):
+        source = (ROOT / "static" / name).read_text(encoding="utf-8")
+        assert source.startswith("<svg")
+        assert 'viewBox="' in source
+
+    for html in (ALARM_HTML, MAINTENANCE_HTML, DASHBOARD_HTML, DETAIL_HTML):
+        assert "/static/lilletorget-mark.svg?v=1681" in html
+        assert "/static/lilletorget-mark.png" not in html
+
+    assert "/static/lilletorget-wordmark.svg?v=1681" in LOGIN_HTML
+    assert "/static/lilletorget-login.png" not in LOGIN_HTML

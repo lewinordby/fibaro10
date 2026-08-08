@@ -84,9 +84,9 @@ def test_pwa_head_is_injected_once() -> None:
 
 
 def test_brand_icon_is_square_and_nonempty() -> None:
-    assert Path(PWA_ICON_192_PATH).stat().st_size > 10_000
-    assert Path(PWA_ICON_512_PATH).stat().st_size > 50_000
-    assert Path(PWA_MASKABLE_ICON_PATH).stat().st_size > 30_000
+    assert Path(PWA_ICON_192_PATH).stat().st_size > 2_000
+    assert Path(PWA_ICON_512_PATH).stat().st_size > 10_000
+    assert Path(PWA_MASKABLE_ICON_PATH).stat().st_size > 8_000
     assert png_dimensions(PWA_ICON_192_PATH) == (192, 192)
     assert png_dimensions(PWA_ICON_512_PATH) == (512, 512)
     assert png_dimensions(PWA_MASKABLE_ICON_PATH) == (512, 512)

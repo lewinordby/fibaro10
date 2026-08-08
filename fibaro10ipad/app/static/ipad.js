@@ -134,7 +134,7 @@ function extraReferenceLabel(period, extra) {
 
 function driverMark(kind) {
   if (kind === "sun") {
-    return `<span class="driver-mark sun"><img src="/static/lilletorget-mark.png" alt=""></span>`;
+    return `<span class="driver-mark sun"><img src="/static/lilletorget-mark.svg?v=1681" alt=""></span>`;
   }
   return `<span class="driver-mark parking">P</span>`;
 }

@@ -241,9 +241,9 @@ async def manifest():
             "categories": ["business", "productivity", "utilities"],
             "prefer_related_applications": False,
             "icons": [
-                {"src": "/static/pwa-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
-                {"src": "/static/pwa-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
-                {"src": "/static/pwa-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+                {"src": "/static/pwa-icon-192.png?v=1681", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+                {"src": "/static/pwa-icon-512.png?v=1681", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+                {"src": "/static/pwa-icon-maskable-512.png?v=1681", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
             ],
             "launch_handler": {"client_mode": "navigate-existing"},
         },
@@ -381,8 +381,8 @@ def login_html(error: str = "", *, next_path: str = "/") -> str:
   <meta name="apple-mobile-web-app-title" content="Vedlikehold">
   <title>Logg inn · Vedlikehold</title>
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="apple-touch-icon" href="/static/pwa-icon-512.png">
-  <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
+  <link rel="apple-touch-icon" href="/static/pwa-icon-512.png?v=1681">
+  <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png?v=1681">
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
@@ -393,10 +393,10 @@ def login_html(error: str = "", *, next_path: str = "/") -> str:
   <div id="preloader" aria-hidden="true"></div>
   <main class="appkit-login login-screen">
     <section class="login-brand">
-      <img src="/static/lilletorget-login.png" alt="Lilletorget">
+      <img src="/static/lilletorget-mark.svg?v=1681" alt="Lilletorget">
     </section>
     <section class="appkit-login-panel login-panel">
-      <img class="appkit-login-brand" src="/static/lilletorget-text.png" alt="Lilletorget">
+      <img class="appkit-login-brand" src="/static/lilletorget-wordmark.svg?v=1681" alt="Lilletorget">
       <p class="eyebrow">Lilletorget</p>
       <h1>Vedlikehold</h1>
       <p class="muted">Samme brukere som Fibaro10. Alle innloggede brukere kan registrere arbeid og observasjoner.</p>
@@ -423,8 +423,8 @@ INDEX_HTML = """<!doctype html>
   <meta name="apple-mobile-web-app-title" content="Vedlikehold">
   <title>Lilletorget Vedlikehold</title>
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="apple-touch-icon" href="/static/pwa-icon-512.png">
-  <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
+  <link rel="apple-touch-icon" href="/static/pwa-icon-512.png?v=1681">
+  <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png?v=1681">
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
@@ -437,7 +437,7 @@ INDEX_HTML = """<!doctype html>
   <div id="page">
   <header class="appkit-header app-topbar">
     <button id="backButton" class="appkit-brand-action brand-logo" type="button" aria-label="Oppgaver">
-      <img src="/static/lilletorget-mark.png" alt="">
+      <img src="/static/lilletorget-mark.svg?v=1681" alt="">
     </button>
     <div class="appkit-header-title"><span id="appHeaderTitle">Vedlikehold</span><span id="appHeaderSubtitle" class="appkit-header-subtitle">Lilletorget</span></div>
     <button id="profileButton" class="appkit-header-action user-button" type="button" title="Bruker" aria-label="Åpne brukerprofil">

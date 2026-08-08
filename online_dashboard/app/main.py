@@ -3697,11 +3697,11 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
   <title>Lilletorget online</title>
-  <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
+  <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png?v=1681">
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1680">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1681">
   <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-page">
@@ -3709,11 +3709,11 @@ LOGIN_HTML = """<!doctype html>
   <main class="appkit-login login-shell">
     <section class="login-brand">
       <div class="brand-frame">
-        <img src="/static/lilletorget-login.png" alt="Lilletorget solsenter og parkering">
+        <img src="/static/lilletorget-mark.svg?v=1681" alt="Lilletorget">
       </div>
     </section>
     <section class="appkit-login-panel login-card">
-      <img class="appkit-login-brand" src="/static/lilletorget-text.png" alt="Lilletorget">
+      <img class="appkit-login-brand" src="/static/lilletorget-wordmark.svg?v=1681" alt="Lilletorget">
       <p class="eyebrow">Lilletorget</p>
       <h1>Logg inn</h1>
       <p class="lead">Nøkkeltall for soling, parkering, lys og ventilasjon.</p>
@@ -3737,11 +3737,11 @@ DASHBOARD_HTML = """<!doctype html>
   <meta name="theme-color" content="#ffffff">
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
-  <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
+  <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png?v=1681">
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1680">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1681">
   <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
@@ -3749,7 +3749,7 @@ DASHBOARD_HTML = """<!doctype html>
   <div id="page">
   <header class="appkit-header topbar">
     <a class="appkit-brand-action logo-link" href="/" aria-label="Til forsiden">
-      <img src="/static/lilletorget-mark.png" alt="">
+      <img src="/static/lilletorget-mark.svg?v=1681" alt="">
     </a>
     <div class="appkit-header-title">Dashboard<span class="appkit-header-subtitle">Lilletorget</span></div>
     <form method="post" action="/logg-ut">
@@ -3890,11 +3890,11 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
   <title>{{ title }} · Lilletorget</title>
-  <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
+  <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png?v=1681">
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1680">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1681">
   <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
@@ -3902,7 +3902,7 @@ DETAIL_HTML = """<!doctype html>
   <div id="page">
   <header class="appkit-header topbar">
     <a class="appkit-brand-action logo-link" href="/" aria-label="Til forsiden">
-      <img src="/static/lilletorget-mark.png" alt="">
+      <img src="/static/lilletorget-mark.svg?v=1681" alt="">
     </a>
     <div class="appkit-header-title">{{ title }}<span class="appkit-header-subtitle">Lilletorget</span></div>
     <form method="post" action="/logg-ut">

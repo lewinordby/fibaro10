@@ -12,6 +12,35 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1681",
+        "date": "08.08.2026",
+        "headline": "Lilletorget har fÃ¥tt et lettere og mer presist merke",
+        "title": "Sol og parkering er samlet i et moderne, skalerbart logosystem",
+        "description": (
+            "Logoideen er beholdt, men merket er tegnet pÃ¥ nytt som vektor med fÃ¦rre "
+            "solstrÃ¥ler, jevnere linjer og bedre optisk balanse. Toppfeltet bruker en "
+            "transparent kompaktvariant, mens innlogging, PWA-ikoner og full logo fÃ¸lger "
+            "det samme formsprÃ¥ket."
+        ),
+        "applications": [
+            "Online dashboard: nytt kompakt merke og ny full logo pÃ¥ innlogging.",
+            "Vedlikehold og Alarm mobil: samme moderniserte merke og PWA-ikoner.",
+            "Fibaro10 og iPad: oppdatert merke i toppfelt og felles navigasjon.",
+            "Felles profil: vektorvariant, ensfarget minivariant og regenererbare PNG-ikoner.",
+        ],
+        "request": "gjÃ¸r dette",
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjÃ¸ring",
+        "changes": [
+            "Tegner Lilletorget-merket pÃ¥ nytt med Ã¥tte kraftigere strÃ¥ler og jevne strekvekter.",
+            "Lager horisontal full logo og en ensfarget variant for smÃ¥ flater.",
+            "Bygger favicon og PWA-ikoner pÃ¥ nytt med riktige marger for vanlige og maskable ikoner.",
+            "Legger ved et deterministisk byggeskript for alle rastervariantene.",
+            "Legger til tester som sikrer at de aktive mobilappene bruker vektorprofilen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1680",
         "date": "08.08.2026",
         "headline": "Mobilundersidene bruker bare den faste topplinjen",
