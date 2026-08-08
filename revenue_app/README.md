@@ -1,7 +1,7 @@
 # Lilletorget Omsetning
 
 Selvstendig, skrivebeskyttet fagapplikasjon for omsetning. Appen kjører ved
-siden av Fibaro10 på `https://omsetning.lilletorget.net:8443`.
+siden av Fibaro10 på `https://omsetning.lilletorget.net`.
 
 ## Ansvar
 

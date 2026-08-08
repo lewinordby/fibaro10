@@ -18,6 +18,6 @@ export default function VehiclePage({ plate }: { plate: string }) {
     <ModuleCards cards={data.cards} />
     {data.warnings.length ? <Panel title="Merknader"><div className="space-y-2 p-5">{data.warnings.map((warning) => <div className="rounded-lg bg-yellow-500/10 px-4 py-3 text-sm text-yellow-700 dark:text-yellow-300" key={warning}>{warning}</div>)}</div></Panel> : null}
     <Panel title="Kjøretøy og eier"><dl className="grid grid-cols-1 gap-x-8 sm:grid-cols-2 xl:grid-cols-4">{data.fields.map((field) => <div className="border-b border-gray-100 px-5 py-4 dark:border-gray-700/60" key={field.label}><dt className="text-xs font-semibold uppercase text-gray-400">{field.label}</dt><dd className="mt-1 font-medium text-gray-800 dark:text-gray-100">{displayCell(field.label.toLowerCase(), field.value)}</dd>{field.detail ? <p className="mt-1 text-xs text-gray-500">{field.detail}</p> : null}</div>)}</dl></Panel>
-    <DataTable table={{ title: "Alle parkeringer", columns, rows: data.sessions, meta: { totalRows: data.sessions.length, disablePagination: true } }} fibaroUrl={config.data?.fibaro10AppUrl || "https://fibaro10.lilletorget.net:8443"} />
+    <DataTable table={{ title: "Alle parkeringer", columns, rows: data.sessions, meta: { totalRows: data.sessions.length, disablePagination: true } }} fibaroUrl={config.data?.fibaro10AppUrl || "https://fibaro10.lilletorget.net"} />
   </div>;
 }

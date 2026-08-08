@@ -117,15 +117,15 @@ Dette scriptet er isolert: det laster bare opp `v1_reference/` og `docker-compos
 - QNAP: `192.168.20.218`
 - SSH-alias: `qnap-fibaro10`
 - Appmappe: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`
-- Intern app (anbefalt): `https://fibaro10.lilletorget.net:8443`
+- Intern app (anbefalt): `https://fibaro10.lilletorget.net`
 - Intern HTTP-reserve og API-adresse: `http://192.168.20.218:8110`
 - Online dashboard: `https://online.lilletorget.net`
 - iPad-grensesnitt: `https://ipad.lilletorget.net`
 - Vedlikehold mobil: `https://vedl.lilletorget.net`
 - Alarm mobil: `https://alarm.lilletorget.net` eller lokalt `http://192.168.20.218:8114`
 - OwnTracks: `https://owntracks.lilletorget.net`
-- Systemkart i appen: `https://fibaro10.lilletorget.net:8443/admin/systemkart`
-- Datakilder i appen: `https://fibaro10.lilletorget.net:8443/admin/datakilder`
+- Systemkart i appen: `https://fibaro10.lilletorget.net/admin/systemkart`
+- Datakilder i appen: `https://fibaro10.lilletorget.net/admin/datakilder`
 - Docker: `/share/CACHEDEV1_DATA/.qpkg/container-station/usr/bin/.libs/docker`
 - Git paa QNAP leveres via Entware i `/opt/bin/git`.
 

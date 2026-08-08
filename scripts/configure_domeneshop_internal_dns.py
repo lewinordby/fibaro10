@@ -14,7 +14,7 @@ import urllib.request
 
 API_BASE = "https://api.domeneshop.no/v0"
 DOMAIN = "lilletorget.net"
-PRIVATE_IP = "192.168.20.218"
+PRIVATE_IP = "192.168.20.219"
 HOSTS = (
     "fibaro10",
     "app",

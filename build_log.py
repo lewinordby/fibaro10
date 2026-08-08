@@ -12,6 +12,35 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1676",
+        "date": "08.08.2026",
+        "headline": "Vanlig HTTPS fungerer uten portnummer",
+        "title": "Caddy har fatt en egen intern adresse pa standardport 443",
+        "description": (
+            "Den forrige losningen hadde et gyldig sertifikat, men bare pa port 8443. "
+            "Vanlig HTTPS traff derfor QNAP-administrasjonen og viste feil sertifikat. "
+            "Caddy er na skilt ut pa 192.168.20.219 og betjener alle interne appnavn pa "
+            "standardport 443, mens QNAP-administrasjonen er urort pa 192.168.20.218."
+        ),
+        "applications": [
+            "QNAP/Caddy: egen qnet-adresse for standard HTTPS.",
+            "Domeneshop: de ti interne A-postene flyttes til HTTPS-gatewayen.",
+            "Appvelger og mikroapper: alle krysslenker bruker HTTPS uten portnummer.",
+            "Systemdokumentasjon og helsevakt: oppdatert til ny driftsadresse.",
+        ],
+        "request": "HTTPS prosjektet vart ser fortsatt ikke ut til a funke?",
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Legger Caddy pa 192.168.20.219:443 via QNAPs qnet-nettverk.",
+            "Beholder 192.168.20.218:8443 som teknisk reserve og lar QNAP bruke sin port 443.",
+            "Fjerner :8443 fra standardadresser, konfigurasjon, krysslenker og manualer.",
+            "Beholder offentlig betrodd SAN-sertifikat og tilgangskontroll for LAN/VPN.",
+            "Validerer DNS, sertifikat, compose, frontendbygg og alle HTTPS-ruter.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1675",
         "date": "07.08.2026",
         "headline": "Gammel lokal CA er fjernet helt",

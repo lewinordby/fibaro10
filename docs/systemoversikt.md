@@ -18,16 +18,16 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 
 | Flate | URL | Formål |
 | --- | --- | --- |
-| Lilletorget-skall | `https://app.lilletorget.net:8443/` | Felles intern appvelger og live tjenestestatus. |
-| Omsetning | `https://omsetning.lilletorget.net:8443/` | Utskilt fagapp for omsetning og sammenligning. |
-| Parkering | `https://parkering.lilletorget.net:8443/` | Utskilt fagapp for parkeringer, kjøretøy, oppgjør og analyse. |
-| Soling | `https://soling.lilletorget.net:8443/` | Soltimer, dagslinje, bilder, produkter, medlemmer og oppgjør. |
-| Energi | `https://energi.lilletorget.net:8443/` | Sanntidsforbruk, Elvia, kurs/last og analyse per solseng. |
-| Bygg og drift | `https://drift.lilletorget.net:8443/` | Ventilasjon, lys, dører, solrom, pullerter og renhold. |
-| Vedlikehold | `https://vedlikehold.lilletorget.net:8443/` | Besøk, oppgaver og vedlikeholdshistorikk. |
-| System | `https://system.lilletorget.net:8443/` | Datakilder, brukere, build, manual, varslinger og systemstatus. |
-| Koble | `https://koble.lilletorget.net:8443/` | Kandidater og kontroll av koblinger mellom biler og Sun2-ID. |
-| Fibaro10 | `https://fibaro10.lilletorget.net:8443/` | Hovedapp med offentlig betrodd HTTPS, kun tilgjengelig internt/VPN. |
+| Lilletorget-skall | `https://app.lilletorget.net/` | Felles intern appvelger og live tjenestestatus. |
+| Omsetning | `https://omsetning.lilletorget.net/` | Utskilt fagapp for omsetning og sammenligning. |
+| Parkering | `https://parkering.lilletorget.net/` | Utskilt fagapp for parkeringer, kjøretøy, oppgjør og analyse. |
+| Soling | `https://soling.lilletorget.net/` | Soltimer, dagslinje, bilder, produkter, medlemmer og oppgjør. |
+| Energi | `https://energi.lilletorget.net/` | Sanntidsforbruk, Elvia, kurs/last og analyse per solseng. |
+| Bygg og drift | `https://drift.lilletorget.net/` | Ventilasjon, lys, dører, solrom, pullerter og renhold. |
+| Vedlikehold | `https://vedlikehold.lilletorget.net/` | Besøk, oppgaver og vedlikeholdshistorikk. |
+| System | `https://system.lilletorget.net/` | Datakilder, brukere, build, manual, varslinger og systemstatus. |
+| Koble | `https://koble.lilletorget.net/` | Kandidater og kontroll av koblinger mellom biler og Sun2-ID. |
+| Fibaro10 | `https://fibaro10.lilletorget.net/` | Hovedapp med offentlig betrodd HTTPS, kun tilgjengelig internt/VPN. |
 | Fibaro10 HTTP-reserve | `http://192.168.20.218:8110/` | Teknisk reserve, API og helsesjekker. |
 | Online dashboard | `https://online.lilletorget.net/` | Ekstern begrenset mobil/dashboardflate. |
 | Vedlikehold mobil | `https://vedl.lilletorget.net/` | Rask mobilregistrering av vedlikeholdsoppgaver. |
@@ -81,16 +81,16 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 
 | Domene | Intern tjeneste | Kommentar |
 | --- | --- | --- |
-| `fibaro10.lilletorget.net:8443` | `fibaro10:8110` | Hovedapp med offentlig betrodd sertifikat, kun LAN/VPN. |
-| `app.lilletorget.net:8443` | `shell_app:8150` | Felles intern appvelger. |
-| `omsetning.lilletorget.net:8443` | `revenue_app:8151` | Intern omsetningsapp. |
-| `parkering.lilletorget.net:8443` | `parking_app:8152` | Intern parkeringsapp. |
-| `soling.lilletorget.net:8443` | `sun_app:8153` | Intern solingsapp. |
-| `energi.lilletorget.net:8443` | `energy_app:8154` | Intern energiapp. |
-| `drift.lilletorget.net:8443` | `operations_app:8155` | Intern bygg- og driftsapp. |
-| `vedlikehold.lilletorget.net:8443` | `maintenance_app:8156` | Intern vedlikeholdsapp. |
-| `system.lilletorget.net:8443` | `system_app:8157` | Intern systemapp. |
-| `koble.lilletorget.net:8443` | `link_app:8158` | Intern Koble-app. |
+| `fibaro10.lilletorget.net:443` | `fibaro10:8110` | Hovedapp med offentlig betrodd sertifikat, kun LAN/VPN. |
+| `app.lilletorget.net:443` | `shell_app:8150` | Felles intern appvelger. |
+| `omsetning.lilletorget.net:443` | `revenue_app:8151` | Intern omsetningsapp. |
+| `parkering.lilletorget.net:443` | `parking_app:8152` | Intern parkeringsapp. |
+| `soling.lilletorget.net:443` | `sun_app:8153` | Intern solingsapp. |
+| `energi.lilletorget.net:443` | `energy_app:8154` | Intern energiapp. |
+| `drift.lilletorget.net:443` | `operations_app:8155` | Intern bygg- og driftsapp. |
+| `vedlikehold.lilletorget.net:443` | `maintenance_app:8156` | Intern vedlikeholdsapp. |
+| `system.lilletorget.net:443` | `system_app:8157` | Intern systemapp. |
+| `koble.lilletorget.net:443` | `link_app:8158` | Intern Koble-app. |
 | `online.lilletorget.net` | `online_dashboard:8111` | Begrenset ekstern flate. |
 | `owntracks.lilletorget.net` | `owntracks_service:8128` | Tokenbeskyttet OwnTracks. Direkte interne `/api/owntracks/*` skjules eksternt. |
 | `vedl.lilletorget.net` | `maintenance_mobile:8112` | Samme brukerbase som Fibaro10. |

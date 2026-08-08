@@ -1,21 +1,23 @@
 # Intern HTTPS
 
 Fibaro10 og mikroappene bruker offentlig DNS og offentlig betrodde sertifikater,
-men DNS-postene peker til den private QNAP-adressen `192.168.20.218`. Tjenestene
-kan derfor bare nås fra Lilletorget-nettet eller via VPN.
+men DNS-postene peker til den dedikerte HTTPS-adressen `192.168.20.219` på QNAP.
+QNAP-administrasjonen beholder `192.168.20.218`, mens Caddy alene bruker
+standardport `443` på den dedikerte adressen. Tjenestene kan derfor bare nås
+fra Lilletorget-nettet eller via VPN.
 
 | Tjeneste | Adresse |
 | --- | --- |
-| Fibaro10 | `https://fibaro10.lilletorget.net:8443` |
-| Appvelger | `https://app.lilletorget.net:8443` |
-| Omsetning | `https://omsetning.lilletorget.net:8443` |
-| Parkering | `https://parkering.lilletorget.net:8443` |
-| Soling | `https://soling.lilletorget.net:8443` |
-| Energi | `https://energi.lilletorget.net:8443` |
-| Bygg og drift | `https://drift.lilletorget.net:8443` |
-| Vedlikehold | `https://vedlikehold.lilletorget.net:8443` |
-| System | `https://system.lilletorget.net:8443` |
-| Koble | `https://koble.lilletorget.net:8443` |
+| Fibaro10 | `https://fibaro10.lilletorget.net` |
+| Appvelger | `https://app.lilletorget.net` |
+| Omsetning | `https://omsetning.lilletorget.net` |
+| Parkering | `https://parkering.lilletorget.net` |
+| Soling | `https://soling.lilletorget.net` |
+| Energi | `https://energi.lilletorget.net` |
+| Bygg og drift | `https://drift.lilletorget.net` |
+| Vedlikehold | `https://vedlikehold.lilletorget.net` |
+| System | `https://system.lilletorget.net` |
+| Koble | `https://koble.lilletorget.net` |
 
 ## Sertifikater
 
@@ -43,3 +45,4 @@ grasiøst reload-signal, slik at det nye sertifikatet tas i bruk uten nedetid.
 I tillegg til at DNS peker til en privat adresse, avviser Caddy forespørsler som
 ikke kommer fra private LAN- eller VPN-adresser. De direkte HTTP-portene er kun
 tekniske reserveadresser og skal ikke publiseres i DNS eller portvideres.
+Port `8443` på hovedadressen beholdes bare som teknisk HTTPS-reserve.
