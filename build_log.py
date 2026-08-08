@@ -12,6 +12,30 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1697",
+        "date": "08.08.2026",
+        "headline": "Solrommenes statusfarger følger betydningen ledig og i bruk",
+        "title": "Grønt betyr ledig solrom, mens rødt betyr at rommet er i bruk",
+        "description": (
+            "Den visuelle produksjonskontrollen etter build 1696 viste at dørkortene var leselige, men at "
+            "den svake bakgrunnsfargen fulgte vanlig dørlogikk. Solrom har motsatt betydning: en åpen dør "
+            "betyr ledig, mens en lukket dør betyr i bruk. Den mørke statusmarkeringen følger nå denne logikken."
+        ),
+        "applications": [
+            "Online dashboard: korrigert semantisk statusfarge for solrom i mørk modus.",
+        ],
+        "request": "Følge opp skjermbildet og sikre korrekt, lesbart mørkt tema for dørseksjonen.",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Gir åpne og ledige solrom en diskret grønn bakgrunnstone.",
+            "Gir lukkede solrom i bruk en diskret rød bakgrunnstone.",
+            "Beholder motsatt statuslogikk for vanlige dører.",
+            "Versjonerer CSS på nytt for sikker oppdatering på mobilen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1696",
         "date": "08.08.2026",
         "headline": "Dørkort og eldre innfelte flater er rettet i mørkt tema",

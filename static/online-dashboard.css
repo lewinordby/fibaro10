@@ -2374,6 +2374,16 @@ body.appkit-mobile .appkit-footer .nav-status.is-primary.is-active svg {
     background: color-mix(in srgb, var(--appkit-energy) 5%, #131b23);
 }
 
+:root[data-theme="dark"] body.appkit-mobile .door-mini-card.is-solrom.is-open,
+:root[data-theme="dark"] body.appkit-mobile .other-door-card.is-solrom.is-open {
+    background: color-mix(in srgb, var(--appkit-energy) 5%, #131b23);
+}
+
+:root[data-theme="dark"] body.appkit-mobile .door-mini-card.is-solrom.is-closed,
+:root[data-theme="dark"] body.appkit-mobile .other-door-card.is-solrom.is-closed {
+    background: color-mix(in srgb, var(--appkit-revenue) 5%, #131b23);
+}
+
 :root[data-theme="dark"] body.appkit-mobile .door-mini-card.is-alarm {
     border-color: color-mix(in srgb, var(--appkit-revenue) 46%, #34424f);
     background: color-mix(in srgb, var(--appkit-revenue) 10%, #131b23);
