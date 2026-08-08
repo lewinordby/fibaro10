@@ -55,9 +55,13 @@ def test_online_bottom_navigation_uses_area_colors_for_active_item() -> None:
         html = mobile_nav(active)
         assert active_classes in html
         assert 'nav-status is-primary"' in html
+        assert "<span>Dashboard</span>" in html
+        assert "<span>Status</span>" not in html
 
     css = (ROOT / "static" / "online-dashboard.css").read_text(encoding="utf-8")
     for selector in (".nav-sun.is-active", ".nav-parking.is-active", ".nav-energy.is-active", ".nav-drift.is-active"):
+        assert selector in css
+    for selector in (".nav-sun svg", ".nav-parking svg", ".nav-energy svg", ".nav-drift svg"):
         assert selector in css
 
 

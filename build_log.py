@@ -12,6 +12,33 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1692",
+        "date": "08.08.2026",
+        "headline": "Områdesymbolene beholder fargen",
+        "title": "Bunnmenyen er gjenkjennelig også når knappene ikke er valgt",
+        "description": (
+            "Symbolene for Soling, Parkering, Status, Energi og Drift viser nå sin faste "
+            "områdefarge hele tiden. Aktiv knapp markeres i tillegg med farget bakgrunn og tekst."
+        ),
+        "applications": [
+            "Online dashboard: permanente områdefarger på symbolene i mobilens bunnmeny.",
+        ],
+        "request": (
+            "kunne ikke fargen på selve symbolet være hele tiden? "
+            "burde ikke knappen i midten hete Dashboard så det blir samsvar med toppen"
+        ),
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Beholder oransje solsymbol, blå parkerings-P, blå Status, grønn energi og lilla Drift.",
+            "Lar inaktive etiketter være grå for å bevare ro og tydelig hierarki.",
+            "Beholder farget bakgrunn og tekst som ekstra markering bare på valgt område.",
+            "Endrer midtknappen fra Status til Dashboard slik at navn og mål stemmer med toppfeltet.",
+            "Verifiserer alle symbol- og tekstfarger i mobil nettleservisning.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1691",
         "date": "08.08.2026",
         "headline": "Bunnmenyen viser nå områdefargene",
