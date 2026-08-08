@@ -3701,7 +3701,7 @@ LOGIN_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1678">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1680">
   <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-page">
@@ -3741,7 +3741,7 @@ DASHBOARD_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1678">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1680">
   <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
@@ -3894,7 +3894,7 @@ DETAIL_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1678">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1680">
   <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
@@ -3904,7 +3904,7 @@ DETAIL_HTML = """<!doctype html>
     <a class="appkit-brand-action logo-link" href="/" aria-label="Til forsiden">
       <img src="/static/lilletorget-mark.png" alt="">
     </a>
-    <div class="appkit-header-title">Lilletorget<span class="appkit-header-subtitle">{{ title }}</span></div>
+    <div class="appkit-header-title">{{ title }}<span class="appkit-header-subtitle">Lilletorget</span></div>
     <form method="post" action="/logg-ut">
       <button class="appkit-header-action logout-button" type="submit" aria-label="Logg ut" title="Logg ut">
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
@@ -3915,10 +3915,7 @@ DETAIL_HTML = """<!doctype html>
     </form>
   </header>
   <main class="appkit-page-content has-footer dashboard detail-page {{ detail_class }}">
-    <section class="detail-hero">
-      <div class="detail-title">{{ detail_icon }}<h1>{{ title }}</h1></div>
-      {{ hero_note }}
-    </section>
+    {{ hero_note }}
     {{ body }}
   </main>
   {{ mobile_nav }}

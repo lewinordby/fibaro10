@@ -243,6 +243,32 @@ def online_app():
     async def index() -> HTMLResponse:
         return HTMLResponse(html)
 
+    parking_html = mobile.DETAIL_HTML
+    parking_body = mobile.detail_stats(
+        [
+            ("I dag", "42", "4 220 kr - 11 % over forrige uke"),
+            ("I går", "38", "3 870 kr"),
+            ("Denne uken", "211", "21 480 kr"),
+            ("Denne måneden", "612", "62 940 kr"),
+        ]
+    )
+    parking_body += '<p class="detail-updated-line">Sist oppdatert 14:00 - neste import 16:00</p>'
+    parking_values = {
+        "title": "Parkering",
+        "subtitle": "Dagens parkeringer",
+        "body": parking_body,
+        "detail_icon": mobile.metric_icon("parking"),
+        "detail_class": "detail-parking",
+        "hero_note": "",
+        "mobile_nav": mobile.mobile_nav("parking"),
+    }
+    for key, value in parking_values.items():
+        parking_html = parking_html.replace("{{ " + key + " }}", value)
+
+    @preview.get("/parkering", response_class=HTMLResponse)
+    async def parking() -> HTMLResponse:
+        return HTMLResponse(parking_html)
+
     return preview
 
 

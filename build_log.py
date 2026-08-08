@@ -12,6 +12,34 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1680",
+        "date": "08.08.2026",
+        "headline": "Mobilundersidene bruker bare den faste topplinjen",
+        "title": "Parkering og de andre detaljsidene starter direkte med innholdet",
+        "description": (
+            "Den store sidetittelen under mobilens faste topp gjentok informasjonen og "
+            "brukte unødvendig høyde. Valgt område vises nå i selve topplinjen, "
+            "og kortene begynner rett under."
+        ),
+        "applications": [
+            "Online dashboard: kompakt topplinje på Parkering, Soling, Energi og øvrige undersider.",
+            "Online dashboard: oppdateringstid beholdes som en liten metadatalinje der den finnes.",
+        ],
+        "request": (
+            "men den store overskriften Parkering når du velger kunne ikke den bare "
+            "stått øverst og droppet all den ekstra plassen"
+        ),
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Flytter detaljsidens tittel inn i den eksisterende faste AppKit-toppen.",
+            "Fjerner den separate detail-hero-blokken og den tilhørende tomplassen.",
+            "Bruker samme kompakte prinsipp på alle detaljsider i mobiloversikten.",
+            "Legger til regresjonstest som hindrer at den doble tittelen kommer tilbake.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1679",
         "date": "08.08.2026",
         "headline": "Vedlikeholdsappen har bare én topplinje",

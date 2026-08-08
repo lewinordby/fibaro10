@@ -2020,6 +2020,15 @@ body.appkit-mobile .detail-hero h1 {
     font-size: 1.65rem;
 }
 
+body.appkit-mobile .detail-page > .detail-hero-note {
+    margin: -2px 2px 0;
+    color: var(--appkit-muted);
+    font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1.2;
+    text-align: right;
+}
+
 @media (max-width: 520px) {
     body.appkit-mobile .metric-card {
         min-height: 122px;

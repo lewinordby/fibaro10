@@ -42,3 +42,9 @@ def test_mobile_apps_use_appkit_dashboard_patterns() -> None:
     assert "is-active is-primary" in MAINTENANCE_HTML
     assert "dashboard-glance" in DASHBOARD_HTML
     assert "appkit-content-title" in DASHBOARD_HTML
+
+
+def test_online_detail_pages_use_the_fixed_header_as_the_only_title() -> None:
+    assert '<div class="appkit-header-title">{{ title }}' in DETAIL_HTML
+    assert '<span class="appkit-header-subtitle">Lilletorget</span>' in DETAIL_HTML
+    assert '<section class="detail-hero">' not in DETAIL_HTML
