@@ -3701,7 +3701,7 @@ LOGIN_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1682">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1683">
   <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-page">
@@ -3741,7 +3741,7 @@ DASHBOARD_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1682">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1683">
   <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
@@ -3762,15 +3762,11 @@ DASHBOARD_HTML = """<!doctype html>
     </form>
   </header>
   <main class="appkit-page-content has-footer dashboard">
-    <section class="appkit-page-title dashboard-page-title">
-      <div><p>Driftsoversikt</p><h1>Dashboard</h1></div>
-      <span>{{ open_detail }}</span>
-    </section>
-
     <section class="appkit-glance dashboard-glance">
       <div class="dashboard-glance-head">
         <span class="appkit-glance-kicker">Status akkurat nå</span>
         <h2>{{ open_label }}</h2>
+        <small class="dashboard-glance-detail">{{ open_detail }}</small>
       </div>
       <div class="appkit-glance-metrics" style="--appkit-metric-count:3">
         <a href="/energi"><strong>{{ energy_watt }}</strong><small>Strøm nå</small></a>
@@ -3894,7 +3890,7 @@ DETAIL_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1682">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1683">
   <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light">

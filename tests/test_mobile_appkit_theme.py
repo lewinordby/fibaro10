@@ -50,6 +50,13 @@ def test_online_detail_pages_use_the_fixed_header_as_the_only_title() -> None:
     assert '<section class="detail-hero">' not in DETAIL_HTML
 
 
+def test_online_dashboard_uses_the_fixed_header_as_the_only_title() -> None:
+    assert '<div class="appkit-header-title">Dashboard' in DASHBOARD_HTML
+    assert "dashboard-page-title" not in DASHBOARD_HTML
+    assert "Driftsoversikt" not in DASHBOARD_HTML
+    assert '<small class="dashboard-glance-detail">{{ open_detail }}</small>' in DASHBOARD_HTML
+
+
 def test_mobile_shells_use_the_vector_brand_mark() -> None:
     for name in ("lilletorget-mark.svg", "lilletorget-mark-mono.svg", "lilletorget-wordmark.svg"):
         source = (ROOT / "static" / name).read_text(encoding="utf-8")

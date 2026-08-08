@@ -12,6 +12,29 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1683",
+        "date": "08.08.2026",
+        "headline": "Dashboard har bare én overskrift",
+        "title": "Den doble Dashboard-tittelen er fjernet fra mobilappen",
+        "description": (
+            "Dashboard viste tittelen både i den faste topplinjen og i en ekstra "
+            "tittelblokk over innholdet. Den ekstra blokken er fjernet, mens "
+            "åpningstidsinformasjonen er beholdt i statusfeltet."
+        ),
+        "applications": [
+            "Online dashboard: ryddigere startside med mindre ubrukt høyde.",
+        ],
+        "request": "du har ikke tatt bort den ekstra overskriften på Dashboard siden",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fjerner Driftsoversikt/Dashboard-blokken under den faste topplinjen.",
+            "Flytter åpningstidsdetaljen inn i statuskortet.",
+            "Legger til regresjonstest som hindrer at dobbel tittel kommer tilbake.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1682",
         "date": "08.08.2026",
         "headline": "Mobilappene kan rulles normalt igjen",

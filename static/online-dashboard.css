@@ -1868,11 +1868,6 @@ body.appkit-mobile .dashboard {
     padding-top: 8px;
 }
 
-body.appkit-mobile .dashboard-page-title {
-    padding-top: 3px;
-    padding-bottom: 4px;
-}
-
 body.appkit-mobile .dashboard-glance {
     min-height: 164px;
     background: linear-gradient(135deg, #282b30 0%, #34383e 100%);
@@ -1886,6 +1881,14 @@ body.appkit-mobile .dashboard-glance-head {
 body.appkit-mobile .dashboard-glance h2 {
     color: #fff;
     font-size: 1.48rem;
+}
+
+body.appkit-mobile .dashboard-glance-detail {
+    display: block;
+    margin-top: 3px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    opacity: 0.68;
 }
 
 body.appkit-mobile .dashboard-glance .appkit-glance-metrics > a {
