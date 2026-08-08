@@ -30,17 +30,17 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --appkit-page: #111418;
-  --appkit-surface: #1b2026;
-  --appkit-surface-soft: #222830;
-  --appkit-text: #f4f6f8;
-  --appkit-muted: #aab2bd;
-  --appkit-line: #303842;
-  --appkit-highlight: #5d9cec;
-  --appkit-highlight-dark: #77aced;
-  --appkit-highlight-soft: #1d3047;
-  --appkit-shadow: 0 2px 12px rgb(0 0 0 / 24%);
-  --appkit-shadow-raised: 0 10px 28px rgb(0 0 0 / 34%);
+  --appkit-page: #12171d;
+  --appkit-surface: #1b222a;
+  --appkit-surface-soft: #242d36;
+  --appkit-text: #f3f6fa;
+  --appkit-muted: #aeb8c5;
+  --appkit-line: #34404c;
+  --appkit-highlight: #6ba7f0;
+  --appkit-highlight-dark: #8abbf5;
+  --appkit-highlight-soft: #1d3148;
+  --appkit-shadow: 0 8px 22px rgb(0 0 0 / 24%);
+  --appkit-shadow-raised: 0 14px 34px rgb(0 0 0 / 34%);
 }
 
 * {

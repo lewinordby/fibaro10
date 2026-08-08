@@ -33,7 +33,7 @@ def test_all_mobile_shells_load_the_shared_theme() -> None:
     for html in (ALARM_HTML, MAINTENANCE_HTML, DASHBOARD_HTML, DETAIL_HTML, LOGIN_HTML):
         assert "/appkit-assets/vendor/appkit-style.css?v=1" in html
         assert "/appkit-assets/lilletorget-appkit.css?v=2" in html
-        assert "/appkit-assets/lilletorget-appkit.js?v=3" in html
+        assert "/appkit-assets/lilletorget-appkit.js?v=4" in html
         assert 'class="appkit-mobile theme-light' in html
 
 
@@ -103,6 +103,31 @@ def test_online_pages_offer_a_persistent_light_dark_theme_toggle() -> None:
 
     css = (ROOT / "static" / "online-dashboard.css").read_text(encoding="utf-8")
     assert ':root[data-theme="dark"] body.appkit-mobile .dashboard-performance-comparisons > a' in css
+
+
+def test_online_dark_theme_has_dedicated_surfaces_navigation_and_brand_assets() -> None:
+    static_root = ROOT / "static"
+    assert (static_root / "lilletorget-mark-dark.svg").is_file()
+    assert (static_root / "lilletorget-wordmark-dark.svg").is_file()
+    assert "lilletorget-mark-dark.svg?v=1694" in DASHBOARD_HTML
+    assert "lilletorget-mark-dark.svg?v=1694" in DETAIL_HTML
+    assert "lilletorget-wordmark-dark.svg?v=1694" in LOGIN_HTML
+
+    shared_css = (ROOT / "packages" / "mobile-appkit" / "lilletorget-appkit.css").read_text(encoding="utf-8")
+    assert "--appkit-page: #12171d" in shared_css
+    assert "--appkit-surface: #1b222a" in shared_css
+    assert "--appkit-line: #34404c" in shared_css
+
+    css = (static_root / "online-dashboard.css").read_text(encoding="utf-8")
+    for selector in (
+        ':root[data-theme="dark"] body.appkit-mobile .dashboard-performance',
+        ':root[data-theme="dark"] body.appkit-mobile .detail-performance-parking',
+        ':root[data-theme="dark"] body.appkit-mobile .detail-performance-sun',
+        ':root[data-theme="dark"] body.appkit-mobile .detail-performance-energy',
+        ':root[data-theme="dark"] body.appkit-mobile .detail-performance-drift',
+        ':root[data-theme="dark"] body.appkit-mobile .appkit-footer .nav-status.is-primary:not(.is-active) svg',
+    ):
+        assert selector in css
 
 
 def test_dashboard_performance_helpers_show_direction_and_full_day_target() -> None:

@@ -413,7 +413,7 @@ def login_html(error: str, next_path: str) -> str:
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
   <link rel="stylesheet" href="/assets/alarm-mobile.css?v=7">
-  <script src="/appkit-assets/lilletorget-appkit.js?v=3" defer></script>
+  <script src="/appkit-assets/lilletorget-appkit.js?v=4" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-body">
   <div id="preloader" aria-hidden="true"></div>
@@ -452,7 +452,7 @@ INDEX_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
   <link rel="stylesheet" href="/assets/alarm-mobile.css?v=7">
-  <script src="/appkit-assets/lilletorget-appkit.js?v=3" defer></script>
+  <script src="/appkit-assets/lilletorget-appkit.js?v=4" defer></script>
   <script src="/assets/alarm-mobile.js?v=7" defer></script>
 </head>
 <body class="appkit-mobile theme-light">

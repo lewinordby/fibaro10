@@ -18,7 +18,7 @@
     body.classList.toggle("appkit-theme-light", !dark);
     document.querySelector('meta[name="theme-color"]')?.setAttribute(
       "content",
-      dark ? "#15191f" : "#ffffff",
+      dark ? "#171d24" : "#ffffff",
     );
     document.querySelectorAll("[data-theme-label]").forEach((node) => {
       node.textContent = dark ? "Lyst tema" : "M\u00f8rkt tema";

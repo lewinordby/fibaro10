@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Lilletorget</title>
+  <desc id="desc">En stilisert P i en sol for mork bakgrunn</desc>
+  <g fill="none" stroke="#E6A72A" stroke-width="5.5" stroke-linecap="round">
+    <circle cx="64" cy="64" r="34" />
+    <path d="M64 6v12M64 110v12M6 64h12M110 64h12M22.99 22.99l8.49 8.49M96.52 96.52l8.49 8.49M22.99 105.01l8.49-8.49M96.52 31.48l8.49-8.49" />
+  </g>
+  <path d="M49 101V38h17c13 0 21 7.5 21 19s-8 19-21 19H49" fill="none" stroke="#F3F6FA" stroke-width="8.5" stroke-linecap="square" stroke-linejoin="round" />
+</svg>

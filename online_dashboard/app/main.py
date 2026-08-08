@@ -4094,8 +4094,8 @@ LOGIN_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1693">
-  <script src="/appkit-assets/lilletorget-appkit.js?v=3" defer></script>
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1694">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=4" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-page">
   <div id="preloader" aria-hidden="true"></div>
@@ -4106,7 +4106,8 @@ LOGIN_HTML = """<!doctype html>
       </div>
     </section>
     <section class="appkit-login-panel login-card">
-      <img class="appkit-login-brand" src="/static/lilletorget-wordmark.svg?v=1681" alt="Lilletorget">
+      <img class="appkit-login-brand theme-logo-light" src="/static/lilletorget-wordmark.svg?v=1681" alt="Lilletorget">
+      <img class="appkit-login-brand theme-logo-dark" src="/static/lilletorget-wordmark-dark.svg?v=1694" alt="Lilletorget">
       <p class="eyebrow">Lilletorget</p>
       <h1>Logg inn</h1>
       <p class="lead">Nøkkeltall for soling, parkering, lys og ventilasjon.</p>
@@ -4134,15 +4135,16 @@ DASHBOARD_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1693">
-  <script src="/appkit-assets/lilletorget-appkit.js?v=3" defer></script>
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1694">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=4" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
   <div id="preloader" aria-hidden="true"></div>
   <div id="page">
   <header class="appkit-header topbar">
     <a class="appkit-brand-action logo-link" href="/" aria-label="Til forsiden">
-      <img src="/static/lilletorget-mark.svg?v=1681" alt="">
+      <img class="theme-logo-light" src="/static/lilletorget-mark.svg?v=1681" alt="">
+      <img class="theme-logo-dark" src="/static/lilletorget-mark-dark.svg?v=1694" alt="">
     </a>
     <div class="appkit-header-title">Dashboard<span class="appkit-header-subtitle">{{ open_label }} · {{ open_detail }}</span></div>
     <form class="appkit-header-actions" method="post" action="/logg-ut">
@@ -4280,15 +4282,16 @@ DETAIL_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1693">
-  <script src="/appkit-assets/lilletorget-appkit.js?v=3" defer></script>
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1694">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=4" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
   <div id="preloader" aria-hidden="true"></div>
   <div id="page">
   <header class="appkit-header topbar">
     <a class="appkit-brand-action logo-link" href="/" aria-label="Til forsiden">
-      <img src="/static/lilletorget-mark.svg?v=1681" alt="">
+      <img class="theme-logo-light" src="/static/lilletorget-mark.svg?v=1681" alt="">
+      <img class="theme-logo-dark" src="/static/lilletorget-mark-dark.svg?v=1694" alt="">
     </a>
     <div class="appkit-header-title">{{ title }}<span class="appkit-header-subtitle">Lilletorget</span></div>
     <form class="appkit-header-actions" method="post" action="/logg-ut">

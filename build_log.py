@@ -12,6 +12,33 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1694",
+        "date": "08.08.2026",
+        "headline": "Mørkt tema er bygget som en egen visuell profil",
+        "title": "Roligere flater, tydeligere kontrast og korrekte områdefarger i hele mobilgrensesnittet",
+        "description": (
+            "Det mørke temaet er gjennomgått side for side for Dashboard, Parkering, Soling, Energi og Drift. "
+            "Store mettede statusflater er erstattet med mørke, svakt fargede paneler, mens områdefargene "
+            "brukes som tydelige aksenter. Kort, toppfelt, bunnmeny og logo har fått egne mørke varianter."
+        ),
+        "applications": [
+            "Online dashboard: komplett visuell oppgradering av mørkt tema.",
+            "Mobile AppKit: forbedret mørk grunnpalett og nettleserfarge.",
+        ],
+        "request": "synes ikke det mørke funker så bra - kan du ta en gjennomgang på det",
+        "work_duration": "ca. 35 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Demper heldekkende rød, blå, oransje, grønn og lilla i statuspanelene.",
+            "Øker skillet mellom sidebakgrunn, kort, sekundærflater og kantlinjer.",
+            "Bruker lysere områdefarger på aktive og inaktive symboler i bunnmenyen.",
+            "Gjør Dashboard-knappen mørk rød i stedet for å bruke en lys flate.",
+            "Gjør tema- og utloggingsknappen visuelt like og retter fokusmarkering.",
+            "Legger inn egne logoressurser hvor P og tekst er leselige på mørk bakgrunn.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1693",
         "date": "08.08.2026",
         "headline": "Rødt Dashboard-valg og lys/mørk temabryter",
