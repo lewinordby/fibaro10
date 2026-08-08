@@ -12,6 +12,34 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1682",
+        "date": "08.08.2026",
+        "headline": "Mobilappene kan rulles normalt igjen",
+        "title": "BerÃ¸ringsscroll er eksplisitt Ã¥pnet og den gamle AppKit-cachen er brutt",
+        "description": (
+            "En installert PWA kunne beholde en eldre utgave av den felles AppKit-stilen "
+            "og dermed lÃ¥se sidehÃ¸yden. Mobilprofilen tillater nÃ¥ eksplisitt vertikal "
+            "berÃ¸ringsscroll, og alle mobilappene laster den nye cacheversjonen."
+        ),
+        "applications": [
+            "Online dashboard: rullbare oversikts- og detaljsider.",
+            "Vedlikehold mobil: rullbar historikk, registrering og detaljer.",
+            "Alarm mobil: rullbare alarm-, dÃ¸r- og kameravisninger.",
+            "Felles AppKit: robust dokumentrulling i nettleser og installert PWA.",
+        ],
+        "request": "sidnene i appen er ikke scrollbare",
+        "work_duration": "ca. 25 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjÃ¸ring",
+        "changes": [
+            "Tillater vertikal rulling eksplisitt pÃ¥ html, body og sidebeholder.",
+            "Aktiverer touch-action pan-y og momentumrulling pÃ¥ iOS.",
+            "Overstyrer eventuell menu-open-lÃ¥s fra AppKit-malen.",
+            "Bumper felles AppKit-cache fra v1 til v2 i alle tre mobilappene.",
+            "Legger til regresjonstest for rullekontrakten.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1681",
         "date": "08.08.2026",
         "headline": "Lilletorget har fÃ¥tt et lettere og mer presist merke",

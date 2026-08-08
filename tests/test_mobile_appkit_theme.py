@@ -25,8 +25,8 @@ def test_shared_appkit_assets_are_versioned_in_repo() -> None:
 def test_all_mobile_shells_load_the_shared_theme() -> None:
     for html in (ALARM_HTML, MAINTENANCE_HTML, DASHBOARD_HTML, DETAIL_HTML, LOGIN_HTML):
         assert "/appkit-assets/vendor/appkit-style.css?v=1" in html
-        assert "/appkit-assets/lilletorget-appkit.css?v=1" in html
-        assert "/appkit-assets/lilletorget-appkit.js?v=1" in html
+        assert "/appkit-assets/lilletorget-appkit.css?v=2" in html
+        assert "/appkit-assets/lilletorget-appkit.js?v=2" in html
         assert 'class="appkit-mobile theme-light' in html
 
 
@@ -62,3 +62,11 @@ def test_mobile_shells_use_the_vector_brand_mark() -> None:
 
     assert "/static/lilletorget-wordmark.svg?v=1681" in LOGIN_HTML
     assert "/static/lilletorget-login.png" not in LOGIN_HTML
+
+
+def test_shared_theme_explicitly_allows_touch_scrolling() -> None:
+    source = (ROOT / "packages" / "mobile-appkit" / "lilletorget-appkit.css").read_text(encoding="utf-8")
+    assert "overflow-y: auto !important" in source
+    assert "touch-action: pan-y" in source
+    assert "-webkit-overflow-scrolling: touch" in source
+    assert "#page" in source and "overflow: visible !important" in source

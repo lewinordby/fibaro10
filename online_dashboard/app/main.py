@@ -3700,9 +3700,9 @@ LOGIN_HTML = """<!doctype html>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png?v=1681">
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
-  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1681">
-  <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
+  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1682">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-page">
   <div id="preloader" aria-hidden="true"></div>
@@ -3740,9 +3740,9 @@ DASHBOARD_HTML = """<!doctype html>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png?v=1681">
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
-  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1681">
-  <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
+  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1682">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
   <div id="preloader" aria-hidden="true"></div>
@@ -3893,9 +3893,9 @@ DETAIL_HTML = """<!doctype html>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png?v=1681">
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
-  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1681">
-  <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
+  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1682">
+  <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
   <div id="preloader" aria-hidden="true"></div>

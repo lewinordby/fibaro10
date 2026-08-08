@@ -411,9 +411,9 @@ def login_html(error: str, next_path: str) -> str:
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png?v=1681">
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
-  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
+  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
   <link rel="stylesheet" href="/assets/alarm-mobile.css?v=7">
-  <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
+  <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-body">
   <div id="preloader" aria-hidden="true"></div>
@@ -450,9 +450,9 @@ INDEX_HTML = """<!doctype html>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png?v=1681">
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
-  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
+  <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
   <link rel="stylesheet" href="/assets/alarm-mobile.css?v=7">
-  <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
+  <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
   <script src="/assets/alarm-mobile.js?v=7" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
