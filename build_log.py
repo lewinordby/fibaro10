@@ -12,6 +12,29 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1687",
+        "date": "08.08.2026",
+        "headline": "Sammenligningsfeltene er grå uten rammer",
+        "title": "De to feltene i det blå styringskortet er korrigert",
+        "description": (
+            "Sammenligningsfeltene har fått en rolig, lys grå bakgrunn uten synlige "
+            "rammer. Tekst- og avviksfargene er tilpasset den lyse flaten."
+        ),
+        "applications": [
+            "Online dashboard: grå sammenligningsfelt uten rammer.",
+        ],
+        "request": "da kan rammene på boksene bort, også ba jeg om grå",
+        "work_duration": "ca. 5 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Endrer de to sammenligningsfeltene fra blått til lys grått.",
+            "Fjerner rammene rundt feltene.",
+            "Tilpasser tekst, grønt og rødt for god kontrast på grå bakgrunn.",
+            "Bumper stilversjonen for å unngå gammel PWA-cache.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1686",
         "date": "08.08.2026",
         "headline": "Sammenligningene er nå blå",

@@ -1921,16 +1921,16 @@ body.appkit-mobile .dashboard-performance-comparisons > a {
     min-width: 0;
     gap: 4px;
     padding: 10px;
-    border: 1px solid #4b82c8;
+    border: 0;
     border-radius: 7px;
-    background: #1d4f92;
-    color: #fff;
+    background: #eef1f5;
+    color: #182235;
     text-decoration: none;
 }
 
 body.appkit-mobile .dashboard-performance-comparisons span {
     min-height: 2.4em;
-    color: rgb(255 255 255 / 70%);
+    color: #5f6b7d;
     font-size: 0.68rem;
     font-weight: 700;
     line-height: 1.2;
@@ -1949,15 +1949,15 @@ body.appkit-mobile .dashboard-performance-comparisons strong em {
 }
 
 body.appkit-mobile .dashboard-performance-comparisons .is-positive {
-    color: #8ee6a8;
+    color: #257642;
 }
 
 body.appkit-mobile .dashboard-performance-comparisons .is-negative {
-    color: #ffb0b0;
+    color: #bd2f36;
 }
 
 body.appkit-mobile .dashboard-performance-comparisons small {
-    color: rgb(255 255 255 / 52%);
+    color: #748095;
     font-size: 0.63rem;
     line-height: 1.3;
 }
