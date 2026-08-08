@@ -386,7 +386,7 @@ def login_html(error: str = "", *, next_path: str = "/") -> str:
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1475">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1476">
   <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-body">
@@ -428,7 +428,7 @@ INDEX_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1475">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1476">
   <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
   <script src="/assets/maintenance-mobile.js?v=1475" defer></script>
 </head>
@@ -561,7 +561,7 @@ INDEX_HTML = """<!doctype html>
       <div class="history-filters" role="group" aria-label="Filtrer historikk">
         <button type="button" class="is-active" data-history-filter="all" aria-pressed="true">Alle <span>0</span></button>
         <button type="button" data-history-filter="today" aria-pressed="false">I dag <span>0</span></button>
-        <button type="button" data-history-filter="follow-up" aria-pressed="false">Oppfølging <span>0</span></button>
+        <button type="button" data-history-filter="follow-up" aria-pressed="false">Følg opp <span>0</span></button>
         <button type="button" data-history-filter="mine" aria-pressed="false">Mine <span>0</span></button>
       </div>
       <label class="history-search">

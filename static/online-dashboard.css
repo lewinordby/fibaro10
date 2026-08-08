@@ -767,7 +767,7 @@ h2 { font-size: 1.05rem; }
     border-radius: .45rem;
     background: #f5f8fb;
     color: var(--muted);
-    font-size: .62rem;
+    font-size: .7rem;
     font-weight: 850;
     line-height: 1.25;
 }
@@ -789,7 +789,7 @@ h2 { font-size: 1.05rem; }
 .parking-row-main > .parking-row-history {
     margin-top: .12rem;
     color: var(--parking);
-    font-size: .67rem;
+    font-size: .72rem;
     font-weight: 800;
 }
 .parking-row-facts {
@@ -919,7 +919,7 @@ h2 { font-size: 1.05rem; }
     padding: .18rem .42rem;
     border-radius: 999px;
     background: #eef2f6;
-    font-size: .66rem;
+    font-size: .7rem;
     font-weight: 900;
 }
 .state-dot {
@@ -1003,7 +1003,7 @@ h2 { font-size: 1.05rem; }
 .door-mini-card small {
     margin-top: .12rem;
     color: var(--muted);
-    font-size: .66rem;
+    font-size: .7rem;
     font-weight: 800;
 }
 .door-mini-card.is-open,
@@ -1508,7 +1508,7 @@ h2 { font-size: 1.05rem; }
 
     .state-pill {
         padding: .14rem .32rem;
-        font-size: .58rem;
+        font-size: .7rem;
     }
 
     .card-time {

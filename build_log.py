@@ -12,6 +12,31 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1701",
+        "date": "08.08.2026",
+        "headline": "De siste små mobiltekstene er gjort lesbare",
+        "title": "Statusfelt og vedlikeholdsfiltre holder seg innenfor mobilbredden",
+        "description": (
+            "Den avsluttende mobilkontrollen fant noen få statusetiketter under anbefalt størrelse og "
+            "ett vedlikeholdsfilter som kunne bli bredere enn skjermen. Etikettene er forstørret, "
+            "filterteksten er forkortet og ressursene er versjonert på nytt."
+        ),
+        "applications": [
+            "Online dashboard: større statusetiketter i dør- og parkeringsvisningene.",
+            "Vedlikehold mobil: lesbar filtertypografi og ingen tekstoverflyt i historikkfilteret.",
+        ],
+        "request": "Rydde grundig i hele temaet og optimalisere mobilappene for best mulig lesbarhet.",
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Hever statusetiketter til en lesbar størrelse på smale skjermer.",
+            "Gjør parkeringshistorikkens hjelpetekst tydeligere.",
+            "Forkorter Oppfølging-filteret til Følg opp uten å endre funksjonen.",
+            "Oppdaterer CSS-versjoner slik at installerte PWA-er henter rettingen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1700",
         "date": "08.08.2026",
         "headline": "Mobiltemaet er ryddet og gjort mer lesbart",
