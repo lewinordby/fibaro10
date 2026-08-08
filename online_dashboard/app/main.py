@@ -715,6 +715,61 @@ def target_count_progress_text(current: Any, target: Any, label: str) -> str:
     return f"{fmt_int(abs(difference))} igjen til {label}"
 
 
+def kwh_delta(current: Any, reference: Any) -> tuple[str, str, str]:
+    current_value = float(current or 0)
+    reference_value = float(reference or 0)
+    difference = current_value - reference_value
+    sign = "+" if difference >= 0 else "-"
+    percent = (difference / reference_value * 100) if reference_value else None
+    percent_text = f"{sign}{abs(percent):.0f}%".replace(".", ",") if percent is not None else "-"
+    # For energy use, lower consumption than the reference is the favorable direction.
+    state = "is-negative" if difference > 0 else "is-positive"
+    return f"{sign}{fmt_kwh(abs(difference))}", percent_text, state
+
+
+def target_kwh_progress_text(current: Any, target: Any, label: str) -> str:
+    current_value = float(current or 0)
+    target_value = float(target or 0)
+    difference = current_value - target_value
+    if difference >= 0:
+        return f"{fmt_kwh(difference)} over {label}"
+    return f"{fmt_kwh(abs(difference))} igjen til {label}"
+
+
+def render_performance_panel(
+    *,
+    modifier: str,
+    label: str,
+    main_value: str,
+    updated_text: str,
+    comparisons: list[tuple[str, str, str, str, str, str]],
+    stats: list[tuple[str, str, str]],
+) -> str:
+    comparison_html = "".join(
+        (
+            f'<a href="{escape(href)}"><span>{escape(comparison_label)}</span>'
+            f'<strong class="{escape(state)}">{escape(value)}'
+            f'{f" <em>{escape(percent)}</em>" if percent else ""}</strong>'
+            f'<small>{escape(note)}</small></a>'
+        )
+        for comparison_label, value, percent, state, note, href in comparisons
+    )
+    stat_html = "".join(
+        f"<span>{escape(stat_label)} <strong>{escape(stat_value)}</strong><small>{escape(stat_note)}</small></span>"
+        for stat_label, stat_value, stat_note in stats
+    )
+    return f"""
+    <section class="dashboard-performance detail-performance detail-performance-{escape(modifier)}" aria-label="{escape(label)}">
+      <div class="dashboard-performance-head">
+        <div><span>{escape(label)}</span><strong>{escape(main_value)}</strong></div>
+        <small>{escape(updated_text)}</small>
+      </div>
+      <div class="dashboard-performance-comparisons">{comparison_html}</div>
+      <div class="dashboard-performance-split">{stat_html}</div>
+    </section>
+    """
+
+
 def render_count_performance(
     *,
     modifier: str,
@@ -730,31 +785,87 @@ def render_count_performance(
 ) -> str:
     yesterday_delta, yesterday_percent, yesterday_state = count_delta(current_count, yesterday_same_time)
     last_week_delta, last_week_percent, last_week_state = count_delta(current_count, last_week_same_time)
-    stat_html = "".join(
-        f"<span>{escape(stat_label)} <strong>{stat_value}</strong><small>{escape(stat_note)}</small></span>"
-        for stat_label, stat_value, stat_note in stats
+    return render_performance_panel(
+        modifier=modifier,
+        label=label,
+        main_value=fmt_int(current_count),
+        updated_text=updated_text,
+        comparisons=[
+            (
+                "I går samme tidspunkt",
+                yesterday_delta,
+                yesterday_percent,
+                yesterday_state,
+                target_count_progress_text(current_count, yesterday_total, "hele gårsdagen"),
+                href,
+            ),
+            (
+                "Samme ukedag forrige uke",
+                last_week_delta,
+                last_week_percent,
+                last_week_state,
+                target_count_progress_text(current_count, last_week_total, "hele referansedagen"),
+                href,
+            ),
+        ],
+        stats=stats,
     )
-    return f"""
-    <section class="dashboard-performance detail-performance detail-performance-{escape(modifier)}" aria-label="{escape(label)}">
-      <div class="dashboard-performance-head">
-        <div><span>{escape(label)}</span><strong>{fmt_int(current_count)}</strong></div>
-        <small>{escape(updated_text)}</small>
-      </div>
-      <div class="dashboard-performance-comparisons">
-        <a href="{escape(href)}">
-          <span>I går samme tidspunkt</span>
-          <strong class="{yesterday_state}">{yesterday_delta} <em>{yesterday_percent}</em></strong>
-          <small>{target_count_progress_text(current_count, yesterday_total, "hele gårsdagen")}</small>
-        </a>
-        <a href="{escape(href)}">
-          <span>Samme ukedag forrige uke</span>
-          <strong class="{last_week_state}">{last_week_delta} <em>{last_week_percent}</em></strong>
-          <small>{target_count_progress_text(current_count, last_week_total, "hele referansedagen")}</small>
-        </a>
-      </div>
-      <div class="dashboard-performance-split">{stat_html}</div>
-    </section>
-    """
+
+
+def render_drift_performance(data: dict[str, Any]) -> str:
+    alarm_summary = (data.get("door_alarm") or {}).get("summary") or {}
+    alarm_count = int(alarm_summary.get("alarms") or 0)
+    watch_count = int(alarm_summary.get("watch") or 0)
+    all_doors = list(data.get("solroom_doors") or []) + list(data.get("other_doors") or [])
+    unknown_doors = sum(1 for item in all_doors if item.get("state") not in {"open", "closed"})
+    if alarm_count:
+        drift_status = "Alarm"
+    elif watch_count:
+        drift_status = "Følg med"
+    elif unknown_doors:
+        drift_status = "Mangler data"
+    else:
+        drift_status = "Normal"
+
+    fan_items = list(data.get("fan_items") or [])
+    fan_count = len(fan_items)
+    fans_on = sum(1 for _, state in fan_items if state is True)
+    solroom_count = int(alarm_summary.get("rooms") or len(data.get("solroom_doors") or []))
+    busy_rooms = int(alarm_summary.get("busy") or 0)
+    other_doors = list(data.get("other_doors") or [])
+    other_open = sum(1 for item in other_doors if item.get("state") == "open")
+    other_closed = sum(1 for item in other_doors if item.get("state") == "closed")
+    other_open_label = "1 åpen" if other_open == 1 else f"{other_open} åpne"
+    other_closed_label = "1 lukket" if other_closed == 1 else f"{other_closed} lukkede"
+    drift_timestamp = data["vent"].get("bucket_start") or data["vent"].get("timestamp")
+    return render_performance_panel(
+        modifier="drift",
+        label="Drift akkurat nå",
+        main_value=drift_status,
+        updated_text=f"Oppdatert kl. {drift_timestamp.strftime('%H:%M') if isinstance(drift_timestamp, datetime) else '-'}",
+        comparisons=[
+            (
+                "Klima",
+                fmt_temp(data["inside_avg"]),
+                "",
+                "",
+                f"Ute {fmt_temp(data['outside'])}",
+                "/temperatur",
+            ),
+            (
+                "Ventilasjon",
+                f"{fans_on} av {fan_count} på",
+                "",
+                "",
+                str(data["vent"].get("mode") or "Ingen modus"),
+                "/ventilasjon",
+            ),
+        ],
+        stats=[
+            ("Solrom", f"{max(0, solroom_count - busy_rooms)} ledige", f"{busy_rooms} i bruk"),
+            ("Andre dører", other_closed_label, other_open_label),
+        ],
+    )
 
 
 def operating_window(now: datetime) -> dict[str, Any]:
@@ -2073,6 +2184,37 @@ async def source_dashboard_data() -> dict[str, Any]:
         """,
         {"start": start, "end": end},
     )
+    energy_reference_at = energy_now.get("bucket_start") or energy_now.get("timestamp")
+    if not isinstance(energy_reference_at, datetime):
+        energy_reference_at = now
+    energy_yesterday_same_time_end = datetime.combine(yesterday, energy_reference_at.time())
+    energy_last_week_same_time_end = datetime.combine(last_week_same_day, energy_reference_at.time())
+    energy_comparisons = await one_mapping(
+        """
+        select coalesce(sum(inntak_delta_kwh) filter (
+                   where bucket_start >= :yesterday_start and bucket_start < :yesterday_end
+               ), 0) as yesterday_kwh,
+               coalesce(sum(inntak_delta_kwh) filter (
+                   where bucket_start >= :yesterday_start and bucket_start < :yesterday_same_time_end
+               ), 0) as yesterday_same_time_kwh,
+               coalesce(sum(inntak_delta_kwh) filter (
+                   where bucket_start >= :last_week_start and bucket_start < :last_week_end
+               ), 0) as last_week_kwh,
+               coalesce(sum(inntak_delta_kwh) filter (
+                   where bucket_start >= :last_week_start and bucket_start < :last_week_same_time_end
+               ), 0) as last_week_same_time_kwh
+        from energy_fibaro_samples
+        where bucket_start >= :last_week_start and bucket_start < :yesterday_end
+        """,
+        {
+            "yesterday_start": yesterday_start,
+            "yesterday_end": yesterday_end,
+            "yesterday_same_time_end": energy_yesterday_same_time_end,
+            "last_week_start": last_week_same_day_start,
+            "last_week_end": last_week_same_day_end,
+            "last_week_same_time_end": energy_last_week_same_time_end,
+        },
+    )
     solroom_doors = await solroom_door_statuses()
     other_doors = await other_door_statuses()
     door_alarm = await solroom_door_alarm_statuses(solroom_doors)
@@ -2119,6 +2261,10 @@ async def source_dashboard_data() -> dict[str, Any]:
         "vent": vent,
         "energy_now": energy_now,
         "energy_today": energy_today,
+        "energy_yesterday": {"kwh": energy_comparisons.get("yesterday_kwh")},
+        "energy_yesterday_same_time": {"kwh": energy_comparisons.get("yesterday_same_time_kwh")},
+        "energy_last_week_same_day": {"kwh": energy_comparisons.get("last_week_kwh")},
+        "energy_last_week_same_time": {"kwh": energy_comparisons.get("last_week_same_time_kwh")},
         "inside_avg": inside_avg,
         "outside": outside,
         "outside_sensor": vent.get("temp_ute"),
@@ -2217,6 +2363,10 @@ async def latest_snapshot_payload() -> dict[str, Any]:
             "vent": {},
             "energy_now": {},
             "energy_today": {},
+            "energy_yesterday": {},
+            "energy_yesterday_same_time": {},
+            "energy_last_week_same_day": {},
+            "energy_last_week_same_time": {},
             "inside_avg": None,
             "outside": None,
             "outside_sensor": None,
@@ -3022,7 +3172,41 @@ async def parking_refresh(request: Request):
 async def energy_detail(request: Request):
     data = await dashboard_data()
     now = data["energy_now"]
-    body = detail_stats(
+    current_kwh = data["energy_today"].get("kwh")
+    yesterday_kwh = data["energy_yesterday_same_time"].get("kwh")
+    last_week_kwh = data["energy_last_week_same_time"].get("kwh")
+    yesterday_delta, yesterday_percent, yesterday_state = kwh_delta(current_kwh, yesterday_kwh)
+    last_week_delta, last_week_percent, last_week_state = kwh_delta(current_kwh, last_week_kwh)
+    energy_timestamp = now.get("bucket_start") or now.get("timestamp")
+    body = render_performance_panel(
+        modifier="energy",
+        label="Forbruk hittil i dag",
+        main_value=fmt_kwh(current_kwh),
+        updated_text=f"Per kl. {energy_timestamp.strftime('%H:%M') if isinstance(energy_timestamp, datetime) else '-'}",
+        comparisons=[
+            (
+                "I g\u00e5r samme tidspunkt",
+                yesterday_delta,
+                yesterday_percent,
+                yesterday_state,
+                target_kwh_progress_text(current_kwh, data["energy_yesterday"].get("kwh"), "hele g\u00e5rsdagen"),
+                "/energi",
+            ),
+            (
+                "Samme ukedag forrige uke",
+                last_week_delta,
+                last_week_percent,
+                last_week_state,
+                target_kwh_progress_text(current_kwh, data["energy_last_week_same_day"].get("kwh"), "hele referansedagen"),
+                "/energi",
+            ),
+        ],
+        stats=[
+            ("Effekt n\u00e5", fmt_watt(now.get("inntak_w")), "fra HC3"),
+            ("Uforklart", fmt_watt(now.get("differanse_beregnet_w")), "beregnet diff"),
+        ],
+    )
+    body += detail_stats(
         [
             ("Inntak nå", fmt_watt(now.get("inntak_w")), fmt_time(now.get("bucket_start") or now.get("timestamp"))),
             ("I dag", fmt_kwh(data["energy_today"].get("kwh")), f"{fmt_int(data['energy_today'].get('samples'))} målinger"),
@@ -3042,7 +3226,8 @@ async def temperature_detail(request: Request):
         ranges = ((data.get("_ranges") or {}).get("temperature_today") or {})
     else:
         ranges = await temperature_ranges(data["now"].date())
-    body = detail_stats(
+    body = render_drift_performance(data)
+    body += detail_stats(
         [
             ("Inne nå", fmt_temp(data["inside_avg"]), f"{fmt_temp(ranges.get('min_inne'))} - {fmt_temp(ranges.get('max_inne'))}"),
             ("Ute nå", fmt_temp(data["outside"]), f"{fmt_temp(ranges.get('min_ute'))} - {fmt_temp(ranges.get('max_ute'))}"),
@@ -3053,7 +3238,7 @@ async def temperature_detail(request: Request):
             ("Innluft", fmt_temp(data["innluft"]), f"Oppdatert {fmt_time(data['vent'].get('bucket_start') or data['vent'].get('timestamp'))}"),
         ]
     )
-    return render_detail_page("Temperatur", "Nåverdier og spenn hittil i dag.", body, icon="temperature")
+    return render_detail_page("Drift", "Status, klima og ventilasjon akkurat nå.", body, icon="temperature")
 
 
 @app.get("/lys", response_class=HTMLResponse)
@@ -3909,7 +4094,7 @@ LOGIN_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1689">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1690">
   <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-page">
@@ -3949,7 +4134,7 @@ DASHBOARD_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1689">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1690">
   <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
@@ -4086,7 +4271,7 @@ DETAIL_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=2">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1689">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1690">
   <script src="/appkit-assets/lilletorget-appkit.js?v=2" defer></script>
 </head>
 <body class="appkit-mobile theme-light">

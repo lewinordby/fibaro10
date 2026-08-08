@@ -331,6 +331,68 @@ def online_app():
     async def soling() -> HTMLResponse:
         return HTMLResponse(soling_html)
 
+    energy_html = mobile.DETAIL_HTML
+    energy_body = mobile.render_performance_panel(
+        modifier="energy",
+        label="Forbruk hittil i dag",
+        main_value="42,8 kWh",
+        updated_text="Per kl. 14:28",
+        comparisons=[
+            ("I g\u00e5r samme tidspunkt", "+4,7 kWh", "+12%", "is-negative", "8,6 kWh igjen til hele g\u00e5rsdagen", "#"),
+            ("Samme ukedag forrige uke", "-2,4 kWh", "-5%", "is-positive", "13,2 kWh igjen til hele referansedagen", "#"),
+        ],
+        stats=[("Effekt n\u00e5", "12,6 kW", "fra HC3"), ("Uforklart", "0,8 kW", "beregnet diff")],
+    )
+    energy_body += mobile.detail_stats(
+        [("Belysning", "1,4 kW", "n\u00e5"), ("Varmepumper", "2,8 kW", "n\u00e5"), ("Avfukter", "0,3 kW", "n\u00e5")]
+    )
+    energy_values = {
+        "title": "Energi",
+        "subtitle": "Str\u00f8mstatus",
+        "body": energy_body,
+        "detail_icon": mobile.metric_icon("energy"),
+        "detail_class": "detail-energy",
+        "hero_note": "",
+        "mobile_nav": mobile.mobile_nav("energy"),
+    }
+    for key, value in energy_values.items():
+        energy_html = energy_html.replace("{{ " + key + " }}", value)
+
+    @preview.get("/energi", response_class=HTMLResponse)
+    async def energy() -> HTMLResponse:
+        return HTMLResponse(energy_html)
+
+    drift_html = mobile.DETAIL_HTML
+    drift_body = mobile.render_performance_panel(
+        modifier="drift",
+        label="Drift akkurat n\u00e5",
+        main_value="Normal",
+        updated_text="Oppdatert kl. 14:27",
+        comparisons=[
+            ("Klima", "23,1\u00b0", "", "", "Ute 21,4\u00b0", "#"),
+            ("Ventilasjon", "1 av 4 p\u00e5", "", "", "NORMAL", "#"),
+        ],
+        stats=[("Solrom", "7 ledige", "5 i bruk"), ("Andre d\u00f8rer", "4 lukket", "1 \u00e5pen")],
+    )
+    drift_body += mobile.detail_stats(
+        [("Loft n\u00e5", "25,3\u00b0", "22,1\u00b0 - 26,4\u00b0"), ("Kjeller n\u00e5", "16,5\u00b0", "Fukt 63%")]
+    )
+    drift_values = {
+        "title": "Drift",
+        "subtitle": "Klima og ventilasjon",
+        "body": drift_body,
+        "detail_icon": mobile.metric_icon("temperature"),
+        "detail_class": "detail-temperature",
+        "hero_note": "",
+        "mobile_nav": mobile.mobile_nav("temperature"),
+    }
+    for key, value in drift_values.items():
+        drift_html = drift_html.replace("{{ " + key + " }}", value)
+
+    @preview.get("/temperatur", response_class=HTMLResponse)
+    async def drift() -> HTMLResponse:
+        return HTMLResponse(drift_html)
+
     return preview
 
 

@@ -1891,6 +1891,16 @@ body.appkit-mobile .detail-performance-sun {
     background: #ad6618;
 }
 
+body.appkit-mobile .detail-performance-energy {
+    border-color: #45a98e;
+    background: #28755f;
+}
+
+body.appkit-mobile .detail-performance-drift {
+    border-color: #8172bd;
+    background: #62549b;
+}
+
 body.appkit-mobile .dashboard-performance-head {
     display: flex;
     align-items: flex-end;

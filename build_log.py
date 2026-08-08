@@ -12,6 +12,32 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1690",
+        "date": "08.08.2026",
+        "headline": "Energi og Drift har fått tydelige statuspaneler",
+        "title": "Alle hovedområdene i mobilappen bruker nå samme styringsmønster",
+        "description": (
+            "Energi viser forbruk hittil i dag mot tidsriktige referanser, mens Drift samler "
+            "døralarmer, klima, ventilasjon og dørstatus i ett kompakt statuspanel."
+        ),
+        "applications": [
+            "Online dashboard: nytt grønt styringsfelt på Energi.",
+            "Online dashboard: nytt lilla styringsfelt på Drift.",
+        ],
+        "request": "vi mangler også det samme status panelet på energi og drift som på de anne",
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Sammenligner energiforbruk mot i går og samme ukedag forrige uke ved siste faktiske HC3-tidspunkt.",
+            "Viser samtidig aktuell effekt og beregnet uforklart forbruk.",
+            "Beregner Drift-status som Normal, Følg med, Alarm eller Mangler data.",
+            "Viser klima, ventilasjon, ledige solrom og status for andre dører.",
+            "Gjenbruker den samme panelkomponenten som Dashboard, Parkering og Soling.",
+            "Legger til regresjonstester og mobil forhåndsvisning for begge områdene.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1689",
         "date": "08.08.2026",
         "headline": "Omsetningsfeltet bruker nå omsetningsfargen",
