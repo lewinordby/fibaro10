@@ -163,12 +163,24 @@ function renderOverview() {
   ];
 
   root.innerHTML = `
-    <section class="status-hero ${overallClass}">
-      <span class="status-hero-icon">${statusIcon(total || errors.length ? "alert" : "door")}</span>
-      <div><p>Status akkurat nå</p><h1>${escapeHtml(overall)}</h1></div>
-      <time>${escapeHtml(formatAge(state.data?.generatedAt))}</time>
+    <section class="appkit-page-title alarm-page-title">
+      <div><p>Sikkerhet og kontroll</p><h1>Alarm</h1></div>
+      <span>Oppdatert<br>${escapeHtml(formatAge(state.data?.generatedAt))}</span>
     </section>
 
+    <section class="status-hero appkit-glance ${overallClass}">
+      <div class="alarm-glance-head">
+        <span class="status-hero-icon">${statusIcon(total || errors.length ? "alert" : "door")}</span>
+        <div><span class="appkit-glance-kicker">Status akkurat nå</span><h2>${escapeHtml(overall)}</h2></div>
+      </div>
+      <div class="appkit-glance-metrics" style="--appkit-metric-count:3">
+        <div><strong>${total}</strong><small>Aktive varsler</small></div>
+        <div><strong>${number(doorSummary.rooms)}</strong><small>Solrom</small></div>
+        <div><strong>${number(bollardSummary.inspection_objects)}</strong><small>Kontrollfelt</small></div>
+      </div>
+    </section>
+
+    <div class="appkit-content-title"><h2>Områder</h2><span>Trykk for detaljer</span></div>
     <section class="summary-grid">
       <button type="button" class="summary-card" data-open-view="doors">
         <span class="summary-icon is-door">${statusIcon("door")}</span>
@@ -182,7 +194,7 @@ function renderOverview() {
       </button>
     </section>
 
-    <section class="section-block">
+    <section class="section-block active-section">
       <div class="section-title"><h2>Aktivt nå</h2><span>${activeRows.length}</span></div>
       <div class="event-list">
         ${activeRows.length ? activeRows.map((item) => `

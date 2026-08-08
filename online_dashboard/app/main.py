@@ -2418,11 +2418,11 @@ async def dashboard(request: Request):
     revenue_card = ""
     if show_revenue:
         revenue_card = f"""
-      <article class="metric-card accent-revenue is-wide revenue-card" data-revenue-card="1">
+      <article class="metric-card accent-revenue revenue-card" data-revenue-card="1">
         <a class="card-link revenue-main-link" href="/omsetning" aria-label="Apne omsetning">
         <div class="metric-head"><span>Omsetning</span>{metric_icon("revenue")}</div>
-        <strong>{fmt_money(data["revenue"].get("today"))}<em>/{fmt_money(data["revenue"].get("yesterday"))}</em></strong>
-        <small>I dag / i går - sol {fmt_money(data["soling"].get("amount"))} - park {fmt_money(data["parking"].get("amount"))}</small>
+        <strong>{fmt_money(data["revenue"].get("today"))}</strong>
+        <small>I går {fmt_money(data["revenue"].get("yesterday"))}</small>
         <small class="updated-line">Oppdatert {fmt_time(data["revenue_updated_at"])}</small>
         </a>
         <a class="revenue-chart-link" href="/omsetning/uke" aria-label="Apne omsetningsdiagram">{metric_icon("chart")}</a>
@@ -3647,9 +3647,9 @@ def metric_icon(name: str) -> str:
 
 
 MOBILE_NAV_ITEMS = (
-    ("status", "/", "Status", '<path d="M4 13h6V4H4v9Zm10 7h6v-9h-6v9ZM4 20h6v-3H4v3Zm10-13h6V4h-6v3Z"/>'),
     ("sun", "/soling", "Soling", '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/>'),
     ("parking", "/parkering", "Parkering", '<circle cx="12" cy="12" r="9"/><path d="M10 17V7h3.1a3 3 0 0 1 0 6H10"/>'),
+    ("status", "/", "Status", '<path d="M4 13h6V4H4v9Zm10 7h6v-9h-6v9ZM4 20h6v-3H4v3Zm10-13h6V4h-6v3Z"/>'),
     ("energy", "/energi", "Energi", '<path d="m13 2-7 12h6l-1 8 7-12h-6l1-8Z"/>'),
     ("drift", "/temperatur", "Drift", '<path d="M14 4.5a4 4 0 0 0-5.2 5.2L3.5 15 9 20.5l5.3-5.3A4 4 0 0 0 19.5 10l-3 3-2.5-2.5 3-3A4 4 0 0 0 14 4.5Z"/>'),
 )
@@ -3658,9 +3658,15 @@ MOBILE_NAV_ITEMS = (
 def mobile_nav(active: str) -> str:
     links = []
     for key, href, label, icon in MOBILE_NAV_ITEMS:
-        current = ' class="is-active" aria-current="page"' if key == active else ""
+        classes = []
+        if key == "status":
+            classes.append("is-primary")
+        if key == active:
+            classes.append("is-active")
+        class_attr = f' class="{" ".join(classes)}"' if classes else ""
+        current = ' aria-current="page"' if key == active else ""
         links.append(
-            f'<a href="{href}"{current}><svg viewBox="0 0 24 24" aria-hidden="true">{icon}</svg><span>{label}</span></a>'
+            f'<a href="{href}"{class_attr}{current}><svg viewBox="0 0 24 24" aria-hidden="true">{icon}</svg><span>{label}</span></a>'
         )
     return '<nav class="appkit-footer" style="--appkit-nav-count:5" aria-label="Mobilnavigasjon">' + "".join(links) + "</nav>"
 
@@ -3695,7 +3701,7 @@ LOGIN_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1590">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1678">
   <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-page">
@@ -3735,7 +3741,7 @@ DASHBOARD_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1590">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1678">
   <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
@@ -3745,7 +3751,7 @@ DASHBOARD_HTML = """<!doctype html>
     <a class="appkit-brand-action logo-link" href="/" aria-label="Til forsiden">
       <img src="/static/lilletorget-mark.png" alt="">
     </a>
-    <div class="appkit-header-title">Lilletorget<span class="appkit-header-subtitle">Nøkkeltall</span></div>
+    <div class="appkit-header-title">Dashboard<span class="appkit-header-subtitle">Lilletorget</span></div>
     <form method="post" action="/logg-ut">
       <button class="appkit-header-action logout-button" type="submit" aria-label="Logg ut" title="Logg ut">
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
@@ -3756,21 +3762,24 @@ DASHBOARD_HTML = """<!doctype html>
     </form>
   </header>
   <main class="appkit-page-content has-footer dashboard">
-    <section class="pulse-grid">
-      <article class="pulse-card accent-open">
-        <span>Åpningstid</span>
-        <strong>{{ open_label }}</strong>
-        <small>{{ open_detail }}</small>
-        <div class="progress"><i style="width: {{ open_progress }}%"></i></div>
-      </article>
-      <a class="pulse-card accent-energy card-link" href="/energi">
-        <div class="metric-head"><span>Strøm nå</span>{{ energy_icon }}</div>
-        <strong>{{ energy_watt }}</strong>
-        <small>{{ energy_kwh }} i dag · {{ energy_samples }} målinger</small>
-        <small class="updated-line">Diff {{ energy_diff }} · {{ energy_time }}</small>
-      </a>
+    <section class="appkit-page-title dashboard-page-title">
+      <div><p>Driftsoversikt</p><h1>Dashboard</h1></div>
+      <span>{{ open_detail }}</span>
     </section>
 
+    <section class="appkit-glance dashboard-glance">
+      <div class="dashboard-glance-head">
+        <span class="appkit-glance-kicker">Status akkurat nå</span>
+        <h2>{{ open_label }}</h2>
+      </div>
+      <div class="appkit-glance-metrics" style="--appkit-metric-count:3">
+        <a href="/energi"><strong>{{ energy_watt }}</strong><small>Strøm nå</small></a>
+        <a href="/soling"><strong>{{ soling_count }}</strong><small>Solinger i dag</small></a>
+        <a href="/parkering"><strong>{{ parking_count }}</strong><small>Parkeringer</small></a>
+      </div>
+    </section>
+
+    <div class="appkit-content-title"><h2>Nøkkeltall</h2><span>I dag mot i går</span></div>
     <section class="metric-grid">
       <a class="metric-card accent-sun card-link" href="/soling">
         <div class="metric-head"><span>Solinger</span>{{ sun_icon }}</div>
@@ -3783,6 +3792,12 @@ DASHBOARD_HTML = """<!doctype html>
         <strong>{{ parking_count }}<em>/{{ parking_yesterday_count }}</em></strong>
         <small>I dag / i går · {{ parking_active }} aktive</small>
         <small class="updated-line">Oppdatert {{ parking_time }}</small>
+      </a>
+      <a class="metric-card accent-energy card-link" href="/energi">
+        <div class="metric-head"><span>Energi</span>{{ energy_icon }}</div>
+        <strong>{{ energy_watt }}</strong>
+        <small>{{ energy_kwh }} i dag</small>
+        <small class="updated-line">Diff {{ energy_diff }} · {{ energy_time }}</small>
       </a>
       {{ revenue_card }}
     </section>
@@ -3879,7 +3894,7 @@ DETAIL_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1590">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1678">
   <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
 </head>
 <body class="appkit-mobile theme-light">

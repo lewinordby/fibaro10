@@ -81,6 +81,14 @@ const TASKS = [
   },
 ];
 
+const TASK_ICONS = {
+  "robot-cleaners": '<path d="M5 8h14v9a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8Zm3-3h8l2 3H6l2-3Zm1 8h.01M15 13h.01M8 19v2M16 19v2"/>',
+  "heat-pumps": '<path d="M12 3v18M5.6 6.7 18.4 17.3M18.4 6.7 5.6 17.3M4 12h16"/>',
+  sunbeds: '<circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/>',
+  "cream-machine": '<path d="M7 3h10l-1 5H8L7 3Zm1 5h8v12H8V8Zm3 4h2M10 16h4"/>',
+  other: '<path d="M12 3v18M3 12h18"/>',
+};
+
 const state = {
   bootstrap: null,
   selectedTask: null,
@@ -272,9 +280,17 @@ function taskOverview(task) {
 function renderTasks() {
   const container = $("#taskGrid");
   if (!container) return;
+  const rows = state.bootstrap?.recent || [];
+  const todayCount = rows.filter((row) => isToday(row.performed_at)).length;
+  const followUpCount = rows.filter((row) => Boolean(row.follow_up_needed)).length;
+  if ($("#todayTaskCount")) $("#todayTaskCount").textContent = String(todayCount);
+  if ($("#followUpTaskCount")) $("#followUpTaskCount").textContent = String(followUpCount);
+  if ($("#totalTaskCount")) $("#totalTaskCount").textContent = String(rows.length);
   container.innerHTML = TASKS.map((task) => `
-    <button class="task-button" type="button" data-task-key="${escapeHtml(task.key)}">
+    <button class="task-button task-${escapeHtml(task.key)}" type="button" data-task-key="${escapeHtml(task.key)}">
+      <span class="task-icon appkit-icon-tile"><svg viewBox="0 0 24 24" aria-hidden="true">${TASK_ICONS[task.key] || TASK_ICONS.other}</svg></span>
       <span class="task-copy"><span class="task-title">${escapeHtml(task.title)}</span><small>${escapeHtml(taskOverview(task))}</small></span>
+      <span class="task-arrow" aria-hidden="true">&rsaquo;</span>
     </button>
   `).join("");
   container.querySelectorAll("[data-task-key]").forEach((button) => {

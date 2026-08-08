@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv()
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstrip("/")
-ALARM_MOBILE_BUILD = os.getenv("ALARM_MOBILE_BUILD", "6")
+ALARM_MOBILE_BUILD = os.getenv("ALARM_MOBILE_BUILD", "7")
 SESSION_COOKIE_NAME = "lilletorget_alarm_session"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 
@@ -412,7 +412,7 @@ def login_html(error: str, next_path: str) -> str:
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=6">
+  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=7">
   <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-body">
@@ -451,16 +451,16 @@ INDEX_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=6">
+  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=7">
   <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
-  <script src="/assets/alarm-mobile.js?v=6" defer></script>
+  <script src="/assets/alarm-mobile.js?v=7" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
   <div id="preloader" aria-hidden="true"></div>
   <div id="page">
   <header class="appkit-header topbar">
     <a class="appkit-brand-action" href="/" aria-label="Alarmstatus"><img class="brand-mark" src="/static/lilletorget-mark.png" alt=""></a>
-    <div class="appkit-header-title brand-copy"><strong>Alarm</strong><span id="lastUpdated" class="appkit-header-subtitle">Henter status</span></div>
+    <div class="appkit-header-title brand-copy"><strong>Alarmstatus</strong><span id="lastUpdated" class="appkit-header-subtitle">Henter status</span></div>
     <button id="refreshButton" class="appkit-header-action icon-button" type="button" aria-label="Oppdater" title="Oppdater">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/></svg>
     </button>

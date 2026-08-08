@@ -12,6 +12,37 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1678",
+        "date": "08.08.2026",
+        "headline": "Mobilappene er visuelt bygget om med AppKit",
+        "title": "AppKit er nå et synlig grensesnitt, ikke bare et underliggende designlag",
+        "description": (
+            "Den første integrasjonen beholdt for mye av den gamle oppbygningen. "
+            "Vedlikehold, Alarm og mobiloversikten har derfor fått nye AppKit-baserte "
+            "sideoppsett med tydelige statustopper, ikonbaserte handlinger, jevne "
+            "nøkkeltallskort og mer karakteristisk bunnnavigasjon."
+        ),
+        "applications": [
+            "Vedlikehold mobil: nytt statusfelt, 2-kolonne oppgavevalg og fremhevet ny-oppgaveknapp.",
+            "Alarm mobil: samlet alarmstatus, områdeflater og mer kompakte hendelseslister.",
+            "Online dashboard: AppKit-statusfelt, 2x2 nøkkeltall og sentral Status-navigasjon.",
+            "Felles mobilpakke: gjenbrukbare AppKit-komponenter for sidetitler, status og ikoner.",
+            "Visuell QA: lokal forhåndsvisning av alle tre mobilappene på 390 x 844 piksler.",
+        ],
+        "request": "ser nesten ingen forskjell",
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bygger om HTML-strukturen i alle tre mobilappene i stedet for bare å overstyre farger.",
+            "Innfører mørke AppKit-statusfelt med raske nøkkeltall og tydeligere visuelt hierarki.",
+            "Gjør vedlikeholdsoppgaver til fargede, ikonbaserte handlinger med rask tilgang.",
+            "Gjør Alarm-oversikten mer skannbar med tydelig samlet status og to områdeflater.",
+            "Gjør online-dashboardets fire nøkkeltallskort eksakt like høye i mobilvisning.",
+            "Utvider forhåndsvisningsverktøyet med en egen, ufarlig online-dashboardmodus.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1677",
         "date": "08.08.2026",
         "headline": "AppKit gir mobilappene ett gjennomført designsystem",

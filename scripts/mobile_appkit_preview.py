@@ -188,12 +188,74 @@ def alarm_app():
     return mobile.app
 
 
+def online_app():
+    import os
+    import re
+
+    from fastapi import FastAPI
+    from fastapi.responses import HTMLResponse
+    from fastapi.staticfiles import StaticFiles
+
+    os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://preview:preview@127.0.0.1/preview")
+    import online_dashboard.app.main as mobile
+
+    preview = FastAPI(title="Online dashboard preview")
+    preview.mount("/static", StaticFiles(directory=REPO_ROOT / "static"), name="static")
+    preview.mount("/appkit-assets", StaticFiles(directory=REPO_ROOT / "packages" / "mobile-appkit"), name="appkit-assets")
+
+    values = {
+        "open_label": "Åpent",
+        "open_detail": "Stenger 23:00",
+        "energy_watt": "12,6 kW",
+        "energy_kwh": "42,8 kWh",
+        "energy_samples": "1 204",
+        "energy_diff": "0,8 kW",
+        "energy_time": "08.08 14:28",
+        "soling_count": "27",
+        "soling_yesterday_count": "31",
+        "soling_time": "08.08 14:27",
+        "parking_count": "42",
+        "parking_yesterday_count": "38",
+        "parking_active": "8",
+        "parking_time": "08.08 14:00",
+        "inside_avg": "23,1°",
+        "outside": "21,4°",
+        "sun_icon": mobile.metric_icon("sun"),
+        "parking_icon": mobile.metric_icon("parking"),
+        "energy_icon": mobile.metric_icon("energy"),
+        "revenue_card": (
+            '<article class="metric-card accent-revenue revenue-card">'
+            '<a class="card-link revenue-main-link" href="#">'
+            f'<div class="metric-head"><span>Omsetning</span>{mobile.metric_icon("revenue")}</div>'
+            '<strong>11 840 kr</strong>'
+            '<small>I går 10 920 kr</small>'
+            '<small class="updated-line">Oppdatert 08.08 14:27</small></a></article>'
+        ),
+        "mobile_nav": mobile.mobile_nav("status"),
+    }
+
+    html = mobile.DASHBOARD_HTML
+    for key, value in values.items():
+        html = html.replace("{{ " + key + " }}", value)
+    html = re.sub(r"\{\{\s*[^}]+\s*\}\}", "-", html)
+
+    @preview.get("/", response_class=HTMLResponse)
+    async def index() -> HTMLResponse:
+        return HTMLResponse(html)
+
+    return preview
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("app", choices=("maintenance", "alarm"))
+    parser.add_argument("app", choices=("maintenance", "alarm", "online"))
     parser.add_argument("--port", type=int, required=True)
     args = parser.parse_args()
-    application = maintenance_app() if args.app == "maintenance" else alarm_app()
+    application = {
+        "maintenance": maintenance_app,
+        "alarm": alarm_app,
+        "online": online_app,
+    }[args.app]()
     uvicorn.run(application, host="127.0.0.1", port=args.port, log_level="warning")
 
 

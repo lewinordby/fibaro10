@@ -1844,3 +1844,189 @@ body.appkit-mobile .login-card button {
         padding: 11px;
     }
 }
+
+/* AppKit Mobile visual rebuild */
+body.appkit-mobile .topbar {
+    min-height: calc(var(--appkit-header-height) + var(--appkit-safe-top));
+    box-shadow: 0 2px 12px rgb(30 38 50 / 6%);
+}
+
+body.appkit-mobile .topbar img {
+    width: 40px;
+    height: 40px;
+}
+
+body.appkit-mobile .logout-button {
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--appkit-line);
+    background: var(--appkit-surface-soft);
+}
+
+body.appkit-mobile .dashboard {
+    width: min(100%, 620px);
+    padding-top: 8px;
+}
+
+body.appkit-mobile .dashboard-page-title {
+    padding-top: 3px;
+    padding-bottom: 4px;
+}
+
+body.appkit-mobile .dashboard-glance {
+    min-height: 164px;
+    background: linear-gradient(135deg, #282b30 0%, #34383e 100%);
+}
+
+body.appkit-mobile .dashboard-glance-head {
+    position: relative;
+    z-index: 1;
+}
+
+body.appkit-mobile .dashboard-glance h2 {
+    color: #fff;
+    font-size: 1.48rem;
+}
+
+body.appkit-mobile .dashboard-glance .appkit-glance-metrics > a {
+    min-width: 0;
+    color: #fff;
+    text-decoration: none;
+}
+
+body.appkit-mobile .dashboard-glance .appkit-glance-metrics > a + a {
+    padding-left: 10px;
+    border-left: 1px solid rgb(255 255 255 / 15%);
+}
+
+body.appkit-mobile .metric-grid {
+    gap: 10px;
+}
+
+body.appkit-mobile .metric-card {
+    min-height: 126px;
+    padding: 13px;
+    border-top-width: 1px;
+    border-left: 3px solid var(--appkit-sun);
+}
+
+body.appkit-mobile .metric-card.accent-sun { border-top-color: var(--appkit-line); border-left-color: var(--appkit-sun); }
+body.appkit-mobile .metric-card.accent-parking { border-top-color: var(--appkit-line); border-left-color: var(--appkit-parking); }
+body.appkit-mobile .metric-card.accent-energy { border-top-color: var(--appkit-line); border-left-color: var(--appkit-energy); }
+body.appkit-mobile .metric-card.accent-revenue { border-top-color: var(--appkit-line); border-left-color: var(--appkit-revenue); }
+
+body.appkit-mobile .revenue-card {
+    grid-column: auto;
+    width: auto;
+    padding: 0;
+}
+
+body.appkit-mobile .revenue-main-link {
+    min-height: 122px;
+    padding: 12px;
+}
+
+body.appkit-mobile .revenue-main-link .updated-line {
+    padding-right: 30px;
+}
+
+body.appkit-mobile .revenue-main-link > small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body.appkit-mobile .revenue-card strong {
+    font-size: 1.25rem;
+}
+
+body.appkit-mobile .revenue-card strong em {
+    display: block;
+    margin-top: 3px;
+}
+
+body.appkit-mobile .revenue-chart-link {
+    right: 9px;
+    bottom: 9px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--appkit-revenue) 10%, var(--appkit-surface));
+    box-shadow: none;
+}
+
+body.appkit-mobile .revenue-chart-link .metric-icon {
+    width: 19px;
+    height: 19px;
+}
+
+body.appkit-mobile .metric-head svg {
+    width: 24px;
+    height: 24px;
+    padding: 4px;
+    border-radius: 6px;
+}
+
+body.appkit-mobile .accent-sun .metric-head svg {
+    background: color-mix(in srgb, var(--appkit-sun) 17%, var(--appkit-surface));
+    color: var(--appkit-sun-dark);
+}
+
+body.appkit-mobile .accent-parking .metric-head svg {
+    background: var(--appkit-highlight-soft);
+    color: var(--appkit-parking);
+}
+
+body.appkit-mobile .accent-energy .metric-head svg {
+    background: color-mix(in srgb, var(--appkit-energy) 14%, var(--appkit-surface));
+    color: var(--appkit-energy);
+}
+
+body.appkit-mobile .accent-revenue .metric-head svg {
+    background: color-mix(in srgb, var(--appkit-revenue) 13%, var(--appkit-surface));
+    color: var(--appkit-revenue);
+}
+
+body.appkit-mobile .metric-card strong {
+    margin-top: 12px;
+    font-size: 1.5rem;
+}
+
+body.appkit-mobile .temperature-grid {
+    margin-top: 16px;
+}
+
+body.appkit-mobile .temperature-card,
+body.appkit-mobile .section-block {
+    border-radius: var(--appkit-radius);
+    box-shadow: var(--appkit-shadow);
+}
+
+body.appkit-mobile .appkit-footer {
+    right: max(0px, calc((100vw - 620px) / 2));
+    left: max(0px, calc((100vw - 620px) / 2));
+}
+
+body.appkit-mobile .appkit-footer .is-primary span {
+    font-weight: 750;
+}
+
+body.appkit-mobile .detail-hero {
+    min-height: 74px;
+    padding: 10px 4px;
+}
+
+body.appkit-mobile .detail-hero h1 {
+    font-size: 1.65rem;
+}
+
+@media (max-width: 520px) {
+    body.appkit-mobile .metric-card {
+        min-height: 122px;
+        padding: 12px;
+    }
+}
+
+body.appkit-mobile .metric-card.revenue-card {
+    padding: 0;
+}

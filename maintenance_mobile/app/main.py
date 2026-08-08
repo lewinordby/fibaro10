@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv()
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstrip("/")
-MAINTENANCE_MOBILE_BUILD = os.getenv("MAINTENANCE_MOBILE_BUILD", "1472")
+MAINTENANCE_MOBILE_BUILD = os.getenv("MAINTENANCE_MOBILE_BUILD", "1473")
 SESSION_COOKIE_NAME = "lilletorget_maintenance_session"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 
@@ -386,7 +386,7 @@ def login_html(error: str = "", *, next_path: str = "/") -> str:
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1472">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1473">
   <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-body">
@@ -428,9 +428,9 @@ INDEX_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=1">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1472">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1473">
   <script src="/appkit-assets/lilletorget-appkit.js?v=1" defer></script>
-  <script src="/assets/maintenance-mobile.js?v=1472" defer></script>
+  <script src="/assets/maintenance-mobile.js?v=1473" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
   <div id="preloader" aria-hidden="true"></div>
@@ -439,17 +439,29 @@ INDEX_HTML = """<!doctype html>
     <a class="appkit-brand-action brand-logo" href="/" aria-label="Oppgaver">
       <img src="/static/lilletorget-mark.png" alt="">
     </a>
-    <strong class="brand-title">Lilletorget, <span>vedlikehold</span></strong>
+    <div class="appkit-header-title">Vedlikehold<span class="appkit-header-subtitle">Lilletorget</span></div>
     <button id="profileButton" class="appkit-header-action user-button" type="button" title="Bruker" aria-label="Åpne brukerprofil">
         <span id="topUserInitial" class="user-initial" aria-hidden="true">?</span>
     </button>
   </header>
   <main class="appkit-page-content has-footer app-shell">
     <section id="taskScreen" class="screen">
-      <section class="task-hero">
-        <h1>Hva skal registreres?</h1>
+      <section class="appkit-page-title maintenance-page-title">
+        <div><p>Arbeidslogg</p><h1>Vedlikehold</h1></div>
+        <span>Rask registrering<br>mens du er p&aring; stedet</span>
       </section>
 
+      <section class="appkit-glance maintenance-glance">
+        <span class="appkit-glance-kicker">Status</span>
+        <h2>Hva skal gj&oslash;res?</h2>
+        <div class="appkit-glance-metrics" style="--appkit-metric-count:3">
+          <div><strong id="todayTaskCount">0</strong><small>I dag</small></div>
+          <div><strong id="followUpTaskCount">0</strong><small>Oppf&oslash;lging</small></div>
+          <div><strong id="totalTaskCount">0</strong><small>Registrert</small></div>
+        </div>
+      </section>
+
+      <div class="appkit-content-title"><h2>Ny registrering</h2><span>Velg kategori</span></div>
       <section id="taskGrid" class="task-grid" aria-label="Vedlikeholdsoppgaver"></section>
       <p id="taskMessage" class="task-message" role="status"></p>
     </section>
@@ -585,11 +597,11 @@ INDEX_HTML = """<!doctype html>
     </section>
   </main>
   <nav class="appkit-footer maintenance-nav" style="--appkit-nav-count:3" aria-label="Vedlikeholdsnavigasjon">
-    <button type="button" class="is-active" data-mobile-nav="tasks" aria-current="page">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16M7 2v6M17 9v6M7 16v6"/></svg><span>Oppgaver</span>
-    </button>
     <button type="button" data-mobile-nav="history">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"/></svg><span>Historikk</span>
+    </button>
+    <button type="button" class="is-active is-primary" data-mobile-nav="tasks" aria-current="page">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Ny oppgave</span>
     </button>
     <button type="button" data-mobile-nav="profile">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8"/></svg><span>Konto</span>

@@ -672,3 +672,190 @@ body.appkit-mobile .inline-error {
     grid-template-columns: 1fr;
   }
 }
+
+/* AppKit Mobile visual rebuild */
+body.appkit-mobile .topbar {
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  min-height: calc(var(--appkit-header-height) + var(--appkit-safe-top));
+  padding: max(6px, var(--appkit-safe-top)) 10px 6px;
+  border-bottom-color: var(--appkit-line);
+  background: color-mix(in srgb, var(--appkit-surface) 95%, transparent);
+  box-shadow: 0 2px 12px rgb(30 38 50 / 6%);
+}
+
+body.appkit-mobile .brand-mark { width: 40px; height: 40px; }
+body.appkit-mobile .brand-copy { display: block; text-align: center; }
+body.appkit-mobile .brand-copy strong { font-size: 1rem; }
+
+body.appkit-mobile .icon-button {
+  width: 40px;
+  height: 40px;
+  border-color: var(--appkit-line);
+  border-radius: 50%;
+  background: var(--appkit-surface-soft);
+}
+
+body.appkit-mobile .app-shell {
+  width: min(100%, 620px);
+  padding: 8px 12px calc(var(--appkit-footer-height) + 24px + var(--appkit-safe-bottom));
+}
+
+body.appkit-mobile .view { gap: 12px; }
+
+body.appkit-mobile .alarm-page-title {
+  padding-top: 3px;
+  padding-bottom: 4px;
+}
+
+body.appkit-mobile .status-hero,
+body.appkit-mobile .status-hero.is-alert {
+  display: block;
+  min-height: 164px;
+  padding: 18px;
+  border: 0;
+  border-radius: var(--appkit-radius);
+  background: linear-gradient(135deg, #282b30 0%, #34383e 100%);
+  color: #fff;
+  box-shadow: var(--appkit-shadow-raised);
+}
+
+body.appkit-mobile .status-hero.is-alert {
+  background: linear-gradient(135deg, #8f3038 0%, #b4414c 100%);
+}
+
+body.appkit-mobile .alarm-glance-head {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+body.appkit-mobile .status-hero-icon,
+body.appkit-mobile .status-hero.is-alert .status-hero-icon {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: var(--appkit-radius);
+  background: rgb(255 255 255 / 11%);
+  color: #fff;
+}
+
+body.appkit-mobile .status-hero h2 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.35rem;
+}
+
+body.appkit-mobile .status-hero .appkit-glance-metrics { margin-top: 18px; }
+
+body.appkit-mobile .status-hero .appkit-glance-metrics > div + div {
+  padding-left: 10px;
+  border-left: 1px solid rgb(255 255 255 / 15%);
+}
+
+body.appkit-mobile .summary-grid { gap: 10px; }
+
+body.appkit-mobile .summary-card {
+  position: relative;
+  display: grid;
+  min-height: 132px;
+  grid-template-columns: 44px auto;
+  grid-template-rows: 46px 1fr;
+  align-content: space-between;
+  align-items: start;
+  gap: 8px;
+  padding: 13px;
+  border-color: var(--appkit-line);
+  border-radius: var(--appkit-radius);
+  background: var(--appkit-surface);
+  box-shadow: var(--appkit-shadow);
+}
+
+body.appkit-mobile .summary-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--appkit-radius);
+}
+
+body.appkit-mobile .summary-card > span:nth-child(2) {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  align-self: end;
+}
+
+body.appkit-mobile .summary-card small { color: var(--appkit-muted); font-size: 0.68rem; }
+body.appkit-mobile .summary-card strong { font-size: 0.8rem; }
+
+body.appkit-mobile .summary-card > b {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  justify-self: end;
+  color: var(--appkit-text);
+  font-size: 1.55rem;
+}
+
+body.appkit-mobile .section-block,
+body.appkit-mobile .channel-row,
+body.appkit-mobile .source-error,
+body.appkit-mobile .account-card,
+body.appkit-mobile .account-details {
+  border-color: var(--appkit-line);
+  border-radius: var(--appkit-radius);
+  background: var(--appkit-surface);
+  box-shadow: var(--appkit-shadow);
+}
+
+body.appkit-mobile .active-section { margin-top: 2px; }
+
+body.appkit-mobile .section-title {
+  min-height: 48px;
+  padding: 11px 14px;
+  border-bottom-color: var(--appkit-line);
+}
+
+body.appkit-mobile .event-row,
+body.appkit-mobile .history-row,
+body.appkit-mobile .monitor-summary-card {
+  min-height: 70px;
+  padding: 11px 14px;
+  border-color: var(--appkit-line);
+  background: var(--appkit-surface);
+}
+
+body.appkit-mobile .view-head {
+  min-height: 70px;
+  padding: 8px 4px 2px;
+  align-items: end;
+}
+
+body.appkit-mobile .view-head h1 { font-size: 1.7rem; }
+
+body.appkit-mobile .metric-strip,
+body.appkit-mobile .monitor-detail-metrics {
+  overflow: hidden;
+  border: 1px solid var(--appkit-line);
+  border-radius: var(--appkit-radius);
+  background: var(--appkit-surface);
+  box-shadow: var(--appkit-shadow);
+}
+
+body.appkit-mobile .room-grid { gap: 8px; padding: 10px; }
+
+body.appkit-mobile .room-card {
+  border-color: var(--appkit-line);
+  border-radius: var(--appkit-radius);
+  background: var(--appkit-surface-soft);
+  box-shadow: none;
+}
+
+body.appkit-mobile .bottom-nav {
+  right: max(0px, calc((100vw - 620px) / 2));
+  left: max(0px, calc((100vw - 620px) / 2));
+}
+
+@media (max-width: 380px) {
+  body.appkit-mobile .summary-grid { grid-template-columns: 1fr 1fr; }
+}

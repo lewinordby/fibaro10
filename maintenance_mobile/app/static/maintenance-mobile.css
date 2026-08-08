@@ -1147,6 +1147,234 @@ textarea:focus {
   }
 }
 
+/* AppKit Mobile visual rebuild */
+body.appkit-mobile .app-topbar {
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  min-height: calc(var(--appkit-header-height) + var(--appkit-safe-top));
+  padding: max(6px, var(--appkit-safe-top)) 10px 6px;
+  border-bottom: 1px solid var(--appkit-line);
+  background: color-mix(in srgb, var(--appkit-surface) 95%, transparent);
+  box-shadow: 0 2px 12px rgb(30 38 50 / 6%);
+}
+
+body.appkit-mobile .app-topbar::after {
+  display: none;
+}
+
+body.appkit-mobile .brand-logo img {
+  width: 40px;
+  height: 40px;
+}
+
+body.appkit-mobile .user-button {
+  width: 40px;
+  height: 40px;
+  border: 1px solid color-mix(in srgb, var(--appkit-highlight) 25%, var(--appkit-line));
+  background: var(--appkit-highlight-soft);
+}
+
+body.appkit-mobile .app-shell {
+  width: min(100%, 620px);
+  padding: 8px 12px calc(var(--appkit-footer-height) + 24px + var(--appkit-safe-bottom));
+}
+
+body.appkit-mobile .maintenance-page-title {
+  padding-top: 3px;
+}
+
+body.appkit-mobile .maintenance-glance {
+  min-height: 154px;
+  background: linear-gradient(135deg, #282b30 0%, #34383e 100%);
+}
+
+body.appkit-mobile .maintenance-glance h2 {
+  max-width: 220px;
+  font-size: 1.48rem;
+}
+
+body.appkit-mobile .maintenance-glance .appkit-glance-metrics > div + div {
+  padding-left: 10px;
+  border-left: 1px solid rgb(255 255 255 / 15%);
+}
+
+body.appkit-mobile .task-hero {
+  display: none;
+}
+
+body.appkit-mobile .task-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+body.appkit-mobile .task-button,
+body.appkit-mobile .task-button:nth-child(n) {
+  position: relative;
+  display: grid;
+  min-height: 126px;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: 48px auto;
+  align-content: space-between;
+  gap: 8px;
+  padding: 13px;
+  overflow: hidden;
+  border: 1px solid var(--appkit-line);
+  border-left: 1px solid var(--appkit-line);
+  border-radius: var(--appkit-radius);
+  background: var(--appkit-surface);
+  color: var(--appkit-text);
+  text-align: left;
+  box-shadow: var(--appkit-shadow);
+}
+
+body.appkit-mobile .task-button:last-child {
+  grid-column: 1 / -1;
+  min-height: 82px;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  grid-template-rows: auto;
+  align-items: center;
+}
+
+body.appkit-mobile .task-button::after {
+  display: none;
+}
+
+body.appkit-mobile .task-icon {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+body.appkit-mobile .task-copy {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  align-self: end;
+  gap: 2px;
+  min-width: 0;
+}
+
+body.appkit-mobile .task-button:last-child .task-copy {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+}
+
+body.appkit-mobile .task-arrow {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  color: var(--appkit-muted);
+  font-size: 1.5rem;
+  font-weight: 300;
+}
+
+body.appkit-mobile .task-button:last-child .task-arrow {
+  grid-column: 3;
+}
+
+body.appkit-mobile .task-title {
+  overflow: hidden;
+  font-size: 0.95rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.appkit-mobile .task-copy small {
+  overflow: hidden;
+  color: var(--appkit-muted);
+  font-size: 0.67rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.appkit-mobile .task-robot-cleaners .task-icon {
+  background: color-mix(in srgb, var(--appkit-energy) 15%, var(--appkit-surface));
+  color: var(--appkit-energy);
+}
+
+body.appkit-mobile .task-heat-pumps .task-icon {
+  background: var(--appkit-highlight-soft);
+  color: var(--appkit-highlight);
+}
+
+body.appkit-mobile .task-sunbeds .task-icon {
+  background: color-mix(in srgb, var(--appkit-sun) 17%, var(--appkit-surface));
+  color: var(--appkit-sun-dark);
+}
+
+body.appkit-mobile .task-cream-machine .task-icon {
+  background: color-mix(in srgb, #967adc 14%, var(--appkit-surface));
+  color: #8067c6;
+}
+
+body.appkit-mobile .task-other .task-icon {
+  background: var(--appkit-surface-soft);
+  color: var(--appkit-muted);
+}
+
+body.appkit-mobile .recent-card {
+  margin-top: 18px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--appkit-line);
+  border-radius: var(--appkit-radius);
+  background: var(--appkit-surface);
+  box-shadow: var(--appkit-shadow);
+}
+
+body.appkit-mobile .recent-card .section-head {
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid var(--appkit-line);
+}
+
+body.appkit-mobile .history-filters,
+body.appkit-mobile .history-search,
+body.appkit-mobile .history-result-meta,
+body.appkit-mobile .history-more-button {
+  margin-right: 12px;
+  margin-left: 12px;
+}
+
+body.appkit-mobile .history-filters {
+  margin-top: 12px;
+}
+
+body.appkit-mobile .recent-list {
+  margin: 8px 0 0;
+  border: 0;
+  border-top: 1px solid var(--appkit-line);
+  border-radius: 0;
+  background: var(--appkit-surface);
+}
+
+body.appkit-mobile .recent-row {
+  min-height: 70px;
+  padding: 11px 14px;
+}
+
+body.appkit-mobile .maintenance-nav {
+  right: max(0px, calc((100vw - 620px) / 2));
+  left: max(0px, calc((100vw - 620px) / 2));
+}
+
+body.appkit-mobile .maintenance-nav [data-mobile-nav="tasks"] span {
+  font-weight: 750;
+}
+
+@media (max-width: 430px) {
+  body.appkit-mobile .task-button,
+  body.appkit-mobile .task-button:nth-child(n) {
+    min-height: 120px;
+    padding: 12px;
+  }
+
+  body.appkit-mobile .task-button:last-child {
+    min-height: 76px;
+  }
+}
+
 /* AppKit Mobile integration */
 body.appkit-mobile {
   --navy: var(--appkit-text);
@@ -1472,6 +1700,12 @@ body.appkit-mobile .task-message.is-error {
 
 :root[data-theme="dark"] body.appkit-mobile .detail-follow-up p:last-child {
   color: var(--appkit-warning);
+}
+
+body.appkit-mobile.entry-mode .app-topbar,
+body.appkit-mobile.detail-mode .app-topbar,
+body.appkit-mobile.profile-mode .app-topbar {
+  display: none;
 }
 
 @media (max-width: 430px) {

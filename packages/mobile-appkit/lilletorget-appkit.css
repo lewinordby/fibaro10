@@ -2,12 +2,12 @@
 
 :root {
   color-scheme: light;
-  --appkit-page: #f4f5f7;
+  --appkit-page: #f1f3f5;
   --appkit-surface: #ffffff;
-  --appkit-surface-soft: #f8f9fb;
-  --appkit-text: #1f1f1f;
-  --appkit-muted: #727272;
-  --appkit-line: #e4e7eb;
+  --appkit-surface-soft: #f6f7f9;
+  --appkit-text: #20252b;
+  --appkit-muted: #7d838c;
+  --appkit-line: #e2e5e9;
   --appkit-highlight: #4a89dc;
   --appkit-highlight-dark: #3473c8;
   --appkit-highlight-soft: #edf5ff;
@@ -20,8 +20,8 @@
   --appkit-danger: #ed5565;
   --appkit-success: #37bc9b;
   --appkit-radius: 8px;
-  --appkit-shadow: 0 2px 10px rgb(15 23 42 / 7%);
-  --appkit-shadow-raised: 0 8px 24px rgb(15 23 42 / 10%);
+  --appkit-shadow: 0 6px 18px rgb(27 34 44 / 8%);
+  --appkit-shadow-raised: 0 12px 32px rgb(27 34 44 / 13%);
   --appkit-header-height: 58px;
   --appkit-footer-height: 64px;
   --appkit-safe-top: env(safe-area-inset-top, 0px);
@@ -224,6 +224,151 @@ body.appkit-mobile textarea:focus-visible {
   padding-bottom: calc(var(--appkit-footer-height) + 22px + var(--appkit-safe-bottom));
 }
 
+.appkit-page-title {
+  display: flex;
+  min-height: 66px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 4px 12px;
+}
+
+.appkit-page-title p {
+  margin: 0 0 1px;
+  color: var(--appkit-highlight);
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.appkit-page-title h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.06;
+}
+
+.appkit-page-title > span {
+  color: var(--appkit-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.appkit-glance {
+  position: relative;
+  overflow: hidden;
+  padding: 18px;
+  border-radius: var(--appkit-radius);
+  background: #2b2d30;
+  color: #fff;
+  box-shadow: var(--appkit-shadow-raised);
+}
+
+.appkit-glance::after {
+  position: absolute;
+  top: -44px;
+  right: -34px;
+  width: 132px;
+  height: 132px;
+  border: 24px solid rgb(255 255 255 / 7%);
+  border-radius: 50%;
+  content: "";
+}
+
+.appkit-glance h1,
+.appkit-glance h2,
+.appkit-glance h3,
+.appkit-glance p,
+.appkit-glance small,
+.appkit-glance strong {
+  position: relative;
+  z-index: 1;
+  color: inherit !important;
+}
+
+.appkit-glance-kicker {
+  display: block;
+  margin-bottom: 2px;
+  color: rgb(255 255 255 / 62%);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.appkit-glance h1,
+.appkit-glance h2 {
+  margin: 0;
+  font-size: 1.45rem;
+  line-height: 1.15;
+}
+
+.appkit-glance-metrics {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(var(--appkit-metric-count, 3), minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.appkit-glance-metrics > * {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.appkit-glance-metrics strong {
+  overflow: hidden;
+  font-size: 1.05rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.appkit-glance-metrics small {
+  color: rgb(255 255 255 / 58%) !important;
+  font-size: 0.66rem;
+}
+
+.appkit-content-title {
+  display: flex;
+  min-height: 48px;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 4px 8px;
+}
+
+.appkit-content-title h2 {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 750;
+}
+
+.appkit-content-title span {
+  color: var(--appkit-muted);
+  font-size: 0.7rem;
+}
+
+.appkit-icon-tile {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--appkit-radius);
+  background: var(--appkit-highlight-soft);
+  color: var(--appkit-highlight);
+}
+
+.appkit-icon-tile svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
 .appkit-card,
 body.appkit-mobile .card-style {
   overflow: hidden;
@@ -303,6 +448,32 @@ body.appkit-mobile .card-style {
 .appkit-footer a[aria-current="page"] {
   background: var(--appkit-highlight-soft);
   color: var(--appkit-highlight);
+}
+
+.appkit-footer a.is-primary,
+.appkit-footer button.is-primary {
+  position: relative;
+  overflow: visible;
+  padding-top: 28px;
+}
+
+.appkit-footer a.is-primary svg,
+.appkit-footer button.is-primary svg {
+  position: absolute;
+  top: -21px;
+  width: 48px;
+  height: 48px;
+  padding: 13px;
+  border: 4px solid var(--appkit-surface);
+  border-radius: 50%;
+  background: var(--appkit-highlight);
+  color: #fff;
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--appkit-highlight) 32%, transparent);
+}
+
+.appkit-footer a.is-primary.is-active,
+.appkit-footer button.is-primary.is-active {
+  background: transparent;
 }
 
 .appkit-footer svg {

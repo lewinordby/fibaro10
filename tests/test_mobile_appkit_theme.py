@@ -35,3 +35,10 @@ def test_mobile_apps_have_stable_bottom_navigation() -> None:
     assert 'class="appkit-footer bottom-nav"' in ALARM_HTML
     assert "{{ mobile_nav }}" in DASHBOARD_HTML
     assert "{{ mobile_nav }}" in DETAIL_HTML
+
+
+def test_mobile_apps_use_appkit_dashboard_patterns() -> None:
+    assert "appkit-glance maintenance-glance" in MAINTENANCE_HTML
+    assert "is-active is-primary" in MAINTENANCE_HTML
+    assert "dashboard-glance" in DASHBOARD_HTML
+    assert "appkit-content-title" in DASHBOARD_HTML
