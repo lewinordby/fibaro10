@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import re
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from functools import lru_cache
@@ -15,7 +14,8 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 
 from .auth import AUTH_SESSION_COOKIE_NAME, clear_auth_cookies, forwarded_auth_headers
-from .pwa import PWA_ICON_PATH, PwaConfig, inject_pwa_head, pwa_head_tags, register_pwa
+from .login import render_login_page
+from .pwa import PWA_ICON_PATH, PwaConfig, inject_pwa_head, register_pwa
 
 
 PROXY_METHODS = ("GET", "POST", "PATCH", "PUT", "DELETE")
@@ -126,16 +126,7 @@ def create_domain_app(config: DomainAppConfig) -> FastAPI:
         return inject_pwa_head(index_path.read_text(encoding="utf-8"), pwa)
 
     def login_html(error: str = "") -> str:
-        match = re.search(r'href="(/assets/[^"]+\.css)"', index_html())
-        css_href = match.group(1) if match else ""
-        error_html = f'<div class="mt-5 rounded-lg bg-red-500/20 px-3 py-2 text-sm text-red-700">{error}</div>' if error else ""
-        return f"""<!doctype html>
-<html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>Logg inn - {config.short_name}</title>{pwa_head_tags(pwa)}<link rel="stylesheet" href="{css_href}"></head>
-<body class="font-inter antialiased bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400">
-<main class="bg-white dark:bg-gray-900"><div class="flex min-h-[100dvh] flex-col justify-center"><div class="mx-auto w-full max-w-sm px-4 py-8">
-<h1 class="mb-2 text-3xl font-bold text-gray-800 dark:text-gray-100">{config.short_name}</h1><p class="mb-6 text-sm text-gray-500 dark:text-gray-400">Bruk samme konto som i Fibaro10.</p>
-<form method="post" action="/auth/login"><div class="space-y-4"><div><label class="mb-1 block text-sm font-medium" for="username">Brukernavn</label><input id="username" class="form-input w-full" name="username" autocomplete="username" autofocus required></div><div><label class="mb-1 block text-sm font-medium" for="password">Passord</label><input id="password" class="form-input w-full" type="password" name="password" autocomplete="current-password" required></div></div>{error_html}<div class="mt-6 flex justify-end"><button class="btn bg-gray-900 text-gray-100 hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-800 dark:hover:bg-white" type="submit">Logg inn</button></div></form>
-</div></div></main></body></html>"""
+        return render_login_page(app_name=config.short_name, build=build, pwa=pwa, error=error)
 
     @app.middleware("http")
     async def response_headers(request: Request, call_next):

@@ -37,7 +37,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from microapp_backend import PwaConfig, register_pwa
+from microapp_backend import PwaConfig, register_pwa, render_login_page
 from microapp_backend.auth import AUTH_SESSION_COOKIE_NAME, clear_auth_cookies, request_is_secure, set_auth_session_cookie
 from pydantic import BaseModel, Field
 from sqlalchemy import Boolean, BigInteger, Column, Date, DateTime, Float, ForeignKey, Integer, JSON, LargeBinary, String, Text, UniqueConstraint, and_, case, cast, delete, func, literal, or_, select, text as sql_text, tuple_, union_all, update
@@ -498,16 +498,14 @@ app = FastAPI(
     title="Fibaro10",
     lifespan=create_lifespan(lambda: startup(), lambda: shutdown_application()),
 )
-register_pwa(
-    app,
-    PwaConfig(
-        name="Lilletorget Fibaro10",
-        short_name="Fibaro10",
-        description="Samlet operativ styring, analyse og administrasjon for Lilletorget.",
-        theme_color="#4f46e5",
-        categories=("business", "productivity", "utilities"),
-    ),
+FIBARO10_PWA = PwaConfig(
+    name="Lilletorget Fibaro10",
+    short_name="Fibaro10",
+    description="Samlet operativ styring, analyse og administrasjon for Lilletorget.",
+    theme_color="#4f46e5",
+    categories=("business", "productivity", "utilities"),
 )
+register_pwa(app, FIBARO10_PWA)
 app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 DESKTOP_V2_DIST = Path(__file__).parent / "desktop_v2" / "dist"
@@ -15924,7 +15922,7 @@ async def favicon():
 
 @app.get("/auth/login", response_class=HTMLResponse)
 async def login_view(request: Request):
-    return templates.TemplateResponse(request, "login.html", {"error": ""})
+    return HTMLResponse(render_login_page(app_name="Fibaro10", build=APP_BUILD, pwa=FIBARO10_PWA))
 
 
 def redirect_keep_query(request: Request, target: str, status_code: int = 307) -> RedirectResponse:
@@ -15956,10 +15954,13 @@ async def login_submit(request: Request):
     access_key = await find_access_key(username, password)
     if not access_key:
         await log_access_attempt(request, False, "failed_login", attempted_username=username)
-        return templates.TemplateResponse(
-            request,
-            "login.html",
-            {"error": "Ugyldig brukernavn eller passord"},
+        return HTMLResponse(
+            render_login_page(
+                app_name="Fibaro10",
+                build=APP_BUILD,
+                pwa=FIBARO10_PWA,
+                error="Ugyldig brukernavn eller passord.",
+            ),
             status_code=401,
         )
     response = RedirectResponse("/status/omsetning", status_code=303)

@@ -12,6 +12,32 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1706",
+        "date": "09.08.2026",
+        "headline": "Ny felles påloggingsopplevelse",
+        "title": "Lilletorget møter brukeren med én gjennomført innloggingsside",
+        "description": (
+            "Fibaro10, appvelgeren og alle mikroappene bruker nå samme responsive påloggingsflate. "
+            "Siden samler Lilletorget-profilen, tydelig appkontekst, sikker innlogging og tilgjengelige "
+            "kontroller i et rolig uttrykk som fungerer i både lyst og mørkt tema."
+        ),
+        "applications": [
+            "Fibaro10: erstatter den gamle separate Jinja-malen med felles påloggingskomponent.",
+            "Appvelger og alle åtte mikroapper: bruker samme merkevare, layout og feilhåndtering.",
+            "Fellesplattform: legger til responsiv innlogging, passordvisning og tilgjengelighetsstøtte.",
+        ],
+        "request": "Gjør noe fantastisk ut av påloggingssiden også.",
+        "work_duration": "ca. 35 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bygger én sentral innloggingskomponent for hele mikroappstacken og Fibaro10.",
+            "Tilpasser automatisk lyst eller mørkt tema og mobil-/desktopformat.",
+            "Legger inn appnavn, buildnummer, sikkerhetsmarkering og vis/skjul passord.",
+            "Fjerner den utdaterte separate login.html-filen og utvider regresjonstestene.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1705",
         "date": "09.08.2026",
         "headline": "Felles innlogging fungerer gjennom intern gateway",

@@ -76,6 +76,16 @@ def test_domain_apps_compress_larger_responses() -> None:
         assert response.headers["content-encoding"] == "gzip"
 
 
+def test_domain_apps_use_the_shared_branded_login_page() -> None:
+    for app, _, name in APPS:
+        with TestClient(app) as client:
+            response = client.get("/auth/login")
+        assert response.status_code == 200
+        assert "Alt samlet." in response.text
+        assert "Én innlogging gjelder i alle Lilletorget-appene." in response.text
+        assert name.removeprefix("Lilletorget ") in response.text
+
+
 def test_all_microapps_bundle_the_shared_inter_font() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     font_import = 'import "@lilletorget/mosaic-theme/font.css";'

@@ -1,4 +1,5 @@
 from .pwa import PwaConfig, inject_pwa_head, pwa_head_tags, register_pwa
+from .login import render_login_page
 
 __all__ = [
     "DomainAppConfig",
@@ -6,6 +7,7 @@ __all__ = [
     "create_domain_app",
     "inject_pwa_head",
     "pwa_head_tags",
+    "render_login_page",
     "register_pwa",
 ]
 

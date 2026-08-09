@@ -15,6 +15,7 @@ from microapp_backend.pwa import (
     inject_pwa_head,
     register_pwa,
 )
+from microapp_backend.login import render_login_page
 
 
 def png_dimensions(path: Path) -> tuple[int, int]:
@@ -115,7 +116,11 @@ def test_pwa_import_does_not_load_domain_runtime_dependencies() -> None:
 def test_login_surfaces_advertise_pwa_before_authentication() -> None:
     root = Path(__file__).resolve().parents[1]
     sources = (
-        (root / "templates" / "login.html").read_text(encoding="utf-8"),
+        render_login_page(
+            app_name="Fibaro10",
+            build="test",
+            pwa=PwaConfig(name="Lilletorget Fibaro10", short_name="Fibaro10", description="Test"),
+        ),
         (root / "fibaro10ipad" / "app" / "main.py").read_text(encoding="utf-8"),
     )
 
@@ -123,3 +128,22 @@ def test_login_surfaces_advertise_pwa_before_authentication() -> None:
         assert 'rel="manifest" href="/manifest.webmanifest"' in source
         assert 'name="apple-mobile-web-app-capable" content="yes"' in source
         assert 'rel="apple-touch-icon"' in source
+
+
+def test_shared_login_page_has_branding_accessibility_and_safe_errors() -> None:
+    html = render_login_page(
+        app_name="Parkering",
+        build="42",
+        pwa=PwaConfig(name="Lilletorget Parkering", short_name="Parkering", description="Test"),
+        error='<script>alert("no")</script>',
+    )
+
+    assert "Alt samlet." in html
+    assert "Én innlogging gjelder i alle Lilletorget-appene." in html
+    assert 'autocomplete="username"' in html
+    assert 'autocomplete="current-password"' in html
+    assert 'aria-label="Vis passord"' in html
+    assert 'role="alert"' in html
+    assert "Build 42" in html
+    assert "<script>alert" not in html
+    assert "&lt;script&gt;alert" in html
