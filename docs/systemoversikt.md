@@ -1,16 +1,16 @@
 # Systemoversikt
 
-Oppdatert 08.08.2026.
+Oppdatert 09.08.2026.
 
 Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene er `docker-compose.qnap.yml`, `Caddyfile`, `system_inventory.py`, `import_jobs.py` og siste QNAP-status.
 
 ## Nøkkeltall
 
-- 29 dokumenterte systemkomponenter i `system_inventory.py`.
-- 26 komponenter er aktive i daglig drift eller som aktivt verktøy.
-- 24 komponenter har webflate eller lokal statusflate.
+- 30 dokumenterte systemkomponenter i `system_inventory.py`.
+- 28 komponenter er aktive i dagens runtime eller som aktivt verktøy.
+- 25 komponenter har webflate eller lokal statusflate.
 - 23 datakilder/importjobber er aktive i Fibaro10.
-- Produksjonsbuild ved siste sjekk: Fibaro10 build `1677`.
+- Produksjonsbuild ved siste sjekk: Fibaro10 build `1706`, commit `2395a9b`.
 - QNAP-appmappe: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`.
 - Backup/arkivvolum: `/share/CACHEDEV3_DATA/fibaro10_archive`.
 
