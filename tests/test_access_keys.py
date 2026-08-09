@@ -42,7 +42,7 @@ class AccessKeyTests(unittest.TestCase):
         self.assertNotEqual(main.hash_auth_session_token("opaque-session"), "opaque-session")
 
 
-def form_request(path: str, body: bytes) -> Request:
+def form_request(path: str, body: bytes, *, host: str = "test", forwarded_host: str = "") -> Request:
     sent = False
 
     async def receive():
@@ -52,6 +52,14 @@ def form_request(path: str, body: bytes) -> Request:
         sent = True
         return {"type": "http.request", "body": body, "more_body": False}
 
+    headers = [(b"content-type", b"application/x-www-form-urlencoded"), (b"host", host.encode("ascii"))]
+    if forwarded_host:
+        headers.extend(
+            [
+                (b"x-forwarded-host", forwarded_host.encode("ascii")),
+                (b"x-forwarded-proto", b"https"),
+            ]
+        )
     return Request(
         {
             "type": "http",
@@ -61,9 +69,9 @@ def form_request(path: str, body: bytes) -> Request:
             "path": path,
             "raw_path": path.encode("ascii"),
             "query_string": b"",
-            "headers": [(b"content-type", b"application/x-www-form-urlencoded"), (b"host", b"test")],
+            "headers": headers,
             "client": ("127.0.0.1", 1234),
-            "server": ("test", 443),
+            "server": (host, 443),
         },
         receive,
     )
@@ -81,9 +89,33 @@ class BrowserSessionTests(unittest.IsolatedAsyncioTestCase):
             response = await main.login_submit(request)
 
         cookies = "\n".join(value.decode("latin-1") for name, value in response.raw_headers if name.lower() == b"set-cookie")
-        self.assertIn("fibaro10_session=opaque-session-token", cookies)
+        self.assertIn("lilletorget_session=opaque-session-token", cookies)
         self.assertNotIn("secret-value", cookies)
         self.assertNotIn("fibaro10_access_password=secret-value", cookies)
+        session_cookie = next(line for line in cookies.splitlines() if "lilletorget_session=opaque-session-token" in line)
+        self.assertNotIn("domain=", session_cookie.lower())
+
+    async def test_login_cookie_is_shared_across_lilletorget_apps(self) -> None:
+        access_key = main.AccessKey(id=7, name="test", key_hash="credential-hash", key_prefix="key_test", active=True)
+        request = form_request(
+            "/auth/login",
+            b"username=test&password=secret-value",
+            host="fibaro10",
+            forwarded_host="omsetning.lilletorget.net",
+        )
+        with (
+            patch("main.find_access_key", new=AsyncMock(return_value=access_key)),
+            patch("main.create_auth_session", new=AsyncMock(return_value="shared-session-token")),
+            patch("main.log_access_attempt", new=AsyncMock()),
+        ):
+            response = await main.login_submit(request)
+
+        cookies = [value.decode("latin-1") for name, value in response.raw_headers if name.lower() == b"set-cookie"]
+        session_cookie = next(value for value in cookies if "lilletorget_session=shared-session-token" in value)
+        self.assertIn("domain=.lilletorget.net", session_cookie.lower())
+        self.assertIn("httponly", session_cookie.lower())
+        self.assertIn("secure", session_cookie.lower())
+        self.assertIn("samesite=lax", session_cookie.lower())
 
 
 if __name__ == "__main__":

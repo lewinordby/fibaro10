@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 
 from microapp_backend import PwaConfig, inject_pwa_head, pwa_head_tags, register_pwa
+from microapp_backend.auth import AUTH_SESSION_COOKIE_NAME, clear_auth_cookies, forwarded_auth_headers
 from microapp_backend.pwa import PWA_ICON_PATH
 
 
@@ -38,9 +39,6 @@ BUILD_FILE = Path(__file__).resolve().parents[1] / "BUILD"
 DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exists() else "1"
 APP_BUILD = os.getenv("SHELL_APP_BUILD", DEFAULT_BUILD)
 APP_COMMIT = os.getenv("SHELL_APP_COMMIT", os.getenv("APP_COMMIT", "unknown"))
-AUTH_USER_COOKIE_NAME = "fibaro10_access_username"
-AUTH_COOKIE_NAME = "fibaro10_access_password"
-AUTH_SESSION_COOKIE_NAME = "fibaro10_session"
 STATIC_DIR = Path(__file__).resolve().parent / "static" / "dist"
 PWA = PwaConfig(
     name="Lilletorget Apper",
@@ -100,20 +98,8 @@ if STATIC_DIR.exists():
     app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
 
 
-def secure_cookie(request: Request) -> bool:
-    forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip().lower()
-    return request.url.scheme == "https" or forwarded_proto == "https"
-
-
 def forwarded_headers(request: Request, *, accept: str = "application/json") -> dict[str, str]:
-    headers = {"Accept": accept, "User-Agent": "lilletorget-shell/1"}
-    if cookie := request.headers.get("cookie"):
-        headers["Cookie"] = cookie
-    if forwarded_for := request.headers.get("x-forwarded-for"):
-        headers["X-Forwarded-For"] = forwarded_for
-    elif request.client:
-        headers["X-Forwarded-For"] = request.client.host
-    return headers
+    return forwarded_auth_headers(request, accept=accept, user_agent="lilletorget-shell/1")
 
 
 async def current_user(request: Request) -> dict[str, Any]:
@@ -218,7 +204,7 @@ async def login_view(request: Request) -> Response:
             if exc.status_code != 401:
                 return HTMLResponse(login_html("Innloggingstjenesten er ikke tilgjengelig."), status_code=502)
             response = HTMLResponse(login_html("Økten er utløpt. Logg inn på nytt."))
-            response.delete_cookie(AUTH_SESSION_COOKIE_NAME, secure=secure_cookie(request), samesite="lax")
+            clear_auth_cookies(response, request)
             return response
         return RedirectResponse("/", status_code=303)
     return HTMLResponse(login_html())
@@ -252,9 +238,7 @@ async def logout(request: Request) -> RedirectResponse:
     except httpx.RequestError:
         pass
     response = RedirectResponse("/auth/login", status_code=303)
-    response.delete_cookie(AUTH_SESSION_COOKIE_NAME, secure=secure_cookie(request), samesite="lax")
-    response.delete_cookie(AUTH_USER_COOKIE_NAME, secure=secure_cookie(request), samesite="lax")
-    response.delete_cookie(AUTH_COOKIE_NAME, secure=secure_cookie(request), samesite="lax")
+    clear_auth_cookies(response, request)
     return response
 
 

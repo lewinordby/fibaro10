@@ -34,7 +34,7 @@ class ParkingAppTest(unittest.TestCase):
 
     def test_frontend_exposes_manifest_and_apple_metadata(self) -> None:
         with TestClient(app) as client:
-            response = client.get("/observerte-biler", cookies={"fibaro10_session": "test"})
+            response = client.get("/observerte-biler", cookies={"lilletorget_session": "test"})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.text.count('rel="manifest"'), 1)
         self.assertIn('rel="apple-touch-icon"', response.text)

@@ -12,6 +12,35 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1704",
+        "date": "09.08.2026",
+        "headline": "Én innlogging gjelder i alle mikroappene",
+        "title": "Felles, sikker sesjon på tvers av Lilletorget-appene",
+        "description": (
+            "Appvelgeren og de åtte mikroappene deler nå én opak Fibaro10-sesjon på "
+            "lilletorget.net. Etter én innlogging kan brukeren bytte app uten ny innlogging, "
+            "mens lokal utvikling via IP eller localhost fortsatt bruker en lokal cookie."
+        ),
+        "applications": [
+            "Fibaro10: oppretter og tilbakekaller den felles sesjonen.",
+            "Appvelger: godtar samme innlogging og videresender offentlig HTTPS-opprinnelse.",
+            "Omsetning, Parkering, Soling, Koble, Drift, Energi, Vedlikehold og System: felles SSO.",
+            "QNAP-oppsett og dokumentasjon: eksplisitt cookie-domene og synkroniserte buildnumre.",
+        ],
+        "request": "Hindre at brukeren må logge inn én gang per mikroapp.",
+        "work_duration": "ca. 50 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Innfører en ny felles lilletorget_session-cookie for å unngå konflikt med gamle vertscookies.",
+            "Setter Domain=.lilletorget.net, Secure, HttpOnly og SameSite=Lax på produksjons-HTTPS.",
+            "Beholder vertsspesifikk cookie ved lokal utvikling og direkte IP-adresse.",
+            "Rydder både ny og gammel cookie ved utløpt sesjon og utlogging.",
+            "Videresender opprinnelig vertsnavn og protokoll fra mikroappene til innloggingstjenesten.",
+            "Legger regresjonstester for delt domene, sikkerhetsflagg og videresending.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1703",
         "date": "09.08.2026",
         "headline": "Mikroapp-menyene bruker riktige HTTPS-adresser",

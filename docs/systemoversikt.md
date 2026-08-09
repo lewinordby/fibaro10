@@ -104,6 +104,18 @@ hver enkelt app.
 | `ipad.lilletorget.net` | `fibaro10ipad:8113` | Samme brukerbase som Fibaro10. |
 | `192.168.20.218:8114` | `alarm_mobile:8114` | Lokal reserveadresse for alarmappen. |
 
+## Felles innlogging i mikroappene
+
+`fibaro10.lilletorget.net`, appvelgeren og mikroappene på portserien 8150-8158 bruker
+én felles, opak sesjonscookie. Cookien heter `lilletorget_session`, gjelder for
+`.lilletorget.net` og settes med `Secure`, `HttpOnly` og `SameSite=Lax`. Passordet
+lagres ikke i nettlesercookien. Utlogging fra én av disse appene tilbakekaller den
+samme databasesesjonen og fjerner den felles cookien.
+
+Direkte lokal utvikling via IP eller `localhost` får ingen domenecookie; der settes
+samme cookien bare for det lokale vertsnavnet. Domenet kan overstyres med
+`AUTH_SESSION_COOKIE_DOMAIN`, eller deaktiveres med en tom verdi.
+
 ## Datakilder
 
 | Nr | Jobb | Kategori | Kilde | Forventet rytme |

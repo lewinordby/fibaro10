@@ -14,12 +14,10 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from .auth import AUTH_SESSION_COOKIE_NAME, clear_auth_cookies, forwarded_auth_headers
 from .pwa import PWA_ICON_PATH, PwaConfig, inject_pwa_head, pwa_head_tags, register_pwa
 
 
-AUTH_USER_COOKIE_NAME = "fibaro10_access_username"
-AUTH_COOKIE_NAME = "fibaro10_access_password"
-AUTH_SESSION_COOKIE_NAME = "fibaro10_session"
 PROXY_METHODS = ("GET", "POST", "PATCH", "PUT", "DELETE")
 ProxyAdapter = Callable[[Request, httpx.AsyncClient, dict[str, str]], Awaitable[dict[str, Any]]]
 
@@ -82,18 +80,8 @@ def create_domain_app(config: DomainAppConfig) -> FastAPI:
     if static_dir.exists():
         app.mount("/assets", StaticFiles(directory=static_dir / "assets"), name="assets")
 
-    def secure_cookie(request: Request) -> bool:
-        proto = request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip().lower()
-        return request.url.scheme == "https" or proto == "https"
-
     def forwarded_headers(request: Request, *, accept: str = "application/json") -> dict[str, str]:
-        headers = {"Accept": accept, "User-Agent": f"lilletorget-{config.service}/1"}
-        for source, target in (("cookie", "Cookie"), ("content-type", "Content-Type"), ("x-forwarded-for", "X-Forwarded-For")):
-            if value := request.headers.get(source):
-                headers[target] = value
-        if "X-Forwarded-For" not in headers and request.client:
-            headers["X-Forwarded-For"] = request.client.host
-        return headers
+        return forwarded_auth_headers(request, accept=accept, user_agent=f"lilletorget-{config.service}/1")
 
     async def core_request(request: Request, path: str) -> httpx.Response:
         client: httpx.AsyncClient = request.app.state.core_client
@@ -210,7 +198,7 @@ def create_domain_app(config: DomainAppConfig) -> FastAPI:
             if validation.status_code == 200:
                 return RedirectResponse("/", status_code=303)
             response = HTMLResponse(login_html("Økten er utløpt. Logg inn på nytt."))
-            response.delete_cookie(AUTH_SESSION_COOKIE_NAME, secure=secure_cookie(request), samesite="lax")
+            clear_auth_cookies(response, request)
             return response
         return HTMLResponse(login_html())
 
@@ -240,9 +228,7 @@ def create_domain_app(config: DomainAppConfig) -> FastAPI:
         except httpx.RequestError:
             pass
         response = RedirectResponse("/auth/login", status_code=303)
-        response.delete_cookie(AUTH_SESSION_COOKIE_NAME, secure=secure_cookie(request), samesite="lax")
-        response.delete_cookie(AUTH_USER_COOKIE_NAME, secure=secure_cookie(request), samesite="lax")
-        response.delete_cookie(AUTH_COOKIE_NAME, secure=secure_cookie(request), samesite="lax")
+        clear_auth_cookies(response, request)
         return response
 
     @app.get("/{path:path}", response_class=HTMLResponse)

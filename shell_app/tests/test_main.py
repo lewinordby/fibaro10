@@ -49,7 +49,7 @@ class ShellAppTest(unittest.TestCase):
             raise AssertionError(f"Uventet statusoppslag: {url}")
 
         cookies = {
-            "fibaro10_session": "opaque-test-session",
+            "lilletorget_session": "opaque-test-session",
         }
         with TestClient(app) as client:
             with patch.object(client.app.state.http, "get", new=AsyncMock(side_effect=fake_get)):

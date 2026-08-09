@@ -50,6 +50,29 @@ class RevenueAppTest(unittest.TestCase):
         self.assertEqual(str(kwargs["params"]), "view=oversikt")
         self.assertIn("fibaro10_access_username=master", kwargs["headers"]["Cookie"])
 
+    def test_login_forwards_public_origin_and_relays_shared_cookie(self) -> None:
+        core_response = httpx.Response(
+            303,
+            headers={
+                "location": "/status/omsetning",
+                "set-cookie": "lilletorget_session=shared-token; Domain=.lilletorget.net; Path=/; HttpOnly; Secure; SameSite=lax",
+            },
+            request=httpx.Request("POST", "http://fibaro10:8110/auth/login"),
+        )
+        with TestClient(app, follow_redirects=False) as client:
+            with patch.object(client.app.state.core_client, "post", new=AsyncMock(return_value=core_response)) as core_post:
+                response = client.post(
+                    "/auth/login",
+                    data={"username": "master", "password": "secret"},
+                    headers={"host": "omsetning.lilletorget.net", "x-forwarded-proto": "https"},
+                )
+
+        self.assertEqual(response.status_code, 303)
+        self.assertIn("domain=.lilletorget.net", response.headers["set-cookie"].lower())
+        _, kwargs = core_post.call_args
+        self.assertEqual(kwargs["headers"]["X-Forwarded-Host"], "omsetning.lilletorget.net")
+        self.assertEqual(kwargs["headers"]["X-Forwarded-Proto"], "https")
+
 
 if __name__ == "__main__":
     unittest.main()

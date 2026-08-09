@@ -38,6 +38,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from microapp_backend import PwaConfig, register_pwa
+from microapp_backend.auth import AUTH_SESSION_COOKIE_NAME, clear_auth_cookies, request_is_secure, set_auth_session_cookie
 from pydantic import BaseModel, Field
 from sqlalchemy import Boolean, BigInteger, Column, Date, DateTime, Float, ForeignKey, Integer, JSON, LargeBinary, String, Text, UniqueConstraint, and_, case, cast, delete, func, literal, or_, select, text as sql_text, tuple_, union_all, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -217,7 +218,6 @@ MASTER_ACCESS_KEY_HASH = os.getenv(
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
 AUTH_USER_COOKIE_NAME = "fibaro10_access_username"
 AUTH_COOKIE_NAME = "fibaro10_access_password"
-AUTH_SESSION_COOKIE_NAME = "fibaro10_session"
 AUTH_SESSION_HEADER_NAME = "x-session-token"
 AUTH_SESSION_MAX_AGE_SECONDS = max(3600, int(os.getenv("AUTH_SESSION_MAX_AGE_SECONDS", str(60 * 60 * 24 * 30))))
 ACCESS_FAILED_DISABLE_THRESHOLD = max(1, int(os.getenv("ACCESS_FAILED_DISABLE_THRESHOLD", "3")))
@@ -15945,8 +15945,7 @@ def redirect_with_query_params(request: Request, target: str, status_code: int =
 
 
 def should_use_secure_cookie(request: Request) -> bool:
-    forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip().lower()
-    return request.url.scheme == "https" or forwarded_proto == "https"
+    return request_is_secure(request)
 
 
 @app.post("/auth/login")
@@ -15964,18 +15963,8 @@ async def login_submit(request: Request):
             status_code=401,
         )
     response = RedirectResponse("/status/omsetning", status_code=303)
-    secure_cookie = should_use_secure_cookie(request)
     session_token = await create_auth_session(access_key, request)
-    response.set_cookie(
-        AUTH_SESSION_COOKIE_NAME,
-        session_token,
-        max_age=AUTH_SESSION_MAX_AGE_SECONDS,
-        httponly=True,
-        secure=secure_cookie,
-        samesite="lax",
-    )
-    response.delete_cookie(AUTH_USER_COOKIE_NAME)
-    response.delete_cookie(AUTH_COOKIE_NAME)
+    set_auth_session_cookie(response, request, session_token, max_age=AUTH_SESSION_MAX_AGE_SECONDS)
     await log_access_attempt(request, True, "login", access_key)
     return response
 
@@ -15984,9 +15973,7 @@ async def login_submit(request: Request):
 async def logout(request: Request):
     await revoke_auth_session(getattr(request.state, "auth_session_id", None))
     response = RedirectResponse("/auth/login", status_code=303)
-    response.delete_cookie(AUTH_SESSION_COOKIE_NAME)
-    response.delete_cookie(AUTH_USER_COOKIE_NAME)
-    response.delete_cookie(AUTH_COOKIE_NAME)
+    clear_auth_cookies(response, request)
     return response
 
 
