@@ -84,6 +84,16 @@ def test_main_pwa_proxies_every_microapp_under_its_own_scope() -> None:
     assert "web-app-origin-association" not in caddyfile
 
 
+def test_https_proxy_returns_private_vpn_traffic_through_lan_interface() -> None:
+    compose = (Path(__file__).resolve().parents[1] / "docker-compose.qnap.yml").read_text(encoding="utf-8")
+    proxy = compose.split("  fibaro10_proxy:\n", 1)[1].split("\nvolumes:\n", 1)[0]
+
+    assert "NET_ADMIN" in proxy
+    assert "ip route replace ${FIBARO10_VPN_ROUTE:-192.168.0.0/16}" in proxy
+    assert "via ${FIBARO10_LAN_GATEWAY:-192.168.20.1} dev eth1" in proxy
+    assert "exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile" in proxy
+
+
 def test_registered_manifest_and_icons_are_public_and_cacheable() -> None:
     app = FastAPI()
     register_pwa(

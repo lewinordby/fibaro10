@@ -6,6 +6,12 @@ QNAP-administrasjonen beholder `192.168.20.218`, mens Caddy alene bruker
 standardport `443` på den dedikerte adressen. Tjenestene kan derfor bare nås
 fra Lilletorget-nettet eller via VPN.
 
+HTTPS-containeren har en eksplisitt returrute for det private VPN-nettet via
+LAN-gatewayen. Dette er nødvendig fordi containeren ellers velger Docker-nettet
+som standardrute for svar til VPN-klienter. Standardene er `192.168.0.0/16` via
+`192.168.20.1`, og kan overstyres med `FIBARO10_VPN_ROUTE` og
+`FIBARO10_LAN_GATEWAY` i QNAPs `.env`.
+
 | Tjeneste | Adresse |
 | --- | --- |
 | Fibaro10 | `https://fibaro10.lilletorget.net` |

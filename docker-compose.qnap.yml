@@ -673,6 +673,14 @@ services:
     image: caddy:2.10.2-alpine
     container_name: fibaro10_proxy
     restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        ip route replace ${FIBARO10_VPN_ROUTE:-192.168.0.0/16}
+        via ${FIBARO10_LAN_GATEWAY:-192.168.20.1} dev eth1 &&
+        exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
     depends_on:
       - online_dashboard
       - owntracks_service

@@ -12,6 +12,32 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1709",
+        "date": "09.08.2026",
+        "headline": "HTTPS virker også gjennom VPN",
+        "title": "Korrekt returrute fra PWA-gatewayen til VPN-klienter",
+        "description": (
+            "Den dedikerte HTTPS-adressen var tilgjengelig fra lokalnettet, men svar til klienter "
+            "på WireGuard-nettet ble sendt ut gjennom Docker-nettet. Gatewayen får nå en eksplisitt "
+            "returrute via LAN-grensesnittet, slik at det offentlige sertifikatet og den felles "
+            "PWA-adressen virker likt lokalt og over VPN."
+        ),
+        "applications": [
+            "HTTPS-gateway: privat VPN-trafikk returneres via QNAPs LAN-gateway.",
+            "Lilletorget PWA: app.lilletorget.net er tilgjengelig over WireGuard uten lokal DNS eller sertifikat.",
+            "Tester og dokumentasjon: nettverkskravet er låst og beskrevet.",
+        ],
+        "request": "Samme problem på den eksterne PC-en med VPN; få den felles HTTPS/PWA-løsningen til å virke.",
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Gir bare HTTPS-proxyen NET_ADMIN for å kunne etablere den nødvendige statiske ruten.",
+            "Ruter private VPN-adresser via 192.168.20.1 på proxyens dedikerte LAN-grensesnitt.",
+            "Beholder DNS, offentlig sertifikat, intern tilgangskontroll og separate mikroapptjenester uendret.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1708",
         "date": "09.08.2026",
         "headline": "Én robust PWA-origin for alle mikroappene",
