@@ -17,46 +17,40 @@ from microapp_backend.pwa import PWA_ICON_PATH
 
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstrip("/")
-REVENUE_BASE_URL = os.getenv("REVENUE_BASE_URL", "http://revenue_app:8151").rstrip("/")
-REVENUE_APP_URL = os.getenv("REVENUE_APP_URL", "https://omsetning.lilletorget.net").rstrip("/")
-PARKING_BASE_URL = os.getenv("PARKING_BASE_URL", "http://parking_app:8152").rstrip("/")
-PARKING_APP_URL = os.getenv("PARKING_APP_URL", "https://parkering.lilletorget.net").rstrip("/")
-SUN_BASE_URL = os.getenv("SUN_BASE_URL", "http://sun_app:8153").rstrip("/")
-SUN_APP_URL = os.getenv("SUN_APP_URL", "https://soling.lilletorget.net").rstrip("/")
-ENERGY_BASE_URL = os.getenv("ENERGY_BASE_URL", "http://energy_app:8154").rstrip("/")
-ENERGY_APP_URL = os.getenv("ENERGY_APP_URL", "https://energi.lilletorget.net").rstrip("/")
-OPERATIONS_BASE_URL = os.getenv("OPERATIONS_BASE_URL", "http://operations_app:8155").rstrip("/")
-OPERATIONS_APP_URL = os.getenv("OPERATIONS_APP_URL", "https://drift.lilletorget.net").rstrip("/")
-MAINTENANCE_BASE_URL = os.getenv("MAINTENANCE_BASE_URL", "http://maintenance_app:8156").rstrip("/")
-MAINTENANCE_APP_URL = os.getenv("MAINTENANCE_APP_URL", "https://vedlikehold.lilletorget.net").rstrip("/")
-SYSTEM_BASE_URL = os.getenv("SYSTEM_BASE_URL", "http://system_app:8157").rstrip("/")
-SYSTEM_APP_URL = os.getenv("SYSTEM_APP_URL", "https://system.lilletorget.net").rstrip("/")
-LINK_BASE_URL = os.getenv("LINK_BASE_URL", "http://link_app:8158").rstrip("/")
-LINK_APP_URL = os.getenv("LINK_APP_URL", "https://koble.lilletorget.net").rstrip("/")
 SHELL_APP_URL = os.getenv("SHELL_APP_URL", "https://app.lilletorget.net").rstrip("/")
+
+
+def shell_app_path(path: str) -> str:
+    return f"{SHELL_APP_URL}/{path.strip('/')}/"
+
+
+REVENUE_BASE_URL = os.getenv("REVENUE_BASE_URL", "http://revenue_app:8151").rstrip("/")
+REVENUE_APP_URL = shell_app_path("omsetning")
+PARKING_BASE_URL = os.getenv("PARKING_BASE_URL", "http://parking_app:8152").rstrip("/")
+PARKING_APP_URL = shell_app_path("parkering")
+SUN_BASE_URL = os.getenv("SUN_BASE_URL", "http://sun_app:8153").rstrip("/")
+SUN_APP_URL = shell_app_path("soling")
+ENERGY_BASE_URL = os.getenv("ENERGY_BASE_URL", "http://energy_app:8154").rstrip("/")
+ENERGY_APP_URL = shell_app_path("energi")
+OPERATIONS_BASE_URL = os.getenv("OPERATIONS_BASE_URL", "http://operations_app:8155").rstrip("/")
+OPERATIONS_APP_URL = shell_app_path("drift")
+MAINTENANCE_BASE_URL = os.getenv("MAINTENANCE_BASE_URL", "http://maintenance_app:8156").rstrip("/")
+MAINTENANCE_APP_URL = shell_app_path("vedlikehold")
+SYSTEM_BASE_URL = os.getenv("SYSTEM_BASE_URL", "http://system_app:8157").rstrip("/")
+SYSTEM_APP_URL = shell_app_path("system")
+LINK_BASE_URL = os.getenv("LINK_BASE_URL", "http://link_app:8158").rstrip("/")
+LINK_APP_URL = shell_app_path("koble")
 BUILD_FILE = Path(__file__).resolve().parents[1] / "BUILD"
 DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exists() else "1"
 APP_BUILD = os.getenv("SHELL_APP_BUILD", DEFAULT_BUILD)
 APP_COMMIT = os.getenv("SHELL_APP_COMMIT", os.getenv("APP_COMMIT", "unknown"))
 STATIC_DIR = Path(__file__).resolve().parent / "static" / "dist"
-PWA_SCOPE_EXTENSIONS = (
-    "https://fibaro10.lilletorget.net",
-    "https://omsetning.lilletorget.net",
-    "https://parkering.lilletorget.net",
-    "https://soling.lilletorget.net",
-    "https://energi.lilletorget.net",
-    "https://drift.lilletorget.net",
-    "https://vedlikehold.lilletorget.net",
-    "https://system.lilletorget.net",
-    "https://koble.lilletorget.net",
-)
 PWA = PwaConfig(
     name="Lilletorget",
     short_name="Lilletorget",
     description="Appvelger og samlet inngang til Lilletorget-systemet.",
     theme_color="#4f46e5",
     categories=("business", "productivity", "utilities"),
-    scope_extensions=PWA_SCOPE_EXTENSIONS,
 )
 
 

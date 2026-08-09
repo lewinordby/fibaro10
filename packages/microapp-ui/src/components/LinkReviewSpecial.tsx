@@ -25,7 +25,7 @@ function parkingHref(path?: string | null) {
   if (!path) return "";
   const parsed = new URL(path, window.location.origin);
   const localPath = parsed.pathname.replace(/^\/parkering/, "") || "/";
-  return `https://parkering.lilletorget.net${localPath}${parsed.search}`;
+  return `https://app.lilletorget.net/parkering${localPath}${parsed.search}`;
 }
 
 function Status({ value }: { value: string }) {

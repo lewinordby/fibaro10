@@ -10,7 +10,7 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 - 28 komponenter er aktive i dagens runtime eller som aktivt verktøy.
 - 25 komponenter har webflate eller lokal statusflate.
 - 23 datakilder/importjobber er aktive i Fibaro10.
-- Produksjonsbuild ved siste sjekk: Fibaro10 build `1707`; commit settes ved deploy.
+- Produksjonsbuild ved siste sjekk: Fibaro10 build `1708`; commit settes ved deploy.
 - QNAP-appmappe: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`.
 - Backup/arkivvolum: `/share/CACHEDEV3_DATA/fibaro10_archive`.
 
@@ -19,14 +19,14 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 | Flate | URL | Formål |
 | --- | --- | --- |
 | Lilletorget-skall | `https://app.lilletorget.net/` | Felles intern appvelger og live tjenestestatus. |
-| Omsetning | `https://omsetning.lilletorget.net/` | Utskilt fagapp for omsetning og sammenligning. |
-| Parkering | `https://parkering.lilletorget.net/` | Utskilt fagapp for parkeringer, kjøretøy, oppgjør og analyse. |
-| Soling | `https://soling.lilletorget.net/` | Soltimer, dagslinje, bilder, produkter, medlemmer og oppgjør. |
-| Energi | `https://energi.lilletorget.net/` | Sanntidsforbruk, Elvia, kurs/last og analyse per solseng. |
-| Bygg og drift | `https://drift.lilletorget.net/` | Ventilasjon, lys, dører, solrom, pullerter og renhold. |
-| Vedlikehold | `https://vedlikehold.lilletorget.net/` | Besøk, oppgaver og vedlikeholdshistorikk. |
-| System | `https://system.lilletorget.net/` | Datakilder, brukere, build, manual, varslinger og systemstatus. |
-| Koble | `https://koble.lilletorget.net/` | Kandidater og kontroll av koblinger mellom biler og Sun2-ID. |
+| Omsetning | `https://app.lilletorget.net/omsetning/` | Utskilt fagapp for omsetning og sammenligning. |
+| Parkering | `https://app.lilletorget.net/parkering/` | Utskilt fagapp for parkeringer, kjøretøy, oppgjør og analyse. |
+| Soling | `https://app.lilletorget.net/soling/` | Soltimer, dagslinje, bilder, produkter, medlemmer og oppgjør. |
+| Energi | `https://app.lilletorget.net/energi/` | Sanntidsforbruk, Elvia, kurs/last og analyse per solseng. |
+| Bygg og drift | `https://app.lilletorget.net/drift/` | Ventilasjon, lys, dører, solrom, pullerter og renhold. |
+| Vedlikehold | `https://app.lilletorget.net/vedlikehold/` | Besøk, oppgaver og vedlikeholdshistorikk. |
+| System | `https://app.lilletorget.net/system/` | Datakilder, brukere, build, manual, varslinger og systemstatus. |
+| Koble | `https://app.lilletorget.net/koble/` | Kandidater og kontroll av koblinger mellom biler og Sun2-ID. |
 | Fibaro10 | `https://fibaro10.lilletorget.net/` | Hovedapp med offentlig betrodd HTTPS, kun tilgjengelig internt/VPN. |
 | Fibaro10 HTTP-reserve | `http://192.168.20.218:8110/` | Teknisk reserve, API og helsesjekker. |
 | Online dashboard | `https://online.lilletorget.net/` | Ekstern begrenset mobil/dashboardflate. |
@@ -88,7 +88,7 @@ hver enkelt app.
 | Domene | Intern tjeneste | Kommentar |
 | --- | --- | --- |
 | `fibaro10.lilletorget.net:443` | `fibaro10:8110` | Hovedapp med offentlig betrodd sertifikat, kun LAN/VPN. |
-| `app.lilletorget.net:443` | `shell_app:8150` | Felles intern appvelger. |
+| `app.lilletorget.net:443` | `shell_app:8150` og fagappene `8151-8158` | Felles PWA-origin; Caddy ruter hver fagapp etter sti. |
 | `omsetning.lilletorget.net:443` | `revenue_app:8151` | Intern omsetningsapp. |
 | `parkering.lilletorget.net:443` | `parking_app:8152` | Intern parkeringsapp. |
 | `soling.lilletorget.net:443` | `sun_app:8153` | Intern solingsapp. |
@@ -119,11 +119,10 @@ samme cookien bare for det lokale vertsnavnet. Domenet kan overstyres med
 ## Felles installert desktopapp
 
 `app.lilletorget.net` er hovedidentiteten for den installerte PWA-en `Lilletorget`.
-Manifestets `scope_extensions` omfatter Fibaro10 og alle åtte fagappdomener. Caddy
-leverer en offentlig tilgjengelig `/.well-known/web-app-origin-association` på hvert
-internt HTTPS-domene, med hovedidentiteten `https://app.lilletorget.net/` og scope
-`/`. Dermed blir appbytte i Chrome 139 eller nyere værende i det samme standalone-
-vinduet uten en ekstra out-of-scope-adresselinje.
+Alle fagappene presenteres som stier under den samme origin-en, mens Caddy fortsatt
+ruter dem til separate containere og buildløp. Dermed ligger hele den installerte
+opplevelsen i vanlig manifest-scope `/`, uten `scope_extensions` eller association-
+filer. Appbytte blir værende i samme standalone-vindu uten ekstra adresselinje.
 
 Bare appvelgeren skal installeres. Etter manifestendringer må gamle separate
 installasjoner av Fibaro10 eller fagappene avinstalleres før `Lilletorget` installeres

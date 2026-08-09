@@ -1,8 +1,9 @@
 import type { AppConfig, AuthUser, BusinessComparisonResponse, BusinessOverviewResponse, JsonRecord, ModuleAction, ModuleEditConfig, ModuleResponse, ModuleRow, OperationsOverviewResponse, SunSessionImageBrowser, YearComparisonResponse } from "./types";
+import { scopeAppPayload, withCurrentAppApiPath } from "./navigation";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isFormData = init?.body instanceof FormData;
-  const response = await fetch(path, {
+  const response = await fetch(withCurrentAppApiPath(path), {
     credentials: "same-origin",
     ...init,
     headers: { Accept: "application/json", ...(isFormData ? {} : init?.headers) },
@@ -13,7 +14,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   const payload = (await response.json().catch(() => null)) as { detail?: string; message?: string } | null;
   if (!response.ok) throw new Error(payload?.message || payload?.detail || `${response.status} ${response.statusText}`);
-  return payload as T;
+  return scopeAppPayload(payload as T);
 }
 
 function endpointFromTemplate(template: string, row: ModuleRow) {

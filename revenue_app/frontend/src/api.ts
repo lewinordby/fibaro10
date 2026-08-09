@@ -7,9 +7,10 @@ import type {
   RevenueMonthResponse,
   YearComparisonResponse,
 } from "./types";
+import { scopeAppPayload, withCurrentAppApiPath } from "@lilletorget/microapp-ui";
 
 async function get<T>(path: string): Promise<T> {
-  const response = await fetch(path, {
+  const response = await fetch(withCurrentAppApiPath(path), {
     credentials: "same-origin",
     headers: { Accept: "application/json" },
   });
@@ -19,7 +20,7 @@ async function get<T>(path: string): Promise<T> {
   }
   const payload = (await response.json().catch(() => null)) as { detail?: string } | null;
   if (!response.ok) throw new Error(payload?.detail || `${response.status} ${response.statusText}`);
-  return payload as T;
+  return scopeAppPayload(payload as T);
 }
 
 export const api = {
@@ -31,4 +32,3 @@ export const api = {
   year: (year?: string) => get<YearComparisonResponse>(`/api/omsetning/year-comparison${year ? `?year=${encodeURIComponent(year)}` : ""}`),
   month: (month?: string) => get<RevenueMonthResponse>(`/api/revenue/month${month ? `?month=${encodeURIComponent(month)}` : ""}`),
 };
-

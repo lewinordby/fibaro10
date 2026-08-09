@@ -12,6 +12,34 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1708",
+        "date": "09.08.2026",
+        "headline": "Én robust PWA-origin for alle mikroappene",
+        "title": "Fagappene presenteres som stier under app.lilletorget.net",
+        "description": (
+            "Den eksperimentelle scope_extensions-løsningen er erstattet med vanlig, stibasert "
+            "reverse proxy. Omsetning, parkering, soling og de øvrige fagappene kjører fortsatt "
+            "som separate containere, men nettleseren ser dem som deler av én origin og ett PWA-scope."
+        ),
+        "applications": [
+            "HTTPS-gateway: ruter åtte fagappstier under app.lilletorget.net.",
+            "Alle fagapper: støtter stibasert frontend, API, ressurser og intern navigasjon.",
+            "Appvelger: publiserer bare de nye kanoniske stiadressene.",
+            "Dokumentasjon og tester: beskriver og låser arkitekturen med én origin.",
+        ],
+        "request": "Samme problem etter ny installasjon; fjern den ekstra out-of-scope-linjen på en robust måte.",
+        "work_duration": "ca. 90 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Flytter brukeradressene til /omsetning, /parkering, /soling, /energi, /drift, /vedlikehold, /system og /koble.",
+            "Legger felles base-path-håndtering i router, appvelger, API-klient og ressursdata.",
+            "Bygger hver fagapp med sin egen statiske sti og beholder separate containere og buildnummer.",
+            "Fjerner scope_extensions og web-app-origin-association fra produksjonsoppsettet.",
+            "Beholder de gamle subdomenene som tekniske reserveadresser.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1707",
         "date": "09.08.2026",
         "headline": "Én installert Lilletorget-app uten ekstra adresselinje",

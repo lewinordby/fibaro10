@@ -143,14 +143,17 @@ def test_every_microapp_header_uses_the_shared_app_dock() -> None:
     navigation = json.loads((repo_root / "packages" / "microapp-ui" / "src" / "navigation.json").read_text(encoding="utf-8"))
     assert sorted(app["port"] for app in navigation["apps"]) == list(range(8151, 8159))
     assert [app["url"] for app in navigation["apps"]] == [
-        "https://omsetning.lilletorget.net",
-        "https://parkering.lilletorget.net",
-        "https://soling.lilletorget.net",
-        "https://koble.lilletorget.net",
-        "https://drift.lilletorget.net",
-        "https://energi.lilletorget.net",
-        "https://vedlikehold.lilletorget.net",
-        "https://system.lilletorget.net",
+        "https://app.lilletorget.net/omsetning/",
+        "https://app.lilletorget.net/parkering/",
+        "https://app.lilletorget.net/soling/",
+        "https://app.lilletorget.net/koble/",
+        "https://app.lilletorget.net/drift/",
+        "https://app.lilletorget.net/energi/",
+        "https://app.lilletorget.net/vedlikehold/",
+        "https://app.lilletorget.net/system/",
+    ]
+    assert [app["basePath"] for app in navigation["apps"]] == [
+        "/omsetning", "/parkering", "/soling", "/koble", "/drift", "/energi", "/vedlikehold", "/system",
     ]
     assert 'aria-label="Bytt app"' in dock
     assert "border-r" in dock

@@ -619,6 +619,7 @@ export type DomainUiConfig = {
   appId: AppDockId;
   name: string;
   shortName: string;
+  basePath: string;
   icon: import("./components/MosaicIcon").IconName;
   accent: Accent;
   navigation: NavigationGroup[];

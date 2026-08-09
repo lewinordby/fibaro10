@@ -10,14 +10,14 @@ fra Lilletorget-nettet eller via VPN.
 | --- | --- |
 | Fibaro10 | `https://fibaro10.lilletorget.net` |
 | Appvelger | `https://app.lilletorget.net` |
-| Omsetning | `https://omsetning.lilletorget.net` |
-| Parkering | `https://parkering.lilletorget.net` |
-| Soling | `https://soling.lilletorget.net` |
-| Energi | `https://energi.lilletorget.net` |
-| Bygg og drift | `https://drift.lilletorget.net` |
-| Vedlikehold | `https://vedlikehold.lilletorget.net` |
-| System | `https://system.lilletorget.net` |
-| Koble | `https://koble.lilletorget.net` |
+| Omsetning | `https://app.lilletorget.net/omsetning/` |
+| Parkering | `https://app.lilletorget.net/parkering/` |
+| Soling | `https://app.lilletorget.net/soling/` |
+| Energi | `https://app.lilletorget.net/energi/` |
+| Bygg og drift | `https://app.lilletorget.net/drift/` |
+| Vedlikehold | `https://app.lilletorget.net/vedlikehold/` |
+| System | `https://app.lilletorget.net/system/` |
+| Koble | `https://app.lilletorget.net/koble/` |
 
 ## Sertifikater
 
@@ -50,14 +50,15 @@ Port `8443` på hovedadressen beholdes bare som teknisk HTTPS-reserve.
 ## Installert hovedapp
 
 `https://app.lilletorget.net` er den eneste PWA-en som skal installeres for den
-interne desktopløsningen. Manifestet heter `Lilletorget` og utvider sitt scope til
-Fibaro10 og alle åtte fagapper. Hvert av de assosierte domenene bekrefter forholdet
-med `/.well-known/web-app-origin-association`, levert direkte av Caddy.
+interne desktopløsningen. Manifestet heter `Lilletorget`, og Caddy presenterer hver
+fagapp som en sti under samme origin. Eksempelvis går `/parkering/` fortsatt til den
+separate `parking_app`-containeren, mens `/energi/` går til `energy_app`.
 
-Dette gjør at Chrome 139 eller nyere kan bytte mellom appene uten den ekstra
-adresselinjen for innhold utenfor scope. Mikroappene er fortsatt separate tjenester,
-kodebaser og domener; samlingen gjelder bare det installerte appvinduet.
+Alle sider ligger dermed naturlig innenfor manifestets vanlige scope `/`. Løsningen
+er ikke avhengig av den eksperimentelle `scope_extensions`-funksjonen, lokal DNS
+eller lokale sertifikater, og Chrome viser ingen out-of-scope-adresselinje ved
+appbytte. De gamle fagappsubdomenene beholdes som tekniske reserveadresser.
 
-Etter en endring i manifest eller scope må gamle installasjoner av Fibaro10 og
-fagappene avinstalleres. Åpne deretter `https://app.lilletorget.net` i Chrome og
-installer bare denne appen på nytt.
+Etter denne omleggingen skal gamle separate installasjoner av Fibaro10 og fagappene
+avinstalleres. Åpne deretter `https://app.lilletorget.net` i Chrome og installer bare
+denne appen på nytt.

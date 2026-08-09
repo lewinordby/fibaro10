@@ -6,7 +6,7 @@ export { Layout as DomainLayout } from "./components/Layout";
 export { Chart, mosaicChartColors } from "./components/Chart";
 export type { MosaicChartConfig, MosaicChartDataset } from "./components/Chart";
 export { AppDock } from "./components/AppDock";
-export { appDefinitions, findNavigationGroup, findNavigationItem, getAppDefinition, getDomainConfig, resolveAppUrl, resolveCorePath } from "./navigation";
+export { appDefinitions, findNavigationGroup, findNavigationItem, getAppDefinition, getCurrentAppBasePath, getDomainConfig, removeCurrentAppBasePath, resolveAppUrl, resolveCorePath, scopeAppPayload, withCurrentAppApiPath, withCurrentAppBasePath } from "./navigation";
 export { IconButton, MetricCard, Panel, Segmented } from "./components/Mosaic";
 export { MosaicIcon } from "./components/MosaicIcon";
 export type { IconName } from "./components/MosaicIcon";

@@ -26,20 +26,7 @@ class ShellAppTest(unittest.TestCase):
         self.assertEqual(manifest_payload["name"], "Lilletorget")
         self.assertEqual(manifest_payload["short_name"], "Lilletorget")
         self.assertEqual(manifest_payload["display"], "standalone")
-        self.assertEqual(
-            [item["origin"] for item in manifest_payload["scope_extensions"]],
-            [
-                "https://fibaro10.lilletorget.net",
-                "https://omsetning.lilletorget.net",
-                "https://parkering.lilletorget.net",
-                "https://soling.lilletorget.net",
-                "https://energi.lilletorget.net",
-                "https://drift.lilletorget.net",
-                "https://vedlikehold.lilletorget.net",
-                "https://system.lilletorget.net",
-                "https://koble.lilletorget.net",
-            ],
-        )
+        self.assertNotIn("scope_extensions", manifest_payload)
 
     def test_frontend_redirects_without_login(self) -> None:
         with TestClient(app, follow_redirects=False) as client:
@@ -79,6 +66,8 @@ class ShellAppTest(unittest.TestCase):
         self.assertEqual(rows["revenue"]["build"], "4")
         self.assertEqual(rows["parking"]["status"], "ok")
         self.assertEqual(rows["parking"]["build"], "1")
+        self.assertEqual(rows["revenue"]["url"], "https://app.lilletorget.net/omsetning/")
+        self.assertEqual(rows["parking"]["url"], "https://app.lilletorget.net/parkering/")
 
 
 if __name__ == "__main__":

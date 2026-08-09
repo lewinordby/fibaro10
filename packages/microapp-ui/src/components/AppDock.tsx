@@ -10,6 +10,7 @@ type AppDockItem = {
   icon: IconName;
   port: number;
   url: string;
+  basePath: string;
   iconClass: string;
   activeClass: string;
 };
@@ -31,6 +32,7 @@ const apps: AppDockItem[] = appDefinitions.map((app) => ({
   icon: app.icon,
   port: app.port,
   url: app.url,
+  basePath: app.basePath,
   ...dockClasses[app.appId],
 }));
 

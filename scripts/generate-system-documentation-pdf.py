@@ -618,14 +618,14 @@ def styles() -> dict[str, ParagraphStyle]:
 
 WEB_APPS = [
     ("Appvelger", "https://app.lilletorget.net/", "8150", "Felles inngang, appstatus og hurtigbytte mellom fagappene."),
-    ("Omsetning", "https://omsetning.lilletorget.net/", "8151", "Dashboard, månedsoversikt, akkumulert utvikling og sammenligning."),
-    ("Parkering", "https://parkering.lilletorget.net/", "8152", "Parkeringer, kjøretøy, oppgjør, områder, tidsanalyse og prognoser."),
-    ("Soling", "https://soling.lilletorget.net/", "8153", "Soltimer, bilder, senger, medlemmer, produkter, oppgjør og analyse."),
-    ("Energi", "https://energi.lilletorget.net/", "8154", "Sanntid, Elvia-kontroll, kurs/last og forbruk per solseng."),
-    ("Bygg og drift", "https://drift.lilletorget.net/", "8155", "Ventilasjon, lys, dører, solrom, pullerter og renhold."),
-    ("Vedlikehold", "https://vedlikehold.lilletorget.net/", "8156", "Besøk, oppgaver, redigering og vedlikeholdshistorikk."),
-    ("System", "https://system.lilletorget.net/", "8157", "Datakilder, brukere, varslinger, build, manual og teknisk status."),
-    ("Koble", "https://koble.lilletorget.net/", "8158", "Kandidater og kontroll av kobling mellom bil og Sun2-ID."),
+    ("Omsetning", "https://app.lilletorget.net/omsetning/", "8151", "Dashboard, månedsoversikt, akkumulert utvikling og sammenligning."),
+    ("Parkering", "https://app.lilletorget.net/parkering/", "8152", "Parkeringer, kjøretøy, oppgjør, områder, tidsanalyse og prognoser."),
+    ("Soling", "https://app.lilletorget.net/soling/", "8153", "Soltimer, bilder, senger, medlemmer, produkter, oppgjør og analyse."),
+    ("Energi", "https://app.lilletorget.net/energi/", "8154", "Sanntid, Elvia-kontroll, kurs/last og forbruk per solseng."),
+    ("Bygg og drift", "https://app.lilletorget.net/drift/", "8155", "Ventilasjon, lys, dører, solrom, pullerter og renhold."),
+    ("Vedlikehold", "https://app.lilletorget.net/vedlikehold/", "8156", "Besøk, oppgaver, redigering og vedlikeholdshistorikk."),
+    ("System", "https://app.lilletorget.net/system/", "8157", "Datakilder, brukere, varslinger, build, manual og teknisk status."),
+    ("Koble", "https://app.lilletorget.net/koble/", "8158", "Kandidater og kontroll av kobling mellom bil og Sun2-ID."),
     ("Fibaro10", "https://fibaro10.lilletorget.net/", "8110", "Felles API og eksisterende komplett hovedgrensesnitt."),
 ]
 

@@ -4,10 +4,11 @@
       "id": "revenue",
       "name": "Lilletorget Omsetning",
       "shortName": "Omsetning",
+      "basePath": "/omsetning",
       "icon": "chart",
       "accent": "red",
       "port": 8151,
-      "url": "https://omsetning.lilletorget.net",
+      "url": "https://app.lilletorget.net/omsetning/",
       "groups": [
         {
           "label": "Dashboard",
@@ -38,10 +39,11 @@
       "id": "parking",
       "name": "Lilletorget Parkering",
       "shortName": "Parkering",
+      "basePath": "/parkering",
       "icon": "parking",
       "accent": "sky",
       "port": 8152,
-      "url": "https://parkering.lilletorget.net",
+      "url": "https://app.lilletorget.net/parkering/",
       "groups": [
         {
           "label": "Oversikt",
@@ -96,10 +98,11 @@
       "id": "sun",
       "name": "Lilletorget Soling",
       "shortName": "Soling",
+      "basePath": "/soling",
       "icon": "sun",
       "accent": "yellow",
       "port": 8153,
-      "url": "https://soling.lilletorget.net",
+      "url": "https://app.lilletorget.net/soling/",
       "groups": [
         {
           "label": "Oversikt",
@@ -150,10 +153,11 @@
       "id": "link",
       "name": "Lilletorget Koble",
       "shortName": "Koble",
+      "basePath": "/koble",
       "icon": "link",
       "accent": "violet",
       "port": 8158,
-      "url": "https://koble.lilletorget.net",
+      "url": "https://app.lilletorget.net/koble/",
       "groups": [
         {
           "label": "Kandidater",
@@ -185,10 +189,11 @@
       "id": "operations",
       "name": "Lilletorget Bygg og drift",
       "shortName": "Bygg og drift",
+      "basePath": "/drift",
       "icon": "building",
       "accent": "violet",
       "port": 8155,
-      "url": "https://drift.lilletorget.net",
+      "url": "https://app.lilletorget.net/drift/",
       "groups": [
         {
           "label": "Driftsoversikt",
@@ -269,10 +274,11 @@
       "id": "energy",
       "name": "Lilletorget Energi",
       "shortName": "Energi",
+      "basePath": "/energi",
       "icon": "energy",
       "accent": "green",
       "port": 8154,
-      "url": "https://energi.lilletorget.net",
+      "url": "https://app.lilletorget.net/energi/",
       "groups": [
         {
           "label": "Status",
@@ -318,10 +324,11 @@
       "id": "maintenance",
       "name": "Lilletorget Vedlikehold",
       "shortName": "Vedlikehold",
+      "basePath": "/vedlikehold",
       "icon": "tools",
       "accent": "green",
       "port": 8156,
-      "url": "https://vedlikehold.lilletorget.net",
+      "url": "https://app.lilletorget.net/vedlikehold/",
       "groups": [
         {
           "label": "Oppgaver",
@@ -343,10 +350,11 @@
       "id": "system",
       "name": "Lilletorget System",
       "shortName": "System",
+      "basePath": "/system",
       "icon": "settings",
       "accent": "violet",
       "port": 8157,
-      "url": "https://system.lilletorget.net",
+      "url": "https://app.lilletorget.net/system/",
       "groups": [
         {
           "label": "Status",

@@ -1,4 +1,5 @@
 import { createContext, type MouseEvent, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { removeCurrentAppBasePath, withCurrentAppBasePath } from "./navigation";
 
 type RouterValue = {
   pathname: string;
@@ -9,7 +10,7 @@ type RouterValue = {
 const RouterContext = createContext<RouterValue | null>(null);
 
 function currentLocation() {
-  return { pathname: window.location.pathname || "/", search: window.location.search || "" };
+  return { pathname: removeCurrentAppBasePath(window.location.pathname || "/"), search: window.location.search || "" };
 }
 
 export function AppRouter({ children }: { children: ReactNode }) {
@@ -20,7 +21,8 @@ export function AppRouter({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
   const navigate = useCallback((target: string, replace = false) => {
-    const next = new URL(target, window.location.origin);
+    const scopedTarget = /^https?:\/\//i.test(target) ? target : withCurrentAppBasePath(target);
+    const next = new URL(scopedTarget, window.location.origin);
     if (next.origin !== window.location.origin) {
       window.location.assign(next.href);
       return;
@@ -48,7 +50,7 @@ export function AppLink({ to, className, children }: { to: string; className?: s
     event.preventDefault();
     navigate(to);
   }
-  return <a href={to} className={className} onClick={onClick}>{children}</a>;
+  return <a href={withCurrentAppBasePath(to)} className={className} onClick={onClick}>{children}</a>;
 }
 
 export function useAppSearchParams() {
@@ -60,4 +62,3 @@ export function useAppSearchParams() {
   }, [navigate, pathname]);
   return [params, setParams] as const;
 }
-

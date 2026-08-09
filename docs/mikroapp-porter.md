@@ -38,6 +38,12 @@ egne hovedmenyvalg. Hver app bygger fortsatt egne, versjonerte statiske filer.
 Chart.js og spesialiserte fagflater lastes ved behov, slik at førstegangslasten
 holdes liten.
 
+I brukergrensesnittet presenteres appene som `/omsetning/`, `/parkering/`,
+`/soling/`, `/energi/`, `/drift/`, `/vedlikehold/`, `/system/` og `/koble/` under
+`https://app.lilletorget.net`. Caddy fjerner bare app-prefikset før forespørselen
+sendes til den tilhørende porten. Appene forblir dermed teknisk og byggmessig
+separate, samtidig som den installerte PWA-en har én origin.
+
 ## Utvikling og utrulling
 
 - En enkelt fagapp: `scripts/deploy-domain-app-qnap.ps1 -App <appnavn>`
