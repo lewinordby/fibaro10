@@ -29,6 +29,7 @@ class PwaConfig:
     orientation: str = "any"
     categories: tuple[str, ...] = field(default_factory=lambda: ("business", "productivity"))
     shortcuts: tuple[dict[str, Any], ...] = field(default_factory=tuple)
+    scope_extensions: tuple[str, ...] = field(default_factory=tuple)
 
     def manifest(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -71,6 +72,11 @@ class PwaConfig:
         }
         if self.shortcuts:
             payload["shortcuts"] = list(self.shortcuts)
+        if self.scope_extensions:
+            payload["scope_extensions"] = [
+                {"type": "origin", "origin": origin}
+                for origin in dict.fromkeys(self.scope_extensions)
+            ]
         return payload
 
 

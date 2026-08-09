@@ -39,12 +39,24 @@ DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exi
 APP_BUILD = os.getenv("SHELL_APP_BUILD", DEFAULT_BUILD)
 APP_COMMIT = os.getenv("SHELL_APP_COMMIT", os.getenv("APP_COMMIT", "unknown"))
 STATIC_DIR = Path(__file__).resolve().parent / "static" / "dist"
+PWA_SCOPE_EXTENSIONS = (
+    "https://fibaro10.lilletorget.net",
+    "https://omsetning.lilletorget.net",
+    "https://parkering.lilletorget.net",
+    "https://soling.lilletorget.net",
+    "https://energi.lilletorget.net",
+    "https://drift.lilletorget.net",
+    "https://vedlikehold.lilletorget.net",
+    "https://system.lilletorget.net",
+    "https://koble.lilletorget.net",
+)
 PWA = PwaConfig(
-    name="Lilletorget Apper",
-    short_name="Apper",
+    name="Lilletorget",
+    short_name="Lilletorget",
     description="Appvelger og samlet inngang til Lilletorget-systemet.",
     theme_color="#4f46e5",
     categories=("business", "productivity", "utilities"),
+    scope_extensions=PWA_SCOPE_EXTENSIONS,
 )
 
 

@@ -46,6 +46,32 @@ def test_manifest_contains_complete_install_metadata() -> None:
     ]
 
 
+def test_manifest_serializes_unique_scope_extensions_in_order() -> None:
+    manifest = PwaConfig(
+        name="Lilletorget",
+        short_name="Lilletorget",
+        description="Felles app.",
+        scope_extensions=(
+            "https://parkering.lilletorget.net",
+            "https://omsetning.lilletorget.net",
+            "https://parkering.lilletorget.net",
+        ),
+    ).manifest()
+
+    assert manifest["scope_extensions"] == [
+        {"type": "origin", "origin": "https://parkering.lilletorget.net"},
+        {"type": "origin", "origin": "https://omsetning.lilletorget.net"},
+    ]
+
+
+def test_internal_https_hosts_publish_the_main_pwa_association() -> None:
+    caddyfile = (Path(__file__).resolve().parents[1] / "Caddyfile").read_text(encoding="utf-8")
+
+    assert "@web_app_origin_association path /.well-known/web-app-origin-association" in caddyfile
+    assert 'Content-Type "application/json; charset=utf-8"' in caddyfile
+    assert '`{"https://app.lilletorget.net/":{"scope":"/"}}` 200' in caddyfile
+
+
 def test_registered_manifest_and_icons_are_public_and_cacheable() -> None:
     app = FastAPI()
     register_pwa(

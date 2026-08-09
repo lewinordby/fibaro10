@@ -12,6 +12,37 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1707",
+        "date": "09.08.2026",
+        "headline": "Én installert Lilletorget-app uten ekstra adresselinje",
+        "title": "Mikroappene inngår i samme PWA-vindu",
+        "description": (
+            "Appvelgeren er nå hovedidentiteten for den installerte Lilletorget-appen. "
+            "Chrome kan bytte mellom Fibaro10 og de åtte fagappene uten å vise den mørke "
+            "out-of-scope-linjen, samtidig som appene fortsatt er separate tjenester og kodebaser."
+        ),
+        "applications": [
+            "Appvelger: manifest med Lilletorget-navn og scope extensions for alle interne desktopapper.",
+            "HTTPS-gateway: origin-assosiasjon leveres på hvert internt appdomene.",
+            "Fibaro10 og fagappene: beholdes som separate tjenester innenfor hovedappens utvidede scope.",
+            "Dokumentasjon og tester: installasjonsflyt, Chrome-krav og PWA-kontrakt er låst.",
+        ],
+        "request": (
+            "Gjør som anbefalt: bruk én installert hovedapp på app.lilletorget.net og "
+            "scope_extensions slik at mikroappene åpnes uten Chromes out-of-scope-linje."
+        ),
+        "work_duration": "ca. 40 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Gjør app.lilletorget.net til PWA-en Lilletorget.",
+            "Legger Fibaro10 og alle åtte fagappdomener i manifestets scope_extensions.",
+            "Publiserer web-app-origin-association med korrekt hovedidentitet og scope fra Caddy.",
+            "Dokumenterer at gamle enkeltapper må avinstalleres før Lilletorget installeres på nytt.",
+            "Legger regresjonstester for manifestrekkefølge, duplikater og origin-assosiasjon.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1706",
         "date": "09.08.2026",
         "headline": "Ny felles påloggingsopplevelse",

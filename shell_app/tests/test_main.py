@@ -22,8 +22,24 @@ class ShellAppTest(unittest.TestCase):
         self.assertEqual(health.status_code, 200)
         self.assertEqual(health.json()["service"], "shell_app")
         self.assertEqual(config.json()["shellUrl"], "https://app.lilletorget.net")
-        self.assertEqual(manifest.json()["name"], "Lilletorget Apper")
-        self.assertEqual(manifest.json()["display"], "standalone")
+        manifest_payload = manifest.json()
+        self.assertEqual(manifest_payload["name"], "Lilletorget")
+        self.assertEqual(manifest_payload["short_name"], "Lilletorget")
+        self.assertEqual(manifest_payload["display"], "standalone")
+        self.assertEqual(
+            [item["origin"] for item in manifest_payload["scope_extensions"]],
+            [
+                "https://fibaro10.lilletorget.net",
+                "https://omsetning.lilletorget.net",
+                "https://parkering.lilletorget.net",
+                "https://soling.lilletorget.net",
+                "https://energi.lilletorget.net",
+                "https://drift.lilletorget.net",
+                "https://vedlikehold.lilletorget.net",
+                "https://system.lilletorget.net",
+                "https://koble.lilletorget.net",
+            ],
+        )
 
     def test_frontend_redirects_without_login(self) -> None:
         with TestClient(app, follow_redirects=False) as client:

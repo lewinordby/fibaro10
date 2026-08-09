@@ -10,7 +10,7 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 - 28 komponenter er aktive i dagens runtime eller som aktivt verktøy.
 - 25 komponenter har webflate eller lokal statusflate.
 - 23 datakilder/importjobber er aktive i Fibaro10.
-- Produksjonsbuild ved siste sjekk: Fibaro10 build `1706`, commit `2395a9b`.
+- Produksjonsbuild ved siste sjekk: Fibaro10 build `1707`; commit settes ved deploy.
 - QNAP-appmappe: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`.
 - Backup/arkivvolum: `/share/CACHEDEV3_DATA/fibaro10_archive`.
 
@@ -115,6 +115,19 @@ samme databasesesjonen og fjerner den felles cookien.
 Direkte lokal utvikling via IP eller `localhost` får ingen domenecookie; der settes
 samme cookien bare for det lokale vertsnavnet. Domenet kan overstyres med
 `AUTH_SESSION_COOKIE_DOMAIN`, eller deaktiveres med en tom verdi.
+
+## Felles installert desktopapp
+
+`app.lilletorget.net` er hovedidentiteten for den installerte PWA-en `Lilletorget`.
+Manifestets `scope_extensions` omfatter Fibaro10 og alle åtte fagappdomener. Caddy
+leverer en offentlig tilgjengelig `/.well-known/web-app-origin-association` på hvert
+internt HTTPS-domene, med hovedidentiteten `https://app.lilletorget.net/` og scope
+`/`. Dermed blir appbytte i Chrome 139 eller nyere værende i det samme standalone-
+vinduet uten en ekstra out-of-scope-adresselinje.
+
+Bare appvelgeren skal installeres. Etter manifestendringer må gamle separate
+installasjoner av Fibaro10 eller fagappene avinstalleres før `Lilletorget` installeres
+på nytt fra appvelgeren.
 
 ## Datakilder
 

@@ -23,6 +23,11 @@
 
 	@outside_lan not remote_ip private_ranges
 	respond @outside_lan "Not found" 404
+
+	@web_app_origin_association path /.well-known/web-app-origin-association
+	header @web_app_origin_association Content-Type "application/json; charset=utf-8"
+	header @web_app_origin_association Cache-Control "public, max-age=3600"
+	respond @web_app_origin_association `{"https://app.lilletorget.net/":{"scope":"/"}}` 200
 }
 
 # These names exist in public DNS, but resolve to the private QNAP address.

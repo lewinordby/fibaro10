@@ -46,3 +46,18 @@ I tillegg til at DNS peker til en privat adresse, avviser Caddy forespørsler so
 ikke kommer fra private LAN- eller VPN-adresser. De direkte HTTP-portene er kun
 tekniske reserveadresser og skal ikke publiseres i DNS eller portvideres.
 Port `8443` på hovedadressen beholdes bare som teknisk HTTPS-reserve.
+
+## Installert hovedapp
+
+`https://app.lilletorget.net` er den eneste PWA-en som skal installeres for den
+interne desktopløsningen. Manifestet heter `Lilletorget` og utvider sitt scope til
+Fibaro10 og alle åtte fagapper. Hvert av de assosierte domenene bekrefter forholdet
+med `/.well-known/web-app-origin-association`, levert direkte av Caddy.
+
+Dette gjør at Chrome 139 eller nyere kan bytte mellom appene uten den ekstra
+adresselinjen for innhold utenfor scope. Mikroappene er fortsatt separate tjenester,
+kodebaser og domener; samlingen gjelder bare det installerte appvinduet.
+
+Etter en endring i manifest eller scope må gamle installasjoner av Fibaro10 og
+fagappene avinstalleres. Åpne deretter `https://app.lilletorget.net` i Chrome og
+installer bare denne appen på nytt.
