@@ -72,6 +72,8 @@ class RevenueAppTest(unittest.TestCase):
         _, kwargs = core_post.call_args
         self.assertEqual(kwargs["headers"]["X-Forwarded-Host"], "omsetning.lilletorget.net")
         self.assertEqual(kwargs["headers"]["X-Forwarded-Proto"], "https")
+        self.assertEqual(kwargs["headers"]["X-Lilletorget-Public-Host"], "omsetning.lilletorget.net")
+        self.assertEqual(kwargs["headers"]["X-Lilletorget-Public-Proto"], "https")
 
 
 if __name__ == "__main__":

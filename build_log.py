@@ -12,6 +12,31 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1705",
+        "date": "09.08.2026",
+        "headline": "Felles innlogging fungerer gjennom intern gateway",
+        "title": "Produksjonsopprinnelsen bevares frem til Fibaro10-kjernen",
+        "description": (
+            "Den første produksjonsprøven viste at den interne Caddy-gatewayen normaliserte "
+            "standardheaderne til sitt eget HTTP-hopp. Mikroappene sender nå også dedikerte interne "
+            "opprinnelsesheadere, slik at kjernen setter sikker domenecookie for den faktiske HTTPS-appen."
+        ),
+        "applications": [
+            "Fibaro10: bruker bevart offentlig vert og protokoll ved cookie-oppretting.",
+            "Appvelger og alle åtte mikroapper: sender robust HTTPS-opprinnelse gjennom kjernens gateway.",
+            "Tester: simulerer både offentlig HTTPS og gatewayens interne HTTP-hopp.",
+        ],
+        "request": "Fullføre én felles innlogging uten ny innlogging ved appbytte.",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger til X-Lilletorget-Public-Host og X-Lilletorget-Public-Proto mellom app og kjerne.",
+            "Lar dedikert offentlig opprinnelse vinne over gatewayens standard X-Forwarded-verdier.",
+            "Utvider regresjonstestene med den faktiske produksjonskjeden HTTPS til intern HTTP.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1704",
         "date": "09.08.2026",
         "headline": "Én innlogging gjelder i alle mikroappene",

@@ -42,7 +42,16 @@ class AccessKeyTests(unittest.TestCase):
         self.assertNotEqual(main.hash_auth_session_token("opaque-session"), "opaque-session")
 
 
-def form_request(path: str, body: bytes, *, host: str = "test", forwarded_host: str = "") -> Request:
+def form_request(
+    path: str,
+    body: bytes,
+    *,
+    host: str = "test",
+    forwarded_host: str = "",
+    forwarded_proto: str = "https",
+    public_host: str = "",
+    public_proto: str = "https",
+) -> Request:
     sent = False
 
     async def receive():
@@ -57,7 +66,14 @@ def form_request(path: str, body: bytes, *, host: str = "test", forwarded_host: 
         headers.extend(
             [
                 (b"x-forwarded-host", forwarded_host.encode("ascii")),
-                (b"x-forwarded-proto", b"https"),
+                (b"x-forwarded-proto", forwarded_proto.encode("ascii")),
+            ]
+        )
+    if public_host:
+        headers.extend(
+            [
+                (b"x-lilletorget-public-host", public_host.encode("ascii")),
+                (b"x-lilletorget-public-proto", public_proto.encode("ascii")),
             ]
         )
     return Request(
@@ -101,7 +117,9 @@ class BrowserSessionTests(unittest.IsolatedAsyncioTestCase):
             "/auth/login",
             b"username=test&password=secret-value",
             host="fibaro10",
-            forwarded_host="omsetning.lilletorget.net",
+            forwarded_host="fibaro10:8110",
+            forwarded_proto="http",
+            public_host="omsetning.lilletorget.net",
         )
         with (
             patch("main.find_access_key", new=AsyncMock(return_value=access_key)),

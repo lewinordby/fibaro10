@@ -17,12 +17,18 @@ DEFAULT_AUTH_SESSION_COOKIE_DOMAIN = ".lilletorget.net"
 
 
 def request_is_secure(request: Request) -> bool:
-    forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip().lower()
+    forwarded_proto = (
+        request.headers.get("x-lilletorget-public-proto", "").split(",", 1)[0].strip().lower()
+        or request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip().lower()
+    )
     return request.url.scheme == "https" or forwarded_proto == "https"
 
 
 def request_public_host(request: Request) -> str:
-    forwarded_host = request.headers.get("x-forwarded-host", "").split(",", 1)[0].strip()
+    forwarded_host = (
+        request.headers.get("x-lilletorget-public-host", "").split(",", 1)[0].strip()
+        or request.headers.get("x-forwarded-host", "").split(",", 1)[0].strip()
+    )
     host = forwarded_host or request.headers.get("host", "").strip()
     if host.startswith("["):
         return host.split("]", 1)[0].lstrip("[").lower().rstrip(".")
@@ -88,12 +94,19 @@ def forwarded_auth_headers(request: Request, *, user_agent: str, accept: str = "
     if "X-Forwarded-For" not in headers and request.client:
         headers["X-Forwarded-For"] = request.client.host
 
-    headers["X-Forwarded-Host"] = (
-        request.headers.get("x-forwarded-host", "").split(",", 1)[0].strip()
+    public_host = (
+        request.headers.get("x-lilletorget-public-host", "").split(",", 1)[0].strip()
+        or request.headers.get("x-forwarded-host", "").split(",", 1)[0].strip()
         or request.headers.get("host", "").strip()
     )
-    headers["X-Forwarded-Proto"] = (
-        request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip().lower()
+    public_proto = (
+        request.headers.get("x-lilletorget-public-proto", "").split(",", 1)[0].strip().lower()
+        or request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip().lower()
         or request.url.scheme
     )
+    headers["X-Forwarded-Host"] = public_host
+    headers["X-Forwarded-Proto"] = public_proto
+    # The internal core gateway normalizes X-Forwarded-* to its own HTTP hop.
+    headers["X-Lilletorget-Public-Host"] = public_host
+    headers["X-Lilletorget-Public-Proto"] = public_proto
     return headers
