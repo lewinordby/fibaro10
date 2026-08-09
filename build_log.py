@@ -12,6 +12,33 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1703",
+        "date": "09.08.2026",
+        "headline": "Mikroapp-menyene bruker riktige HTTPS-adresser",
+        "title": "Appbytte og tverrlenker bruker domenenavn uten portnummer",
+        "description": (
+            "Den delte navigasjonen brukte fortsatt de interne 8151-8158-portene til lenker i "
+            "toppmenyen og ved hopp mellom fagappene. Alle installerte klienter bruker nå appenes "
+            "kanoniske HTTPS-adresser, mens direkte porter er begrenset til lokal utvikling."
+        ),
+        "applications": [
+            "Appvelger: riktige HTTPS-lenker til alle fagappene.",
+            "Omsetning, Parkering, Soling, Koble, Drift, Energi, Vedlikehold og System: korrekt appbytte.",
+            "System/manual: menyoversikten viser de samme kanoniske adressene.",
+            "QNAP-oppsett: eksempelverdier og buildnumre er synkronisert.",
+        ],
+        "request": "Rette feil portnummer på noen lenker i menyene i mikroappene.",
+        "work_duration": "ca. 35 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger appenes offentlige HTTPS-adresser i den felles navigasjonsmodellen.",
+            "Bruker direkte 815x-porter bare på localhost under utvikling.",
+            "Retter både appikonene og lenker som krysser mellom fagappene.",
+            "Legger regresjonstester mot portbaserte produksjonslenker.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1702",
         "date": "08.08.2026",
         "headline": "Mobilflatene består siste lesbarhetskontroll",

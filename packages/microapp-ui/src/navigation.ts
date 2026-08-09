@@ -8,6 +8,7 @@ const definitions: DomainAppDefinition[] = navigationData.apps.map((app) => ({
   icon: app.icon as DomainAppDefinition["icon"],
   accent: app.accent as DomainAppDefinition["accent"],
   port: app.port,
+  url: app.url,
   navigation: app.groups as unknown as NavigationGroup[],
 }));
 
@@ -37,6 +38,27 @@ export function findNavigationItem(config: DomainUiConfig, pathname: string): Na
 
 export function findNavigationGroup(config: DomainUiConfig, item: NavigationItem): NavigationGroup {
   return config.navigation.find((group) => group.items.includes(item)) || config.navigation[0];
+}
+
+function isLocalDevelopmentHost(hostname: string): boolean {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
+/** Use direct ports only while developing locally; installed and LAN clients use trusted HTTPS names. */
+export function resolveAppUrl(
+  app: Pick<DomainAppDefinition, "port" | "url">,
+  currentHref = window.location.href,
+): string {
+  const current = new URL(currentHref);
+  if (isLocalDevelopmentHost(current.hostname)) {
+    current.protocol = "http:";
+    current.port = String(app.port);
+    current.pathname = "/";
+    current.search = "";
+    current.hash = "";
+    return current.toString();
+  }
+  return new URL(app.url).toString();
 }
 
 type CoreRouteMatch = {
@@ -72,8 +94,7 @@ export function resolveCorePath(path: string | undefined, currentAppId: AppDockI
   const base = match.item.to === "/" ? "" : match.item.to;
   const targetPath = `${base}${suffix}${parsed.search}${parsed.hash}` || "/";
   if (match.app.appId === currentAppId) return targetPath;
-  const target = new URL(window.location.href);
-  target.port = String(match.app.port);
+  const target = new URL(resolveAppUrl(match.app));
   target.pathname = targetPath.split(/[?#]/, 1)[0] || "/";
   target.search = parsed.search;
   target.hash = parsed.hash;

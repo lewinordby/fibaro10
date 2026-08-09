@@ -7,6 +7,7 @@
       "icon": "chart",
       "accent": "red",
       "port": 8151,
+      "url": "https://omsetning.lilletorget.net",
       "groups": [
         {
           "label": "Dashboard",
@@ -40,6 +41,7 @@
       "icon": "parking",
       "accent": "sky",
       "port": 8152,
+      "url": "https://parkering.lilletorget.net",
       "groups": [
         {
           "label": "Oversikt",
@@ -97,6 +99,7 @@
       "icon": "sun",
       "accent": "yellow",
       "port": 8153,
+      "url": "https://soling.lilletorget.net",
       "groups": [
         {
           "label": "Oversikt",
@@ -150,6 +153,7 @@
       "icon": "link",
       "accent": "violet",
       "port": 8158,
+      "url": "https://koble.lilletorget.net",
       "groups": [
         {
           "label": "Kandidater",
@@ -184,6 +188,7 @@
       "icon": "building",
       "accent": "violet",
       "port": 8155,
+      "url": "https://drift.lilletorget.net",
       "groups": [
         {
           "label": "Driftsoversikt",
@@ -267,6 +272,7 @@
       "icon": "energy",
       "accent": "green",
       "port": 8154,
+      "url": "https://energi.lilletorget.net",
       "groups": [
         {
           "label": "Status",
@@ -315,6 +321,7 @@
       "icon": "tools",
       "accent": "green",
       "port": 8156,
+      "url": "https://vedlikehold.lilletorget.net",
       "groups": [
         {
           "label": "Oppgaver",
@@ -339,6 +346,7 @@
       "icon": "settings",
       "accent": "violet",
       "port": 8157,
+      "url": "https://system.lilletorget.net",
       "groups": [
         {
           "label": "Status",

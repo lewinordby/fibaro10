@@ -132,7 +132,7 @@ services:
       FIBARO10_BASE_URL: http://fibaro10:8110
       FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net}
       SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net}
-      REVENUE_APP_BUILD: ${REVENUE_APP_BUILD:-28}
+      REVENUE_APP_BUILD: ${REVENUE_APP_BUILD:-30}
       REVENUE_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8151/health', timeout=5).read()\""]
@@ -158,7 +158,7 @@ services:
       FIBARO10_BASE_URL: http://fibaro10:8110
       FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net}
       SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net}
-      PARKING_APP_BUILD: ${PARKING_APP_BUILD:-20}
+      PARKING_APP_BUILD: ${PARKING_APP_BUILD:-22}
       PARKING_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8152/health', timeout=5).read()\""]
@@ -184,7 +184,7 @@ services:
       FIBARO10_BASE_URL: http://fibaro10:8110
       FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net}
       SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net}
-      SUN_APP_BUILD: ${SUN_APP_BUILD:-20}
+      SUN_APP_BUILD: ${SUN_APP_BUILD:-22}
       SUN_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8153/health', timeout=5).read()\""]
@@ -210,7 +210,7 @@ services:
       FIBARO10_BASE_URL: http://fibaro10:8110
       FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net}
       SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net}
-      ENERGY_APP_BUILD: ${ENERGY_APP_BUILD:-17}
+      ENERGY_APP_BUILD: ${ENERGY_APP_BUILD:-19}
       ENERGY_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8154/health', timeout=5).read()\""]
@@ -236,7 +236,7 @@ services:
       FIBARO10_BASE_URL: http://fibaro10:8110
       FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net}
       SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net}
-      OPERATIONS_APP_BUILD: ${OPERATIONS_APP_BUILD:-23}
+      OPERATIONS_APP_BUILD: ${OPERATIONS_APP_BUILD:-25}
       OPERATIONS_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8155/health', timeout=5).read()\""]
@@ -262,7 +262,7 @@ services:
       FIBARO10_BASE_URL: http://fibaro10:8110
       FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net}
       SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net}
-      MAINTENANCE_APP_BUILD: ${MAINTENANCE_APP_BUILD:-16}
+      MAINTENANCE_APP_BUILD: ${MAINTENANCE_APP_BUILD:-18}
       MAINTENANCE_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8156/health', timeout=5).read()\""]
@@ -288,7 +288,7 @@ services:
       FIBARO10_BASE_URL: http://fibaro10:8110
       FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net}
       SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net}
-      SYSTEM_APP_BUILD: ${SYSTEM_APP_BUILD:-22}
+      SYSTEM_APP_BUILD: ${SYSTEM_APP_BUILD:-24}
       SYSTEM_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8157/health', timeout=5).read()\""]
@@ -314,7 +314,7 @@ services:
       FIBARO10_BASE_URL: http://fibaro10:8110
       FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net}
       SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net}
-      LINK_APP_BUILD: ${LINK_APP_BUILD:-15}
+      LINK_APP_BUILD: ${LINK_APP_BUILD:-17}
       LINK_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8158/health', timeout=5).read()\""]
@@ -352,7 +352,7 @@ services:
       LINK_BASE_URL: http://link_app:8158
       LINK_APP_URL: ${LINK_APP_URL:-https://koble.lilletorget.net}
       SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net}
-      SHELL_APP_BUILD: ${SHELL_APP_BUILD:-26}
+      SHELL_APP_BUILD: ${SHELL_APP_BUILD:-28}
       SHELL_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8150/health', timeout=5).read()\""]

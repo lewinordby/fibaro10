@@ -132,9 +132,21 @@ def test_every_microapp_header_uses_the_shared_app_dock() -> None:
     dock = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "AppDock.tsx").read_text(encoding="utf-8")
     navigation = json.loads((repo_root / "packages" / "microapp-ui" / "src" / "navigation.json").read_text(encoding="utf-8"))
     assert sorted(app["port"] for app in navigation["apps"]) == list(range(8151, 8159))
+    assert [app["url"] for app in navigation["apps"]] == [
+        "https://omsetning.lilletorget.net",
+        "https://parkering.lilletorget.net",
+        "https://soling.lilletorget.net",
+        "https://koble.lilletorget.net",
+        "https://drift.lilletorget.net",
+        "https://energi.lilletorget.net",
+        "https://vedlikehold.lilletorget.net",
+        "https://system.lilletorget.net",
+    ]
     assert 'aria-label="Bytt app"' in dock
     assert "border-r" in dock
     assert "appDefinitions.map" in dock
+    assert "resolveAppUrl(app)" in dock
+    assert "url.port = String(port)" not in dock
 
     shared_layout = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "Layout.tsx").read_text(encoding="utf-8")
     assert "<AppDock activeApp={activeApp}" in shared_layout
@@ -344,8 +356,18 @@ def test_core_links_are_resolved_to_the_owning_microapp() -> None:
     parking_module = (repo_root / "parking_app" / "frontend" / "src" / "components" / "ModuleContent.tsx").read_text(encoding="utf-8")
     assert "export function resolveCorePath" in navigation
     assert "coreRouteMatches" in navigation
+    assert "isLocalDevelopmentHost" in navigation
+    assert "new URL(app.url)" in navigation
+    assert "target.port" not in navigation
     assert "resolveCorePath(path, config.appId)" in shared_module
     assert 'resolveCorePath(path || undefined, "parking")' in parking_module
+
+
+def test_menu_documentation_uses_canonical_microapp_urls() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    source = (repo_root / "system_app" / "app" / "menu_structure.py").read_text(encoding="utf-8")
+    assert 'base_url = app["url"].rstrip("/")' in source
+    assert "app['port']" not in source
 
 
 def test_operations_proxy_allows_bollard_workbench_endpoints() -> None:

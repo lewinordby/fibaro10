@@ -1,5 +1,5 @@
 import { MosaicIcon, type IconName } from "./MosaicIcon";
-import { appDefinitions } from "../navigation";
+import { appDefinitions, resolveAppUrl } from "../navigation";
 import type { AppDockId } from "../types";
 
 export type { AppDockId } from "../types";
@@ -9,6 +9,7 @@ type AppDockItem = {
   name: string;
   icon: IconName;
   port: number;
+  url: string;
   iconClass: string;
   activeClass: string;
 };
@@ -29,21 +30,9 @@ const apps: AppDockItem[] = appDefinitions.map((app) => ({
   name: app.shortName,
   icon: app.icon,
   port: app.port,
+  url: app.url,
   ...dockClasses[app.appId],
 }));
-
-function appUrl(shellUrl: string, port: number) {
-  try {
-    const url = new URL(shellUrl, window.location.href);
-    url.port = String(port);
-    url.pathname = "/";
-    url.search = "";
-    url.hash = "";
-    return url.toString();
-  } catch {
-    return `http://${window.location.hostname}:${port}/`;
-  }
-}
 
 export function AppDock({ activeApp, shellUrl }: { activeApp?: AppDockId; shellUrl: string }) {
   return (
@@ -58,7 +47,7 @@ export function AppDock({ activeApp, shellUrl }: { activeApp?: AppDockId; shellU
           return (
             <a
               className={`flex h-8 w-8 items-center justify-center rounded-full ring-1 ring-transparent transition-colors hover:bg-gray-200/80 dark:hover:bg-gray-800 ${separator ? "ml-2" : ""} ${active ? app.activeClass : ""}`}
-              href={appUrl(shellUrl, app.port)}
+              href={resolveAppUrl(app)}
               title={app.name}
               aria-label={`Åpne ${app.name}`}
               aria-current={active ? "page" : undefined}

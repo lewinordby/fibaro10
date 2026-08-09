@@ -624,4 +624,4 @@ export type DomainUiConfig = {
   navigation: NavigationGroup[];
 };
 
-export type DomainAppDefinition = DomainUiConfig & { port: number };
+export type DomainAppDefinition = DomainUiConfig & { port: number; url: string };
