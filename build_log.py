@@ -12,6 +12,37 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1713",
+        "date": "12.08.2026",
+        "headline": "Egne sider for robotvaskerne",
+        "title": "Renholdsoversikten viser alle roboter og hver robot har en egen detaljside",
+        "description": (
+            "Renhold er bygget om til en tydelig oversikt med ett klikkbart statuskort per robot. "
+            "Det tidligere samlevalget Robotvaskere og den ekstra robotlisten inne på detaljsiden er "
+            "fjernet. Robotnavnene opprettes nå automatisk som egne faner i den ordinære Renhold-menyen, "
+            "mens detaljsiden bruker hele innholdsbredden til status, telemetri og historikk."
+        ),
+        "applications": [
+            "Bygg og drift: ny robotoversikt og egne fullbredde detaljsider per robot.",
+            "Felles mikroapp-UI: dynamiske menyfaner basert på registrerte Roborock-enheter.",
+            "Menystruktur og tester: fjernet det statiske valget Robotvaskere og oppdatert forventningene.",
+        ],
+        "request": (
+            "Behold Oversikt, vis statuskort for alle robotene der, og erstatt Robotvaskere med "
+            "en egen side for hver robot uten en ekstra venstremeny inne på siden."
+        ),
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser alle roboter i et responsivt rutenett med status, batteri, modell, sist lest og feilstatus.",
+            "Gjør hvert oversiktskort klikkbart og sender det til riktig robotdetalj.",
+            "Oppretter robotfaner dynamisk fra robotnavn og DUID, også for nye roboter som legges til senere.",
+            "Fjerner den interne robotlisten slik at detaljvisningen får hele tilgjengelige bredden.",
+            "Sikrer at direkte lenke og oppfriskning på en enkelt robot fortsatt henter riktig innhold.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1712",
         "date": "12.08.2026",
         "headline": "Bedre bredde i robotloggen",

@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
 import { domainApi } from "../api";
 import { displayCell, valueLabel } from "../format";
 import { useApi } from "../hooks";
+import { AppLink, useAppLocation } from "../router";
 import type { JsonRecord, RoborockModuleData, RoborockRobotDetail, RoborockRobotSummary } from "../types";
 import { MetricCard, Panel } from "./Mosaic";
 import { MosaicIcon } from "./MosaicIcon";
@@ -42,11 +42,30 @@ function CompactTable({ columns, rows }: { columns: string[]; rows: JsonRecord[]
   return <div className="overflow-x-auto"><table className="w-full table-auto"><thead className="bg-gray-50 text-xs uppercase text-gray-400 dark:bg-gray-700/40"><tr>{columns.map((column) => <th className="whitespace-nowrap px-4 py-3 text-left font-semibold" key={column}>{valueLabel(column)}</th>)}</tr></thead><tbody className="divide-y divide-gray-100 text-sm dark:divide-gray-700/60">{rows.map((row, index) => <tr className="hover:bg-gray-50/60 dark:hover:bg-gray-700/20" key={String(row.id || index)}>{columns.map((column) => <td className="whitespace-nowrap px-4 py-3 tabular-nums" key={column}>{column.endsWith("_at") || column === "timestamp" || column === "begin_at" || column === "end_at" ? stamp(row[column]) : displayCell(column, row[column])}</td>)}</tr>)}{!rows.length ? <tr><td className="px-5 py-8 text-center text-sm text-gray-400" colSpan={columns.length}>Ingen data mottatt</td></tr> : null}</tbody></table></div>;
 }
 
-function RobotList({ robots, selected, select }: { robots: RoborockRobotSummary[]; selected: string; select: (duid: string) => void }) {
-  return <Panel title="Robotvaskere" subtitle={`${robots.length} registrert`}><div className="divide-y divide-gray-100 dark:divide-gray-700/60">{robots.map((robot) => {
-    const problem = Boolean(robot.last_error || (robot.error_code && robot.error_code !== 0) || robot.cloud_online === false);
-    return <button className={`grid w-full grid-cols-[2.25rem_1fr_auto] items-center gap-3 px-4 py-4 text-left ${selected === robot.duid ? "bg-green-500/10" : "hover:bg-gray-50 dark:hover:bg-gray-700/20"}`} onClick={() => select(robot.duid)} key={robot.duid}><span className={`flex h-9 w-9 items-center justify-center rounded-full ${problem ? "bg-red-500/10 text-red-500" : "bg-green-500/10 text-green-600"}`}><MosaicIcon name="robot" size={18} /></span><span className="min-w-0"><strong className="block truncate text-sm text-gray-800 dark:text-gray-100">{robot.name}</strong><small className="block truncate text-gray-400">{robot.state_name || robot.model || "Ingen status"} · {robot.battery == null ? "-" : `${robot.battery}%`}</small></span><span className={`h-2.5 w-2.5 rounded-full ${problem ? "bg-red-500" : robot.cloud_online === false ? "bg-gray-400" : "bg-green-500"}`} title={problem ? "Krever kontroll" : "OK"} /></button>;
-  })}</div></Panel>;
+function RobotOverview({ robots }: { robots: RoborockRobotSummary[] }) {
+  return <div className="space-y-5">
+    <div className="flex flex-wrap items-end justify-between gap-3">
+      <div><h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Robotvaskere</h2><p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Siste kjente status for alle registrerte roboter.</p></div>
+      <span className="text-sm font-medium tabular-nums text-gray-500 dark:text-gray-400">{robots.length} registrert</span>
+    </div>
+    <div className="grid gap-5 md:grid-cols-2">{robots.map((robot) => {
+      const problem = Boolean(robot.last_error || (robot.error_code && robot.error_code !== 0) || robot.cloud_online === false);
+      const state = robot.state_name || "Ingen status";
+      return <AppLink className="group overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xs transition hover:border-green-400 hover:shadow-md dark:border-gray-700/60 dark:bg-gray-800 dark:hover:border-green-500/70" to={`/renhold/robot/${encodeURIComponent(robot.duid)}`} key={robot.duid}>
+        <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 dark:border-gray-700/60">
+          <span className="flex min-w-0 items-center gap-3"><span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${problem ? "bg-red-500/10 text-red-500" : "bg-green-500/10 text-green-600 dark:text-green-400"}`}><MosaicIcon name="robot" size={20} /></span><span className="min-w-0"><strong className="block truncate text-base font-semibold text-gray-800 dark:text-gray-100">{robot.name}</strong><small className="block truncate text-gray-400">{robot.model || "Ukjent modell"}</small></span></span>
+          <span className={`mt-1 inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold ${problem ? "bg-red-500/10 text-red-600 dark:text-red-400" : "bg-green-500/10 text-green-700 dark:text-green-400"}`}><span className={`h-2 w-2 rounded-full ${problem ? "bg-red-500" : "bg-green-500"}`} />{problem ? "Kontroller" : "OK"}</span>
+        </div>
+        <div className="grid grid-cols-2 divide-x divide-gray-100 px-2 py-4 dark:divide-gray-700/60">
+          <div className="px-3"><span className="block text-xs font-semibold uppercase text-gray-400">Status</span><strong className="mt-1 block truncate text-sm font-medium text-gray-700 dark:text-gray-200">{state}</strong></div>
+          <div className="px-3"><span className="block text-xs font-semibold uppercase text-gray-400">Batteri</span><strong className="mt-1 block text-sm font-medium tabular-nums text-gray-700 dark:text-gray-200">{robot.battery == null ? "-" : `${robot.battery} %`}</strong></div>
+        </div>
+        <div className="flex items-center justify-between gap-4 bg-gray-50 px-5 py-3 text-xs text-gray-500 dark:bg-gray-900/30 dark:text-gray-400"><span className="truncate">Sist lest {stamp(robot.status_at || robot.last_seen_at)}</span><span className="flex shrink-0 items-center gap-1 font-medium text-green-700 dark:text-green-400">Detaljer <MosaicIcon name="arrow-right" size={14} /></span></div>
+        {robot.last_error ? <div className="border-t border-red-100 bg-red-50 px-5 py-2.5 text-xs text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">{robot.last_error}</div> : null}
+      </AppLink>;
+    })}</div>
+    {!robots.length ? <Panel><div className="p-8 text-sm text-gray-400">Ingen roboter er registrert.</div></Panel> : null}
+  </div>;
 }
 
 function RobotDetail({ duid, summary }: { duid: string; summary?: RoborockRobotSummary }) {
@@ -78,8 +97,12 @@ function RobotDetail({ duid, summary }: { duid: string; summary?: RoborockRobotS
 }
 
 export function RoborockSpecial({ data }: { data: RoborockModuleData }) {
-  const robots = useMemo(() => data.robots || [], [data.robots]);
-  const [selected, setSelected] = useState(robots[0]?.duid || "");
-  useEffect(() => { if (!robots.some((robot) => robot.duid === selected)) setSelected(robots[0]?.duid || ""); }, [robots, selected]);
-  return <div className="grid items-start gap-5 xl:grid-cols-[20rem_minmax(0,1fr)]"><RobotList robots={robots} selected={selected} select={setSelected} />{selected ? <RobotDetail duid={selected} summary={robots.find((robot) => robot.duid === selected)} /> : <Panel><div className="p-8 text-sm text-gray-400">Ingen roboter er registrert.</div></Panel>}</div>;
+  const { pathname } = useAppLocation();
+  const robots = data.robots || [];
+  const match = pathname.match(/^\/renhold\/robot\/([^/]+)$/);
+  const selected = match ? decodeURIComponent(match[1]) : "";
+  const summary = robots.find((robot) => robot.duid === selected);
+  if (!selected) return <RobotOverview robots={robots} />;
+  if (!summary) return <Panel title="Robot ikke funnet"><div className="p-8 text-sm text-gray-400">Roboten finnes ikke lenger i den registrerte robotlisten.</div></Panel>;
+  return <RobotDetail duid={selected} summary={summary} />;
 }

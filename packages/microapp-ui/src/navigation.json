@@ -264,8 +264,7 @@
           "label": "Renhold",
           "icon": "robot",
           "items": [
-            { "to": "/renhold", "label": "Oversikt", "icon": "robot", "title": "Renhold", "description": "Status, historikk og oppf\u00f8lging av robotvaskere.", "module": "renhold", "view": "oversikt", "corePath": "/renhold/oversikt" },
-            { "to": "/renhold/roboter", "label": "Robotvaskere", "icon": "robot", "title": "Robotvaskere", "description": "Detaljer per robot og siste rengj\u00f8ringer.", "module": "renhold", "view": "roboter", "corePath": "/renhold/roboter" }
+            { "to": "/renhold", "label": "Oversikt", "icon": "robot", "title": "Renhold", "description": "Status, historikk og oppf\u00f8lging av robotvaskere.", "module": "renhold", "view": "oversikt", "corePath": "/renhold/oversikt" }
           ]
         }
       ]

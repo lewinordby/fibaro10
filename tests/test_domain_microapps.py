@@ -196,7 +196,7 @@ def test_system_menu_structure_page_is_available_without_core_data() -> None:
         payload = response.json()
         assert payload["title"] == "Menystruktur"
         assert len(payload["tables"]) == len(APP_MENU_STRUCTURE) + 2
-        assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 113
+        assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 112
 
 
 def test_parity_critical_specialized_views_are_kept_in_microapps() -> None:
@@ -320,7 +320,7 @@ def test_detail_routes_do_not_fall_back_to_generic_module_pages() -> None:
 def test_self_loading_operations_views_do_not_fetch_the_generic_module_first() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     domain_app = (repo_root / "packages" / "microapp-ui" / "src" / "DomainApp.tsx").read_text(encoding="utf-8")
-    assert 'item.module === "dorer" || item.module === "pullerter"' in domain_app
+    assert 'baseItem.module === "dorer" || baseItem.module === "pullerter"' in domain_app
     assert "isSelfLoadingOperationsView" in domain_app
 
 

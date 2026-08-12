@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { domainApi } from "./api";
 import { CountDashboardSpecial } from "./components/CountDashboardSpecial";
 import { CountComparisonSpecial } from "./components/CountComparisonSpecial";
@@ -9,7 +10,7 @@ import { ErrorState, Loading } from "./components/PageState";
 import { useApi } from "./hooks";
 import { findNavigationItem } from "./navigation";
 import { AppRouter, useAppLocation } from "./router";
-import type { DomainUiConfig, ModuleResponse, OperationsOverviewResponse } from "./types";
+import type { DomainUiConfig, ModuleResponse, NavigationItem, OperationsOverviewResponse, RoborockRobotSummary } from "./types";
 
 function stateLabel(state: boolean | null) {
   if (state === true) return "P\u00e5";
@@ -59,15 +60,38 @@ function operationsModule(data: OperationsOverviewResponse): ModuleResponse {
   };
 }
 
+function withRobotNavigation(config: DomainUiConfig, robots: RoborockRobotSummary[] | undefined): DomainUiConfig {
+  if (config.appId !== "operations" || !robots?.length) return config;
+  const navigation = config.navigation.map((group) => {
+    const overview = group.items.find((candidate) => candidate.module === "renhold" && candidate.view === "oversikt");
+    if (!overview) return group;
+    const robotItems: NavigationItem[] = robots.map((robot) => {
+      const encodedDuid = encodeURIComponent(robot.duid);
+      return {
+        to: `/renhold/robot/${encodedDuid}`,
+        label: robot.name,
+        icon: "robot",
+        title: robot.name,
+        description: `Status, telemetri og historikk for ${robot.name}.`,
+        module: "renhold",
+        view: "robot",
+        corePath: `/renhold/robot/${encodedDuid}`,
+      };
+    });
+    return { ...group, items: [overview, ...robotItems] };
+  });
+  return { ...config, navigation };
+}
+
 function RoutedDomainApp({ config }: { config: DomainUiConfig }) {
   const { pathname, search } = useAppLocation();
-  const item = findNavigationItem(config, pathname);
-  const isCountDashboard = item.module === "status" && item.view === "soling";
-  const isCountComparison = item.module === "status" && item.view === "soling-comparison";
-  const isYearComparison = config.appId === "sun" && item.module === "soling" && item.view === "sammenligning";
-  const isOperationsOverview = item.module === "status" && item.view === "drift";
+  const baseItem = findNavigationItem(config, pathname);
+  const isCountDashboard = baseItem.module === "status" && baseItem.view === "soling";
+  const isCountComparison = baseItem.module === "status" && baseItem.view === "soling-comparison";
+  const isYearComparison = config.appId === "sun" && baseItem.module === "soling" && baseItem.view === "sammenligning";
+  const isOperationsOverview = baseItem.module === "status" && baseItem.view === "drift";
   const isSelfLoadingOperationsView = config.appId === "operations" && (
-    item.module === "dorer" || item.module === "pullerter"
+    baseItem.module === "dorer" || baseItem.module === "pullerter"
   );
   const isDetailRoute = (
     (config.appId === "maintenance" && /^\/besok\/\d+$/.test(pathname))
@@ -79,12 +103,17 @@ function RoutedDomainApp({ config }: { config: DomainUiConfig }) {
       ? { title: "", subtitle: "", cards: [], tables: [] }
       : isOperationsOverview
         ? operationsModule(await domainApi.operationsOverview())
-        : domainApi.module(item.module, item.view, new URLSearchParams(search)),
-    `module-${item.module}-${item.view}-${search}`,
+        : domainApi.module(baseItem.module, baseItem.view, new URLSearchParams(search)),
+    `module-${baseItem.module}-${baseItem.view}-${search}`,
   );
   const appConfig = useApi(domainApi.config, "app-config");
+  const effectiveConfig = useMemo(
+    () => withRobotNavigation(config, result.data?.roborock?.robots),
+    [config, result.data?.roborock?.robots],
+  );
+  const item = findNavigationItem(effectiveConfig, pathname);
   const coreUrl = appConfig.data?.fibaro10AppUrl || "https://fibaro10.lilletorget.net";
-  return <Layout config={config}>{result.loading || appConfig.loading
+  return <Layout config={effectiveConfig}>{result.loading || appConfig.loading
     ? <Loading />
     : result.error || !result.data
       ? <ErrorState error={result.error} onRetry={result.reload} />
