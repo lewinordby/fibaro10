@@ -37,6 +37,7 @@ Dette repoet dokumenterer hovedappen `Fibaro10 / Lilletorget drift`, underappene
 | `docs/sun2-enkeltimer.md` | SUN2 enkelttimer, romidentitet og kobling mot energi/bilder. |
 | `docs/roborock-logger.md` | Drift av lokal Roborock-logger på QNAP/Docker. |
 | `docs/roborock-datakilder.md` | Hvilke Roborock-data som kan hentes fra cloud og lokal LAN. |
+| `docs/roborock-telemetri.md` | Intervaller, komplett feltkatalog, modellstøtte og bruk av Roborock-telemetri. |
 | `docs/render-online-dashboard.md` | Notater om ekstern online dashboard-flate. |
 
 ## Underapper med egen README

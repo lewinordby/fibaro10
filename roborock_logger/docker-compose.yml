@@ -5,6 +5,10 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      LOCAL_TIMEZONE: Europe/Oslo
+      TELEMETRY_INTERVAL_SECONDS: ${TELEMETRY_INTERVAL_SECONDS:-60}
+      TELEMETRY_SETTINGS_INTERVAL_SECONDS: ${TELEMETRY_SETTINGS_INTERVAL_SECONDS:-900}
     ports:
       - "8095:8095"
     volumes:

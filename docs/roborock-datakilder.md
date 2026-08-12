@@ -23,6 +23,7 @@ Roborock cloud / lokal LAN
 | 1.etg A | Roborock Qrevo | `roborock.vacuum.a75` | OK | OK | OK |
 | 1.etg B | S8 | `roborock.vacuum.a51` | OK | OK | OK |
 | 2.etg | Roborock Qrevo | `roborock.vacuum.a75` | OK | OK | OK |
+| VIP | Roborock Qrevo | `roborock.vacuum.a75` | OK | OK | OK |
 
 Kontoen har robotene som delte enheter.
 
@@ -54,6 +55,9 @@ Lokal LAN er best egnet for hyppigere driftsdata.
 | `get_serial_number` | serienummer der roboten støtter det. |
 | `get_room_mapping` | segment-id mot Roborock-rom. |
 | `get_timezone` | robotens tidssone. |
+
+Den komplette, verifiserte listen over telemetriverdier og modellforskjeller ligger i
+`docs/roborock-telemetri.md`.
 
 ## Kart
 

@@ -12,6 +12,39 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1711",
+        "date": "12.08.2026",
+        "headline": "Komplett Roborock-telemetri",
+        "title": "Alle tilgjengelige robot- og dokkverdier logges og kan kontrolleres per robot",
+        "description": (
+            "Roborock_logger leser nå dynamisk status hvert minutt og gjennomfører en bred, "
+            "modelltilpasset kontroll av øvrige lesbare API-verdier hvert kvarter. Fibaro10 lagrer "
+            "normaliserte målinger, komplett råstatus, API-resultater og egne hendelser når viktige "
+            "tilstander endres. Robotdetaljen viser både en forståelig driftsvisning og rådataene som "
+            "trengs for å vurdere videre bruk til vann-, lading-, dokk- og vedlikeholdskontroll."
+        ),
+        "applications": [
+            "Roborock_logger: nytt telemetriløp for lokal LAN-status og modellspesifikke lesekall.",
+            "Fibaro10 API og database: minuttmålinger, tilstandsendringer, råstatus og API-prober.",
+            "Bygg og drift: utvidet robotdetalj med alle verdier, hendelseslogg og API-dekning.",
+            "Dokumentasjon og tester: feltkatalog, intervaller, begrensninger og endringslogikk.",
+        ],
+        "request": (
+            "Sett i gang og lag en logg som viser alle verdier vi kan logge fra Roborock, "
+            "slik at vi kan vurdere hvordan de kan brukes."
+        ),
+        "work_duration": "ca. 2 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Logger status, batteri, lading, rengjøring, mopp, dokk, vann, støvpose, signal og råstatus hvert minutt.",
+            "Kontrollerer støttede innstillinger og funksjoner hvert 15. minutt og merker ikke-støttede kall per modell.",
+            "Lagrer egne hendelser ved relevante tilstandsendringer uten å lage falske hendelser ved første måling.",
+            "Viser komplett rå GET_STATUS og siste resultat for hvert testet API-kall på robotdetaljen.",
+            "Beholder eksisterende femminutters synk av historikk, planer, forbruksdeler og kart uendret.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1710",
         "date": "12.08.2026",
         "headline": "Riktig Roborock-tid og enklere innmelding",

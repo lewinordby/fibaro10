@@ -10,6 +10,7 @@ import pickle
 import secrets
 import string
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -38,6 +39,8 @@ FIBARO10_API_BASE_URL = os.getenv("FIBARO10_API_BASE_URL", "http://fibaro10:8110
 FIBARO10_API_USERNAME = os.getenv("FIBARO10_API_USERNAME", "")
 FIBARO10_API_PASSWORD = os.getenv("FIBARO10_API_PASSWORD", "")
 STATUS_INTERVAL_SECONDS = int(os.getenv("STATUS_INTERVAL_SECONDS", "300"))
+TELEMETRY_INTERVAL_SECONDS = int(os.getenv("TELEMETRY_INTERVAL_SECONDS", "60"))
+TELEMETRY_SETTINGS_INTERVAL_SECONDS = int(os.getenv("TELEMETRY_SETTINGS_INTERVAL_SECONDS", "900"))
 HOME_REFRESH_SECONDS = int(os.getenv("HOME_REFRESH_SECONDS", "3600"))
 HISTORY_LIMIT = int(os.getenv("HISTORY_LIMIT", "10"))
 MAP_SYNC_ON_START = os.getenv("MAP_SYNC_ON_START", "true").lower() in {"1", "true", "yes", "on"}
@@ -46,6 +49,49 @@ ROBOROCK_LOCAL_PORT = 58867
 
 app = FastAPI(title="Roborock_logger")
 sync_lock = asyncio.Lock()
+telemetry_unsupported_commands: dict[str, set[str]] = {}
+telemetry_last_settings_at: dict[str, float] = {}
+
+
+TELEMETRY_SETTING_COMMANDS = (
+    "GET_CONSUMABLE",
+    "GET_CLEAN_SUMMARY",
+    "GET_SOUND_VOLUME",
+    "GET_DND_TIMER",
+    "GET_CHILD_LOCK_STATUS",
+    "GET_LED_STATUS",
+    "GET_FLOW_LED_STATUS",
+    "GET_DUST_COLLECTION_MODE",
+    "GET_DUST_COLLECTION_SWITCH_STATUS",
+    "GET_SMART_WASH_PARAMS",
+    "GET_WASH_TOWEL_MODE",
+    "GET_WASH_TOWEL_PARAMS",
+    "GET_WASH_WATER_TEMPERATURE",
+    "GET_AUTO_DELIVERY_CLEANING_FLUID",
+    "APP_GET_DRYER_SETTING",
+    "GET_MOP_MOTOR_STATUS",
+    "GET_WATER_BOX_CUSTOM_MODE",
+    "GET_HANDLE_LEAK_WATER_STATUS",
+    "GET_ROOM_MAPPING",
+    "GET_TIMEZONE",
+    "GET_TIMER",
+    "GET_SERVER_TIMER",
+    "GET_TIMER_SUMMARY",
+    "GET_SERIAL_NUMBER",
+    "GET_CARPET_MODE",
+    "GET_CUSTOM_MODE",
+    "GET_DOCK_INFO",
+    "GET_MAP_STATUS",
+    "GET_PERSIST",
+    "GET_VALLEY_ELECTRICITY_TIMER",
+)
+
+WASH_FILL_DOCK_TYPES = {3, 6, 7, 8, 9, 10, 14, 15, 16, 17, 18, 22, 27}
+
+
+def is_unsupported_command_error(error: str) -> bool:
+    message = error.lower()
+    return any(marker in message for marker in ("not recognized", "unknown method", "not supported", "unsupported"))
 
 
 @app.get("/favicon.ico", include_in_schema=False)
@@ -81,6 +127,95 @@ def jsonable(value: Any) -> Any:
     if hasattr(value, "__dict__"):
         return jsonable({key: item for key, item in vars(value).items() if not key.startswith("_")})
     return str(value)
+
+
+def first_dict(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, list):
+        return next((item for item in value if isinstance(item, dict)), {})
+    return {}
+
+
+def enum_value(value: Any) -> Any:
+    return getattr(value, "value", value)
+
+
+def enum_name(value: Any) -> str | None:
+    return getattr(value, "name", None) if value is not None else None
+
+
+def status_telemetry(status: dict[str, Any], model: str | None) -> dict[str, Any]:
+    """Normalize dynamic status while retaining the complete vendor payload."""
+    from roborock.data.v1.v1_containers import ModelStatus, Status
+
+    status_class = ModelStatus.get(model or "", Status)
+    typed = status_class.from_dict(status)
+    dock_type = enum_value(getattr(typed, "dock_type", None))
+    supports_water_tanks = dock_type in WASH_FILL_DOCK_TYPES
+
+    def typed_status(name: str, *, supported: bool = True) -> tuple[Any, str | None]:
+        if not supported:
+            return None, None
+        try:
+            value = getattr(typed, name, None)
+        except (TypeError, ValueError):
+            return None, None
+        return enum_value(value), enum_name(value)
+
+    clear_water_code, clear_water_name = typed_status("clear_water_box_status", supported=supports_water_tanks)
+    dirty_water_code, dirty_water_name = typed_status("dirty_water_box_status", supported=supports_water_tanks)
+    dust_bag_code, dust_bag_name = typed_status("dust_bag_status", supported=bool(dock_type))
+    clean_fluid_code, clean_fluid_name = typed_status("clean_fluid_status", supported=supports_water_tanks)
+    state = getattr(typed, "state", None)
+    charge_status = getattr(typed, "charge_status", None)
+    dock_error = getattr(typed, "dock_error_status", None)
+
+    return {
+        "state_code": enum_value(state),
+        "state_name": enum_name(state),
+        "battery": getattr(typed, "battery", None),
+        "error_code": enum_value(getattr(typed, "error_code", None)),
+        "in_cleaning": enum_value(getattr(typed, "in_cleaning", None)),
+        "in_returning": getattr(typed, "in_returning", None),
+        "clean_time_seconds": getattr(typed, "clean_time", None),
+        "clean_area_raw": getattr(typed, "clean_area", None),
+        "clean_percent": getattr(typed, "clean_percent", None),
+        "fan_power": enum_value(getattr(typed, "fan_power", None)),
+        "water_box_mode": enum_value(getattr(typed, "water_box_mode", None)),
+        "mop_mode": enum_value(getattr(typed, "mop_mode", None)),
+        "charge_status": enum_value(charge_status),
+        "charge_status_name": enum_name(charge_status),
+        "is_charging": enum_value(state) == 8,
+        "dock_type": dock_type,
+        "dock_type_name": enum_name(getattr(typed, "dock_type", None)),
+        "dock_error_status": enum_value(dock_error),
+        "dock_error_name": enum_name(dock_error),
+        "dust_collection_status": getattr(typed, "dust_collection_status", None),
+        "auto_dust_collection": getattr(typed, "auto_dust_collection", None),
+        "wash_status": getattr(typed, "wash_status", None),
+        "wash_phase": getattr(typed, "wash_phase", None),
+        "wash_ready": getattr(typed, "wash_ready", None),
+        "dry_status": getattr(typed, "dry_status", None),
+        "water_shortage_status": getattr(typed, "water_shortage_status", None),
+        "water_box_status": getattr(typed, "water_box_status", None),
+        "water_box_carriage_status": getattr(typed, "water_box_carriage_status", None),
+        "clear_water_status": clear_water_code,
+        "clear_water_status_name": clear_water_name,
+        "dirty_water_status": dirty_water_code,
+        "dirty_water_status_name": dirty_water_name,
+        "dust_bag_status": dust_bag_code,
+        "dust_bag_status_name": dust_bag_name,
+        "clean_fluid_status": clean_fluid_code,
+        "clean_fluid_status_name": clean_fluid_name,
+        "water_box_filter_status": (
+            getattr(typed, "water_box_filter_status", None) if supports_water_tanks else None
+        ),
+        "dock_cool_fan_status": getattr(typed, "dock_cool_fan_status", None),
+        "dss": getattr(typed, "dss", None),
+        "rss": getattr(typed, "rss", None),
+        "status_raw": status,
+    }
 
 
 def load_state() -> dict[str, Any]:
@@ -361,8 +496,8 @@ async def schedules_and_scenes(email: str, duid: str) -> tuple[list[dict[str, An
     return schedules, scenes
 
 
-def post_to_fibaro10(batch: dict[str, Any]) -> None:
-    url = f"{FIBARO10_API_BASE_URL}/api/renhold/ingest"
+def post_to_fibaro10(batch: dict[str, Any], endpoint: str = "/api/renhold/ingest") -> None:
+    url = f"{FIBARO10_API_BASE_URL}{endpoint}"
     body = json.dumps(batch, ensure_ascii=False).encode("utf-8")
     headers = {
         "Content-Type": "application/json",
@@ -410,10 +545,10 @@ def post_import_status(ok: bool, message: str, robots_count: int | None = None, 
         pass
 
 
-def queue_batch(batch: dict[str, Any]) -> None:
+def queue_batch(batch: dict[str, Any], endpoint: str = "/api/renhold/ingest") -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     with QUEUE_FILE.open("a", encoding="utf-8") as file:
-        file.write(json.dumps(batch, ensure_ascii=False) + "\n")
+        file.write(json.dumps({"endpoint": endpoint, "payload": batch}, ensure_ascii=False) + "\n")
 
 
 def resend_queue() -> int:
@@ -425,14 +560,168 @@ def resend_queue() -> int:
     for line in lines:
         if not line.strip():
             continue
-        batch = json.loads(line)
+        queued = json.loads(line)
+        if isinstance(queued, dict) and isinstance(queued.get("payload"), dict):
+            endpoint = str(queued.get("endpoint") or "/api/renhold/ingest")
+            batch = queued["payload"]
+        else:
+            endpoint = "/api/renhold/ingest"
+            batch = queued
         try:
-            post_to_fibaro10(batch)
+            post_to_fibaro10(batch, endpoint)
             sent += 1
         except Exception:
             remaining.append(line)
     QUEUE_FILE.write_text("\n".join(remaining) + ("\n" if remaining else ""), encoding="utf-8")
     return sent
+
+
+async def local_telemetry_data(
+    device: dict[str, Any],
+    host: str,
+    model: str | None,
+    *,
+    include_settings: bool,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    from roborock.roborock_typing import RoborockCommand
+
+    rpc, channel = await get_local_rpc(device, host)
+    probes: list[dict[str, Any]] = []
+
+    async def read_command(name: str, timeout: float = 3.0) -> tuple[bool, Any]:
+        command = getattr(RoborockCommand, name, None)
+        if command is None:
+            error = "Kommandoen finnes ikke i installert python-roborock"
+            probes.append(
+                {"source": "local-telemetry", "command": name, "ok": False, "error": error, "result_type": "missing"}
+            )
+            return False, None
+        try:
+            result = await asyncio.wait_for(rpc.send_command(command), timeout=timeout)
+            value = jsonable(result)
+            probes.append(
+                {
+                    "source": "local-telemetry",
+                    "command": name,
+                    "ok": True,
+                    "result_type": type(result).__name__,
+                    "value": value,
+                }
+            )
+            return True, value
+        except Exception as exc:
+            error = f"{type(exc).__name__}: {exc}"
+            probes.append(
+                {
+                    "source": "local-telemetry",
+                    "command": name,
+                    "ok": False,
+                    "error": error,
+                    "result_type": type(exc).__name__,
+                }
+            )
+            if is_unsupported_command_error(error):
+                telemetry_unsupported_commands.setdefault(str(device.get("duid") or ""), set()).add(name)
+            return False, None
+
+    try:
+        status_ok, status_result = await read_command("GET_STATUS", timeout=5.0)
+        if not status_ok:
+            raise RuntimeError(probes[-1].get("error") or "GET_STATUS feilet")
+        network_ok, network_result = await read_command("GET_NETWORK_INFO")
+        status = first_dict(status_result)
+        telemetry = status_telemetry(status, model)
+        network = first_dict(network_result) if network_ok else {}
+        telemetry.update(
+            {
+                "local_ip": network.get("ip") or host,
+                "rssi": network.get("rssi"),
+                "network_raw": network,
+            }
+        )
+
+        if include_settings:
+            unsupported = telemetry_unsupported_commands.setdefault(str(device.get("duid") or ""), set())
+            for name in TELEMETRY_SETTING_COMMANDS:
+                if name not in unsupported:
+                    await read_command(name)
+        return telemetry, probes
+    finally:
+        channel.close()
+
+
+async def collect_telemetry_once(force_settings: bool = False) -> dict[str, Any]:
+    home = load_cached_home_data()
+    if not home:
+        home = await get_home_data(ROBOROCK_EMAIL, force_refresh=False)
+    devices = home.get("devices", []) + home.get("received_devices", [])
+    products = {product.get("id"): product for product in home.get("products", [])}
+    state = load_state()
+    robots = []
+    now_monotonic = time.monotonic()
+
+    for device in devices:
+        duid = str(device.get("duid") or "")
+        if not duid:
+            continue
+        previous_robot = ((state.get("robots") or {}).get(duid) or {})
+        host = previous_robot.get("local_ip")
+        product = products.get(device.get("product_id"), {})
+        model = product.get("model")
+        include_settings = force_settings or (
+            now_monotonic - telemetry_last_settings_at.get(duid, 0) >= TELEMETRY_SETTINGS_INTERVAL_SECONDS
+        )
+        item: dict[str, Any] = {
+            "duid": duid,
+            "name": device.get("name"),
+            "model": model,
+            "local_ip": host,
+            "ok": False,
+            "settings_refreshed": include_settings,
+        }
+        if not host:
+            item["error"] = "Lokal IP mangler; venter på ordinær Roborock-synk"
+            robots.append(item)
+            continue
+        try:
+            telemetry, probes = await local_telemetry_data(
+                device,
+                host,
+                model,
+                include_settings=include_settings,
+            )
+            item.update({"ok": True, "telemetry": telemetry, "probes": probes})
+            if include_settings:
+                telemetry_last_settings_at[duid] = now_monotonic
+            state.setdefault("robots", {}).setdefault(duid, {})["last_telemetry"] = local_now_iso()
+            state["robots"][duid]["last_telemetry_error"] = None
+        except Exception as exc:
+            item["error"] = f"{type(exc).__name__}: {exc}"
+            state.setdefault("robots", {}).setdefault(duid, {})["last_telemetry_error"] = item["error"]
+        robots.append(item)
+
+    batch = {
+        "source": "Roborock_logger telemetry",
+        "collector_id": COLLECTOR_ID,
+        "timestamp": local_now_naive_iso(),
+        "ok": all(robot.get("ok") for robot in robots) if robots else False,
+        "robots": robots,
+        "extra": {
+            "interval_seconds": TELEMETRY_INTERVAL_SECONDS,
+            "settings_interval_seconds": TELEMETRY_SETTINGS_INTERVAL_SECONDS,
+        },
+    }
+    try:
+        resend_queue()
+        post_to_fibaro10(batch, "/api/renhold/telemetry/ingest")
+        state["last_telemetry"] = local_now_iso()
+        state["last_telemetry_error"] = None
+    except Exception as exc:
+        queue_batch(batch, "/api/renhold/telemetry/ingest")
+        state["last_telemetry_error"] = str(exc)
+    state["pending_batches"] = sum(1 for _ in QUEUE_FILE.open(encoding="utf-8")) if QUEUE_FILE.exists() else 0
+    save_state(state)
+    return batch
 
 
 async def collect_once(include_maps: bool = False, force_home_refresh: bool = False) -> dict[str, Any]:
@@ -547,6 +836,19 @@ async def sync_loop() -> None:
         await asyncio.sleep(max(60, STATUS_INTERVAL_SECONDS))
 
 
+async def telemetry_loop() -> None:
+    while True:
+        try:
+            if AUTO_SYNC_ENABLED and CACHE_FILE.exists():
+                async with sync_lock:
+                    await collect_telemetry_once()
+        except Exception as exc:
+            state = load_state()
+            state["last_telemetry_error"] = str(exc)
+            save_state(state)
+        await asyncio.sleep(max(30, TELEMETRY_INTERVAL_SECONDS))
+
+
 def page(content: str) -> HTMLResponse:
     return HTMLResponse(
         f"""<!doctype html>
@@ -568,6 +870,7 @@ input{{padding:.55rem;border:1px solid #dbe3ec;border-radius:7px}}form{{display:
 async def startup() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     asyncio.create_task(sync_loop())
+    asyncio.create_task(telemetry_loop())
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -585,10 +888,11 @@ async def index():
 <section class="panel"><div class="grid">
 <div class="metric"><span>Roborock-login</span><strong>{login_state}</strong></div>
 <div class="metric"><span>Sist sendt</span><strong>{state.get('last_sync') or '-'}</strong></div>
+<div class="metric"><span>Sist telemetri</span><strong>{state.get('last_telemetry') or '-'}</strong></div>
 <div class="metric"><span>Kø</span><strong>{state.get('pending_batches', 0)}</strong></div>
-</div><p>Siste feil: <code>{state.get('last_error') or '-'}</code></p></section>
+</div><p>Siste feil: <code>{state.get('last_error') or state.get('last_telemetry_error') or '-'}</code></p></section>
 <section class="panel"><h2>Handlinger</h2>
-<p><a class="button" href="/sync-now">Synk nå</a> <a class="button" href="/sync-now?refresh=true">Finn nye roboter</a> <a class="button" href="/sync-now?maps=true">Synk med kart</a> <a class="button" href="/api/status">JSON status</a></p>
+<p><a class="button" href="/sync-now">Synk nå</a> <a class="button" href="/telemetry-now">Telemetri nå</a> <a class="button" href="/sync-now?refresh=true">Finn nye roboter</a> <a class="button" href="/sync-now?maps=true">Synk med kart</a> <a class="button" href="/api/status">JSON status</a></p>
 <h3>Login</h3>
 <form action="/auth/request-code"><input name="email" value="{ROBOROCK_EMAIL}"><button>Send kode</button></form>
 <form action="/auth/login"><input name="email" value="{ROBOROCK_EMAIL}"><input name="code" placeholder="Kode fra e-post"><button>Lagre login</button></form>
@@ -638,6 +942,28 @@ async def status():
     return load_state()
 
 
+@app.get("/telemetry-now")
+async def telemetry_now(settings: bool = True):
+    try:
+        async with sync_lock:
+            batch = await collect_telemetry_once(force_settings=settings)
+        return JSONResponse(
+            {
+                "status": "ok" if batch.get("ok") else "partial",
+                "robots": len(batch.get("robots", [])),
+                "settings_refreshed": settings,
+            }
+        )
+    except Exception as exc:
+        state = load_state()
+        state["last_telemetry_error"] = f"manual telemetry: {exc}"
+        save_state(state)
+        return JSONResponse(
+            {"status": "error", "error": str(exc)},
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
 @app.get("/status")
 async def status_alias():
     return load_state()
@@ -647,8 +973,9 @@ async def status_alias():
 async def health():
     state = load_state()
     return {
-        "ok": not bool(state.get("last_error")),
+        "ok": not bool(state.get("last_error") or state.get("last_telemetry_error")),
         "last_sync": state.get("last_sync"),
+        "last_telemetry": state.get("last_telemetry"),
         "timezone": LOCAL_TIMEZONE,
         "pending_batches": state.get("pending_batches", 0),
         "robots": len(state.get("robots") or {}),

@@ -275,6 +275,27 @@ export type RoborockRobotDetail = {
   statuses: JsonRecord[];
   consumables: JsonRecord | null;
   latestMap: (JsonRecord & { imageDataUrl?: string | null }) | null;
+  latestTelemetry: JsonRecord | null;
+  telemetrySamples: JsonRecord[];
+  telemetryEvents: JsonRecord[];
+  telemetryFields: Array<{
+    category: string;
+    field: string;
+    label: string;
+    value: unknown;
+    valueLabel: string;
+    supported: boolean;
+  }>;
+  rawStatusFields: Array<{ field: string; value: unknown }>;
+  telemetryProbes: Array<{
+    command: string;
+    supported: boolean;
+    status: string;
+    checkedAt?: string | null;
+    resultType?: string | null;
+    value?: unknown;
+    error?: string | null;
+  }>;
 };
 
 export type ParkingTimeline = {

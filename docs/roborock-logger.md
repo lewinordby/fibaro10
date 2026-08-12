@@ -19,6 +19,7 @@ Fibaro10 tar imot:
 
 ```text
 POST /api/renhold/ingest
+POST /api/renhold/telemetry/ingest
 ```
 
 Og viser:
@@ -39,6 +40,8 @@ Data lagres i egne tabeller for:
 - kart
 - probe-resultater
 - sync-kjøringer
+- telemetrimålinger
+- telemetrihendelser
 
 ## QNAP / Docker
 
@@ -88,6 +91,9 @@ Renhold -> Oversikt
 ```
 
 Derfra kan man åpne hver robot og se status, teknisk identitet, siste jobber, planer, kart og rå statuspakker.
+
+I robotdetaljen vises også komplett telemetri. Dynamisk status leses hvert minutt. En bredere kontroll av
+modellspesifikke lesekall kjøres hvert 15. minutt. Se `docs/roborock-telemetri.md` for hele feltkatalogen.
 
 ## Legge til en ny robot
 

@@ -148,6 +148,8 @@ from roborock_domain import (
     format_seconds_as_hours,
     roborock_bool_label,
     roborock_charge_label,
+    roborock_dock_error_label,
+    roborock_dock_type_label,
     roborock_error_label,
     roborock_fan_label,
     roborock_json,
@@ -157,6 +159,8 @@ from roborock_domain import (
     roborock_schedule_text,
     roborock_signal_label,
     roborock_state_label,
+    roborock_telemetry_changes,
+    roborock_telemetry_value_label,
     roborock_water_label,
 )
 from security import apply_security_headers
@@ -999,6 +1003,72 @@ class RoborockStatusSample(Base):
     clean_percent = Column(Integer, nullable=True)
     local_ip = Column(String, nullable=True)
     rssi = Column(Integer, nullable=True)
+    raw = Column(JSON, nullable=True)
+
+
+class RoborockTelemetrySample(Base):
+    __tablename__ = "roborock_telemetry_samples"
+
+    id = Column(Integer, primary_key=True, index=True)
+    robot_duid = Column(String, index=True, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    source = Column(String, nullable=True)
+    state_code = Column(Integer, nullable=True)
+    state_name = Column(String, nullable=True)
+    battery = Column(Integer, nullable=True)
+    error_code = Column(Integer, nullable=True)
+    in_cleaning = Column(Boolean, nullable=True)
+    in_returning = Column(Boolean, nullable=True)
+    clean_time_seconds = Column(Integer, nullable=True)
+    clean_area_m2 = Column(Float, nullable=True)
+    clean_percent = Column(Integer, nullable=True)
+    fan_power = Column(Integer, nullable=True)
+    water_box_mode = Column(Integer, nullable=True)
+    mop_mode = Column(Integer, nullable=True)
+    charge_status = Column(Integer, nullable=True)
+    is_charging = Column(Boolean, nullable=True)
+    dock_type = Column(Integer, nullable=True)
+    dock_error_status = Column(Integer, nullable=True)
+    dust_collection_status = Column(Integer, nullable=True)
+    auto_dust_collection = Column(Boolean, nullable=True)
+    wash_status = Column(Integer, nullable=True)
+    wash_phase = Column(Integer, nullable=True)
+    wash_ready = Column(Boolean, nullable=True)
+    dry_status = Column(Integer, nullable=True)
+    water_shortage_status = Column(Integer, nullable=True)
+    water_box_status = Column(Integer, nullable=True)
+    water_box_carriage_status = Column(Integer, nullable=True)
+    clear_water_status = Column(Integer, nullable=True)
+    clear_water_status_name = Column(String, nullable=True)
+    dirty_water_status = Column(Integer, nullable=True)
+    dirty_water_status_name = Column(String, nullable=True)
+    dust_bag_status = Column(Integer, nullable=True)
+    dust_bag_status_name = Column(String, nullable=True)
+    clean_fluid_status = Column(Integer, nullable=True)
+    clean_fluid_status_name = Column(String, nullable=True)
+    water_box_filter_status = Column(Integer, nullable=True)
+    dock_cool_fan_status = Column(Integer, nullable=True)
+    local_ip = Column(String, nullable=True)
+    rssi = Column(Integer, nullable=True)
+    dss = Column(Integer, nullable=True)
+    rss = Column(Integer, nullable=True)
+    raw = Column(JSON, nullable=True)
+
+
+class RoborockTelemetryEvent(Base):
+    __tablename__ = "roborock_telemetry_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    robot_duid = Column(String, index=True, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    category = Column(String, index=True, nullable=True)
+    field_name = Column(String, index=True, nullable=False)
+    title = Column(String, nullable=True)
+    previous_value = Column(String, nullable=True)
+    current_value = Column(String, nullable=True)
+    previous_label = Column(String, nullable=True)
+    current_label = Column(String, nullable=True)
+    severity = Column(String, index=True, nullable=True)
     raw = Column(JSON, nullable=True)
 
 
@@ -2071,6 +2141,15 @@ class RoborockIngestIn(BaseModel):
     extra: Dict[str, Any] = Field(default_factory=dict)
 
 
+class RoborockTelemetryIn(BaseModel):
+    source: str = "Roborock_logger telemetry"
+    collector_id: Optional[str] = None
+    timestamp: Optional[datetime] = None
+    ok: bool = True
+    robots: list[Dict[str, Any]] = Field(default_factory=list)
+    extra: Dict[str, Any] = Field(default_factory=dict)
+
+
 class Sun2RoomStatIn(BaseModel):
     stat_date: date
     room: str
@@ -2705,6 +2784,63 @@ ROBOROCK_STATUS_COLUMNS = [
     "charge_status", "clean_percent", "local_ip", "rssi", "raw",
 ]
 
+ROBOROCK_TELEMETRY_COLUMNS = [
+    "id", "robot_duid", "timestamp", "source", "state_code", "state_name",
+    "battery", "error_code", "in_cleaning", "in_returning", "clean_time_seconds",
+    "clean_area_m2", "clean_percent", "fan_power", "water_box_mode", "mop_mode",
+    "charge_status", "is_charging", "dock_type", "dock_error_status",
+    "dust_collection_status", "auto_dust_collection", "wash_status", "wash_phase",
+    "wash_ready", "dry_status", "water_shortage_status", "water_box_status",
+    "water_box_carriage_status", "clear_water_status", "clear_water_status_name",
+    "dirty_water_status", "dirty_water_status_name", "dust_bag_status",
+    "dust_bag_status_name", "clean_fluid_status", "clean_fluid_status_name",
+    "water_box_filter_status", "dock_cool_fan_status", "local_ip", "rssi", "dss",
+    "rss", "raw",
+]
+
+ROBOROCK_TELEMETRY_EVENT_COLUMNS = [
+    "id", "robot_duid", "timestamp", "category", "field_name", "title",
+    "previous_value", "current_value", "previous_label", "current_label",
+    "severity", "raw",
+]
+
+ROBOROCK_TELEMETRY_DISPLAY_FIELDS = [
+    ("Robot", "state_code", "Status", "state_name"),
+    ("Robot", "battery", "Batteri", None),
+    ("Robot", "error_code", "Robotfeil", None),
+    ("Robot", "in_cleaning", "Rengjøring aktiv", None),
+    ("Robot", "in_returning", "Returnerer til dokk", None),
+    ("Robot", "clean_percent", "Fremdrift", None),
+    ("Robot", "clean_time_seconds", "Rengjøringstid", None),
+    ("Robot", "clean_area_m2", "Rengjort areal", None),
+    ("Robot", "fan_power", "Sugekraft", None),
+    ("Robot", "mop_mode", "Moppemodus", None),
+    ("Lading", "is_charging", "Lader nå", None),
+    ("Lading", "charge_status", "Ladestatus fra API", None),
+    ("Dokk", "dock_type", "Dokktype", None),
+    ("Dokk", "dock_error_status", "Dokkfeil", None),
+    ("Dokk", "dust_collection_status", "Støvtømming", None),
+    ("Dokk", "auto_dust_collection", "Automatisk støvtømming", None),
+    ("Dokk", "wash_status", "Moppevask", None),
+    ("Dokk", "wash_phase", "Vaskefase", None),
+    ("Dokk", "wash_ready", "Klar for vask", None),
+    ("Dokk", "dry_status", "Tørking", None),
+    ("Dokk", "dock_cool_fan_status", "Dokkens kjølevifte", None),
+    ("Vann og beholdere", "clear_water_status", "Rentvann", "clear_water_status_name"),
+    ("Vann og beholdere", "dirty_water_status", "Skittent vann", "dirty_water_status_name"),
+    ("Vann og beholdere", "dust_bag_status", "Støvpose", "dust_bag_status_name"),
+    ("Vann og beholdere", "clean_fluid_status", "Rengjøringsmiddel", "clean_fluid_status_name"),
+    ("Vann og beholdere", "water_shortage_status", "Vannmangel", None),
+    ("Vann og beholdere", "water_box_status", "Vanntankstatus", None),
+    ("Vann og beholdere", "water_box_carriage_status", "Vanntank montert", None),
+    ("Vann og beholdere", "water_box_filter_status", "Vannfilter", None),
+    ("Vann og beholdere", "water_box_mode", "Vannmengde", None),
+    ("Nettverk", "rssi", "WiFi-signal", None),
+    ("Nettverk", "local_ip", "Lokal IP", None),
+    ("Teknisk", "dss", "DSS-statusord", None),
+    ("Teknisk", "rss", "RSS-statusord", None),
+]
+
 ROBOROCK_JOB_COLUMNS = [
     "id", "robot_duid", "record_id", "begin_at", "end_at", "duration_seconds",
     "duration_minutes", "area_m2", "cleaned_area_m2", "complete", "error_code",
@@ -2918,6 +3054,20 @@ AI_DATASETS = {
         "title": "Roborock status",
         "description": "Statusprøver fra robotene med batteri, tilstand, rengjøring og signal.",
         "columns": ROBOROCK_STATUS_COLUMNS,
+        "time_column": "timestamp",
+    },
+    "renhold_telemetry": {
+        "table": "roborock_telemetry_samples",
+        "title": "Roborock telemetri",
+        "description": "Minuttverdier for robot, lading, dokk, vann, støvpose, vask, tørking og nettverk.",
+        "columns": ROBOROCK_TELEMETRY_COLUMNS,
+        "time_column": "timestamp",
+    },
+    "renhold_telemetry_events": {
+        "table": "roborock_telemetry_events",
+        "title": "Roborock telemetrihendelser",
+        "description": "Tilstandsendringer for lading, dokk, vann, støvpose, vask og tørking.",
+        "columns": ROBOROCK_TELEMETRY_EVENT_COLUMNS,
         "time_column": "timestamp",
     },
     "renhold_jobs": {
@@ -4449,6 +4599,21 @@ PERFORMANCE_INDEXES = [
         "ix_import_runs_job_finished",
         "CREATE INDEX IF NOT EXISTS ix_import_runs_job_finished "
         "ON import_job_runs (job_name, finished_at DESC)",
+    ),
+    (
+        "ix_roborock_telemetry_robot_timestamp",
+        "CREATE INDEX IF NOT EXISTS ix_roborock_telemetry_robot_timestamp "
+        "ON roborock_telemetry_samples (robot_duid, timestamp DESC)",
+    ),
+    (
+        "ix_roborock_telemetry_events_robot_timestamp",
+        "CREATE INDEX IF NOT EXISTS ix_roborock_telemetry_events_robot_timestamp "
+        "ON roborock_telemetry_events (robot_duid, timestamp DESC)",
+    ),
+    (
+        "ix_roborock_probes_robot_command_timestamp",
+        "CREATE INDEX IF NOT EXISTS ix_roborock_probes_robot_command_timestamp "
+        "ON roborock_probe_results (robot_duid, command, timestamp DESC)",
     ),
     (
         "ix_parkering_plate_start",
@@ -14203,6 +14368,138 @@ async def ingest_roborock_robot(session, robot_data: Dict[str, Any], batch_time:
             )
         )
     return {"ok": True, "duid": duid}
+
+
+def roborock_telemetry_sample_values(telemetry: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "state_code": int_value(telemetry.get("state_code")),
+        "state_name": telemetry.get("state_name"),
+        "battery": int_value(telemetry.get("battery")),
+        "error_code": int_value(telemetry.get("error_code")),
+        "in_cleaning": bool_value(telemetry.get("in_cleaning")),
+        "in_returning": bool_value(telemetry.get("in_returning")),
+        "clean_time_seconds": int_value(telemetry.get("clean_time_seconds")),
+        "clean_area_m2": area_m2_from_payload(telemetry.get("clean_area_raw")),
+        "clean_percent": int_value(telemetry.get("clean_percent")),
+        "fan_power": int_value(telemetry.get("fan_power")),
+        "water_box_mode": int_value(telemetry.get("water_box_mode")),
+        "mop_mode": int_value(telemetry.get("mop_mode")),
+        "charge_status": int_value(telemetry.get("charge_status")),
+        "is_charging": bool_value(telemetry.get("is_charging")),
+        "dock_type": int_value(telemetry.get("dock_type")),
+        "dock_error_status": int_value(telemetry.get("dock_error_status")),
+        "dust_collection_status": int_value(telemetry.get("dust_collection_status")),
+        "auto_dust_collection": bool_value(telemetry.get("auto_dust_collection")),
+        "wash_status": int_value(telemetry.get("wash_status")),
+        "wash_phase": int_value(telemetry.get("wash_phase")),
+        "wash_ready": bool_value(telemetry.get("wash_ready")),
+        "dry_status": int_value(telemetry.get("dry_status")),
+        "water_shortage_status": int_value(telemetry.get("water_shortage_status")),
+        "water_box_status": int_value(telemetry.get("water_box_status")),
+        "water_box_carriage_status": int_value(telemetry.get("water_box_carriage_status")),
+        "clear_water_status": int_value(telemetry.get("clear_water_status")),
+        "clear_water_status_name": telemetry.get("clear_water_status_name"),
+        "dirty_water_status": int_value(telemetry.get("dirty_water_status")),
+        "dirty_water_status_name": telemetry.get("dirty_water_status_name"),
+        "dust_bag_status": int_value(telemetry.get("dust_bag_status")),
+        "dust_bag_status_name": telemetry.get("dust_bag_status_name"),
+        "clean_fluid_status": int_value(telemetry.get("clean_fluid_status")),
+        "clean_fluid_status_name": telemetry.get("clean_fluid_status_name"),
+        "water_box_filter_status": int_value(telemetry.get("water_box_filter_status")),
+        "dock_cool_fan_status": int_value(telemetry.get("dock_cool_fan_status")),
+        "local_ip": telemetry.get("local_ip"),
+        "rssi": int_value(telemetry.get("rssi")),
+        "dss": int_value(telemetry.get("dss")),
+        "rss": int_value(telemetry.get("rss")),
+    }
+
+
+async def ingest_roborock_telemetry_robot(
+    session,
+    robot_data: Dict[str, Any],
+    batch_time: datetime,
+    source: str,
+) -> Dict[str, Any]:
+    duid = str(robot_data.get("duid") or "")
+    if not duid:
+        return {"ok": False, "error": "Mangler DUID", "events": 0}
+
+    robot = (
+        await session.execute(select(RoborockRobot).where(RoborockRobot.duid == duid))
+    ).scalars().first()
+    if not robot:
+        robot = RoborockRobot(duid=duid, name=robot_data.get("name") or duid)
+        session.add(robot)
+    robot.name = robot_data.get("name") or robot.name
+    robot.model = robot_data.get("model") or robot.model
+    robot.local_ip = robot_data.get("local_ip") or robot.local_ip
+    robot.last_seen_at = batch_time
+
+    telemetry = robot_data.get("telemetry") or {}
+    events_created = 0
+    if telemetry:
+        values = roborock_telemetry_sample_values(telemetry)
+        previous = (
+            await session.execute(
+                select(RoborockTelemetrySample)
+                .where(RoborockTelemetrySample.robot_duid == duid)
+                .order_by(RoborockTelemetrySample.timestamp.desc(), RoborockTelemetrySample.id.desc())
+                .limit(1)
+            )
+        ).scalars().first()
+        previous_values = (
+            row_to_dict(previous, [column for column in ROBOROCK_TELEMETRY_COLUMNS if column not in {"id", "raw"}])
+            if previous
+            else None
+        )
+        sample = RoborockTelemetrySample(
+            robot_duid=duid,
+            timestamp=batch_time,
+            source=source,
+            raw={
+                "status_raw": telemetry.get("status_raw") or {},
+                "network_raw": telemetry.get("network_raw") or {},
+                "normalized": {
+                    key: value
+                    for key, value in telemetry.items()
+                    if key not in {"status_raw", "network_raw"}
+                },
+            },
+            **values,
+        )
+        session.add(sample)
+        robot.last_local_at = batch_time
+        robot.last_status_at = batch_time
+        robot.local_ip = values.get("local_ip") or robot.local_ip
+
+        for change in roborock_telemetry_changes(previous_values, values):
+            session.add(
+                RoborockTelemetryEvent(
+                    robot_duid=duid,
+                    timestamp=batch_time,
+                    raw={"source": source},
+                    **change,
+                )
+            )
+            events_created += 1
+
+    for probe in robot_data.get("probes") or []:
+        command = probe.get("command") or probe.get("name")
+        if command in {"GET_STATUS", "GET_NETWORK_INFO"}:
+            continue
+        session.add(
+            RoborockProbeResult(
+                robot_duid=duid,
+                timestamp=batch_time,
+                source=probe.get("source") or source,
+                command=command,
+                ok=bool_value(probe.get("ok")),
+                error=probe.get("error"),
+                result_type=probe.get("result_type") or probe.get("type"),
+                raw=probe,
+            )
+        )
+    return {"ok": bool(telemetry), "duid": duid, "events": events_created}
 
 
 async def ingest_sun2_room_stats(session, data: Sun2RoomStatsIngestIn, batch_time: datetime) -> Dict[str, int]:
@@ -34198,6 +34495,21 @@ async def roborock_ingest(data: RoborockIngestIn):
     return {"status": "ok", "robots": results}
 
 
+@app.post("/api/renhold/telemetry/ingest")
+async def roborock_telemetry_ingest(data: RoborockTelemetryIn):
+    batch_time = data.timestamp or local_now_naive()
+    results = []
+    async with async_session() as session:
+        for robot in data.robots:
+            results.append(await ingest_roborock_telemetry_robot(session, robot, batch_time, data.source))
+        await session.commit()
+    return {
+        "status": "ok" if data.ok else "partial",
+        "robots": results,
+        "events": sum(int(item.get("events") or 0) for item in results),
+    }
+
+
 @app.post("/api/sun2/room-stats/ingest")
 async def sun2_room_stats_ingest(data: Sun2RoomStatsIngestIn):
     batch_time = data.timestamp or datetime.utcnow()
@@ -38241,6 +38553,31 @@ async def api_cleaning_robot_detail(duid: str):
                 .limit(1)
             )
         ).scalars().first()
+        telemetry_samples = (
+            await session.execute(
+                select(RoborockTelemetrySample)
+                .where(RoborockTelemetrySample.robot_duid == duid)
+                .order_by(RoborockTelemetrySample.timestamp.desc(), RoborockTelemetrySample.id.desc())
+                .limit(360)
+            )
+        ).scalars().all()
+        telemetry_events = (
+            await session.execute(
+                select(RoborockTelemetryEvent)
+                .where(RoborockTelemetryEvent.robot_duid == duid)
+                .order_by(RoborockTelemetryEvent.timestamp.desc(), RoborockTelemetryEvent.id.desc())
+                .limit(150)
+            )
+        ).scalars().all()
+        telemetry_probes = (
+            await session.execute(
+                select(RoborockProbeResult)
+                .where(RoborockProbeResult.robot_duid == duid)
+                .where(RoborockProbeResult.source == "local-telemetry")
+                .order_by(RoborockProbeResult.timestamp.desc(), RoborockProbeResult.id.desc())
+                .limit(1000)
+            )
+        ).scalars().all()
 
     latest_status = statuses[0] if statuses else None
     metadata = ((robot.extra or {}).get("metadata") or {}) if isinstance(robot.extra, dict) else {}
@@ -38306,6 +38643,89 @@ async def api_cleaning_robot_detail(duid: str):
             **row_to_dict(latest_map, [column for column in ROBOROCK_MAP_COLUMNS if column != "raw"]),
             "imageDataUrl": f"data:image/png;base64,{latest_map.image_base64}" if latest_map.image_base64 else None,
         }
+    telemetry_rows = []
+    for row in telemetry_samples:
+        item = row_to_dict(row, [column for column in ROBOROCK_TELEMETRY_COLUMNS if column != "raw"])
+        item.update(
+            {
+                "state_label": roborock_state_label(row.state_code),
+                "error_label": roborock_error_label(row.error_code),
+                "charge_label": roborock_telemetry_value_label("is_charging", row.is_charging),
+                "dock_label": roborock_dock_type_label(row.dock_type),
+                "dock_error_label": roborock_dock_error_label(row.dock_error_status),
+                "clear_water_label": roborock_telemetry_value_label(
+                    "clear_water_status", row.clear_water_status, row.clear_water_status_name
+                ),
+                "dirty_water_label": roborock_telemetry_value_label(
+                    "dirty_water_status", row.dirty_water_status, row.dirty_water_status_name
+                ),
+                "dust_bag_label": roborock_telemetry_value_label(
+                    "dust_bag_status", row.dust_bag_status, row.dust_bag_status_name
+                ),
+                "signal_label": roborock_signal_label(row.rssi),
+            }
+        )
+        telemetry_rows.append(item)
+    latest_telemetry = telemetry_samples[0] if telemetry_samples else None
+    telemetry_fields = []
+    raw_status_fields = []
+    if latest_telemetry:
+        latest_values = row_to_dict(latest_telemetry, ROBOROCK_TELEMETRY_COLUMNS)
+        for category, field_name, label, name_field in ROBOROCK_TELEMETRY_DISPLAY_FIELDS:
+            value = latest_values.get(field_name)
+            name = latest_values.get(name_field) if name_field else None
+            telemetry_fields.append(
+                {
+                    "category": category,
+                    "field": field_name,
+                    "label": label,
+                    "value": value,
+                    "valueLabel": roborock_telemetry_value_label(field_name, value, name),
+                    "supported": value is not None or name is not None,
+                }
+            )
+        telemetry_raw = latest_telemetry.raw if isinstance(latest_telemetry.raw, dict) else {}
+        raw_status = telemetry_raw.get("status_raw") if isinstance(telemetry_raw.get("status_raw"), dict) else {}
+        raw_status_fields = [
+            {
+                "field": key,
+                "value": json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+                if isinstance(value, (dict, list))
+                else value,
+            }
+            for key, value in sorted(raw_status.items())
+        ]
+    event_rows = [
+        row_to_dict(row, [column for column in ROBOROCK_TELEMETRY_EVENT_COLUMNS if column != "raw"])
+        for row in telemetry_events
+    ]
+    latest_probe_by_command: Dict[str, RoborockProbeResult] = {}
+    for probe in telemetry_probes:
+        if probe.command and probe.command not in latest_probe_by_command:
+            latest_probe_by_command[probe.command] = probe
+    probe_rows = []
+    for command, probe in sorted(latest_probe_by_command.items()):
+        raw = probe.raw if isinstance(probe.raw, dict) else {}
+        probe_rows.append(
+            {
+                "command": command,
+                "supported": probe.ok is True,
+                "status": (
+                    "Støttet"
+                    if probe.ok is True
+                    else "Ikke støttet"
+                    if any(
+                        marker in str(probe.error or "").lower()
+                        for marker in ("not recognized", "unknown method", "not supported", "unsupported")
+                    )
+                    else "Feil"
+                ),
+                "checkedAt": api_local_iso(probe.timestamp),
+                "resultType": probe.result_type,
+                "value": raw.get("value"),
+                "error": probe.error,
+            }
+        )
     robot_data = row_to_dict(robot, [column for column in ROBOROCK_ROBOT_COLUMNS if column not in {"extra", "capabilities"}])
     robot_data.update({"shared_label": roborock_bool_label(robot.shared), "cloud_label": roborock_bool_label(robot.cloud_online)})
     return {
@@ -38318,6 +38738,12 @@ async def api_cleaning_robot_detail(duid: str):
         "schedules": schedule_rows,
         "consumables": consumable_data,
         "latestMap": map_data,
+        "latestTelemetry": telemetry_rows[0] if telemetry_rows else None,
+        "telemetrySamples": telemetry_rows,
+        "telemetryEvents": event_rows,
+        "telemetryFields": telemetry_fields,
+        "rawStatusFields": raw_status_fields,
+        "telemetryProbes": probe_rows,
     }
 
 

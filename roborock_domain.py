@@ -86,6 +86,66 @@ ROBOROCK_CHARGE_LABELS = {
     2: "Lader",
 }
 
+ROBOROCK_DOCK_TYPE_LABELS = {
+    0: "Ingen dokk",
+    1: "Automatisk tømmestasjon",
+    3: "Tøm, vask og fyll",
+    5: "Auto-Empty Dock Pure",
+    6: "S7 Max Ultra Dock",
+    7: "S8 Dock",
+    8: "Qrevo P10-dokk",
+    9: "P10 Pro-dokk",
+    10: "S8 MaxV Ultra Dock",
+    14: "Qrevo Master-dokk",
+    15: "Qrevo S-dokk",
+    17: "Qrevo Curv-dokk",
+}
+
+ROBOROCK_DOCK_ERROR_LABELS = {
+    0: "Ingen feil",
+    32: "Støvbeholder eller filter mangler",
+    33: "Feil på tømmestasjonens vifte",
+    34: "Luftkanal blokkert eller støvpose full",
+    35: "Spenningsfeil i tømmestasjon",
+    38: "Rentvann mangler",
+    39: "Skittentvannstank full",
+    42: "Vedlikeholdsbørste sitter fast",
+    44: "Lås på skittentvannstank er åpen",
+    46: "Støvbeholder mangler",
+    53: "Vaskekar fullt eller blokkert",
+}
+
+ROBOROCK_RESOURCE_STATUS_LABELS = {
+    "okay": "OK",
+    "out_of_water": "Tom",
+    "out_of_water_2": "Tom",
+    "refill_error": "Påfyllingsfeil",
+    "full_not_installed": "Full eller ikke montert",
+    "full_not_installed_2": "Full eller ikke montert",
+    "drain_error": "Tømmefeil",
+    "not_installed": "Ikke montert",
+    "full": "Full",
+    "empty_not_installed": "Tom eller ikke montert",
+}
+
+ROBOROCK_TELEMETRY_EVENT_FIELDS = {
+    "state_code": ("robot", "Robotstatus"),
+    "is_charging": ("lading", "Lading"),
+    "error_code": ("robot", "Robotfeil"),
+    "dock_error_status": ("dokk", "Dokkfeil"),
+    "clear_water_status": ("vann", "Rentvann"),
+    "dirty_water_status": ("vann", "Skittent vann"),
+    "dust_bag_status": ("dokk", "Støvpose"),
+    "clean_fluid_status": ("vann", "Rengjøringsmiddel"),
+    "water_shortage_status": ("vann", "Vannmangel"),
+    "water_box_carriage_status": ("vann", "Vanntank montert"),
+    "dust_collection_status": ("dokk", "Støvtømming"),
+    "wash_status": ("dokk", "Moppevask"),
+    "wash_phase": ("dokk", "Vaskefase"),
+    "dry_status": ("dokk", "Tørking"),
+    "auto_dust_collection": ("innstilling", "Automatisk støvtømming"),
+}
+
 ROBOROCK_DAYS = {
     "0": "søn",
     "1": "man",
@@ -158,6 +218,90 @@ def roborock_water_label(value: Any) -> str:
 
 def roborock_charge_label(value: Any) -> str:
     return roborock_label(ROBOROCK_CHARGE_LABELS, value, "Ladestatus")
+
+
+def roborock_dock_type_label(value: Any) -> str:
+    return roborock_label(ROBOROCK_DOCK_TYPE_LABELS, value, "Dokktype")
+
+
+def roborock_dock_error_label(value: Any) -> str:
+    return roborock_label(ROBOROCK_DOCK_ERROR_LABELS, value, "Dokkfeil")
+
+
+def roborock_resource_status_label(value: Any, name: Any = None) -> str:
+    if name:
+        key = str(name).strip().lower()
+        if key in ROBOROCK_RESOURCE_STATUS_LABELS:
+            return ROBOROCK_RESOURCE_STATUS_LABELS[key]
+        return key.replace("_", " ").capitalize()
+    number = int_value(value)
+    if number is None:
+        return "Ikke støttet"
+    return "OK" if number == 0 else f"Statuskode {number}"
+
+
+def roborock_telemetry_value_label(field_name: str, value: Any, name: Any = None) -> str:
+    if value is None and not name:
+        return "Ikke støttet"
+    if field_name == "state_code":
+        return roborock_state_label(value)
+    if field_name == "error_code":
+        return roborock_error_label(value)
+    if field_name == "dock_type":
+        return roborock_dock_type_label(value)
+    if field_name == "dock_error_status":
+        return roborock_dock_error_label(value)
+    if field_name == "charge_status":
+        return roborock_charge_label(value)
+    if field_name in {"clear_water_status", "dirty_water_status", "dust_bag_status", "clean_fluid_status"}:
+        return roborock_resource_status_label(value, name)
+    if field_name == "rssi":
+        return roborock_signal_label(value)
+    if field_name in {"is_charging", "in_cleaning", "in_returning", "auto_dust_collection", "wash_ready"}:
+        return roborock_bool_label(value)
+    if field_name == "battery" and value is not None:
+        return f"{int_value(value)} %"
+    return str(value) if value is not None else "Ikke støttet"
+
+
+def roborock_telemetry_changes(previous: Dict[str, Any] | None, current: Dict[str, Any]) -> list[Dict[str, Any]]:
+    if not previous:
+        return []
+    changes = []
+    for field_name, (category, title) in ROBOROCK_TELEMETRY_EVENT_FIELDS.items():
+        old_value = previous.get(field_name)
+        new_value = current.get(field_name)
+        if old_value == new_value:
+            continue
+        name_key = field_name.replace("_status", "_status_name")
+        old_name = previous.get(name_key)
+        new_name = current.get(name_key)
+        old_label = roborock_telemetry_value_label(field_name, old_value, old_name)
+        new_label = roborock_telemetry_value_label(field_name, new_value, new_name)
+        severity = "info"
+        if field_name in {"error_code", "dock_error_status"} and int_value(new_value) not in {None, 0}:
+            severity = "critical"
+        elif field_name in {
+            "clear_water_status",
+            "dirty_water_status",
+            "dust_bag_status",
+            "clean_fluid_status",
+            "water_shortage_status",
+        } and new_label not in {"OK", "Ikke støttet", "0"}:
+            severity = "warning"
+        changes.append(
+            {
+                "category": category,
+                "field_name": field_name,
+                "title": title,
+                "previous_value": None if old_value is None else str(old_value),
+                "current_value": None if new_value is None else str(new_value),
+                "previous_label": old_label,
+                "current_label": new_label,
+                "severity": severity,
+            }
+        )
+    return changes
 
 
 def roborock_signal_label(value: Any) -> str:
