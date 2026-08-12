@@ -12,6 +12,33 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1717",
+        "date": "12.08.2026",
+        "headline": "Gjennomført norsk robotvisning",
+        "title": "Rå Roborock-status og tekniske kolonnenavn er gjort lesbare i den daglige flaten",
+        "description": (
+            "Den avsluttende visuelle kontrollen av robotoversikten og detaljsiden avdekket at enkelte "
+            "tekniske API-navn fortsatt ble vist direkte. Robotstatus og tabelloverskrifter er nå konsekvent "
+            "oversatt, slik at den operative flaten er norsk mens rådata fortsatt finnes i teknisk seksjon."
+        ),
+        "applications": [
+            "Bygg og drift: norske robotstatuser og konsistente tabelloverskrifter.",
+            "Felles mikroapp-UI: sentral visningsmapping for Roborock-status og historikkfelt.",
+        ],
+        "request": (
+            "Vurder videre utvikling av både robotoversikten og siden til den enkelte robot, og gjør "
+            "gode endringer som gir en bedre opplevelse."
+        ),
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser blant annet charging som Lader på robotkortene.",
+            "Erstatter engelske API-feltnavn med korte norske overskrifter i rengjøringshistorikken.",
+            "Bruker de samme norske overskriftene i telemetri, tilstandsendringer og teknisk historikk.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1716",
         "date": "12.08.2026",
         "headline": "Operativ robotoversikt og ryddigere detaljsider",

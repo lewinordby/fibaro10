@@ -58,6 +58,53 @@ function decimal(value: unknown, digits = 0) {
   return number.toLocaleString("nb-NO", { maximumFractionDigits: digits });
 }
 
+const roborockStateLabels: Record<string, string> = {
+  charging: "Lader",
+  cleaning: "Rengjør",
+  docking: "Dokker",
+  error: "Feil",
+  idle: "Klar",
+  mapping: "Kartlegger",
+  paused: "Pause",
+  returning: "Returnerer til dokk",
+  returning_home: "Returnerer til dokk",
+  sleeping: "Hviler",
+  washing_mop: "Vasker mopp",
+};
+
+const compactColumnLabels: Record<string, string> = {
+  battery: "Batteri",
+  begin_at: "Start",
+  charge_label: "Lading",
+  cleaned_area_m2: "Areal",
+  clear_water_label: "Rentvann",
+  current_label: "Til",
+  dirty_water_label: "Skittent vann",
+  dock_error_label: "Dokk",
+  duration_minutes: "Tid",
+  dust_bag_label: "Støvpose",
+  end_at: "Slutt",
+  error_label: "Feil",
+  fan_label: "Sugekraft",
+  field: "Felt",
+  local_ip: "Lokal IP",
+  mop_label: "Mopp",
+  previous_label: "Fra",
+  rounds_label: "Runder",
+  severity: "Nivå",
+  signal_label: "Signal",
+  state_label: "Tilstand",
+  status_label: "Status",
+  timestamp: "Tidspunkt",
+  title: "Hendelse",
+  value: "Verdi",
+};
+
+function robotStateLabel(value: unknown) {
+  const text = String(value || "").trim();
+  return roborockStateLabels[text.toLowerCase()] || text || "Ingen status";
+}
+
 function Field({ label, value }: { label: string; value: unknown }) {
   return <div className="flex items-start justify-between gap-4 border-b border-gray-100 py-2.5 text-sm last:border-0 dark:border-gray-700/70"><span className="text-gray-400">{label}</span><strong className="max-w-[65%] text-right font-medium text-gray-700 dark:text-gray-200">{displayCell(label, value)}</strong></div>;
 }
@@ -92,7 +139,7 @@ function TelemetryProbes({ probes }: { probes: RoborockRobotDetail["telemetryPro
 }
 
 function CompactTable({ columns, rows }: { columns: string[]; rows: JsonRecord[] }) {
-  return <div className="overflow-x-auto"><table className="w-full table-auto"><thead className="bg-gray-50 text-xs uppercase text-gray-400 dark:bg-gray-700/40"><tr>{columns.map((column) => <th className="whitespace-nowrap px-4 py-3 text-left font-semibold" key={column}>{valueLabel(column)}</th>)}</tr></thead><tbody className="divide-y divide-gray-100 text-sm dark:divide-gray-700/60">{rows.map((row, index) => <tr className="hover:bg-gray-50/60 dark:hover:bg-gray-700/20" key={String(row.id || index)}>{columns.map((column) => <td className="whitespace-nowrap px-4 py-3 tabular-nums" key={column}>{column.endsWith("_at") || column === "timestamp" || column === "begin_at" || column === "end_at" ? stamp(row[column]) : displayCell(column, row[column])}</td>)}</tr>)}{!rows.length ? <tr><td className="px-5 py-8 text-center text-sm text-gray-400" colSpan={columns.length}>Ingen data mottatt</td></tr> : null}</tbody></table></div>;
+  return <div className="overflow-x-auto"><table className="w-full table-auto"><thead className="bg-gray-50 text-xs uppercase text-gray-400 dark:bg-gray-700/40"><tr>{columns.map((column) => <th className="whitespace-nowrap px-4 py-3 text-left font-semibold" key={column}>{compactColumnLabels[column] || valueLabel(column)}</th>)}</tr></thead><tbody className="divide-y divide-gray-100 text-sm dark:divide-gray-700/60">{rows.map((row, index) => <tr className="hover:bg-gray-50/60 dark:hover:bg-gray-700/20" key={String(row.id || index)}>{columns.map((column) => <td className="whitespace-nowrap px-4 py-3 tabular-nums" key={column}>{column.endsWith("_at") || column === "timestamp" || column === "begin_at" || column === "end_at" ? stamp(row[column]) : displayCell(column, row[column])}</td>)}</tr>)}{!rows.length ? <tr><td className="px-5 py-8 text-center text-sm text-gray-400" colSpan={columns.length}>Ingen data mottatt</td></tr> : null}</tbody></table></div>;
 }
 
 function jobTone(job?: RoborockJobSummary | null) {
@@ -133,7 +180,7 @@ function RobotCard({ robot }: { robot: RoborockRobotSummary }) {
       <span className={`mt-1 inline-flex shrink-0 items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold ${style.badge}`}><span className={`h-2 w-2 rounded-full ${style.dot}`} />{readiness.label}</span>
     </div>
     <div className="grid grid-cols-[1fr_auto_auto] items-center gap-5 border-b border-gray-100 px-5 py-3 dark:border-gray-700/60">
-      <div className="min-w-0"><span className="block text-xs font-semibold uppercase text-gray-400">Status</span><strong className="mt-0.5 block truncate text-sm font-medium text-gray-700 dark:text-gray-200">{robot.state_name || "Ingen status"}</strong></div>
+      <div className="min-w-0"><span className="block text-xs font-semibold uppercase text-gray-400">Status</span><strong className="mt-0.5 block truncate text-sm font-medium text-gray-700 dark:text-gray-200">{robotStateLabel(robot.state_name)}</strong></div>
       <div><span className="block text-xs font-semibold uppercase text-gray-400">Batteri</span><strong className="mt-0.5 block text-sm font-medium tabular-nums text-gray-700 dark:text-gray-200">{robot.battery == null ? "-" : `${robot.battery} %`}</strong></div>
       <div className="text-right"><span className="block text-xs font-semibold uppercase text-gray-400">Sist lest</span><strong className="mt-0.5 block whitespace-nowrap text-sm font-medium text-gray-700 dark:text-gray-200">{relativeStamp(readiness.telemetry_at || robot.status_at || robot.last_seen_at)}</strong></div>
     </div>
