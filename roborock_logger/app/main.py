@@ -588,7 +588,7 @@ async def index():
 <div class="metric"><span>Kø</span><strong>{state.get('pending_batches', 0)}</strong></div>
 </div><p>Siste feil: <code>{state.get('last_error') or '-'}</code></p></section>
 <section class="panel"><h2>Handlinger</h2>
-<p><a class="button" href="/sync-now">Synk nå</a> <a class="button" href="/sync-now?maps=true">Synk med kart</a> <a class="button" href="/api/status">JSON status</a></p>
+<p><a class="button" href="/sync-now">Synk nå</a> <a class="button" href="/sync-now?refresh=true">Finn nye roboter</a> <a class="button" href="/sync-now?maps=true">Synk med kart</a> <a class="button" href="/api/status">JSON status</a></p>
 <h3>Login</h3>
 <form action="/auth/request-code"><input name="email" value="{ROBOROCK_EMAIL}"><button>Send kode</button></form>
 <form action="/auth/login"><input name="email" value="{ROBOROCK_EMAIL}"><input name="code" placeholder="Kode fra e-post"><button>Lagre login</button></form>

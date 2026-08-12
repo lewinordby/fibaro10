@@ -1,6 +1,6 @@
 # Roborock datakilder
 
-Oppdatert 10.07.2026.
+Oppdatert 12.08.2026.
 
 Dette dokumentet beskriver hvilke data som kan hentes fra Roborock, og hvordan de bør brukes i Lilletorget drift.
 
@@ -22,8 +22,11 @@ Roborock cloud / lokal LAN
 | --- | --- | --- | --- | --- | --- |
 | 1.etg A | Roborock Qrevo | `roborock.vacuum.a75` | OK | OK | OK |
 | 1.etg B | S8 | `roborock.vacuum.a51` | OK | OK | OK |
+| 2.etg | Roborock Qrevo | `roborock.vacuum.a75` | OK | OK | OK |
 
 Kontoen har robotene som delte enheter.
+
+Nye roboter legges til i Roborock-appen, kobles til IOT-nettet og deles med loggerkontoen. Bruk deretter `Finn nye roboter` på loggerens webflate; Fibaro10 oppretter roboten automatisk ved første synk. Den komplette oppskriften ligger i `docs/roborock-logger.md`.
 
 ## Cloud / REST
 

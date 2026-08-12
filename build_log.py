@@ -12,6 +12,33 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1710",
+        "date": "12.08.2026",
+        "headline": "Riktig Roborock-tid og enklere innmelding",
+        "title": "Vaskhistorikk vises i norsk lokal tid og nye roboter kan oppdages direkte",
+        "description": (
+            "Roborock-planer bruker lokal klokketid, mens utførte jobber kommer som Unix-tid i UTC. "
+            "API-et sender nå eksplisitt norsk tidssone til grensesnittet, slik at en jobb kl. 23:30 "
+            "ikke lenger vises som kl. 21:30 i sommertid. Loggeren har samtidig fått en egen handling "
+            "for å finne nylig delte roboter uten å vente på hurtigbufferen."
+        ),
+        "applications": [
+            "Fibaro10: tidssonekorrigert API for Roborock-jobber og rengjøringshistorikk.",
+            "Roborock_logger: egen handling for tvungen oppdagelse av nye roboter.",
+            "Dokumentasjon og tester: komplett innmeldingsoppskrift og tester for sommer- og vintertid.",
+        ],
+        "request": "Forklar hvordan en ny robot legges til, og rett at en planlagt vask kl. 23:30 rapporteres som kl. 21:30.",
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Tolker lagrede Roborock-jobbtider som UTC og leverer ISO-tid med korrekt Europe/Oslo-offset.",
+            "Beholder planenes cron-tid som lokal Roborock-tid.",
+            "Legger til Finn nye roboter, som tvinger ny lesing av Roborock-hjemmet.",
+            "Dokumenterer deling, IOT-nett, tidssone, oppdagelse og automatisk opprettelse i Fibaro10.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1709",
         "date": "09.08.2026",
         "headline": "HTTPS virker også gjennom VPN",

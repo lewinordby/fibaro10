@@ -1,6 +1,6 @@
 # Roborock_logger
 
-Oppdatert 10.07.2026.
+Oppdatert 12.08.2026.
 
 `Roborock_logger` er en liten lokal app som skal kjøre på QNAP/Docker i samme nett som Roborock-robotene.
 
@@ -49,6 +49,16 @@ Første gang:
 2. Skriv inn e-postkoden fra Roborock.
 3. Trykk `Lagre login`.
 4. Trykk `Synk nå`.
+
+## Legge til en robot senere
+
+1. Legg roboten til i Roborock-appen og sett tidssonen til `Europe/Oslo`.
+2. Koble den til IOT-nettet `192.168.2.x`.
+3. Del roboten med `roborock.sun2@gmail.com`.
+4. Åpne loggerens webflate og trykk `Finn nye roboter`.
+5. Kontroller at navn, modell og lokal IP vises før du eventuelt henter kart.
+
+`Finn nye roboter` bruker `/sync-now?refresh=true` og hopper over hurtigbufferen for Roborock-hjemmet. Fibaro10 oppretter roboten automatisk ved første mottatte batch.
 
 ## Hva sendes til Fibaro10
 

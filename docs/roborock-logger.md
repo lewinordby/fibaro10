@@ -1,6 +1,6 @@
 # Roborock_logger og Renhold
 
-Oppdatert 10.07.2026.
+Oppdatert 12.08.2026.
 
 `Roborock_logger` er den lokale innlesingsappen for robotstøvsugere. Den kjører på QNAP/Docker i samme nett som robotene og sender ferdig strukturerte data til Fibaro10.
 
@@ -88,6 +88,21 @@ Renhold -> Oversikt
 ```
 
 Derfra kan man åpne hver robot og se status, teknisk identitet, siste jobber, planer, kart og rå statuspakker.
+
+## Legge til en ny robot
+
+1. Legg roboten til på vanlig måte i Roborock-appen, gi den et tydelig navn og velg tidssonen `Europe/Oslo`.
+2. Koble roboten til IOT-nettet som bruker adresser i `192.168.2.x`. Lokal status og historikk krever at QNAP-en kan nå roboten på dette nettet.
+3. Del roboten med Roborock-kontoen `roborock.sun2@gmail.com`. Loggeren leser både kontoens egne og delte roboter.
+4. Åpne `http://192.168.20.218:8095` og trykk `Finn nye roboter`. Handlingen henter Roborock-hjemmet på nytt uten én-times hurtigbuffer.
+5. Kontroller at roboten vises på logger-siden med navn, modell og lokal IP.
+6. Åpne `Bygg og drift -> Renhold -> Roboter` i Lilletorget. Fibaro10 oppretter roboten automatisk ved første mottatte synk; det skal ikke legges inn noen databasepost manuelt.
+
+Hvis roboten finnes i cloud, men mangler lokal IP, sjekk at den er på IOT-nettet og at `ROBOROCK_SUBNET=192.168.2.` fortsatt er riktig. Bruk `Synk med kart` etter første vellykkede oppdagelse for å hente kartet med en gang.
+
+## Tidssoner
+
+Planene fra Roborock er lokal klokketid og skal for eksempel vises som `23:30`. Historiske vaskjobber kommer som Unix-tid i UTC. Fibaro10 konverterer disse til `Europe/Oslo` ved API-visning, inkludert riktig sommer- og vintertid.
 
 ## Feilsøking
 

@@ -38263,6 +38263,11 @@ async def api_cleaning_robot_detail(duid: str):
     job_rows = []
     for row in jobs:
         item = row_to_dict(row, [column for column in ROBOROCK_JOB_COLUMNS if column != "raw"])
+        # Roborock job timestamps are Unix instants stored as UTC-naive values.
+        # Add an explicit Oslo offset before they reach browsers, which otherwise
+        # interpret the bare timestamp as local time and show it two hours early.
+        item["begin_at"] = api_local_iso(utc_naive_to_local_naive(row.begin_at))
+        item["end_at"] = api_local_iso(utc_naive_to_local_naive(row.end_at))
         item.update(
             {
                 "complete_label": roborock_bool_label(row.complete),
@@ -38383,9 +38388,15 @@ async def cleaning_json(limit: int = 100):
         robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
         jobs = (await session.execute(select(RoborockCleanJob).order_by(RoborockCleanJob.begin_at.desc()).limit(limit))).scalars().all()
         statuses = (await session.execute(select(RoborockStatusSample).order_by(RoborockStatusSample.timestamp.desc()).limit(limit))).scalars().all()
+    job_rows = []
+    for row in jobs:
+        item = row_to_dict(row, ROBOROCK_JOB_COLUMNS)
+        item["begin_at"] = api_local_iso(utc_naive_to_local_naive(row.begin_at))
+        item["end_at"] = api_local_iso(utc_naive_to_local_naive(row.end_at))
+        job_rows.append(item)
     return {
         "robots": [row_to_dict(row, ROBOROCK_ROBOT_COLUMNS) for row in robots],
-        "jobs": [row_to_dict(row, ROBOROCK_JOB_COLUMNS) for row in jobs],
+        "jobs": job_rows,
         "statuses": [row_to_dict(row, ROBOROCK_STATUS_COLUMNS) for row in statuses],
     }
 
