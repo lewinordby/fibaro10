@@ -62,14 +62,22 @@ const roborockStateLabels: Record<string, string> = {
   charging: "Lader",
   cleaning: "Rengjør",
   docking: "Dokker",
+  emptying: "Tømmer støvbeholder",
+  emptying_dust_container: "Tømmer støvbeholder",
   error: "Feil",
+  going_to_target: "Går til målpunkt",
   idle: "Klar",
   mapping: "Kartlegger",
   paused: "Pause",
   returning: "Returnerer til dokk",
   returning_home: "Returnerer til dokk",
+  segment_cleaning: "Rengjør rom",
   sleeping: "Hviler",
+  spot_cleaning: "Flekkrengjøring",
+  updating: "Oppdaterer",
   washing_mop: "Vasker mopp",
+  washing_the_mop: "Vasker mopp",
+  zone_cleaning: "Sonerengjøring",
 };
 
 const compactColumnLabels: Record<string, string> = {
