@@ -12,6 +12,29 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1712",
+        "date": "12.08.2026",
+        "headline": "Bedre bredde i robotloggen",
+        "title": "Tilstandsendringer og telemetri vises under hverandre",
+        "description": (
+            "Robotdetaljen bruker nå hele innholdsbredden til begge loggtabellene. "
+            "Tilstandsendringer ligger først, med telemetriloggen rett under, slik at "
+            "kolonner og verdier blir enklere å lese uten unødvendig horisontal komprimering."
+        ),
+        "applications": [
+            "Bygg og drift: fullbreddevisning av Roborock-loggene.",
+            "Felles mikroapp-UI: justert rekkefølge og responsiv layout for robotdetaljen.",
+        ],
+        "request": "Vis tilstandsendringer og telemetri i full bredde under hverandre, med tilstand over telemetri.",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fjerner tokolonners layout rundt loggtabellene.",
+            "Beholder tilstandsendringer over telemetriloggen på alle skjermbredder.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1711",
         "date": "12.08.2026",
         "headline": "Komplett Roborock-telemetri",
