@@ -325,6 +325,17 @@ def roborock_bool_label(value: Any) -> str:
     return "Ja" if bool_value(value) else "Nei"
 
 
+def roborock_job_status(complete: Any, error_code: Any, end_at: Any) -> tuple[str, str]:
+    error = int_value(error_code)
+    if error not in {None, 0}:
+        return "error", "Feil"
+    if end_at is None:
+        return "running", "Pågår"
+    if bool_value(complete):
+        return "complete", "Fullført"
+    return "stopped", "Avbrutt"
+
+
 def format_seconds_as_hours(value: Any) -> str:
     seconds = int_value(value)
     if seconds is None:

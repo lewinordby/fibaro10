@@ -2,7 +2,7 @@ import { domainApi } from "../api";
 import { displayCell, valueLabel } from "../format";
 import { useApi } from "../hooks";
 import { AppLink, useAppLocation } from "../router";
-import type { JsonRecord, RoborockModuleData, RoborockRobotDetail, RoborockRobotSummary } from "../types";
+import type { JsonRecord, RoborockJobSummary, RoborockModuleData, RoborockRobotDetail, RoborockRobotSummary } from "../types";
 import { MetricCard, Panel } from "./Mosaic";
 import { MosaicIcon } from "./MosaicIcon";
 
@@ -42,6 +42,35 @@ function CompactTable({ columns, rows }: { columns: string[]; rows: JsonRecord[]
   return <div className="overflow-x-auto"><table className="w-full table-auto"><thead className="bg-gray-50 text-xs uppercase text-gray-400 dark:bg-gray-700/40"><tr>{columns.map((column) => <th className="whitespace-nowrap px-4 py-3 text-left font-semibold" key={column}>{valueLabel(column)}</th>)}</tr></thead><tbody className="divide-y divide-gray-100 text-sm dark:divide-gray-700/60">{rows.map((row, index) => <tr className="hover:bg-gray-50/60 dark:hover:bg-gray-700/20" key={String(row.id || index)}>{columns.map((column) => <td className="whitespace-nowrap px-4 py-3 tabular-nums" key={column}>{column.endsWith("_at") || column === "timestamp" || column === "begin_at" || column === "end_at" ? stamp(row[column]) : displayCell(column, row[column])}</td>)}</tr>)}{!rows.length ? <tr><td className="px-5 py-8 text-center text-sm text-gray-400" colSpan={columns.length}>Ingen data mottatt</td></tr> : null}</tbody></table></div>;
 }
 
+function jobTime(value: unknown) {
+  if (!value) return "-";
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? "-" : parsed.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Oslo" });
+}
+
+function RobotJobRow({ label, job }: { label: string; job?: RoborockJobSummary | null }) {
+  if (!job) {
+    return <div className="grid min-h-10 grid-cols-[3.25rem_minmax(0,1fr)] items-center gap-3 py-2 text-sm"><strong className="font-medium text-gray-600 dark:text-gray-300">{label}</strong><span className="text-gray-400">Ingen jobb registrert</span></div>;
+  }
+  const details = [
+    job.begin_at ? `kl. ${jobTime(job.begin_at)}` : null,
+    job.duration_minutes == null ? null : `${Math.round(Number(job.duration_minutes))} min`,
+    job.cleaned_area_m2 == null ? null : `${Number(job.cleaned_area_m2).toLocaleString("nb-NO", { maximumFractionDigits: 1 })} m²`,
+  ].filter(Boolean).join(" · ");
+  const tone = job.status === "complete"
+    ? "bg-green-500/10 text-green-700 dark:text-green-400"
+    : job.status === "running"
+      ? "bg-sky-500/10 text-sky-700 dark:text-sky-400"
+      : job.status === "error"
+        ? "bg-red-500/10 text-red-600 dark:text-red-400"
+        : "bg-amber-500/10 text-amber-700 dark:text-amber-400";
+  return <div className="grid min-h-10 grid-cols-[3.25rem_minmax(0,1fr)_auto] items-center gap-3 py-2 text-sm">
+    <strong className="font-medium text-gray-600 dark:text-gray-300">{label}</strong>
+    <span className="min-w-0 truncate tabular-nums text-gray-500 dark:text-gray-400" title={details}>{details || "Jobb registrert"}</span>
+    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${tone}`} title={job.error_label || job.status_label}>{job.status_label}</span>
+  </div>;
+}
+
 function RobotOverview({ robots }: { robots: RoborockRobotSummary[] }) {
   return <div className="space-y-5">
     <div className="flex flex-wrap items-end justify-between gap-3">
@@ -59,6 +88,10 @@ function RobotOverview({ robots }: { robots: RoborockRobotSummary[] }) {
         <div className="grid grid-cols-2 divide-x divide-gray-100 px-2 py-4 dark:divide-gray-700/60">
           <div className="px-3"><span className="block text-xs font-semibold uppercase text-gray-400">Status</span><strong className="mt-1 block truncate text-sm font-medium text-gray-700 dark:text-gray-200">{state}</strong></div>
           <div className="px-3"><span className="block text-xs font-semibold uppercase text-gray-400">Batteri</span><strong className="mt-1 block text-sm font-medium tabular-nums text-gray-700 dark:text-gray-200">{robot.battery == null ? "-" : `${robot.battery} %`}</strong></div>
+        </div>
+        <div className="divide-y divide-gray-100 border-t border-gray-100 px-5 dark:divide-gray-700/60 dark:border-gray-700/60">
+          <RobotJobRow label="I dag" job={robot.latest_job_today} />
+          <RobotJobRow label="I går" job={robot.latest_job_yesterday} />
         </div>
         <div className="flex items-center justify-between gap-4 bg-gray-50 px-5 py-3 text-xs text-gray-500 dark:bg-gray-900/30 dark:text-gray-400"><span className="truncate">Sist lest {stamp(robot.status_at || robot.last_seen_at)}</span><span className="flex shrink-0 items-center gap-1 font-medium text-green-700 dark:text-green-400">Detaljer <MosaicIcon name="arrow-right" size={14} /></span></div>
         {robot.last_error ? <div className="border-t border-red-100 bg-red-50 px-5 py-2.5 text-xs text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">{robot.last_error}</div> : null}

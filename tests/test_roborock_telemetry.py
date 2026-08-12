@@ -1,9 +1,17 @@
 from roborock_domain import (
     roborock_dock_error_label,
     roborock_dock_type_label,
+    roborock_job_status,
     roborock_telemetry_changes,
     roborock_telemetry_value_label,
 )
+
+
+def test_roborock_job_status_distinguishes_completed_running_stopped_and_failed_jobs():
+    assert roborock_job_status(True, 0, "2026-08-12T08:00:00") == ("complete", "Fullført")
+    assert roborock_job_status(False, 0, None) == ("running", "Pågår")
+    assert roborock_job_status(False, 0, "2026-08-12T08:00:00") == ("stopped", "Avbrutt")
+    assert roborock_job_status(True, 12, "2026-08-12T08:00:00") == ("error", "Feil")
 
 
 def test_roborock_resource_labels_are_readable():

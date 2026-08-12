@@ -261,6 +261,18 @@ export type RoborockRobotSummary = {
   battery?: number | null;
   error_code?: number | null;
   status_at?: string | null;
+  latest_job_today?: RoborockJobSummary | null;
+  latest_job_yesterday?: RoborockJobSummary | null;
+};
+
+export type RoborockJobSummary = {
+  begin_at?: string | null;
+  end_at?: string | null;
+  duration_minutes?: number | null;
+  cleaned_area_m2?: number | null;
+  status: "complete" | "running" | "stopped" | "error";
+  status_label: string;
+  error_label?: string | null;
 };
 
 export type RoborockModuleData = { robots: RoborockRobotSummary[] };

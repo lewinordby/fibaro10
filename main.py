@@ -153,6 +153,7 @@ from roborock_domain import (
     roborock_error_label,
     roborock_fan_label,
     roborock_json,
+    roborock_job_status,
     roborock_mop_label,
     roborock_next_schedule_score,
     roborock_rounds_label,
@@ -31877,6 +31878,28 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             for status in statuses:
                 if status.robot_duid not in latest_status_by_robot:
                     latest_status_by_robot[status.robot_duid] = status
+            today_local = datetime.now(LOCAL_TZ).date()
+            yesterday_local = today_local - timedelta(days=1)
+            latest_job_by_robot_day: Dict[tuple[str, date], RoborockCleanJob] = {}
+            for job in jobs:
+                local_begin = utc_naive_to_local_naive(job.begin_at)
+                if not local_begin or local_begin.date() not in {today_local, yesterday_local}:
+                    continue
+                latest_job_by_robot_day.setdefault((job.robot_duid, local_begin.date()), job)
+
+            def overview_job(job: Optional[RoborockCleanJob]) -> Optional[Dict[str, Any]]:
+                if not job:
+                    return None
+                status_key, status_label = roborock_job_status(job.complete, job.error_code, job.end_at)
+                return {
+                    "begin_at": api_local_iso(utc_naive_to_local_naive(job.begin_at)),
+                    "end_at": api_local_iso(utc_naive_to_local_naive(job.end_at)),
+                    "duration_minutes": job.duration_minutes,
+                    "cleaned_area_m2": job.cleaned_area_m2 if job.cleaned_area_m2 is not None else job.area_m2,
+                    "status": status_key,
+                    "status_label": status_label,
+                    "error_label": roborock_error_label(job.error_code) if status_key == "error" else None,
+                }
             tables = [
                 api_table("Roboter", ["name", "model", "cloud_online", "local_ip", "battery", "last_seen_at", "last_error"], [api_pick(row, ROBOROCK_ROBOT_COLUMNS) for row in robots]),
                 api_table("Siste vasker", ["begin_at", "end_at", "duration_minutes", "cleaned_area_m2", "complete", "error_code", "finish_reason"], [api_pick(row, ROBOROCK_JOB_COLUMNS) for row in jobs]),
@@ -31938,6 +31961,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             "battery": latest_status_by_robot.get(robot.duid).battery if latest_status_by_robot.get(robot.duid) else None,
                             "error_code": latest_status_by_robot.get(robot.duid).error_code if latest_status_by_robot.get(robot.duid) else None,
                             "status_at": latest_status_by_robot.get(robot.duid).timestamp if latest_status_by_robot.get(robot.duid) else None,
+                            "latest_job_today": overview_job(latest_job_by_robot_day.get((robot.duid, today_local))),
+                            "latest_job_yesterday": overview_job(latest_job_by_robot_day.get((robot.duid, yesterday_local))),
                         }
                         for robot in robots
                     ]

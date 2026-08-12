@@ -12,6 +12,32 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1714",
+        "date": "12.08.2026",
+        "headline": "Dagens robotjobber i oversikten",
+        "title": "Robotkortene viser siste vask i dag og i går med tydelig sluttstatus",
+        "description": (
+            "Renholdsoversikten utnytter den ledige plassen i robotkortene til operativ jobbhistorikk. "
+            "Hver robot viser nå siste registrerte jobb i dag og i går med lokal starttid, varighet, "
+            "rengjort areal og en tydelig status for fullført, pågående, avbrutt eller feil."
+        ),
+        "applications": [
+            "Fibaro10 API: grupperer de siste Roborock-jobbene per robot og lokal kalenderdag.",
+            "Bygg og drift: viser to kompakte jobblinjer på hvert robotkort.",
+            "Felles Roborock-domene: felles og testet klassifisering av jobbstatus.",
+        ],
+        "request": "Vis mer informasjon i robotoversikten, for eksempel siste jobber i dag og i går og status for disse.",
+        "work_duration": "ca. 25 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser siste jobb i dag og siste jobb i går separat for hver robot.",
+            "Viser starttid, varighet og rengjort areal uten å gjøre kortene unødvendig høye.",
+            "Skiller fullført, pågående, avbrutt og feil med konsistente statusfarger.",
+            "Konverterer Roborock-tidspunktene til Europe/Oslo før jobben plasseres på riktig dag.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1713",
         "date": "12.08.2026",
         "headline": "Egne sider for robotvaskerne",
