@@ -12,6 +12,32 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1715",
+        "date": "12.08.2026",
+        "headline": "Planer og forbruksdeler per robot",
+        "title": "Robotoversikten viser vedlikeholdsdata og neste planlagte jobb",
+        "description": (
+            "Robotkortene er utvidet med de viktigste vedlikeholds- og planopplysningene. "
+            "Brukstid for hovedbørste, sidebørste og filter vises kompakt, sammen med neste aktive "
+            "plan og antall aktive planer. Fullstendige verdier ligger fortsatt på detaljsiden."
+        ),
+        "applications": [
+            "Fibaro10 API: henter siste forbruksdeler og aktive planer per Roborock.",
+            "Bygg og drift: viser vedlikeholds- og planinformasjon på robotkortene.",
+            "Felles mikroapp-UI: utvidede og typesikre Roborock-oppsummeringer.",
+        ],
+        "request": "Ta også med forbruksdeler og planlagte jobber i robotoversikten.",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser brukstid for hovedbørste, sidebørste og filter på hvert robotkort.",
+            "Viser neste aktive plan med lokal og lesbar planbeskrivelse.",
+            "Viser antall aktive planer når roboten har mer enn én.",
+            "Beholder sensortid og komplett planliste på robotens detaljside.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1714",
         "date": "12.08.2026",
         "headline": "Dagens robotjobber i oversikten",

@@ -353,6 +353,9 @@ def test_roborock_details_no_longer_depend_on_the_classic_ui() -> None:
     assert '"latest_job_today"' in core
     assert '"latest_job_yesterday"' in core
     assert "RobotJobRow" in detail
+    assert '"consumables": overview_consumables' in core
+    assert '"schedules": overview_schedules' in core
+    assert "RobotSupportRows" in detail
 
 
 def test_specialized_views_have_narrow_proxy_access() -> None:

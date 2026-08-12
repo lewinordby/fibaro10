@@ -263,6 +263,8 @@ export type RoborockRobotSummary = {
   status_at?: string | null;
   latest_job_today?: RoborockJobSummary | null;
   latest_job_yesterday?: RoborockJobSummary | null;
+  consumables?: RoborockConsumableSummary | null;
+  schedules?: RoborockScheduleSummary | null;
 };
 
 export type RoborockJobSummary = {
@@ -273,6 +275,20 @@ export type RoborockJobSummary = {
   status: "complete" | "running" | "stopped" | "error";
   status_label: string;
   error_label?: string | null;
+};
+
+export type RoborockConsumableSummary = {
+  main_brush?: string | null;
+  side_brush?: string | null;
+  filter?: string | null;
+  sensor?: string | null;
+  captured_at?: string | null;
+};
+
+export type RoborockScheduleSummary = {
+  active_count: number;
+  next_label?: string | null;
+  rounds_label?: string | null;
 };
 
 export type RoborockModuleData = { robots: RoborockRobotSummary[] };

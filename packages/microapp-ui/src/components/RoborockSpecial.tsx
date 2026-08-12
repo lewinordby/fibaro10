@@ -71,6 +71,23 @@ function RobotJobRow({ label, job }: { label: string; job?: RoborockJobSummary |
   </div>;
 }
 
+function RobotSupportRows({ robot }: { robot: RoborockRobotSummary }) {
+  const parts = robot.consumables
+    ? [
+      robot.consumables.main_brush ? `Hovedbørste ${robot.consumables.main_brush}` : null,
+      robot.consumables.side_brush ? `sidebørste ${robot.consumables.side_brush}` : null,
+      robot.consumables.filter ? `filter ${robot.consumables.filter}` : null,
+    ].filter(Boolean).join(" · ")
+    : "Ikke mottatt";
+  const schedule = robot.schedules?.next_label
+    ? `${robot.schedules.next_label}${robot.schedules.active_count > 1 ? ` · ${robot.schedules.active_count} aktive` : ""}`
+    : "Ingen aktiv plan";
+  return <div className="space-y-1 border-t border-gray-100 px-5 py-3 text-xs dark:border-gray-700/60">
+    <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3"><span className="font-semibold text-gray-500 dark:text-gray-400">Forbruksdeler</span><span className="truncate text-gray-600 dark:text-gray-300" title={parts}>{parts}</span></div>
+    <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3"><span className="font-semibold text-gray-500 dark:text-gray-400">Neste plan</span><span className="truncate tabular-nums text-gray-600 dark:text-gray-300" title={schedule}>{schedule}</span></div>
+  </div>;
+}
+
 function RobotOverview({ robots }: { robots: RoborockRobotSummary[] }) {
   return <div className="space-y-5">
     <div className="flex flex-wrap items-end justify-between gap-3">
@@ -93,6 +110,7 @@ function RobotOverview({ robots }: { robots: RoborockRobotSummary[] }) {
           <RobotJobRow label="I dag" job={robot.latest_job_today} />
           <RobotJobRow label="I går" job={robot.latest_job_yesterday} />
         </div>
+        <RobotSupportRows robot={robot} />
         <div className="flex items-center justify-between gap-4 bg-gray-50 px-5 py-3 text-xs text-gray-500 dark:bg-gray-900/30 dark:text-gray-400"><span className="truncate">Sist lest {stamp(robot.status_at || robot.last_seen_at)}</span><span className="flex shrink-0 items-center gap-1 font-medium text-green-700 dark:text-green-400">Detaljer <MosaicIcon name="arrow-right" size={14} /></span></div>
         {robot.last_error ? <div className="border-t border-red-100 bg-red-50 px-5 py-2.5 text-xs text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">{robot.last_error}</div> : null}
       </AppLink>;

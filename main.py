@@ -31873,11 +31873,25 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
             jobs = (await session.execute(select(RoborockCleanJob).order_by(RoborockCleanJob.begin_at.desc()).limit(120))).scalars().all()
             statuses = (await session.execute(select(RoborockStatusSample).order_by(RoborockStatusSample.timestamp.desc()).limit(120))).scalars().all()
+            consumables = (await session.execute(select(RoborockConsumableSnapshot).order_by(RoborockConsumableSnapshot.timestamp.desc()).limit(120))).scalars().all()
+            schedules = (
+                await session.execute(
+                    select(RoborockSchedule)
+                    .where(RoborockSchedule.enabled == True)
+                    .order_by(RoborockSchedule.robot_duid, RoborockSchedule.schedule_id)
+                )
+            ).scalars().all()
             online = sum(1 for row in robots if row.cloud_online is not False)
             latest_status_by_robot: Dict[str, RoborockStatusSample] = {}
             for status in statuses:
                 if status.robot_duid not in latest_status_by_robot:
                     latest_status_by_robot[status.robot_duid] = status
+            latest_consumables_by_robot: Dict[str, RoborockConsumableSnapshot] = {}
+            for consumable in consumables:
+                latest_consumables_by_robot.setdefault(consumable.robot_duid, consumable)
+            schedules_by_robot: Dict[str, list[RoborockSchedule]] = defaultdict(list)
+            for schedule in schedules:
+                schedules_by_robot[schedule.robot_duid].append(schedule)
             today_local = datetime.now(LOCAL_TZ).date()
             yesterday_local = today_local - timedelta(days=1)
             latest_job_by_robot_day: Dict[tuple[str, date], RoborockCleanJob] = {}
@@ -31899,6 +31913,27 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "status": status_key,
                     "status_label": status_label,
                     "error_label": roborock_error_label(job.error_code) if status_key == "error" else None,
+                }
+
+            def overview_consumables(robot_duid: str) -> Optional[Dict[str, Any]]:
+                consumable = latest_consumables_by_robot.get(robot_duid)
+                if not consumable:
+                    return None
+                return {
+                    "main_brush": format_seconds_as_hours(consumable.main_brush_work_time),
+                    "side_brush": format_seconds_as_hours(consumable.side_brush_work_time),
+                    "filter": format_seconds_as_hours(consumable.filter_work_time),
+                    "sensor": format_seconds_as_hours(consumable.sensor_dirty_time),
+                    "captured_at": api_local_iso(consumable.timestamp),
+                }
+
+            def overview_schedules(robot_duid: str) -> Dict[str, Any]:
+                active = schedules_by_robot.get(robot_duid, [])
+                next_schedule = min(active, key=roborock_next_schedule_score) if active else None
+                return {
+                    "active_count": len(active),
+                    "next_label": roborock_schedule_text(next_schedule) if next_schedule else None,
+                    "rounds_label": roborock_rounds_label(next_schedule.repeat) if next_schedule else None,
                 }
             tables = [
                 api_table("Roboter", ["name", "model", "cloud_online", "local_ip", "battery", "last_seen_at", "last_error"], [api_pick(row, ROBOROCK_ROBOT_COLUMNS) for row in robots]),
@@ -31963,6 +31998,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             "status_at": latest_status_by_robot.get(robot.duid).timestamp if latest_status_by_robot.get(robot.duid) else None,
                             "latest_job_today": overview_job(latest_job_by_robot_day.get((robot.duid, today_local))),
                             "latest_job_yesterday": overview_job(latest_job_by_robot_day.get((robot.duid, yesterday_local))),
+                            "consumables": overview_consumables(robot.duid),
+                            "schedules": overview_schedules(robot.duid),
                         }
                         for robot in robots
                     ]
