@@ -352,10 +352,17 @@ def test_roborock_details_no_longer_depend_on_the_classic_ui() -> None:
     assert "/api/renhold/robots/" in detail
     assert '"latest_job_today"' in core
     assert '"latest_job_yesterday"' in core
-    assert "RobotJobRow" in detail
+    assert '"today": overview_day' in core
+    assert '"yesterday": overview_day' in core
+    assert '"readiness": overview_readiness' in core
+    assert '"summary": overview_summary' in core
+    assert "OverviewStrip" in detail
+    assert "DayActivity" in detail
+    assert "ReadinessGrid" in detail
     assert '"consumables": overview_consumables' in core
     assert '"schedules": overview_schedules' in core
-    assert "RobotSupportRows" in detail
+    assert "ScheduleRows" in detail
+    assert "Teknisk informasjon og API-diagnostikk" in detail
 
 
 def test_specialized_views_have_narrow_proxy_access() -> None:

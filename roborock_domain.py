@@ -336,6 +336,50 @@ def roborock_job_status(complete: Any, error_code: Any, end_at: Any) -> tuple[st
     return "stopped", "Avbrutt"
 
 
+def roborock_operational_readiness(
+    *,
+    cloud_online: Any,
+    last_error: Any,
+    error_code: Any,
+    dock_error: str,
+    clear_water: str,
+    dirty_water: str,
+    dust_bag: str,
+    active: bool,
+    data_age_minutes: Optional[int],
+) -> Dict[str, Any]:
+    issues = []
+    if cloud_online is False:
+        issues.append("Ikke tilkoblet Roborock")
+    if last_error:
+        issues.append(str(last_error))
+    if int_value(error_code) not in {None, 0}:
+        issues.append(roborock_error_label(error_code))
+    if data_age_minutes is None:
+        issues.append("Ingen telemetri mottatt")
+    elif data_age_minutes > 10:
+        issues.append(f"Telemetri er {data_age_minutes} min gammel")
+    if dock_error not in {"Ingen feil", "Ikke støttet", "-"}:
+        issues.append(dock_error)
+    dock_error_lower = dock_error.lower()
+    for label, value, dock_marker in (
+        ("Rentvann", clear_water, "rentvann"),
+        ("Skittent vann", dirty_water, "skittent"),
+        ("Støvpose", dust_bag, "støv"),
+    ):
+        if value not in {"OK", "Ikke støttet", "-"} and dock_marker not in dock_error_lower:
+            issues.append(f"{label}: {value}")
+    if cloud_online is False:
+        status, label = "offline", "Ikke tilkoblet"
+    elif issues:
+        status, label = "attention", "Krever tilsyn"
+    elif active:
+        status, label = "active", "Rengjør nå"
+    else:
+        status, label = "ready", "Klar"
+    return {"status": status, "label": label, "issues": list(dict.fromkeys(issues))}
+
+
 def format_seconds_as_hours(value: Any) -> str:
     seconds = int_value(value)
     if seconds is None:

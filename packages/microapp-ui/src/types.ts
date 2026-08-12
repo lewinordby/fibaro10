@@ -263,6 +263,9 @@ export type RoborockRobotSummary = {
   status_at?: string | null;
   latest_job_today?: RoborockJobSummary | null;
   latest_job_yesterday?: RoborockJobSummary | null;
+  today?: RoborockDailySummary | null;
+  yesterday?: RoborockDailySummary | null;
+  readiness?: RoborockReadinessSummary | null;
   consumables?: RoborockConsumableSummary | null;
   schedules?: RoborockScheduleSummary | null;
 };
@@ -291,7 +294,42 @@ export type RoborockScheduleSummary = {
   rounds_label?: string | null;
 };
 
-export type RoborockModuleData = { robots: RoborockRobotSummary[] };
+export type RoborockDailySummary = {
+  job_count: number;
+  completed_count: number;
+  running_count: number;
+  error_count: number;
+  duration_minutes: number;
+  cleaned_area_m2: number;
+};
+
+export type RoborockReadinessSummary = {
+  status: "ready" | "active" | "attention" | "offline";
+  label: string;
+  issues: string[];
+  telemetry_at?: string | null;
+  data_age_minutes?: number | null;
+  charge_label?: string | null;
+  clear_water_label?: string | null;
+  dirty_water_label?: string | null;
+  dust_bag_label?: string | null;
+  dock_error_label?: string | null;
+  signal_label?: string | null;
+};
+
+export type RoborockOverviewSummary = {
+  robot_count: number;
+  ready_count: number;
+  active_count: number;
+  attention_count: number;
+  offline_count: number;
+  jobs_today: number;
+  duration_today: number;
+  area_today: number;
+  updated_at?: string | null;
+};
+
+export type RoborockModuleData = { robots: RoborockRobotSummary[]; summary?: RoborockOverviewSummary | null };
 
 export type RoborockRobotDetail = {
   robot: JsonRecord;

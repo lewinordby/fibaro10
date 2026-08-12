@@ -12,6 +12,40 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1716",
+        "date": "12.08.2026",
+        "headline": "Operativ robotoversikt og ryddigere detaljsider",
+        "title": "Renhold viser det viktigste først og samler teknisk diagnostikk nederst",
+        "description": (
+            "Robotdelen er omarbeidet fra en teknisk datavisning til en mer operativ arbeidsflate. "
+            "Oversikten viser samlet drift, aktivitet i dag, areal og tidsbruk, mens hvert robotkort "
+            "viser tilsynsbehov, dagsresultater, vann, dokk, forbruksdeler og neste plan. Detaljsiden "
+            "prioriterer siste jobb, driftsklarhet, planer og vedlikehold før full historikk og diagnostikk."
+        ),
+        "applications": [
+            "Fibaro10 API: beregner dagsoppsummeringer og operativ tilsynsstatus fra Roborock-data.",
+            "Bygg og drift: ny robotoversikt og omstrukturert side for hver enkelt robot.",
+            "Felles mikroapp-UI: utvidede typer og gjenbrukbare visninger for jobber, planer og driftsstatus.",
+        ],
+        "request": (
+            "Vurder videre utvikling av både robotoversikten og siden til den enkelte robot, og gjør "
+            "gode endringer som gir en bedre opplevelse."
+        ),
+        "work_duration": "ca. 55 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger til en samlet driftslinje med klare roboter, avvik, jobber, tid og areal i dag.",
+            "Summerer alle jobbene i dag og i går per robot, samtidig som status for siste jobb beholdes.",
+            "Viser rentvann, skittent vann, støvpose og dokk direkte på hvert robotkort.",
+            "Samler mulige feil til ett tydelig tilsynsvarsel uten å varsle på verdier modellen ikke støtter.",
+            "Varsler også når robottelemetrien mangler eller er mer enn ti minutter gammel.",
+            "Flytter planer, forbruksdeler og rengjøringshistorikk foran rå telemetri på detaljsiden.",
+            "Samler identitet, nettverk, API-dekning, råstatus og statushistorikk i en teknisk seksjon.",
+            "Beholder tilstandsendringer og telemetrilogg som egne fullbredde seksjoner.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1715",
         "date": "12.08.2026",
         "headline": "Planer og forbruksdeler per robot",

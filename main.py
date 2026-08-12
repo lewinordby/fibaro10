@@ -156,6 +156,7 @@ from roborock_domain import (
     roborock_job_status,
     roborock_mop_label,
     roborock_next_schedule_score,
+    roborock_operational_readiness,
     roborock_rounds_label,
     roborock_schedule_text,
     roborock_signal_label,
@@ -31873,6 +31874,13 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
             jobs = (await session.execute(select(RoborockCleanJob).order_by(RoborockCleanJob.begin_at.desc()).limit(120))).scalars().all()
             statuses = (await session.execute(select(RoborockStatusSample).order_by(RoborockStatusSample.timestamp.desc()).limit(120))).scalars().all()
+            telemetry_samples = (
+                await session.execute(
+                    select(RoborockTelemetrySample)
+                    .order_by(RoborockTelemetrySample.timestamp.desc(), RoborockTelemetrySample.id.desc())
+                    .limit(120)
+                )
+            ).scalars().all()
             consumables = (await session.execute(select(RoborockConsumableSnapshot).order_by(RoborockConsumableSnapshot.timestamp.desc()).limit(120))).scalars().all()
             schedules = (
                 await session.execute(
@@ -31886,6 +31894,9 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             for status in statuses:
                 if status.robot_duid not in latest_status_by_robot:
                     latest_status_by_robot[status.robot_duid] = status
+            latest_telemetry_by_robot: Dict[str, RoborockTelemetrySample] = {}
+            for telemetry_sample in telemetry_samples:
+                latest_telemetry_by_robot.setdefault(telemetry_sample.robot_duid, telemetry_sample)
             latest_consumables_by_robot: Dict[str, RoborockConsumableSnapshot] = {}
             for consumable in consumables:
                 latest_consumables_by_robot.setdefault(consumable.robot_duid, consumable)
@@ -31895,10 +31906,12 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             today_local = datetime.now(LOCAL_TZ).date()
             yesterday_local = today_local - timedelta(days=1)
             latest_job_by_robot_day: Dict[tuple[str, date], RoborockCleanJob] = {}
+            jobs_by_robot_day: Dict[tuple[str, date], list[RoborockCleanJob]] = defaultdict(list)
             for job in jobs:
                 local_begin = utc_naive_to_local_naive(job.begin_at)
                 if not local_begin or local_begin.date() not in {today_local, yesterday_local}:
                     continue
+                jobs_by_robot_day[(job.robot_duid, local_begin.date())].append(job)
                 latest_job_by_robot_day.setdefault((job.robot_duid, local_begin.date()), job)
 
             def overview_job(job: Optional[RoborockCleanJob]) -> Optional[Dict[str, Any]]:
@@ -31927,6 +31940,67 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "captured_at": api_local_iso(consumable.timestamp),
                 }
 
+            def overview_day(robot_duid: str, selected_day: date) -> Dict[str, Any]:
+                day_jobs = jobs_by_robot_day.get((robot_duid, selected_day), [])
+                statuses_for_day = [roborock_job_status(row.complete, row.error_code, row.end_at)[0] for row in day_jobs]
+                return {
+                    "job_count": len(day_jobs),
+                    "completed_count": statuses_for_day.count("complete"),
+                    "running_count": statuses_for_day.count("running"),
+                    "error_count": statuses_for_day.count("error"),
+                    "duration_minutes": round(sum(float(row.duration_minutes or 0) for row in day_jobs), 1),
+                    "cleaned_area_m2": round(
+                        sum(float(row.cleaned_area_m2 if row.cleaned_area_m2 is not None else row.area_m2 or 0) for row in day_jobs),
+                        1,
+                    ),
+                }
+
+            def overview_readiness(
+                robot: RoborockRobot,
+                status: Optional[RoborockStatusSample],
+                telemetry: Optional[RoborockTelemetrySample],
+            ) -> Dict[str, Any]:
+                error_code = telemetry.error_code if telemetry and telemetry.error_code is not None else status.error_code if status else None
+                dock_error = roborock_dock_error_label(telemetry.dock_error_status) if telemetry else "Ikke støttet"
+                clear_water = roborock_telemetry_value_label(
+                    "clear_water_status", telemetry.clear_water_status, telemetry.clear_water_status_name
+                ) if telemetry else "Ikke støttet"
+                dirty_water = roborock_telemetry_value_label(
+                    "dirty_water_status", telemetry.dirty_water_status, telemetry.dirty_water_status_name
+                ) if telemetry else "Ikke støttet"
+                dust_bag = roborock_telemetry_value_label(
+                    "dust_bag_status", telemetry.dust_bag_status, telemetry.dust_bag_status_name
+                ) if telemetry else "Ikke støttet"
+                active = bool((telemetry and telemetry.in_cleaning) or (status and status.in_cleaning))
+                telemetry_at = normalize_local_naive(telemetry.timestamp) if telemetry and telemetry.timestamp else None
+                telemetry_age_minutes = (
+                    max(0, round((local_now_naive() - telemetry_at).total_seconds() / 60))
+                    if telemetry_at
+                    else None
+                )
+                readiness = roborock_operational_readiness(
+                    cloud_online=robot.cloud_online,
+                    last_error=robot.last_error,
+                    error_code=error_code,
+                    dock_error=dock_error,
+                    clear_water=clear_water,
+                    dirty_water=dirty_water,
+                    dust_bag=dust_bag,
+                    active=active,
+                    data_age_minutes=telemetry_age_minutes,
+                )
+                return {
+                    **readiness,
+                    "telemetry_at": api_local_iso(telemetry.timestamp) if telemetry else None,
+                    "data_age_minutes": telemetry_age_minutes,
+                    "charge_label": roborock_telemetry_value_label("is_charging", telemetry.is_charging) if telemetry else "Ikke støttet",
+                    "clear_water_label": clear_water,
+                    "dirty_water_label": dirty_water,
+                    "dust_bag_label": dust_bag,
+                    "dock_error_label": dock_error,
+                    "signal_label": roborock_signal_label(telemetry.rssi) if telemetry else "-",
+                }
+
             def overview_schedules(robot_duid: str) -> Dict[str, Any]:
                 active = schedules_by_robot.get(robot_duid, [])
                 next_schedule = min(active, key=roborock_next_schedule_score) if active else None
@@ -31935,6 +32009,48 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "next_label": roborock_schedule_text(next_schedule) if next_schedule else None,
                     "rounds_label": roborock_rounds_label(next_schedule.repeat) if next_schedule else None,
                 }
+            robot_summaries = []
+            for robot in robots:
+                status = latest_status_by_robot.get(robot.duid)
+                telemetry = latest_telemetry_by_robot.get(robot.duid)
+                robot_summaries.append(
+                    {
+                        "duid": robot.duid,
+                        "name": robot.name,
+                        "model": robot.model,
+                        "cloud_online": robot.cloud_online,
+                        "local_ip": robot.local_ip,
+                        "last_seen_at": robot.last_seen_at,
+                        "last_error": robot.last_error,
+                        "state_name": telemetry.state_name if telemetry and telemetry.state_name else status.state_name if status else None,
+                        "battery": telemetry.battery if telemetry and telemetry.battery is not None else status.battery if status else None,
+                        "error_code": telemetry.error_code if telemetry and telemetry.error_code is not None else status.error_code if status else None,
+                        "status_at": api_local_iso(telemetry.timestamp if telemetry else status.timestamp if status else None),
+                        "latest_job_today": overview_job(latest_job_by_robot_day.get((robot.duid, today_local))),
+                        "latest_job_yesterday": overview_job(latest_job_by_robot_day.get((robot.duid, yesterday_local))),
+                        "today": overview_day(robot.duid, today_local),
+                        "yesterday": overview_day(robot.duid, yesterday_local),
+                        "readiness": overview_readiness(robot, status, telemetry),
+                        "consumables": overview_consumables(robot.duid),
+                        "schedules": overview_schedules(robot.duid),
+                    }
+                )
+            overview_updates = [
+                row["readiness"]["telemetry_at"] or row["status_at"]
+                for row in robot_summaries
+                if row["readiness"]["telemetry_at"] or row["status_at"]
+            ]
+            overview_summary = {
+                "robot_count": len(robot_summaries),
+                "ready_count": sum(1 for row in robot_summaries if row["readiness"]["status"] == "ready"),
+                "active_count": sum(1 for row in robot_summaries if row["readiness"]["status"] == "active"),
+                "attention_count": sum(1 for row in robot_summaries if row["readiness"]["status"] == "attention"),
+                "offline_count": sum(1 for row in robot_summaries if row["readiness"]["status"] == "offline"),
+                "jobs_today": sum(int(row["today"]["job_count"]) for row in robot_summaries),
+                "duration_today": round(sum(float(row["today"]["duration_minutes"]) for row in robot_summaries), 1),
+                "area_today": round(sum(float(row["today"]["cleaned_area_m2"]) for row in robot_summaries), 1),
+                "updated_at": max(overview_updates, default=None),
+            }
             tables = [
                 api_table("Roboter", ["name", "model", "cloud_online", "local_ip", "battery", "last_seen_at", "last_error"], [api_pick(row, ROBOROCK_ROBOT_COLUMNS) for row in robots]),
                 api_table("Siste vasker", ["begin_at", "end_at", "duration_minutes", "cleaned_area_m2", "complete", "error_code", "finish_reason"], [api_pick(row, ROBOROCK_JOB_COLUMNS) for row in jobs]),
@@ -31983,26 +32099,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 ],
                 "tables": tables,
                 "roborock": {
-                    "robots": [
-                        {
-                            "duid": robot.duid,
-                            "name": robot.name,
-                            "model": robot.model,
-                            "cloud_online": robot.cloud_online,
-                            "local_ip": robot.local_ip,
-                            "last_seen_at": robot.last_seen_at,
-                            "last_error": robot.last_error,
-                            "state_name": latest_status_by_robot.get(robot.duid).state_name if latest_status_by_robot.get(robot.duid) else None,
-                            "battery": latest_status_by_robot.get(robot.duid).battery if latest_status_by_robot.get(robot.duid) else None,
-                            "error_code": latest_status_by_robot.get(robot.duid).error_code if latest_status_by_robot.get(robot.duid) else None,
-                            "status_at": latest_status_by_robot.get(robot.duid).timestamp if latest_status_by_robot.get(robot.duid) else None,
-                            "latest_job_today": overview_job(latest_job_by_robot_day.get((robot.duid, today_local))),
-                            "latest_job_yesterday": overview_job(latest_job_by_robot_day.get((robot.duid, yesterday_local))),
-                            "consumables": overview_consumables(robot.duid),
-                            "schedules": overview_schedules(robot.duid),
-                        }
-                        for robot in robots
-                    ]
+                    "summary": overview_summary,
+                    "robots": robot_summaries,
                 },
             }
 
@@ -38667,8 +38765,11 @@ async def api_cleaning_robot_detail(duid: str):
         # interpret the bare timestamp as local time and show it two hours early.
         item["begin_at"] = api_local_iso(utc_naive_to_local_naive(row.begin_at))
         item["end_at"] = api_local_iso(utc_naive_to_local_naive(row.end_at))
+        job_status_key, job_status_label = roborock_job_status(row.complete, row.error_code, row.end_at)
         item.update(
             {
+                "status": job_status_key,
+                "status_label": job_status_label,
                 "complete_label": roborock_bool_label(row.complete),
                 "error_label": roborock_error_label(row.error_code),
                 "rounds_label": roborock_rounds_label(row.clean_times),
