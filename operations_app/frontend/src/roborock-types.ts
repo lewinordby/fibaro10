@@ -143,6 +143,7 @@ export type RoborockRobotDetail = {
     statusLabel: string;
     statusDetail: string;
     eligible: boolean;
+    pendingStart: boolean;
     nextAllowedAt?: string | null;
     remainingIntervalSeconds: number;
     validationIssues: string[];

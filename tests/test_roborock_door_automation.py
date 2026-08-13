@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
 from roborock_door_automation import (
     automation_counter_start,
@@ -45,6 +46,7 @@ def test_automation_requires_count_closed_door_and_minimum_interval():
         door_is_open=False,
     )
     assert waiting["key"] == "minimum_interval"
+    assert waiting["pending"] is True
     assert waiting["remaining_interval_seconds"] == 20 * 60
 
     ready = automation_decision(
@@ -62,6 +64,38 @@ def test_automation_requires_count_closed_door_and_minimum_interval():
         door_is_open=False,
     )
     assert first_run["eligible"] is True
+
+
+def test_reached_threshold_starts_when_minimum_interval_expires_without_new_opening():
+    last_started_at = datetime(2026, 8, 13, 13, 20)
+    common = {
+        "enabled": True,
+        "open_at": datetime(2026, 8, 13, 7, 0),
+        "close_at": datetime(2026, 8, 13, 23, 0),
+        "opening_count": 10,
+        "opening_threshold": 10,
+        "minimum_interval_minutes": 60,
+        "last_started_at": last_started_at,
+        "door_is_open": False,
+        "validation_issues": [],
+    }
+    waiting = automation_decision(now=datetime(2026, 8, 13, 14, 0), **common)
+    ready = automation_decision(now=datetime(2026, 8, 13, 14, 20), **common)
+
+    assert waiting["key"] == "minimum_interval"
+    assert waiting["pending"] is True
+    assert ready["key"] == "ready"
+    assert ready["eligible"] is True
+
+
+def test_saving_door_automation_does_not_reset_the_counter():
+    source = (Path(__file__).resolve().parents[1] / "main.py").read_text(encoding="utf-8")
+    update_handler = source.split("async def api_update_roborock_door_automation(", 1)[1].split(
+        '@app.post("/api/renhold/robots/{duid}/door-automation/reset-counter")', 1
+    )[0]
+
+    assert "automation.counter_reset_at =" not in update_handler
+    assert "Telleren er beholdt" in update_handler
 
 
 def test_automation_never_starts_outside_opening_hours_or_with_bad_config():

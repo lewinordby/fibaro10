@@ -39225,6 +39225,7 @@ async def roborock_door_automation_payload(
         "statusLabel": decision["label"],
         "statusDetail": decision["detail"],
         "eligible": decision["eligible"],
+        "pendingStart": decision["pending"],
         "nextAllowedAt": api_local_iso(decision["next_allowed_at"]),
         "remainingIntervalSeconds": decision["remaining_interval_seconds"],
         "validationIssues": validation_issues,
@@ -39784,13 +39785,12 @@ async def api_update_roborock_door_automation(
         automation.minimum_interval_minutes = values.minimum_interval_minutes
         automation.zone_numbers = zone_numbers
         automation.profile_id = values.profile_id
-        automation.counter_reset_at = now
         automation.last_error = None
         automation.status = "counting" if values.enabled else "disabled"
         automation.updated_at = now
         await session.commit()
         payload, _ = await roborock_door_automation_payload(session, automation, now)
-    return {"status": "ok", "message": "Automatikken er lagret og telleren er nullstilt", "automation": payload}
+    return {"status": "ok", "message": "Automatikken er lagret. Telleren er beholdt.", "automation": payload}
 
 
 @app.post("/api/renhold/robots/{duid}/door-automation/reset-counter")

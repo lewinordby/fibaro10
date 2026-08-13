@@ -610,6 +610,8 @@ function DoorAutomation({ duid, data, reload }: { duid: string; data: RoborockRo
   const progress = Math.min(100, Math.round((automation.openingCount / Math.max(1, automation.openingThreshold)) * 100));
   const statusTone = automation.status === "configuration_error" || automation.lastError
     ? "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+    : automation.pendingStart
+      ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
     : automation.enabled
       ? "border-green-200 bg-green-50 text-green-700 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300"
       : "border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-300";
@@ -689,7 +691,7 @@ function DoorAutomation({ duid, data, reload }: { duid: string; data: RoborockRo
       {automation.validationIssues.length ? <div className="rounded-md bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">{automation.validationIssues.join(" · ")}</div> : null}
       {automation.lastError ? <div className="rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-300">Siste feil: {automation.lastError}</div> : null}
       {data.canManageCleaningZones ? <details className="rounded-lg border border-gray-200 dark:border-gray-700/60">
-        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200"><span>Innstillinger</span><span className="text-xs font-medium text-gray-400">Endringer nullstiller telleren</span></summary>
+        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200"><span>Innstillinger</span><span className="text-xs font-medium text-gray-400">Telleren beholdes ved lagring</span></summary>
         <div className="grid gap-4 border-t border-gray-100 p-4 sm:grid-cols-2 xl:grid-cols-4 dark:border-gray-700/60">
           <label className="flex items-center gap-2 self-end pb-2 text-sm font-medium text-gray-700 dark:text-gray-200"><input checked={enabled} onChange={(event) => setEnabled(event.target.checked)} type="checkbox" />Aktiver automatikk</label>
           <label><span className="mb-1 block text-xs font-semibold uppercase text-gray-400">Døråpninger</span><input className="form-input w-full" max={100} min={1} onChange={(event) => setOpeningThreshold(Number(event.target.value))} type="number" value={openingThreshold} /></label>

@@ -102,8 +102,8 @@ def automation_decision(
         remaining_minutes = max(1, (remaining_interval_seconds + 59) // 60)
         key, label, detail = (
             "minimum_interval",
-            "Venter mellom rengjøringer",
-            f"Ny automatisk støvsuging tidligst om {remaining_minutes} min.",
+            "Venter på automatisk start",
+            f"Terskelen er nådd. Starter automatisk om {remaining_minutes} min.",
         )
     elif status == "error" and retry_at and now < retry_at:
         remaining_minutes = max(1, int(((retry_at - now).total_seconds() + 59) // 60))
@@ -116,6 +116,7 @@ def automation_decision(
         "label": label,
         "detail": detail,
         "eligible": key == "ready",
+        "pending": key in {"minimum_interval", "door_open", "retry_wait"} and opening_count >= opening_threshold,
         "next_allowed_at": next_allowed_at,
         "remaining_interval_seconds": remaining_interval_seconds,
         "retry_at": retry_at,

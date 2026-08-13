@@ -12,6 +12,35 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1728",
+        "date": "13.08.2026",
+        "headline": "Ventende Roborock-start beholder telleren",
+        "title": "Nådd åpningsterskel starter automatisk når minimumsintervallet utløper",
+        "description": (
+            "Dørstyrt støvsuging beholder en oppnådd åpningsterskel mens minimumsintervallet løper. "
+            "Bakgrunnsjobben starter automatisk ved første kontroll etter at intervallet er utløpt, uten å "
+            "kreve en ny døråpning. Endringer i oppsettet nullstiller heller ikke lenger telleren."
+        ),
+        "applications": [
+            "Fibaro10 API og worker: ventende start, bevart teller og tydelig statusgrunnlag.",
+            "Bygg og drift: synlig ventestatus og beskjed om at lagring beholder telleren.",
+        ],
+        "request": (
+            "Hvis tidsintervallet ikke er nådd men telleren er nådd så må den automatisk ta det når tiden "
+            "er kommet, altså minimumstiden. Telleren skal heller ikke nulles når innstillinger endres."
+        ),
+        "work_duration": "ca. 25 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Marker oppnådd terskel som ventende start mens minimumsintervallet løper.",
+            "Starter uten ny døråpning ved første 30-sekunderskontroll etter tillatt starttid.",
+            "Beholder åpningstelleren når terskel, intervall, soner, profil eller aktivering lagres.",
+            "Nullstiller fortsatt tellingsgrunnlaget etter vellykket automatisk start eller manuell nullstilling.",
+            "Viser ventende start med egen statusfarge i robotdetaljen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1727",
         "date": "13.08.2026",
         "headline": "Riktig intervall og fleksible soner for dørstyrt renhold",
