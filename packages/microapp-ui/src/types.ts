@@ -376,6 +376,34 @@ export type RoborockRobotDetail = {
     importedAt?: string | null;
     importedBy?: string | null;
   }>;
+  cleaningProfiles: Array<{
+    id: number;
+    slug: string;
+    name: string;
+    description: string;
+    cleaningType: "vacuum" | "mop" | "vacuum_mop";
+    cleaningTypeLabel: string;
+    fanPower: number;
+    fanLabel: string;
+    waterBoxMode: number;
+    waterLabel: string;
+    mopMode: number;
+    mopLabel: string;
+    repeat: number;
+    roundsLabel: string;
+    summary: string;
+    active: boolean;
+    builtin: boolean;
+  }>;
+  cleaningProfileOptions: {
+    model?: string | null;
+    cleaningTypes: Array<{ value: "vacuum" | "mop" | "vacuum_mop"; label: string }>;
+    fanPower: Array<{ value: number; label: string }>;
+    waterBoxMode: Array<{ value: number; label: string }>;
+    mopMode: Array<{ value: number; label: string }>;
+    repeat: Array<{ value: number; label: string }>;
+    excludedModes?: string[];
+  };
   controlHistory: Array<{
     id: number;
     request_id: string;
@@ -387,6 +415,7 @@ export type RoborockRobotDetail = {
     message?: string | null;
     before_state?: JsonRecord | null;
     after_state?: JsonRecord | null;
+    profile?: JsonRecord | null;
   }>;
   telemetryFields: Array<{
     category: string;

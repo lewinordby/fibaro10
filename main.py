@@ -76,6 +76,13 @@ from incident_domain import (
     parse_status_text,
 )
 from roborock_zones import RoborockZoneScheduleError, discover_roborock_zone_candidates
+from roborock_profiles import (
+    CLEANING_TYPE_LABELS,
+    DEFAULT_CLEANING_PROFILES,
+    cleaning_profile_options,
+    cleaning_profile_summary,
+    validate_cleaning_profile,
+)
 from energy_helpers import (
     circuit_technical_label,
     energy_circuit_is_sunbed,
@@ -1148,6 +1155,24 @@ class RoborockCleaningZoneMapping(Base):
     imported_by = Column(String, nullable=True)
 
 
+class RoborockCleaningProfile(Base):
+    __tablename__ = "roborock_cleaning_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String, nullable=False, unique=True, index=True)
+    name = Column(String, nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    cleaning_type = Column(String, nullable=False, index=True)
+    fan_power = Column(Integer, nullable=False)
+    water_box_mode = Column(Integer, nullable=False)
+    mop_mode = Column(Integer, nullable=False)
+    repeat = Column(Integer, nullable=False, default=1)
+    active = Column(Boolean, nullable=False, default=True, index=True)
+    builtin = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+
 class RoborockConsumableSnapshot(Base):
     __tablename__ = "roborock_consumables"
 
@@ -2204,6 +2229,18 @@ class RoborockControlIn(BaseModel):
     action: str
     test_duration_seconds: int = Field(default=5, ge=3, le=12)
     zone_number: Optional[int] = Field(default=None, ge=1, le=59)
+    profile_id: Optional[int] = Field(default=None, ge=1)
+
+
+class RoborockCleaningProfileIn(BaseModel):
+    name: str = Field(min_length=2, max_length=80)
+    description: str = Field(default="", max_length=300)
+    cleaning_type: str
+    fan_power: int
+    water_box_mode: int
+    mop_mode: int
+    repeat: int = Field(default=1, ge=1, le=3)
+    active: bool = True
 
 
 class Sun2RoomStatIn(BaseModel):
@@ -4953,6 +4990,61 @@ def json_value(value):
 def roborock_schedule_params(schedule: Dict[str, Any]) -> Dict[str, Any]:
     params = (((schedule.get("param") or {}).get("params")) or [])
     return params[0] if params and isinstance(params[0], dict) else {}
+
+
+def roborock_cleaning_profile_payload(profile: RoborockCleaningProfile) -> Dict[str, Any]:
+    values = {
+        "cleaning_type": profile.cleaning_type,
+        "fan_power": profile.fan_power,
+        "water_box_mode": profile.water_box_mode,
+        "mop_mode": profile.mop_mode,
+        "repeat": profile.repeat,
+    }
+    return {
+        "id": profile.id,
+        "slug": profile.slug,
+        "name": profile.name,
+        "description": profile.description or "",
+        "cleaningType": profile.cleaning_type,
+        "cleaningTypeLabel": CLEANING_TYPE_LABELS.get(profile.cleaning_type, profile.cleaning_type),
+        "fanPower": profile.fan_power,
+        "fanLabel": roborock_fan_label(profile.fan_power),
+        "waterBoxMode": profile.water_box_mode,
+        "waterLabel": roborock_water_label(profile.water_box_mode),
+        "mopMode": profile.mop_mode,
+        "mopLabel": roborock_mop_label(profile.mop_mode),
+        "repeat": profile.repeat,
+        "roundsLabel": roborock_rounds_label(profile.repeat),
+        "summary": cleaning_profile_summary(values),
+        "active": bool(profile.active),
+        "builtin": bool(profile.builtin),
+        "createdAt": api_local_iso(utc_naive_to_local_naive(profile.created_at)),
+        "updatedAt": api_local_iso(utc_naive_to_local_naive(profile.updated_at)),
+    }
+
+
+async def ensure_default_roborock_cleaning_profiles(session) -> None:
+    existing = (
+        await session.execute(
+            select(RoborockCleaningProfile).where(
+                RoborockCleaningProfile.slug.in_([row["slug"] for row in DEFAULT_CLEANING_PROFILES])
+            )
+        )
+    ).scalars().all()
+    existing_slugs = {row.slug for row in existing}
+    now = datetime.utcnow()
+    for values in DEFAULT_CLEANING_PROFILES:
+        if values["slug"] in existing_slugs:
+            continue
+        session.add(
+            RoborockCleaningProfile(
+                **values,
+                active=True,
+                builtin=True,
+                created_at=now,
+                updated_at=now,
+            )
+        )
 
 
 async def import_roborock_cleaning_zones(
@@ -15673,6 +15765,7 @@ async def startup():
                 key.name = username
                 key.key_hash = access_password_hash(username, password, is_master=False)
                 key.key_prefix = access_key_prefix(username, password, is_master=False)
+        await ensure_default_roborock_cleaning_profiles(session)
         await session.commit()
     async with async_session() as session:
         for config_key in CONFIG_DEFINITIONS:
@@ -38956,6 +39049,15 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
                 .limit(30)
             )
         ).scalars().all()
+        cleaning_profiles = (
+            await session.execute(
+                select(RoborockCleaningProfile).order_by(
+                    RoborockCleaningProfile.active.desc(),
+                    RoborockCleaningProfile.cleaning_type,
+                    RoborockCleaningProfile.name,
+                )
+            )
+        ).scalars().all()
 
     latest_status = statuses[0] if statuses else None
     metadata = ((robot.extra or {}).get("metadata") or {}) if isinstance(robot.extra, dict) else {}
@@ -39126,6 +39228,9 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
             "message": row.message,
             "before_state": row.before_state,
             "after_state": row.after_state,
+            "profile": ((row.result or {}).get("target") or {}).get("profile")
+            if isinstance(row.result, dict)
+            else None,
         }
         for row in command_runs
     ]
@@ -39163,6 +39268,8 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
         "controlHistory": command_rows,
         "cleaningZones": cleaning_zone_rows,
         "cleaningZoneImport": cleaning_zone_import,
+        "cleaningProfiles": [roborock_cleaning_profile_payload(row) for row in cleaning_profiles],
+        "cleaningProfileOptions": cleaning_profile_options(robot.model),
     }
 
 
@@ -39230,6 +39337,78 @@ async def api_import_roborock_cleaning_zones(request: Request, duid: str):
     }
 
 
+def apply_roborock_cleaning_profile_values(
+    profile: RoborockCleaningProfile,
+    values: RoborockCleaningProfileIn,
+) -> None:
+    try:
+        settings = validate_cleaning_profile(values.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    profile.name = values.name.strip()
+    profile.description = values.description.strip()
+    profile.cleaning_type = settings["cleaning_type"]
+    profile.fan_power = settings["fan_power"]
+    profile.water_box_mode = settings["water_box_mode"]
+    profile.mop_mode = settings["mop_mode"]
+    profile.repeat = settings["repeat"]
+    profile.active = values.active
+    profile.updated_at = datetime.utcnow()
+
+
+@app.post("/api/renhold/cleaning-profiles")
+async def api_create_roborock_cleaning_profile(request: Request, values: RoborockCleaningProfileIn):
+    forbidden = require_master(request)
+    if forbidden:
+        return forbidden
+    profile = RoborockCleaningProfile(
+        slug=f"custom-{secrets.token_hex(8)}",
+        builtin=False,
+        created_at=datetime.utcnow(),
+    )
+    apply_roborock_cleaning_profile_values(profile, values)
+    async with async_session() as session:
+        session.add(profile)
+        await session.commit()
+        await session.refresh(profile)
+        return {"status": "ok", "profile": roborock_cleaning_profile_payload(profile)}
+
+
+@app.put("/api/renhold/cleaning-profiles/{profile_id}")
+async def api_update_roborock_cleaning_profile(
+    request: Request,
+    profile_id: int,
+    values: RoborockCleaningProfileIn,
+):
+    forbidden = require_master(request)
+    if forbidden:
+        return forbidden
+    async with async_session() as session:
+        profile = await session.get(RoborockCleaningProfile, profile_id)
+        if not profile:
+            raise HTTPException(status_code=404, detail="Ukjent rengjøringsprofil")
+        apply_roborock_cleaning_profile_values(profile, values)
+        await session.commit()
+        await session.refresh(profile)
+        return {"status": "ok", "profile": roborock_cleaning_profile_payload(profile)}
+
+
+@app.delete("/api/renhold/cleaning-profiles/{profile_id}")
+async def api_delete_roborock_cleaning_profile(request: Request, profile_id: int):
+    forbidden = require_master(request)
+    if forbidden:
+        return forbidden
+    async with async_session() as session:
+        profile = await session.get(RoborockCleaningProfile, profile_id)
+        if not profile:
+            raise HTTPException(status_code=404, detail="Ukjent rengjøringsprofil")
+        if profile.builtin:
+            raise HTTPException(status_code=409, detail="Standardprofiler kan redigeres, men ikke slettes")
+        await session.delete(profile)
+        await session.commit()
+    return {"status": "ok", "message": "Rengjøringsprofilen er slettet"}
+
+
 @app.post("/api/renhold/robots/{duid}/control")
 async def api_cleaning_robot_control(request: Request, duid: str, values: RoborockControlIn):
     forbidden = require_master(request)
@@ -39241,13 +39420,14 @@ async def api_cleaning_robot_control(request: Request, duid: str, values: Roboro
     action = values.action.strip().lower()
     if action not in allowed_actions:
         raise HTTPException(status_code=400, detail="Ukjent robotkommando")
-    if action == "clean_zone" and values.zone_number is None:
-        raise HTTPException(status_code=400, detail="Sonenummer mangler")
+    if action == "clean_zone" and (values.zone_number is None or values.profile_id is None):
+        raise HTTPException(status_code=400, detail="Sone og rengjøringsprofil må velges")
 
     actor = getattr(request.state, "access_key_name", None) or "master"
     request_id = f"fibaro10-{secrets.token_hex(12)}"
     zone_name: Optional[str] = None
     segment_id: Optional[int] = None
+    profile_payload: Optional[Dict[str, Any]] = None
     async with async_session() as session:
         robot = (await session.execute(select(RoborockRobot).where(RoborockRobot.duid == duid))).scalars().first()
         if not robot:
@@ -39278,6 +39458,10 @@ async def api_cleaning_robot_control(request: Request, duid: str, values: Roboro
                     status_code=409,
                     detail=f"{zone_name} har et ugyldig robotsegment",
                 ) from exc
+            profile = await session.get(RoborockCleaningProfile, values.profile_id)
+            if not profile or not profile.active:
+                raise HTTPException(status_code=404, detail="Rengjøringsprofilen finnes ikke eller er deaktivert")
+            profile_payload = roborock_cleaning_profile_payload(profile)
         command_run = RoborockCommandRun(
             request_id=request_id,
             robot_duid=duid,
@@ -39303,13 +39487,25 @@ async def api_cleaning_robot_control(request: Request, duid: str, values: Roboro
                 "test_duration_seconds": values.test_duration_seconds,
                 "zone_number": values.zone_number,
                 "segment_id": segment_id,
+                "profile": {
+                    "id": profile_payload["id"],
+                    "name": profile_payload["name"],
+                    "cleaning_type": profile_payload["cleaningType"],
+                    "fan_power": profile_payload["fanPower"],
+                    "water_box_mode": profile_payload["waterBoxMode"],
+                    "mop_mode": profile_payload["mopMode"],
+                    "repeat": profile_payload["repeat"],
+                    "summary": profile_payload["summary"],
+                }
+                if profile_payload
+                else None,
             },
         )
         command_status = str(result.get("status") or "ok")
         message = (
             "Kontrolltest fullført"
             if action == "test_start_stop"
-            else f"{zone_name} startet på {robot_name}"
+            else f"{profile_payload['name']} startet i {zone_name} på {robot_name}"
             if action == "clean_zone"
             else "Robotkommando utført"
         )
@@ -39343,6 +39539,7 @@ async def api_cleaning_robot_control(request: Request, duid: str, values: Roboro
         "after": after_state,
         "zoneNumber": values.zone_number if action == "clean_zone" else None,
         "segmentId": segment_id,
+        "profile": profile_payload,
     }
 
 

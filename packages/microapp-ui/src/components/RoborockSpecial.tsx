@@ -334,7 +334,7 @@ function RobotControls({ duid, data, reload }: { duid: string; data: RoborockRob
       </div>
       {message ? <div className={`rounded-md px-3 py-2 text-sm ${message.toLowerCase().includes("feil") ? "bg-red-500/10 text-red-600 dark:text-red-400" : "bg-green-500/10 text-green-700 dark:text-green-400"}`}>{message}</div> : null}
       {latest ? <div className="grid gap-3 border-t border-gray-100 pt-4 text-sm sm:grid-cols-[minmax(9rem,0.8fr)_1fr_1fr_auto] dark:border-gray-700/60">
-        <div><span className="block text-xs font-semibold uppercase text-gray-400">Siste kommando</span><strong className="font-medium text-gray-700 dark:text-gray-200">{controlActionLabels[latest.action] || latest.action}</strong></div>
+        <div><span className="block text-xs font-semibold uppercase text-gray-400">Siste kommando</span><strong className="block font-medium text-gray-700 dark:text-gray-200">{controlActionLabels[latest.action] || latest.action}</strong>{latest.profile?.name ? <small className="text-gray-400">{String(latest.profile.name)}</small> : null}</div>
         <div><span className="block text-xs font-semibold uppercase text-gray-400">Før</span><strong className="font-medium text-gray-700 dark:text-gray-200">{controlStateLabel(latest.before_state)}</strong></div>
         <div><span className="block text-xs font-semibold uppercase text-gray-400">Etter</span><strong className="font-medium text-gray-700 dark:text-gray-200">{controlStateLabel(latest.after_state)}</strong></div>
         <div className="sm:text-right"><span className="block text-xs font-semibold uppercase text-gray-400">Tidspunkt</span><strong className="font-medium text-gray-700 dark:text-gray-200">{stamp(latest.requested_at)}</strong></div>
@@ -343,18 +343,150 @@ function RobotControls({ duid, data, reload }: { duid: string; data: RoborockRob
   </Panel>;
 }
 
+type CleaningProfile = RoborockRobotDetail["cleaningProfiles"][number];
+
+type CleaningProfileDraft = {
+  name: string;
+  description: string;
+  cleaning_type: "vacuum" | "mop" | "vacuum_mop";
+  fan_power: number;
+  water_box_mode: number;
+  mop_mode: number;
+  repeat: number;
+  active: boolean;
+};
+
+function profileDraft(profile?: CleaningProfile): CleaningProfileDraft {
+  return profile ? {
+    name: profile.name,
+    description: profile.description,
+    cleaning_type: profile.cleaningType,
+    fan_power: profile.fanPower,
+    water_box_mode: profile.waterBoxMode,
+    mop_mode: profile.mopMode,
+    repeat: profile.repeat,
+    active: profile.active,
+  } : {
+    name: "",
+    description: "",
+    cleaning_type: "vacuum_mop",
+    fan_power: 102,
+    water_box_mode: 202,
+    mop_mode: 300,
+    repeat: 1,
+    active: true,
+  };
+}
+
+function ProfileEditor({ data, editing, close, reload }: {
+  data: RoborockRobotDetail;
+  editing: CleaningProfile | "new";
+  close: () => void;
+  reload: () => void;
+}) {
+  const profile = editing === "new" ? undefined : editing;
+  const [draft, setDraft] = useState<CleaningProfileDraft>(() => profileDraft(profile));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const options = data.cleaningProfileOptions;
+  const fieldClass = "form-input w-full";
+
+  function changeType(cleaningType: CleaningProfileDraft["cleaning_type"]) {
+    setDraft((current) => ({
+      ...current,
+      cleaning_type: cleaningType,
+      fan_power: cleaningType === "mop" ? 105 : current.fan_power === 105 ? 102 : current.fan_power,
+      water_box_mode: cleaningType === "vacuum" ? 200 : current.water_box_mode === 200 ? 202 : current.water_box_mode,
+    }));
+  }
+
+  async function save() {
+    setSaving(true);
+    setError("");
+    try {
+      await domainApi.mutate(
+        profile ? `/api/renhold/cleaning-profiles/${profile.id}` : "/api/renhold/cleaning-profiles",
+        profile ? "PUT" : "POST",
+        draft,
+      );
+      close();
+      reload();
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : String(nextError));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function remove() {
+    if (!profile || profile.builtin || !window.confirm(`Slette profilen ${profile.name}?`)) return;
+    setSaving(true);
+    setError("");
+    try {
+      await domainApi.mutate(`/api/renhold/cleaning-profiles/${profile.id}`, "DELETE");
+      close();
+      reload();
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : String(nextError));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return <div className="border-t border-gray-100 bg-gray-50/70 p-5 dark:border-gray-700/60 dark:bg-gray-900/30">
+    <div className="mb-4 flex items-center justify-between gap-3">
+      <div><strong className="block text-sm text-gray-800 dark:text-gray-100">{profile ? `Rediger ${profile.name}` : "Ny rengjøringsprofil"}</strong><small className="text-gray-400">Profilen kan brukes både manuelt og i senere automatiske planer.</small></div>
+      <button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={close}>Lukk</button>
+    </div>
+    <div className="grid gap-4 lg:grid-cols-4">
+      <label className="lg:col-span-2"><span className="mb-1 block text-xs font-semibold uppercase text-gray-400">Navn</span><input autoFocus className={fieldClass} maxLength={80} onChange={(event) => setDraft({ ...draft, name: event.target.value })} value={draft.name} /></label>
+      <label><span className="mb-1 block text-xs font-semibold uppercase text-gray-400">Renholdstype</span><select className={fieldClass} onChange={(event) => changeType(event.target.value as CleaningProfileDraft["cleaning_type"])} value={draft.cleaning_type}>{options.cleaningTypes.map((row) => <option key={row.value} value={row.value}>{row.label}</option>)}</select></label>
+      <label><span className="mb-1 block text-xs font-semibold uppercase text-gray-400">Runder</span><select className={fieldClass} onChange={(event) => setDraft({ ...draft, repeat: Number(event.target.value) })} value={draft.repeat}>{options.repeat.map((row) => <option key={row.value} value={row.value}>{row.label}</option>)}</select></label>
+      <label><span className="mb-1 block text-xs font-semibold uppercase text-gray-400">Sugekraft</span><select className={fieldClass} disabled={draft.cleaning_type === "mop"} onChange={(event) => setDraft({ ...draft, fan_power: Number(event.target.value) })} value={draft.fan_power}>{options.fanPower.filter((row) => draft.cleaning_type === "mop" ? row.value === 105 : row.value !== 105).map((row) => <option key={row.value} value={row.value}>{row.label}</option>)}</select></label>
+      <label><span className="mb-1 block text-xs font-semibold uppercase text-gray-400">Vannmengde</span><select className={fieldClass} disabled={draft.cleaning_type === "vacuum"} onChange={(event) => setDraft({ ...draft, water_box_mode: Number(event.target.value) })} value={draft.water_box_mode}>{options.waterBoxMode.filter((row) => draft.cleaning_type === "vacuum" ? row.value === 200 : row.value !== 200).map((row) => <option key={row.value} value={row.value}>{row.label}</option>)}</select></label>
+      <label><span className="mb-1 block text-xs font-semibold uppercase text-gray-400">Vaskemønster</span><select className={fieldClass} disabled={draft.cleaning_type === "vacuum"} onChange={(event) => setDraft({ ...draft, mop_mode: Number(event.target.value) })} value={draft.mop_mode}>{options.mopMode.map((row) => <option key={row.value} value={row.value}>{row.label}</option>)}</select></label>
+      <label className="flex items-end pb-2"><span className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300"><input checked={draft.active} onChange={(event) => setDraft({ ...draft, active: event.target.checked })} type="checkbox" />Aktiv profil</span></label>
+      <label className="lg:col-span-4"><span className="mb-1 block text-xs font-semibold uppercase text-gray-400">Beskrivelse</span><input className={fieldClass} maxLength={300} onChange={(event) => setDraft({ ...draft, description: event.target.value })} value={draft.description} /></label>
+    </div>
+    {error ? <p className="mt-3 rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">{error}</p> : null}
+    <div className="mt-4 flex items-center justify-between gap-3">
+      <div>{profile?.builtin ? <small className="text-gray-400">Standardprofilen kan redigeres, men ikke slettes.</small> : profile ? <button className="btn border-red-200 bg-white text-red-600 dark:border-red-500/30 dark:bg-gray-800 dark:text-red-400" disabled={saving} onClick={remove}>Slett</button> : null}</div>
+      <button className="btn bg-green-600 text-white hover:bg-green-700" disabled={saving || draft.name.trim().length < 2} onClick={save}>{saving ? "Lagrer ..." : "Lagre profil"}</button>
+    </div>
+  </div>;
+}
+
 function CleaningZones({ duid, data, reload }: { duid: string; data: RoborockRobotDetail; reload: () => void }) {
   const [importing, setImporting] = useState(false);
   const [runningZone, setRunningZone] = useState<number | null>(null);
-  const [watchingZone, setWatchingZone] = useState<{ number: number; name: string; startedAt: number; initialState: string } | null>(null);
+  const [watchingZone, setWatchingZone] = useState<{ number: number; name: string; profileName: string; startedAt: number; initialState: string } | null>(null);
+  const [selectedProfileId, setSelectedProfileId] = useState<number | null>(() => {
+    const stored = window.localStorage.getItem(`roborock-profile-${duid}`);
+    return stored ? Number(stored) : null;
+  });
+  const [editingProfile, setEditingProfile] = useState<CleaningProfile | "new" | null>(null);
+  const [showProfiles, setShowProfiles] = useState(false);
   const [message, setMessage] = useState("");
   const zones = data.cleaningZones || [];
+  const activeProfiles = (data.cleaningProfiles || []).filter((profile) => profile.active);
+  const selectedProfile = activeProfiles.find((profile) => profile.id === selectedProfileId) || null;
   const automaticImport = data.cleaningZoneImport;
   const telemetryAt = parsedDate(data.latestTelemetry?.timestamp)?.getTime() || 0;
   const telemetryState = String(data.latestTelemetry?.state_name || data.latestStatus?.state_name || "").toLowerCase();
   const watchedState = watchingZone && telemetryAt >= watchingZone.startedAt - 3_000
     ? telemetryState
     : watchingZone?.initialState || telemetryState;
+
+  useEffect(() => {
+    if (selectedProfile) return;
+    const fallback = activeProfiles.find((profile) => profile.slug === "vacuum-mop-normal") || activeProfiles[0];
+    if (fallback) setSelectedProfileId(fallback.id);
+  }, [activeProfiles.map((profile) => `${profile.id}:${profile.active}`).join(","), selectedProfile]);
+
+  function selectProfile(profileId: number) {
+    setSelectedProfileId(profileId);
+    window.localStorage.setItem(`roborock-profile-${duid}`, String(profileId));
+  }
 
   function zoneProgressText(zoneName: string, state: string) {
     if (["washing_the_mop", "washing_the_mop_2", "going_to_wash_the_mop"].includes(state)) return `Moppbehandling i dokken · ${zoneName}`;
@@ -400,17 +532,21 @@ function CleaningZones({ duid, data, reload }: { duid: string; data: RoborockRob
 
   async function cleanZone(zoneNumber: number, zoneName: string) {
     const robotName = String(data.robot?.name || "roboten");
-    if (!window.confirm(`Starte vask av ${zoneName} på ${robotName}? Robotens gjeldende rengjøringsinnstillinger brukes.`)) return;
+    if (!selectedProfile) {
+      setMessage("Velg en aktiv rengjøringsprofil først.");
+      return;
+    }
+    if (!window.confirm(`Starte ${selectedProfile.name} i ${zoneName} på ${robotName}?\n\n${selectedProfile.summary}`)) return;
     setRunningZone(zoneNumber);
     setMessage("");
     try {
       const response = await domainApi.mutate<{ message?: string; after?: JsonRecord | null }>(
         `/api/renhold/robots/${encodeURIComponent(duid)}/control`,
         "POST",
-        { action: "clean_zone", zone_number: zoneNumber },
+        { action: "clean_zone", zone_number: zoneNumber, profile_id: selectedProfile.id },
       );
       const initialState = String(response.after?.state_name || "starting").toLowerCase();
-      setWatchingZone({ number: zoneNumber, name: zoneName, startedAt: Date.now(), initialState });
+      setWatchingZone({ number: zoneNumber, name: zoneName, profileName: selectedProfile.name, startedAt: Date.now(), initialState });
       setMessage(zoneProgressText(zoneName, initialState));
       reload();
     } catch (error) {
@@ -421,15 +557,25 @@ function CleaningZones({ duid, data, reload }: { duid: string; data: RoborockRob
     }
   }
 
-  return <Panel title="Soner" subtitle="Fysiske områder · samme sonenummer kan brukes av flere roboter">
+  return <Panel title="Soner" subtitle="Velg renholdsprofil og start et av robotens kartområder">
     <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
+      <div className="px-5 py-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="min-w-[16rem] flex-1"><span className="mb-1 block text-xs font-semibold uppercase text-gray-400">Renholdsprofil</span><select className="form-input w-full" disabled={!activeProfiles.length || Boolean(watchingZone)} onChange={(event) => selectProfile(Number(event.target.value))} value={selectedProfile?.id || ""}><option disabled value="">Velg profil</option>{activeProfiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>
+          {data.canManageCleaningZones ? <button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={() => setShowProfiles((value) => !value)}><MosaicIcon name="settings" />{showProfiles ? "Skjul profiler" : "Administrer profiler"}</button> : null}
+          {data.canManageCleaningZones ? <button className="btn bg-green-600 text-white hover:bg-green-700" onClick={() => { setShowProfiles(true); setEditingProfile("new"); }}>Ny profil</button> : null}
+        </div>
+        {selectedProfile ? <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-green-50 px-3 py-2 dark:bg-green-500/10"><strong className="text-sm font-semibold text-green-800 dark:text-green-300">{selectedProfile.summary}</strong>{selectedProfile.description ? <span className="text-sm text-green-700/70 dark:text-green-300/70">{selectedProfile.description}</span> : null}</div> : <p className="mt-3 text-sm text-red-500">Ingen aktiv rengjøringsprofil er tilgjengelig.</p>}
+      </div>
+      {showProfiles ? <div className="overflow-x-auto"><table className="w-full"><thead className="bg-gray-50 text-xs uppercase text-gray-400 dark:bg-gray-700/40"><tr><th className="px-5 py-3 text-left font-semibold">Profil</th><th className="px-5 py-3 text-left font-semibold">Eksakte innstillinger</th><th className="px-5 py-3 text-right font-semibold">Status</th><th className="px-5 py-3 text-right font-semibold">Handling</th></tr></thead><tbody className="divide-y divide-gray-100 text-sm dark:divide-gray-700/60">{data.cleaningProfiles.map((profile) => <tr className={profile.active ? "" : "opacity-55"} key={profile.id}><td className="px-5 py-3"><strong className="block font-semibold text-gray-700 dark:text-gray-200">{profile.name}</strong><small className="text-gray-400">{profile.cleaningTypeLabel}</small></td><td className="px-5 py-3 text-gray-500 dark:text-gray-400">{profile.summary}</td><td className="px-5 py-3 text-right"><span className={profile.active ? "text-green-700 dark:text-green-400" : "text-gray-400"}>{profile.active ? "Aktiv" : "Av"}</span></td><td className="px-5 py-2 text-right"><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={() => setEditingProfile(profile)}>Rediger</button></td></tr>)}</tbody></table></div> : null}
+      {editingProfile ? <ProfileEditor data={data} editing={editingProfile} key={editingProfile === "new" ? "new" : editingProfile.id} close={() => setEditingProfile(null)} reload={reload} /> : null}
       <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
         <p className="max-w-3xl text-sm text-gray-500 dark:text-gray-400"><strong className="font-semibold text-gray-700 dark:text-gray-200">12:01 = Sone 1</strong>, 12:02 = Sone 2 osv. Bare deaktiverte planer med nøyaktig ett segment leses automatisk ved Roborock-synkronisering.</p>
         {data.canManageCleaningZones ? <button className="btn shrink-0 border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" disabled={importing || runningZone !== null} onClick={importZones}><MosaicIcon name="refresh" />{importing ? "Leser ..." : "Les testplaner"}</button> : null}
       </div>
       {automaticImport?.status === "error" ? <div className="mx-5 my-3 rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">Automatisk innlesing ble avvist: {automaticImport.message || "Kontroller testplanene"}</div> : null}
       {message ? <div aria-live="polite" className={`mx-5 my-3 flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${message.toLowerCase().includes("fant ingen") || message.toLowerCase().includes("må ") || message.toLowerCase().includes("allerede") || message.toLowerCase().includes("feil") ? "bg-red-500/10 text-red-600 dark:text-red-400" : "bg-green-500/10 text-green-700 dark:text-green-400"}`}>{watchingZone ? <MosaicIcon className="animate-spin" name="refresh" /> : <MosaicIcon name={message.toLowerCase().includes("feil") || message.toLowerCase().includes("allerede") ? "warning" : "robot"} />}{message}</div> : null}
-      {zones.length ? <div className="overflow-x-auto"><table className="w-full"><thead className="bg-gray-50 text-xs uppercase text-gray-400 dark:bg-gray-700/40"><tr><th className="px-5 py-3 text-left font-semibold">Sone</th><th className="px-5 py-3 text-left font-semibold">Robotsegment</th><th className="px-5 py-3 text-left font-semibold">Testplan</th><th className="px-5 py-3 text-right font-semibold">Lest inn</th>{data.canControl ? <th className="px-5 py-3 text-right font-semibold">Handling</th> : null}</tr></thead><tbody className="divide-y divide-gray-100 text-sm dark:divide-gray-700/60">{zones.map((zone) => <tr className={watchingZone?.number === zone.zoneNumber ? "bg-green-50/60 dark:bg-green-500/5" : ""} key={zone.zoneNumber}><td className="px-5 py-3 font-semibold text-gray-700 dark:text-gray-200">{zone.name}{watchingZone?.number === zone.zoneNumber ? <small className="mt-0.5 block font-medium text-green-700 dark:text-green-400">{zoneProgressText(zone.name, watchedState)}</small> : null}</td><td className="px-5 py-3 font-mono tabular-nums text-gray-600 dark:text-gray-300">{zone.segmentId}</td><td className="px-5 py-3 text-gray-500 dark:text-gray-400">12:{String(zone.zoneNumber).padStart(2, "0")} <span className="text-gray-300 dark:text-gray-600">·</span> {zone.sourceScheduleId || "-"}</td><td className="whitespace-nowrap px-5 py-3 text-right text-gray-400">{stamp(zone.importedAt)}</td>{data.canControl ? <td className="whitespace-nowrap px-5 py-2 text-right"><button className={`btn ${watchingZone?.number === zone.zoneNumber ? "border-green-600 bg-green-600 text-white" : "border-green-200 bg-green-50 text-green-700 hover:bg-green-100 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300"}`} disabled={importing || runningZone !== null || watchingZone !== null} onClick={() => cleanZone(zone.zoneNumber, zone.name)}>{runningZone === zone.zoneNumber ? "Sender ..." : watchingZone?.number === zone.zoneNumber ? "Pågår ..." : "Vask"}</button></td> : null}</tr>)}</tbody></table></div> : <p className="px-5 py-6 text-sm text-gray-400">Ingen soner er registrert for denne roboten ennå.</p>}
+      {zones.length ? <div className="overflow-x-auto"><table className="w-full"><thead className="bg-gray-50 text-xs uppercase text-gray-400 dark:bg-gray-700/40"><tr><th className="px-5 py-3 text-left font-semibold">Sone</th><th className="px-5 py-3 text-left font-semibold">Robotsegment</th><th className="px-5 py-3 text-left font-semibold">Testplan</th><th className="px-5 py-3 text-right font-semibold">Lest inn</th>{data.canControl ? <th className="px-5 py-3 text-right font-semibold">Handling</th> : null}</tr></thead><tbody className="divide-y divide-gray-100 text-sm dark:divide-gray-700/60">{zones.map((zone) => <tr className={watchingZone?.number === zone.zoneNumber ? "bg-green-50/60 dark:bg-green-500/5" : ""} key={zone.zoneNumber}><td className="px-5 py-3 font-semibold text-gray-700 dark:text-gray-200">{zone.name}{watchingZone?.number === zone.zoneNumber ? <small className="mt-0.5 block font-medium text-green-700 dark:text-green-400">{zoneProgressText(zone.name, watchedState)} · {watchingZone.profileName}</small> : null}</td><td className="px-5 py-3 font-mono tabular-nums text-gray-600 dark:text-gray-300">{zone.segmentId}</td><td className="px-5 py-3 text-gray-500 dark:text-gray-400">12:{String(zone.zoneNumber).padStart(2, "0")} <span className="text-gray-300 dark:text-gray-600">·</span> {zone.sourceScheduleId || "-"}</td><td className="whitespace-nowrap px-5 py-3 text-right text-gray-400">{stamp(zone.importedAt)}</td>{data.canControl ? <td className="whitespace-nowrap px-5 py-2 text-right"><button className={`btn ${watchingZone?.number === zone.zoneNumber ? "border-green-600 bg-green-600 text-white" : "border-green-200 bg-green-50 text-green-700 hover:bg-green-100 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300"}`} disabled={importing || runningZone !== null || watchingZone !== null || !selectedProfile} onClick={() => cleanZone(zone.zoneNumber, zone.name)}>{runningZone === zone.zoneNumber ? "Sender ..." : watchingZone?.number === zone.zoneNumber ? "Pågår ..." : "Start renhold"}</button></td> : null}</tr>)}</tbody></table></div> : <p className="px-5 py-6 text-sm text-gray-400">Ingen soner er registrert for denne roboten ennå.</p>}
     </div>
   </Panel>;
 }

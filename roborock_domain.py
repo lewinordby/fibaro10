@@ -60,18 +60,21 @@ ROBOROCK_ERROR_LABELS = {
 }
 
 ROBOROCK_FAN_LABELS = {
+    105: "Av",
     101: "Stille",
     102: "Balansert",
     103: "Turbo",
     104: "Maks",
-    105: "Maks+",
+    108: "Maks+",
 }
 
 ROBOROCK_MOP_LABELS = {
     300: "Standard",
-    301: "Lav",
-    302: "Medium",
-    303: "Høy",
+    301: "Dyp",
+    302: "Tilpasset",
+    303: "Dyp+",
+    304: "Hurtig",
+    306: "Smart",
 }
 
 ROBOROCK_WATER_LABELS = {

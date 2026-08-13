@@ -82,3 +82,13 @@ Batchen kan inneholde:
 - probe-resultater og feil
 
 Hvis Fibaro10 er nede, legges batchen i lokal kø i `/data/pending_batches.jsonl` og forsøkes sendt igjen senere.
+
+## Kontroll og rengjøringsprofiler
+
+Fibaro10 kan sende en tokenbeskyttet sonekommando til loggeren. Kommandoen må inneholde kartsegment og en
+fullstendig rengjøringsprofil med type, sugekraft, vannmengde, vaskemønster og antall runder. Loggeren setter og
+verifiserer profilverdiene via lokal LAN-kommunikasjon før `app_segment_clean` startes. Forsøket lagres i den lokale
+append-only kontrolloggen med innstillinger og status før og etter.
+
+Kun deterministiske innstillinger som støttes av robotmodellene i anlegget godtas. `Custom` og `Smart` avvises fordi
+de krever flere modellavhengige parametere enn selve moduskoden.

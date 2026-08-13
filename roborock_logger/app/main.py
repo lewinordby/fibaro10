@@ -56,6 +56,17 @@ telemetry_unsupported_commands: dict[str, set[str]] = {}
 telemetry_last_settings_at: dict[str, float] = {}
 
 
+class CleaningProfileRequest(BaseModel):
+    id: int = Field(ge=1)
+    name: str = Field(min_length=2, max_length=80)
+    cleaning_type: Literal["vacuum", "mop", "vacuum_mop"]
+    fan_power: int
+    water_box_mode: int
+    mop_mode: int
+    repeat: int = Field(default=1, ge=1, le=3)
+    summary: str = Field(default="", max_length=300)
+
+
 class ControlRequest(BaseModel):
     action: Literal["dry_run", "start", "pause", "resume", "stop", "dock", "test_start_stop", "clean_zone"]
     request_id: str = Field(min_length=8, max_length=100)
@@ -64,6 +75,7 @@ class ControlRequest(BaseModel):
     test_duration_seconds: int = Field(default=5, ge=3, le=12)
     zone_number: int | None = Field(default=None, ge=1, le=59)
     segment_id: int | None = Field(default=None, ge=1)
+    profile: CleaningProfileRequest | None = None
 
 
 TELEMETRY_SETTING_COMMANDS = (
@@ -447,6 +459,9 @@ async def read_control_status(rpc: Any, model: str | None) -> dict[str, Any]:
         "in_cleaning": normalized.get("in_cleaning"),
         "in_returning": normalized.get("in_returning"),
         "charge_status": normalized.get("charge_status"),
+        "fan_power": normalized.get("fan_power"),
+        "water_box_mode": normalized.get("water_box_mode"),
+        "mop_mode": normalized.get("mop_mode"),
     }
 
 
@@ -483,6 +498,60 @@ def segment_clean_params(segment_id: int, repeat: int = 1) -> list[dict[str, Any
     if segment_id < 1:
         raise ValueError("Roborock-segmentet må være et positivt heltall")
     return [{"segments": [segment_id], "repeat": max(1, min(int(repeat), 3))}]
+
+
+def validated_profile_settings(profile: CleaningProfileRequest) -> dict[str, int]:
+    if profile.fan_power not in {101, 102, 103, 104, 105, 108}:
+        raise HTTPException(status_code=400, detail="Profilen har ugyldig sugekraft")
+    if profile.water_box_mode not in {200, 201, 202, 203}:
+        raise HTTPException(status_code=400, detail="Profilen har ugyldig vannmengde")
+    if profile.mop_mode not in {300, 301, 303, 304}:
+        raise HTTPException(status_code=400, detail="Profilen har ugyldig vaskemønster")
+    if profile.cleaning_type == "vacuum" and (profile.fan_power == 105 or profile.water_box_mode != 200):
+        raise HTTPException(status_code=400, detail="Støvsugingsprofilen har motstridende innstillinger")
+    if profile.cleaning_type == "mop" and (profile.fan_power != 105 or profile.water_box_mode == 200):
+        raise HTTPException(status_code=400, detail="Vaskeprofilen har motstridende innstillinger")
+    if profile.cleaning_type == "vacuum_mop" and (profile.fan_power == 105 or profile.water_box_mode == 200):
+        raise HTTPException(status_code=400, detail="Kombiprofilen har motstridende innstillinger")
+    return {
+        "fan_power": profile.fan_power,
+        "water_box_mode": profile.water_box_mode,
+        "mop_mode": profile.mop_mode,
+        "repeat": profile.repeat,
+    }
+
+
+async def apply_cleaning_profile(
+    rpc: Any,
+    model: str | None,
+    profile: CleaningProfileRequest,
+) -> dict[str, Any]:
+    from roborock.roborock_typing import RoborockCommand
+
+    settings = validated_profile_settings(profile)
+    commands = (
+        (RoborockCommand.SET_CUSTOM_MODE, settings["fan_power"]),
+        (RoborockCommand.SET_WATER_BOX_CUSTOM_MODE, settings["water_box_mode"]),
+        (RoborockCommand.SET_MOP_MODE, settings["mop_mode"]),
+    )
+    results = {}
+    for command, value in commands:
+        results[command.value] = jsonable(await rpc.send_command(command, params=[value]))
+
+    after = await wait_for_control_state(
+        rpc,
+        model,
+        lambda snapshot: all(snapshot.get(key) == value for key, value in settings.items() if key != "repeat"),
+        timeout_seconds=6,
+    )
+    mismatches = {
+        key: {"requested": value, "actual": after.get(key)}
+        for key, value in settings.items()
+        if key != "repeat" and after.get(key) != value
+    }
+    if mismatches:
+        raise RuntimeError(f"Roboten bekreftet ikke rengjøringsprofilen: {mismatches}")
+    return {"settings": settings, "verified": after, "commands": results}
 
 
 async def wait_for_control_state(
@@ -541,14 +610,16 @@ async def execute_control_command(duid: str, values: ControlRequest) -> dict[str
             result = {"validated": True, "host": host, "model": model}
             after = before
         elif values.action == "clean_zone":
-            if values.zone_number is None or values.segment_id is None:
-                raise HTTPException(status_code=400, detail="Sone og robotsegment mangler")
+            if values.zone_number is None or values.segment_id is None or values.profile is None:
+                raise HTTPException(status_code=400, detail="Sone, robotsegment og rengjøringsprofil mangler")
             validate_control_start(before)
-            params = segment_clean_params(values.segment_id)
+            applied_profile = await apply_cleaning_profile(rpc, model, values.profile)
+            params = segment_clean_params(values.segment_id, values.profile.repeat)
             audit["target"] = {
                 "zone_number": values.zone_number,
                 "segment_id": values.segment_id,
-                "repeat": 1,
+                "profile": values.profile.model_dump(),
+                "applied_profile": applied_profile,
             }
             result = jsonable(
                 await rpc.send_command(

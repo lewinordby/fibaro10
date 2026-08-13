@@ -12,6 +12,38 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1724",
+        "date": "13.08.2026",
+        "headline": "Faste og verifiserte rengjøringsprofiler",
+        "title": "Soner startes med eksplisitt type, styrke, vaskemønster og antall runder",
+        "description": (
+            "Renhold har fått en profilbygger som skiller mellom støvsuging, vask og kombinert renhold. "
+            "Hver profil lagrer sugekraft, vannmengde, vaskemønster og antall runder. Før en sone startes "
+            "sender Roborock_logger alle verdiene lokalt til roboten og kontrollerer at den bekrefter dem."
+        ),
+        "applications": [
+            "Fibaro10 API: datamodell, seks standardprofiler, validering, CRUD og kontrollhistorikk.",
+            "Bygg og drift: profilvelger og komplett profiladministrasjon på hver robotside.",
+            "Roborock_logger: setter, verifiserer og logger alle profilverdier før sonerengjøring.",
+        ],
+        "request": (
+            "Finn alle relevante innstillingsmuligheter og lag en løsning der faste profiler kan opprettes. "
+            "Det må minst finnes vanlig og intensiv støvsuging, og støvsuging må kunne kombineres med vask."
+        ),
+        "work_duration": "ca. 75 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Leverer vanlig og intensiv profil for støvsuging, vask og kombinert renhold.",
+            "Tilbyr Stille, Balansert, Turbo, Maks og Maks+ sugekraft.",
+            "Tilbyr Lav, Medium og Høy vannmengde samt Standard, Dyp, Dyp+ og Hurtig vaskemønster.",
+            "Tillater én, to eller tre runder og avviser motstridende profilkombinasjoner.",
+            "Retter tidligere feil benevning av Roborocks moppemoduser 301-304.",
+            "Krever profilvalg før Start renhold og viser den eksakte bestillingen i bekreftelsen.",
+            "Logger både bestilt profil og innstillinger som roboten faktisk bekreftet.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1723",
         "date": "13.08.2026",
         "headline": "Synlig fremdrift for sonerengjøring",

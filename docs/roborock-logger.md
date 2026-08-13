@@ -110,6 +110,27 @@ Hvis roboten finnes i cloud, men mangler lokal IP, sjekk at den er på IOT-nette
 
 Planene fra Roborock er lokal klokketid og skal for eksempel vises som `23:30`. Historiske vaskjobber kommer som Unix-tid i UTC. Fibaro10 konverterer disse til `Europe/Oslo` ved API-visning, inkludert riktig sommer- og vintertid.
 
+## Soner og rengjøringsprofiler
+
+På detaljsiden til hver robot kan en global sone kobles til robotens lokale kartsegment. Deaktiverte testplaner
+kl. `12:01` til `12:59` brukes bare til å lese inn koblingen: `12:01` betyr Sone 1, `12:02` betyr Sone 2 osv.
+
+En sone kan ikke startes uten at en aktiv rengjøringsprofil er valgt. Profilen angir eksplisitt:
+
+- renholdstype: støvsuging, vask eller støvsuging med vask
+- sugekraft: stille, balansert, turbo, maks eller maks+
+- vannmengde: av, lav, medium eller høy
+- vaskemønster: standard, dyp, dyp+ eller hurtig
+- én, to eller tre runder
+
+Fibaro10 leveres med vanlig og intensiv profil for hver renholdstype. Masterbrukeren kan opprette egne profiler,
+redigere standardprofilene og deaktivere profiler som ikke skal brukes. Før sonen startes sender Roborock_logger
+alle profilverdiene lokalt til roboten, leser status tilbake og avviser jobben dersom roboten ikke bekrefter de
+bestilte innstillingene. Valgt profil, sone, segment, bruker og bekreftede verdier lagres i kontrollhistorikken.
+
+Roborocks `Custom`- og `Smart`-moduser er foreløpig ikke tilgjengelige i profilbyggeren. Kodene alene er ikke
+tilstrekkelige; de trenger ekstra modellavhengige vendorparametere og ville derfor ikke gitt en entydig fast profil.
+
 ## Feilsøking
 
 Hvis Renhold viser gamle data:
