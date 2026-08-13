@@ -162,13 +162,17 @@ def snapshot_path(ts: datetime) -> Path:
 
 def latest_snapshot_file() -> Path | None:
     state_file = load_state().get("last_file")
-    candidates: list[Path] = []
-    if state_file:
-        candidates.append(Path(str(state_file)))
-    if SNAPSHOT_ROOT.exists():
-        candidates.extend(SNAPSHOT_ROOT.rglob("*.jpg"))
-
     root = SNAPSHOT_ROOT.resolve()
+    if state_file:
+        try:
+            latest = Path(str(state_file)).resolve()
+            latest.relative_to(root)
+            if latest.is_file():
+                return latest
+        except (OSError, ValueError):
+            pass
+
+    candidates = SNAPSHOT_ROOT.rglob("*.jpg") if SNAPSHOT_ROOT.exists() else []
     existing: list[Path] = []
     for candidate in candidates:
         try:
