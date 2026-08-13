@@ -39,10 +39,6 @@ if (-not (Test-Path -LiteralPath $IdentityFile)) {
     throw "Missing SSH identity file: $IdentityFile. Run scripts\setup-local-dev.ps1 first."
 }
 
-if (-not $SkipLocalCheck) {
-    Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "check-local.ps1"))
-}
-
 Run $Git @("fetch", "origin", $Branch)
 $currentBranch = (& $Git branch --show-current).Trim()
 if ($currentBranch -ne $Branch) {
@@ -53,10 +49,6 @@ $status = (& $Git status --porcelain)
 if ($status -and -not $AllowDirty) {
     Write-Host $status
     throw "Working tree is not clean. Commit or stash changes, or pass -AllowDirty."
-}
-
-if (-not $SkipPush) {
-    Run $Git @("push", "origin", $Branch)
 }
 
 $preflight = @"
@@ -92,6 +84,20 @@ $deployEasyParkValue = if ($deployPlan.EasyPark) { "1" } else { "0" }
 $deployRoborockValue = if ($deployPlan.Roborock) { "1" } else { "0" }
 $restartProxyValue = if (@($changedFiles | Where-Object { ([string]$_).Replace("\", "/") -eq "Caddyfile" }).Count -gt 0) { "1" } else { "0" }
 Write-Host "Deploy plan: services=[$displayServices], core=$coreDeployValue, EasyPark=$deployEasyParkValue, Roborock=$deployRoborockValue, full=$deployAllValue"
+$broadValidation = $deployPlan.All -or $deployPlan.Services.Count -gt 4
+if (-not $SkipLocalCheck) {
+    if ($broadValidation) {
+        Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "check-local.ps1"))
+    } else {
+        $checkArguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "check-affected.ps1"), "-Services") + @($deployPlan.Services) + @("-ChangedFiles") + @($changedFiles)
+        if ($deployPlan.EasyPark) { $checkArguments += "-EasyPark" }
+        if ($deployPlan.Roborock) { $checkArguments += "-Roborock" }
+        Run "powershell" $checkArguments
+    }
+}
+if (-not $SkipPush) {
+    Run $Git @("push", "origin", $Branch)
+}
 
 $remote = @"
 set -e
@@ -207,18 +213,26 @@ echo "Backup: `$backup_dir"
 
 Run "ssh" @("-i", $IdentityFile, $QnapHost, (NormalizeRemote $remote))
 
-Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "health-check.ps1"))
-if (-not $SkipSmoke) {
-    Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "smoke-check.ps1"))
-    $desktopDir = Join-Path $repoRoot "desktop_v2"
-    $npm = if ($env:OS -eq "Windows_NT") { "npm.cmd" } else { "npm" }
-    $originalDir = (Get-Location).Path
-    try {
-        Set-Location $desktopDir
-        Run $npm @("run", "smoke:live")
+if ($broadValidation) {
+    Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "health-check.ps1"))
+    if (-not $SkipSmoke) {
+        Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "smoke-check.ps1"))
+        $desktopDir = Join-Path $repoRoot "desktop_v2"
+        $npm = if ($env:OS -eq "Windows_NT") { "npm.cmd" } else { "npm" }
+        $originalDir = (Get-Location).Path
+        try {
+            Set-Location $desktopDir
+            Run $npm @("run", "smoke:live")
+        }
+        finally {
+            Set-Location $originalDir
+        }
+        Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "smoke-domain-apps.ps1"))
     }
-    finally {
-        Set-Location $originalDir
-    }
-    Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "smoke-domain-apps.ps1"))
+} else {
+    $smokeArguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "smoke-affected.ps1"), "-Services") + @($deployPlan.Services)
+    if ($deployPlan.EasyPark) { $smokeArguments += "-EasyPark" }
+    if ($deployPlan.Roborock) { $smokeArguments += "-Roborock" }
+    if ($SkipSmoke) { $smokeArguments += "-SkipRoutes" }
+    Run "powershell" $smokeArguments
 }

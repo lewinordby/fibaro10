@@ -1,4 +1,5 @@
 export { DomainApp } from "./DomainApp";
+export type { DomainAppExtensions, DomainModuleContext } from "./DomainApp";
 export { CountDashboardSpecial } from "./components/CountDashboardSpecial";
 export { CountComparisonSpecial } from "./components/CountComparisonSpecial";
 export { YearComparisonSpecial } from "./components/YearComparisonSpecial";
@@ -16,4 +17,4 @@ export { ThemeToggle } from "./components/ThemeToggle";
 export { displayCell, nok, percentDelta, shortDateTime, signedNok, valueLabel } from "./format";
 export { useApi } from "./hooks";
 export { AppLink, AppRouter, useAppLocation, useAppSearchParams } from "./router";
-export type { AppDockId, DomainAppDefinition, DomainUiConfig, NavigationGroup, NavigationItem } from "./types";
+export type { AppDockId, DomainAppDefinition, DomainUiConfig, ModuleResponse, NavigationGroup, NavigationItem } from "./types";

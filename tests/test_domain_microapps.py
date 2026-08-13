@@ -213,7 +213,10 @@ def test_parity_critical_specialized_views_are_kept_in_microapps() -> None:
     assert "<IdeasSpecial" in module_content
     assert "<NotificationsSpecial" in module_content
     assert "<SubsystemsSpecial" in module_content
-    assert "<RoborockSpecial" in module_content
+    assert "<RoborockSpecial" not in module_content
+    operations_entry = (repo_root / "operations_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
+    assert "<RoborockSpecial" in operations_entry
+    assert "extensions={operationsExtensions}" in operations_entry
     assert "/observerte-biler" in routes["parking"]
     assert {"/", "/oversikt", "/periode", "/arsutvikling"} <= routes["parking"]
     assert {"/", "/oversikt", "/periode", "/sammenligning"} <= routes["sun"]
@@ -344,7 +347,7 @@ def test_shared_links_support_native_app_schemes() -> None:
 def test_roborock_details_no_longer_depend_on_the_classic_ui() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     core = (repo_root / "main.py").read_text(encoding="utf-8")
-    detail = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "RoborockSpecial.tsx").read_text(encoding="utf-8")
+    detail = (repo_root / "operations_app" / "frontend" / "src" / "components" / "RoborockSpecial.tsx").read_text(encoding="utf-8")
     assert '@app.get("/api/renhold/robots/{duid}")' in core
     assert '"roborock": {' in core
     for marker in ("Siste kart", "Forbruksdeler", "Planlagte jobber", "Rengjøringshistorikk", "Statushistorikk"):

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { domainApi } from "./api";
 import { CountDashboardSpecial } from "./components/CountDashboardSpecial";
 import { CountComparisonSpecial } from "./components/CountComparisonSpecial";
@@ -10,7 +10,7 @@ import { ErrorState, Loading } from "./components/PageState";
 import { useApi } from "./hooks";
 import { findNavigationItem } from "./navigation";
 import { AppRouter, useAppLocation } from "./router";
-import type { DomainUiConfig, ModuleResponse, NavigationItem, OperationsOverviewResponse, RoborockRobotSummary } from "./types";
+import type { DomainUiConfig, ModuleResponse, OperationsOverviewResponse } from "./types";
 
 function stateLabel(state: boolean | null) {
   if (state === true) return "P\u00e5";
@@ -60,30 +60,19 @@ function operationsModule(data: OperationsOverviewResponse): ModuleResponse {
   };
 }
 
-function withRobotNavigation(config: DomainUiConfig, robots: RoborockRobotSummary[] | undefined): DomainUiConfig {
-  if (config.appId !== "operations" || !robots?.length) return config;
-  const navigation = config.navigation.map((group) => {
-    const overview = group.items.find((candidate) => candidate.module === "renhold" && candidate.view === "oversikt");
-    if (!overview) return group;
-    const robotItems: NavigationItem[] = robots.map((robot) => {
-      const encodedDuid = encodeURIComponent(robot.duid);
-      return {
-        to: `/renhold/robot/${encodedDuid}`,
-        label: robot.name,
-        icon: "robot",
-        title: robot.name,
-        description: `Status, telemetri og historikk for ${robot.name}.`,
-        module: "renhold",
-        view: "robot",
-        corePath: `/renhold/robot/${encodedDuid}`,
-      };
-    });
-    return { ...group, items: [overview, ...robotItems] };
-  });
-  return { ...config, navigation };
-}
+export type DomainModuleContext = {
+  data: ModuleResponse;
+  module: string;
+  view: string;
+  reload: () => void;
+};
 
-function RoutedDomainApp({ config }: { config: DomainUiConfig }) {
+export type DomainAppExtensions = {
+  enhanceConfig?: (config: DomainUiConfig, data: ModuleResponse | null | undefined) => DomainUiConfig;
+  renderModule?: (context: DomainModuleContext) => ReactNode;
+};
+
+function RoutedDomainApp({ config, extensions }: { config: DomainUiConfig; extensions?: DomainAppExtensions }) {
   const { pathname, search } = useAppLocation();
   const baseItem = findNavigationItem(config, pathname);
   const isCountDashboard = baseItem.module === "status" && baseItem.view === "soling";
@@ -108,8 +97,8 @@ function RoutedDomainApp({ config }: { config: DomainUiConfig }) {
   );
   const appConfig = useApi(domainApi.config, "app-config");
   const effectiveConfig = useMemo(
-    () => withRobotNavigation(config, result.data?.roborock?.robots),
-    [config, result.data?.roborock?.robots],
+    () => extensions?.enhanceConfig?.(config, result.data) || config,
+    [config, extensions, result.data],
   );
   const item = findNavigationItem(effectiveConfig, pathname);
   const coreUrl = appConfig.data?.fibaro10AppUrl || "https://fibaro10.lilletorget.net";
@@ -125,9 +114,9 @@ function RoutedDomainApp({ config }: { config: DomainUiConfig }) {
             ? <CountComparisonSpecial domain="sun" />
           : isYearComparison
             ? <YearComparisonSpecial domain="soling" />
-        : <ModuleContent data={result.data} config={config} reload={result.reload} coreUrl={coreUrl} module={item.module} view={item.view} />}</Layout>;
+        : <ModuleContent data={result.data} config={config} reload={result.reload} coreUrl={coreUrl} module={item.module} view={item.view} appContent={extensions?.renderModule?.({ data: result.data, module: item.module, view: item.view, reload: result.reload })} />}</Layout>;
 }
 
-export function DomainApp({ config }: { config: DomainUiConfig }) {
-  return <AppRouter><RoutedDomainApp config={config} /></AppRouter>;
+export function DomainApp({ config, extensions }: { config: DomainUiConfig; extensions?: DomainAppExtensions }) {
+  return <AppRouter><RoutedDomainApp config={config} extensions={extensions} /></AppRouter>;
 }

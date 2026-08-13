@@ -31,6 +31,12 @@ innlogging, API-cache, navigasjon, layout, tema, formatering, tabeller, grafer o
 redigeringsmønstre. Menystruktur, apprekkefølge og porter har én autoritativ kilde
 i `packages/microapp-ui/src/navigation.json`.
 
+Fagspesifikke komponenter, typer og arbeidsflyter skal ligge under appen som eier
+dem. Roborock-visningen ligger derfor i `operations_app/frontend`, ikke i
+`packages/microapp-ui`. Fellespakken tilbyr et generelt utvidelsespunkt, men skal
+ikke importere fagkomponenten. Denne grensen er viktig: en endring i Roborock skal
+bygge `operations_app`, ikke alle fagappene.
+
 Navigasjonen har tre faste roller: appfeltet i toppen bytter fagapp,
 venstremenyen bytter hovedområde og den horisontale menyen bytter mellom
 beslektede sider i aktivt område. Detaljsider åpnes fra innholdet og er ikke
@@ -49,13 +55,16 @@ separate, samtidig som den installerte PWA-en har én origin.
 - En enkelt fagapp: `scripts/deploy-domain-app-qnap.ps1 -App <appnavn>`
 - Alle fagappene: `scripts/deploy-all-domain-apps-qnap.ps1`
 - Alle levende ruter: `scripts/smoke-domain-apps.ps1`
+- Bare berørte tjenester: `scripts/check-affected.ps1` og `scripts/smoke-affected.ps1`
 
 `deploy-revenue-app-qnap.ps1` og `deploy-parking-app-qnap.ps1` er korte
 kompatibilitetsinnganger som bruker det samme felles deployløpet.
 
-Samlet deploy bygger og sikkerhetskontrollerer alle frontender, kjører
-kontrakttestene én gang og oppdaterer deretter containerne sekvensielt. Den
-starter ikke Fibaro10 eller andre fagapper på nytt mens en enkelt app bygges.
+Standard deploy bruker endringslisten til å velge tjenester. Ved inntil fire
+berørte tjenester bygges og testes bare disse og deres relevante kontrakter og
+ruter. Full kontroll av alle apper er forbeholdt brede endringer, som selve
+fellespakken, Compose eller mer enn fire tjenester. En enkelt app starter ikke
+Fibaro10 eller andre fagapper på nytt.
 
 Rotfilen `BUILD` er buildnummeret for Fibaro10. Hver fagapp har tilsvarende en
 egen `<app>/BUILD`. Standard deploy leser disse filene og sender verdiene til

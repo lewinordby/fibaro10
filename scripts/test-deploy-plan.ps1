@@ -11,6 +11,11 @@ if ($shared.All -or $shared.Services.Count -ne 9 -or "shell_app" -notin $shared.
     throw "Shared UI deploy plan is wrong: $($shared | ConvertTo-Json -Compress)"
 }
 
+$operationsUi = Get-DeployPlan -ChangedFiles @("operations_app/frontend/src/components/RoborockSpecial.tsx")
+if ($operationsUi.All -or ($operationsUi.Services -join ",") -ne "operations_app") {
+    throw "Operations-owned UI deploy plan is wrong: $($operationsUi | ConvertTo-Json -Compress)"
+}
+
 $mobileTheme = Get-DeployPlan -ChangedFiles @("packages/mobile-appkit/lilletorget-appkit.css")
 if ($mobileTheme.All -or ($mobileTheme.Services -join ",") -ne "online_dashboard,maintenance_mobile,alarm_mobile") {
     throw "Mobile theme deploy plan is wrong: $($mobileTheme | ConvertTo-Json -Compress)"
@@ -36,6 +41,11 @@ if ($multiple.All -or ($multiple.Services -join ",") -ne "fibaro10,unifi_protect
 $deployScript = Get-Content -LiteralPath (Join-Path $PSScriptRoot "deploy-qnap.ps1") -Raw
 if ($deployScript -notmatch '\$coreDeployValue' -or $deployScript -notmatch 'deploy-core-qnap\.sh' -or $deployScript -match 'elif \[ -n "\$composeServices" \]') {
     throw "Deploy script must use the boolean service flag for multi-service plans."
+}
+foreach ($required in @("check-affected.ps1", "smoke-affected.ps1", '$broadValidation')) {
+    if ($deployScript -notmatch [regex]::Escape($required)) {
+        throw "Deploy script is missing scoped validation marker $required."
+    }
 }
 
 $coreGateway = Get-DeployPlan -ChangedFiles @("Caddyfile.core")

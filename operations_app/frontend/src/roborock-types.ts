@@ -1,0 +1,229 @@
+import type { JsonRecord } from "@lilletorget/microapp-ui/types";
+
+export type RoborockRobotSummary = {
+  duid: string;
+  name: string;
+  model?: string | null;
+  cloud_online?: boolean | null;
+  local_ip?: string | null;
+  last_seen_at?: string | null;
+  last_error?: string | null;
+  state_name?: string | null;
+  battery?: number | null;
+  error_code?: number | null;
+  status_at?: string | null;
+  latest_job_today?: RoborockJobSummary | null;
+  latest_job_yesterday?: RoborockJobSummary | null;
+  today?: RoborockDailySummary | null;
+  yesterday?: RoborockDailySummary | null;
+  active_cycle?: RoborockActiveCycleSummary | null;
+  readiness?: RoborockReadinessSummary | null;
+  consumables?: RoborockConsumableSummary | null;
+  schedules?: RoborockScheduleSummary | null;
+};
+
+export type RoborockActiveCycleSummary = {
+  started_at?: string | null;
+  last_floor_at?: string | null;
+  dock_since?: string | null;
+  last_observed_at?: string | null;
+  phase: "cleaning" | "returning" | "mop_return" | "washing_mop" | "emptying" | "charging_pause";
+  phase_label: string;
+  active_minutes?: number | null;
+  cleaned_area_m2?: number | null;
+  progress_percent?: number | null;
+  battery?: number | null;
+};
+
+export type RoborockJobSummary = {
+  begin_at?: string | null;
+  end_at?: string | null;
+  duration_minutes?: number | null;
+  cleaned_area_m2?: number | null;
+  status: "complete" | "running" | "stopped" | "error";
+  status_label: string;
+  error_label?: string | null;
+};
+
+export type RoborockConsumableSummary = {
+  main_brush?: string | null;
+  side_brush?: string | null;
+  filter?: string | null;
+  sensor?: string | null;
+  captured_at?: string | null;
+};
+
+export type RoborockScheduleSummary = {
+  active_count: number;
+  next_label?: string | null;
+  rounds_label?: string | null;
+};
+
+export type RoborockDailySummary = {
+  job_count: number;
+  completed_count: number;
+  running_count: number;
+  error_count: number;
+  duration_minutes: number;
+  cleaned_area_m2: number;
+};
+
+export type RoborockReadinessSummary = {
+  status: "ready" | "active" | "attention" | "offline";
+  label: string;
+  issues: string[];
+  telemetry_at?: string | null;
+  data_age_minutes?: number | null;
+  charge_label?: string | null;
+  clear_water_label?: string | null;
+  dirty_water_label?: string | null;
+  dust_bag_label?: string | null;
+  dock_error_label?: string | null;
+  signal_label?: string | null;
+};
+
+export type RoborockOverviewSummary = {
+  robot_count: number;
+  ready_count: number;
+  active_count: number;
+  attention_count: number;
+  offline_count: number;
+  jobs_today: number;
+  duration_today: number;
+  area_today: number;
+  updated_at?: string | null;
+};
+
+export type RoborockModuleData = {
+  robots: RoborockRobotSummary[];
+  summary?: RoborockOverviewSummary | null;
+};
+
+export type RoborockRobotDetail = {
+  robot: JsonRecord;
+  metadata: JsonRecord;
+  network: JsonRecord;
+  latestStatus: JsonRecord | null;
+  activeCycle: RoborockActiveCycleSummary | null;
+  schedules: JsonRecord[];
+  jobs: JsonRecord[];
+  statuses: JsonRecord[];
+  consumables: JsonRecord | null;
+  latestMap: (JsonRecord & { imageDataUrl?: string | null }) | null;
+  latestTelemetry: JsonRecord | null;
+  telemetrySamples: JsonRecord[];
+  telemetryEvents: JsonRecord[];
+  canControl: boolean;
+  canManageCleaningZones: boolean;
+  doorAutomation?: {
+    enabled: boolean;
+    doorDeviceId: number;
+    openingThreshold: number;
+    minimumIntervalMinutes: number;
+    zoneNumbers: number[];
+    profileId: number;
+    profile?: JsonRecord | null;
+    configuredZones: Array<{
+      zoneNumber: number;
+      name: string;
+      segmentId?: number | null;
+      mapped: boolean;
+    }>;
+    openingCount: number;
+    counterStartedAt?: string | null;
+    lastOpeningAt?: string | null;
+    doorIsOpen?: boolean | null;
+    openingHours: {
+      openAt?: string | null;
+      closeAt?: string | null;
+      openFrom: string;
+      closeAtLabel: string;
+    };
+    status: string;
+    statusLabel: string;
+    statusDetail: string;
+    eligible: boolean;
+    nextAllowedAt?: string | null;
+    remainingIntervalSeconds: number;
+    validationIssues: string[];
+    lastAttemptAt?: string | null;
+    lastStartedAt?: string | null;
+    lastRequestId?: string | null;
+    lastError?: string | null;
+    updatedAt?: string | null;
+  } | null;
+  cleaningZoneImport?: {
+    status?: string;
+    checkedAt?: string | null;
+    imported?: number;
+    message?: string | null;
+  } | null;
+  cleaningZones: Array<{
+    zoneNumber: number;
+    name: string;
+    segmentId: string;
+    sourceScheduleId?: string | null;
+    sourceCron?: string | null;
+    importedAt?: string | null;
+    importedBy?: string | null;
+  }>;
+  cleaningProfiles: Array<{
+    id: number;
+    slug: string;
+    name: string;
+    description: string;
+    cleaningType: "vacuum" | "mop" | "vacuum_mop";
+    cleaningTypeLabel: string;
+    fanPower: number;
+    fanLabel: string;
+    waterBoxMode: number;
+    waterLabel: string;
+    mopMode: number;
+    mopLabel: string;
+    repeat: number;
+    roundsLabel: string;
+    summary: string;
+    active: boolean;
+    builtin: boolean;
+  }>;
+  cleaningProfileOptions: {
+    model?: string | null;
+    cleaningTypes: Array<{ value: "vacuum" | "mop" | "vacuum_mop"; label: string }>;
+    fanPower: Array<{ value: number; label: string }>;
+    waterBoxMode: Array<{ value: number; label: string }>;
+    mopMode: Array<{ value: number; label: string }>;
+    repeat: Array<{ value: number; label: string }>;
+    excludedModes?: string[];
+  };
+  controlHistory: Array<{
+    id: number;
+    request_id: string;
+    action: string;
+    requested_at?: string | null;
+    finished_at?: string | null;
+    requested_by?: string | null;
+    status: string;
+    message?: string | null;
+    before_state?: JsonRecord | null;
+    after_state?: JsonRecord | null;
+    profile?: JsonRecord | null;
+  }>;
+  telemetryFields: Array<{
+    category: string;
+    field: string;
+    label: string;
+    value: unknown;
+    valueLabel: string;
+    supported: boolean;
+  }>;
+  rawStatusFields: Array<{ field: string; value: unknown }>;
+  telemetryProbes: Array<{
+    command: string;
+    supported: boolean;
+    status: string;
+    checkedAt?: string | null;
+    resultType?: string | null;
+    value?: unknown;
+    error?: string | null;
+  }>;
+};

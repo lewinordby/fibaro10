@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { domainApi } from "../api";
-import { displayCell, valueLabel } from "../format";
-import { useApi } from "../hooks";
-import { AppLink, useAppLocation } from "../router";
+import { domainApi } from "@lilletorget/microapp-ui/api";
+import { displayCell, valueLabel } from "@lilletorget/microapp-ui/format";
+import { useApi } from "@lilletorget/microapp-ui/hooks";
+import { AppLink, useAppLocation } from "@lilletorget/microapp-ui/router";
 import type {
   JsonRecord,
+} from "@lilletorget/microapp-ui/types";
+import type {
   RoborockActiveCycleSummary,
   RoborockDailySummary,
   RoborockJobSummary,
@@ -13,9 +15,8 @@ import type {
   RoborockReadinessSummary,
   RoborockRobotDetail,
   RoborockRobotSummary,
-} from "../types";
-import { Panel } from "./Mosaic";
-import { MosaicIcon } from "./MosaicIcon";
+} from "../roborock-types";
+import { MosaicIcon, Panel } from "@lilletorget/microapp-ui";
 
 const emptyDay: RoborockDailySummary = {
   job_count: 0,

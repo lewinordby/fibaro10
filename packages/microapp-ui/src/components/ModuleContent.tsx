@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ComponentProps, type FormEvent, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, type ComponentProps, type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { domainApi } from "../api";
 import { displayCell, nok, valueLabel } from "../format";
 import { AppLink, useAppSearchParams } from "../router";
@@ -22,7 +22,6 @@ const MobilePreviewSpecialAsync = lazy(() => import("./MobilePreviewSpecial").th
 const IdeasSpecialAsync = lazy(() => import("./IdeasSpecial").then((module) => ({ default: module.IdeasSpecial })));
 const NotificationsSpecialAsync = lazy(() => import("./SystemSpecial").then((module) => ({ default: module.NotificationsSpecial })));
 const SubsystemsSpecialAsync = lazy(() => import("./SystemSpecial").then((module) => ({ default: module.SubsystemsSpecial })));
-const RoborockSpecialAsync = lazy(() => import("./RoborockSpecial").then((module) => ({ default: module.RoborockSpecial })));
 
 function SpecializedFallback() {
   return <Panel><div className="p-6 text-sm text-gray-400">Klargjør detaljvisning ...</div></Panel>;
@@ -78,10 +77,6 @@ function NotificationsSpecial(props: ComponentProps<typeof NotificationsSpecialA
 
 function SubsystemsSpecial(props: ComponentProps<typeof SubsystemsSpecialAsync>) {
   return <Suspense fallback={<SpecializedFallback />}><SubsystemsSpecialAsync {...props} /></Suspense>;
-}
-
-function RoborockSpecial(props: ComponentProps<typeof RoborockSpecialAsync>) {
-  return <Suspense fallback={<SpecializedFallback />}><RoborockSpecialAsync {...props} /></Suspense>;
 }
 
 const palette = [mosaicChartColors.sky, mosaicChartColors.violet, mosaicChartColors.yellow, mosaicChartColors.green, mosaicChartColors.red, mosaicChartColors.gray];
@@ -254,7 +249,7 @@ function UploadPanel({ endpoint, reload, accent }: { endpoint: string; reload: (
   return <Panel title="Last opp fil"><div className="flex flex-wrap items-center gap-3 p-5"><input className="form-input min-w-64 flex-1" type="file" onChange={(event) => setFile(event.target.files?.[0] || null)} /><button className={`btn text-white ${buttonClasses[accent]}`} disabled={!file || busy} onClick={upload}>{busy ? "Laster opp ..." : "Last opp"}</button>{message ? <span className="text-sm text-gray-500">{message}</span> : null}</div></Panel>;
 }
 
-export function ModuleContent({ data, config, reload, coreUrl, module, view }: { data: ModuleResponse; config: DomainUiConfig; reload: () => void; coreUrl: string; module: string; view: string }) {
+export function ModuleContent({ data, config, reload, coreUrl, module, view, appContent }: { data: ModuleResponse; config: DomainUiConfig; reload: () => void; coreUrl: string; module: string; view: string; appContent?: ReactNode }) {
   const empty = !data.cards.length && !(data.charts?.length) && !data.tables.length && !data.sunTimeline;
   const ventilationSpecial = module === "ventilasjon" && data.ventilation;
   const sunbedSpecial = module === "energi" && view === "forbruk-per-seng" && data.energySunbeds;
@@ -275,7 +270,7 @@ export function ModuleContent({ data, config, reload, coreUrl, module, view }: {
   const ideasSpecial = module === "ideer";
   const notificationsSpecial = module === "varslinger" && data.systemNotifications;
   const subsystemsSpecial = module === "undersystemer" && data.systemSubsystems;
-  const roborockSpecial = module === "renhold" && data.roborock;
+  const hasAppContent = appContent != null;
   const visibleTables = module !== "koble"
     ? data.tables
     : view === "treffgrunnlag"
@@ -283,9 +278,9 @@ export function ModuleContent({ data, config, reload, coreUrl, module, view }: {
       : view === "jobb"
         ? data.tables.filter((table) => ["Jobbparametere", "Sist behandlet"].includes(table.title))
         : [];
-  const hidesGenericTables = Boolean(sunSessionsSpecial || sunbedSpecial || elviaSpecial || circuitSpecial || settingsSpecial || linkCustomView || bollardsSpecial || doorsSpecial || mobileSpecial || ideasSpecial || notificationsSpecial || subsystemsSpecial || roborockSpecial || (ventilationSpecial && view === "innstillinger"));
+  const hidesGenericTables = Boolean(sunSessionsSpecial || sunbedSpecial || elviaSpecial || circuitSpecial || settingsSpecial || linkCustomView || bollardsSpecial || doorsSpecial || mobileSpecial || ideasSpecial || notificationsSpecial || subsystemsSpecial || hasAppContent || (ventilationSpecial && view === "innstillinger"));
   const showActions = module !== "koble" || view === "jobb";
   const showCards = !elviaSpecial && !(linkSpecial && view !== "oversikt");
   const showUpload = Boolean(data.uploadEndpoint && !elviaSpecial);
-  return <div className="space-y-6">{showActions ? <ModuleActions actions={data.actions} reload={reload} accent={config.accent} /> : null}{!doorsSpecial ? <ModuleFilters filters={data.filters} accent={config.accent} /> : null}{data.dayNavigation && !data.sunTimeline ? <DayNavigation data={data.dayNavigation} /> : null}{showUpload ? <UploadPanel endpoint={data.uploadEndpoint!} reload={reload} accent={config.accent} /> : null}{showCards && !bollardsSpecial && !doorsSpecial && !notificationsSpecial && !subsystemsSpecial && !roborockSpecial ? <ModuleCards data={data.cards} config={config} /> : null}{data.sunTimeline ? <SunTimelineView timeline={data.sunTimeline} config={config} /> : null}{ventilationSpecial ? <VentilationSpecial data={data} view={view} reload={reload} /> : null}{sunSessionsSpecial ? <SunSessionsSpecial table={data.tables.find((table) => table.title === "Enkeltimer")} reload={reload} /> : null}{elviaSpecial ? <EnergyElviaSpecial data={elviaSpecial} reload={reload} /> : null}{sunbedSpecial ? <EnergySunbedsSpecial data={sunbedSpecial} /> : null}{circuitSpecial ? <EnergyCircuitLoadsSpecial data={circuitSpecial} reload={reload} /> : null}{data.controlSettings ? <ControlSettingsSpecial settings={data.controlSettings} reload={reload} /> : null}{linkSpecial ? <LinkReviewSpecial review={linkSpecial} view={view} reload={reload} /> : null}{bollardsSpecial ? <BollardsSpecial /> : null}{doorsSpecial ? <DoorsSpecial view={view} /> : null}{mobileSpecial ? <MobilePreviewSpecial table={data.tables[0]} /> : null}{ideasSpecial ? <IdeasSpecial rows={data.tables[0]?.rows || []} /> : null}{notificationsSpecial ? <NotificationsSpecial data={notificationsSpecial} /> : null}{subsystemsSpecial ? <SubsystemsSpecial data={subsystemsSpecial} /> : null}{roborockSpecial ? <RoborockSpecial data={roborockSpecial} /> : null}{!ventilationSpecial && !elviaSpecial && !bollardsSpecial && !doorsSpecial && !mobileSpecial && !ideasSpecial && !notificationsSpecial && !subsystemsSpecial && !roborockSpecial ? <ModuleCharts charts={data.charts} /> : null}{!hidesGenericTables ? visibleTables.map((table, index) => <DataTable key={`${table.title}-${index}`} table={table} config={config} coreUrl={coreUrl} reload={reload} />) : null}{empty && !ventilationSpecial && !sunSessionsSpecial && !sunbedSpecial && !elviaSpecial && !circuitSpecial && !settingsSpecial && !linkSpecial && !bollardsSpecial && !doorsSpecial && !mobileSpecial && !ideasSpecial && !notificationsSpecial && !subsystemsSpecial && !roborockSpecial ? <Panel title={data.title}><div className="p-6 text-sm text-gray-500 dark:text-gray-400">{data.subtitle || "Denne visningen har ingen data i valgt utvalg."}</div></Panel> : null}</div>;
+  return <div className="space-y-6">{showActions ? <ModuleActions actions={data.actions} reload={reload} accent={config.accent} /> : null}{!doorsSpecial ? <ModuleFilters filters={data.filters} accent={config.accent} /> : null}{data.dayNavigation && !data.sunTimeline ? <DayNavigation data={data.dayNavigation} /> : null}{showUpload ? <UploadPanel endpoint={data.uploadEndpoint!} reload={reload} accent={config.accent} /> : null}{showCards && !bollardsSpecial && !doorsSpecial && !notificationsSpecial && !subsystemsSpecial && !hasAppContent ? <ModuleCards data={data.cards} config={config} /> : null}{data.sunTimeline ? <SunTimelineView timeline={data.sunTimeline} config={config} /> : null}{ventilationSpecial ? <VentilationSpecial data={data} view={view} reload={reload} /> : null}{sunSessionsSpecial ? <SunSessionsSpecial table={data.tables.find((table) => table.title === "Enkeltimer")} reload={reload} /> : null}{elviaSpecial ? <EnergyElviaSpecial data={elviaSpecial} reload={reload} /> : null}{sunbedSpecial ? <EnergySunbedsSpecial data={sunbedSpecial} /> : null}{circuitSpecial ? <EnergyCircuitLoadsSpecial data={circuitSpecial} reload={reload} /> : null}{data.controlSettings ? <ControlSettingsSpecial settings={data.controlSettings} reload={reload} /> : null}{linkSpecial ? <LinkReviewSpecial review={linkSpecial} view={view} reload={reload} /> : null}{bollardsSpecial ? <BollardsSpecial /> : null}{doorsSpecial ? <DoorsSpecial view={view} /> : null}{mobileSpecial ? <MobilePreviewSpecial table={data.tables[0]} /> : null}{ideasSpecial ? <IdeasSpecial rows={data.tables[0]?.rows || []} /> : null}{notificationsSpecial ? <NotificationsSpecial data={notificationsSpecial} /> : null}{subsystemsSpecial ? <SubsystemsSpecial data={subsystemsSpecial} /> : null}{appContent}{!ventilationSpecial && !elviaSpecial && !bollardsSpecial && !doorsSpecial && !mobileSpecial && !ideasSpecial && !notificationsSpecial && !subsystemsSpecial && !hasAppContent ? <ModuleCharts charts={data.charts} /> : null}{!hidesGenericTables ? visibleTables.map((table, index) => <DataTable key={`${table.title}-${index}`} table={table} config={config} coreUrl={coreUrl} reload={reload} />) : null}{empty && !ventilationSpecial && !sunSessionsSpecial && !sunbedSpecial && !elviaSpecial && !circuitSpecial && !settingsSpecial && !linkSpecial && !bollardsSpecial && !doorsSpecial && !mobileSpecial && !ideasSpecial && !notificationsSpecial && !subsystemsSpecial && !hasAppContent ? <Panel title={data.title}><div className="p-6 text-sm text-gray-500 dark:text-gray-400">{data.subtitle || "Denne visningen har ingen data i valgt utvalg."}</div></Panel> : null}</div>;
 }

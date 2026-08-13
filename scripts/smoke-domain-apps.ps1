@@ -1,6 +1,7 @@
 param(
     [string]$HostAddress = "192.168.20.218",
     [string]$CredentialFile = ".env.live-smoke",
+    [string[]]$AppIds = @(),
     [int]$WarnAfterMs = 1500,
     [int]$FailAfterMs = 10000
 )
@@ -28,6 +29,12 @@ if (-not $username -or -not $password) {
 
 $navigationPath = Join-Path $repoRoot "packages/microapp-ui/src/navigation.json"
 $navigation = (Get-Content -LiteralPath $navigationPath -Raw -Encoding UTF8 | ConvertFrom-Json).apps
+if ($AppIds.Count -gt 0) {
+    $navigation = @($navigation | Where-Object { $_.id -in $AppIds })
+    if ($navigation.Count -ne $AppIds.Count) {
+        throw "En eller flere apper i AppIds finnes ikke i navigasjonen: $($AppIds -join ', ')"
+    }
+}
 
 function Resolve-RouteCheck($app, $item) {
     $key = "$($app.id):$($item.to)"
@@ -101,7 +108,7 @@ function Invoke-FrontendRouteCheck([string]$App, [int]$Port, [string]$Route) {
     }
 }
 
-foreach ($port in 8150..8158) {
+foreach ($port in @($navigation | ForEach-Object { [int]$_.port } | Sort-Object -Unique)) {
     Invoke-DomainCheck -App "Tjeneste $port" -Port $port -Route "/ready" -Endpoint "/ready" -Kind "json"
 }
 
