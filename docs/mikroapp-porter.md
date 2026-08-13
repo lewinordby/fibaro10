@@ -37,6 +37,23 @@ dem. Roborock-visningen ligger derfor i `operations_app/frontend`, ikke i
 ikke importere fagkomponenten. Denne grensen er viktig: en endring i Roborock skal
 bygge `operations_app`, ikke alle fagappene.
 
+| Kodeområde | Eier | Normal påvirkning |
+|---|---|---|
+| Omsetningsvisninger og -typer | `revenue_app` | Bare `revenue_app` |
+| Parkering, kjøretøy og oppgjør | `parking_app` | Bare `parking_app` |
+| Soltimer, bilder, dagslinje og soloppgjør | `sun_app` | Bare `sun_app` |
+| Energi, Elvia og kurs/last | `energy_app` | Bare `energy_app` |
+| Roborock, dører, pullerter og ventilasjon | `operations_app` | Bare `operations_app` |
+| Besøk og vedlikehold | `maintenance_app` | Bare `maintenance_app` |
+| Admin, manual, mobilvisning og ideer | `system_app` | Bare `system_app` |
+| Koblingskontroll | `link_app` | Bare `link_app` |
+| Layout, innlogging, navigasjon og generiske tabeller/grafer | `packages/microapp-ui` | Alle fagapper og skallet |
+
+Typer og API-hjelpere som bare brukes av ett fagområde følger samme eierskap som
+komponenten. En app skal ikke importere kildekode fra en annen app. Dersom en
+endring også krever en ny eller endret kjerne-API-kontrakt, rulles kjernen og den
+aktuelle fagappen ut sammen; de øvrige fagappene skal fortsatt stå urørt.
+
 Navigasjonen har tre faste roller: appfeltet i toppen bytter fagapp,
 venstremenyen bytter hovedområde og den horisontale menyen bytter mellom
 beslektede sider i aktivt område. Detaljsider åpnes fra innholdet og er ikke
@@ -65,6 +82,11 @@ berørte tjenester bygges og testes bare disse og deres relevante kontrakter og
 ruter. Full kontroll av alle apper er forbeholdt brede endringer, som selve
 fellespakken, Compose eller mer enn fire tjenester. En enkelt app starter ikke
 Fibaro10 eller andre fagapper på nytt.
+
+Denne grensen regresjonstestes av `scripts/test-deploy-plan.ps1` og av testen som
+avviser domeneeide spesialkomponenter i `packages/microapp-ui`. En appspesifikk
+endring skal derfor stoppe kvalitetssjekken dersom den ved en feil blir klassifisert
+som en endring i hele appstakken.
 
 Rotfilen `BUILD` er buildnummeret for Fibaro10. Hver fagapp har tilsvarende en
 egen `<app>/BUILD`. Standard deploy leser disse filene og sender verdiene til

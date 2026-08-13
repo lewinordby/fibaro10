@@ -1,5 +1,5 @@
-import type { ModuleRow } from "../types";
-import { Panel } from "./Mosaic";
+import { Panel } from "@lilletorget/microapp-ui";
+import type { ModuleRow } from "@lilletorget/microapp-ui/types";
 
 function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.map(String) : value ? [String(value)] : [];

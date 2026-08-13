@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { domainApi } from "../api";
-import { useApi } from "../hooks";
-import { AppLink, useAppSearchParams } from "../router";
-import { MetricCard, Panel } from "./Mosaic";
-import { ErrorState, Loading } from "./PageState";
+import { AppLink, ErrorState, Loading, MetricCard, Panel, useApi, useAppSearchParams } from "@lilletorget/microapp-ui";
+import { domainApi } from "@lilletorget/microapp-ui/api";
 
 type RecordValue = Record<string, any>;
 type DoorStatus = {

@@ -1,83 +1,13 @@
-import { lazy, Suspense, type ComponentProps, type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { domainApi } from "../api";
 import { displayCell, nok, valueLabel } from "../format";
 import { AppLink, useAppSearchParams } from "../router";
 import { resolveCorePath } from "../navigation";
 import { filterTableRows, sortTableRows, type TableSort } from "../table";
-import type { Accent, DomainUiConfig, JsonRecord, ModuleAction, ModuleChart, ModuleEditConfig, ModuleEditField, ModuleFilter, ModuleResponse, ModuleRow, ModuleTable, SunTimeline } from "../types";
+import type { Accent, DomainUiConfig, JsonRecord, ModuleAction, ModuleChart, ModuleEditConfig, ModuleEditField, ModuleFilter, ModuleResponse, ModuleRow, ModuleTable } from "../types";
 import { Chart, mosaicChartColors, type MosaicChartConfig } from "./Chart";
 import { MetricCard, Panel } from "./Mosaic";
 import { MosaicIcon } from "./MosaicIcon";
-
-const VentilationSpecialAsync = lazy(() => import("./SpecializedContent").then((module) => ({ default: module.VentilationSpecial })));
-const EnergySunbedsSpecialAsync = lazy(() => import("./SpecializedContent").then((module) => ({ default: module.EnergySunbedsSpecial })));
-const EnergyElviaSpecialAsync = lazy(() => import("./SpecializedContent").then((module) => ({ default: module.EnergyElviaSpecial })));
-const EnergyCircuitLoadsSpecialAsync = lazy(() => import("./SpecializedContent").then((module) => ({ default: module.EnergyCircuitLoadsSpecial })));
-const ControlSettingsSpecialAsync = lazy(() => import("./SpecializedContent").then((module) => ({ default: module.ControlSettingsSpecial })));
-const SunSessionsSpecialAsync = lazy(() => import("./SunSessionsSpecial").then((module) => ({ default: module.SunSessionsSpecial })));
-const LinkReviewSpecialAsync = lazy(() => import("./LinkReviewSpecial").then((module) => ({ default: module.LinkReviewSpecial })));
-const BollardsSpecialAsync = lazy(() => import("./BollardsSpecial").then((module) => ({ default: module.BollardsSpecial })));
-const DoorsSpecialAsync = lazy(() => import("./DoorsSpecial").then((module) => ({ default: module.DoorsSpecial })));
-const MobilePreviewSpecialAsync = lazy(() => import("./MobilePreviewSpecial").then((module) => ({ default: module.MobilePreviewSpecial })));
-const IdeasSpecialAsync = lazy(() => import("./IdeasSpecial").then((module) => ({ default: module.IdeasSpecial })));
-const NotificationsSpecialAsync = lazy(() => import("./SystemSpecial").then((module) => ({ default: module.NotificationsSpecial })));
-const SubsystemsSpecialAsync = lazy(() => import("./SystemSpecial").then((module) => ({ default: module.SubsystemsSpecial })));
-
-function SpecializedFallback() {
-  return <Panel><div className="p-6 text-sm text-gray-400">Klargjør detaljvisning ...</div></Panel>;
-}
-
-function VentilationSpecial(props: ComponentProps<typeof VentilationSpecialAsync>) {
-  return <Suspense fallback={<SpecializedFallback />}><VentilationSpecialAsync {...props} /></Suspense>;
-}
-
-function EnergySunbedsSpecial(props: ComponentProps<typeof EnergySunbedsSpecialAsync>) {
-  return <Suspense fallback={<SpecializedFallback />}><EnergySunbedsSpecialAsync {...props} /></Suspense>;
-}
-
-function EnergyElviaSpecial(props: ComponentProps<typeof EnergyElviaSpecialAsync>) {
-  return <Suspense fallback={<SpecializedFallback />}><EnergyElviaSpecialAsync {...props} /></Suspense>;
-}
-
-function EnergyCircuitLoadsSpecial(props: ComponentProps<typeof EnergyCircuitLoadsSpecialAsync>) {
-  return <Suspense fallback={<SpecializedFallback />}><EnergyCircuitLoadsSpecialAsync {...props} /></Suspense>;
-}
-
-function ControlSettingsSpecial(props: ComponentProps<typeof ControlSettingsSpecialAsync>) {
-  return <Suspense fallback={<SpecializedFallback />}><ControlSettingsSpecialAsync {...props} /></Suspense>;
-}
-
-function SunSessionsSpecial(props: ComponentProps<typeof SunSessionsSpecialAsync>) {
-  return <Suspense fallback={<SpecializedFallback />}><SunSessionsSpecialAsync {...props} /></Suspense>;
-}
-
-function LinkReviewSpecial(props: ComponentProps<typeof LinkReviewSpecialAsync>) {
-  return <Suspense fallback={<SpecializedFallback />}><LinkReviewSpecialAsync {...props} /></Suspense>;
-}
-
-function BollardsSpecial() {
-  return <Suspense fallback={<SpecializedFallback />}><BollardsSpecialAsync /></Suspense>;
-}
-
-function DoorsSpecial(props: ComponentProps<typeof DoorsSpecialAsync>) {
-  return <Suspense fallback={<SpecializedFallback />}><DoorsSpecialAsync {...props} /></Suspense>;
-}
-
-function MobilePreviewSpecial(props: ComponentProps<typeof MobilePreviewSpecialAsync>) {
-  return <Suspense fallback={<SpecializedFallback />}><MobilePreviewSpecialAsync {...props} /></Suspense>;
-}
-
-function IdeasSpecial(props: ComponentProps<typeof IdeasSpecialAsync>) {
-  return <Suspense fallback={<SpecializedFallback />}><IdeasSpecialAsync {...props} /></Suspense>;
-}
-
-function NotificationsSpecial(props: ComponentProps<typeof NotificationsSpecialAsync>) {
-  return <Suspense fallback={<SpecializedFallback />}><NotificationsSpecialAsync {...props} /></Suspense>;
-}
-
-function SubsystemsSpecial(props: ComponentProps<typeof SubsystemsSpecialAsync>) {
-  return <Suspense fallback={<SpecializedFallback />}><SubsystemsSpecialAsync {...props} /></Suspense>;
-}
 
 const palette = [mosaicChartColors.sky, mosaicChartColors.violet, mosaicChartColors.yellow, mosaicChartColors.green, mosaicChartColors.red, mosaicChartColors.gray];
 const buttonClasses: Record<Accent, string> = { violet: "bg-violet-500 hover:bg-violet-600", sky: "bg-sky-500 hover:bg-sky-600", yellow: "bg-yellow-500 hover:bg-yellow-600", green: "bg-green-500 hover:bg-green-600", red: "bg-red-500 hover:bg-red-600" };
@@ -86,7 +16,6 @@ const linkClasses: Record<Accent, string> = { violet: "text-violet-600 dark:text
 function localPath(path: string | undefined, config: DomainUiConfig) {
   return resolveCorePath(path, config.appId);
 }
-
 function tone(value: string | undefined, fallback: Accent) {
   if (value === "parking") return "sky" as const;
   if (value === "sun" || value === "sun2" || value === "solar") return "yellow" as const;
@@ -236,51 +165,36 @@ function DayNavigation({ data }: { data: NonNullable<ModuleResponse["dayNavigati
   return <Panel><div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"><div className="flex items-center gap-2"><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={() => go(data.prevDay)}><MosaicIcon name="arrow-left" /></button><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={() => go("")}>I dag</button><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={() => go(data.nextDay)}><MosaicIcon name="arrow-right" /></button></div><label className="flex items-center gap-3 text-sm text-gray-500"><strong className="text-gray-800 dark:text-gray-100">{data.selectedDayLabel}</strong><input className="form-input" type="date" value={data.selectedDay} onChange={(event) => go(event.target.value)} /></label></div></Panel>;
 }
 
-function SunTimelineView({ timeline, config }: { timeline: SunTimeline; config: DomainUiConfig }) {
-  const [, setParams] = useAppSearchParams();
-  const go = (day: string) => { const next = new URLSearchParams(window.location.search); day ? next.set("day", day) : next.delete("day"); setParams(next); };
-  const itemClass = (kind: string) => kind === "member" ? "bg-yellow-500" : kind === "no-member" ? "bg-red-400" : "bg-sky-500";
-  return <div className="space-y-5"><Panel><div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"><div className="flex gap-2"><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={() => go(timeline.prevDay)}><MosaicIcon name="arrow-left" /></button><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={() => go("")}>I dag</button><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={() => go(timeline.nextDay)}><MosaicIcon name="arrow-right" /></button></div><strong className="text-sm text-gray-800 dark:text-gray-100">{timeline.selectedDayLabel}</strong><input className="form-input" type="date" value={timeline.selectedDay} onChange={(event) => go(event.target.value)} /></div></Panel><Panel title="Rom gjennom døgnet" subtitle={`${timeline.totals.sessionsCount} solinger · ${nok(timeline.totals.paidAmountKr)} kr · ${nok(timeline.totals.durationMinutes)} min`}><div className="overflow-x-auto p-5"><div className="min-w-[760px] space-y-2"><div className="grid grid-cols-[7rem_1fr_5rem] gap-3"><span /><div className="relative h-5">{timeline.ticks.map((tick) => <span className="absolute text-[10px] text-gray-400" style={{ left: `${tick.left}%` }} key={tick.label}>{tick.label}</span>)}</div><span /></div>{timeline.rooms.map((room) => <div className="grid grid-cols-[7rem_1fr_5rem] items-center gap-3" key={room.roomId}><strong className="text-xs text-gray-600 dark:text-gray-300">{room.label}</strong><div className="relative h-8 overflow-hidden rounded-md border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30">{timeline.ticks.map((tick) => <span className="absolute inset-y-0 border-l border-gray-200 dark:border-gray-700" style={{ left: `${tick.left}%` }} key={tick.label} />)}{room.sessions.map((item, index) => { const href = localPath(item.href, config); const block = <span className={`absolute inset-y-1 min-w-px rounded ${itemClass(item.kind)}`} style={{ left: `${item.left}%`, width: `${item.width}%` }} title={item.title} />; return href ? <AppLink to={href} key={`${item.left}-${index}`}>{block}</AppLink> : <span key={`${item.left}-${index}`}>{block}</span>; })}{timeline.nowMarker != null ? <span className="absolute inset-y-0 border-l-2 border-red-500" style={{ left: `${timeline.nowMarker}%` }} /> : null}</div><span className="text-right text-xs tabular-nums text-gray-500">{room.count} / {room.minutes}m</span></div>)}</div></div></Panel></div>;
-}
-
 function UploadPanel({ endpoint, reload, accent }: { endpoint: string; reload: () => void; accent: Accent }) {
   const [file, setFile] = useState<File | null>(null); const [busy, setBusy] = useState(false); const [message, setMessage] = useState("");
   const upload = async () => { if (!file) return; setBusy(true); setMessage(""); try { const result = await domainApi.upload(endpoint, file); setMessage(result.message || "Filen er lastet opp"); setFile(null); reload(); } catch (reason) { setMessage(reason instanceof Error ? reason.message : String(reason)); } finally { setBusy(false); } };
   return <Panel title="Last opp fil"><div className="flex flex-wrap items-center gap-3 p-5"><input className="form-input min-w-64 flex-1" type="file" onChange={(event) => setFile(event.target.files?.[0] || null)} /><button className={`btn text-white ${buttonClasses[accent]}`} disabled={!file || busy} onClick={upload}>{busy ? "Laster opp ..." : "Last opp"}</button>{message ? <span className="text-sm text-gray-500">{message}</span> : null}</div></Panel>;
 }
 
-export function ModuleContent({ data, config, reload, coreUrl, module, view, appContent }: { data: ModuleResponse; config: DomainUiConfig; reload: () => void; coreUrl: string; module: string; view: string; appContent?: ReactNode }) {
-  const empty = !data.cards.length && !(data.charts?.length) && !data.tables.length && !data.sunTimeline;
-  const ventilationSpecial = module === "ventilasjon" && data.ventilation;
-  const sunbedSpecial = module === "energi" && view === "forbruk-per-seng" && data.energySunbeds;
-  const elviaSpecial = module === "energi" && view === "elvia" && data.energyElvia;
-  const circuitSpecial = module === "energi" && view === "kurs-last" && data.energyCircuitLoads;
-  const settingsSpecial = Boolean(data.controlSettings);
-  const sunSessionsSpecial = module === "soling" && view === "enkeltimer";
-  const linkSpecial = module === "koble" && data.kobleReview;
-  const linkCustomView = Boolean(linkSpecial && ["oversikt", "kandidater", "biltreff", "sun2", "sun2-kontroll"].includes(view));
-  const bollardsSpecial = module === "pullerter";
-  const doorsSpecial = module === "dorer" && [
-    "oversikt", "andre", "solrom", "soltimer", "romkontroll-ny2",
-    "oversikt-ny", "romkontroll", "romkontroll-ny", "solrom-ny",
-    "solrom-dagskontroll", "solrom2-oversikt", "solrom2-dagskontroll",
-    "solrom2-avvik", "dorer2-oversikt", "dorer2-bygg",
-  ].includes(view);
-  const mobileSpecial = module === "mobil";
-  const ideasSpecial = module === "ideer";
-  const notificationsSpecial = module === "varslinger" && data.systemNotifications;
-  const subsystemsSpecial = module === "undersystemer" && data.systemSubsystems;
-  const hasAppContent = appContent != null;
-  const visibleTables = module !== "koble"
-    ? data.tables
-    : view === "treffgrunnlag"
-      ? data.tables.filter((table) => table.title === "Treffgrunnlag")
-      : view === "jobb"
-        ? data.tables.filter((table) => ["Jobbparametere", "Sist behandlet"].includes(table.title))
-        : [];
-  const hidesGenericTables = Boolean(sunSessionsSpecial || sunbedSpecial || elviaSpecial || circuitSpecial || settingsSpecial || linkCustomView || bollardsSpecial || doorsSpecial || mobileSpecial || ideasSpecial || notificationsSpecial || subsystemsSpecial || hasAppContent || (ventilationSpecial && view === "innstillinger"));
-  const showActions = module !== "koble" || view === "jobb";
-  const showCards = !elviaSpecial && !(linkSpecial && view !== "oversikt");
-  const showUpload = Boolean(data.uploadEndpoint && !elviaSpecial);
-  return <div className="space-y-6">{showActions ? <ModuleActions actions={data.actions} reload={reload} accent={config.accent} /> : null}{!doorsSpecial ? <ModuleFilters filters={data.filters} accent={config.accent} /> : null}{data.dayNavigation && !data.sunTimeline ? <DayNavigation data={data.dayNavigation} /> : null}{showUpload ? <UploadPanel endpoint={data.uploadEndpoint!} reload={reload} accent={config.accent} /> : null}{showCards && !bollardsSpecial && !doorsSpecial && !notificationsSpecial && !subsystemsSpecial && !hasAppContent ? <ModuleCards data={data.cards} config={config} /> : null}{data.sunTimeline ? <SunTimelineView timeline={data.sunTimeline} config={config} /> : null}{ventilationSpecial ? <VentilationSpecial data={data} view={view} reload={reload} /> : null}{sunSessionsSpecial ? <SunSessionsSpecial table={data.tables.find((table) => table.title === "Enkeltimer")} reload={reload} /> : null}{elviaSpecial ? <EnergyElviaSpecial data={elviaSpecial} reload={reload} /> : null}{sunbedSpecial ? <EnergySunbedsSpecial data={sunbedSpecial} /> : null}{circuitSpecial ? <EnergyCircuitLoadsSpecial data={circuitSpecial} reload={reload} /> : null}{data.controlSettings ? <ControlSettingsSpecial settings={data.controlSettings} reload={reload} /> : null}{linkSpecial ? <LinkReviewSpecial review={linkSpecial} view={view} reload={reload} /> : null}{bollardsSpecial ? <BollardsSpecial /> : null}{doorsSpecial ? <DoorsSpecial view={view} /> : null}{mobileSpecial ? <MobilePreviewSpecial table={data.tables[0]} /> : null}{ideasSpecial ? <IdeasSpecial rows={data.tables[0]?.rows || []} /> : null}{notificationsSpecial ? <NotificationsSpecial data={notificationsSpecial} /> : null}{subsystemsSpecial ? <SubsystemsSpecial data={subsystemsSpecial} /> : null}{appContent}{!ventilationSpecial && !elviaSpecial && !bollardsSpecial && !doorsSpecial && !mobileSpecial && !ideasSpecial && !notificationsSpecial && !subsystemsSpecial && !hasAppContent ? <ModuleCharts charts={data.charts} /> : null}{!hidesGenericTables ? visibleTables.map((table, index) => <DataTable key={`${table.title}-${index}`} table={table} config={config} coreUrl={coreUrl} reload={reload} />) : null}{empty && !ventilationSpecial && !sunSessionsSpecial && !sunbedSpecial && !elviaSpecial && !circuitSpecial && !settingsSpecial && !linkSpecial && !bollardsSpecial && !doorsSpecial && !mobileSpecial && !ideasSpecial && !notificationsSpecial && !subsystemsSpecial && !hasAppContent ? <Panel title={data.title}><div className="p-6 text-sm text-gray-500 dark:text-gray-400">{data.subtitle || "Denne visningen har ingen data i valgt utvalg."}</div></Panel> : null}</div>;
+export type ModuleAppContent = {
+  content: ReactNode;
+  hideActions?: boolean;
+  hideFilters?: boolean;
+  hideDayNavigation?: boolean;
+  hideUpload?: boolean;
+  hideCards?: boolean;
+  hideCharts?: boolean;
+  hideTables?: boolean;
+  tables?: ModuleTable[];
+};
+
+export function ModuleContent({ data, config, reload, coreUrl, appContent }: { data: ModuleResponse; config: DomainUiConfig; reload: () => void; coreUrl: string; module: string; view: string; appContent?: ModuleAppContent | null }) {
+  const empty = !data.cards.length && !(data.charts?.length) && !data.tables.length;
+  const visibleTables = appContent?.tables || data.tables;
+  return <div className="space-y-6">
+    {!appContent?.hideActions ? <ModuleActions actions={data.actions} reload={reload} accent={config.accent} /> : null}
+    {!appContent?.hideFilters ? <ModuleFilters filters={data.filters} accent={config.accent} /> : null}
+    {!appContent?.hideDayNavigation && data.dayNavigation ? <DayNavigation data={data.dayNavigation} /> : null}
+    {!appContent?.hideUpload && data.uploadEndpoint ? <UploadPanel endpoint={data.uploadEndpoint} reload={reload} accent={config.accent} /> : null}
+    {!appContent?.hideCards ? <ModuleCards data={data.cards} config={config} /> : null}
+    {appContent?.content}
+    {!appContent?.hideCharts ? <ModuleCharts charts={data.charts} /> : null}
+    {!appContent?.hideTables ? visibleTables.map((table, index) => <DataTable key={`${table.title}-${index}`} table={table} config={config} coreUrl={coreUrl} reload={reload} />) : null}
+    {empty && !appContent?.content ? <Panel title={data.title}><div className="p-6 text-sm text-gray-500 dark:text-gray-400">{data.subtitle || "Denne visningen har ingen data i valgt utvalg."}</div></Panel> : null}
+  </div>;
 }

@@ -1,5 +1,5 @@
-import type { ModuleTable } from "../types";
-import { Panel } from "./Mosaic";
+import { Panel } from "@lilletorget/microapp-ui";
+import type { ModuleTable } from "@lilletorget/microapp-ui/types";
 
 export function MobilePreviewSpecial({ table }: { table?: ModuleTable }) {
   const rows = table?.rows || [];

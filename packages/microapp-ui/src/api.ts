@@ -1,4 +1,4 @@
-import type { AppConfig, AuthUser, BusinessComparisonResponse, BusinessOverviewResponse, JsonRecord, ModuleAction, ModuleEditConfig, ModuleResponse, ModuleRow, OperationsOverviewResponse, SunSessionImageBrowser, YearComparisonResponse } from "./types";
+import type { AppConfig, AuthUser, BusinessComparisonResponse, BusinessOverviewResponse, JsonRecord, ModuleAction, ModuleEditConfig, ModuleResponse, ModuleRow, YearComparisonResponse } from "./types";
 import { scopeAppPayload, withCurrentAppApiPath } from "./navigation";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -24,7 +24,6 @@ function endpointFromTemplate(template: string, row: ModuleRow) {
 export const domainApi = {
   config: () => request<AppConfig>("/api/app/config"),
   user: () => request<AuthUser>("/api/auth/me"),
-  operationsOverview: () => request<OperationsOverviewResponse>("/api/overview"),
   businessOverview: () => request<BusinessOverviewResponse>("/api/overview"),
   businessComparison: (params: URLSearchParams) => request<BusinessComparisonResponse>(`/api/status/comparison?${params.toString()}`),
   yearComparison: (domain: "soling" | "parkering", year?: string) => request<YearComparisonResponse>(`/api/${domain}/year-comparison${year ? `?year=${encodeURIComponent(year)}` : ""}`),
@@ -59,16 +58,5 @@ export const domainApi = {
     const form = new FormData();
     form.set("file", file);
     return request<{ message?: string }>(endpoint, { method: "POST", body: form });
-  },
-  sunSessionImages: (sessionId: number, snapshotId?: string | null) => {
-    const params = new URLSearchParams();
-    if (snapshotId) params.set("snapshot_id", snapshotId);
-    const query = params.toString();
-    return request<SunSessionImageBrowser>(`/api/soling/enkeltimer/${encodeURIComponent(sessionId)}/image-browser${query ? `?${query}` : ""}`);
-  },
-  selectSunSessionImage: async (sessionId: number, snapshotId: string) => {
-    const params = new URLSearchParams({ snapshot_id: snapshotId });
-    const result = await request<SunSessionImageBrowser | { browser: SunSessionImageBrowser }>(`/api/soling/enkeltimer/${encodeURIComponent(sessionId)}/image?${params}`, { method: "POST" });
-    return "browser" in result ? result.browser : result;
   },
 };

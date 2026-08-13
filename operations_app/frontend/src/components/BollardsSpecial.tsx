@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { domainApi } from "../api";
-import { useApi } from "../hooks";
-import { MetricCard, Panel, Segmented } from "./Mosaic";
-import { ErrorState, Loading } from "./PageState";
+import { ErrorState, Loading, MetricCard, Panel, Segmented, useApi } from "@lilletorget/microapp-ui";
+import { domainApi } from "@lilletorget/microapp-ui/api";
 
 type Monitor = {
   monitor_id?: string; item_type?: string; asset_key?: string; asset_type?: string; display_name?: string;

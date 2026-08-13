@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { domainApi } from "../api";
-import { displayCell, nok } from "../format";
-import { useAppSearchParams } from "../router";
-import type { ModuleRow, ModuleTable, SunSessionImageBrowser, SunSessionSavedImage } from "../types";
-import { Panel } from "./Mosaic";
-import { MosaicIcon } from "./MosaicIcon";
+import { MosaicIcon, Panel, displayCell, nok, useAppSearchParams } from "@lilletorget/microapp-ui";
+import type { ModuleRow, ModuleTable } from "@lilletorget/microapp-ui/types";
+import { fetchSunSessionImages, selectSunSessionImage } from "../api";
+import type { SunSessionImageBrowser, SunSessionSavedImage } from "../types";
 
 function stringValue(row: ModuleRow, key: string) {
   const value = row[key];
@@ -73,7 +71,7 @@ function ImageViewer({ row, reload }: { row: ModuleRow; reload: () => void }) {
 
   async function loadArchive(id?: string | null) {
     setBusy(true); setNotice(null);
-    try { setArchive(await domainApi.sunSessionImages(sessionId, id)); }
+    try { setArchive(await fetchSunSessionImages(sessionId, id)); }
     catch (reason) { setNotice({ tone: "error", text: reason instanceof Error ? reason.message : "Kunne ikke hente bildearkivet" }); }
     finally { setBusy(false); }
   }
@@ -94,10 +92,10 @@ function ImageViewer({ row, reload }: { row: ModuleRow; reload: () => void }) {
     if (!saved?.snapshotId) return;
     setBusy(true); setNotice(null);
     try {
-      const edge = await domainApi.sunSessionImages(sessionId, saved.snapshotId);
+      const edge = await fetchSunSessionImages(sessionId, saved.snapshotId);
       const next = direction < 0 ? edge.previousSnapshotId : edge.nextSnapshotId;
       if (!next) { setNotice({ tone: "info", text: direction < 0 ? "Ingen eldre bilder denne dagen." : "Ingen nyere bilder denne dagen." }); return; }
-      setArchive(await domainApi.sunSessionImages(sessionId, next));
+      setArchive(await fetchSunSessionImages(sessionId, next));
     } catch (reason) {
       setNotice({ tone: "error", text: reason instanceof Error ? reason.message : "Kunne ikke hente bildearkivet" });
     } finally { setBusy(false); }
@@ -107,7 +105,7 @@ function ImageViewer({ row, reload }: { row: ModuleRow; reload: () => void }) {
     if (!snapshotId || isPrimary || busy) return;
     setBusy(true); setNotice(null);
     try {
-      const result = await domainApi.selectSunSessionImage(sessionId, snapshotId);
+      const result = await selectSunSessionImage(sessionId, snapshotId);
       setArchive(result);
       setSavedIndex(Math.max(0, result.savedImages.findIndex((image) => image.isPrimary)));
       setNotice({ tone: "success", text: "Hovedbildet og de fem bildene rundt tidspunktet er lagret." });

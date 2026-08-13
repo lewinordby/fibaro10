@@ -104,17 +104,17 @@ def test_all_microapps_scan_the_shared_ui_styles() -> None:
 
 def test_sun_sessions_keep_the_interactive_image_workflow() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    module_content = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "ModuleContent.tsx").read_text(encoding="utf-8")
-    session_view = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "SunSessionsSpecial.tsx").read_text(encoding="utf-8")
-    shared_api = (repo_root / "packages" / "microapp-ui" / "src" / "api.ts").read_text(encoding="utf-8")
+    sun_main = (repo_root / "sun_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
+    session_view = (repo_root / "sun_app" / "frontend" / "src" / "components" / "SunSessionsSpecial.tsx").read_text(encoding="utf-8")
+    sun_api = (repo_root / "sun_app" / "frontend" / "src" / "api.ts").read_text(encoding="utf-8")
 
-    assert 'module === "soling" && view === "enkeltimer"' in module_content
-    assert "<SunSessionsSpecial" in module_content
+    assert 'module === "soling" && view === "enkeltimer"' in sun_main
+    assert "<SunSessionsSpecial" in sun_main
     assert "Sett som hovedbilde" in session_view
     assert "Finn bilde i arkivet" in session_view
     assert "SUN2-ID / medlemsnummer" in session_view
-    assert "sunSessionImages" in shared_api
-    assert "selectSunSessionImage" in shared_api
+    assert "fetchSunSessionImages" in sun_api
+    assert "selectSunSessionImage" in sun_api
 
 
 def test_sun_app_has_a_narrow_proxy_for_saved_session_images() -> None:
@@ -202,20 +202,20 @@ def test_system_menu_structure_page_is_available_without_core_data() -> None:
 def test_parity_critical_specialized_views_are_kept_in_microapps() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     module_content = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "ModuleContent.tsx").read_text(encoding="utf-8")
+    operations_entry = (repo_root / "operations_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
+    energy_entry = (repo_root / "energy_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
+    link_entry = (repo_root / "link_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
+    system_entry = (repo_root / "system_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
     navigation = json.loads((repo_root / "packages" / "microapp-ui" / "src" / "navigation.json").read_text(encoding="utf-8"))["apps"]
     routes = {app["id"]: {item["to"] for group in app["groups"] for item in group["items"]} for app in navigation}
 
-    assert "<LinkReviewSpecial" in module_content
-    assert "<EnergyElviaSpecial" in module_content
-    assert "<BollardsSpecial" in module_content
-    assert "<DoorsSpecial" in module_content
-    assert "<MobilePreviewSpecial" in module_content
-    assert "<IdeasSpecial" in module_content
-    assert "<NotificationsSpecial" in module_content
-    assert "<SubsystemsSpecial" in module_content
-    assert "<RoborockSpecial" not in module_content
-    operations_entry = (repo_root / "operations_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
-    assert "<RoborockSpecial" in operations_entry
+    assert "Special" not in module_content
+    for marker in ("<BollardsSpecial", "<DoorsSpecial", "<RoborockSpecial"):
+        assert marker in operations_entry
+    assert "<EnergyElviaSpecial" in energy_entry
+    assert "<LinkReviewSpecial" in link_entry
+    for marker in ("<MobilePreviewSpecial", "<IdeasSpecial", "<NotificationsSpecial", "<SubsystemsSpecial"):
+        assert marker in system_entry
     assert "extensions={operationsExtensions}" in operations_entry
     assert "/observerte-biler" in routes["parking"]
     assert {"/", "/oversikt", "/periode", "/arsutvikling"} <= routes["parking"]
@@ -259,7 +259,7 @@ def test_shared_tables_keep_search_sorting_and_local_pagination() -> None:
 
 def test_energy_topology_editor_keeps_full_hc3_workflow() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    source = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "EnergyCircuitLoads.tsx").read_text(encoding="utf-8")
+    source = (repo_root / "energy_app" / "frontend" / "src" / "components" / "EnergyCircuitLoads.tsx").read_text(encoding="utf-8")
     for marker in (
         "/api/energy/hc3-devices",
         "/api/energy/nodes/live",
@@ -296,10 +296,14 @@ def test_parking_and_sun_have_domain_specific_dashboards_and_comparisons() -> No
     parking_app = (repo_root / "parking_app" / "frontend" / "src" / "App.tsx").read_text(encoding="utf-8")
     parking_backend = (repo_root / "parking_app" / "app" / "main.py").read_text(encoding="utf-8")
     sun_backend = (repo_root / "sun_app" / "app" / "main.py").read_text(encoding="utf-8")
+    sun_app = (repo_root / "sun_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
 
-    assert "<CountDashboardSpecial" in domain_app
-    assert "<CountComparisonSpecial" in domain_app
-    assert "<YearComparisonSpecial" in domain_app
+    assert "<CountDashboardSpecial" not in domain_app
+    assert "<CountComparisonSpecial" not in domain_app
+    assert "<YearComparisonSpecial" not in domain_app
+    assert "<CountDashboardSpecial" in sun_app
+    assert "<CountComparisonSpecial" in sun_app
+    assert "<YearComparisonSpecial" in sun_app
     assert "<CountDashboardSpecial domain=\"parking\"" in parking_app
     assert "<CountComparisonSpecial domain=\"parking\"" in parking_app
     assert '"overview"' in parking_backend
@@ -311,20 +315,33 @@ def test_parking_and_sun_have_domain_specific_dashboards_and_comparisons() -> No
 def test_detail_routes_do_not_fall_back_to_generic_module_pages() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     domain_app = (repo_root / "packages" / "microapp-ui" / "src" / "DomainApp.tsx").read_text(encoding="utf-8")
-    details = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "DetailPages.tsx").read_text(encoding="utf-8")
-    assert "isDetailRoute" in domain_app
-    assert "<DetailRoute" in domain_app
-    assert "MaintenanceVisitDetailPage" in details
-    assert "DataSourceDetailPage" in details
-    assert "BuildDetailPage" in details
-    assert "SettlementDetailPage" in details
+    maintenance = (repo_root / "maintenance_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
+    system = (repo_root / "system_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
+    sun = (repo_root / "sun_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
+    assert "isExtensionRoute" in domain_app
+    assert "renderRoute" in domain_app
+    assert "MaintenanceVisitDetailPage" in maintenance
+    assert "SystemDetailRoute" in system
+    assert "SettlementDetailPage" in sun
 
 
 def test_self_loading_operations_views_do_not_fetch_the_generic_module_first() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    domain_app = (repo_root / "packages" / "microapp-ui" / "src" / "DomainApp.tsx").read_text(encoding="utf-8")
-    assert 'baseItem.module === "dorer" || baseItem.module === "pullerter"' in domain_app
-    assert "isSelfLoadingOperationsView" in domain_app
+    operations = (repo_root / "operations_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
+    assert 'item.module === "dorer" || item.module === "pullerter"' in operations
+    assert "skipModuleLoad" in operations
+
+
+def test_shared_ui_has_no_domain_owned_specialists() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    shared = (repo_root / "packages" / "microapp-ui" / "src")
+    source = "\n".join(path.read_text(encoding="utf-8") for path in shared.rglob("*") if path.suffix in {".ts", ".tsx"})
+    for marker in (
+        "RoborockSpecial", "DoorsSpecial", "BollardsSpecial", "SunSessionsSpecial",
+        "LinkReviewSpecial", "EnergyCircuitLoadsSpecial", "SystemSpecial",
+        "sunTimeline", "kobleReview", "energyElvia", "systemNotifications", "roborock",
+    ):
+        assert marker not in source
 
 
 def test_shared_tables_link_build_rows_to_their_detail_page() -> None:
@@ -337,7 +354,7 @@ def test_shared_tables_link_build_rows_to_their_detail_page() -> None:
 def test_shared_links_support_native_app_schemes() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     source = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "ModuleContent.tsx").read_text(encoding="utf-8")
-    notifications = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "SystemSpecial.tsx").read_text(encoding="utf-8")
+    notifications = (repo_root / "system_app" / "frontend" / "src" / "components" / "SystemSpecial.tsx").read_text(encoding="utf-8")
     assert "[a-z0-9+.-]*" in source
     assert "channel.subscribeUrl" in notifications
     assert "Abonner" in notifications

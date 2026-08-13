@@ -1,9 +1,7 @@
 import { useMemo, useState } from "react";
-import { domainApi } from "../api";
-import { nok } from "../format";
+import { MosaicIcon, Panel, nok } from "@lilletorget/microapp-ui";
+import { domainApi } from "@lilletorget/microapp-ui/api";
 import type { KobleQualifiedRow, KobleQualifiedSun2Row, KobleReviewCandidate, KobleReviewData } from "../types";
-import { Panel } from "./Mosaic";
-import { MosaicIcon } from "./MosaicIcon";
 
 function dateTime(value?: string | null) {
   if (!value) return "-";

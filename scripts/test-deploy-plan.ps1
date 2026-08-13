@@ -16,6 +16,19 @@ if ($operationsUi.All -or ($operationsUi.Services -join ",") -ne "operations_app
     throw "Operations-owned UI deploy plan is wrong: $($operationsUi | ConvertTo-Json -Compress)"
 }
 
+foreach ($ownedUi in @(
+    @{ Path = "energy_app/frontend/src/components/EnergyCircuitLoads.tsx"; Service = "energy_app" },
+    @{ Path = "sun_app/frontend/src/components/SunSessionsSpecial.tsx"; Service = "sun_app" },
+    @{ Path = "link_app/frontend/src/components/LinkReviewSpecial.tsx"; Service = "link_app" },
+    @{ Path = "maintenance_app/frontend/src/components/MaintenanceVisitDetailPage.tsx"; Service = "maintenance_app" },
+    @{ Path = "system_app/frontend/src/components/SystemSpecial.tsx"; Service = "system_app" }
+)) {
+    $plan = Get-DeployPlan -ChangedFiles @($ownedUi.Path)
+    if ($plan.All -or ($plan.Services -join ",") -ne $ownedUi.Service) {
+        throw "App-owned UI deploy plan is wrong for $($ownedUi.Path): $($plan | ConvertTo-Json -Compress)"
+    }
+}
+
 $mobileTheme = Get-DeployPlan -ChangedFiles @("packages/mobile-appkit/lilletorget-appkit.css")
 if ($mobileTheme.All -or ($mobileTheme.Services -join ",") -ne "online_dashboard,maintenance_mobile,alarm_mobile") {
     throw "Mobile theme deploy plan is wrong: $($mobileTheme | ConvertTo-Json -Compress)"

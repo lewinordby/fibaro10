@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
+import { MetricCard, MosaicIcon, Panel } from "@lilletorget/microapp-ui";
 import type { SystemNotificationsData, SystemSubsystem, SystemSubsystemsData } from "../types";
-import { MetricCard, Panel } from "./Mosaic";
-import { MosaicIcon } from "./MosaicIcon";
 
 const accessLabels = { external: "Ekstern", local: "Internt nett", internal: "Intern tjeneste" } as const;
 

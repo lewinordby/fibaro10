@@ -1,6 +1,7 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { domainApi } from "../api";
-import { nok } from "../format";
+import { MosaicIcon, Panel, nok } from "@lilletorget/microapp-ui";
+import { domainApi } from "@lilletorget/microapp-ui/api";
+import type { JsonRecord } from "@lilletorget/microapp-ui/types";
 import type {
   EnergyAggregateLive,
   EnergyCircuit,
@@ -11,10 +12,7 @@ import type {
   EnergyNodesLiveResponse,
   Hc3EnergyDevice,
   Hc3EnergyDevicesResponse,
-  JsonRecord,
 } from "../types";
-import { Panel } from "./Mosaic";
-import { MosaicIcon } from "./MosaicIcon";
 
 type NodeType = "zwave_device" | "output" | "child_device" | "meter" | "logical";
 type MappingFilter = "all" | "mapped" | "needs-work" | "empty";
