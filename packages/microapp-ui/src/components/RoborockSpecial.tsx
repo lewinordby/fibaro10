@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { domainApi } from "../api";
 import { displayCell, valueLabel } from "../format";
 import { useApi } from "../hooks";
@@ -266,6 +267,81 @@ function ReadinessGrid({ readiness }: { readiness?: RoborockReadinessSummary | n
   return <div className="grid grid-cols-2 gap-x-8 px-5 py-2 sm:grid-cols-3">{values.map(([label, value]) => <div className="border-b border-gray-100 py-3 dark:border-gray-700/60" key={label}><span className="block text-xs font-semibold uppercase text-gray-400">{label}</span><strong className={`mt-1 block truncate text-sm font-medium ${telemetryTone(value)}`} title={value || "Ikke mottatt"}>{value || "-"}</strong></div>)}</div>;
 }
 
+const controlActionLabels: Record<string, string> = {
+  dry_run: "Tilkoblingskontroll",
+  start: "Start",
+  pause: "Pause",
+  resume: "Fortsett",
+  stop: "Stopp og dokk",
+  dock: "Til dokk",
+  test_start_stop: "Kort kontrolltest",
+};
+
+function controlStateLabel(value: JsonRecord | null | undefined) {
+  return robotStateLabel(value?.state_name || value?.state_code);
+}
+
+function RobotControls({ duid, data, reload }: { duid: string; data: RoborockRobotDetail; reload: () => void }) {
+  const [running, setRunning] = useState("");
+  const [message, setMessage] = useState("");
+  if (!data.canControl) return null;
+
+  async function run(action: string) {
+    const label = controlActionLabels[action] || action;
+    const question = action === "dry_run"
+      ? "Kontrollere forbindelsen uten å bevege roboten?"
+      : action === "test_start_stop"
+        ? "Roboten starter i 5 sekunder og returnerer deretter til dokken. Er gulvet fritt?"
+        : `${label} roboten nå?`;
+    if (!window.confirm(question)) return;
+    setRunning(action);
+    setMessage("");
+    try {
+      const response = await domainApi.mutate<{ message?: string }>(
+        `/api/renhold/robots/${encodeURIComponent(duid)}/control`,
+        "POST",
+        { action, test_duration_seconds: 5 },
+      );
+      setMessage(response.message || `${label} er utført.`);
+      reload();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setRunning("");
+    }
+  }
+
+  const latest = data.controlHistory?.[0];
+  const buttons = [
+    ["dry_run", "Kontroller"],
+    ["start", "Start"],
+    ["pause", "Pause"],
+    ["resume", "Fortsett"],
+    ["stop", "Stopp og dokk"],
+    ["test_start_stop", "Test start/stopp"],
+  ];
+  return <Panel title="Manuell styring" subtitle="Kun master · alle kommandoer logges med status før og etter">
+    <div className="space-y-4 p-5">
+      <div className="flex flex-wrap gap-2">
+        {buttons.map(([action, label]) => <button
+          className={`btn ${action === "test_start_stop" ? "bg-green-600 text-white hover:bg-green-700" : action === "stop" ? "border-red-200 text-red-600 dark:border-red-500/30 dark:text-red-400" : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"}`}
+          disabled={Boolean(running)}
+          key={action}
+          onClick={() => run(action)}
+          title={controlActionLabels[action]}
+        >{running === action ? "Utfører ..." : label}</button>)}
+      </div>
+      {message ? <div className={`rounded-md px-3 py-2 text-sm ${message.toLowerCase().includes("feil") ? "bg-red-500/10 text-red-600 dark:text-red-400" : "bg-green-500/10 text-green-700 dark:text-green-400"}`}>{message}</div> : null}
+      {latest ? <div className="grid gap-3 border-t border-gray-100 pt-4 text-sm sm:grid-cols-[minmax(9rem,0.8fr)_1fr_1fr_auto] dark:border-gray-700/60">
+        <div><span className="block text-xs font-semibold uppercase text-gray-400">Siste kommando</span><strong className="font-medium text-gray-700 dark:text-gray-200">{controlActionLabels[latest.action] || latest.action}</strong></div>
+        <div><span className="block text-xs font-semibold uppercase text-gray-400">Før</span><strong className="font-medium text-gray-700 dark:text-gray-200">{controlStateLabel(latest.before_state)}</strong></div>
+        <div><span className="block text-xs font-semibold uppercase text-gray-400">Etter</span><strong className="font-medium text-gray-700 dark:text-gray-200">{controlStateLabel(latest.after_state)}</strong></div>
+        <div className="sm:text-right"><span className="block text-xs font-semibold uppercase text-gray-400">Tidspunkt</span><strong className="font-medium text-gray-700 dark:text-gray-200">{stamp(latest.requested_at)}</strong></div>
+      </div> : <p className="text-sm text-gray-400">Ingen styringskommandoer er kjørt ennå.</p>}
+    </div>
+  </Panel>;
+}
+
 function ScheduleRows({ schedules }: { schedules: JsonRecord[] }) {
   return <div className="divide-y divide-gray-100 px-5 dark:divide-gray-700/60">{schedules.map((row, index) => <div className={`grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${row.enabled === false ? "opacity-50" : ""}`} key={String(row.schedule_id || index)}><div className="min-w-0"><strong className="block truncate text-sm font-medium text-gray-700 dark:text-gray-200">{String(row.schedule_label || row.cron || "Ukjent plan")}</strong><small className="mt-0.5 block truncate text-gray-400">{[row.rounds_label, row.fan_label, row.mop_label, row.water_label].filter(Boolean).join(" · ")}</small></div><span className={`text-xs font-semibold ${row.enabled === false ? "text-gray-400" : "text-green-700 dark:text-green-400"}`}>{row.enabled === false ? "Av" : "Aktiv"}</span></div>)}{!schedules.length ? <div className="py-6 text-sm text-gray-400">Ingen planer er mottatt.</div> : null}</div>;
 }
@@ -313,6 +389,7 @@ function RobotDetail({ duid, summary }: { duid: string; summary?: RoborockRobotS
         <div className="px-5 py-4"><span className="text-xs font-semibold uppercase text-gray-400">Neste plan</span><strong className="mt-1 block truncate text-lg font-semibold text-gray-800 dark:text-gray-100">{summary?.schedules?.next_label || "Ingen aktiv"}</strong><small className="text-gray-400">{summary?.schedules?.active_count ? `${summary.schedules.active_count} aktive planer` : "Ingen planer"}</small></div>
       </div>
     </section>
+    <RobotControls duid={duid} data={data} reload={result.reload} />
     <div className="grid gap-5 xl:grid-cols-2">
       <Panel title="Rengjøring" subtitle="Samlet aktivitet i dag og i går"><DetailDayRows summary={summary} /></Panel>
       <Panel title="Driftsklar" subtitle={readiness?.telemetry_at ? `Kontrollert ${stamp(readiness.telemetry_at)}` : "Siste telemetri"}><ReadinessGrid readiness={readiness} /></Panel>

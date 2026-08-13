@@ -14,12 +14,13 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Query, status as http_status
+from fastapi import FastAPI, Header, HTTPException, Query, status as http_status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from pydantic import BaseModel, Field
 
 load_dotenv()
 
@@ -29,6 +30,7 @@ CLIENT_IDS_FILE = DATA_DIR / "roborock_client_ids.json"
 HOME_CACHE_FILE = DATA_DIR / "home_data.json"
 STATE_FILE = DATA_DIR / "state.json"
 QUEUE_FILE = DATA_DIR / "pending_batches.jsonl"
+CONTROL_LOG_FILE = DATA_DIR / "control_commands.jsonl"
 
 ROBOROCK_EMAIL = os.getenv("ROBOROCK_EMAIL", "roborock.sun2@gmail.com")
 ROBOROCK_SUBNET = os.getenv("ROBOROCK_SUBNET", "192.168.2.")
@@ -45,12 +47,21 @@ HOME_REFRESH_SECONDS = int(os.getenv("HOME_REFRESH_SECONDS", "3600"))
 HISTORY_LIMIT = int(os.getenv("HISTORY_LIMIT", "10"))
 MAP_SYNC_ON_START = os.getenv("MAP_SYNC_ON_START", "true").lower() in {"1", "true", "yes", "on"}
 AUTO_SYNC_ENABLED = os.getenv("AUTO_SYNC_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
+ROBOROCK_CONTROL_TOKEN = os.getenv("ROBOROCK_CONTROL_TOKEN", "").strip()
 ROBOROCK_LOCAL_PORT = 58867
 
 app = FastAPI(title="Roborock_logger")
 sync_lock = asyncio.Lock()
 telemetry_unsupported_commands: dict[str, set[str]] = {}
 telemetry_last_settings_at: dict[str, float] = {}
+
+
+class ControlRequest(BaseModel):
+    action: Literal["dry_run", "start", "pause", "resume", "stop", "dock", "test_start_stop"]
+    request_id: str = Field(min_length=8, max_length=100)
+    actor: str = Field(default="Fibaro10", min_length=1, max_length=100)
+    confirmation: str = Field(min_length=1, max_length=200)
+    test_duration_seconds: int = Field(default=5, ge=3, le=12)
 
 
 TELEMETRY_SETTING_COMMANDS = (
@@ -390,6 +401,196 @@ async def get_local_rpc(device: dict[str, Any], host: str):
         decoder=decode_rpc_response,
     )
     return RpcChannel(lambda: [strategy], logger), channel
+
+
+def append_control_log(entry: dict[str, Any]) -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    with CONTROL_LOG_FILE.open("a", encoding="utf-8") as file:
+        file.write(json.dumps(entry, ensure_ascii=False, separators=(",", ":")) + "\n")
+
+
+def control_device(duid: str) -> tuple[dict[str, Any], str, str | None]:
+    home = load_cached_home_data()
+    if not home:
+        raise HTTPException(status_code=503, detail="Roborock-enhetslisten er ikke synkronisert")
+    device = next(
+        (
+            item
+            for item in home.get("devices", []) + home.get("received_devices", [])
+            if str(item.get("duid") or "") == duid
+        ),
+        None,
+    )
+    if not device or not device.get("local_key"):
+        raise HTTPException(status_code=404, detail="Roboten finnes ikke eller mangler lokal nøkkel")
+    state = load_state()
+    host = str((((state.get("robots") or {}).get(duid) or {}).get("local_ip") or "")).strip()
+    if not host:
+        raise HTTPException(status_code=409, detail="Roboten mangler kjent lokal IP-adresse")
+    products = {product.get("id"): product for product in home.get("products", [])}
+    model = (products.get(device.get("product_id")) or {}).get("model")
+    return device, host, model
+
+
+async def read_control_status(rpc: Any, model: str | None) -> dict[str, Any]:
+    from roborock.roborock_typing import RoborockCommand
+
+    raw = first_dict(jsonable(await asyncio.wait_for(rpc.send_command(RoborockCommand.GET_STATUS), timeout=5)))
+    normalized = status_telemetry(raw, model)
+    return {
+        "state_code": normalized.get("state_code"),
+        "state_name": normalized.get("state_name"),
+        "battery": normalized.get("battery"),
+        "error_code": normalized.get("error_code"),
+        "in_cleaning": normalized.get("in_cleaning"),
+        "in_returning": normalized.get("in_returning"),
+        "charge_status": normalized.get("charge_status"),
+    }
+
+
+def control_state_name(snapshot: dict[str, Any]) -> str:
+    return str(snapshot.get("state_name") or "").strip().lower()
+
+
+def control_is_active(snapshot: dict[str, Any]) -> bool:
+    state_name = control_state_name(snapshot)
+    return state_name in {
+        "cleaning",
+        "segment_cleaning",
+        "zone_cleaning",
+        "spot_cleaning",
+        "going_to_target",
+        "mapping",
+    }
+
+
+async def wait_for_control_state(
+    rpc: Any,
+    model: str | None,
+    predicate: Any,
+    *,
+    timeout_seconds: float = 8,
+) -> dict[str, Any]:
+    deadline = time.monotonic() + timeout_seconds
+    latest: dict[str, Any] = {}
+    while time.monotonic() < deadline:
+        await asyncio.sleep(0.75)
+        latest = await read_control_status(rpc, model)
+        if predicate(latest):
+            return latest
+    return latest
+
+
+def validate_control_start(snapshot: dict[str, Any]) -> None:
+    if control_is_active(snapshot):
+        raise HTTPException(status_code=409, detail="Roboten rengjør allerede")
+    error_code = snapshot.get("error_code")
+    if error_code not in (None, 0, "0"):
+        raise HTTPException(status_code=409, detail=f"Roboten har aktiv feil {error_code}")
+    battery = snapshot.get("battery")
+    if battery is not None and int(battery) < 30:
+        raise HTTPException(status_code=409, detail=f"Batteriet er for lavt for kontrolltest ({battery} %)")
+
+
+async def execute_control_command(duid: str, values: ControlRequest) -> dict[str, Any]:
+    from roborock.roborock_typing import RoborockCommand
+
+    expected_confirmation = f"CONFIRM:{duid}:{values.action}"
+    if not secrets.compare_digest(values.confirmation, expected_confirmation):
+        raise HTTPException(status_code=400, detail="Ugyldig kontrollbekreftelse")
+    device, host, model = control_device(duid)
+    started_at = local_now_iso()
+    audit: dict[str, Any] = {
+        "request_id": values.request_id,
+        "duid": duid,
+        "robot_name": device.get("name"),
+        "action": values.action,
+        "actor": values.actor,
+        "started_at": started_at,
+        "status": "running",
+    }
+    rpc = channel = None
+    try:
+        rpc, channel = await get_local_rpc(device, host)
+        before = await read_control_status(rpc, model)
+        audit["before"] = before
+        result: Any = None
+
+        if values.action == "dry_run":
+            result = {"validated": True, "host": host, "model": model}
+            after = before
+        elif values.action in {"start", "resume"}:
+            if values.action == "start":
+                validate_control_start(before)
+            result = jsonable(await rpc.send_command(RoborockCommand.APP_START))
+            after = await wait_for_control_state(rpc, model, control_is_active)
+        elif values.action == "pause":
+            result = jsonable(await rpc.send_command(RoborockCommand.APP_PAUSE))
+            after = await wait_for_control_state(
+                rpc,
+                model,
+                lambda snapshot: control_state_name(snapshot) == "paused" or not control_is_active(snapshot),
+            )
+        elif values.action in {"stop", "dock"}:
+            if values.action == "stop" and control_is_active(before):
+                await rpc.send_command(RoborockCommand.APP_PAUSE)
+                await asyncio.sleep(1)
+            result = jsonable(await rpc.send_command(RoborockCommand.APP_CHARGE))
+            after = await wait_for_control_state(
+                rpc,
+                model,
+                lambda snapshot: control_state_name(snapshot)
+                in {"returning", "returning_home", "charging", "charging_complete", "idle"},
+            )
+        else:
+            validate_control_start(before)
+            await rpc.send_command(RoborockCommand.APP_START)
+            active = await wait_for_control_state(rpc, model, control_is_active)
+            if not control_is_active(active):
+                raise RuntimeError("Roboten bekreftet ikke at rengjøringen startet")
+            await asyncio.sleep(values.test_duration_seconds)
+            await rpc.send_command(RoborockCommand.APP_PAUSE)
+            await wait_for_control_state(
+                rpc,
+                model,
+                lambda snapshot: control_state_name(snapshot) == "paused" or not control_is_active(snapshot),
+                timeout_seconds=5,
+            )
+            result = jsonable(await rpc.send_command(RoborockCommand.APP_CHARGE))
+            after = await wait_for_control_state(
+                rpc,
+                model,
+                lambda snapshot: control_state_name(snapshot)
+                in {"returning", "returning_home", "charging", "charging_complete", "idle"},
+            )
+
+        audit.update(
+            {
+                "status": "ok",
+                "finished_at": local_now_iso(),
+                "after": after,
+                "result": result,
+            }
+        )
+        append_control_log(audit)
+        return audit
+    except HTTPException as exc:
+        audit.update({"status": "rejected", "finished_at": local_now_iso(), "error": str(exc.detail)})
+        append_control_log(audit)
+        raise
+    except Exception as exc:
+        audit.update(
+            {
+                "status": "error",
+                "finished_at": local_now_iso(),
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+        )
+        append_control_log(audit)
+        raise HTTPException(status_code=502, detail=f"Roborock-kommandoen feilet: {exc}") from exc
+    finally:
+        if channel is not None:
+            channel.close()
 
 
 async def scan_hosts(subnet: str = ROBOROCK_SUBNET) -> list[str]:
@@ -942,6 +1143,23 @@ async def status():
     return load_state()
 
 
+@app.post("/api/control/{duid}")
+async def control_robot(
+    duid: str,
+    values: ControlRequest,
+    x_roborock_control_token: str | None = Header(default=None),
+):
+    if not ROBOROCK_CONTROL_TOKEN:
+        raise HTTPException(status_code=503, detail="Robotstyring er ikke aktivert")
+    if not x_roborock_control_token or not secrets.compare_digest(
+        x_roborock_control_token,
+        ROBOROCK_CONTROL_TOKEN,
+    ):
+        raise HTTPException(status_code=401, detail="Ugyldig kontrolltoken")
+    async with sync_lock:
+        return await execute_control_command(duid, values)
+
+
 @app.get("/telemetry-now")
 async def telemetry_now(settings: bool = True):
     try:
@@ -979,6 +1197,7 @@ async def health():
         "timezone": LOCAL_TIMEZONE,
         "pending_batches": state.get("pending_batches", 0),
         "robots": len(state.get("robots") or {}),
+        "control_enabled": bool(ROBOROCK_CONTROL_TOKEN),
     }
 
 

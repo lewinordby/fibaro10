@@ -12,6 +12,37 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1719",
+        "date": "13.08.2026",
+        "headline": "Sikker Roborock-styring fra Fibaro10",
+        "title": "Start, pause, stopp og kontrolltest går lokalt med sperrer og full revisjonslogg",
+        "description": (
+            "Fibaro10 har fått en masterbeskyttet kontrollkanal til Roborock_logger. Hver kommando leser "
+            "robotstatus før og etter, avviser kontrolltest ved aktiv jobb, robotfeil eller lavt batteri og "
+            "lagres både i hoveddatabasen og loggerens append-only logg. En egen tilkoblingskontroll kan kjøres "
+            "uten bevegelse, mens den fysiske kontrolltesten starter i fem sekunder og sender roboten tilbake til dokken."
+        ),
+        "applications": [
+            "Roborock_logger: tokenbeskyttet lokal kommando-API, sikkerhetsregler, tilstandsbekreftelse og auditlogg.",
+            "Fibaro10 API: masterkontroll, databasehistorikk og kontrollert videresending til loggeren.",
+            "Bygg og drift: kompakt styringsflate og siste kommando på detaljsiden for hver robot.",
+        ],
+        "request": (
+            "Test funksjonalitet for å starte og stoppe roboten fra Fibaro10. Dersom det fungerer godt, "
+            "skal planen senere kunne flyttes dit og styres ut fra om andre roboter er ferdige."
+        ),
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Lagt inn handlingene tilkoblingskontroll, start, pause, fortsett, stopp/dokk og kort kontrolltest.",
+            "Stopp sender roboten til dokken, slik at den ikke blir stående igjen ute på gulvet.",
+            "Kontrolltest krever minst 30 prosent batteri, ingen aktiv feil og at roboten ikke rengjør fra før.",
+            "Alle forsøk får unik request-ID og lagres med bruker, tidspunkt, resultat og tilstand før/etter.",
+            "Eksisterende planer i Roborock-appen beholdes urørt mens styringen prøves parallelt.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1718",
         "date": "13.08.2026",
         "headline": "Pågående robotjobber vises riktig",

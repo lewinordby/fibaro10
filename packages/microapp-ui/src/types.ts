@@ -359,6 +359,19 @@ export type RoborockRobotDetail = {
   latestTelemetry: JsonRecord | null;
   telemetrySamples: JsonRecord[];
   telemetryEvents: JsonRecord[];
+  canControl: boolean;
+  controlHistory: Array<{
+    id: number;
+    request_id: string;
+    action: string;
+    requested_at?: string | null;
+    finished_at?: string | null;
+    requested_by?: string | null;
+    status: string;
+    message?: string | null;
+    before_state?: JsonRecord | null;
+    after_state?: JsonRecord | null;
+  }>;
   telemetryFields: Array<{
     category: string;
     field: string;

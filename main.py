@@ -457,6 +457,8 @@ sunroom_door_alert_last_sent: Dict[str, datetime] = {}
 OWNTRACKS_SERVICE_URL = os.getenv("OWNTRACKS_SERVICE_URL", "http://owntracks_service:8128").rstrip("/")
 UNIFI_PROTECT_EVENTS_URL = os.getenv("UNIFI_PROTECT_EVENTS_URL", "http://unifi_protect_events:8130").rstrip("/")
 UNIFI_PROTECT_READ_API_TOKEN = os.getenv("UNIFI_PROTECT_READ_API_TOKEN", "").strip()
+ROBOROCK_LOGGER_URL = os.getenv("ROBOROCK_LOGGER_URL", "http://roborock_logger:8095").rstrip("/")
+ROBOROCK_CONTROL_TOKEN = os.getenv("ROBOROCK_CONTROL_TOKEN", "").strip()
 UNIFI_PROTECT_API_TIMEOUT_SECONDS = max(1, int(os.getenv("UNIFI_PROTECT_API_TIMEOUT_SECONDS", "10")))
 NIGHTLY_BACKUP_STATUS_PATH = Path(
     os.getenv("NIGHTLY_BACKUP_STATUS_PATH", "/system_backup_status/nightly/LATEST_STATUS.txt")
@@ -1175,6 +1177,23 @@ class RoborockSyncRun(Base):
     robots_count = Column(Integer, nullable=True)
     message = Column(Text, nullable=True)
     raw = Column(JSON, nullable=True)
+
+
+class RoborockCommandRun(Base):
+    __tablename__ = "roborock_command_runs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    request_id = Column(String, unique=True, index=True, nullable=False)
+    robot_duid = Column(String, index=True, nullable=False)
+    action = Column(String, index=True, nullable=False)
+    requested_at = Column(DateTime, default=datetime.utcnow, index=True)
+    finished_at = Column(DateTime, nullable=True, index=True)
+    requested_by = Column(String, nullable=True)
+    status = Column(String, index=True, nullable=False, default="running")
+    message = Column(Text, nullable=True)
+    before_state = Column(JSON, nullable=True)
+    after_state = Column(JSON, nullable=True)
+    result = Column(JSON, nullable=True)
 
 
 class Sun2RoomDailyStat(Base):
@@ -2151,6 +2170,11 @@ class RoborockTelemetryIn(BaseModel):
     ok: bool = True
     robots: list[Dict[str, Any]] = Field(default_factory=list)
     extra: Dict[str, Any] = Field(default_factory=dict)
+
+
+class RoborockControlIn(BaseModel):
+    action: str
+    test_duration_seconds: int = Field(default=5, ge=3, le=12)
 
 
 class Sun2RoomStatIn(BaseModel):
@@ -38722,7 +38746,7 @@ async def cleaning_overview(request: Request):
 
 
 @app.get("/api/renhold/robots/{duid}")
-async def api_cleaning_robot_detail(duid: str):
+async def api_cleaning_robot_detail(request: Request, duid: str):
     async with async_session() as session:
         robot = (await session.execute(select(RoborockRobot).where(RoborockRobot.duid == duid))).scalars().first()
         if not robot:
@@ -38789,6 +38813,14 @@ async def api_cleaning_robot_detail(duid: str):
                 .where(RoborockProbeResult.source == "local-telemetry")
                 .order_by(RoborockProbeResult.timestamp.desc(), RoborockProbeResult.id.desc())
                 .limit(1000)
+            )
+        ).scalars().all()
+        command_runs = (
+            await session.execute(
+                select(RoborockCommandRun)
+                .where(RoborockCommandRun.robot_duid == duid)
+                .order_by(RoborockCommandRun.requested_at.desc(), RoborockCommandRun.id.desc())
+                .limit(30)
             )
         ).scalars().all()
 
@@ -38944,6 +38976,21 @@ async def api_cleaning_robot_detail(duid: str):
         )
     robot_data = row_to_dict(robot, [column for column in ROBOROCK_ROBOT_COLUMNS if column not in {"extra", "capabilities"}])
     robot_data.update({"shared_label": roborock_bool_label(robot.shared), "cloud_label": roborock_bool_label(robot.cloud_online)})
+    command_rows = [
+        {
+            "id": row.id,
+            "request_id": row.request_id,
+            "action": row.action,
+            "requested_at": api_local_iso(row.requested_at),
+            "finished_at": api_local_iso(row.finished_at),
+            "requested_by": row.requested_by,
+            "status": row.status,
+            "message": row.message,
+            "before_state": row.before_state,
+            "after_state": row.after_state,
+        }
+        for row in command_runs
+    ]
     return {
         "robot": robot_data,
         "metadata": metadata,
@@ -38961,6 +39008,110 @@ async def api_cleaning_robot_detail(duid: str):
         "telemetryFields": telemetry_fields,
         "rawStatusFields": raw_status_fields,
         "telemetryProbes": probe_rows,
+        "canControl": bool(ROBOROCK_CONTROL_TOKEN and getattr(request.state, "auth_is_master", False)),
+        "controlHistory": command_rows,
+    }
+
+
+def post_roborock_control(duid: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    control_request = urllib.request.Request(
+        f"{ROBOROCK_LOGGER_URL}/api/control/{quote(duid, safe='')}",
+        data=body,
+        method="POST",
+        headers={
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "x-roborock-control-token": ROBOROCK_CONTROL_TOKEN,
+        },
+    )
+    try:
+        with urllib.request.urlopen(control_request, timeout=40) as response:
+            data = json.loads(response.read().decode("utf-8") or "{}")
+            return data if isinstance(data, dict) else {"result": data}
+    except urllib.error.HTTPError as exc:
+        raw = exc.read().decode("utf-8", errors="replace")
+        try:
+            error_data = json.loads(raw or "{}")
+        except json.JSONDecodeError:
+            error_data = {}
+        detail = error_data.get("detail") if isinstance(error_data, dict) else None
+        raise RuntimeError(str(detail or raw or f"Roborock_logger svarte {exc.code}")) from exc
+
+
+@app.post("/api/renhold/robots/{duid}/control")
+async def api_cleaning_robot_control(request: Request, duid: str, values: RoborockControlIn):
+    forbidden = require_master(request)
+    if forbidden:
+        return forbidden
+    if not ROBOROCK_CONTROL_TOKEN:
+        raise HTTPException(status_code=503, detail="Robotstyring er ikke konfigurert")
+    allowed_actions = {"dry_run", "start", "pause", "resume", "stop", "dock", "test_start_stop"}
+    action = values.action.strip().lower()
+    if action not in allowed_actions:
+        raise HTTPException(status_code=400, detail="Ukjent robotkommando")
+
+    actor = getattr(request.state, "access_key_name", None) or "master"
+    request_id = f"fibaro10-{secrets.token_hex(12)}"
+    async with async_session() as session:
+        robot = (await session.execute(select(RoborockRobot).where(RoborockRobot.duid == duid))).scalars().first()
+        if not robot:
+            raise HTTPException(status_code=404, detail="Ukjent robot")
+        command_run = RoborockCommandRun(
+            request_id=request_id,
+            robot_duid=duid,
+            action=action,
+            requested_at=datetime.utcnow(),
+            requested_by=actor,
+            status="running",
+            message="Kommando sendt til Roborock_logger",
+        )
+        session.add(command_run)
+        await session.commit()
+        command_id = command_run.id
+
+    try:
+        result = await asyncio.to_thread(
+            post_roborock_control,
+            duid,
+            {
+                "action": action,
+                "request_id": request_id,
+                "actor": actor,
+                "confirmation": f"CONFIRM:{duid}:{action}",
+                "test_duration_seconds": values.test_duration_seconds,
+            },
+        )
+        command_status = str(result.get("status") or "ok")
+        message = "Kontrolltest fullført" if action == "test_start_stop" else "Robotkommando utført"
+        before_state = result.get("before")
+        after_state = result.get("after")
+    except Exception as exc:
+        result = {"error": str(exc)}
+        command_status = "error"
+        message = str(exc)
+        before_state = None
+        after_state = None
+
+    async with async_session() as session:
+        command_run = await session.get(RoborockCommandRun, command_id)
+        if command_run:
+            command_run.finished_at = datetime.utcnow()
+            command_run.status = command_status
+            command_run.message = message
+            command_run.before_state = before_state
+            command_run.after_state = after_state
+            command_run.result = result
+            await session.commit()
+
+    if command_status != "ok":
+        raise HTTPException(status_code=502, detail=message)
+    return {
+        "status": command_status,
+        "message": message,
+        "requestId": request_id,
+        "before": before_state,
+        "after": after_state,
     }
 
 
