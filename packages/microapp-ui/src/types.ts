@@ -360,6 +360,22 @@ export type RoborockRobotDetail = {
   telemetrySamples: JsonRecord[];
   telemetryEvents: JsonRecord[];
   canControl: boolean;
+  canManageCleaningZones: boolean;
+  cleaningZoneImport?: {
+    status?: string;
+    checkedAt?: string | null;
+    imported?: number;
+    message?: string | null;
+  } | null;
+  cleaningZones: Array<{
+    zoneNumber: number;
+    name: string;
+    segmentId: string;
+    sourceScheduleId?: string | null;
+    sourceCron?: string | null;
+    importedAt?: string | null;
+    importedBy?: string | null;
+  }>;
   controlHistory: Array<{
     id: number;
     request_id: string;

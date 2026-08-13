@@ -75,6 +75,7 @@ from incident_domain import (
     operational_incident,
     parse_status_text,
 )
+from roborock_zones import RoborockZoneScheduleError, discover_roborock_zone_candidates
 from energy_helpers import (
     circuit_technical_label,
     energy_circuit_is_sunbed,
@@ -1118,6 +1119,33 @@ class RoborockSchedule(Base):
     repeat = Column(Integer, nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow, index=True)
     raw = Column(JSON, nullable=True)
+
+
+class CleaningZone(Base):
+    __tablename__ = "cleaning_zones"
+
+    id = Column(Integer, primary_key=True, index=True)
+    zone_number = Column(Integer, nullable=False, unique=True, index=True)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+
+class RoborockCleaningZoneMapping(Base):
+    __tablename__ = "roborock_cleaning_zone_mappings"
+    __table_args__ = (
+        UniqueConstraint("robot_duid", "zone_id", name="uq_roborock_cleaning_zone_robot_zone"),
+        UniqueConstraint("robot_duid", "segment_id", name="uq_roborock_cleaning_zone_robot_segment"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    robot_duid = Column(String, nullable=False, index=True)
+    zone_id = Column(Integer, ForeignKey("cleaning_zones.id"), nullable=False, index=True)
+    segment_id = Column(String, nullable=False)
+    source_schedule_id = Column(String, nullable=True)
+    source_cron = Column(String, nullable=True)
+    imported_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    imported_by = Column(String, nullable=True)
 
 
 class RoborockConsumableSnapshot(Base):
@@ -4924,6 +4952,86 @@ def json_value(value):
 def roborock_schedule_params(schedule: Dict[str, Any]) -> Dict[str, Any]:
     params = (((schedule.get("param") or {}).get("params")) or [])
     return params[0] if params and isinstance(params[0], dict) else {}
+
+
+async def import_roborock_cleaning_zones(
+    session,
+    robot_duid: str,
+    schedules: Iterable[Any],
+    imported_by: str,
+) -> Dict[str, Any]:
+    candidates = discover_roborock_zone_candidates(schedules)
+    if not candidates:
+        return {"imported": 0, "created": 0, "updated": 0, "zones": []}
+
+    existing_pairs = (
+        await session.execute(
+            select(RoborockCleaningZoneMapping, CleaningZone)
+            .join(CleaningZone, CleaningZone.id == RoborockCleaningZoneMapping.zone_id)
+            .where(RoborockCleaningZoneMapping.robot_duid == robot_duid)
+        )
+    ).all()
+    proposed_segments = {zone.zone_number: mapping.segment_id for mapping, zone in existing_pairs}
+    proposed_segments.update({candidate.zone_number: candidate.segment_id for candidate in candidates})
+    segment_owners: Dict[str, int] = {}
+    for zone_number, segment_id in proposed_segments.items():
+        previous_zone = segment_owners.get(segment_id)
+        if previous_zone is not None and previous_zone != zone_number:
+            raise RoborockZoneScheduleError(
+                f"Segment {segment_id} er allerede koblet til Sone {previous_zone} for denne roboten"
+            )
+        segment_owners[segment_id] = zone_number
+
+    zone_numbers = [candidate.zone_number for candidate in candidates]
+    zones = (
+        await session.execute(select(CleaningZone).where(CleaningZone.zone_number.in_(zone_numbers)))
+    ).scalars().all()
+    zones_by_number = {zone.zone_number: zone for zone in zones}
+    now = datetime.utcnow()
+    created = 0
+    for zone_number in zone_numbers:
+        if zone_number not in zones_by_number:
+            zone = CleaningZone(
+                zone_number=zone_number,
+                name=f"Sone {zone_number}",
+                created_at=now,
+                updated_at=now,
+            )
+            session.add(zone)
+            zones_by_number[zone_number] = zone
+    await session.flush()
+
+    mappings_by_zone_id = {mapping.zone_id: mapping for mapping, _zone in existing_pairs}
+    rows = []
+    for candidate in candidates:
+        zone = zones_by_number[candidate.zone_number]
+        mapping = mappings_by_zone_id.get(zone.id)
+        if not mapping:
+            mapping = RoborockCleaningZoneMapping(robot_duid=robot_duid, zone_id=zone.id)
+            session.add(mapping)
+            created += 1
+        mapping.segment_id = candidate.segment_id
+        mapping.source_schedule_id = candidate.schedule_id
+        mapping.source_cron = candidate.cron
+        mapping.imported_at = now
+        mapping.imported_by = imported_by
+        rows.append(
+            {
+                "zoneNumber": zone.zone_number,
+                "name": zone.name,
+                "segmentId": mapping.segment_id,
+                "sourceScheduleId": mapping.source_schedule_id,
+                "sourceCron": mapping.source_cron,
+                "importedAt": api_local_iso(utc_naive_to_local_naive(mapping.imported_at)),
+                "importedBy": mapping.imported_by,
+            }
+        )
+    return {
+        "imported": len(rows),
+        "created": created,
+        "updated": len(rows) - created,
+        "zones": sorted(rows, key=lambda row: row["zoneNumber"]),
+    }
 
 
 def hash_access_key(value: str) -> str:
@@ -14333,7 +14441,8 @@ async def ingest_roborock_robot(session, robot_data: Dict[str, Any], batch_time:
         existing_job.updated_at = batch_time
         existing_job.raw = job
 
-    for schedule in robot_data.get("schedules") or []:
+    schedule_payloads = robot_data.get("schedules") or []
+    for schedule in schedule_payloads:
         schedule_id = str(schedule.get("id") or schedule.get("schedule_id") or "")
         if not schedule_id:
             continue
@@ -14358,6 +14467,21 @@ async def ingest_roborock_robot(session, robot_data: Dict[str, Any], batch_time:
         existing_schedule.repeat = int_value(params.get("repeat"))
         existing_schedule.updated_at = batch_time
         existing_schedule.raw = schedule
+
+    try:
+        zone_import = await import_roborock_cleaning_zones(session, duid, schedule_payloads, source)
+        zone_import_status = {
+            "status": "ok",
+            "checkedAt": api_local_iso(batch_time),
+            "imported": zone_import["imported"],
+        }
+    except RoborockZoneScheduleError as exc:
+        zone_import_status = {
+            "status": "error",
+            "checkedAt": api_local_iso(batch_time),
+            "message": str(exc),
+        }
+    existing.extra = {**(existing.extra or {}), "cleaning_zone_import": zone_import_status}
 
     map_data = robot_data.get("map") or {}
     if map_data:
@@ -38774,6 +38898,14 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
                 .order_by(RoborockSchedule.cron)
             )
         ).scalars().all()
+        cleaning_zone_pairs = (
+            await session.execute(
+                select(RoborockCleaningZoneMapping, CleaningZone)
+                .join(CleaningZone, CleaningZone.id == RoborockCleaningZoneMapping.zone_id)
+                .where(RoborockCleaningZoneMapping.robot_duid == duid)
+                .order_by(CleaningZone.zone_number)
+            )
+        ).all()
         consumables = (
             await session.execute(
                 select(RoborockConsumableSnapshot)
@@ -38826,6 +38958,11 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
 
     latest_status = statuses[0] if statuses else None
     metadata = ((robot.extra or {}).get("metadata") or {}) if isinstance(robot.extra, dict) else {}
+    cleaning_zone_import = (
+        (robot.extra or {}).get("cleaning_zone_import") or {}
+        if isinstance(robot.extra, dict)
+        else {}
+    )
     latest_raw = latest_status.raw if latest_status and isinstance(latest_status.raw, dict) else {}
     network = latest_raw.get("network") if isinstance(latest_raw.get("network"), dict) else {}
     status_rows = []
@@ -38991,6 +39128,18 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
         }
         for row in command_runs
     ]
+    cleaning_zone_rows = [
+        {
+            "zoneNumber": zone.zone_number,
+            "name": zone.name,
+            "segmentId": mapping.segment_id,
+            "sourceScheduleId": mapping.source_schedule_id,
+            "sourceCron": mapping.source_cron,
+            "importedAt": api_local_iso(utc_naive_to_local_naive(mapping.imported_at)),
+            "importedBy": mapping.imported_by,
+        }
+        for mapping, zone in cleaning_zone_pairs
+    ]
     return {
         "robot": robot_data,
         "metadata": metadata,
@@ -39009,7 +39158,10 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
         "rawStatusFields": raw_status_fields,
         "telemetryProbes": probe_rows,
         "canControl": bool(ROBOROCK_CONTROL_TOKEN and getattr(request.state, "auth_is_master", False)),
+        "canManageCleaningZones": bool(getattr(request.state, "auth_is_master", False)),
         "controlHistory": command_rows,
+        "cleaningZones": cleaning_zone_rows,
+        "cleaningZoneImport": cleaning_zone_import,
     }
 
 
@@ -39037,6 +39189,44 @@ def post_roborock_control(duid: str, payload: Dict[str, Any]) -> Dict[str, Any]:
             error_data = {}
         detail = error_data.get("detail") if isinstance(error_data, dict) else None
         raise RuntimeError(str(detail or raw or f"Roborock_logger svarte {exc.code}")) from exc
+
+
+@app.post("/api/renhold/robots/{duid}/cleaning-zones/import-test-schedules")
+async def api_import_roborock_cleaning_zones(request: Request, duid: str):
+    forbidden = require_master(request)
+    if forbidden:
+        return forbidden
+    actor = getattr(request.state, "access_key_name", None) or "master"
+    async with async_session() as session:
+        robot = (await session.execute(select(RoborockRobot).where(RoborockRobot.duid == duid))).scalars().first()
+        if not robot:
+            raise HTTPException(status_code=404, detail="Ukjent robot")
+        robot_name = robot.name
+        schedules = (
+            await session.execute(
+                select(RoborockSchedule)
+                .where(RoborockSchedule.robot_duid == duid)
+                .order_by(RoborockSchedule.updated_at.desc(), RoborockSchedule.schedule_id)
+            )
+        ).scalars().all()
+        latest_schedule_at = max((row.updated_at for row in schedules if row.updated_at), default=None)
+        current_schedules = [row for row in schedules if row.updated_at == latest_schedule_at] if latest_schedule_at else []
+        try:
+            result = await import_roborock_cleaning_zones(session, duid, current_schedules, actor)
+        except RoborockZoneScheduleError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        if not result["imported"]:
+            raise HTTPException(
+                status_code=404,
+                detail="Fant ingen deaktiverte testplaner mellom 12:01 og 12:59 i siste Roborock-synkronisering",
+            )
+        await session.commit()
+    return {
+        "status": "ok",
+        "message": f"Leste inn {result['imported']} soner for {robot_name}",
+        "scheduleUpdatedAt": api_local_iso(latest_schedule_at),
+        **result,
+    }
 
 
 @app.post("/api/renhold/robots/{duid}/control")

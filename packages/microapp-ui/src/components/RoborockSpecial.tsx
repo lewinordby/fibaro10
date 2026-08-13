@@ -342,6 +342,43 @@ function RobotControls({ duid, data, reload }: { duid: string; data: RoborockRob
   </Panel>;
 }
 
+function CleaningZones({ duid, data, reload }: { duid: string; data: RoborockRobotDetail; reload: () => void }) {
+  const [running, setRunning] = useState(false);
+  const [message, setMessage] = useState("");
+  const zones = data.cleaningZones || [];
+  const automaticImport = data.cleaningZoneImport;
+
+  async function importZones() {
+    if (!window.confirm("Lese deaktiverte testplaner kl. 12:01-12:59 og oppdatere sonene for denne roboten?")) return;
+    setRunning(true);
+    setMessage("");
+    try {
+      const response = await domainApi.mutate<{ message?: string }>(
+        `/api/renhold/robots/${encodeURIComponent(duid)}/cleaning-zones/import-test-schedules`,
+        "POST",
+      );
+      setMessage(response.message || "Sonene er lest inn.");
+      reload();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return <Panel title="Soner" subtitle="Fysiske områder · samme sonenummer kan brukes av flere roboter">
+    <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
+      <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+        <p className="max-w-3xl text-sm text-gray-500 dark:text-gray-400"><strong className="font-semibold text-gray-700 dark:text-gray-200">12:01 = Sone 1</strong>, 12:02 = Sone 2 osv. Bare deaktiverte planer med nøyaktig ett segment leses automatisk ved Roborock-synkronisering.</p>
+        {data.canManageCleaningZones ? <button className="btn shrink-0 border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" disabled={running} onClick={importZones}><MosaicIcon name="refresh" />{running ? "Leser ..." : "Les testplaner"}</button> : null}
+      </div>
+      {automaticImport?.status === "error" ? <div className="mx-5 my-3 rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">Automatisk innlesing ble avvist: {automaticImport.message || "Kontroller testplanene"}</div> : null}
+      {message ? <div className={`mx-5 my-3 rounded-md px-3 py-2 text-sm ${message.toLowerCase().includes("fant ingen") || message.toLowerCase().includes("må ") || message.toLowerCase().includes("allerede") ? "bg-red-500/10 text-red-600 dark:text-red-400" : "bg-green-500/10 text-green-700 dark:text-green-400"}`}>{message}</div> : null}
+      {zones.length ? <div className="overflow-x-auto"><table className="w-full"><thead className="bg-gray-50 text-xs uppercase text-gray-400 dark:bg-gray-700/40"><tr><th className="px-5 py-3 text-left font-semibold">Sone</th><th className="px-5 py-3 text-left font-semibold">Robotsegment</th><th className="px-5 py-3 text-left font-semibold">Testplan</th><th className="px-5 py-3 text-right font-semibold">Lest inn</th></tr></thead><tbody className="divide-y divide-gray-100 text-sm dark:divide-gray-700/60">{zones.map((zone) => <tr key={zone.zoneNumber}><td className="px-5 py-3 font-semibold text-gray-700 dark:text-gray-200">{zone.name}</td><td className="px-5 py-3 font-mono tabular-nums text-gray-600 dark:text-gray-300">{zone.segmentId}</td><td className="px-5 py-3 text-gray-500 dark:text-gray-400">12:{String(zone.zoneNumber).padStart(2, "0")} <span className="text-gray-300 dark:text-gray-600">·</span> {zone.sourceScheduleId || "-"}</td><td className="whitespace-nowrap px-5 py-3 text-right text-gray-400">{stamp(zone.importedAt)}</td></tr>)}</tbody></table></div> : <p className="px-5 py-6 text-sm text-gray-400">Ingen soner er registrert for denne roboten ennå.</p>}
+    </div>
+  </Panel>;
+}
+
 function ScheduleRows({ schedules }: { schedules: JsonRecord[] }) {
   return <div className="divide-y divide-gray-100 px-5 dark:divide-gray-700/60">{schedules.map((row, index) => <div className={`grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${row.enabled === false ? "opacity-50" : ""}`} key={String(row.schedule_id || index)}><div className="min-w-0"><strong className="block truncate text-sm font-medium text-gray-700 dark:text-gray-200">{String(row.schedule_label || row.cron || "Ukjent plan")}</strong><small className="mt-0.5 block truncate text-gray-400">{[row.rounds_label, row.fan_label, row.mop_label, row.water_label].filter(Boolean).join(" · ")}</small></div><span className={`text-xs font-semibold ${row.enabled === false ? "text-gray-400" : "text-green-700 dark:text-green-400"}`}>{row.enabled === false ? "Av" : "Aktiv"}</span></div>)}{!schedules.length ? <div className="py-6 text-sm text-gray-400">Ingen planer er mottatt.</div> : null}</div>;
 }
@@ -390,6 +427,7 @@ function RobotDetail({ duid, summary }: { duid: string; summary?: RoborockRobotS
       </div>
     </section>
     <RobotControls duid={duid} data={data} reload={result.reload} />
+    <CleaningZones duid={duid} data={data} reload={result.reload} />
     <div className="grid gap-5 xl:grid-cols-2">
       <Panel title="Rengjøring" subtitle="Samlet aktivitet i dag og i går"><DetailDayRows summary={summary} /></Panel>
       <Panel title="Driftsklar" subtitle={readiness?.telemetry_at ? `Kontrollert ${stamp(readiness.telemetry_at)}` : "Siste telemetri"}><ReadinessGrid readiness={readiness} /></Panel>

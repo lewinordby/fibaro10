@@ -12,6 +12,37 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1721",
+        "date": "13.08.2026",
+        "headline": "Felles soneregister for robotvaskerne",
+        "title": "Deaktiverte testplaner kobler fysiske soner til robotenes egne kartsegmenter",
+        "description": (
+            "Renhold har fått et globalt soneregister der Sone 1 betyr det samme fysiske området på tvers av "
+            "robotene, samtidig som hver robot beholder sin egen segment-ID. Deaktiverte Roborock-planer mellom "
+            "kl. 12:01 og 12:59 leses automatisk, der minuttet bestemmer sonenummeret. Innlesingen avvises dersom "
+            "en testplan inneholder flere segmenter eller gir motstridende koblinger."
+        ),
+        "applications": [
+            "Fibaro10 API: globalt soneregister, robotspecifikke segmentkoblinger og sikker innlesingsrutine.",
+            "Bygg og drift: soneoversikt og manuell kontrollknapp på detaljsiden for hver robot.",
+            "Roborock_logger: eksisterende plansynkronisering brukes som kilde uten å starte testplanene.",
+        ],
+        "request": (
+            "Lag en rutine der en deaktivert plan kl. 12:01 leses som Sone 1, 12:02 som Sone 2 osv. "
+            "Flere roboter skal kunne dekke samme fysiske sone med forskjellige lokale segmentnumre."
+        ),
+        "work_duration": "ca. 50 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Oppretter globale soner med korte navn som Sone 1, Sone 2 og Sone 3.",
+            "Knytter hver sone til én lokal segment-ID per robot, men tillater samme sone på flere roboter.",
+            "Leser bare deaktiverte planer kl. 12:01-12:59 med nøyaktig ett segment.",
+            "Avviser duplikate soner og segmenter før databasen endres.",
+            "Beholder koblingen permanent selv om testplanen senere fjernes fra Roborock-appen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1720",
         "date": "13.08.2026",
         "headline": "Riktig lokal tid i robotstyringsloggen",
