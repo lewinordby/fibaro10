@@ -1,6 +1,6 @@
 # HC3 dorer
 
-Oppdatert 19.07.2026.
+Oppdatert 10.08.2026.
 
 Fibaro10 logger magnetfolere fra HC3 i tabellen `door_events`.
 
@@ -48,13 +48,13 @@ POST /api/hc3/doors/poll-sync
 
 ## Monterte dorer
 
-Disse ligger i Fibaro10 med fast kobling mot HC3 device-id. Solrom 2 og Solrom 3 er fortsatt klargjort uten HC3-id fordi HC3 ikke har monterte `doorSensor`-enheter med disse navnene ved siste kontroll.
+Disse ligger i Fibaro10 med fast kobling mot HC3 device-id. Solrom 2 er fortsatt klargjort uten HC3-id fordi HC3 ikke har en montert `doorSensor`-enhet for rommet ved siste kontroll.
 
 | HC3 device | Nkkel | Navn | Gruppe | Avdeling |
 | --- | --- | --- | --- | --- |
 | 459 | `door_solrom_01` | Solrom 1 | Solrom | 1.etg |
 | - | `door_solrom_02` | Solrom 2 | Solrom | 1.etg |
-| - | `door_solrom_03` | Solrom 3 | Solrom | 1.etg |
+| 543 (node 148) | `door_solrom_03` | Solrom 3 | Solrom | 1.etg |
 | 465 | `door_solrom_04` | Solrom 4 | Solrom | 2.etg |
 | 463 | `door_solrom_05` | Solrom 5 | Solrom | 2.etg |
 | 469 | `door_solrom_06` | Solrom 6 | Solrom | 2.etg |

@@ -67,6 +67,7 @@ def test_hc3_door_lua_contains_expected_devices_and_endpoint():
 
     expected_device_ids = (
         "459",
+        "543",
         "465",
         "463",
         "469",
@@ -101,6 +102,7 @@ def test_hc3_single_door_scene_script_contains_configured_devices():
 
     for device_id in (
         "459",
+        "543",
         "465",
         "463",
         "469",
@@ -125,7 +127,7 @@ def test_hc3_single_door_scene_script_contains_configured_devices():
         assert f'"device_id": {device_id}' in script
 
     assert "door_solrom_02" not in script
-    assert "door_solrom_03" not in script
+    assert '"device_key": "door_solrom_03"' in script
     assert "OBSOLETE_DOOR_DEVICE_IDS = {491, 499}" in script
     assert "disable_obsolete_door_scenes" in script
     assert "HC3_DOOR_UPSERT_DEVICE_IDS" in script
@@ -138,6 +140,12 @@ class SunroomDoorTimingTests(unittest.TestCase):
         import main
 
         cls.main = main
+
+    def test_solroom_3_uses_latest_hc3_door_sensor(self):
+        config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_solrom_03")
+
+        self.assertEqual(config["device_id"], 543)
+        self.assertEqual(config["hc3_name"], "148.0 Door Sensor")
 
     def test_expected_exit_uses_payment_delay_sun_time_and_exit_grace(self):
         row = self.main.Sun2TanningSession(

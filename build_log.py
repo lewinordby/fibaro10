@@ -12,6 +12,39 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1732",
+        "date": "13.08.2026",
+        "headline": "Komplett og ryddigere døroversikt",
+        "title": "Solrom 3 er koblet inn, og dørsidene viser riktig status og historikk",
+        "description": (
+            "Dørløsningen er gjennomgått på tvers av HC3, Fibaro10, PC-grensesnittet og mobilappen. "
+            "Solrom 3 er koblet til sensor 543, ukjent status kan ikke lenger vises som et rom i bruk, "
+            "og hovedsidene er strammet opp rundt nåstatus, romkontroll, alarmer og råhendelser."
+        ),
+        "applications": [
+            "Fibaro10 API og HC3-scener: Solrom 3 koblet til sensor 543.",
+            "Bygg og drift: ny døroversikt, ryddigere solromskort, alarmhistorikk og rådata.",
+            "Mobilgrensesnitt: samme sensor- og romkobling som PC-grensesnittet.",
+            "Felles mikroappmeny: dupliserte dørvalg fjernet fra hovednavigasjonen.",
+        ],
+        "request": (
+            "Ta en gjennomgang av dører. Rom 3 er ikke med i PC-appen, men på mobil. "
+            "Se over og rydd opp i alt, og gjør det ryddig, nyttig og fint."
+        ),
+        "work_duration": "ca. 75 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Kobler Solrom 3 til HC3 device 543 i kjernen, mobilen, sceneskriptet og dokumentasjonen.",
+            "Viser ukjente og ikke konfigurerte sensorer nøytralt i stedet for som opptatte solrom.",
+            "Legger de to siste statusendringene direkte på hvert dørkort.",
+            "Gjør nåstatus for solrom og andre dører kompakt og sammenlignbar.",
+            "Samler aktive alarmer, kontrollpunkter og alarmhistorikk på én side.",
+            "Gir Rådata en komplett tabell med HC3-meldinger, kilde, batteri og lokal tid.",
+            "Fjerner duplikatene Dør og soltime og Avvik fra primærmenyen uten å fjerne datagrunnlaget.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1731",
         "date": "13.08.2026",
         "headline": "Robotkort uten unødvendig tomrom",

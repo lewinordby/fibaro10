@@ -164,6 +164,13 @@ class OnlineDashboardDoorTests(unittest.TestCase):
         self.assertEqual(online_main.solroom_room_id_from_config(config), "rom-13")
         self.assertEqual(config["sun2_bed_id"], "681")
 
+    def test_mobile_room_3_uses_latest_hc3_door_sensor(self) -> None:
+        config = online_main.SOLROOM_DOOR_BY_KEY["door_solrom_03"]
+
+        self.assertEqual(config["device_id"], 543)
+        self.assertEqual(online_main.solroom_room_id_from_config(config), "rom-03")
+        self.assertEqual(config["sun2_bed_id"], "642")
+
     def test_mobile_other_doors_contains_waste_room_sensor(self) -> None:
         config = online_main.OTHER_DOOR_BY_KEY["door_soppelbod"]
 

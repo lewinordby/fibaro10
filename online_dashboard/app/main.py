@@ -81,7 +81,7 @@ HC3_DOOR_DEBOUNCE_SECONDS = max(0.0, float(os.getenv("HC3_DOOR_DEBOUNCE_SECONDS"
 SOLROOM_DOOR_CONFIG = [
     {"device_id": 459, "device_key": "door_solrom_01", "title": "Solrom 1", "section_title": "1.etg", "group_key": "solrom", "sort_order": 1, "room_id": "rom-01", "sun2_bed_id": "640"},
     {"device_id": None, "device_key": "door_solrom_02", "title": "Solrom 2", "section_title": "1.etg", "group_key": "solrom", "sort_order": 2, "room_id": "rom-02", "sun2_bed_id": "641"},
-    {"device_id": None, "device_key": "door_solrom_03", "title": "Solrom 3", "section_title": "1.etg", "group_key": "solrom", "sort_order": 3, "room_id": "rom-03", "sun2_bed_id": "642"},
+    {"device_id": 543, "device_key": "door_solrom_03", "title": "Solrom 3", "section_title": "1.etg", "group_key": "solrom", "sort_order": 3, "room_id": "rom-03", "sun2_bed_id": "642"},
     {"device_id": 465, "device_key": "door_solrom_04", "title": "Solrom 4", "section_title": "2.etg", "group_key": "solrom", "sort_order": 4, "room_id": "rom-04", "sun2_bed_id": "643"},
     {"device_id": 463, "device_key": "door_solrom_05", "title": "Solrom 5", "section_title": "2.etg", "group_key": "solrom", "sort_order": 5, "room_id": "rom-05", "sun2_bed_id": "644"},
     {"device_id": 469, "device_key": "door_solrom_06", "title": "Solrom 6", "section_title": "2.etg", "group_key": "solrom", "sort_order": 6, "room_id": "rom-06", "sun2_bed_id": "645"},

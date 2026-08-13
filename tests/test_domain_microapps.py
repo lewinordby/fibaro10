@@ -196,7 +196,7 @@ def test_system_menu_structure_page_is_available_without_core_data() -> None:
         payload = response.json()
         assert payload["title"] == "Menystruktur"
         assert len(payload["tables"]) == len(APP_MENU_STRUCTURE) + 2
-        assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 112
+        assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 110
 
 
 def test_parity_critical_specialized_views_are_kept_in_microapps() -> None:
@@ -221,7 +221,9 @@ def test_parity_critical_specialized_views_are_kept_in_microapps() -> None:
     assert {"/", "/oversikt", "/periode", "/arsutvikling"} <= routes["parking"]
     assert {"/", "/oversikt", "/periode", "/sammenligning"} <= routes["sun"]
     assert "/detaljer" in routes["sun"]
-    assert {"/dorer/andre", "/dorer/soltimer", "/dorer/alarm", "/dorer/avvik"} <= routes["operations"]
+    assert {"/dorer/andre", "/dorer/romkontroll", "/dorer/alarm", "/dorer/radata"} <= routes["operations"]
+    assert "/dorer/soltimer" not in routes["operations"]
+    assert "/dorer/avvik" not in routes["operations"]
     assert {
         "/dorer/oversikt-kompakt",
         "/dorer/romkontroll-original",

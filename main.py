@@ -2703,6 +2703,7 @@ DOOR_EVENT_COLUMNS = [
 
 SOLROOM_DOOR_HC3 = {
     1: {"device_id": 459, "hc3_name": "98.0 Rom 1"},
+    3: {"device_id": 543, "hc3_name": "148.0 Door Sensor"},
     4: {"device_id": 465, "hc3_name": "101.0 Rom 4"},
     5: {"device_id": 463, "hc3_name": "100.0 Rom 5"},
     6: {"device_id": 469, "hc3_name": "104.0 Rom 6"},

@@ -29,6 +29,7 @@ UPSERT_DEVICE_IDS = {
 
 DOORS = [
     {"device_id": 459, "device_key": "door_solrom_01", "name": "98.0 Rom 1", "title": "Solrom 1"},
+    {"device_id": 543, "device_key": "door_solrom_03", "name": "148.0 Door Sensor", "title": "Solrom 3"},
     {"device_id": 465, "device_key": "door_solrom_04", "name": "101.0 Rom 4", "title": "Solrom 4"},
     {"device_id": 463, "device_key": "door_solrom_05", "name": "100.0 Rom 5", "title": "Solrom 5"},
     {"device_id": 469, "device_key": "door_solrom_06", "name": "104.0 Rom 6", "title": "Solrom 6"},

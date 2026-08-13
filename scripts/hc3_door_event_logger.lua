@@ -1,6 +1,7 @@
 --[[
 %% properties
 459 value
+543 value
 465 value
 463 value
 469 value
@@ -39,6 +40,7 @@ local RETRY_BASE_DELAY_MS = 5000
 
 local DEVICES = {
   [459] = { key = "door_solrom_01", name = "98.0 Rom 1" },
+  [543] = { key = "door_solrom_03", name = "148.0 Door Sensor" },
   [465] = { key = "door_solrom_04", name = "101.0 Rom 4" },
   [463] = { key = "door_solrom_05", name = "100.0 Rom 5" },
   [469] = { key = "door_solrom_06", name = "104.0 Rom 6" },

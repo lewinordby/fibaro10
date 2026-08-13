@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { AppLink, ErrorState, Loading, MetricCard, Panel, useApi, useAppSearchParams } from "@lilletorget/microapp-ui";
 import { domainApi } from "@lilletorget/microapp-ui/api";
 
@@ -8,6 +8,7 @@ type DoorStatus = {
   summary: RecordValue;
   doors: RecordValue[];
   changes: RecordValue[];
+  events: RecordValue[];
   periods: RecordValue[];
 };
 type Sunrooms = {
@@ -26,6 +27,12 @@ type RoomOverview = {
   summary: RecordValue;
   rules: RecordValue;
   rooms: RecordValue[];
+};
+type DoorAlarms = Sunrooms & {
+  alarms: RecordValue[];
+  watch: RecordValue[];
+  occupiedWithoutSession: RecordValue[];
+  history: RecordValue[];
 };
 
 function localDay() {
@@ -48,8 +55,20 @@ function stamp(value?: string | null) {
       })
     : "-";
 }
+function timeStamp(value?: string | null) {
+  return value
+    ? new Date(value).toLocaleTimeString("nb-NO", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        timeZone: "Europe/Oslo",
+      })
+    : "-";
+}
 function tone(value?: string) {
-  return ["alert", "alarm"].includes(String(value))
+  return String(value) === "unknown"
+    ? "gray"
+    : ["alert", "alarm"].includes(String(value))
     ? "red"
     : ["warning", "waiting"].includes(String(value))
       ? "yellow"
@@ -76,13 +95,36 @@ function badge(value: string, color: string) {
 
 export function DoorsSpecial({ view }: { view: string }) {
   if (["solrom", "solrom-ny", "solrom2-oversikt"].includes(view)) return <SunroomStatus compact={view === "solrom-ny"} />;
+  if (["alarm", "avvik"].includes(view)) return <DoorAlerts />;
+  if (view === "radata") return <DoorRawData />;
   if (["romkontroll-ny2", "soltimer", "romkontroll"].includes(view)) return <RoomControl />;
   if (["romkontroll-ny", "solrom-dagskontroll", "solrom2-dagskontroll"].includes(view)) return <RoomControl matrix />;
   if (view === "solrom2-avvik") return <RoomControl exceptions />;
-  return <DoorOverview initialFilter={["andre", "dorer2-bygg"].includes(view) ? "andre" : "all"} />;
+  return <DoorOverview initialFilter={["andre", "dorer2-bygg"].includes(view) ? "andre" : ["oversikt-ny", "solrom-ny"].includes(view) ? "solrom" : "all"} />;
 }
 
-function DoorOverview({ initialFilter }: { initialFilter: "all" | "andre" }) {
+function SummaryStrip({ items }: { items: { label: string; value: string | number; detail?: string; color?: string }[] }) {
+  const colorClasses: Record<string, string> = {
+    green: "border-l-green-500",
+    red: "border-l-red-500",
+    yellow: "border-l-yellow-500",
+    sky: "border-l-sky-500",
+    gray: "border-l-gray-400",
+  };
+  return (
+    <div className="grid overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm sm:grid-cols-2 xl:grid-cols-4 dark:border-gray-700 dark:bg-gray-800">
+      {items.map((item) => (
+        <div className={`border-b border-l-4 border-gray-100 px-4 py-3 last:border-b-0 sm:border-b-0 sm:border-r dark:border-gray-700 ${colorClasses[item.color || "gray"]}`} key={item.label}>
+          <span className="block text-xs font-semibold text-gray-500 dark:text-gray-400">{item.label}</span>
+          <strong className="mt-0.5 block text-xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{item.value}</strong>
+          {item.detail ? <span className="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">{item.detail}</span> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DoorOverview({ initialFilter }: { initialFilter: "all" | "solrom" | "andre" }) {
   const result = useApi(
     () =>
       domainApi.get<DoorStatus>(
@@ -90,7 +132,6 @@ function DoorOverview({ initialFilter }: { initialFilter: "all" | "andre" }) {
       ),
     "door-status-special",
   );
-  const [filter, setFilter] = useState<"all" | "solrom" | "andre">(initialFilter);
   if (result.loading) return <Loading />;
   if (result.error || !result.data)
     return <ErrorState error={result.error} onRetry={result.reload} />;
@@ -106,27 +147,25 @@ function DoorOverview({ initialFilter }: { initialFilter: "all" | "andre" }) {
       title: "Andre dører",
       rows: data.doors.filter((row) => row.groupKey !== "solrom"),
     },
-  ].filter((group) => filter === "all" || filter === group.key);
+  ].filter((group) => initialFilter === "all" || initialFilter === group.key);
+  const solrooms = data.doors.filter((door) => door.groupKey === "solrom");
+  const otherDoors = data.doors.filter((door) => door.groupKey !== "solrom");
+  const friendlyName = new Map(
+    data.doors.map((door) => [String(door.deviceKey || door.deviceId), door.title]),
+  );
+  const unknown = data.doors.filter((door) => door.state === "unknown").length;
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-2">
-          {([
-            { key: "all", label: "Alle" },
-            { key: "solrom", label: "Solrom" },
-            { key: "andre", label: "Andre dører" },
-          ] as const).map((item) => (
-            <button
-              className={`btn ${filter === item.key ? "bg-violet-500 text-white" : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"}`}
-              onClick={() => setFilter(item.key)}
-              key={item.key}
-            >
-              {item.label}
-            </button>
-          ))}
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            Dørstatus nå
+          </h2>
+          <p className="text-xs text-gray-500">
+            Oppdatert {stamp(data.generatedAt)}
+          </p>
         </div>
-        <div className="flex items-center gap-3 text-xs text-gray-500">
-          <span>Oppdatert {stamp(data.generatedAt)}</span>
+        <div className="flex items-center gap-3">
           <button
             className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
             onClick={result.reload}
@@ -135,6 +174,36 @@ function DoorOverview({ initialFilter }: { initialFilter: "all" | "andre" }) {
           </button>
         </div>
       </div>
+      {initialFilter === "all" ? (
+        <SummaryStrip
+          items={[
+            {
+              label: "Solrom ledige",
+              value: solrooms.filter((door) => door.state === "open").length,
+              detail: `av ${solrooms.length} rom`,
+              color: "green",
+            },
+            {
+              label: "Solrom i bruk",
+              value: solrooms.filter((door) => door.state === "closed").length,
+              detail: "lukket dør",
+              color: "red",
+            },
+            {
+              label: "Andre dører åpne",
+              value: otherDoors.filter((door) => door.state === "open").length,
+              detail: `av ${otherDoors.length} dører`,
+              color: "yellow",
+            },
+            {
+              label: "Ukjent status",
+              value: unknown,
+              detail: unknown ? "krever kontroll" : "alle sensorer svarer",
+              color: unknown ? "yellow" : "green",
+            },
+          ]}
+        />
+      ) : null}
       {groups.map((group) => (
         <section className="space-y-3" key={group.key}>
           <div className="flex items-end justify-between">
@@ -150,6 +219,13 @@ function DoorOverview({ initialFilter }: { initialFilter: "all" | "andre" }) {
               <DoorCard
                 door={door}
                 sunroom={group.key === "solrom"}
+                changes={data.changes
+                  .filter(
+                    (event) =>
+                      String(event.deviceKey || event.deviceId) ===
+                      String(door.deviceKey || door.deviceId),
+                  )
+                  .slice(0, 2)}
                 key={door.deviceKey}
               />
             ))}
@@ -166,7 +242,10 @@ function DoorOverview({ initialFilter }: { initialFilter: "all" | "andre" }) {
               <strong className="tabular-nums">
                 {event.timeLabel || stamp(event.timestamp)}
               </strong>
-              <span>{event.deviceName}</span>
+              <span>
+                {friendlyName.get(String(event.deviceKey || event.deviceId)) ||
+                  event.deviceName}
+              </span>
               {badge(
                 event.stateLabel || event.action || "Endret",
                 event.tone === "warn" ? "yellow" : "green",
@@ -179,18 +258,38 @@ function DoorOverview({ initialFilter }: { initialFilter: "all" | "andre" }) {
   );
 }
 
-function DoorCard({ door, sunroom }: { door: RecordValue; sunroom: boolean }) {
+function DoorCard({ door, sunroom, changes }: { door: RecordValue; sunroom: boolean; changes: RecordValue[] }) {
   const [open, setOpen] = useState(false);
+  const known = door.state !== "unknown";
   const isOpen = door.state === "open";
-  const good = sunroom ? isOpen : !isOpen;
-  const primary = sunroom ? (isOpen ? "Ledig" : "I bruk") : door.stateLabel;
+  const good = known && (sunroom ? isOpen : !isOpen);
+  const primary = !known
+    ? door.isConfigured
+      ? "Ukjent"
+      : "Ikke koblet"
+    : sunroom
+      ? isOpen
+        ? "Ledig"
+        : "I bruk"
+      : door.stateLabel;
+  const color = !known
+    ? "border-gray-300 dark:border-gray-700"
+    : good
+      ? "border-green-300 dark:border-green-900"
+      : "border-red-300 dark:border-red-900";
+  const statusColor = !known
+    ? "text-gray-500 dark:text-gray-400"
+    : good
+      ? "text-green-700 dark:text-green-400"
+      : "text-red-700 dark:text-red-400";
   return (
     <article
-      className={`overflow-hidden rounded-xl border bg-white shadow-sm dark:bg-gray-800 ${good ? "border-green-200 dark:border-green-900" : "border-red-200 dark:border-red-900"}`}
+      className={`overflow-hidden rounded-xl border bg-white shadow-sm dark:bg-gray-800 ${color}`}
     >
       <button
-        className="w-full p-4 text-left"
+        className="w-full p-4 text-left transition hover:bg-gray-50 dark:hover:bg-gray-700/40"
         onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
       >
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -201,26 +300,13 @@ function DoorCard({ door, sunroom }: { door: RecordValue; sunroom: boolean }) {
               {door.title}
             </h3>
           </div>
-          <span
-            className={`flex h-9 w-9 items-center justify-center rounded-lg text-lg ${good ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600"}`}
-            aria-hidden="true"
-          >
-            {isOpen ? "↗" : "▮"}
-          </span>
+          {badge(primary, !known ? "gray" : good ? "green" : "red")}
         </div>
-        <div className="mt-4 flex items-end justify-between gap-3">
+        <div className="mt-3 flex items-end justify-between gap-3">
           <div>
-            <strong
-              className={
-                good
-                  ? "text-green-600 dark:text-green-400"
-                  : "text-red-600 dark:text-red-400"
-              }
-            >
-              {primary}
-            </strong>
+            <strong className={statusColor}>{known ? door.stateLabel : primary}</strong>
             <p className="mt-1 text-xs text-gray-500">
-              Siden {door.ageLabel || "ukjent"}
+              {known ? `Siden ${door.ageLabel || "ukjent"}` : "Ingen sikker status"}
             </p>
           </div>
           <span className="text-xs text-gray-400">
@@ -240,6 +326,25 @@ function DoorCard({ door, sunroom }: { door: RecordValue; sunroom: boolean }) {
               {door.normalStateLabel || "-"}
             </strong>
           </div>
+          {changes.length ? (
+            <div className="mt-3 border-t border-gray-200 pt-3 dark:border-gray-700">
+              <span className="font-semibold text-gray-700 dark:text-gray-300">Siste endringer</span>
+              {changes.map((event) => (
+                <div className="mt-2 flex items-center justify-between gap-3" key={event.id}>
+                  <span>{event.stateLabel || event.action}</span>
+                  <strong className="tabular-nums text-gray-700 dark:text-gray-300">{timeStamp(event.timestamp)}</strong>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {sunroom && door.sortOrder ? (
+            <AppLink
+              className="btn mt-3 w-full justify-center border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
+              to={`/dorer/romkontroll?room=${encodeURIComponent(String(door.sortOrder))}&day=${encodeURIComponent(localDay())}`}
+            >
+              Vis dagens hendelser
+            </AppLink>
+          ) : null}
         </div>
       ) : null}
     </article>
@@ -255,52 +360,22 @@ function SunroomStatus({ compact = false }: { compact?: boolean }) {
   if (result.error || !result.data)
     return <ErrorState error={result.error} onRetry={result.reload} />;
   const data = result.data;
+  const free = data.rooms.filter((room) => room.severity === "free").length;
+  const unknown = data.rooms.filter((room) => room.severity === "unknown").length;
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
-        <MetricCard
-          label="Rom"
-          value={data.summary.rooms || 0}
-          unit="stk"
-          detail="Med dørsensor"
-          tone="violet"
-        />
-        <MetricCard
-          label="Aktive"
-          value={data.summary.active || 0}
-          unit="stk"
-          detail="Soltime pågår"
-          tone="sky"
-        />
-        <MetricCard
-          label="Venter"
-          value={data.summary.waiting || 0}
-          unit="stk"
-          detail="Avventer soltime"
-          tone="yellow"
-        />
-        <MetricCard
-          label="Varsel"
-          value={(data.summary.warning || 0) + (data.summary.alert || 0)}
-          unit="stk"
-          detail="Krever kontroll"
-          tone="red"
-        />
-        <MetricCard
-          label="Uten soltime"
-          value={data.summary.missingSession || 0}
-          unit="stk"
-          detail={`${data.rules.noSessionAlarmMinutes || 8} min alarmgrense`}
-          tone="yellow"
-        />
-      </div>
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Solrom nå</h2>
+          <p className="text-xs text-gray-500">Oppdatert {stamp(data.generatedAt)}</p>
+        </div>
+        <div className="flex gap-2">
         {data.ntfyDoorsSubscribeUrl ? (
           <a
-            className="btn bg-violet-500 text-white"
+            className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
             href={data.ntfyDoorsSubscribeUrl}
           >
-            Abonner på dørvarsler
+            Varsler
           </a>
         ) : null}
         <button
@@ -309,7 +384,14 @@ function SunroomStatus({ compact = false }: { compact?: boolean }) {
         >
           Oppdater
         </button>
+        </div>
       </div>
+      <SummaryStrip items={[
+        { label: "Ledige", value: free, detail: `av ${data.summary.rooms || data.rooms.length} rom`, color: "green" },
+        { label: "I bruk", value: data.rooms.filter((room) => room.isOccupied).length, detail: `${data.summary.active || 0} med aktiv soltime`, color: "sky" },
+        { label: "Avventer", value: data.summary.waiting || 0, detail: "venter på Sun2-data", color: "yellow" },
+        { label: "Krever kontroll", value: Number(data.summary.warning || 0) + Number(data.summary.alert || 0) + unknown, detail: unknown ? `${unknown} uten sikker status` : `${data.summary.missingSession || 0} uten soltime`, color: Number(data.summary.alert || 0) ? "red" : "yellow" },
+      ]} />
       <div className={`grid gap-4 ${compact ? "sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-6" : "md:grid-cols-2 xl:grid-cols-3"}`}>
         {data.rooms.map((room) => (
           <SunroomCard room={room} compact={compact} key={room.deviceKey} />
@@ -322,6 +404,8 @@ function SunroomStatus({ compact = false }: { compact?: boolean }) {
 function SunroomCard({ room, compact = false }: { room: RecordValue; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const session = room.session || {};
+  const occupied = Boolean(room.isOccupied);
+  const unknown = room.severity === "unknown";
   const roomNumber = String(
     room.displayRoomNumber || room.roomNumber || room.roomLabel || "",
   ).replace(/\D/g, "");
@@ -330,40 +414,43 @@ function SunroomCard({ room, compact = false }: { room: RecordValue; compact?: b
       className={`overflow-hidden rounded-xl border bg-white shadow-sm dark:bg-gray-800 ${room.severity === "alert" ? "border-red-400" : room.severity === "warning" || room.missingSession ? "border-yellow-400" : "border-gray-200 dark:border-gray-700"}`}
     >
       <button
-        className="w-full p-5 text-left"
+        className="w-full p-4 text-left transition hover:bg-gray-50 dark:hover:bg-gray-700/40"
         onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
       >
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase text-gray-400">
               {room.sectionTitle}
             </p>
-            <h3 className="mt-1 text-xl font-bold text-gray-800 dark:text-gray-100">
+            <h3 className="mt-1 text-lg font-bold text-gray-800 dark:text-gray-100">
               {room.title}
             </h3>
           </div>
           {badge(room.status || room.doorStateLabel, tone(room.severity))}
         </div>
-        <div className={`mt-5 grid gap-3 text-sm ${compact ? "grid-cols-2" : "grid-cols-3"}`}>
+        <div className={`mt-4 grid gap-3 text-sm ${compact ? "grid-cols-2" : "grid-cols-3"}`}>
           <div className={compact ? "col-span-2" : ""}>
             <small className="block text-gray-400">Dør</small>
             <strong>{room.doorStateLabel}</strong>
             <p className="text-xs text-gray-400">{room.doorAgeLabel}</p>
           </div>
           <div>
-            <small className="block text-gray-400">Soltime</small>
+            <small className="block text-gray-400">{occupied ? "Soltime" : "Siste soltime"}</small>
             <strong>{session.startedLabel || "-"}</strong>
             <p className="text-xs text-gray-400">
               {session.durationMinutes
                 ? `${session.durationMinutes} min`
-                : "Ingen aktiv"}
+                : occupied
+                  ? "Ingen funnet"
+                  : "Ingen registrert"}
             </p>
           </div>
           <div>
-            <small className="block text-gray-400">Forventet ut</small>
-            <strong>{room.expectedExitLabel || "-"}</strong>
+            <small className="block text-gray-400">{occupied ? "Forventet ut" : "Sist avsluttet"}</small>
+            <strong>{occupied ? room.expectedExitLabel || "-" : session.endedLabel || "-"}</strong>
             <p className="text-xs text-gray-400">
-              {room.remainingLabel || room.overstayLabel || ""}
+              {occupied ? room.remainingLabel || room.overstayLabel || "" : unknown ? "Sensorstatus mangler" : ""}
             </p>
           </div>
         </div>
@@ -397,6 +484,177 @@ function SunroomCard({ room, compact = false }: { room: RecordValue; compact?: b
         </div>
       ) : null}
     </article>
+  );
+}
+
+function DoorAlerts() {
+  const [params, setParams] = useAppSearchParams();
+  const day = params.get("day") || localDay();
+  const result = useApi(
+    () =>
+      domainApi.get<DoorAlarms>(
+        `/api/hc3/doors/alarm?history_limit=250&day=${encodeURIComponent(day)}`,
+      ),
+    `door-alarms-${day}`,
+  );
+  const setDay = (nextDay: string) => {
+    const next = new URLSearchParams(params);
+    next.set("day", nextDay);
+    setParams(next);
+  };
+  if (result.loading) return <Loading />;
+  if (result.error || !result.data)
+    return <ErrorState error={result.error} onRetry={result.reload} />;
+  const data = result.data;
+  const activeItems = [...(data.alarms || []), ...(data.watch || [])];
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Alarmer og kontroll</h2>
+          <p className="text-xs text-gray-500">Aktiv status nå · historikk for {day}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {data.ntfyDoorsSubscribeUrl ? (
+            <a className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" href={data.ntfyDoorsSubscribeUrl}>
+              Abonner på varsler
+            </a>
+          ) : null}
+          <button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={result.reload}>
+            Oppdater
+          </button>
+        </div>
+      </div>
+      <SummaryStrip items={[
+        { label: "Aktive alarmer", value: data.summary.alarm || 0, detail: "krever handling", color: data.summary.alarm ? "red" : "green" },
+        { label: "Til kontroll", value: data.summary.watch || 0, detail: "avventer alarmgrensen", color: data.summary.watch ? "yellow" : "green" },
+        { label: "Historikk", value: data.summary.history || 0, detail: day, color: "gray" },
+        { label: "Varsel sendt", value: data.summary.historyNotified || 0, detail: "i valgt periode", color: "sky" },
+      ]} />
+      {activeItems.length ? (
+        <Panel title="Aktive forhold" subtitle={`${activeItems.length} rom følges opp`}>
+          <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
+            {activeItems.map((item) => (
+              <AppLink
+                className={`rounded-lg border p-4 transition hover:-translate-y-0.5 ${item.severity === "alert" ? "border-red-300 bg-red-50/60 dark:border-red-900 dark:bg-red-950/20" : "border-yellow-300 bg-yellow-50/60 dark:border-yellow-900 dark:bg-yellow-950/20"}`}
+                to={`/dorer/romkontroll?room=${encodeURIComponent(String(item.displayRoomNumber || ""))}&day=${encodeURIComponent(day)}`}
+                key={item.deviceKey || item.roomId}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-semibold text-gray-500">{item.sectionTitle}</span>
+                    <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">{item.title || item.roomLabel}</h3>
+                  </div>
+                  {badge(item.status || "Kontroller", item.severity === "alert" ? "red" : "yellow")}
+                </div>
+                <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">{item.detail}</p>
+                <p className="mt-2 text-xs text-gray-500">Dørstatus siden {item.doorAgeLabel || "ukjent"}</p>
+              </AppLink>
+            ))}
+          </div>
+        </Panel>
+      ) : (
+        <div className="rounded-xl border border-green-200 bg-green-50 px-5 py-4 text-sm text-green-800 dark:border-green-900 dark:bg-green-950/20 dark:text-green-300">
+          Ingen aktive døralarmer eller forhold som avventer alarmgrensen.
+        </div>
+      )}
+      <Panel title="Alarmhistorikk" subtitle="Nyeste først">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-700">
+          <div className="flex gap-2">
+            <button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={() => setDay(shiftDay(day, -1))}>Forrige dag</button>
+            <input className="form-input" type="date" max={localDay()} value={day} onChange={(event) => setDay(event.target.value)} />
+            <button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" disabled={day >= localDay()} onClick={() => setDay(shiftDay(day, 1))}>Neste dag</button>
+          </div>
+          {day !== localDay() ? <button className="btn bg-violet-500 text-white" onClick={() => setDay(localDay())}>I dag</button> : null}
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead className="bg-gray-50 text-xs text-gray-500 dark:bg-gray-900/30">
+              <tr><th className="px-4 py-3">Oppdaget</th><th className="px-4 py-3">Rom</th><th className="px-4 py-3">Alarm</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Avsluttet</th><th className="px-4 py-3 text-right">Varsler</th></tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+              {(data.history || []).map((item) => (
+                <tr key={item.id}>
+                  <td className="px-4 py-3 tabular-nums">{stamp(item.detectedAt)}</td>
+                  <td className="px-4 py-3 font-semibold">{item.title || `Rom ${item.displayRoomNumber || "-"}`}</td>
+                  <td className="px-4 py-3"><span className="block">{item.alarmType === "closed_without_session" ? "Lukket uten soltime" : "Overtid"}</span><small className="text-gray-500">{item.detail || ""}</small></td>
+                  <td className="px-4 py-3">{badge(item.status === "active" ? "Aktiv" : "Avsluttet", item.status === "active" ? "red" : "green")}</td>
+                  <td className="px-4 py-3 tabular-nums">{item.resolvedAt ? stamp(item.resolvedAt) : "Pågår"}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{item.notificationCount || 0}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!data.history?.length ? <div className="p-8 text-center text-sm text-gray-500">Ingen alarmer denne dagen.</div> : null}
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+function DoorRawData() {
+  const result = useApi(
+    () => domainApi.get<DoorStatus>("/api/hc3/doors/status?history_limit=300&period_limit=300"),
+    "door-raw-data",
+  );
+  const [deviceKey, setDeviceKey] = useState("all");
+  if (result.loading) return <Loading />;
+  if (result.error || !result.data)
+    return <ErrorState error={result.error} onRetry={result.reload} />;
+  const data = result.data;
+  const doorByKey = new Map(data.doors.map((door) => [String(door.deviceKey || door.deviceId), door]));
+  const rows = (data.events || []).filter((event) => deviceKey === "all" || String(event.deviceKey || event.deviceId) === deviceKey);
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Dørdata</h2>
+          <p className="text-xs text-gray-500">Rå statusmeldinger fra HC3 · oppdatert {stamp(data.generatedAt)}</p>
+        </div>
+        <button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={result.reload}>Oppdater</button>
+      </div>
+      <SummaryStrip items={[
+        { label: "Lagrede meldinger", value: data.summary.events || 0, detail: "totalt", color: "gray" },
+        { label: "Statusendringer", value: data.summary.changes || 0, detail: "åpnet eller lukket", color: "sky" },
+        { label: "Dørperioder", value: data.summary.periods || 0, detail: "komplette perioder", color: "green" },
+        { label: "Åpne perioder", value: data.summary.activePeriods || 0, detail: "pågår nå", color: data.summary.activePeriods ? "yellow" : "green" },
+      ]} />
+      <Panel title="Sensorhendelser" subtitle={`${rows.length} nyeste meldinger`}>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-700">
+          <label className="flex items-center gap-2 text-sm text-gray-500">
+            Dør
+            <select className="form-select min-w-48" value={deviceKey} onChange={(event) => setDeviceKey(event.target.value)}>
+              <option value="all">Alle dører</option>
+              {data.doors.filter((door) => door.isConfigured).map((door) => <option value={String(door.deviceKey || door.deviceId)} key={door.deviceKey}>{door.title}</option>)}
+            </select>
+          </label>
+          <span className="text-xs text-gray-500">Tid vises i Europe/Oslo</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[820px] text-left text-sm">
+            <thead className="bg-gray-50 text-xs text-gray-500 dark:bg-gray-900/30">
+              <tr><th className="px-4 py-3">Tid</th><th className="px-4 py-3">Dør</th><th className="px-4 py-3">Melding</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Kilde</th><th className="px-4 py-3 text-right">Batteri</th></tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+              {rows.map((event) => {
+                const door = doorByKey.get(String(event.deviceKey || event.deviceId));
+                return (
+                  <tr key={event.id}>
+                    <td className="whitespace-nowrap px-4 py-3 tabular-nums">{stamp(event.timestamp)}</td>
+                    <td className="px-4 py-3 font-semibold">{door?.title || event.deviceName || event.deviceKey}</td>
+                    <td className="px-4 py-3">{event.eventType || event.action || "Status"}</td>
+                    <td className="px-4 py-3">{badge(event.stateLabel || event.action || "Ukjent", event.state === "unknown" ? "gray" : event.state === "open" ? "yellow" : "green")}</td>
+                    <td className="px-4 py-3 text-gray-500">{event.source || "-"}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{event.batteryLevel == null ? "-" : `${event.batteryLevel}%`}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {!rows.length ? <div className="p-8 text-center text-sm text-gray-500">Ingen meldinger for valgt dør.</div> : null}
+        </div>
+      </Panel>
+    </div>
   );
 }
 
