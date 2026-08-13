@@ -57,11 +57,13 @@ telemetry_last_settings_at: dict[str, float] = {}
 
 
 class ControlRequest(BaseModel):
-    action: Literal["dry_run", "start", "pause", "resume", "stop", "dock", "test_start_stop"]
+    action: Literal["dry_run", "start", "pause", "resume", "stop", "dock", "test_start_stop", "clean_zone"]
     request_id: str = Field(min_length=8, max_length=100)
     actor: str = Field(default="Fibaro10", min_length=1, max_length=100)
     confirmation: str = Field(min_length=1, max_length=200)
     test_duration_seconds: int = Field(default=5, ge=3, le=12)
+    zone_number: int | None = Field(default=None, ge=1, le=59)
+    segment_id: int | None = Field(default=None, ge=1)
 
 
 TELEMETRY_SETTING_COMMANDS = (
@@ -455,13 +457,32 @@ def control_state_name(snapshot: dict[str, Any]) -> str:
 def control_is_active(snapshot: dict[str, Any]) -> bool:
     state_name = control_state_name(snapshot)
     return state_name in {
+        "starting",
         "cleaning",
         "segment_cleaning",
-        "zone_cleaning",
+        "zoned_cleaning",
         "spot_cleaning",
         "going_to_target",
         "mapping",
+        "washing_the_mop",
+        "washing_the_mop_2",
+        "going_to_wash_the_mop",
+        "robot_status_mopping",
+        "clean_mop_cleaning",
+        "clean_mop_mopping",
+        "segment_mopping",
+        "segment_clean_mop_cleaning",
+        "segment_clean_mop_mopping",
+        "zoned_mopping",
+        "zoned_clean_mop_cleaning",
+        "zoned_clean_mop_mopping",
     }
+
+
+def segment_clean_params(segment_id: int, repeat: int = 1) -> list[dict[str, Any]]:
+    if segment_id < 1:
+        raise ValueError("Roborock-segmentet må være et positivt heltall")
+    return [{"segments": [segment_id], "repeat": max(1, min(int(repeat), 3))}]
 
 
 async def wait_for_control_state(
@@ -519,6 +540,25 @@ async def execute_control_command(duid: str, values: ControlRequest) -> dict[str
         if values.action == "dry_run":
             result = {"validated": True, "host": host, "model": model}
             after = before
+        elif values.action == "clean_zone":
+            if values.zone_number is None or values.segment_id is None:
+                raise HTTPException(status_code=400, detail="Sone og robotsegment mangler")
+            validate_control_start(before)
+            params = segment_clean_params(values.segment_id)
+            audit["target"] = {
+                "zone_number": values.zone_number,
+                "segment_id": values.segment_id,
+                "repeat": 1,
+            }
+            result = jsonable(
+                await rpc.send_command(
+                    RoborockCommand.APP_SEGMENT_CLEAN,
+                    params=params,
+                )
+            )
+            after = await wait_for_control_state(rpc, model, control_is_active, timeout_seconds=12)
+            if not control_is_active(after):
+                raise RuntimeError("Roboten bekreftet ikke at sonerengjøringen startet")
         elif values.action in {"start", "resume"}:
             if values.action == "start":
                 validate_control_start(before)

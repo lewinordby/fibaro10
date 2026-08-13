@@ -2203,6 +2203,7 @@ class RoborockTelemetryIn(BaseModel):
 class RoborockControlIn(BaseModel):
     action: str
     test_duration_seconds: int = Field(default=5, ge=3, le=12)
+    zone_number: Optional[int] = Field(default=None, ge=1, le=59)
 
 
 class Sun2RoomStatIn(BaseModel):
@@ -39236,17 +39237,47 @@ async def api_cleaning_robot_control(request: Request, duid: str, values: Roboro
         return forbidden
     if not ROBOROCK_CONTROL_TOKEN:
         raise HTTPException(status_code=503, detail="Robotstyring er ikke konfigurert")
-    allowed_actions = {"dry_run", "start", "pause", "resume", "stop", "dock", "test_start_stop"}
+    allowed_actions = {"dry_run", "start", "pause", "resume", "stop", "dock", "test_start_stop", "clean_zone"}
     action = values.action.strip().lower()
     if action not in allowed_actions:
         raise HTTPException(status_code=400, detail="Ukjent robotkommando")
+    if action == "clean_zone" and values.zone_number is None:
+        raise HTTPException(status_code=400, detail="Sonenummer mangler")
 
     actor = getattr(request.state, "access_key_name", None) or "master"
     request_id = f"fibaro10-{secrets.token_hex(12)}"
+    zone_name: Optional[str] = None
+    segment_id: Optional[int] = None
     async with async_session() as session:
         robot = (await session.execute(select(RoborockRobot).where(RoborockRobot.duid == duid))).scalars().first()
         if not robot:
             raise HTTPException(status_code=404, detail="Ukjent robot")
+        robot_name = robot.name
+        if action == "clean_zone":
+            zone_pair = (
+                await session.execute(
+                    select(RoborockCleaningZoneMapping, CleaningZone)
+                    .join(CleaningZone, CleaningZone.id == RoborockCleaningZoneMapping.zone_id)
+                    .where(
+                        RoborockCleaningZoneMapping.robot_duid == duid,
+                        CleaningZone.zone_number == values.zone_number,
+                    )
+                )
+            ).first()
+            if not zone_pair:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Sone {values.zone_number} er ikke koblet til {robot_name}",
+                )
+            mapping, zone = zone_pair
+            zone_name = zone.name
+            try:
+                segment_id = int(mapping.segment_id)
+            except (TypeError, ValueError) as exc:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"{zone_name} har et ugyldig robotsegment",
+                ) from exc
         command_run = RoborockCommandRun(
             request_id=request_id,
             robot_duid=duid,
@@ -39270,10 +39301,18 @@ async def api_cleaning_robot_control(request: Request, duid: str, values: Roboro
                 "actor": actor,
                 "confirmation": f"CONFIRM:{duid}:{action}",
                 "test_duration_seconds": values.test_duration_seconds,
+                "zone_number": values.zone_number,
+                "segment_id": segment_id,
             },
         )
         command_status = str(result.get("status") or "ok")
-        message = "Kontrolltest fullført" if action == "test_start_stop" else "Robotkommando utført"
+        message = (
+            "Kontrolltest fullført"
+            if action == "test_start_stop"
+            else f"{zone_name} startet på {robot_name}"
+            if action == "clean_zone"
+            else "Robotkommando utført"
+        )
         before_state = result.get("before")
         after_state = result.get("after")
     except Exception as exc:
@@ -39302,6 +39341,8 @@ async def api_cleaning_robot_control(request: Request, duid: str, values: Roboro
         "requestId": request_id,
         "before": before_state,
         "after": after_state,
+        "zoneNumber": values.zone_number if action == "clean_zone" else None,
+        "segmentId": segment_id,
     }
 
 

@@ -9,8 +9,26 @@ from roborock_logger.app import main as logger
 def test_control_active_state_only_matches_floor_work():
     assert logger.control_is_active({"state_name": "cleaning"}) is True
     assert logger.control_is_active({"state_name": "segment_cleaning"}) is True
+    assert logger.control_is_active({"state_name": "washing_the_mop"}) is True
+    assert logger.control_is_active({"state_name": "segment_clean_mop_mopping"}) is True
     assert logger.control_is_active({"state_name": "charging", "in_cleaning": 1}) is False
     assert logger.control_is_active({"state_name": "returning_home", "in_cleaning": 1}) is False
+
+
+def test_segment_clean_params_target_exactly_one_robot_segment():
+    assert logger.segment_clean_params(18) == [{"segments": [18], "repeat": 1}]
+
+
+def test_zone_control_request_requires_valid_zone_and_segment():
+    request = logger.ControlRequest(
+        action="clean_zone",
+        request_id="request-123",
+        confirmation="CONFIRM:robot:clean_zone",
+        zone_number=1,
+        segment_id=18,
+    )
+    assert request.zone_number == 1
+    assert request.segment_id == 18
 
 
 def test_control_start_rejects_active_error_and_low_battery():
@@ -27,8 +45,10 @@ def test_core_control_route_is_master_protected_and_audited():
     source = (Path(__file__).resolve().parents[1] / "main.py").read_text(encoding="utf-8")
     route = source[source.index('@app.post("/api/renhold/robots/{duid}/control")'):]
     assert "require_master(request)" in route[:1200]
-    assert "RoborockCommandRun(" in route[:2500]
-    assert '"confirmation": f"CONFIRM:{duid}:{action}"' in route[:4000]
+    assert "RoborockCleaningZoneMapping.robot_duid == duid" in route[:3000]
+    assert "RoborockCommandRun(" in route[:4000]
+    assert '"confirmation": f"CONFIRM:{duid}:{action}"' in route[:6000]
+    assert '"segment_id": segment_id' in route[:6000]
 
 
 def test_logger_control_route_requires_shared_token():

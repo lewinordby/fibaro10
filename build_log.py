@@ -12,6 +12,36 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1722",
+        "date": "13.08.2026",
+        "headline": "Start sonerengjøring fra Fibaro10",
+        "title": "Globale soner kobles trygt til robotens lokale kartsegment før rengjøring",
+        "description": (
+            "Robotdetaljen har fått en Vask-knapp på hver registrerte sone. Fibaro10 slår opp den valgte globale "
+            "sonen i databasen og sender bare robotens tilhørende lokale segment til Roborock_logger. Loggeren "
+            "kontrollerer robotstatus og batteri, starter én segmentrunde og bekrefter at sonerengjøringen faktisk "
+            "har startet. Hele kommandoen lagres med bruker, sone, segment og status før og etter."
+        ),
+        "applications": [
+            "Fibaro10 API: masterbeskyttet oppslag fra global sone til robotspecifikt segment og full revisjonslogg.",
+            "Bygg og drift: Vask-knapp, bekreftelse og resultat direkte i sonetabellen på robotsiden.",
+            "Roborock_logger: lokal app_segment_clean-kommando med eksakt ett segment og startbekreftelse.",
+        ],
+        "request": (
+            "Les inn Sone 1 på 1.etg A og lag funksjonalitet for å prøve å vaske Sone 1 mens solstudioet er åpent."
+        ),
+        "work_duration": "ca. 40 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bruker lagret Sone 1-kobling og sender aldri det globale sonenummeret direkte til roboten.",
+            "Starter app_segment_clean med robotsegment 18 og én rengjøringsrunde for 1.etg A.",
+            "Avviser start ved aktiv jobb, robotfeil, lavt batteri eller manglende sonekobling.",
+            "Gjenkjenner også moppvask og Roborocks ulike segment- og mopptilstander som aktiv jobb.",
+            "Viser en bekreftet Vask-handling på hver tilgjengelige sone for masterbrukeren.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1721",
         "date": "13.08.2026",
         "headline": "Felles soneregister for robotvaskerne",
