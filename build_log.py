@@ -12,6 +12,34 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1730",
+        "date": "13.08.2026",
+        "headline": "Ryddigere oversikt over renhold",
+        "title": "Nåstatus, dagens resultat og neste plan er enklere å lese",
+        "description": (
+            "Renhold-oversikten er strukturert på nytt slik at driftsstatus, aktiv rengjøring, dagens resultat "
+            "og neste plan får tydelig prioritet. Informasjon om gårsdagen, dokk, beholdere og forbruksdeler "
+            "er beholdt i en mer kompakt form, mens rå modellkoder og verdier roboten ikke støtter er fjernet "
+            "fra oversiktsflaten."
+        ),
+        "applications": [
+            "Bygg og drift: ny informasjonsstruktur og kompakte robotkort på Renhold/Oversikt.",
+        ],
+        "request": "Sørg for å gjøre Renhold - oversikt så ryddig og oversiktlig som mulig med relevante opplysninger.",
+        "work_duration": "ca. 35 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fjerner den overflødige sideinnledningen og starter direkte med samlet driftsstatus.",
+            "Viser aktive robotnavn, dagens jobber, rengjort areal og samlet tid i toppoversikten.",
+            "Flytter neste plan opp ved siden av nåstatus og batteri på hvert robotkort.",
+            "Prioriterer dagens rengjøring og viser gårsdagen som en kompakt referanselinje.",
+            "Skjuler rå modellkoder og driftsverdier som den aktuelle roboten ikke støtter.",
+            "Samler bruk av børster og filter i én nedtonet linje uten å fjerne informasjonen.",
+            "Beholder tydelig markering av pågående rengjøring og forhold som krever tilsyn.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1729",
         "date": "13.08.2026",
         "headline": "Helhetlig kvalitetssikring av renhold",

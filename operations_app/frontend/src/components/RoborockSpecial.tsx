@@ -61,6 +61,14 @@ function decimal(value: unknown, digits = 0) {
   return number.toLocaleString("nb-NO", { maximumFractionDigits: digits });
 }
 
+function durationLabel(value: unknown) {
+  const minutes = Math.max(0, Math.round(Number(value || 0)));
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  if (!hours) return `${remainder} min`;
+  return remainder ? `${hours} t ${remainder} min` : `${hours} t`;
+}
+
 const roborockStateLabels: Record<string, string> = {
   charging: "Lader",
   cleaning: "Rengjør",
@@ -185,8 +193,37 @@ function DayActivity({ label, day, latest }: { label: string; day?: RoborockDail
   </div>;
 }
 
+function isSupportedResource(value: unknown) {
+  const text = String(value || "").trim().toLocaleLowerCase("nb-NO");
+  return Boolean(text && text !== "-" && text !== "ikke støttet");
+}
+
 function ResourceValue({ label, value }: { label: string; value?: string | null }) {
-  return <div className="min-w-0"><span className="block text-[0.68rem] font-semibold uppercase text-gray-400">{label}</span><strong className={`mt-0.5 block truncate text-xs font-medium ${telemetryTone(value)}`} title={value || "Ikke mottatt"}>{value || "-"}</strong></div>;
+  return <div className="min-w-0"><span className="block text-[0.65rem] font-semibold uppercase text-gray-400">{label}</span><strong className={`mt-0.5 block truncate text-xs font-medium ${telemetryTone(value)}`} title={value || "Ikke mottatt"}>{value || "-"}</strong></div>;
+}
+
+function OverviewDayActivity({ robot }: { robot: RoborockRobotSummary }) {
+  const today = robot.today || emptyDay;
+  const yesterday = robot.yesterday || emptyDay;
+  const todayJobs = today.job_count === 1 ? "1 jobb" : `${today.job_count} jobber`;
+  const yesterdayJobs = yesterday.job_count === 1 ? "1 jobb" : `${yesterday.job_count} jobber`;
+  const latest = robot.latest_job_today;
+  return <div className="border-b border-gray-100 dark:border-gray-700/60">
+    <div className="px-5 py-3.5">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <strong className="text-sm font-semibold text-gray-800 dark:text-gray-100">I dag</strong>
+        <span className="text-xs font-medium tabular-nums text-gray-400">{todayJobs}</span>
+      </div>
+      {today.job_count ? <>
+        <div className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 tabular-nums"><strong className="text-lg font-semibold text-gray-800 dark:text-gray-100">{durationLabel(today.duration_minutes)}</strong><span className="text-sm font-medium text-gray-500 dark:text-gray-300">{decimal(today.cleaned_area_m2, 1)} m²</span></div>
+        <p className={`mt-1 text-xs font-medium ${jobTone(latest)}`}>{latest?.status === "complete" ? "Siste ferdige" : "Siste registrerte"}{latest?.begin_at ? ` kl. ${jobTime(latest.begin_at)}` : ""}{latest?.status_label ? ` · ${latest.status_label}` : ""}</p>
+      </> : <p className="mt-2 text-sm text-gray-400">Ingen rengjøring registrert i dag</p>}
+    </div>
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-gray-50/70 px-5 py-2.5 text-xs dark:bg-gray-900/20">
+      <span className="font-semibold text-gray-500 dark:text-gray-300">I går <span className="ml-1 font-normal text-gray-400">{yesterdayJobs}</span></span>
+      <span className="tabular-nums text-gray-500 dark:text-gray-400">{yesterday.job_count ? `${durationLabel(yesterday.duration_minutes)} · ${decimal(yesterday.cleaned_area_m2, 1)} m²` : "Ingen rengjøring"}</span>
+    </div>
+  </div>;
 }
 
 function RobotCard({ robot }: { robot: RoborockRobotSummary }) {
@@ -198,55 +235,52 @@ function RobotCard({ robot }: { robot: RoborockRobotSummary }) {
   } as RoborockReadinessSummary;
   const style = readinessStyle(readiness.status);
   const consumables = robot.consumables;
+  const resources = [
+    ["Rentvann", readiness.clear_water_label],
+    ["Skittent vann", readiness.dirty_water_label],
+    ["Støvpose", readiness.dust_bag_label],
+    ["Dokk", readiness.dock_error_label],
+  ].filter(([, value]) => isSupportedResource(value));
   const nextPlan = robot.schedules?.next_label
-    ? `${robot.schedules.next_label}${robot.schedules.active_count > 1 ? ` · ${robot.schedules.active_count} aktive` : ""}`
+    ? `${robot.schedules.next_label}${robot.schedules.active_count > 1 ? ` · ${robot.schedules.active_count} planer` : ""}`
     : "Ingen aktiv plan";
   return <AppLink className="group flex h-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xs transition hover:border-green-400 hover:shadow-md dark:border-gray-700/60 dark:bg-gray-800 dark:hover:border-green-500/70" to={`/renhold/robot/${encodeURIComponent(robot.duid)}`}>
-    <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 dark:border-gray-700/60">
-      <span className="flex min-w-0 items-center gap-3"><span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${style.icon}`}><MosaicIcon name="robot" size={20} /></span><span className="min-w-0"><strong className="block truncate text-base font-semibold text-gray-800 dark:text-gray-100">{robot.name}</strong><small className="block truncate text-gray-400">{robot.model || "Ukjent modell"}</small></span></span>
-      <span className={`mt-1 inline-flex shrink-0 items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold ${style.badge}`}><span className={`h-2 w-2 rounded-full ${style.dot}`} />{readiness.label}</span>
+    <div className="flex items-center justify-between gap-4 border-b border-gray-100 px-5 py-3.5 dark:border-gray-700/60">
+      <span className="flex min-w-0 items-center gap-3"><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${style.icon}`}><MosaicIcon name="robot" size={18} /></span><span className="min-w-0"><strong className="block truncate text-base font-semibold text-gray-800 dark:text-gray-100">{robot.name}</strong><small className="block truncate text-xs text-gray-400" title={robot.model || undefined}>Oppdatert {relativeStamp(readiness.telemetry_at || robot.status_at || robot.last_seen_at)}</small></span></span>
+      <span className={`inline-flex shrink-0 items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold ${style.badge}`}><span className={`h-2 w-2 rounded-full ${style.dot}`} />{readiness.label}</span>
     </div>
-    <div className="grid grid-cols-[1fr_auto_auto] items-center gap-5 border-b border-gray-100 px-5 py-3 dark:border-gray-700/60">
-      <div className="min-w-0"><span className="block text-xs font-semibold uppercase text-gray-400">Status</span><strong className="mt-0.5 block truncate text-sm font-medium text-gray-700 dark:text-gray-200">{robotStateLabel(robot.state_name)}</strong></div>
-      <div><span className="block text-xs font-semibold uppercase text-gray-400">Batteri</span><strong className="mt-0.5 block text-sm font-medium tabular-nums text-gray-700 dark:text-gray-200">{robot.battery == null ? "-" : `${robot.battery} %`}</strong></div>
-      <div className="text-right"><span className="block text-xs font-semibold uppercase text-gray-400">Sist lest</span><strong className="mt-0.5 block whitespace-nowrap text-sm font-medium text-gray-700 dark:text-gray-200">{relativeStamp(readiness.telemetry_at || robot.status_at || robot.last_seen_at)}</strong></div>
+    <div className="grid grid-cols-[minmax(0,0.8fr)_auto_minmax(0,1.35fr)] gap-5 border-b border-gray-100 px-5 py-3 dark:border-gray-700/60">
+      <div className="min-w-0"><span className="block text-[0.68rem] font-semibold uppercase text-gray-400">Nå</span><strong className="mt-0.5 block truncate text-sm font-medium text-gray-700 dark:text-gray-200">{robotStateLabel(robot.state_name)}</strong></div>
+      <div><span className="block text-[0.68rem] font-semibold uppercase text-gray-400">Batteri</span><strong className="mt-0.5 block text-sm font-medium tabular-nums text-gray-700 dark:text-gray-200">{robot.battery == null ? "-" : `${robot.battery} %`}</strong></div>
+      <div className="min-w-0 text-right"><span className="block text-[0.68rem] font-semibold uppercase text-gray-400">Neste plan</span><strong className="mt-0.5 block truncate text-sm font-medium text-gray-700 dark:text-gray-200" title={nextPlan}>{nextPlan}</strong></div>
     </div>
     {readiness.issues.length ? <div className="flex items-start gap-2 border-b border-red-100 bg-red-50 px-5 py-2.5 text-xs text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"><MosaicIcon className="mt-0.5" name="warning" size={14} /><span>{readiness.issues.join(" · ")}</span></div> : null}
     {robot.active_cycle ? <ActiveCycleBand cycle={robot.active_cycle} compact /> : null}
-    <div className="grid grid-cols-2 border-b border-gray-100 dark:border-gray-700/60"><DayActivity label="I dag" day={robot.today} latest={robot.latest_job_today} /><DayActivity label="I går" day={robot.yesterday} latest={robot.latest_job_yesterday} /></div>
-    <div className="grid grid-cols-4 gap-3 border-b border-gray-100 bg-gray-50/70 px-5 py-3 dark:border-gray-700/60 dark:bg-gray-900/20">
-      <ResourceValue label="Rentvann" value={readiness.clear_water_label} />
-      <ResourceValue label="Skittent" value={readiness.dirty_water_label} />
-      <ResourceValue label="Støvpose" value={readiness.dust_bag_label} />
-      <ResourceValue label="Dokk" value={readiness.dock_error_label} />
-    </div>
-    <div className="grid grid-cols-3 gap-4 border-b border-gray-100 px-5 py-3 dark:border-gray-700/60">
-      <ResourceValue label="H.børste brukt" value={consumables?.main_brush} />
-      <ResourceValue label="S.børste brukt" value={consumables?.side_brush} />
-      <ResourceValue label="Filter brukt" value={consumables?.filter} />
-    </div>
-    <div className="mt-auto flex items-center justify-between gap-4 px-5 py-3 text-xs"><span className="min-w-0 truncate text-gray-500 dark:text-gray-400" title={nextPlan}><strong className="mr-1.5 font-semibold text-gray-600 dark:text-gray-300">Neste</strong>{nextPlan}</span><span className="flex shrink-0 items-center gap-1 font-medium text-green-700 dark:text-green-400">Åpne <MosaicIcon name="arrow-right" size={14} /></span></div>
+    <OverviewDayActivity robot={robot} />
+    {resources.length ? <div className={`grid gap-3 border-b border-gray-100 px-5 py-2.5 dark:border-gray-700/60 ${resources.length >= 4 ? "grid-cols-4" : resources.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>{resources.map(([label, value]) => <ResourceValue key={label} label={String(label)} value={value} />)}</div> : null}
+    {consumables ? <div className="flex flex-wrap gap-x-4 gap-y-1 border-b border-gray-100 bg-gray-50/70 px-5 py-2 text-[0.7rem] text-gray-400 dark:border-gray-700/60 dark:bg-gray-900/20"><strong className="font-semibold text-gray-500 dark:text-gray-300">Forbruksdeler brukt</strong><span>H.børste {consumables.main_brush || "-"}</span><span>S.børste {consumables.side_brush || "-"}</span><span>Filter {consumables.filter || "-"}</span></div> : null}
+    <div className="mt-auto flex items-center justify-end px-5 py-2.5 text-xs"><span className="flex items-center gap-1 font-medium text-green-700 dark:text-green-400">Se robot <MosaicIcon name="arrow-right" size={14} /></span></div>
   </AppLink>;
 }
 
-function OverviewStrip({ summary }: { summary?: RoborockOverviewSummary | null }) {
+function OverviewStrip({ summary, robots }: { summary?: RoborockOverviewSummary | null; robots: RoborockRobotSummary[] }) {
   if (!summary) return null;
   const attention = summary.attention_count + summary.offline_count;
+  const activeNames = robots.filter((robot) => robot.readiness?.status === "active" || robot.active_cycle).map((robot) => robot.name);
   return <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xs dark:border-gray-700/60 dark:bg-gray-800">
     <div className="grid sm:grid-cols-2 xl:grid-cols-4">
-      <div className="border-b border-gray-100 px-5 py-4 sm:border-r xl:border-b-0 dark:border-gray-700/60"><span className="text-xs font-semibold uppercase text-gray-400">Driftsstatus</span><strong className={`mt-1 block text-lg font-semibold ${attention ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>{attention ? `${attention} krever tilsyn` : `${summary.ready_count} klare`}</strong><small className="text-gray-400">{summary.active_count ? `${summary.active_count} rengjør nå` : "Ingen aktive feil"}</small></div>
-      <div className="border-b border-gray-100 px-5 py-4 xl:border-b-0 xl:border-r dark:border-gray-700/60"><span className="text-xs font-semibold uppercase text-gray-400">Jobber i dag</span><strong className="mt-1 block text-lg font-semibold tabular-nums text-gray-800 dark:text-gray-100">{summary.jobs_today}</strong><small className="text-gray-400">Alle robotene</small></div>
-      <div className="border-b border-gray-100 px-5 py-4 sm:border-b-0 sm:border-r dark:border-gray-700/60"><span className="text-xs font-semibold uppercase text-gray-400">Rengjøringstid</span><strong className="mt-1 block text-lg font-semibold tabular-nums text-gray-800 dark:text-gray-100">{decimal(summary.duration_today)} min</strong><small className="text-gray-400">Samlet i dag</small></div>
-      <div className="px-5 py-4"><span className="text-xs font-semibold uppercase text-gray-400">Rengjort areal</span><strong className="mt-1 block text-lg font-semibold tabular-nums text-gray-800 dark:text-gray-100">{decimal(summary.area_today, 1)} m²</strong><small className="text-gray-400">Oppdatert {relativeStamp(summary.updated_at)}</small></div>
+      <div className="border-b border-gray-100 px-5 py-3.5 sm:border-r xl:border-b-0 dark:border-gray-700/60"><span className="text-xs font-semibold uppercase text-gray-400">Driftsstatus</span><strong className={`mt-1 block text-lg font-semibold ${attention ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>{attention ? `${attention} krever tilsyn` : "Alle rapporterer"}</strong><small className="text-gray-400">{summary.robot_count} roboter · oppdatert {relativeStamp(summary.updated_at)}</small></div>
+      <div className="border-b border-gray-100 px-5 py-3.5 xl:border-b-0 xl:border-r dark:border-gray-700/60"><span className="text-xs font-semibold uppercase text-gray-400">Rengjør nå</span><strong className="mt-1 block text-lg font-semibold tabular-nums text-sky-700 dark:text-sky-400">{summary.active_count}</strong><small className="block truncate text-gray-400" title={activeNames.join(", ")}>{activeNames.length ? activeNames.join(", ") : "Ingen aktive jobber"}</small></div>
+      <div className="border-b border-gray-100 px-5 py-3.5 sm:border-b-0 sm:border-r dark:border-gray-700/60"><span className="text-xs font-semibold uppercase text-gray-400">Jobber i dag</span><strong className="mt-1 block text-lg font-semibold tabular-nums text-gray-800 dark:text-gray-100">{summary.jobs_today}</strong><small className="text-gray-400">{decimal(summary.area_today, 1)} m² rengjort</small></div>
+      <div className="px-5 py-3.5"><span className="text-xs font-semibold uppercase text-gray-400">Samlet rengjøringstid</span><strong className="mt-1 block text-lg font-semibold tabular-nums text-gray-800 dark:text-gray-100">{durationLabel(summary.duration_today)}</strong><small className="text-gray-400">Alle robotene i dag</small></div>
     </div>
   </section>;
 }
 
 function RobotOverview({ data }: { data: RoborockModuleData }) {
   const robots = data.robots || [];
-  return <div className="space-y-5">
-    <div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Robotvaskere</h2><p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Driftsstatus, siste jobber og neste plan for alle robotene.</p></div><span className="text-sm font-medium tabular-nums text-gray-500 dark:text-gray-400">{robots.length} registrert</span></div>
-    <OverviewStrip summary={data.summary} />
+  return <div className="space-y-4">
+    <OverviewStrip summary={data.summary} robots={robots} />
     <div className="grid items-stretch gap-5 md:grid-cols-2">{robots.map((robot) => <RobotCard robot={robot} key={robot.duid} />)}</div>
     {!robots.length ? <Panel><div className="p-8 text-sm text-gray-400">Ingen roboter er registrert.</div></Panel> : null}
   </div>;
