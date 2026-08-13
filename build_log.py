@@ -12,6 +12,35 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1727",
+        "date": "13.08.2026",
+        "headline": "Riktig intervall og fleksible soner for dørstyrt renhold",
+        "title": "Tiden måles nå mellom støvsuginger, og én eller flere soner kan velges",
+        "description": (
+            "Automatikken for 1.etg B er korrigert slik at tidskravet ikke lenger måles fra siste døråpning. "
+            "Det angir nå minste tillatte tid mellom automatiske støvsugingsstarter. Sonevalget er samtidig "
+            "gjort fleksibelt fra én til tolv kartlagte soner."
+        ),
+        "applications": [
+            "Fibaro10 API og worker: korrigert intervallberegning, validering og kommando for flere soner.",
+            "Bygg og drift: tydelig minimumsintervall, neste tillatte start og fleksibelt sonevalg.",
+        ],
+        "request": (
+            "Den skal ha et minimum mellom hver støvsuging på den tiden som vi angir, ikke siden siste "
+            "døråpning. Det skal kunne velges én eller flere soner, ikke nødvendigvis to."
+        ),
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Måler minsteintervall fra forrige vellykkede automatiske start.",
+            "Beholder døråpningsterskel, krav om lukket inngangsdør og begrensning til åpningstiden.",
+            "Tillater mellom én og tolv unike soner i én felles robotjobb.",
+            "Viser også tidligere valgte, men ikke kartlagte soner slik at de enkelt kan fjernes.",
+            "Leveres fortsatt deaktivert; ingen robotjobb startes under utrullingen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1726",
         "date": "13.08.2026",
         "headline": "Sikker parallell kobling av solbilder",

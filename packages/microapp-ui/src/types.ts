@@ -365,7 +365,7 @@ export type RoborockRobotDetail = {
     enabled: boolean;
     doorDeviceId: number;
     openingThreshold: number;
-    quietMinutes: number;
+    minimumIntervalMinutes: number;
     zoneNumbers: number[];
     profileId: number;
     profile?: JsonRecord | null;
@@ -389,8 +389,8 @@ export type RoborockRobotDetail = {
     statusLabel: string;
     statusDetail: string;
     eligible: boolean;
-    eligibleAt?: string | null;
-    remainingQuietSeconds: number;
+    nextAllowedAt?: string | null;
+    remainingIntervalSeconds: number;
     validationIssues: string[];
     lastAttemptAt?: string | null;
     lastStartedAt?: string | null;

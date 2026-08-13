@@ -1188,7 +1188,7 @@ class RoborockDoorAutomation(Base):
     door_device_id = Column(Integer, nullable=False, default=541, index=True)
     enabled = Column(Boolean, nullable=False, default=False, index=True)
     opening_threshold = Column(Integer, nullable=False, default=10)
-    quiet_minutes = Column(Integer, nullable=False, default=60)
+    minimum_interval_minutes = Column(Integer, nullable=False, default=60)
     zone_numbers = Column(JSON, nullable=False, default=list)
     profile_id = Column(Integer, ForeignKey("roborock_cleaning_profiles.id"), nullable=False, index=True)
     counter_reset_at = Column(DateTime, nullable=True, index=True)
@@ -2274,8 +2274,8 @@ class RoborockCleaningProfileIn(BaseModel):
 class RoborockDoorAutomationIn(BaseModel):
     enabled: bool = False
     opening_threshold: int = Field(default=10, ge=1, le=100)
-    quiet_minutes: int = Field(default=60, ge=1, le=360)
-    zone_numbers: list[int] = Field(min_length=2, max_length=2)
+    minimum_interval_minutes: int = Field(default=60, ge=1, le=1440)
+    zone_numbers: list[int] = Field(min_length=1, max_length=12)
     profile_id: int = Field(ge=1)
 
 
@@ -4259,6 +4259,9 @@ STARTUP_COLUMNS = {
         ("battery_level", "DOUBLE PRECISION"),
         ("extra", "JSON"),
     ],
+    "roborock_door_automations": [
+        ("minimum_interval_minutes", "INTEGER NOT NULL DEFAULT 60"),
+    ],
     "utelys_samples": [
         ("light_spot_glass_275", "BOOLEAN"),
         ("light_spot_glass_299", "BOOLEAN"),
@@ -5125,8 +5128,8 @@ async def ensure_default_roborock_door_automation(session) -> Optional[RoborockD
         door_device_id=541,
         enabled=False,
         opening_threshold=10,
-        quiet_minutes=60,
-        zone_numbers=[1, 2],
+        minimum_interval_minutes=60,
+        zone_numbers=[1],
         profile_id=profile.id,
         counter_reset_at=local_now_naive(),
         status="disabled",
@@ -39148,8 +39151,8 @@ async def roborock_door_automation_payload(
     configured_zones = []
     segment_ids: list[int] = []
     validation_issues: list[str] = []
-    if len(selected_zone_numbers) != 2:
-        validation_issues.append("Velg nøyaktig to forskjellige soner")
+    if not selected_zone_numbers:
+        validation_issues.append("Velg minst én sone")
     for zone_number in selected_zone_numbers:
         pair = mappings_by_zone.get(zone_number)
         if not pair:
@@ -39192,8 +39195,8 @@ async def roborock_door_automation_payload(
         close_at=close_at,
         opening_count=len(opening_events),
         opening_threshold=automation.opening_threshold,
-        quiet_minutes=automation.quiet_minutes,
-        last_opening_at=last_opening_at,
+        minimum_interval_minutes=automation.minimum_interval_minutes,
+        last_started_at=normalize_local_naive(automation.last_started_at),
         door_is_open=door_event_state_bool(current_event),
         validation_issues=validation_issues,
         status=automation.status,
@@ -39203,7 +39206,7 @@ async def roborock_door_automation_payload(
         "enabled": bool(automation.enabled),
         "doorDeviceId": automation.door_device_id,
         "openingThreshold": automation.opening_threshold,
-        "quietMinutes": automation.quiet_minutes,
+        "minimumIntervalMinutes": automation.minimum_interval_minutes,
         "zoneNumbers": selected_zone_numbers,
         "profileId": automation.profile_id,
         "profile": profile_payload,
@@ -39222,8 +39225,8 @@ async def roborock_door_automation_payload(
         "statusLabel": decision["label"],
         "statusDetail": decision["detail"],
         "eligible": decision["eligible"],
-        "eligibleAt": api_local_iso(decision["eligible_at"]),
-        "remainingQuietSeconds": decision["remaining_quiet_seconds"],
+        "nextAllowedAt": api_local_iso(decision["next_allowed_at"]),
+        "remainingIntervalSeconds": decision["remaining_interval_seconds"],
         "validationIssues": validation_issues,
         "lastAttemptAt": api_local_iso(normalize_local_naive(automation.last_attempt_at)),
         "lastStartedAt": api_local_iso(normalize_local_naive(automation.last_started_at)),
@@ -39232,7 +39235,12 @@ async def roborock_door_automation_payload(
         "updatedAt": api_local_iso(normalize_local_naive(automation.updated_at)),
     }
     command_payload = None
-    if not validation_issues and len(segment_ids) == 2 and profile_payload:
+    if (
+        not validation_issues
+        and selected_zone_numbers
+        and len(segment_ids) == len(selected_zone_numbers)
+        and profile_payload
+    ):
         command_payload = {
             "zone_numbers": selected_zone_numbers,
             "segment_ids": segment_ids,
@@ -39731,8 +39739,8 @@ async def api_update_roborock_door_automation(
     if forbidden:
         return forbidden
     zone_numbers = unique_ints(values.zone_numbers)
-    if len(zone_numbers) != 2:
-        raise HTTPException(status_code=400, detail="Velg nøyaktig to forskjellige soner")
+    if not zone_numbers:
+        raise HTTPException(status_code=400, detail="Velg minst én sone")
     async with async_session() as session:
         robot = (
             await session.execute(select(RoborockRobot).where(RoborockRobot.duid == duid))
@@ -39773,7 +39781,7 @@ async def api_update_roborock_door_automation(
         now = local_now_naive()
         automation.enabled = values.enabled
         automation.opening_threshold = values.opening_threshold
-        automation.quiet_minutes = values.quiet_minutes
+        automation.minimum_interval_minutes = values.minimum_interval_minutes
         automation.zone_numbers = zone_numbers
         automation.profile_id = values.profile_id
         automation.counter_reset_at = now

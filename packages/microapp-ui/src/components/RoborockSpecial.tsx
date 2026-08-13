@@ -599,7 +599,7 @@ function DoorAutomation({ duid, data, reload }: { duid: string; data: RoborockRo
   const automation = data.doorAutomation;
   const [enabled, setEnabled] = useState(Boolean(automation?.enabled));
   const [openingThreshold, setOpeningThreshold] = useState(automation?.openingThreshold || 10);
-  const [quietMinutes, setQuietMinutes] = useState(automation?.quietMinutes || 60);
+  const [minimumIntervalMinutes, setMinimumIntervalMinutes] = useState(automation?.minimumIntervalMinutes || 60);
   const [zoneNumbers, setZoneNumbers] = useState<number[]>(automation?.zoneNumbers || []);
   const [profileId, setProfileId] = useState(automation?.profileId || 0);
   const [saving, setSaving] = useState(false);
@@ -613,12 +613,18 @@ function DoorAutomation({ duid, data, reload }: { duid: string; data: RoborockRo
       ? "border-green-200 bg-green-50 text-green-700 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300"
       : "border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-300";
   const vacuumProfiles = data.cleaningProfiles.filter((profile) => profile.active && profile.cleaningType === "vacuum");
+  const selectableZones = [
+    ...data.cleaningZones.map((zone) => ({ zoneNumber: zone.zoneNumber, name: zone.name, mapped: true })),
+    ...automation.configuredZones
+      .filter((zone) => !data.cleaningZones.some((candidate) => candidate.zoneNumber === zone.zoneNumber))
+      .map((zone) => ({ zoneNumber: zone.zoneNumber, name: zone.name, mapped: zone.mapped })),
+  ].sort((left, right) => left.zoneNumber - right.zoneNumber);
 
   function toggleZone(zoneNumber: number, checked: boolean) {
     setZoneNumbers((current) => {
       if (!checked) return current.filter((value) => value !== zoneNumber);
       if (current.includes(zoneNumber)) return current;
-      return current.length < 2 ? [...current, zoneNumber] : current;
+      return [...current, zoneNumber];
     });
   }
 
@@ -632,7 +638,7 @@ function DoorAutomation({ duid, data, reload }: { duid: string; data: RoborockRo
         {
           enabled,
           opening_threshold: openingThreshold,
-          quiet_minutes: quietMinutes,
+          minimum_interval_minutes: minimumIntervalMinutes,
           zone_numbers: zoneNumbers,
           profile_id: profileId,
         },
@@ -671,11 +677,12 @@ function DoorAutomation({ duid, data, reload }: { duid: string; data: RoborockRo
           <div className="flex items-start justify-between gap-4"><div><span className="block text-xs font-semibold uppercase opacity-70">Status</span><strong className="mt-1 block text-base">{automation.statusLabel}</strong><p className="mt-1 text-sm opacity-80">{automation.statusDetail}</p></div><strong className="whitespace-nowrap text-lg tabular-nums">{automation.openingCount} / {automation.openingThreshold}</strong></div>
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/10 dark:bg-white/10"><div className="h-full rounded-full bg-current transition-[width]" style={{ width: `${progress}%` }} /></div>
         </div>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3 xl:grid-cols-5">
           <div><span className="block text-xs font-semibold uppercase text-gray-400">Soner</span><strong className="mt-1 block text-gray-700 dark:text-gray-200">{automation.configuredZones.map((zone) => zone.name).join(" + ") || "Ikke valgt"}</strong></div>
           <div><span className="block text-xs font-semibold uppercase text-gray-400">Profil</span><strong className="mt-1 block text-gray-700 dark:text-gray-200">{String(automation.profile?.name || "Ikke valgt")}</strong></div>
           <div><span className="block text-xs font-semibold uppercase text-gray-400">Siste åpning</span><strong className="mt-1 block text-gray-700 dark:text-gray-200">{automation.lastOpeningAt ? stamp(automation.lastOpeningAt) : "Ingen i perioden"}</strong></div>
           <div><span className="block text-xs font-semibold uppercase text-gray-400">Sist startet</span><strong className="mt-1 block text-gray-700 dark:text-gray-200">{automation.lastStartedAt ? stamp(automation.lastStartedAt) : "Aldri"}</strong></div>
+          <div><span className="block text-xs font-semibold uppercase text-gray-400">Neste tillatte start</span><strong className="mt-1 block text-gray-700 dark:text-gray-200">{automation.nextAllowedAt ? stamp(automation.nextAllowedAt) : "Kan starte første gang"}</strong></div>
         </div>
       </div>
       {automation.validationIssues.length ? <div className="rounded-md bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">{automation.validationIssues.join(" · ")}</div> : null}
@@ -685,10 +692,10 @@ function DoorAutomation({ duid, data, reload }: { duid: string; data: RoborockRo
         <div className="grid gap-4 border-t border-gray-100 p-4 sm:grid-cols-2 xl:grid-cols-4 dark:border-gray-700/60">
           <label className="flex items-center gap-2 self-end pb-2 text-sm font-medium text-gray-700 dark:text-gray-200"><input checked={enabled} onChange={(event) => setEnabled(event.target.checked)} type="checkbox" />Aktiver automatikk</label>
           <label><span className="mb-1 block text-xs font-semibold uppercase text-gray-400">Døråpninger</span><input className="form-input w-full" max={100} min={1} onChange={(event) => setOpeningThreshold(Number(event.target.value))} type="number" value={openingThreshold} /></label>
-          <label><span className="mb-1 block text-xs font-semibold uppercase text-gray-400">Ro etter siste åpning</span><div className="relative"><input className="form-input w-full pr-12" max={360} min={1} onChange={(event) => setQuietMinutes(Number(event.target.value))} type="number" value={quietMinutes} /><span className="pointer-events-none absolute right-3 top-2.5 text-sm text-gray-400">min</span></div></label>
+          <label><span className="mb-1 block text-xs font-semibold uppercase text-gray-400">Minimum mellom støvsuginger</span><div className="relative"><input className="form-input w-full pr-12" max={1440} min={1} onChange={(event) => setMinimumIntervalMinutes(Number(event.target.value))} step={5} type="number" value={minimumIntervalMinutes} /><span className="pointer-events-none absolute right-3 top-2.5 text-sm text-gray-400">min</span></div></label>
           <label><span className="mb-1 block text-xs font-semibold uppercase text-gray-400">Støvsugingsprofil</span><select className="form-input w-full" onChange={(event) => setProfileId(Number(event.target.value))} value={profileId}>{vacuumProfiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>
-          <fieldset className="sm:col-span-2 xl:col-span-4"><legend className="mb-2 text-xs font-semibold uppercase text-gray-400">Velg nøyaktig to soner</legend><div className="flex flex-wrap gap-2">{data.cleaningZones.map((zone) => <label className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${zoneNumbers.includes(zone.zoneNumber) ? "border-green-400 bg-green-50 text-green-800 dark:border-green-500/60 dark:bg-green-500/10 dark:text-green-300" : "border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-300"}`} key={zone.zoneNumber}><input checked={zoneNumbers.includes(zone.zoneNumber)} onChange={(event) => toggleZone(zone.zoneNumber, event.target.checked)} type="checkbox" />{zone.name}</label>)}</div></fieldset>
-          <div className="flex flex-wrap items-center justify-between gap-3 sm:col-span-2 xl:col-span-4"><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" disabled={saving} onClick={resetCounter}>Nullstill teller</button><button className="btn bg-green-600 text-white hover:bg-green-700" disabled={saving || zoneNumbers.length !== 2 || !profileId} onClick={save}>{saving ? "Lagrer ..." : "Lagre automatikk"}</button></div>
+          <fieldset className="sm:col-span-2 xl:col-span-4"><legend className="mb-2 text-xs font-semibold uppercase text-gray-400">Velg én eller flere soner</legend><div className="flex flex-wrap gap-2">{selectableZones.map((zone) => <label className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${zoneNumbers.includes(zone.zoneNumber) ? "border-green-400 bg-green-50 text-green-800 dark:border-green-500/60 dark:bg-green-500/10 dark:text-green-300" : "border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-300"}`} key={zone.zoneNumber}><input checked={zoneNumbers.includes(zone.zoneNumber)} onChange={(event) => toggleZone(zone.zoneNumber, event.target.checked)} type="checkbox" />{zone.name}{!zone.mapped ? <small className="text-amber-600 dark:text-amber-300">ikke kartlagt</small> : null}</label>)}</div></fieldset>
+          <div className="flex flex-wrap items-center justify-between gap-3 sm:col-span-2 xl:col-span-4"><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" disabled={saving} onClick={resetCounter}>Nullstill teller</button><button className="btn bg-green-600 text-white hover:bg-green-700" disabled={saving || zoneNumbers.length < 1 || !profileId} onClick={save}>{saving ? "Lagrer ..." : "Lagre automatikk"}</button></div>
         </div>
       </details> : null}
       {message ? <p className="text-sm text-gray-500 dark:text-gray-300">{message}</p> : null}

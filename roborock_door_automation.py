@@ -54,8 +54,8 @@ def automation_decision(
     close_at: datetime,
     opening_count: int,
     opening_threshold: int,
-    quiet_minutes: int,
-    last_opening_at: datetime | None,
+    minimum_interval_minutes: int,
+    last_started_at: datetime | None,
     door_is_open: bool | None,
     validation_issues: Iterable[str] = (),
     status: str | None = None,
@@ -63,9 +63,13 @@ def automation_decision(
     retry_minutes: int = 5,
 ) -> dict[str, Any]:
     issues = [str(issue) for issue in validation_issues if str(issue).strip()]
-    eligible_at = last_opening_at + timedelta(minutes=quiet_minutes) if last_opening_at else None
-    remaining_quiet_seconds = (
-        max(0, int((eligible_at - now).total_seconds())) if eligible_at and now < eligible_at else 0
+    next_allowed_at = (
+        last_started_at + timedelta(minutes=minimum_interval_minutes) if last_started_at else None
+    )
+    remaining_interval_seconds = (
+        max(0, int((next_allowed_at - now).total_seconds()))
+        if next_allowed_at and now < next_allowed_at
+        else 0
     )
     retry_at = last_attempt_at + timedelta(minutes=retry_minutes) if last_attempt_at else None
 
@@ -94,12 +98,12 @@ def automation_decision(
         )
     elif door_is_open is True:
         key, label, detail = "door_open", "Inngangsdøren er åpen", "Venter til døren er lukket."
-    elif remaining_quiet_seconds > 0:
-        remaining_minutes = max(1, (remaining_quiet_seconds + 59) // 60)
+    elif remaining_interval_seconds > 0:
+        remaining_minutes = max(1, (remaining_interval_seconds + 59) // 60)
         key, label, detail = (
-            "quiet_period",
-            "Venter på roperiode",
-            f"Tidligst start om {remaining_minutes} min.",
+            "minimum_interval",
+            "Venter mellom rengjøringer",
+            f"Ny automatisk støvsuging tidligst om {remaining_minutes} min.",
         )
     elif status == "error" and retry_at and now < retry_at:
         remaining_minutes = max(1, int(((retry_at - now).total_seconds() + 59) // 60))
@@ -112,8 +116,8 @@ def automation_decision(
         "label": label,
         "detail": detail,
         "eligible": key == "ready",
-        "eligible_at": eligible_at,
-        "remaining_quiet_seconds": remaining_quiet_seconds,
+        "next_allowed_at": next_allowed_at,
+        "remaining_interval_seconds": remaining_interval_seconds,
         "retry_at": retry_at,
     }
 

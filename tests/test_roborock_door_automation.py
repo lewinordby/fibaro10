@@ -19,7 +19,7 @@ def test_opening_window_and_daily_counter_do_not_carry_previous_day():
     ) == datetime(2026, 8, 13, 9, 15)
 
 
-def test_automation_requires_count_closed_door_and_quiet_period():
+def test_automation_requires_count_closed_door_and_minimum_interval():
     now = datetime(2026, 8, 13, 14, 0)
     base = {
         "now": now,
@@ -27,32 +27,41 @@ def test_automation_requires_count_closed_door_and_quiet_period():
         "open_at": datetime(2026, 8, 13, 7, 0),
         "close_at": datetime(2026, 8, 13, 23, 0),
         "opening_threshold": 10,
-        "quiet_minutes": 60,
+        "minimum_interval_minutes": 60,
         "validation_issues": [],
     }
     counting = automation_decision(
         **base,
         opening_count=9,
-        last_opening_at=now - timedelta(hours=2),
+        last_started_at=now - timedelta(hours=2),
         door_is_open=False,
     )
     assert counting["key"] == "counting"
 
-    quiet = automation_decision(
+    waiting = automation_decision(
         **base,
         opening_count=10,
-        last_opening_at=now - timedelta(minutes=40),
+        last_started_at=now - timedelta(minutes=40),
         door_is_open=False,
     )
-    assert quiet["key"] == "quiet_period"
+    assert waiting["key"] == "minimum_interval"
+    assert waiting["remaining_interval_seconds"] == 20 * 60
 
     ready = automation_decision(
         **base,
         opening_count=10,
-        last_opening_at=now - timedelta(minutes=61),
+        last_started_at=now - timedelta(minutes=61),
         door_is_open=False,
     )
     assert ready["eligible"] is True
+
+    first_run = automation_decision(
+        **base,
+        opening_count=10,
+        last_started_at=None,
+        door_is_open=False,
+    )
+    assert first_run["eligible"] is True
 
 
 def test_automation_never_starts_outside_opening_hours_or_with_bad_config():
@@ -62,15 +71,15 @@ def test_automation_never_starts_outside_opening_hours_or_with_bad_config():
         "close_at": datetime(2026, 8, 13, 23, 0),
         "opening_count": 12,
         "opening_threshold": 10,
-        "quiet_minutes": 60,
-        "last_opening_at": datetime(2026, 8, 13, 20, 0),
+        "minimum_interval_minutes": 60,
+        "last_started_at": datetime(2026, 8, 13, 20, 0),
         "door_is_open": False,
     }
     outside = automation_decision(now=datetime(2026, 8, 13, 23, 5), validation_issues=[], **common)
     assert outside["key"] == "outside_hours"
     invalid = automation_decision(
         now=datetime(2026, 8, 13, 22, 0),
-        validation_issues=["Velg nøyaktig 2 soner."],
+        validation_issues=["Velg minst én sone."],
         **common,
     )
     assert invalid["key"] == "configuration_error"
