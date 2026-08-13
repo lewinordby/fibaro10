@@ -244,7 +244,7 @@ function RobotCard({ robot }: { robot: RoborockRobotSummary }) {
   const nextPlan = robot.schedules?.next_label
     ? `${robot.schedules.next_label}${robot.schedules.active_count > 1 ? ` · ${robot.schedules.active_count} planer` : ""}`
     : "Ingen aktiv plan";
-  return <AppLink className="group flex h-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xs transition hover:border-green-400 hover:shadow-md dark:border-gray-700/60 dark:bg-gray-800 dark:hover:border-green-500/70" to={`/renhold/robot/${encodeURIComponent(robot.duid)}`}>
+  return <AppLink className="group flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xs transition hover:border-green-400 hover:shadow-md dark:border-gray-700/60 dark:bg-gray-800 dark:hover:border-green-500/70" to={`/renhold/robot/${encodeURIComponent(robot.duid)}`}>
     <div className="flex items-center justify-between gap-4 border-b border-gray-100 px-5 py-3.5 dark:border-gray-700/60">
       <span className="flex min-w-0 items-center gap-3"><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${style.icon}`}><MosaicIcon name="robot" size={18} /></span><span className="min-w-0"><strong className="block truncate text-base font-semibold text-gray-800 dark:text-gray-100">{robot.name}</strong><small className="block truncate text-xs text-gray-400" title={robot.model || undefined}>Oppdatert {relativeStamp(readiness.telemetry_at || robot.status_at || robot.last_seen_at)}</small></span></span>
       <span className={`inline-flex shrink-0 items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold ${style.badge}`}><span className={`h-2 w-2 rounded-full ${style.dot}`} />{readiness.label}</span>
@@ -281,7 +281,7 @@ function RobotOverview({ data }: { data: RoborockModuleData }) {
   const robots = data.robots || [];
   return <div className="space-y-4">
     <OverviewStrip summary={data.summary} robots={robots} />
-    <div className="grid items-stretch gap-5 md:grid-cols-2">{robots.map((robot) => <RobotCard robot={robot} key={robot.duid} />)}</div>
+    <div className="grid items-start gap-5 md:grid-cols-2">{robots.map((robot) => <RobotCard robot={robot} key={robot.duid} />)}</div>
     {!robots.length ? <Panel><div className="p-8 text-sm text-gray-400">Ingen roboter er registrert.</div></Panel> : null}
   </div>;
 }

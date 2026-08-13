@@ -12,6 +12,27 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1731",
+        "date": "13.08.2026",
+        "headline": "Robotkort uten unødvendig tomrom",
+        "title": "Aktive robotkort påvirker ikke lenger høyden på nabokortet",
+        "description": (
+            "Robotkortene på Renhold/Oversikt bruker nå sin naturlige innholdshøyde. En pågående "
+            "rengjøringssyklus kan dermed vise ekstra status uten å strekke nabokortet og skape tomme flater."
+        ),
+        "applications": [
+            "Bygg og drift: justert kortflyt på Renhold/Oversikt.",
+        ],
+        "request": "Finjuster Renhold/Oversikt slik at den er så ryddig som mulig.",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Lar hvert robotkort følge sin egen innholdshøyde.",
+            "Fjerner tomrommet som oppstod ved siden av en robot med pågående rengjøringssyklus.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1730",
         "date": "13.08.2026",
         "headline": "Ryddigere oversikt over renhold",
