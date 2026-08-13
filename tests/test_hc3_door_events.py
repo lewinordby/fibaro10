@@ -216,6 +216,35 @@ class SunroomDoorTimingTests(unittest.TestCase):
         self.assertEqual(periods[0]["closedEventId"], 3)
         self.assertEqual(periods[0]["durationSeconds"], 4)
 
+    def test_door_status_uses_actual_change_time_after_same_state_poll(self):
+        config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_solrom_03")
+        now = datetime(2026, 8, 13, 23, 30)
+        changed_row = self.main.DoorEvent(
+            id=10,
+            device_id=543,
+            timestamp=datetime(2026, 8, 10, 21, 48, 41),
+            action="OPEN",
+            state=True,
+            battery_level=98,
+        )
+        latest_poll = self.main.DoorEvent(
+            id=11,
+            device_id=543,
+            timestamp=datetime(2026, 8, 13, 23, 22, 38),
+            action="OPEN",
+            state=True,
+            raw_value="true",
+            battery_level=100,
+        )
+
+        payload = self.main.door_status_payload(config, latest_poll, now, changed_row)
+
+        self.assertEqual(payload["state"], "open")
+        self.assertEqual(payload["lastChangedAt"], "2026-08-10T21:48:41")
+        self.assertEqual(payload["lastChangedEventId"], 10)
+        self.assertEqual(payload["eventId"], 11)
+        self.assertEqual(payload["batteryLevel"], 100)
+
     def test_energy_evidence_confirms_expected_three_minute_start(self):
         row = self.main.Sun2TanningSession(
             id=1,

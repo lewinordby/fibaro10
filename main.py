@@ -11978,9 +11978,15 @@ def door_event_payload(row: DoorEvent, now: Optional[datetime] = None) -> Dict[s
     }
 
 
-def door_status_payload(config: Dict[str, Any], row: Optional[DoorEvent], now: datetime) -> Dict[str, Any]:
+def door_status_payload(
+    config: Dict[str, Any],
+    row: Optional[DoorEvent],
+    now: datetime,
+    changed_row: Optional[DoorEvent] = None,
+) -> Dict[str, Any]:
     state = door_state_from_event(row)
-    timestamp = normalize_local_naive(row.timestamp) if row else None
+    change_event = changed_row or row
+    timestamp = normalize_local_naive(change_event.timestamp) if change_event else None
     device_id = config.get("device_id")
     normal_state = str(config.get("normal_state") or "closed")
     return {
@@ -12006,6 +12012,7 @@ def door_status_payload(config: Dict[str, Any], row: Optional[DoorEvent], now: d
         "batteryLevel": row.battery_level if row else None,
         "batteryLabel": f"{row.battery_level:.0f}%" if row and row.battery_level is not None else "-",
         "eventId": row.id if row else None,
+        "lastChangedEventId": change_event.id if change_event else None,
     }
 
 
@@ -40454,12 +40461,16 @@ async def api_hc3_doors_status(
 
     change_rows_ascending = door_change_rows(list(reversed(raw_rows)))
     latest_status_by_device = latest_door_event_by_device(raw_rows)
-    newest_status_event = max(
-        raw_rows,
+    latest_change_by_device: Dict[int, DoorEvent] = {}
+    for row in reversed(change_rows_ascending):
+        if row.device_id is not None:
+            latest_change_by_device.setdefault(int(row.device_id), row)
+    newest_change_event = max(
+        change_rows_ascending,
         key=lambda row: (normalize_local_naive(row.timestamp) or datetime.min, row.id or 0),
         default=None,
     )
-    newest_at = normalize_local_naive(newest_status_event.timestamp) if newest_status_event else None
+    newest_at = normalize_local_naive(newest_change_event.timestamp) if newest_change_event else None
     periods = door_open_periods(change_rows_ascending, now)
     recent_periods_by_device: Dict[str, list[Dict[str, Any]]] = {}
     for period in periods:
@@ -40471,7 +40482,8 @@ async def api_hc3_doors_status(
     for config in DOOR_SENSOR_CONFIG:
         device_id = config.get("device_id")
         latest_row = latest_status_by_device.get(int(device_id)) if device_id is not None else None
-        door = door_status_payload(config, latest_row, now)
+        latest_change = latest_change_by_device.get(int(device_id)) if device_id is not None else None
+        door = door_status_payload(config, latest_row, now, latest_change)
         door["recentPeriods"] = recent_periods_by_device.get(door_config_device_key(config), [])[:2]
         doors.append(door)
     doors = sorted(doors, key=lambda item: (str(item.get("groupKey") or ""), int(item.get("sortOrder") or 0), str(item.get("title") or "")))
@@ -40493,7 +40505,7 @@ async def api_hc3_doors_status(
             "latestAt": newest_at.isoformat() if newest_at else None,
             "latestLabel": format_source_datetime_short(newest_at) if newest_at else "-",
             "latestAgeLabel": door_age_label(newest_at, now),
-            "latestChangeText": door_change_text(newest_status_event),
+            "latestChangeText": door_change_text(newest_change_event),
             "events": int(total_events or 0),
             "changes": len(change_rows_ascending),
             "periods": len(periods),

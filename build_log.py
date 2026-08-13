@@ -12,6 +12,34 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1733",
+        "date": "13.08.2026",
+        "headline": "Riktig tidspunkt for dørstatus",
+        "title": "Døroversikten skiller nå mellom siste kontroll og siste faktiske statusendring",
+        "description": (
+            "Alle dørvisninger bruker nå tidspunktet da døren faktisk ble åpnet eller lukket. "
+            "Periodiske HC3-kontroller kan fortsatt oppdatere status, råverdi og batteri, men kan ikke "
+            "lenger få en gammel dørstilling til å fremstå som nylig endret."
+        ),
+        "applications": [
+            "Fibaro10 API: skiller siste måling fra siste åpne/lukke-hendelse.",
+            "Bygg og drift: konsistente tider og varigheter på Oversikt, Solrom og Romkontroll.",
+        ],
+        "request": (
+            "Gå gjennom dører, få Solrom 3 med i PC-appen og rydd opp slik at alt blir "
+            "ryddig, nyttig og fint."
+        ),
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bruker siste råmåling til aktuell status og batterinivå.",
+            "Bruker siste reelle tilstandsendring til tidspunkt og varighet.",
+            "Retter også sammendraget for siste dørendring.",
+            "Legger til regresjonstest for gjentatte målinger med uendret status.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1732",
         "date": "13.08.2026",
         "headline": "Komplett og ryddigere døroversikt",
