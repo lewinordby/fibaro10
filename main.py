@@ -6089,23 +6089,31 @@ async def link_axis_snapshots_to_sun2_sessions(
                     result["invalid_jpeg"] += 1
                     continue
                 stat = path.stat()
-                image = Sun2TanningSessionImage(
-                    session_id=row.id,
-                    captured_at=captured_at,
-                    target_at=target_at,
-                    offset_seconds=offset_seconds,
-                    is_primary=is_primary,
-                    delta_seconds=delta_seconds,
-                    source_path=str(path),
-                    source_mtime=datetime.fromtimestamp(stat.st_mtime, LOCAL_TZ).replace(tzinfo=None),
-                    content_type="image/jpeg",
-                    image_bytes=content,
-                    byte_size=len(content),
-                    sha256=hashlib.sha256(content).hexdigest(),
-                    source="axis_snapshot_backfill",
+                image_values = {
+                    "session_id": row.id,
+                    "captured_at": captured_at,
+                    "target_at": target_at,
+                    "offset_seconds": offset_seconds,
+                    "is_primary": is_primary,
+                    "delta_seconds": delta_seconds,
+                    "source_path": str(path),
+                    "source_mtime": datetime.fromtimestamp(stat.st_mtime, LOCAL_TZ).replace(tzinfo=None),
+                    "content_type": "image/jpeg",
+                    "image_bytes": content,
+                    "byte_size": len(content),
+                    "sha256": hashlib.sha256(content).hexdigest(),
+                    "source": "axis_snapshot_backfill",
+                }
+                insert_result = await session.execute(
+                    pg_insert(Sun2TanningSessionImage)
+                    .values(**image_values)
+                    .on_conflict_do_nothing(index_elements=["session_id", "offset_seconds"])
+                    .returning(Sun2TanningSessionImage.id)
                 )
-                session.add(image)
                 existing_offsets.add(offset_seconds)
+                if insert_result.scalar_one_or_none() is None:
+                    result["already_linked"] += 1
+                    continue
                 used_snapshot_ids.add(axis_snapshot_id(captured_at))
                 result["linked"] += 1
             except FileNotFoundError:

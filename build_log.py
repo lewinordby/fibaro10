@@ -12,6 +12,30 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1726",
+        "date": "13.08.2026",
+        "headline": "Sikker parallell kobling av solbilder",
+        "title": "Samtidige bildekoblinger kan ikke lenger stoppe arbeiderprosessen med duplikatfeil",
+        "description": (
+            "Automatisk kobling av Axis-bilder til soltimer er gjort atomisk i databasen. Dersom to prosesser "
+            "finner samme ledige bildeposisjon samtidig, lagres bare den første mens den andre fortsetter uten feil."
+        ),
+        "applications": [
+            "Fibaro10 worker: idempotent lagring av de fem bildene rundt hver soltime.",
+        ],
+        "request": (
+            "Oppdaget under produksjonskontrollen etter innføring av dørstyrt Roborock-automatikk."
+        ),
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bruker databasekonfliktkontroll på kombinasjonen soltime og bildeposisjon.",
+            "Teller bare bilder som faktisk ble lagret som nye.",
+            "Lar en parallell kobling registreres som allerede koblet i stedet for å avbryte transaksjonen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1725",
         "date": "13.08.2026",
         "headline": "Inngangsstyrt støvsuging for 1.etg B",

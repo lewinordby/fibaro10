@@ -125,3 +125,14 @@ class Sun2AxisSnapshotTests(unittest.TestCase):
         self.assertEqual([item[0] for item in series], [-25, -20, -15, -10, -5])
         self.assertEqual([item[1].strftime("%H:%M:%S") for item in series], ["17:46:10", "17:46:15", "17:46:20", "17:46:25", "17:46:30"])
         self.assertEqual([item[3] for item in series], [False, False, True, False, False])
+
+    def test_axis_snapshot_backfill_insert_ignores_concurrent_duplicate(self) -> None:
+        statement = (
+            self.main.pg_insert(self.main.Sun2TanningSessionImage)
+            .values(session_id=12, offset_seconds=-15)
+            .on_conflict_do_nothing(index_elements=["session_id", "offset_seconds"])
+        )
+
+        compiled = str(statement.compile(dialect=self.main.engine.sync_engine.dialect))
+
+        self.assertIn("ON CONFLICT (session_id, offset_seconds) DO NOTHING", compiled)
