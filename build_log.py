@@ -12,6 +12,33 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1723",
+        "date": "13.08.2026",
+        "headline": "Synlig fremdrift for sonerengjøring",
+        "title": "Vask-knappen følger roboten fra moppvask til ferdig jobb",
+        "description": (
+            "Første kjøring av Sone 1 viste at roboten kan gå tilbake til dokken for moppbehandling og deretter "
+            "fortsette i samme segmentjobb. Sonetabellen følger nå live-telemetrien etter knappetrykket og viser "
+            "tydelig om kommandoen sendes, moppen vaskes, sonen rengjøres eller roboten returnerer til dokken."
+        ),
+        "applications": [
+            "Bygg og drift: live-status, tydelig aktivitetsmarkering og automatisk oppdatering i sonetabellen.",
+        ],
+        "request": (
+            "Gjør det tydelig at Vask-knappen faktisk starter Sone 1, også når roboten bruker tid i dokken "
+            "før eller under rengjøringen."
+        ),
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser Sender, Moppbehandling, Vasker Sone 1, Returnerer og Fullført direkte ved valgt sone.",
+            "Oppdaterer robotdetaljen automatisk hvert åttende sekund mens sonen følges.",
+            "Deaktiverer nye sonekommandoer mens en startet jobb overvåkes.",
+            "Beholder tydelig feiltekst dersom roboten allerede rengjør eller kommandoen avvises.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1722",
         "date": "13.08.2026",
         "headline": "Start sonerengjøring fra Fibaro10",

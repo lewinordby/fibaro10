@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { domainApi } from "../api";
 import { displayCell, valueLabel } from "../format";
 import { useApi } from "../hooks";
@@ -346,9 +346,39 @@ function RobotControls({ duid, data, reload }: { duid: string; data: RoborockRob
 function CleaningZones({ duid, data, reload }: { duid: string; data: RoborockRobotDetail; reload: () => void }) {
   const [importing, setImporting] = useState(false);
   const [runningZone, setRunningZone] = useState<number | null>(null);
+  const [watchingZone, setWatchingZone] = useState<{ number: number; name: string; startedAt: number; initialState: string } | null>(null);
   const [message, setMessage] = useState("");
   const zones = data.cleaningZones || [];
   const automaticImport = data.cleaningZoneImport;
+  const telemetryAt = parsedDate(data.latestTelemetry?.timestamp)?.getTime() || 0;
+  const telemetryState = String(data.latestTelemetry?.state_name || data.latestStatus?.state_name || "").toLowerCase();
+  const watchedState = watchingZone && telemetryAt >= watchingZone.startedAt - 3_000
+    ? telemetryState
+    : watchingZone?.initialState || telemetryState;
+
+  function zoneProgressText(zoneName: string, state: string) {
+    if (["washing_the_mop", "washing_the_mop_2", "going_to_wash_the_mop"].includes(state)) return `Moppbehandling i dokken · ${zoneName}`;
+    if (["segment_cleaning", "segment_mopping", "segment_clean_mop_cleaning", "segment_clean_mop_mopping"].includes(state)) return `Vasker ${zoneName} nå`;
+    if (["returning_home", "returning", "returning_to_dock"].includes(state)) return `${zoneName} · returnerer til dokk`;
+    if (["charging", "charging_complete", "fully_charged"].includes(state)) return `${zoneName} er fullført · roboten lader`;
+    return `${zoneName} er startet · ${robotStateLabel(state)}`;
+  }
+
+  useEffect(() => {
+    if (!watchingZone) return undefined;
+    const refresh = window.setInterval(reload, 8_000);
+    const stop = window.setTimeout(() => setWatchingZone(null), 10 * 60_000);
+    return () => {
+      window.clearInterval(refresh);
+      window.clearTimeout(stop);
+    };
+  }, [reload, watchingZone]);
+
+  useEffect(() => {
+    if (!watchingZone || telemetryAt < watchingZone.startedAt - 3_000 || !telemetryState) return;
+    setMessage(zoneProgressText(watchingZone.name, telemetryState));
+    if (["charging", "charging_complete", "fully_charged"].includes(telemetryState)) setWatchingZone(null);
+  }, [telemetryAt, telemetryState, watchingZone]);
 
   async function importZones() {
     if (!window.confirm("Lese deaktiverte testplaner kl. 12:01-12:59 og oppdatere sonene for denne roboten?")) return;
@@ -374,14 +404,17 @@ function CleaningZones({ duid, data, reload }: { duid: string; data: RoborockRob
     setRunningZone(zoneNumber);
     setMessage("");
     try {
-      const response = await domainApi.mutate<{ message?: string }>(
+      const response = await domainApi.mutate<{ message?: string; after?: JsonRecord | null }>(
         `/api/renhold/robots/${encodeURIComponent(duid)}/control`,
         "POST",
         { action: "clean_zone", zone_number: zoneNumber },
       );
-      setMessage(response.message || `${zoneName} er startet.`);
+      const initialState = String(response.after?.state_name || "starting").toLowerCase();
+      setWatchingZone({ number: zoneNumber, name: zoneName, startedAt: Date.now(), initialState });
+      setMessage(zoneProgressText(zoneName, initialState));
       reload();
     } catch (error) {
+      setWatchingZone(null);
       setMessage(error instanceof Error ? error.message : String(error));
     } finally {
       setRunningZone(null);
@@ -395,8 +428,8 @@ function CleaningZones({ duid, data, reload }: { duid: string; data: RoborockRob
         {data.canManageCleaningZones ? <button className="btn shrink-0 border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" disabled={importing || runningZone !== null} onClick={importZones}><MosaicIcon name="refresh" />{importing ? "Leser ..." : "Les testplaner"}</button> : null}
       </div>
       {automaticImport?.status === "error" ? <div className="mx-5 my-3 rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">Automatisk innlesing ble avvist: {automaticImport.message || "Kontroller testplanene"}</div> : null}
-      {message ? <div className={`mx-5 my-3 rounded-md px-3 py-2 text-sm ${message.toLowerCase().includes("fant ingen") || message.toLowerCase().includes("må ") || message.toLowerCase().includes("allerede") ? "bg-red-500/10 text-red-600 dark:text-red-400" : "bg-green-500/10 text-green-700 dark:text-green-400"}`}>{message}</div> : null}
-      {zones.length ? <div className="overflow-x-auto"><table className="w-full"><thead className="bg-gray-50 text-xs uppercase text-gray-400 dark:bg-gray-700/40"><tr><th className="px-5 py-3 text-left font-semibold">Sone</th><th className="px-5 py-3 text-left font-semibold">Robotsegment</th><th className="px-5 py-3 text-left font-semibold">Testplan</th><th className="px-5 py-3 text-right font-semibold">Lest inn</th>{data.canControl ? <th className="px-5 py-3 text-right font-semibold">Handling</th> : null}</tr></thead><tbody className="divide-y divide-gray-100 text-sm dark:divide-gray-700/60">{zones.map((zone) => <tr key={zone.zoneNumber}><td className="px-5 py-3 font-semibold text-gray-700 dark:text-gray-200">{zone.name}</td><td className="px-5 py-3 font-mono tabular-nums text-gray-600 dark:text-gray-300">{zone.segmentId}</td><td className="px-5 py-3 text-gray-500 dark:text-gray-400">12:{String(zone.zoneNumber).padStart(2, "0")} <span className="text-gray-300 dark:text-gray-600">·</span> {zone.sourceScheduleId || "-"}</td><td className="whitespace-nowrap px-5 py-3 text-right text-gray-400">{stamp(zone.importedAt)}</td>{data.canControl ? <td className="whitespace-nowrap px-5 py-2 text-right"><button className="btn border-green-200 bg-green-50 text-green-700 hover:bg-green-100 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300" disabled={importing || runningZone !== null} onClick={() => cleanZone(zone.zoneNumber, zone.name)}>{runningZone === zone.zoneNumber ? "Starter ..." : "Vask"}</button></td> : null}</tr>)}</tbody></table></div> : <p className="px-5 py-6 text-sm text-gray-400">Ingen soner er registrert for denne roboten ennå.</p>}
+      {message ? <div aria-live="polite" className={`mx-5 my-3 flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${message.toLowerCase().includes("fant ingen") || message.toLowerCase().includes("må ") || message.toLowerCase().includes("allerede") || message.toLowerCase().includes("feil") ? "bg-red-500/10 text-red-600 dark:text-red-400" : "bg-green-500/10 text-green-700 dark:text-green-400"}`}>{watchingZone ? <MosaicIcon className="animate-spin" name="refresh" /> : <MosaicIcon name={message.toLowerCase().includes("feil") || message.toLowerCase().includes("allerede") ? "warning" : "robot"} />}{message}</div> : null}
+      {zones.length ? <div className="overflow-x-auto"><table className="w-full"><thead className="bg-gray-50 text-xs uppercase text-gray-400 dark:bg-gray-700/40"><tr><th className="px-5 py-3 text-left font-semibold">Sone</th><th className="px-5 py-3 text-left font-semibold">Robotsegment</th><th className="px-5 py-3 text-left font-semibold">Testplan</th><th className="px-5 py-3 text-right font-semibold">Lest inn</th>{data.canControl ? <th className="px-5 py-3 text-right font-semibold">Handling</th> : null}</tr></thead><tbody className="divide-y divide-gray-100 text-sm dark:divide-gray-700/60">{zones.map((zone) => <tr className={watchingZone?.number === zone.zoneNumber ? "bg-green-50/60 dark:bg-green-500/5" : ""} key={zone.zoneNumber}><td className="px-5 py-3 font-semibold text-gray-700 dark:text-gray-200">{zone.name}{watchingZone?.number === zone.zoneNumber ? <small className="mt-0.5 block font-medium text-green-700 dark:text-green-400">{zoneProgressText(zone.name, watchedState)}</small> : null}</td><td className="px-5 py-3 font-mono tabular-nums text-gray-600 dark:text-gray-300">{zone.segmentId}</td><td className="px-5 py-3 text-gray-500 dark:text-gray-400">12:{String(zone.zoneNumber).padStart(2, "0")} <span className="text-gray-300 dark:text-gray-600">·</span> {zone.sourceScheduleId || "-"}</td><td className="whitespace-nowrap px-5 py-3 text-right text-gray-400">{stamp(zone.importedAt)}</td>{data.canControl ? <td className="whitespace-nowrap px-5 py-2 text-right"><button className={`btn ${watchingZone?.number === zone.zoneNumber ? "border-green-600 bg-green-600 text-white" : "border-green-200 bg-green-50 text-green-700 hover:bg-green-100 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300"}`} disabled={importing || runningZone !== null || watchingZone !== null} onClick={() => cleanZone(zone.zoneNumber, zone.name)}>{runningZone === zone.zoneNumber ? "Sender ..." : watchingZone?.number === zone.zoneNumber ? "Pågår ..." : "Vask"}</button></td> : null}</tr>)}</tbody></table></div> : <p className="px-5 py-6 text-sm text-gray-400">Ingen soner er registrert for denne roboten ennå.</p>}
     </div>
   </Panel>;
 }
