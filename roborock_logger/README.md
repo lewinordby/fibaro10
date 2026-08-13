@@ -1,6 +1,6 @@
 # Roborock_logger
 
-Oppdatert 12.08.2026.
+Oppdatert 13.08.2026.
 
 `Roborock_logger` er en liten lokal app som skal kjøre på QNAP/Docker i samme nett som Roborock-robotene.
 
@@ -82,6 +82,12 @@ Batchen kan inneholde:
 - probe-resultater og feil
 
 Hvis Fibaro10 er nede, legges batchen i lokal kø i `/data/pending_batches.jsonl` og forsøkes sendt igjen senere.
+En ugyldig kølinje flyttes til `/data/pending_batches.invalid.jsonl`, slik at den kan undersøkes uten å blokkere
+resten av køen.
+
+Loggeren bruker kjente lokale IP-adresser mellom synkroniseringene. Hele IOT-nettet skannes ved cloud-oppfriskning,
+når en ny robot mangler adresse eller etter en lokal telemetilfeil. Dette reduserer vanlig nettverksbelastning uten
+å hindre automatisk oppdagelse. Med `MAP_SYNC_ON_START=true` hentes kart én gang etter at loggeren starter.
 
 ## Kontroll og rengjøringsprofiler
 

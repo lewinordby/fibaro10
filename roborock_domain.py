@@ -506,13 +506,105 @@ def roborock_schedule_minutes(schedule: Any) -> int:
     return hour * 60 + minute
 
 
-def roborock_next_schedule_score(schedule: Any) -> int:
-    minutes = roborock_schedule_minutes(schedule)
-    if minutes > 24 * 60:
-        return minutes
-    now = datetime.now(LOCAL_TZ)
-    now_minutes = now.hour * 60 + now.minute
-    return minutes - now_minutes if minutes >= now_minutes else minutes + (24 * 60 - now_minutes)
+def roborock_cron_weekdays(day_field: str) -> Optional[set[int]]:
+    """Return Python weekdays (Monday=0), or None for an every-day cron."""
+    value = str(day_field or "").strip().upper()
+    if value in {"", "*", "?"}:
+        return None
+
+    named_days = {
+        "MON": 0,
+        "TUE": 1,
+        "WED": 2,
+        "THU": 3,
+        "FRI": 4,
+        "SAT": 5,
+        "SUN": 6,
+    }
+
+    def parse_day(token: str) -> Optional[int]:
+        token = token.strip().upper()
+        if token in named_days:
+            return named_days[token]
+        number = int_value(token)
+        if number in {0, 7}:
+            return 6
+        if number is not None and 1 <= number <= 6:
+            return number - 1
+        return None
+
+    weekdays: set[int] = set()
+    for part in value.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" not in part:
+            weekday = parse_day(part)
+            if weekday is None:
+                return set()
+            weekdays.add(weekday)
+            continue
+        start_token, end_token = part.split("-", 1)
+        start = parse_day(start_token)
+        end = parse_day(end_token)
+        if start is None or end is None:
+            return set()
+        weekday = start
+        weekdays.add(weekday)
+        while weekday != end:
+            weekday = (weekday + 1) % 7
+            weekdays.add(weekday)
+    return weekdays
+
+
+def roborock_next_schedule_at(schedule: Any, now: Optional[datetime] = None) -> Optional[datetime]:
+    parts = roborock_cron_parts(getattr(schedule, "cron", None))
+    if not parts:
+        return None
+    minute, hour, day_field = parts
+    if not 0 <= minute <= 59 or not 0 <= hour <= 23:
+        return None
+    weekdays = roborock_cron_weekdays(day_field)
+    if weekdays == set():
+        return None
+    current = now or datetime.now(LOCAL_TZ)
+    current = current.replace(tzinfo=LOCAL_TZ) if current.tzinfo is None else current.astimezone(LOCAL_TZ)
+    allowed_days = weekdays if weekdays is not None else set(range(7))
+    for offset in range(8):
+        day = current.date() + timedelta(days=offset)
+        if day.weekday() not in allowed_days:
+            continue
+        candidate = datetime(day.year, day.month, day.day, hour, minute, tzinfo=LOCAL_TZ)
+        if candidate >= current:
+            return candidate
+    return None
+
+
+def roborock_next_schedule_score(schedule: Any, now: Optional[datetime] = None) -> int:
+    current = now or datetime.now(LOCAL_TZ)
+    current = current.replace(tzinfo=LOCAL_TZ) if current.tzinfo is None else current.astimezone(LOCAL_TZ)
+    next_at = roborock_next_schedule_at(schedule, current)
+    if next_at is None:
+        return 8 * 24 * 60 * 60
+    return max(0, int((next_at - current).total_seconds()))
+
+
+def roborock_next_schedule_text(schedule: Any, now: Optional[datetime] = None) -> Optional[str]:
+    current = now or datetime.now(LOCAL_TZ)
+    current = current.replace(tzinfo=LOCAL_TZ) if current.tzinfo is None else current.astimezone(LOCAL_TZ)
+    next_at = roborock_next_schedule_at(schedule, current)
+    if next_at is None:
+        return None
+    day_offset = (next_at.date() - current.date()).days
+    if day_offset == 0:
+        day_label = "I dag"
+    elif day_offset == 1:
+        day_label = "I morgen"
+    else:
+        day_label = ("mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag", "søndag")[
+            next_at.weekday()
+        ]
+    return f"{day_label} kl. {next_at:%H:%M}"
 
 
 def roborock_schedule_text(schedule: Any) -> str:

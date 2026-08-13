@@ -1,6 +1,6 @@
 # Roborock_logger og Renhold
 
-Oppdatert 12.08.2026.
+Oppdatert 13.08.2026.
 
 `Roborock_logger` er den lokale innlesingsappen for robotstøvsugere. Den kjører på QNAP/Docker i samme nett som robotene og sender ferdig strukturerte data til Fibaro10.
 
@@ -110,6 +110,20 @@ Hvis roboten finnes i cloud, men mangler lokal IP, sjekk at den er på IOT-nette
 
 Planene fra Roborock er lokal klokketid og skal for eksempel vises som `23:30`. Historiske vaskjobber kommer som Unix-tid i UTC. Fibaro10 konverterer disse til `Europe/Oslo` ved API-visning, inkludert riktig sommer- og vintertid.
 
+«Neste plan» beregnes fra både lokal klokketid og planens ukedager. En mandagsplan kan derfor ikke bli presentert
+som neste jobb på en tirsdag bare fordi klokkeslettet ligger nærmest. Oversikten viser konkret neste forekomst, for
+eksempel `I morgen kl. 23:30`, mens robotdetaljen også viser selve gjentakelsesregelen.
+
+## Datakvalitet og belastning
+
+- Minutt-telemetrien er den ferskeste kilden for aktiv/ferdig-status. Femminuttersstatusen brukes som historikk og reserve.
+- Oversikten henter siste status, telemetri og forbruksdeler per robot, ikke et felles begrenset radutvalg.
+- Dagens og gårsdagens jobber hentes etter lokale døgnskiller i `Europe/Oslo`.
+- Fullt søk etter lokale Roborock-adresser gjøres ved ny robot, cloud-oppfriskning eller lokal feil. Kjente friske
+  adresser brukes direkte mellom søkene.
+- Kart hentes ved oppstart når `MAP_SYNC_ON_START=true`, og ellers ved manuell `Synk med kart`.
+- En ugyldig linje i den lokale sendekøen flyttes til `pending_batches.invalid.jsonl`; øvrige batcher fortsetter.
+
 ## Soner og rengjøringsprofiler
 
 På detaljsiden til hver robot kan en global sone kobles til robotens lokale kartsegment. Deaktiverte testplaner
@@ -169,3 +183,9 @@ Hvis Renhold viser gamle data:
 ```
 
 Batcher i kø sendes på nytt ved neste vellykkede sync.
+
+En eventuell isolert, ugyldig kølinje beholdes for feilsøking i:
+
+```text
+/data/pending_batches.invalid.jsonl
+```

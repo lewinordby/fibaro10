@@ -1,6 +1,6 @@
 # Roborock-telemetri
 
-Oppdatert 12.08.2026.
+Oppdatert 13.08.2026.
 
 ## Formål
 
@@ -25,6 +25,9 @@ Roborock lokal LAN-API
 | Dynamisk telemetri | 60 sekunder | Status, batteri, rengjøring, lading, dokk, vann/tank, signal og komplett råstatus. |
 | Utvidet API-kontroll | 15 minutter | Innstillinger, forbruksdeler, summer, planer og øvrige modellspesifikke lesekall. |
 | Ordinær Roborock-synk | 5 minutter | Robotregister, vaskhistorikk, planer, forbruksdeler og øvrig eksisterende synk. |
+
+Renholdsoversikten lar minutt-telemetrien overstyre en eldre femminuttersstatus når de er uenige. Det hindrer at en
+avsluttet jobb blir stående som aktiv frem til neste ordinære synk.
 
 Et kall som robotmodellen eksplisitt avviser som ukjent eller ikke støttet, hoppes over resten av prosessens
 levetid. Det prøves på nytt etter omstart eller ny utrulling. Dette hindrer unødvendig belastning.

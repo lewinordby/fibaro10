@@ -221,9 +221,9 @@ function RobotCard({ robot }: { robot: RoborockRobotSummary }) {
       <ResourceValue label="Dokk" value={readiness.dock_error_label} />
     </div>
     <div className="grid grid-cols-3 gap-4 border-b border-gray-100 px-5 py-3 dark:border-gray-700/60">
-      <ResourceValue label="Hovedbørste" value={consumables?.main_brush} />
-      <ResourceValue label="Sidebørste" value={consumables?.side_brush} />
-      <ResourceValue label="Filter" value={consumables?.filter} />
+      <ResourceValue label="H.børste brukt" value={consumables?.main_brush} />
+      <ResourceValue label="S.børste brukt" value={consumables?.side_brush} />
+      <ResourceValue label="Filter brukt" value={consumables?.filter} />
     </div>
     <div className="mt-auto flex items-center justify-between gap-4 px-5 py-3 text-xs"><span className="min-w-0 truncate text-gray-500 dark:text-gray-400" title={nextPlan}><strong className="mr-1.5 font-semibold text-gray-600 dark:text-gray-300">Neste</strong>{nextPlan}</span><span className="flex shrink-0 items-center gap-1 font-medium text-green-700 dark:text-green-400">Åpne <MosaicIcon name="arrow-right" size={14} /></span></div>
   </AppLink>;
@@ -582,7 +582,7 @@ function CleaningZones({ duid, data, reload }: { duid: string; data: RoborockRob
 }
 
 function ScheduleRows({ schedules }: { schedules: JsonRecord[] }) {
-  return <div className="divide-y divide-gray-100 px-5 dark:divide-gray-700/60">{schedules.map((row, index) => <div className={`grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${row.enabled === false ? "opacity-50" : ""}`} key={String(row.schedule_id || index)}><div className="min-w-0"><strong className="block truncate text-sm font-medium text-gray-700 dark:text-gray-200">{String(row.schedule_label || row.cron || "Ukjent plan")}</strong><small className="mt-0.5 block truncate text-gray-400">{[row.rounds_label, row.fan_label, row.mop_label, row.water_label].filter(Boolean).join(" · ")}</small></div><span className={`text-xs font-semibold ${row.enabled === false ? "text-gray-400" : "text-green-700 dark:text-green-400"}`}>{row.enabled === false ? "Av" : "Aktiv"}</span></div>)}{!schedules.length ? <div className="py-6 text-sm text-gray-400">Ingen planer er mottatt.</div> : null}</div>;
+  return <div className="divide-y divide-gray-100 px-5 dark:divide-gray-700/60">{schedules.map((row, index) => <div className={`grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${row.enabled === false ? "opacity-50" : ""}`} key={String(row.schedule_id || index)}><div className="min-w-0"><strong className="block truncate text-sm font-medium text-gray-700 dark:text-gray-200">{String(row.schedule_label || row.cron || "Ukjent plan")}</strong><small className="mt-0.5 block truncate text-gray-400">{[row.next_label, row.rounds_label, row.fan_label, row.mop_label, row.water_label].filter(Boolean).join(" · ")}</small></div><span className={`text-xs font-semibold ${row.enabled === false ? "text-gray-400" : "text-green-700 dark:text-green-400"}`}>{row.enabled === false ? "Av" : "Aktiv"}</span></div>)}{!schedules.length ? <div className="py-6 text-sm text-gray-400">Ingen planer er mottatt.</div> : null}</div>;
 }
 
 function ConsumableGrid({ consumables }: { consumables: JsonRecord }) {
@@ -747,7 +747,7 @@ function RobotDetail({ duid, summary }: { duid: string; summary?: RoborockRobotS
     </div>
     <div className="grid gap-5 xl:grid-cols-2">
       <Panel title="Planlagte jobber" subtitle={`${data.schedules.filter((row) => row.enabled !== false).length} aktive planer`}><ScheduleRows schedules={data.schedules} /></Panel>
-      <Panel title="Forbruksdeler" subtitle={consumables.timestamp ? `Målt ${stamp(consumables.timestamp)}` : "Ikke mottatt"}><ConsumableGrid consumables={consumables} /></Panel>
+      <Panel title="Forbruksdeler" subtitle={consumables.timestamp ? `Registrert bruk siden nullstilling · målt ${stamp(consumables.timestamp)}` : "Ikke mottatt"}><ConsumableGrid consumables={consumables} /></Panel>
     </div>
     <Panel title="Rengjøringshistorikk" subtitle="Ferdige jobber, nyeste først">{activeCycle ? <ActiveCycleBand cycle={activeCycle} /> : null}<CompactTable columns={["begin_at", "end_at", "duration_minutes", "cleaned_area_m2", "rounds_label", "status_label", "error_label"]} rows={data.jobs} /></Panel>
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(22rem,0.7fr)]">

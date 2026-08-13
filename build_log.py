@@ -12,6 +12,38 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1729",
+        "date": "13.08.2026",
+        "headline": "Helhetlig kvalitetssikring av renhold",
+        "title": "Riktige planer, ferskere status og en mer robust Roborock-datakjede",
+        "description": (
+            "Hele renholdslÃ¸sningen er gjennomgÃ¥tt fra Roborock cloud og lokal LAN-lesing til database, "
+            "styring, dÃ¸rautomatikk og brukergrensesnitt. Neste plan tar nÃ¥ hensyn til ukedag, den ferskeste "
+            "telemetrien avgjÃ¸r om en robot faktisk arbeider, og oversikten henter komplette dÃ¸gnsdata per robot. "
+            "Loggeren er samtidig gjort mindre belastende og mer motstandsdyktig mot kÃ¸- og nettverksfeil."
+        ),
+        "applications": [
+            "Fibaro10 API og worker: korrekt planberegning, fersk statusprioritet og presise databaseutvalg.",
+            "Bygg og drift: konkret neste kjÃ¸ring, tydeligere forbruksverdier og mindre detaljnyttelast.",
+            "Roborock_logger: behovsstyrt nettverkssÃ¸k, robust sendekÃ¸, kart ved oppstart og ryddig livssyklus.",
+        ],
+        "request": "Ta en grundig gjennomgang av hele renhold.",
+        "work_duration": "ca. 90 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjÃ¸ring",
+        "changes": [
+            "Beregner neste aktive plan fra bÃ¥de klokkeslett og valgte ukedager.",
+            "Viser neste konkrete forekomst som i dag, i morgen eller riktig ukedag.",
+            "Lar minutt-telemetri overstyre eldre femminuttersstatus ved start og avslutning.",
+            "Henter alle jobber for i dag og i gÃ¥r etter korrekte Oslo-dÃ¸gn, samt siste status per robot.",
+            "Reduserer robotdetaljens telemetri- og diagnostikknyttelast uten Ã¥ fjerne synlige data.",
+            "Gjenbruker kjente lokale adresser og skanner pÃ¥ nytt ved cloud-oppfriskning, ny robot eller feil.",
+            "Isolerer ugyldige kÃ¸linjer og skriver den gjenstÃ¥ende sendekÃ¸en atomisk.",
+            "Aktiverer konfigurert kartinnlesing ved oppstart og kontrollert stopp av bakgrunnsjobber.",
+            "Utvider renholdstestene og oppdaterer drifts- og telemetridokumentasjonen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1728",
         "date": "13.08.2026",
         "headline": "Ventende Roborock-start beholder telleren",

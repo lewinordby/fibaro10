@@ -171,6 +171,7 @@ from roborock_domain import (
     roborock_json,
     roborock_job_status,
     roborock_mop_label,
+    roborock_next_schedule_text,
     roborock_next_schedule_score,
     roborock_operational_readiness,
     roborock_rounds_label,
@@ -32233,16 +32234,72 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
 
         if module == "renhold":
             robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
-            jobs = (await session.execute(select(RoborockCleanJob).order_by(RoborockCleanJob.begin_at.desc()).limit(120))).scalars().all()
-            statuses = (await session.execute(select(RoborockStatusSample).order_by(RoborockStatusSample.timestamp.desc()).limit(120))).scalars().all()
+            robot_duids = [robot.duid for robot in robots]
+            today_local = datetime.now(LOCAL_TZ).date()
+            yesterday_local = today_local - timedelta(days=1)
+            tomorrow_local = today_local + timedelta(days=1)
+            jobs_from = local_naive_to_utc_naive(datetime.combine(yesterday_local, time.min))
+            jobs_to = local_naive_to_utc_naive(datetime.combine(tomorrow_local, time.min))
+            jobs = (
+                await session.execute(
+                    select(RoborockCleanJob)
+                    .where(RoborockCleanJob.robot_duid.in_(robot_duids or [""]))
+                    .where(RoborockCleanJob.begin_at >= jobs_from)
+                    .where(RoborockCleanJob.begin_at < jobs_to)
+                    .order_by(RoborockCleanJob.begin_at.desc(), RoborockCleanJob.id.desc())
+                )
+            ).scalars().all()
+
+            latest_status_subq = (
+                select(
+                    RoborockStatusSample.robot_duid.label("robot_duid"),
+                    func.max(RoborockStatusSample.id).label("latest_id"),
+                )
+                .where(RoborockStatusSample.robot_duid.in_(robot_duids or [""]))
+                .group_by(RoborockStatusSample.robot_duid)
+                .subquery()
+            )
+            statuses = (
+                await session.execute(
+                    select(RoborockStatusSample)
+                    .join(latest_status_subq, RoborockStatusSample.id == latest_status_subq.c.latest_id)
+                    .order_by(RoborockStatusSample.timestamp.desc())
+                )
+            ).scalars().all()
+
+            latest_telemetry_subq = (
+                select(
+                    RoborockTelemetrySample.robot_duid.label("robot_duid"),
+                    func.max(RoborockTelemetrySample.id).label("latest_id"),
+                )
+                .where(RoborockTelemetrySample.robot_duid.in_(robot_duids or [""]))
+                .group_by(RoborockTelemetrySample.robot_duid)
+                .subquery()
+            )
             telemetry_samples = (
                 await session.execute(
                     select(RoborockTelemetrySample)
-                    .order_by(RoborockTelemetrySample.timestamp.desc(), RoborockTelemetrySample.id.desc())
-                    .limit(120)
+                    .join(latest_telemetry_subq, RoborockTelemetrySample.id == latest_telemetry_subq.c.latest_id)
+                    .order_by(RoborockTelemetrySample.timestamp.desc())
                 )
             ).scalars().all()
-            consumables = (await session.execute(select(RoborockConsumableSnapshot).order_by(RoborockConsumableSnapshot.timestamp.desc()).limit(120))).scalars().all()
+
+            latest_consumable_subq = (
+                select(
+                    RoborockConsumableSnapshot.robot_duid.label("robot_duid"),
+                    func.max(RoborockConsumableSnapshot.id).label("latest_id"),
+                )
+                .where(RoborockConsumableSnapshot.robot_duid.in_(robot_duids or [""]))
+                .group_by(RoborockConsumableSnapshot.robot_duid)
+                .subquery()
+            )
+            consumables = (
+                await session.execute(
+                    select(RoborockConsumableSnapshot)
+                    .join(latest_consumable_subq, RoborockConsumableSnapshot.id == latest_consumable_subq.c.latest_id)
+                    .order_by(RoborockConsumableSnapshot.timestamp.desc())
+                )
+            ).scalars().all()
             schedules = (
                 await session.execute(
                     select(RoborockSchedule)
@@ -32255,10 +32312,24 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             for status in statuses:
                 if status.robot_duid not in latest_status_by_robot:
                     latest_status_by_robot[status.robot_duid] = status
+            latest_telemetry_by_robot: Dict[str, RoborockTelemetrySample] = {}
+            for telemetry_sample in telemetry_samples:
+                latest_telemetry_by_robot.setdefault(telemetry_sample.robot_duid, telemetry_sample)
             active_robot_duids = [
-                robot_duid
-                for robot_duid, status in latest_status_by_robot.items()
-                if status.in_cleaning is True
+                robot.duid
+                for robot in robots
+                if (
+                    latest_telemetry_by_robot.get(robot.duid)
+                    and latest_telemetry_by_robot[robot.duid].in_cleaning is True
+                )
+                or (
+                    (
+                        latest_telemetry_by_robot.get(robot.duid) is None
+                        or latest_telemetry_by_robot[robot.duid].in_cleaning is None
+                    )
+                    and latest_status_by_robot.get(robot.duid)
+                    and latest_status_by_robot[robot.duid].in_cleaning is True
+                )
             ]
             status_history = statuses
             if active_robot_duids:
@@ -32268,23 +32339,17 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         .where(RoborockStatusSample.robot_duid.in_(active_robot_duids))
                         .where(RoborockStatusSample.timestamp >= local_now_naive() - timedelta(hours=36))
                         .order_by(RoborockStatusSample.timestamp.desc())
-                        .limit(1200)
                     )
                 ).scalars().all()
             statuses_by_robot: Dict[str, list[RoborockStatusSample]] = defaultdict(list)
             for status in status_history:
                 statuses_by_robot[status.robot_duid].append(status)
-            latest_telemetry_by_robot: Dict[str, RoborockTelemetrySample] = {}
-            for telemetry_sample in telemetry_samples:
-                latest_telemetry_by_robot.setdefault(telemetry_sample.robot_duid, telemetry_sample)
             latest_consumables_by_robot: Dict[str, RoborockConsumableSnapshot] = {}
             for consumable in consumables:
                 latest_consumables_by_robot.setdefault(consumable.robot_duid, consumable)
             schedules_by_robot: Dict[str, list[RoborockSchedule]] = defaultdict(list)
             for schedule in schedules:
                 schedules_by_robot[schedule.robot_duid].append(schedule)
-            today_local = datetime.now(LOCAL_TZ).date()
-            yesterday_local = today_local - timedelta(days=1)
             latest_job_by_robot_day: Dict[tuple[str, date], RoborockCleanJob] = {}
             jobs_by_robot_day: Dict[tuple[str, date], list[RoborockCleanJob]] = defaultdict(list)
             for job in jobs:
@@ -32367,7 +32432,11 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 dust_bag = roborock_telemetry_value_label(
                     "dust_bag_status", telemetry.dust_bag_status, telemetry.dust_bag_status_name
                 ) if telemetry else "Ikke støttet"
-                active = bool((telemetry and telemetry.in_cleaning) or (status and status.in_cleaning))
+                active = bool(
+                    telemetry.in_cleaning
+                    if telemetry and telemetry.in_cleaning is not None
+                    else status.in_cleaning if status else False
+                )
                 telemetry_at = normalize_local_naive(telemetry.timestamp) if telemetry and telemetry.timestamp else None
                 telemetry_age_minutes = (
                     max(0, round((local_now_naive() - telemetry_at).total_seconds() / 60))
@@ -32404,14 +32473,18 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 next_schedule = min(active, key=roborock_next_schedule_score) if active else None
                 return {
                     "active_count": len(active),
-                    "next_label": roborock_schedule_text(next_schedule) if next_schedule else None,
+                    "next_label": roborock_next_schedule_text(next_schedule) if next_schedule else None,
+                    "schedule_label": roborock_schedule_text(next_schedule) if next_schedule else None,
                     "rounds_label": roborock_rounds_label(next_schedule.repeat) if next_schedule else None,
                 }
             robot_summaries = []
             for robot in robots:
                 status = latest_status_by_robot.get(robot.duid)
                 telemetry = latest_telemetry_by_robot.get(robot.duid)
-                active_cycle = roborock_active_cycle_summary(statuses_by_robot.get(robot.duid, []))
+                cycle_history: list[Any] = list(statuses_by_robot.get(robot.duid, []))
+                if telemetry and telemetry.in_cleaning is not None:
+                    cycle_history.append(telemetry)
+                active_cycle = roborock_active_cycle_summary(cycle_history)
                 robot_summaries.append(
                     {
                         "duid": robot.duid,
@@ -32429,7 +32502,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "latest_job_yesterday": overview_job(latest_job_by_robot_day.get((robot.duid, yesterday_local))),
                         "today": overview_day(robot.duid, today_local, active_cycle),
                         "yesterday": overview_day(robot.duid, yesterday_local, active_cycle),
-                        "active_cycle": api_roborock_active_cycle(statuses_by_robot.get(robot.duid, [])),
+                        "active_cycle": api_roborock_active_cycle(cycle_history),
                         "readiness": overview_readiness(robot, status, telemetry, active_cycle),
                         "consumables": overview_consumables(robot.duid),
                         "schedules": overview_schedules(robot.duid),
@@ -39309,7 +39382,7 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
                 select(RoborockTelemetrySample)
                 .where(RoborockTelemetrySample.robot_duid == duid)
                 .order_by(RoborockTelemetrySample.timestamp.desc(), RoborockTelemetrySample.id.desc())
-                .limit(360)
+                .limit(120)
             )
         ).scalars().all()
         telemetry_events = (
@@ -39320,13 +39393,18 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
                 .limit(150)
             )
         ).scalars().all()
+        latest_probe_subq = (
+            select(func.max(RoborockProbeResult.id).label("latest_id"))
+            .where(RoborockProbeResult.robot_duid == duid)
+            .where(RoborockProbeResult.source == "local-telemetry")
+            .group_by(RoborockProbeResult.command)
+            .subquery()
+        )
         telemetry_probes = (
             await session.execute(
                 select(RoborockProbeResult)
-                .where(RoborockProbeResult.robot_duid == duid)
-                .where(RoborockProbeResult.source == "local-telemetry")
-                .order_by(RoborockProbeResult.timestamp.desc(), RoborockProbeResult.id.desc())
-                .limit(1000)
+                .join(latest_probe_subq, RoborockProbeResult.id == latest_probe_subq.c.latest_id)
+                .order_by(RoborockProbeResult.command)
             )
         ).scalars().all()
         command_runs = (
@@ -39406,6 +39484,7 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
         item.update(
             {
                 "schedule_label": roborock_schedule_text(row),
+                "next_label": roborock_next_schedule_text(row) if row.enabled else None,
                 "enabled_label": roborock_bool_label(row.enabled),
                 "rounds_label": roborock_rounds_label(row.repeat),
                 "fan_label": roborock_fan_label(row.fan_power),
@@ -39551,7 +39630,7 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
         "network": network,
         "latestStatus": status_rows[0] if status_rows else None,
         "activeCycle": api_roborock_active_cycle(statuses),
-        "statuses": status_rows,
+        "statuses": status_rows[:60],
         "jobs": job_rows,
         "schedules": schedule_rows,
         "consumables": consumable_data,

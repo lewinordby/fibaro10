@@ -13,6 +13,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Literal
 from zoneinfo import ZoneInfo
@@ -30,6 +31,7 @@ CLIENT_IDS_FILE = DATA_DIR / "roborock_client_ids.json"
 HOME_CACHE_FILE = DATA_DIR / "home_data.json"
 STATE_FILE = DATA_DIR / "state.json"
 QUEUE_FILE = DATA_DIR / "pending_batches.jsonl"
+QUEUE_ERROR_FILE = DATA_DIR / "pending_batches.invalid.jsonl"
 CONTROL_LOG_FILE = DATA_DIR / "control_commands.jsonl"
 
 ROBOROCK_EMAIL = os.getenv("ROBOROCK_EMAIL", "roborock.sun2@gmail.com")
@@ -50,7 +52,23 @@ AUTO_SYNC_ENABLED = os.getenv("AUTO_SYNC_ENABLED", "true").lower() in {"1", "tru
 ROBOROCK_CONTROL_TOKEN = os.getenv("ROBOROCK_CONTROL_TOKEN", "").strip()
 ROBOROCK_LOCAL_PORT = 58867
 
-app = FastAPI(title="Roborock_logger")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    tasks = {
+        asyncio.create_task(sync_loop(), name="roborock-sync"),
+        asyncio.create_task(telemetry_loop(), name="roborock-telemetry"),
+    }
+    try:
+        yield
+    finally:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
+app = FastAPI(title="Roborock_logger", lifespan=lifespan)
 sync_lock = asyncio.Lock()
 telemetry_unsupported_commands: dict[str, set[str]] = {}
 telemetry_last_settings_at: dict[str, float] = {}
@@ -879,6 +897,17 @@ def queue_batch(batch: dict[str, Any], endpoint: str = "/api/renhold/ingest") ->
         file.write(json.dumps({"endpoint": endpoint, "payload": batch}, ensure_ascii=False) + "\n")
 
 
+def quarantine_queue_line(line: str, error: Exception) -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    entry = {
+        "quarantined_at": local_now_iso(),
+        "error": f"{type(error).__name__}: {error}",
+        "raw_line": line,
+    }
+    with QUEUE_ERROR_FILE.open("a", encoding="utf-8") as file:
+        file.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
 def resend_queue() -> int:
     if not QUEUE_FILE.exists():
         return 0
@@ -888,7 +917,12 @@ def resend_queue() -> int:
     for line in lines:
         if not line.strip():
             continue
-        queued = json.loads(line)
+        try:
+            queued = json.loads(line)
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            quarantine_queue_line(line, exc)
+            logging.getLogger("roborock_logger.queue").warning("Flyttet ugyldig kÃ¸linje til %s", QUEUE_ERROR_FILE)
+            continue
         if isinstance(queued, dict) and isinstance(queued.get("payload"), dict):
             endpoint = str(queued.get("endpoint") or "/api/renhold/ingest")
             batch = queued["payload"]
@@ -900,8 +934,34 @@ def resend_queue() -> int:
             sent += 1
         except Exception:
             remaining.append(line)
-    QUEUE_FILE.write_text("\n".join(remaining) + ("\n" if remaining else ""), encoding="utf-8")
+    temporary = QUEUE_FILE.with_suffix(".tmp")
+    temporary.write_text("\n".join(remaining) + ("\n" if remaining else ""), encoding="utf-8")
+    temporary.replace(QUEUE_FILE)
     return sent
+
+
+def should_scan_hosts(
+    home: dict[str, Any],
+    devices: list[dict[str, Any]],
+    known_hosts: list[str],
+    state: dict[str, Any],
+    *,
+    force_home_refresh: bool,
+) -> bool:
+    unique_devices = {str(device.get("duid") or "") for device in devices if device.get("duid")}
+    unique_hosts = {str(host).strip() for host in known_hosts if str(host).strip()}
+    cache_source = str(((home.get("_cache") or {}).get("source") or "")).lower()
+    telemetry_failed = any(
+        bool(robot.get("last_telemetry_error"))
+        for robot in (state.get("robots") or {}).values()
+        if isinstance(robot, dict)
+    )
+    return (
+        force_home_refresh
+        or cache_source == "cloud"
+        or len(unique_hosts) < len(unique_devices)
+        or telemetry_failed
+    )
 
 
 async def local_telemetry_data(
@@ -1062,7 +1122,17 @@ async def collect_once(include_maps: bool = False, force_home_refresh: bool = Fa
         for robot in (state.get("robots") or {}).values()
         if robot.get("local_ip")
     ]
-    scanned_hosts = await scan_hosts()
+    scanned_hosts = (
+        await scan_hosts()
+        if should_scan_hosts(
+            home,
+            devices,
+            known_hosts,
+            state,
+            force_home_refresh=force_home_refresh,
+        )
+        else []
+    )
     candidates = list(dict.fromkeys(known_hosts + scanned_hosts))
     robots = []
     for device in devices:
@@ -1151,11 +1221,13 @@ async def collect_once(include_maps: bool = False, force_home_refresh: bool = Fa
 
 
 async def sync_loop() -> None:
+    include_maps = MAP_SYNC_ON_START
     while True:
         try:
             if AUTO_SYNC_ENABLED and CACHE_FILE.exists():
                 async with sync_lock:
-                    await collect_once(include_maps=False)
+                    await collect_once(include_maps=include_maps)
+                include_maps = False
         except Exception as exc:
             state = load_state()
             state["last_error"] = str(exc)
@@ -1192,13 +1264,6 @@ main{{width:min(100% - 1.4rem,980px);margin:0 auto;padding:1rem 0 2rem}}
 input{{padding:.55rem;border:1px solid #dbe3ec;border-radius:7px}}form{{display:flex;gap:.5rem;flex-wrap:wrap}}code{{overflow-wrap:anywhere}}
 </style></head><body><main><h1>Roborock_logger</h1>{content}</main></body></html>"""
     )
-
-
-@app.on_event("startup")
-async def startup() -> None:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    asyncio.create_task(sync_loop())
-    asyncio.create_task(telemetry_loop())
 
 
 @app.get("/", response_class=HTMLResponse)

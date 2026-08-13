@@ -45,10 +45,10 @@ foreach ($service in $frontendServices | Where-Object { $_ -in $Services }) {
 }
 
 if ("operations_app" -in $Services) {
-    Run "python" @("-m", "pytest", "tests/test_domain_microapps.py", "tests/test_roborock_door_automation.py", "tests/test_roborock_control.py", "-q")
+    Run "python" @("-m", "pytest", "tests/test_domain_microapps.py", "tests/test_roborock_door_automation.py", "tests/test_roborock_control.py", "tests/test_roborock_schedules.py", "-q")
 }
 if ($Roborock) {
-    Run "python" @("-m", "pytest", "tests/test_roborock_control.py", "tests/test_roborock_profiles.py", "tests/test_roborock_telemetry.py", "tests/test_roborock_timestamps.py", "tests/test_roborock_zones.py", "-q")
+    Run "python" @("-m", "pytest", "tests/test_roborock_control.py", "tests/test_roborock_logger_resilience.py", "tests/test_roborock_profiles.py", "tests/test_roborock_schedules.py", "tests/test_roborock_telemetry.py", "tests/test_roborock_timestamps.py", "tests/test_roborock_zones.py", "-q")
 }
 
 Run "git" @("diff", "--check")
