@@ -131,6 +131,26 @@ bestilte innstillingene. Valgt profil, sone, segment, bruker og bekreftede verdi
 Roborocks `Custom`- og `Smart`-moduser er foreløpig ikke tilgjengelige i profilbyggeren. Kodene alene er ikke
 tilstrekkelige; de trenger ekstra modellavhengige vendorparametere og ville derfor ikke gitt en entydig fast profil.
 
+## Inngangsstyrt støvsuging for 1.etg B
+
+Robotsiden for `1.etg B` har en egen automatikk som kan starte én felles støvsugingsjobb i to valgte soner.
+Standardoppsettet er deaktivert, 10 åpninger av inngangsdøren, 60 minutters ro etter siste åpning og Sone 1 +
+Sone 2. Automatikken kan først aktiveres når begge sonene er koblet til gyldige kartsegmenter.
+
+Telleren bruker bare reelle tilstandsendringer for inngangsdørens HC3-enhet `541`. Følgende må være oppfylt:
+
+- døråpningene har skjedd samme dag og etter dagens åpningstid startet
+- antall åpninger har nådd den konfigurerte terskelen
+- inngangsdøren er lukket
+- konfigurert antall minutter har gått siden siste åpning
+- kontrollen skjer før dagens stengetid
+- begge soner, en aktiv ren støvsugingsprofil og Roborock-styring er tilgjengelig
+
+Åpningstiden hentes fra `Ventilasjon -> Innstillinger` (`open_from` og `close_at`). Nattens hendelser tas ikke med,
+og telleren nullstilles etter en vellykket start, ved lagring av oppsettet eller med `Nullstill teller`. Hvis roboten
+avviser en start, beholdes telleren og Fibaro10 venter fem minutter før nytt forsøk. Alle forsøk lagres i den samme
+kontrollhistorikken som manuelle robotkommandoer, med bruker `door_automation`.
+
 ## Feilsøking
 
 Hvis Renhold viser gamle data:

@@ -595,6 +595,107 @@ function ConsumableGrid({ consumables }: { consumables: JsonRecord }) {
   return <div className="grid grid-cols-2 gap-x-8 px-5 py-2">{values.map(([label, value]) => <div className="border-b border-gray-100 py-3 dark:border-gray-700/60" key={String(label)}><span className="block text-xs font-semibold uppercase text-gray-400">{label}</span><strong className="mt-1 block text-sm font-medium tabular-nums text-gray-700 dark:text-gray-200">{displayCell(String(label), value)}</strong></div>)}</div>;
 }
 
+function DoorAutomation({ duid, data, reload }: { duid: string; data: RoborockRobotDetail; reload: () => void }) {
+  const automation = data.doorAutomation;
+  const [enabled, setEnabled] = useState(Boolean(automation?.enabled));
+  const [openingThreshold, setOpeningThreshold] = useState(automation?.openingThreshold || 10);
+  const [quietMinutes, setQuietMinutes] = useState(automation?.quietMinutes || 60);
+  const [zoneNumbers, setZoneNumbers] = useState<number[]>(automation?.zoneNumbers || []);
+  const [profileId, setProfileId] = useState(automation?.profileId || 0);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  if (!automation) return null;
+
+  const progress = Math.min(100, Math.round((automation.openingCount / Math.max(1, automation.openingThreshold)) * 100));
+  const statusTone = automation.status === "configuration_error" || automation.lastError
+    ? "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+    : automation.enabled
+      ? "border-green-200 bg-green-50 text-green-700 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300"
+      : "border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-300";
+  const vacuumProfiles = data.cleaningProfiles.filter((profile) => profile.active && profile.cleaningType === "vacuum");
+
+  function toggleZone(zoneNumber: number, checked: boolean) {
+    setZoneNumbers((current) => {
+      if (!checked) return current.filter((value) => value !== zoneNumber);
+      if (current.includes(zoneNumber)) return current;
+      return current.length < 2 ? [...current, zoneNumber] : current;
+    });
+  }
+
+  async function save() {
+    setSaving(true);
+    setMessage("");
+    try {
+      const response = await domainApi.mutate<{ message?: string }>(
+        `/api/renhold/robots/${encodeURIComponent(duid)}/door-automation`,
+        "PUT",
+        {
+          enabled,
+          opening_threshold: openingThreshold,
+          quiet_minutes: quietMinutes,
+          zone_numbers: zoneNumbers,
+          profile_id: profileId,
+        },
+      );
+      setMessage(response.message || "Automatikken er lagret.");
+      reload();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function resetCounter() {
+    if (!window.confirm("Nullstille dagens teller for inngangsdøren?")) return;
+    setSaving(true);
+    setMessage("");
+    try {
+      const response = await domainApi.mutate<{ message?: string }>(
+        `/api/renhold/robots/${encodeURIComponent(duid)}/door-automation/reset-counter`,
+        "POST",
+      );
+      setMessage(response.message || "Telleren er nullstilt.");
+      reload();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return <Panel title="Inngangsstyrt støvsuging" subtitle={`Kun i åpningstiden ${automation.openingHours.openFrom}-${automation.openingHours.closeAtLabel}`}>
+    <div className="space-y-4 p-5">
+      <div className="grid gap-4 lg:grid-cols-[minmax(16rem,0.8fr)_minmax(0,1.2fr)]">
+        <div className={`rounded-lg border p-4 ${statusTone}`}>
+          <div className="flex items-start justify-between gap-4"><div><span className="block text-xs font-semibold uppercase opacity-70">Status</span><strong className="mt-1 block text-base">{automation.statusLabel}</strong><p className="mt-1 text-sm opacity-80">{automation.statusDetail}</p></div><strong className="whitespace-nowrap text-lg tabular-nums">{automation.openingCount} / {automation.openingThreshold}</strong></div>
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/10 dark:bg-white/10"><div className="h-full rounded-full bg-current transition-[width]" style={{ width: `${progress}%` }} /></div>
+        </div>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
+          <div><span className="block text-xs font-semibold uppercase text-gray-400">Soner</span><strong className="mt-1 block text-gray-700 dark:text-gray-200">{automation.configuredZones.map((zone) => zone.name).join(" + ") || "Ikke valgt"}</strong></div>
+          <div><span className="block text-xs font-semibold uppercase text-gray-400">Profil</span><strong className="mt-1 block text-gray-700 dark:text-gray-200">{String(automation.profile?.name || "Ikke valgt")}</strong></div>
+          <div><span className="block text-xs font-semibold uppercase text-gray-400">Siste åpning</span><strong className="mt-1 block text-gray-700 dark:text-gray-200">{automation.lastOpeningAt ? stamp(automation.lastOpeningAt) : "Ingen i perioden"}</strong></div>
+          <div><span className="block text-xs font-semibold uppercase text-gray-400">Sist startet</span><strong className="mt-1 block text-gray-700 dark:text-gray-200">{automation.lastStartedAt ? stamp(automation.lastStartedAt) : "Aldri"}</strong></div>
+        </div>
+      </div>
+      {automation.validationIssues.length ? <div className="rounded-md bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">{automation.validationIssues.join(" · ")}</div> : null}
+      {automation.lastError ? <div className="rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-300">Siste feil: {automation.lastError}</div> : null}
+      {data.canManageCleaningZones ? <details className="rounded-lg border border-gray-200 dark:border-gray-700/60">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200"><span>Innstillinger</span><span className="text-xs font-medium text-gray-400">Endringer nullstiller telleren</span></summary>
+        <div className="grid gap-4 border-t border-gray-100 p-4 sm:grid-cols-2 xl:grid-cols-4 dark:border-gray-700/60">
+          <label className="flex items-center gap-2 self-end pb-2 text-sm font-medium text-gray-700 dark:text-gray-200"><input checked={enabled} onChange={(event) => setEnabled(event.target.checked)} type="checkbox" />Aktiver automatikk</label>
+          <label><span className="mb-1 block text-xs font-semibold uppercase text-gray-400">Døråpninger</span><input className="form-input w-full" max={100} min={1} onChange={(event) => setOpeningThreshold(Number(event.target.value))} type="number" value={openingThreshold} /></label>
+          <label><span className="mb-1 block text-xs font-semibold uppercase text-gray-400">Ro etter siste åpning</span><div className="relative"><input className="form-input w-full pr-12" max={360} min={1} onChange={(event) => setQuietMinutes(Number(event.target.value))} type="number" value={quietMinutes} /><span className="pointer-events-none absolute right-3 top-2.5 text-sm text-gray-400">min</span></div></label>
+          <label><span className="mb-1 block text-xs font-semibold uppercase text-gray-400">Støvsugingsprofil</span><select className="form-input w-full" onChange={(event) => setProfileId(Number(event.target.value))} value={profileId}>{vacuumProfiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>
+          <fieldset className="sm:col-span-2 xl:col-span-4"><legend className="mb-2 text-xs font-semibold uppercase text-gray-400">Velg nøyaktig to soner</legend><div className="flex flex-wrap gap-2">{data.cleaningZones.map((zone) => <label className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${zoneNumbers.includes(zone.zoneNumber) ? "border-green-400 bg-green-50 text-green-800 dark:border-green-500/60 dark:bg-green-500/10 dark:text-green-300" : "border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-300"}`} key={zone.zoneNumber}><input checked={zoneNumbers.includes(zone.zoneNumber)} onChange={(event) => toggleZone(zone.zoneNumber, event.target.checked)} type="checkbox" />{zone.name}</label>)}</div></fieldset>
+          <div className="flex flex-wrap items-center justify-between gap-3 sm:col-span-2 xl:col-span-4"><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" disabled={saving} onClick={resetCounter}>Nullstill teller</button><button className="btn bg-green-600 text-white hover:bg-green-700" disabled={saving || zoneNumbers.length !== 2 || !profileId} onClick={save}>{saving ? "Lagrer ..." : "Lagre automatikk"}</button></div>
+        </div>
+      </details> : null}
+      {message ? <p className="text-sm text-gray-500 dark:text-gray-300">{message}</p> : null}
+    </div>
+  </Panel>;
+}
+
 function RobotDetail({ duid, summary }: { duid: string; summary?: RoborockRobotSummary }) {
   const result = useApi(() => domainApi.get<RoborockRobotDetail>(`/api/renhold/robots/${encodeURIComponent(duid)}`), `roborock-${duid}`);
   if (result.loading && !result.data) return <Panel><div className="p-8 text-sm text-gray-400">Henter robotdetaljer ...</div></Panel>;
@@ -628,6 +729,7 @@ function RobotDetail({ duid, summary }: { duid: string; summary?: RoborockRobotS
       </div>
     </section>
     <RobotControls duid={duid} data={data} reload={result.reload} />
+    <DoorAutomation duid={duid} data={data} key={`${data.doorAutomation?.updatedAt || "none"}-${data.doorAutomation?.openingCount || 0}`} reload={result.reload} />
     <CleaningZones duid={duid} data={data} reload={result.reload} />
     <div className="grid gap-5 xl:grid-cols-2">
       <Panel title="Rengjøring" subtitle="Samlet aktivitet i dag og i går"><DetailDayRows summary={summary} /></Panel>

@@ -75,6 +75,8 @@ class ControlRequest(BaseModel):
     test_duration_seconds: int = Field(default=5, ge=3, le=12)
     zone_number: int | None = Field(default=None, ge=1, le=59)
     segment_id: int | None = Field(default=None, ge=1)
+    zone_numbers: list[int] | None = Field(default=None, min_length=1, max_length=12)
+    segment_ids: list[int] | None = Field(default=None, min_length=1, max_length=12)
     profile: CleaningProfileRequest | None = None
 
 
@@ -494,10 +496,18 @@ def control_is_active(snapshot: dict[str, Any]) -> bool:
     }
 
 
-def segment_clean_params(segment_id: int, repeat: int = 1) -> list[dict[str, Any]]:
-    if segment_id < 1:
-        raise ValueError("Roborock-segmentet må være et positivt heltall")
-    return [{"segments": [segment_id], "repeat": max(1, min(int(repeat), 3))}]
+def segment_clean_params(segment_ids: int | list[int], repeat: int = 1) -> list[dict[str, Any]]:
+    values = [segment_ids] if isinstance(segment_ids, int) else list(segment_ids)
+    normalized: list[int] = []
+    for value in values:
+        segment_id = int(value)
+        if segment_id < 1:
+            raise ValueError("Roborock-segmentet må være et positivt heltall")
+        if segment_id not in normalized:
+            normalized.append(segment_id)
+    if not normalized:
+        raise ValueError("Minst ett Roborock-segment må velges")
+    return [{"segments": normalized, "repeat": max(1, min(int(repeat), 3))}]
 
 
 def validated_profile_settings(profile: CleaningProfileRequest) -> dict[str, int]:
@@ -610,14 +620,20 @@ async def execute_control_command(duid: str, values: ControlRequest) -> dict[str
             result = {"validated": True, "host": host, "model": model}
             after = before
         elif values.action == "clean_zone":
-            if values.zone_number is None or values.segment_id is None or values.profile is None:
+            zone_numbers = list(values.zone_numbers or ([] if values.zone_number is None else [values.zone_number]))
+            segment_ids = list(values.segment_ids or ([] if values.segment_id is None else [values.segment_id]))
+            if not zone_numbers or not segment_ids or values.profile is None:
                 raise HTTPException(status_code=400, detail="Sone, robotsegment og rengjøringsprofil mangler")
+            if len(zone_numbers) != len(segment_ids):
+                raise HTTPException(status_code=400, detail="Antall soner og robotsegmenter må være likt")
             validate_control_start(before)
             applied_profile = await apply_cleaning_profile(rpc, model, values.profile)
-            params = segment_clean_params(values.segment_id, values.profile.repeat)
+            params = segment_clean_params(segment_ids, values.profile.repeat)
             audit["target"] = {
-                "zone_number": values.zone_number,
-                "segment_id": values.segment_id,
+                "zone_number": zone_numbers[0],
+                "segment_id": segment_ids[0],
+                "zone_numbers": zone_numbers,
+                "segment_ids": segment_ids,
                 "profile": values.profile.model_dump(),
                 "applied_profile": applied_profile,
             }

@@ -361,6 +361,43 @@ export type RoborockRobotDetail = {
   telemetryEvents: JsonRecord[];
   canControl: boolean;
   canManageCleaningZones: boolean;
+  doorAutomation?: {
+    enabled: boolean;
+    doorDeviceId: number;
+    openingThreshold: number;
+    quietMinutes: number;
+    zoneNumbers: number[];
+    profileId: number;
+    profile?: JsonRecord | null;
+    configuredZones: Array<{
+      zoneNumber: number;
+      name: string;
+      segmentId?: number | null;
+      mapped: boolean;
+    }>;
+    openingCount: number;
+    counterStartedAt?: string | null;
+    lastOpeningAt?: string | null;
+    doorIsOpen?: boolean | null;
+    openingHours: {
+      openAt?: string | null;
+      closeAt?: string | null;
+      openFrom: string;
+      closeAtLabel: string;
+    };
+    status: string;
+    statusLabel: string;
+    statusDetail: string;
+    eligible: boolean;
+    eligibleAt?: string | null;
+    remainingQuietSeconds: number;
+    validationIssues: string[];
+    lastAttemptAt?: string | null;
+    lastStartedAt?: string | null;
+    lastRequestId?: string | null;
+    lastError?: string | null;
+    updatedAt?: string | null;
+  } | null;
   cleaningZoneImport?: {
     status?: string;
     checkedAt?: string | null;

@@ -83,6 +83,13 @@ from roborock_profiles import (
     cleaning_profile_summary,
     validate_cleaning_profile,
 )
+from roborock_door_automation import (
+    automation_counter_start,
+    automation_decision,
+    opening_window,
+    profile_command_payload,
+    unique_ints,
+)
 from energy_helpers import (
     circuit_technical_label,
     energy_circuit_is_sunbed,
@@ -1173,6 +1180,27 @@ class RoborockCleaningProfile(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
 
+class RoborockDoorAutomation(Base):
+    __tablename__ = "roborock_door_automations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    robot_duid = Column(String, nullable=False, unique=True, index=True)
+    door_device_id = Column(Integer, nullable=False, default=541, index=True)
+    enabled = Column(Boolean, nullable=False, default=False, index=True)
+    opening_threshold = Column(Integer, nullable=False, default=10)
+    quiet_minutes = Column(Integer, nullable=False, default=60)
+    zone_numbers = Column(JSON, nullable=False, default=list)
+    profile_id = Column(Integer, ForeignKey("roborock_cleaning_profiles.id"), nullable=False, index=True)
+    counter_reset_at = Column(DateTime, nullable=True, index=True)
+    last_attempt_at = Column(DateTime, nullable=True, index=True)
+    last_started_at = Column(DateTime, nullable=True, index=True)
+    last_request_id = Column(String, nullable=True, index=True)
+    status = Column(String, nullable=False, default="disabled", index=True)
+    last_error = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=local_now_naive, nullable=False)
+    updated_at = Column(DateTime, default=local_now_naive, nullable=False, index=True)
+
+
 class RoborockConsumableSnapshot(Base):
     __tablename__ = "roborock_consumables"
 
@@ -2241,6 +2269,14 @@ class RoborockCleaningProfileIn(BaseModel):
     mop_mode: int
     repeat: int = Field(default=1, ge=1, le=3)
     active: bool = True
+
+
+class RoborockDoorAutomationIn(BaseModel):
+    enabled: bool = False
+    opening_threshold: int = Field(default=10, ge=1, le=100)
+    quiet_minutes: int = Field(default=60, ge=1, le=360)
+    zone_numbers: list[int] = Field(min_length=2, max_length=2)
+    profile_id: int = Field(ge=1)
 
 
 class Sun2RoomStatIn(BaseModel):
@@ -5045,6 +5081,61 @@ async def ensure_default_roborock_cleaning_profiles(session) -> None:
                 updated_at=now,
             )
         )
+
+
+async def ensure_default_roborock_door_automation(session) -> Optional[RoborockDoorAutomation]:
+    robot = (
+        await session.execute(
+            select(RoborockRobot).where(func.lower(RoborockRobot.name) == "1.etg b")
+        )
+    ).scalars().first()
+    if not robot:
+        return None
+    existing = (
+        await session.execute(
+            select(RoborockDoorAutomation).where(RoborockDoorAutomation.robot_duid == robot.duid)
+        )
+    ).scalars().first()
+    if existing:
+        return existing
+    await session.flush()
+    profile = (
+        await session.execute(
+            select(RoborockCleaningProfile)
+            .where(RoborockCleaningProfile.slug == "vacuum-normal")
+            .limit(1)
+        )
+    ).scalars().first()
+    if not profile:
+        profile = (
+            await session.execute(
+                select(RoborockCleaningProfile)
+                .where(
+                    RoborockCleaningProfile.cleaning_type == "vacuum",
+                    RoborockCleaningProfile.active == True,
+                )
+                .order_by(RoborockCleaningProfile.id)
+                .limit(1)
+            )
+        ).scalars().first()
+    if not profile:
+        return None
+    automation = RoborockDoorAutomation(
+        robot_duid=robot.duid,
+        door_device_id=541,
+        enabled=False,
+        opening_threshold=10,
+        quiet_minutes=60,
+        zone_numbers=[1, 2],
+        profile_id=profile.id,
+        counter_reset_at=local_now_naive(),
+        status="disabled",
+        created_at=local_now_naive(),
+        updated_at=local_now_naive(),
+    )
+    session.add(automation)
+    await session.flush()
+    return automation
 
 
 async def import_roborock_cleaning_zones(
@@ -15766,6 +15857,7 @@ async def startup():
                 key.key_hash = access_password_hash(username, password, is_master=False)
                 key.key_prefix = access_key_prefix(username, password, is_master=False)
         await ensure_default_roborock_cleaning_profiles(session)
+        await ensure_default_roborock_door_automation(session)
         await session.commit()
     async with async_session() as session:
         for config_key in CONFIG_DEFINITIONS:
@@ -15790,6 +15882,8 @@ async def startup():
         background_tasks.start("operational-retention", operational_retention_worker)
     if SUNBED_POWER_CACHE_WARM_ENABLED:
         background_tasks.start("sunbed-power-cache-warm", sunbed_power_cache_warm_worker)
+    if ROBOROCK_CONTROL_TOKEN:
+        background_tasks.start("roborock-door-automation", roborock_door_automation_worker)
 
 
 async def shutdown_application():
@@ -38963,6 +39057,183 @@ async def cleaning_overview(request: Request):
     )
 
 
+async def roborock_door_automation_payload(
+    session,
+    automation: RoborockDoorAutomation,
+    now: Optional[datetime] = None,
+) -> tuple[Dict[str, Any], Optional[Dict[str, Any]]]:
+    now = normalize_local_naive(now) or local_now_naive()
+    ventilation_config = (
+        await session.execute(select(ControlConfig).where(ControlConfig.key == "ventilation"))
+    ).scalars().first()
+    ventilation_values = merge_config_values(
+        "ventilation",
+        ventilation_config.values if ventilation_config else config_defaults("ventilation"),
+    )
+    open_at, close_at = opening_window(
+        now.date(),
+        ventilation_values.get("open_from"),
+        ventilation_values.get("close_at"),
+    )
+    counter_start = automation_counter_start(
+        open_at,
+        normalize_local_naive(automation.last_started_at),
+        normalize_local_naive(automation.counter_reset_at),
+    )
+    previous_event = (
+        await session.execute(
+            select(DoorEvent)
+            .where(
+                DoorEvent.device_id == automation.door_device_id,
+                DoorEvent.timestamp < counter_start,
+            )
+            .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
+            .limit(1)
+        )
+    ).scalars().first()
+    period_events = (
+        await session.execute(
+            select(DoorEvent)
+            .where(
+                DoorEvent.device_id == automation.door_device_id,
+                DoorEvent.timestamp >= counter_start,
+                DoorEvent.timestamp <= now,
+            )
+            .order_by(DoorEvent.timestamp, DoorEvent.id)
+        )
+    ).scalars().all()
+    current_event = (
+        await session.execute(
+            select(DoorEvent)
+            .where(
+                DoorEvent.device_id == automation.door_device_id,
+                DoorEvent.timestamp <= now,
+            )
+            .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
+            .limit(1)
+        )
+    ).scalars().first()
+    change_events = door_change_rows(([previous_event] if previous_event else []) + list(period_events))
+    opening_events = [
+        row
+        for row in change_events
+        if door_event_state_bool(row) is True
+        and (normalize_local_naive(row.timestamp) or datetime.min) >= counter_start
+    ]
+    last_opening_at = (
+        normalize_local_naive(opening_events[-1].timestamp) if opening_events else None
+    )
+
+    selected_zone_numbers = unique_ints(automation.zone_numbers or [])
+    mapping_pairs = (
+        await session.execute(
+            select(RoborockCleaningZoneMapping, CleaningZone)
+            .join(CleaningZone, CleaningZone.id == RoborockCleaningZoneMapping.zone_id)
+            .where(
+                RoborockCleaningZoneMapping.robot_duid == automation.robot_duid,
+                CleaningZone.zone_number.in_(selected_zone_numbers or [-1]),
+            )
+            .order_by(CleaningZone.zone_number)
+        )
+    ).all()
+    mappings_by_zone = {zone.zone_number: (mapping, zone) for mapping, zone in mapping_pairs}
+    configured_zones = []
+    segment_ids: list[int] = []
+    validation_issues: list[str] = []
+    if len(selected_zone_numbers) != 2:
+        validation_issues.append("Velg nøyaktig to forskjellige soner")
+    for zone_number in selected_zone_numbers:
+        pair = mappings_by_zone.get(zone_number)
+        if not pair:
+            configured_zones.append(
+                {"zoneNumber": zone_number, "name": f"Sone {zone_number}", "segmentId": None, "mapped": False}
+            )
+            validation_issues.append(f"Sone {zone_number} er ikke kartlagt for roboten")
+            continue
+        mapping, zone = pair
+        try:
+            segment_id = int(mapping.segment_id)
+        except (TypeError, ValueError):
+            segment_id = 0
+        configured_zones.append(
+            {
+                "zoneNumber": zone.zone_number,
+                "name": zone.name,
+                "segmentId": segment_id or None,
+                "mapped": segment_id > 0,
+            }
+        )
+        if segment_id > 0:
+            segment_ids.append(segment_id)
+        else:
+            validation_issues.append(f"{zone.name} har ugyldig robotsegment")
+
+    profile = await session.get(RoborockCleaningProfile, automation.profile_id)
+    profile_payload = roborock_cleaning_profile_payload(profile) if profile else None
+    if not profile or not profile.active:
+        validation_issues.append("Valgt rengjøringsprofil finnes ikke eller er deaktivert")
+    elif profile.cleaning_type != "vacuum":
+        validation_issues.append("Dørstyringen krever en ren støvsugingsprofil")
+    if not ROBOROCK_CONTROL_TOKEN:
+        validation_issues.append("Robotstyring er ikke konfigurert")
+
+    decision = automation_decision(
+        now=now,
+        enabled=bool(automation.enabled),
+        open_at=open_at,
+        close_at=close_at,
+        opening_count=len(opening_events),
+        opening_threshold=automation.opening_threshold,
+        quiet_minutes=automation.quiet_minutes,
+        last_opening_at=last_opening_at,
+        door_is_open=door_event_state_bool(current_event),
+        validation_issues=validation_issues,
+        status=automation.status,
+        last_attempt_at=normalize_local_naive(automation.last_attempt_at),
+    )
+    public_payload = {
+        "enabled": bool(automation.enabled),
+        "doorDeviceId": automation.door_device_id,
+        "openingThreshold": automation.opening_threshold,
+        "quietMinutes": automation.quiet_minutes,
+        "zoneNumbers": selected_zone_numbers,
+        "profileId": automation.profile_id,
+        "profile": profile_payload,
+        "configuredZones": configured_zones,
+        "openingCount": len(opening_events),
+        "counterStartedAt": api_local_iso(counter_start),
+        "lastOpeningAt": api_local_iso(last_opening_at),
+        "doorIsOpen": door_event_state_bool(current_event),
+        "openingHours": {
+            "openAt": api_local_iso(open_at),
+            "closeAt": api_local_iso(close_at),
+            "openFrom": open_at.strftime("%H:%M"),
+            "closeAtLabel": close_at.strftime("%H:%M"),
+        },
+        "status": decision["key"],
+        "statusLabel": decision["label"],
+        "statusDetail": decision["detail"],
+        "eligible": decision["eligible"],
+        "eligibleAt": api_local_iso(decision["eligible_at"]),
+        "remainingQuietSeconds": decision["remaining_quiet_seconds"],
+        "validationIssues": validation_issues,
+        "lastAttemptAt": api_local_iso(normalize_local_naive(automation.last_attempt_at)),
+        "lastStartedAt": api_local_iso(normalize_local_naive(automation.last_started_at)),
+        "lastRequestId": automation.last_request_id,
+        "lastError": automation.last_error,
+        "updatedAt": api_local_iso(normalize_local_naive(automation.updated_at)),
+    }
+    command_payload = None
+    if not validation_issues and len(segment_ids) == 2 and profile_payload:
+        command_payload = {
+            "zone_numbers": selected_zone_numbers,
+            "segment_ids": segment_ids,
+            "zone_names": [row["name"] for row in configured_zones],
+            "profile": profile_command_payload(profile_payload),
+        }
+    return public_payload, command_payload
+
+
 @app.get("/api/renhold/robots/{duid}")
 async def api_cleaning_robot_detail(request: Request, duid: str):
     async with async_session() as session:
@@ -39058,6 +39329,17 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
                 )
             )
         ).scalars().all()
+        door_automation = (
+            await session.execute(
+                select(RoborockDoorAutomation).where(RoborockDoorAutomation.robot_duid == duid)
+            )
+        ).scalars().first()
+        if not door_automation and str(robot.name or "").strip().lower() == "1.etg b":
+            door_automation = await ensure_default_roborock_door_automation(session)
+            await session.commit()
+        door_automation_data = None
+        if door_automation:
+            door_automation_data, _ = await roborock_door_automation_payload(session, door_automation)
 
     latest_status = statuses[0] if statuses else None
     metadata = ((robot.extra or {}).get("metadata") or {}) if isinstance(robot.extra, dict) else {}
@@ -39270,6 +39552,7 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
         "cleaningZoneImport": cleaning_zone_import,
         "cleaningProfiles": [roborock_cleaning_profile_payload(row) for row in cleaning_profiles],
         "cleaningProfileOptions": cleaning_profile_options(robot.model),
+        "doorAutomation": door_automation_data,
     }
 
 
@@ -39297,6 +39580,224 @@ def post_roborock_control(duid: str, payload: Dict[str, Any]) -> Dict[str, Any]:
             error_data = {}
         detail = error_data.get("detail") if isinstance(error_data, dict) else None
         raise RuntimeError(str(detail or raw or f"Roborock_logger svarte {exc.code}")) from exc
+
+
+ROBOROCK_DOOR_AUTOMATION_POLL_SECONDS = 30
+_roborock_door_automation_lock = asyncio.Lock()
+
+
+async def run_roborock_door_automation_once(now: Optional[datetime] = None) -> Dict[str, Any]:
+    async with _roborock_door_automation_lock:
+        now = normalize_local_naive(now) or local_now_naive()
+        async with async_session() as session:
+            automations = (
+                await session.execute(
+                    select(RoborockDoorAutomation).order_by(RoborockDoorAutomation.id)
+                )
+            ).scalars().all()
+            results: list[Dict[str, Any]] = []
+            for automation in automations:
+                public_payload, command_payload = await roborock_door_automation_payload(
+                    session, automation, now
+                )
+                current_status = str(public_payload["status"])
+                if automation.status != current_status and current_status != "ready":
+                    automation.status = current_status
+                    automation.updated_at = now
+                if not public_payload["eligible"] or not command_payload:
+                    results.append(
+                        {
+                            "robotDuid": automation.robot_duid,
+                            "status": current_status,
+                            "started": False,
+                        }
+                    )
+                    continue
+
+                request_id = f"door-auto-{secrets.token_hex(12)}"
+                automation.status = "starting"
+                automation.last_attempt_at = now
+                automation.last_request_id = request_id
+                automation.last_error = None
+                automation.updated_at = now
+                command_run = RoborockCommandRun(
+                    request_id=request_id,
+                    robot_duid=automation.robot_duid,
+                    action="clean_zone",
+                    requested_at=datetime.utcnow(),
+                    requested_by="door_automation",
+                    status="running",
+                    message=(
+                        f"Automatisk støvsuging etter {automation.opening_threshold} inngangsdøråpninger"
+                    ),
+                )
+                session.add(command_run)
+                await session.commit()
+                command_id = command_run.id
+
+                try:
+                    result = await asyncio.to_thread(
+                        post_roborock_control,
+                        automation.robot_duid,
+                        {
+                            "action": "clean_zone",
+                            "request_id": request_id,
+                            "actor": "door_automation",
+                            "confirmation": f"CONFIRM:{automation.robot_duid}:clean_zone",
+                            "zone_numbers": command_payload["zone_numbers"],
+                            "segment_ids": command_payload["segment_ids"],
+                            "zone_number": command_payload["zone_numbers"][0],
+                            "segment_id": command_payload["segment_ids"][0],
+                            "profile": command_payload["profile"],
+                        },
+                    )
+                    command_status = str(result.get("status") or "ok")
+                    if command_status != "ok":
+                        raise RuntimeError(str(result.get("message") or "Robotkommandoen feilet"))
+                    message = (
+                        f"{command_payload['profile']['name']} startet i "
+                        f"{', '.join(command_payload['zone_names'])}"
+                    )
+                    before_state = result.get("before")
+                    after_state = result.get("after")
+                    error_message = None
+                except Exception as exc:
+                    result = {"error": str(exc), "target": command_payload}
+                    command_status = "error"
+                    message = str(exc)
+                    before_state = None
+                    after_state = None
+                    error_message = str(exc)
+
+                automation = await session.get(RoborockDoorAutomation, automation.id)
+                command_run = await session.get(RoborockCommandRun, command_id)
+                finished_at = local_now_naive()
+                if command_run:
+                    command_run.finished_at = datetime.utcnow()
+                    command_run.status = command_status
+                    command_run.message = message
+                    command_run.before_state = before_state
+                    command_run.after_state = after_state
+                    command_run.result = result
+                if automation:
+                    automation.updated_at = finished_at
+                    if command_status == "ok":
+                        automation.status = "counting"
+                        automation.last_started_at = finished_at
+                        automation.last_error = None
+                    else:
+                        automation.status = "error"
+                        automation.last_error = error_message
+                await session.commit()
+                results.append(
+                    {
+                        "robotDuid": command_run.robot_duid if command_run else None,
+                        "status": command_status,
+                        "started": command_status == "ok",
+                        "message": message,
+                    }
+                )
+            await session.commit()
+            return {"checkedAt": api_local_iso(now), "automations": results}
+
+
+async def roborock_door_automation_worker() -> None:
+    await asyncio.sleep(10)
+    while True:
+        try:
+            await run_roborock_door_automation_once()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Feil i inngangsstyrt Roborock-automatikk")
+        await asyncio.sleep(ROBOROCK_DOOR_AUTOMATION_POLL_SECONDS)
+
+
+@app.put("/api/renhold/robots/{duid}/door-automation")
+async def api_update_roborock_door_automation(
+    request: Request,
+    duid: str,
+    values: RoborockDoorAutomationIn,
+):
+    forbidden = require_master(request)
+    if forbidden:
+        return forbidden
+    zone_numbers = unique_ints(values.zone_numbers)
+    if len(zone_numbers) != 2:
+        raise HTTPException(status_code=400, detail="Velg nøyaktig to forskjellige soner")
+    async with async_session() as session:
+        robot = (
+            await session.execute(select(RoborockRobot).where(RoborockRobot.duid == duid))
+        ).scalars().first()
+        if not robot:
+            raise HTTPException(status_code=404, detail="Ukjent robot")
+        automation = (
+            await session.execute(
+                select(RoborockDoorAutomation).where(RoborockDoorAutomation.robot_duid == duid)
+            )
+        ).scalars().first()
+        if not automation:
+            raise HTTPException(status_code=404, detail="Roboten har ikke inngangsstyrt automatikk")
+        profile = await session.get(RoborockCleaningProfile, values.profile_id)
+        if not profile or not profile.active or profile.cleaning_type != "vacuum":
+            raise HTTPException(status_code=400, detail="Velg en aktiv profil for bare støvsuging")
+        mapped_zone_numbers = set(
+            (
+                await session.execute(
+                    select(CleaningZone.zone_number)
+                    .join(
+                        RoborockCleaningZoneMapping,
+                        RoborockCleaningZoneMapping.zone_id == CleaningZone.id,
+                    )
+                    .where(
+                        RoborockCleaningZoneMapping.robot_duid == duid,
+                        CleaningZone.zone_number.in_(zone_numbers),
+                    )
+                )
+            ).scalars().all()
+        )
+        if values.enabled and mapped_zone_numbers != set(zone_numbers):
+            missing = sorted(set(zone_numbers) - mapped_zone_numbers)
+            raise HTTPException(
+                status_code=409,
+                detail=f"Kan ikke aktivere før Sone {', '.join(str(value) for value in missing)} er kartlagt",
+            )
+        now = local_now_naive()
+        automation.enabled = values.enabled
+        automation.opening_threshold = values.opening_threshold
+        automation.quiet_minutes = values.quiet_minutes
+        automation.zone_numbers = zone_numbers
+        automation.profile_id = values.profile_id
+        automation.counter_reset_at = now
+        automation.last_error = None
+        automation.status = "counting" if values.enabled else "disabled"
+        automation.updated_at = now
+        await session.commit()
+        payload, _ = await roborock_door_automation_payload(session, automation, now)
+    return {"status": "ok", "message": "Automatikken er lagret og telleren er nullstilt", "automation": payload}
+
+
+@app.post("/api/renhold/robots/{duid}/door-automation/reset-counter")
+async def api_reset_roborock_door_automation_counter(request: Request, duid: str):
+    forbidden = require_master(request)
+    if forbidden:
+        return forbidden
+    async with async_session() as session:
+        automation = (
+            await session.execute(
+                select(RoborockDoorAutomation).where(RoborockDoorAutomation.robot_duid == duid)
+            )
+        ).scalars().first()
+        if not automation:
+            raise HTTPException(status_code=404, detail="Roboten har ikke inngangsstyrt automatikk")
+        now = local_now_naive()
+        automation.counter_reset_at = now
+        automation.last_error = None
+        automation.status = "counting" if automation.enabled else "disabled"
+        automation.updated_at = now
+        await session.commit()
+        payload, _ = await roborock_door_automation_payload(session, automation, now)
+    return {"status": "ok", "message": "Telleren er nullstilt", "automation": payload}
 
 
 @app.post("/api/renhold/robots/{duid}/cleaning-zones/import-test-schedules")

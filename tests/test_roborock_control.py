@@ -17,9 +17,11 @@ def test_control_active_state_only_matches_floor_work():
     assert logger.control_is_active({"state_name": "returning_home", "in_cleaning": 1}) is False
 
 
-def test_segment_clean_params_target_exactly_one_robot_segment():
+def test_segment_clean_params_supports_one_or_more_robot_segments():
     assert logger.segment_clean_params(18) == [{"segments": [18], "repeat": 1}]
     assert logger.segment_clean_params(18, 2) == [{"segments": [18], "repeat": 2}]
+    assert logger.segment_clean_params([18, 25], 1) == [{"segments": [18, 25], "repeat": 1}]
+    assert logger.segment_clean_params([18, 18, 25], 2) == [{"segments": [18, 25], "repeat": 2}]
 
 
 def test_zone_control_request_requires_valid_zone_and_segment():
@@ -42,6 +44,27 @@ def test_zone_control_request_requires_valid_zone_and_segment():
     assert request.zone_number == 1
     assert request.segment_id == 18
     assert request.profile and request.profile.cleaning_type == "vacuum_mop"
+
+
+def test_zone_control_request_accepts_parallel_zone_and_segment_lists():
+    request = logger.ControlRequest(
+        action="clean_zone",
+        request_id="request-multi-123",
+        confirmation="CONFIRM:robot:clean_zone",
+        zone_numbers=[1, 2],
+        segment_ids=[25, 26],
+        profile={
+            "id": 1,
+            "name": "Vanlig støvsuging",
+            "cleaning_type": "vacuum",
+            "fan_power": 102,
+            "water_box_mode": 200,
+            "mop_mode": 300,
+            "repeat": 1,
+        },
+    )
+    assert request.zone_numbers == [1, 2]
+    assert request.segment_ids == [25, 26]
 
 
 def test_profile_validation_keeps_cleaning_type_and_levels_consistent():

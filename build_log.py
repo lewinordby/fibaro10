@@ -12,6 +12,37 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1725",
+        "date": "13.08.2026",
+        "headline": "Inngangsstyrt støvsuging for 1.etg B",
+        "title": "To soner kan startes automatisk etter nok døråpninger og en rolig periode",
+        "description": (
+            "1.etg B har fått en egen, konfigurerbar automatikk som teller reelle åpninger av inngangsdøren. "
+            "Når terskelen er nådd, døren er lukket og roperioden er utløpt, kan to kartlagte soner startes "
+            "som én Roborock-jobb. Både telling og start er strengt begrenset til ordinær åpningstid."
+        ),
+        "applications": [
+            "Fibaro10 API og worker: konfigurasjon, dørberegning, sikker startlogikk og kontrollhistorikk.",
+            "Bygg og drift: status, teller, valgte soner, profil og redigering på robotsiden for 1.etg B.",
+            "Roborock_logger: én verifisert kommando kan nå rengjøre flere kartsegmenter i samme jobb.",
+        ],
+        "request": (
+            "1.etg B skal støvsuge to konfigurerbare soner når inngangsdøren har vært åpnet et konfigurerbart "
+            "antall ganger, det har gått en konfigurerbar tid siden siste åpning, og dette skjer kun i åpningstiden."
+        ),
+        "work_duration": "ca. 55 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bruker HC3-inngangsdør 541 og teller bare stabiliserte åpne-hendelser etter dagens åpningstid.",
+            "Henter åpne- og stengetid dynamisk fra eksisterende ventilasjonsinnstillinger.",
+            "Krever lukket dør, nådd terskel, fullført roperiode, to kartlagte soner og aktiv støvsugingsprofil.",
+            "Nullstiller tellingsgrunnlaget etter vellykket start og ved endring av oppsettet.",
+            "Beholder teller ved feil og venter fem minutter før et kontrollert nytt forsøk.",
+            "Leveres deaktivert til Sone 2 er lest inn og hele oppsettet kan valideres.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1724",
         "date": "13.08.2026",
         "headline": "Faste og verifiserte rengjøringsprofiler",
