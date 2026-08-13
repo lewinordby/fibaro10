@@ -1,4 +1,7 @@
+from datetime import datetime
+
 from roborock_domain import (
+    roborock_active_cycle_summary,
     roborock_dock_error_label,
     roborock_dock_type_label,
     roborock_job_status,
@@ -6,6 +9,37 @@ from roborock_domain import (
     roborock_telemetry_changes,
     roborock_telemetry_value_label,
 )
+
+
+def test_roborock_active_cycle_tracks_floor_return_and_dock_pause():
+    history = [
+        {"timestamp": datetime(2026, 8, 13, 6, 56), "state_code": 8, "in_cleaning": True, "battery": 41, "clean_time_seconds": 7300, "clean_area_m2": 64.62, "clean_percent": 76},
+        {"timestamp": datetime(2026, 8, 13, 5, 53), "state_code": 8, "in_cleaning": True, "battery": 20, "clean_time_seconds": 7300, "clean_area_m2": 64.62, "clean_percent": 76},
+        {"timestamp": datetime(2026, 8, 13, 5, 48), "state_code": 6, "in_cleaning": True, "in_returning": True, "clean_time_seconds": 7300},
+        {"timestamp": datetime(2026, 8, 13, 5, 43), "state_code": 18, "in_cleaning": True, "in_returning": False, "clean_time_seconds": 7240},
+        {"timestamp": datetime(2026, 8, 13, 3, 3), "state_code": 18, "in_cleaning": True, "in_returning": False, "clean_time_seconds": 60},
+        {"timestamp": datetime(2026, 8, 13, 2, 58), "state_code": 8, "in_cleaning": False},
+    ]
+
+    cycle = roborock_active_cycle_summary(history)
+
+    assert cycle is not None
+    assert cycle["started_at"] == datetime(2026, 8, 13, 3, 2)
+    assert cycle["last_floor_at"] == datetime(2026, 8, 13, 5, 43)
+    assert cycle["dock_since"] == datetime(2026, 8, 13, 5, 53)
+    assert cycle["phase"] == "charging_pause"
+    assert cycle["phase_label"] == "Lader i dokk under pågående jobb"
+    assert cycle["active_minutes"] == 121.7
+    assert cycle["progress_percent"] == 76
+
+
+def test_roborock_active_cycle_is_absent_after_job_finishes():
+    history = [
+        {"timestamp": datetime(2026, 8, 13, 7, 5), "state_code": 8, "in_cleaning": False},
+        {"timestamp": datetime(2026, 8, 13, 7, 0), "state_code": 8, "in_cleaning": True},
+    ]
+
+    assert roborock_active_cycle_summary(history) is None
 
 
 def test_roborock_job_status_distinguishes_completed_running_stopped_and_failed_jobs():

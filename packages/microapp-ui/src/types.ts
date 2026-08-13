@@ -265,9 +265,23 @@ export type RoborockRobotSummary = {
   latest_job_yesterday?: RoborockJobSummary | null;
   today?: RoborockDailySummary | null;
   yesterday?: RoborockDailySummary | null;
+  active_cycle?: RoborockActiveCycleSummary | null;
   readiness?: RoborockReadinessSummary | null;
   consumables?: RoborockConsumableSummary | null;
   schedules?: RoborockScheduleSummary | null;
+};
+
+export type RoborockActiveCycleSummary = {
+  started_at?: string | null;
+  last_floor_at?: string | null;
+  dock_since?: string | null;
+  last_observed_at?: string | null;
+  phase: "cleaning" | "returning" | "mop_return" | "washing_mop" | "emptying" | "charging_pause";
+  phase_label: string;
+  active_minutes?: number | null;
+  cleaned_area_m2?: number | null;
+  progress_percent?: number | null;
+  battery?: number | null;
 };
 
 export type RoborockJobSummary = {
@@ -336,6 +350,7 @@ export type RoborockRobotDetail = {
   metadata: JsonRecord;
   network: JsonRecord;
   latestStatus: JsonRecord | null;
+  activeCycle: RoborockActiveCycleSummary | null;
   schedules: JsonRecord[];
   jobs: JsonRecord[];
   statuses: JsonRecord[];

@@ -1,5 +1,6 @@
 import json
-from datetime import datetime
+from collections.abc import Mapping
+from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 from zoneinfo import ZoneInfo
 
@@ -334,6 +335,97 @@ def roborock_job_status(complete: Any, error_code: Any, end_at: Any) -> tuple[st
     if bool_value(complete):
         return "complete", "Fullført"
     return "stopped", "Avbrutt"
+
+
+def _roborock_row_value(row: Any, field_name: str) -> Any:
+    if isinstance(row, Mapping):
+        return row.get(field_name)
+    return getattr(row, field_name, None)
+
+
+def _roborock_row_timestamp(row: Any) -> Optional[datetime]:
+    value = _roborock_row_value(row, "timestamp")
+    if isinstance(value, datetime):
+        return value.replace(tzinfo=None) if value.tzinfo is None else value.astimezone(LOCAL_TZ).replace(tzinfo=None)
+    if isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value)
+        except ValueError:
+            return None
+        return parsed.replace(tzinfo=None) if parsed.tzinfo is None else parsed.astimezone(LOCAL_TZ).replace(tzinfo=None)
+    return None
+
+
+def roborock_active_cycle_summary(status_rows: list[Any]) -> Optional[Dict[str, Any]]:
+    """Describe a Roborock cycle that is active even while the robot pauses in its dock."""
+    ordered = sorted(
+        (row for row in status_rows if _roborock_row_timestamp(row) is not None),
+        key=lambda row: _roborock_row_timestamp(row) or datetime.min,
+        reverse=True,
+    )
+    if not ordered or bool_value(_roborock_row_value(ordered[0], "in_cleaning")) is not True:
+        return None
+
+    active_rows = []
+    for row in ordered:
+        if bool_value(_roborock_row_value(row, "in_cleaning")) is not True:
+            break
+        active_rows.append(row)
+
+    oldest_active = active_rows[-1]
+    started_at = _roborock_row_timestamp(oldest_active)
+    first_clean_seconds = int_value(_roborock_row_value(oldest_active, "clean_time_seconds"))
+    if started_at and first_clean_seconds and 0 < first_clean_seconds <= 15 * 60:
+        started_at -= timedelta(seconds=first_clean_seconds)
+
+    floor_state_codes = {6, 11, 17, 18}
+    last_floor_at = next(
+        (
+            _roborock_row_timestamp(row)
+            for row in active_rows
+            if int_value(_roborock_row_value(row, "state_code")) in floor_state_codes
+            and bool_value(_roborock_row_value(row, "in_returning")) is not True
+        ),
+        None,
+    )
+
+    dock_state_codes = {8, 22, 23}
+    dock_suffix = []
+    for row in active_rows:
+        if int_value(_roborock_row_value(row, "state_code")) not in dock_state_codes:
+            break
+        dock_suffix.append(row)
+    dock_since = _roborock_row_timestamp(dock_suffix[-1]) if dock_suffix else None
+
+    latest = active_rows[0]
+    state_code = int_value(_roborock_row_value(latest, "state_code"))
+    returning = bool_value(_roborock_row_value(latest, "in_returning")) is True
+    if state_code == 8:
+        phase, phase_label = "charging_pause", "Lader i dokk under pågående jobb"
+    elif state_code == 22:
+        phase, phase_label = "emptying", "Tømmer støvbeholder under pågående jobb"
+    elif state_code == 23:
+        phase, phase_label = "washing_mop", "Vasker mopp under pågående jobb"
+    elif state_code == 26:
+        phase, phase_label = "mop_return", "På vei til moppvask"
+    elif returning:
+        phase, phase_label = "returning", "Returnerer til dokk"
+    else:
+        phase, phase_label = "cleaning", "Rengjør nå"
+
+    clean_time_seconds = int_value(_roborock_row_value(latest, "clean_time_seconds"))
+    return {
+        "started_at": started_at,
+        "last_floor_at": last_floor_at,
+        "dock_since": dock_since,
+        "last_observed_at": _roborock_row_timestamp(latest),
+        "phase": phase,
+        "phase_label": phase_label,
+        "active_minutes": round(clean_time_seconds / 60, 1) if clean_time_seconds is not None else None,
+        "cleaned_area_m2": _roborock_row_value(latest, "clean_area_m2"),
+        "progress_percent": int_value(_roborock_row_value(latest, "clean_percent")),
+        "battery": int_value(_roborock_row_value(latest, "battery")),
+    }
 
 
 def roborock_operational_readiness(

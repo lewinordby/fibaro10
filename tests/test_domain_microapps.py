@@ -347,7 +347,7 @@ def test_roborock_details_no_longer_depend_on_the_classic_ui() -> None:
     detail = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "RoborockSpecial.tsx").read_text(encoding="utf-8")
     assert '@app.get("/api/renhold/robots/{duid}")' in core
     assert '"roborock": {' in core
-    for marker in ("Siste kart", "Forbruksdeler", "Planlagte jobber", "Siste rengjøringer", "Statushistorikk"):
+    for marker in ("Siste kart", "Forbruksdeler", "Planlagte jobber", "Rengjøringshistorikk", "Statushistorikk"):
         assert marker in detail
     assert "/api/renhold/robots/" in detail
     assert '"latest_job_today"' in core

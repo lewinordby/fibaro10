@@ -146,6 +146,7 @@ from parking_vehicle_helpers import (
 )
 from roborock_domain import (
     format_seconds_as_hours,
+    roborock_active_cycle_summary,
     roborock_bool_label,
     roborock_charge_label,
     roborock_dock_error_label,
@@ -19284,6 +19285,19 @@ def api_local_iso(value: Optional[datetime]) -> Optional[str]:
     return value.astimezone(LOCAL_TZ).isoformat()
 
 
+def api_roborock_active_cycle(status_rows: list[Any]) -> Optional[Dict[str, Any]]:
+    cycle = roborock_active_cycle_summary(status_rows)
+    if not cycle:
+        return None
+    return {
+        **cycle,
+        "started_at": api_local_iso(cycle.get("started_at")),
+        "last_floor_at": api_local_iso(cycle.get("last_floor_at")),
+        "dock_since": api_local_iso(cycle.get("dock_since")),
+        "last_observed_at": api_local_iso(cycle.get("last_observed_at")),
+    }
+
+
 def api_import_status_row(row: Dict[str, Any]) -> Dict[str, Any]:
     payload = dict(row)
     for key in ("last_success_at", "last_run_at", "last_failed_at", "next_expected_at"):
@@ -31894,6 +31908,25 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             for status in statuses:
                 if status.robot_duid not in latest_status_by_robot:
                     latest_status_by_robot[status.robot_duid] = status
+            active_robot_duids = [
+                robot_duid
+                for robot_duid, status in latest_status_by_robot.items()
+                if status.in_cleaning is True
+            ]
+            status_history = statuses
+            if active_robot_duids:
+                status_history = (
+                    await session.execute(
+                        select(RoborockStatusSample)
+                        .where(RoborockStatusSample.robot_duid.in_(active_robot_duids))
+                        .where(RoborockStatusSample.timestamp >= local_now_naive() - timedelta(hours=36))
+                        .order_by(RoborockStatusSample.timestamp.desc())
+                        .limit(1200)
+                    )
+                ).scalars().all()
+            statuses_by_robot: Dict[str, list[RoborockStatusSample]] = defaultdict(list)
+            for status in status_history:
+                statuses_by_robot[status.robot_duid].append(status)
             latest_telemetry_by_robot: Dict[str, RoborockTelemetrySample] = {}
             for telemetry_sample in telemetry_samples:
                 latest_telemetry_by_robot.setdefault(telemetry_sample.robot_duid, telemetry_sample)
@@ -31940,17 +31973,32 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "captured_at": api_local_iso(consumable.timestamp),
                 }
 
-            def overview_day(robot_duid: str, selected_day: date) -> Dict[str, Any]:
+            def overview_day(
+                robot_duid: str,
+                selected_day: date,
+                active_cycle: Optional[Dict[str, Any]] = None,
+            ) -> Dict[str, Any]:
                 day_jobs = jobs_by_robot_day.get((robot_duid, selected_day), [])
                 statuses_for_day = [roborock_job_status(row.complete, row.error_code, row.end_at)[0] for row in day_jobs]
+                include_active = bool(
+                    active_cycle
+                    and active_cycle.get("started_at")
+                    and active_cycle["started_at"].date() == selected_day
+                    and "running" not in statuses_for_day
+                )
                 return {
-                    "job_count": len(day_jobs),
+                    "job_count": len(day_jobs) + int(include_active),
                     "completed_count": statuses_for_day.count("complete"),
-                    "running_count": statuses_for_day.count("running"),
+                    "running_count": statuses_for_day.count("running") + int(include_active),
                     "error_count": statuses_for_day.count("error"),
-                    "duration_minutes": round(sum(float(row.duration_minutes or 0) for row in day_jobs), 1),
+                    "duration_minutes": round(
+                        sum(float(row.duration_minutes or 0) for row in day_jobs)
+                        + (float(active_cycle.get("active_minutes") or 0) if include_active and active_cycle else 0),
+                        1,
+                    ),
                     "cleaned_area_m2": round(
-                        sum(float(row.cleaned_area_m2 if row.cleaned_area_m2 is not None else row.area_m2 or 0) for row in day_jobs),
+                        sum(float(row.cleaned_area_m2 if row.cleaned_area_m2 is not None else row.area_m2 or 0) for row in day_jobs)
+                        + (float(active_cycle.get("cleaned_area_m2") or 0) if include_active and active_cycle else 0),
                         1,
                     ),
                 }
@@ -31959,6 +32007,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 robot: RoborockRobot,
                 status: Optional[RoborockStatusSample],
                 telemetry: Optional[RoborockTelemetrySample],
+                active_cycle: Optional[Dict[str, Any]],
             ) -> Dict[str, Any]:
                 error_code = telemetry.error_code if telemetry and telemetry.error_code is not None else status.error_code if status else None
                 dock_error = roborock_dock_error_label(telemetry.dock_error_status) if telemetry else "Ikke støttet"
@@ -31989,6 +32038,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     active=active,
                     data_age_minutes=telemetry_age_minutes,
                 )
+                if readiness["status"] == "active" and active_cycle and active_cycle.get("phase") == "charging_pause":
+                    readiness["label"] = "Pågår – lader"
                 return {
                     **readiness,
                     "telemetry_at": api_local_iso(telemetry.timestamp) if telemetry else None,
@@ -32013,6 +32064,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             for robot in robots:
                 status = latest_status_by_robot.get(robot.duid)
                 telemetry = latest_telemetry_by_robot.get(robot.duid)
+                active_cycle = roborock_active_cycle_summary(statuses_by_robot.get(robot.duid, []))
                 robot_summaries.append(
                     {
                         "duid": robot.duid,
@@ -32022,15 +32074,16 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "local_ip": robot.local_ip,
                         "last_seen_at": robot.last_seen_at,
                         "last_error": robot.last_error,
-                        "state_name": telemetry.state_name if telemetry and telemetry.state_name else status.state_name if status else None,
+                        "state_name": active_cycle.get("phase_label") if active_cycle else telemetry.state_name if telemetry and telemetry.state_name else status.state_name if status else None,
                         "battery": telemetry.battery if telemetry and telemetry.battery is not None else status.battery if status else None,
                         "error_code": telemetry.error_code if telemetry and telemetry.error_code is not None else status.error_code if status else None,
                         "status_at": api_local_iso(telemetry.timestamp if telemetry else status.timestamp if status else None),
                         "latest_job_today": overview_job(latest_job_by_robot_day.get((robot.duid, today_local))),
                         "latest_job_yesterday": overview_job(latest_job_by_robot_day.get((robot.duid, yesterday_local))),
-                        "today": overview_day(robot.duid, today_local),
-                        "yesterday": overview_day(robot.duid, yesterday_local),
-                        "readiness": overview_readiness(robot, status, telemetry),
+                        "today": overview_day(robot.duid, today_local, active_cycle),
+                        "yesterday": overview_day(robot.duid, yesterday_local, active_cycle),
+                        "active_cycle": api_roborock_active_cycle(statuses_by_robot.get(robot.duid, [])),
+                        "readiness": overview_readiness(robot, status, telemetry, active_cycle),
                         "consumables": overview_consumables(robot.duid),
                         "schedules": overview_schedules(robot.duid),
                     }
@@ -38679,7 +38732,7 @@ async def api_cleaning_robot_detail(duid: str):
                 select(RoborockStatusSample)
                 .where(RoborockStatusSample.robot_duid == duid)
                 .order_by(RoborockStatusSample.timestamp.desc())
-                .limit(100)
+                .limit(400)
             )
         ).scalars().all()
         jobs = (
@@ -38896,6 +38949,7 @@ async def api_cleaning_robot_detail(duid: str):
         "metadata": metadata,
         "network": network,
         "latestStatus": status_rows[0] if status_rows else None,
+        "activeCycle": api_roborock_active_cycle(statuses),
         "statuses": status_rows,
         "jobs": job_rows,
         "schedules": schedule_rows,

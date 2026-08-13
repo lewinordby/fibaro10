@@ -4,6 +4,7 @@ import { useApi } from "../hooks";
 import { AppLink, useAppLocation } from "../router";
 import type {
   JsonRecord,
+  RoborockActiveCycleSummary,
   RoborockDailySummary,
   RoborockJobSummary,
   RoborockModuleData,
@@ -157,12 +158,28 @@ function jobTone(job?: RoborockJobSummary | null) {
   return "text-green-700 dark:text-green-400";
 }
 
+function ActiveCycleBand({ cycle, compact = false }: { cycle: RoborockActiveCycleSummary; compact?: boolean }) {
+  const timing = [
+    cycle.started_at ? `Start ca. ${jobTime(cycle.started_at)}` : null,
+    cycle.dock_since ? `i dokk siden ca. ${jobTime(cycle.dock_since)}` : cycle.last_floor_at ? `sist på gulvet ca. ${jobTime(cycle.last_floor_at)}` : null,
+  ].filter(Boolean).join(" · ");
+  const measures = [
+    cycle.active_minutes == null ? null : `${decimal(cycle.active_minutes)} min aktiv tid`,
+    cycle.cleaned_area_m2 == null ? null : `${decimal(cycle.cleaned_area_m2, 1)} m²`,
+    cycle.progress_percent == null ? null : `${cycle.progress_percent} %`,
+  ].filter(Boolean).join(" · ");
+  return <div className={`flex flex-wrap items-center justify-between gap-x-5 gap-y-2 border-sky-200 bg-sky-50/80 text-sky-950 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-100 ${compact ? "border-b px-5 py-2.5" : "border-b px-5 py-3"}`}>
+    <div className="flex min-w-0 items-center gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-500/15 text-sky-700 dark:text-sky-300"><MosaicIcon name="robot" size={16} /></span><span className="min-w-0"><strong className="block text-sm font-semibold">Pågående rengjøringssyklus</strong><small className="block text-sky-700 dark:text-sky-300">{cycle.phase_label}{timing ? ` · ${timing}` : ""}</small></span></div>
+    {measures ? <span className="shrink-0 text-xs font-medium tabular-nums text-sky-700 dark:text-sky-300">{measures}</span> : null}
+  </div>;
+}
+
 function DayActivity({ label, day, latest }: { label: string; day?: RoborockDailySummary | null; latest?: RoborockJobSummary | null }) {
   const summary = day || emptyDay;
   const countLabel = summary.job_count === 1 ? "1 jobb" : `${summary.job_count} jobber`;
   return <div className="min-w-0 px-4 py-3 first:border-r first:border-gray-100 dark:first:border-gray-700/60">
     <div className="flex items-center justify-between gap-3"><strong className="text-sm font-semibold text-gray-700 dark:text-gray-200">{label}</strong><span className="text-xs font-medium tabular-nums text-gray-400">{countLabel}</span></div>
-    {summary.job_count ? <><div className="mt-1.5 text-sm tabular-nums text-gray-600 dark:text-gray-300">{decimal(summary.duration_minutes)} min · {decimal(summary.cleaned_area_m2, 1)} m²</div><div className={`mt-1 text-xs font-medium ${jobTone(latest)}`}>Siste {latest?.begin_at ? `kl. ${jobTime(latest.begin_at)} · ` : ""}{latest?.status_label || "registrert"}</div></> : <p className="mt-2 text-sm text-gray-400">Ingen rengjøring</p>}
+    {summary.job_count ? <><div className="mt-1.5 text-sm tabular-nums text-gray-600 dark:text-gray-300">{decimal(summary.duration_minutes)} min · {decimal(summary.cleaned_area_m2, 1)} m²</div><div className={`mt-1 text-xs font-medium ${jobTone(latest)}`}>{latest?.status === "complete" ? "Siste ferdige" : "Siste registrerte"} {latest?.begin_at ? `kl. ${jobTime(latest.begin_at)} · ` : ""}{latest?.status_label || "registrert"}</div></> : <p className="mt-2 text-sm text-gray-400">Ingen rengjøring</p>}
   </div>;
 }
 
@@ -193,6 +210,7 @@ function RobotCard({ robot }: { robot: RoborockRobotSummary }) {
       <div className="text-right"><span className="block text-xs font-semibold uppercase text-gray-400">Sist lest</span><strong className="mt-0.5 block whitespace-nowrap text-sm font-medium text-gray-700 dark:text-gray-200">{relativeStamp(readiness.telemetry_at || robot.status_at || robot.last_seen_at)}</strong></div>
     </div>
     {readiness.issues.length ? <div className="flex items-start gap-2 border-b border-red-100 bg-red-50 px-5 py-2.5 text-xs text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"><MosaicIcon className="mt-0.5" name="warning" size={14} /><span>{readiness.issues.join(" · ")}</span></div> : null}
+    {robot.active_cycle ? <ActiveCycleBand cycle={robot.active_cycle} compact /> : null}
     <div className="grid grid-cols-2 border-b border-gray-100 dark:border-gray-700/60"><DayActivity label="I dag" day={robot.today} latest={robot.latest_job_today} /><DayActivity label="I går" day={robot.yesterday} latest={robot.latest_job_yesterday} /></div>
     <div className="grid grid-cols-4 gap-3 border-b border-gray-100 bg-gray-50/70 px-5 py-3 dark:border-gray-700/60 dark:bg-gray-900/20">
       <ResourceValue label="Rentvann" value={readiness.clear_water_label} />
@@ -278,6 +296,7 @@ function RobotDetail({ duid, summary }: { duid: string; summary?: RoborockRobotS
   const readiness = summary?.readiness;
   const style = readinessStyle(readiness?.status);
   const supportedProbes = (data.telemetryProbes || []).filter((probe) => probe.supported).length;
+  const activeCycle = data.activeCycle || summary?.active_cycle;
   const latestJob = summary?.latest_job_today || data.jobs[0];
   return <div className="space-y-5">
     <AppLink className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-green-700 dark:text-gray-400 dark:hover:text-green-400" to="/renhold"><MosaicIcon name="arrow-left" size={14} />Alle robotvaskere</AppLink>
@@ -288,9 +307,9 @@ function RobotDetail({ duid, summary }: { duid: string; summary?: RoborockRobotS
       </header>
       {readiness?.issues.length ? <div className="flex items-start gap-2 border-b border-red-100 bg-red-50 px-5 py-3 text-sm text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"><MosaicIcon className="mt-0.5" name="warning" /><span>{readiness.issues.join(" · ")}</span></div> : null}
       <div className="grid grid-cols-2 lg:grid-cols-4">
-        <div className="border-b border-r border-gray-100 px-5 py-4 lg:border-b-0 dark:border-gray-700/60"><span className="text-xs font-semibold uppercase text-gray-400">Status</span><strong className="mt-1 block text-lg font-semibold text-gray-800 dark:text-gray-100">{String(telemetry.state_label || status.state_label || status.state_name || "-")}</strong><small className="text-gray-400">{String(telemetry.charge_label || status.charge_label || "Ladestatus ukjent")}</small></div>
+        <div className="border-b border-r border-gray-100 px-5 py-4 lg:border-b-0 dark:border-gray-700/60"><span className="text-xs font-semibold uppercase text-gray-400">Status</span><strong className="mt-1 block text-lg font-semibold text-gray-800 dark:text-gray-100">{String(activeCycle?.phase_label || telemetry.state_label || status.state_label || status.state_name || "-")}</strong><small className="text-gray-400">{String(telemetry.charge_label || status.charge_label || "Ladestatus ukjent")}</small></div>
         <div className="border-b border-gray-100 px-5 py-4 lg:border-b-0 lg:border-r dark:border-gray-700/60"><span className="text-xs font-semibold uppercase text-gray-400">Batteri</span><strong className="mt-1 block text-lg font-semibold tabular-nums text-gray-800 dark:text-gray-100">{telemetry.battery == null ? status.battery == null ? "-" : `${status.battery} %` : `${telemetry.battery} %`}</strong><small className="text-gray-400">{String(readiness?.signal_label || telemetry.signal_label || "Signal ukjent")}</small></div>
-        <div className="border-r border-gray-100 px-5 py-4 dark:border-gray-700/60"><span className="text-xs font-semibold uppercase text-gray-400">Siste jobb</span><strong className="mt-1 block text-lg font-semibold tabular-nums text-gray-800 dark:text-gray-100">{latestJob?.begin_at ? jobTime(latestJob.begin_at) : "Ingen i dag"}</strong><small className={jobTone(latestJob as RoborockJobSummary)}>{String((latestJob as RoborockJobSummary | undefined)?.status_label || "-")}</small></div>
+        <div className="border-r border-gray-100 px-5 py-4 dark:border-gray-700/60"><span className="text-xs font-semibold uppercase text-gray-400">{activeCycle ? "Pågående jobb" : "Siste ferdige jobb"}</span><strong className="mt-1 block text-lg font-semibold tabular-nums text-gray-800 dark:text-gray-100">{activeCycle?.started_at ? `ca. ${jobTime(activeCycle.started_at)}` : latestJob?.begin_at ? jobTime(latestJob.begin_at) : "Ingen i dag"}</strong><small className={activeCycle ? "text-sky-700 dark:text-sky-400" : jobTone(latestJob as RoborockJobSummary)}>{activeCycle?.phase_label || String((latestJob as RoborockJobSummary | undefined)?.status_label || "-")}</small></div>
         <div className="px-5 py-4"><span className="text-xs font-semibold uppercase text-gray-400">Neste plan</span><strong className="mt-1 block truncate text-lg font-semibold text-gray-800 dark:text-gray-100">{summary?.schedules?.next_label || "Ingen aktiv"}</strong><small className="text-gray-400">{summary?.schedules?.active_count ? `${summary.schedules.active_count} aktive planer` : "Ingen planer"}</small></div>
       </div>
     </section>
@@ -302,7 +321,7 @@ function RobotDetail({ duid, summary }: { duid: string; summary?: RoborockRobotS
       <Panel title="Planlagte jobber" subtitle={`${data.schedules.filter((row) => row.enabled !== false).length} aktive planer`}><ScheduleRows schedules={data.schedules} /></Panel>
       <Panel title="Forbruksdeler" subtitle={consumables.timestamp ? `Målt ${stamp(consumables.timestamp)}` : "Ikke mottatt"}><ConsumableGrid consumables={consumables} /></Panel>
     </div>
-    <Panel title="Siste rengjøringer" subtitle="Nyeste jobb øverst"><CompactTable columns={["begin_at", "end_at", "duration_minutes", "cleaned_area_m2", "rounds_label", "status_label", "error_label"]} rows={data.jobs} /></Panel>
+    <Panel title="Rengjøringshistorikk" subtitle="Ferdige jobber, nyeste først">{activeCycle ? <ActiveCycleBand cycle={activeCycle} /> : null}<CompactTable columns={["begin_at", "end_at", "duration_minutes", "cleaned_area_m2", "rounds_label", "status_label", "error_label"]} rows={data.jobs} /></Panel>
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(22rem,0.7fr)]">
       <Panel title="Siste kart" subtitle={data.latestMap ? `${stamp(data.latestMap.timestamp)} · ${displayCell("rooms", data.latestMap.rooms)} rom` : "Ikke mottatt"}><div className="p-5">{data.latestMap?.imageDataUrl ? <img className="max-h-[34rem] w-full rounded-lg bg-gray-900 object-contain" src={data.latestMap.imageDataUrl} alt={`Kart for ${String(robot.name || "robot")}`} /> : <div className="flex h-56 items-center justify-center rounded-lg bg-gray-50 text-sm text-gray-400 dark:bg-gray-900/30">Ingen kart er mottatt</div>}</div></Panel>
       <Panel title="Nøkkelverdier" subtitle={telemetry.timestamp ? `Sist lest ${stamp(telemetry.timestamp)}` : "Venter på telemetri"}><div className="px-5 py-2"><Field label="Sugekraft" value={status.fan_label} /><Field label="Mopp" value={status.mop_label} /><Field label="Rengjøringstid" value={status.clean_time_seconds == null ? "-" : `${Math.round(Number(status.clean_time_seconds) / 60)} min`} /><Field label="Areal" value={status.clean_area_m2 == null ? "-" : `${status.clean_area_m2} m²`} /><Field label="Lokal IP" value={robot.local_ip || status.local_ip} /></div></Panel>

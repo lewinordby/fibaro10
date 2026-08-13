@@ -12,6 +12,38 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1718",
+        "date": "13.08.2026",
+        "headline": "Pågående robotjobber vises riktig",
+        "title": "Roborock-loggen skiller nå mellom aktiv rengjøringssyklus, dokkpause og ferdige jobber",
+        "description": (
+            "Roborock kan returnere til dokken og lade før en flertrinns rengjøring er avsluttet. "
+            "Dette gjorde at 1.etg A viste den forrige ferdige jobben kl. 02:39 som siste jobb, selv om "
+            "en ny syklus hadde pågått fra rundt kl. 03 og roboten kom tilbake til dokken rundt kl. 05:53. "
+            "Systemet følger nå den aktive syklusen gjennom rengjøring, retur og ladepause, og viser ferdig "
+            "historikk separat."
+        ),
+        "applications": [
+            "Fibaro10 API: beregner aktiv Roborock-syklus fra statushistorikken og tar den med i dagstallene.",
+            "Bygg og drift: viser start, siste gulvaktivitet, dokktid, fremdrift, areal og aktiv rengjøringstid.",
+            "Felles mikroapp-UI: skiller pågående jobb fra siste ferdige jobb i oversikt og detaljhistorikk.",
+        ],
+        "request": (
+            "Det er noe rart med loggen, spesielt på 1.etg A. Siste jobben står som ferdig kl. 02:39, "
+            "men kameraet viser at den siste var ferdig rundt kl. 05."
+        ),
+        "work_duration": "ca. 40 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Oppdager at in_cleaning fortsatt er aktiv når roboten lader i dokken mellom rengjøringsrunder.",
+            "Viser omtrent når aktiv syklus startet, siste observasjon på gulvet og når dokkpausen begynte.",
+            "Merker kl. 02:39 som siste ferdige jobb i stedet for å presentere den som siste aktivitet.",
+            "Tar aktiv tid og rengjort areal med i dagens oppsummering uten å doble registrerte jobber.",
+            "Begrenser ekstra statushistorikk til roboter som faktisk rapporterer en aktiv syklus.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1717",
         "date": "12.08.2026",
         "headline": "Gjennomført norsk robotvisning",
