@@ -12,6 +12,28 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1720",
+        "date": "13.08.2026",
+        "headline": "Riktig lokal tid i robotstyringsloggen",
+        "title": "Roborock-kommandoer vises med eksplisitt konvertering fra UTC til Europe/Oslo",
+        "description": (
+            "Den nye revisjonsloggen lagrer kommandoøyeblikket som UTC i databasen. API-et konverterer nå "
+            "dette eksplisitt til lokal Oslo-tid før grensesnittet mottar verdien, på samme måte som den "
+            "eksisterende rengjøringshistorikken."
+        ),
+        "applications": [
+            "Fibaro10 API: korrekt tidssone på start- og sluttid for robotkommandoer.",
+        ],
+        "request": "Kvalitetssikre styringen før første test, inkludert den tidligere tidssonefeilen for robotdata.",
+        "work_duration": "ca. 5 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Konverterer UTC-naive databasetidspunkter til Europe/Oslo før serialisering.",
+            "Beholder UTC som entydig lagringsformat i kontrollhistorikken.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1719",
         "date": "13.08.2026",
         "headline": "Sikker Roborock-styring fra Fibaro10",
