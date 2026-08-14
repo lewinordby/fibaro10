@@ -10,6 +10,10 @@ param(
     [switch]$AllowDirty,
     [switch]$SkipSmoke,
     [switch]$SkipLocalCheck,
+    [string[]]$ForceServices = @(),
+    [switch]$ForceEasyPark,
+    [switch]$ForceRoborock,
+    [switch]$ForceDreame,
     [int]$BackupRetentionCount = 20
 )
 
@@ -74,6 +78,24 @@ if (-not $forceFullDeploy) {
     if ($LASTEXITCODE -ne 0) { $forceFullDeploy = $true }
 }
 $deployPlan = Get-DeployPlan -ChangedFiles $changedFiles -ForceAll $forceFullDeploy
+$validForceServices = @(
+    "owntracks_service", "fibaro10", "revenue_app", "parking_app", "sun_app",
+    "energy_app", "operations_app", "maintenance_app", "system_app", "link_app",
+    "shell_app", "unifi_protect_events", "visual_anomaly_service", "online_dashboard",
+    "maintenance_mobile", "alarm_mobile", "fibaro10ipad", "axis_camera_snapshots",
+    "car_info_lookup", "sun2_backfill_downloader", "sun2_importer",
+    "sun2_session_scraper", "parking_sun_linker", "fibaro10_proxy"
+)
+$unknownForceServices = @($ForceServices | Where-Object { $_ -notin $validForceServices })
+if ($unknownForceServices.Count -gt 0) {
+    throw "Unknown forced service(s): $([string]::Join(', ', $unknownForceServices))"
+}
+if ($ForceServices.Count -gt 0) {
+    $deployPlan.Services = @($validForceServices | Where-Object { $_ -in @($deployPlan.Services + $ForceServices) })
+}
+if ($ForceEasyPark) { $deployPlan.EasyPark = $true }
+if ($ForceRoborock) { $deployPlan.Roborock = $true }
+if ($ForceDreame) { $deployPlan.Dreame = $true }
 $coreDeployValue = if ("fibaro10" -in $deployPlan.Services) { "1" } else { "0" }
 $standardServices = @($deployPlan.Services | Where-Object { $_ -ne "fibaro10" })
 $composeServices = [string]::Join(" ", $standardServices)
@@ -285,7 +307,8 @@ if ($broadValidation) {
         Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "smoke-domain-apps.ps1"))
     }
 } else {
-    $smokeArguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "smoke-affected.ps1"), "-Services") + @($deployPlan.Services)
+    $smokeArguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "smoke-affected.ps1"))
+    if ($deployPlan.Services.Count -gt 0) { $smokeArguments += @("-Services") + @($deployPlan.Services) }
     if ($deployPlan.EasyPark) { $smokeArguments += "-EasyPark" }
     if ($deployPlan.Roborock) { $smokeArguments += "-Roborock" }
     if ($deployPlan.Dreame) { $smokeArguments += "-Dreame" }
