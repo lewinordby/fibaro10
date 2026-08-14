@@ -20453,6 +20453,7 @@ def operations_area_status(
     metrics: list[Dict[str, Any]],
     items: list[Dict[str, Any]],
     issues: Optional[list[str]] = None,
+    recent_jobs: Optional[list[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     return {
         "key": key,
@@ -20465,6 +20466,7 @@ def operations_area_status(
         "metrics": metrics,
         "items": items,
         "issues": issues or [],
+        "recentJobs": recent_jobs or [],
     }
 
 
@@ -20542,6 +20544,7 @@ async def api_operations_overview():
         latest_statuses: list[RoborockStatusSample] = []
         latest_telemetry: list[RoborockTelemetrySample] = []
         jobs: list[RoborockCleanJob] = []
+        recent_jobs: list[RoborockCleanJob] = []
         if robot_duids:
             latest_status_subquery = (
                 select(
@@ -20586,6 +20589,17 @@ async def api_operations_overview():
                         RoborockCleanJob.begin_at < jobs_to,
                     )
                     .order_by(RoborockCleanJob.begin_at.desc())
+                )
+            ).scalars().all()
+            recent_jobs = (
+                await session.execute(
+                    select(RoborockCleanJob)
+                    .where(RoborockCleanJob.robot_duid.in_(robot_duids))
+                    .order_by(
+                        RoborockCleanJob.begin_at.desc().nullslast(),
+                        RoborockCleanJob.id.desc(),
+                    )
+                    .limit(5)
                 )
             ).scalars().all()
         active_door_alarms = (
@@ -20791,6 +20805,7 @@ async def api_operations_overview():
 
     status_by_robot = {row.robot_duid: row for row in latest_statuses}
     telemetry_by_robot = {row.robot_duid: row for row in latest_telemetry}
+    robot_name_by_duid = {robot.duid: robot.name for robot in robots}
     robot_items = []
     cleaning_issues: list[str] = []
     cleaning_updated_values: list[datetime] = []
@@ -20843,6 +20858,19 @@ async def api_operations_overview():
         cleaning_status, cleaning_label = "ok", "Robotparken er klar"
     for issue in cleaning_issues:
         incidents.append({"area": "Renhold", "severity": cleaning_status, "title": issue, "href": "/renhold"})
+    recent_cleaning_jobs = []
+    for job in recent_jobs:
+        status_key, status_label = roborock_job_status(job.complete, job.error_code, job.end_at)
+        recent_cleaning_jobs.append({
+            "robotName": robot_name_by_duid.get(job.robot_duid, job.robot_duid),
+            "startedAt": api_local_iso(utc_naive_to_local_naive(job.begin_at)),
+            "endedAt": api_local_iso(utc_naive_to_local_naive(job.end_at)),
+            "durationMinutes": job.duration_minutes,
+            "areaM2": job.cleaned_area_m2 if job.cleaned_area_m2 is not None else job.area_m2,
+            "status": status_key,
+            "statusLabel": status_label,
+            "href": f"/renhold/robot/{quote(job.robot_duid, safe='')}",
+        })
     areas.append(operations_area_status(
         "cleaning",
         "Renhold",
@@ -20859,6 +20887,7 @@ async def api_operations_overview():
         ],
         robot_items,
         cleaning_issues,
+        recent_cleaning_jobs,
     ))
 
     critical_count = sum(area["status"] == "error" for area in areas)

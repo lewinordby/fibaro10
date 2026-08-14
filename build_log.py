@@ -12,6 +12,32 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1749",
+        "date": "14.08.2026",
+        "headline": "Renhold samler robotstatus og siste jobber",
+        "title": "Den brede renholdsflaten er delt i to operative oversikter",
+        "description": (
+            "Renholdskortet på Bygg og drift utnytter bredden bedre. Robotene og deres aktuelle "
+            "status vises samlet til venstre, mens de fem nyeste renholdsjobbene vises til høyre "
+            "med lokalt tidspunkt, varighet, areal og resultat."
+        ),
+        "applications": [
+            "Fibaro10 build 1749: leverer de fem nyeste robotjobbene til driftsoversikten.",
+            "Bygg og drift build 67: deler renholdskortet i robotstatus og siste jobber.",
+        ],
+        "request": "Kunne renhold som har dobbelt bredde vært delt i to internt og vist status på siste jobber til høyre i boksen og liste over robotene til venstre?",
+        "work_duration": "ca. 25 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Beholder de felles nøkkeltallene øverst i renholdskortet.",
+            "Viser robotlisten i en fast venstre kolonne.",
+            "Viser de fem nyeste jobbene i en egen høyre kolonne.",
+            "Tar med robotnavn, Oslo-tid, varighet, areal og jobbstatus.",
+            "Lar de to kolonnene stables under hverandre på smalere skjermer.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1748",
         "date": "14.08.2026",
         "headline": "Tidsserier og grafvalg fungerer i mikroappene",

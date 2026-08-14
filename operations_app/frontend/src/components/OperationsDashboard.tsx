@@ -2,6 +2,7 @@ import { AppLink, MosaicIcon, type IconName } from "@lilletorget/microapp-ui";
 import type {
   OperationsDashboardArea,
   OperationsDashboardItem,
+  OperationsDashboardJob,
   OperationsDashboardResponse,
 } from "../types";
 
@@ -157,6 +158,66 @@ function AreaItem({ item, area }: { item: OperationsDashboardItem; area: Operati
     : <div className={classes}>{content}</div>;
 }
 
+function jobStamp(value?: string | null) {
+  if (!value) return "Tidspunkt mangler";
+  const date = new Date(value);
+  const now = new Date();
+  const day = date.toLocaleDateString("nb-NO", { timeZone: "Europe/Oslo" });
+  const today = now.toLocaleDateString("nb-NO", { timeZone: "Europe/Oslo" });
+  const yesterday = new Date(now.getTime() - 86_400_000).toLocaleDateString("nb-NO", { timeZone: "Europe/Oslo" });
+  const time = date.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Oslo" });
+  return `${day === today ? "I dag" : day === yesterday ? "I går" : day} kl. ${time}`;
+}
+
+function jobStatusClass(status: OperationsDashboardJob["status"]) {
+  if (status === "complete") return "bg-green-500/10 text-green-700 dark:text-green-300";
+  if (status === "running") return "bg-sky-500/10 text-sky-700 dark:text-sky-300";
+  if (status === "error") return "bg-red-500/10 text-red-700 dark:text-red-300";
+  return "bg-yellow-500/12 text-yellow-800 dark:text-yellow-300";
+}
+
+function CleaningJob({ job }: { job: OperationsDashboardJob }) {
+  const details = [
+    job.durationMinutes == null ? null : `${Math.round(job.durationMinutes)} min`,
+    job.areaM2 == null ? null : `${Number(job.areaM2).toLocaleString("nb-NO", { maximumFractionDigits: 1 })} m²`,
+  ].filter(Boolean).join(" · ");
+  return (
+    <AppLink className="grid min-h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-gray-100 px-5 py-2.5 transition-colors last:border-b-0 hover:bg-gray-50/70 dark:border-gray-700/60 dark:hover:bg-gray-700/20" to={job.href}>
+      <span className="min-w-0">
+        <strong className="block truncate text-sm font-medium text-gray-700 dark:text-gray-200">{job.robotName}</strong>
+        <small className="block truncate text-xs tabular-nums text-gray-400">{jobStamp(job.startedAt)}{details ? ` · ${details}` : ""}</small>
+      </span>
+      <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${jobStatusClass(job.status)}`}>{job.statusLabel}</span>
+    </AppLink>
+  );
+}
+
+function CleaningDetails({ area }: { area: OperationsDashboardArea }) {
+  const jobs = area.recentJobs || [];
+  return (
+    <div className="grid lg:grid-cols-2">
+      <section>
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-2.5 dark:border-gray-700/60">
+          <strong className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Roboter</strong>
+          <span className="text-xs tabular-nums text-gray-400">{area.items.length} stk</span>
+        </div>
+        {area.items.length
+          ? area.items.map((item, index) => <AreaItem area={area.key} item={item} key={`${item.label}-${index}`} />)
+          : <div className="px-5 py-5 text-sm text-gray-400">Ingen robotstatus er tilgjengelig.</div>}
+      </section>
+      <section className="border-t border-gray-100 lg:border-l lg:border-t-0 dark:border-gray-700/60">
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-2.5 dark:border-gray-700/60">
+          <strong className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Siste jobber</strong>
+          <span className="text-xs text-gray-400">Nyeste først</span>
+        </div>
+        {jobs.length
+          ? jobs.map((job, index) => <CleaningJob job={job} key={`${job.robotName}-${job.startedAt}-${index}`} />)
+          : <div className="px-5 py-5 text-sm text-gray-400">Ingen renholdsjobber er registrert.</div>}
+      </section>
+    </div>
+  );
+}
+
 function AreaPanel({ area }: { area: OperationsDashboardArea }) {
   const style = areaStyle[area.key];
   const wide = area.key === "cleaning";
@@ -189,11 +250,11 @@ function AreaPanel({ area }: { area: OperationsDashboardArea }) {
           </div>
         ))}
       </div>
-      <div className={wide ? "grid sm:grid-cols-2 xl:grid-cols-5" : ""}>
+      {wide ? <CleaningDetails area={area} /> : <div>
         {area.items.length
           ? area.items.map((item, index) => <AreaItem area={area.key} item={item} key={`${item.label}-${index}`} />)
           : <div className="px-5 py-5 text-sm tracking-normal text-gray-400">Ingen detaljstatus er tilgjengelig.</div>}
-      </div>
+      </div>}
     </section>
   );
 }

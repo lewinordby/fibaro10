@@ -467,6 +467,9 @@ def test_operations_dashboard_covers_every_operational_area() -> None:
     assert "<OperationsDashboard" in entry
     assert "Prioritert oppfølging" in dashboard
     assert "Ingen aktive driftsavvik" in dashboard
+    assert '"recentJobs": recent_jobs or []' in core
+    assert "Roboter" in dashboard
+    assert "Siste jobber" in dashboard
 
 
 def test_operations_proxy_allows_roborock_detail_endpoint() -> None:

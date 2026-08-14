@@ -69,6 +69,17 @@ export type OperationsDashboardItem = {
   href?: string;
 };
 
+export type OperationsDashboardJob = {
+  robotName: string;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  durationMinutes?: number | null;
+  areaM2?: number | null;
+  status: "complete" | "running" | "stopped" | "error";
+  statusLabel: string;
+  href: string;
+};
+
 export type OperationsDashboardArea = {
   key: "ventilation" | "lights" | "doors" | "bollards" | "cleaning";
   label: string;
@@ -80,6 +91,7 @@ export type OperationsDashboardArea = {
   metrics: OperationsDashboardMetric[];
   items: OperationsDashboardItem[];
   issues: string[];
+  recentJobs?: OperationsDashboardJob[];
 };
 
 export type OperationsDashboardResponse = {
