@@ -251,8 +251,14 @@ def build_job(job: Any, samples: list[Any], settings: dict[str, Any]) -> dict[st
     ]
     error_code = integer(row_value(job, "error_code"))
     complete = row_value(job, "complete") is True
-    status = "error" if error_code not in {None, 0} or not complete else "warning" if water_samples or dock_error_samples else "ok"
-    status_label = "Feil" if status == "error" else "Kontroller" if status == "warning" else "Fullført"
+    if error_code not in {None, 0} or (ended_at is not None and not complete):
+        status, status_label = "error", "Feil"
+    elif ended_at is None and not complete:
+        status, status_label = "running", "Pågår"
+    elif water_samples or dock_error_samples:
+        status, status_label = "warning", "Kontroller"
+    else:
+        status, status_label = "ok", "Fullført"
     duration_minutes = number(row_value(job, "duration_minutes"))
     if duration_minutes is None:
         duration_minutes = number(row_value(job, "duration_seconds"))
@@ -272,7 +278,7 @@ def build_job(job: Any, samples: list[Any], settings: dict[str, Any]) -> dict[st
     issue_parts = []
     if error_code not in {None, 0}:
         issue_parts.append(roborock_error_label(error_code))
-    if not complete:
+    if ended_at is not None and not complete:
         issue_parts.append("Jobben er ikke markert fullført")
     if water_samples:
         water_at = normalize_local_naive(row_value(water_samples[0], "timestamp"))
@@ -377,25 +383,30 @@ def build_schedule_check(
 ) -> dict[str, Any]:
     expected = schedule_occurrences(schedules, window)
     actual_starts = [
-        (index, utc_naive_to_local_naive(row_value(job, "begin_at")), str(row_value(job, "record_id") or row_value(job, "id") or ""))
+        (
+            index,
+            utc_naive_to_local_naive(row_value(job, "begin_at")),
+            str(row_value(job, "record_id") or row_value(job, "id") or ""),
+            job,
+        )
         for index, job in enumerate(jobs)
     ]
     actual_starts = [row for row in actual_starts if row[1] is not None]
     matched_actual: set[int] = set()
     pairs = sorted(
         (
-            (abs((actual_at - occurrence["scheduledAtValue"]).total_seconds()), occurrence_index, actual_index, actual_at, record_id)
+            (abs((actual_at - occurrence["scheduledAtValue"]).total_seconds()), occurrence_index, actual_index, actual_at, record_id, job)
             for occurrence_index, occurrence in enumerate(expected)
-            for actual_index, actual_at, record_id in actual_starts
+            for actual_index, actual_at, record_id, job in actual_starts
             if abs(actual_at - occurrence["scheduledAtValue"]) <= SCHEDULE_MATCH_TOLERANCE
         ),
         key=lambda row: row[0],
     )
-    matched_occurrences: dict[int, tuple[datetime, str]] = {}
-    for _, occurrence_index, actual_index, actual_at, record_id in pairs:
+    matched_occurrences: dict[int, tuple[datetime, str, Any]] = {}
+    for _, occurrence_index, actual_index, actual_at, record_id, job in pairs:
         if occurrence_index in matched_occurrences or actual_index in matched_actual:
             continue
-        matched_occurrences[occurrence_index] = (actual_at, record_id)
+        matched_occurrences[occurrence_index] = (actual_at, record_id, job)
         matched_actual.add(actual_index)
 
     rows = []
@@ -403,11 +414,19 @@ def build_schedule_check(
         scheduled_at = occurrence.pop("scheduledAtValue")
         match = matched_occurrences.get(index)
         if match:
-            actual_at, record_id = match
+            actual_at, record_id, actual_job = match
             delay_minutes = round((actual_at - scheduled_at).total_seconds() / 60)
             delayed = abs(actual_at - scheduled_at) > SCHEDULE_ON_TIME_TOLERANCE
-            status = "delayed" if delayed else "completed"
-            status_label = f"Startet {delay_minutes:+d} min" if delayed else "Gjennomført"
+            error_code = integer(row_value(actual_job, "error_code"))
+            complete = row_value(actual_job, "complete") is True
+            ended_at = row_value(actual_job, "end_at")
+            if error_code not in {None, 0} or (ended_at is not None and not complete):
+                status, status_label = "failed", "Startet, men feilet"
+            elif not complete and ended_at is None:
+                status, status_label = "running", "Pågår"
+            else:
+                status = "delayed" if delayed else "completed"
+                status_label = f"Startet {delay_minutes:+d} min" if delayed else "Gjennomført"
             rows.append(
                 {
                     **occurrence,
@@ -450,6 +469,7 @@ def build_schedule_check(
         "completed": sum(row["status"] in {"completed", "delayed"} for row in rows),
         "missing": sum(row["status"] == "missing" for row in rows),
         "delayed": sum(row["status"] == "delayed" for row in rows),
+        "failed": sum(row["status"] == "failed" for row in rows),
         "running": sum(row["status"] == "running" for row in rows),
         "pending": sum(row["status"] == "pending" for row in rows),
     }
@@ -477,9 +497,11 @@ def build_robot_report(
     )
     full_at = first_full_charge(ordered_samples, last_end, window["end"])
     battery_ready = battery_at(ordered_samples, window["ready_by"])
-    ready_before_opening = bool(last_end is None or last_end <= window["ready_by"])
+    has_running_job = any(row["status"] == "running" for row in job_rows)
+    ready_before_opening = bool(not has_running_job and (last_end is None or last_end <= window["ready_by"]))
     warning_jobs = sum(row["status"] == "warning" for row in job_rows)
     error_jobs = sum(row["status"] == "error" for row in job_rows)
+    running_jobs = sum(row["status"] == "running" for row in job_rows)
     if error_jobs:
         status, status_label = "error", "Feil i natt"
     elif schedule_check["missing"]:
@@ -488,6 +510,8 @@ def build_robot_report(
         status, status_label = "warning", "Forsinket oppstart"
     elif warning_jobs:
         status, status_label = "warning", "Må kontrolleres"
+    elif running_jobs:
+        status, status_label = "neutral", "Pågår"
     elif job_rows and ready_before_opening:
         status, status_label = "ok", "Ferdig før åpning"
     elif job_rows:
@@ -512,7 +536,13 @@ def build_robot_report(
         findings.append(f"{error_jobs} {'jobb har' if error_jobs == 1 else 'jobber har'} feil eller mangler fullføring.")
     if warning_jobs:
         findings.append(f"{warning_jobs} {'jobb har' if warning_jobs == 1 else 'jobber har'} vann- eller dokkvarsel.")
-    if job_rows and ready_before_opening:
+    if running_jobs:
+        running_start = min(
+            (local_datetime_value(row["startedAt"]) for row in job_rows if row["status"] == "running"),
+            default=None,
+        )
+        findings.append(f"Pågående jobb startet kl. {running_start.strftime('%H:%M') if running_start else '-'}.")
+    elif job_rows and ready_before_opening and last_end:
         findings.append(f"Siste jobb var ferdig kl. {last_end.strftime('%H:%M')}, før åpning kl. {window['ready_by'].strftime('%H:%M')}.")
     elif job_rows and last_end:
         findings.append(f"Siste jobb var ferdig kl. {last_end.strftime('%H:%M')}, etter åpning kl. {window['ready_by'].strftime('%H:%M')}.")
@@ -585,6 +615,7 @@ def build_night_report(
     jobs_count = sum(row["totals"]["jobs"] for row in robot_rows)
     error_count = sum(job["status"] == "error" for row in robot_rows for job in row["jobs"])
     warning_count = sum(job["status"] == "warning" for row in robot_rows for job in row["jobs"])
+    running_count = sum(job["status"] == "running" for row in robot_rows for job in row["jobs"])
     expected_count = sum(row["scheduleCheck"]["expected"] for row in robot_rows)
     planned_completed_count = sum(row["scheduleCheck"]["completed"] for row in robot_rows)
     missing_count = sum(row["scheduleCheck"]["missing"] for row in robot_rows)
@@ -614,6 +645,10 @@ def build_night_report(
         conclusion_status = "warning"
         conclusion_title = "Rengjøringen ble gjennomført, men har varsler"
         conclusion_detail = f"{warning_count} {'jobb har' if warning_count == 1 else 'jobber har'} vann- eller dokkvarsel som bør kontrolleres."
+    elif running_count:
+        conclusion_status = "neutral"
+        conclusion_title = "Rengjøringen pågår"
+        conclusion_detail = f"{running_count} {'jobb er' if running_count == 1 else 'jobber er'} fortsatt i gang."
     elif jobs_count:
         conclusion_status = "ok"
         conclusion_title = "Nattens rengjøring er gjennomført"
@@ -646,6 +681,7 @@ def build_night_report(
             "areaM2": round(sum(row["totals"]["areaM2"] for row in robot_rows), 1),
             "warnings": warning_count + missing_count + delayed_count,
             "jobWarnings": warning_count,
+            "running": running_count,
             "errors": error_count,
             "readyBeforeOpening": ready_count,
             "plannedJobs": expected_count,

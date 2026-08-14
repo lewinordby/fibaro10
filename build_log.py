@@ -12,6 +12,38 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1740",
+        "date": "14.08.2026",
+        "headline": "Komplett døgnforløp for robotene",
+        "title": "Renhold-oversikten viser planer og faktisk rengjøring gjennom hele døgnet",
+        "description": (
+            "Den grafiske nattlinjen er videreutviklet til en 24-timers døgnlinje på Renhold-oversikten. "
+            "Både faste Roborock-planer, utførte jobber, pågående rengjøring og automatisk utløste dagjobber "
+            "vises på samme tidsakse."
+        ),
+        "applications": [
+            "Fibaro10 API: leverer dagens planer og komplette jobber som en samlet tidslinje uten ekstra databasekall.",
+            "Bygg og drift build 59: ny Døgnforløp-visning øverst på Renhold-oversikten.",
+            "Rapportmotor: skiller nå korrekt mellom pågående, gjennomførte, feilede og uteblitte planjobber.",
+        ],
+        "request": (
+            "Den fine grafiske fremstillingen av Nattforløp nesten øverst på Nattrapport ønsker jeg at vi også "
+            "innfører på oversiktssiden, da med planlagte og gjennomførte jobber og utvider til 24 timer, da får "
+            "vi også oversikt på de jobbene som trigges på dagtid."
+        ),
+        "work_duration": "ca. 35 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger Døgnforløp mellom driftsstatusen og robotkortene.",
+            "Viser kl. 00:00–24:00 med nåmarkør og faste to-timers rutenett.",
+            "Markerer planlagt start, uteblitt plan og faktisk jobb med samme fargesystem som nattrapporten.",
+            "Tar med ikke-planlagte og automatisk utløste jobber på dagtid.",
+            "Viser aktive rengjøringssykluser før den ferdige jobben er kommet i Roborock-historikken.",
+            "Retter en eldre kantfeil der en pågående jobb kunne bli tolket som ufullført eller feilet.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1739",
         "date": "14.08.2026",
         "headline": "Nattrapporten oppdager uteblitte robotjobber",

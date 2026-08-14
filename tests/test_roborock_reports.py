@@ -153,3 +153,33 @@ def test_night_report_marks_an_enabled_schedule_without_a_job_as_missing() -> No
     assert result["scheduleCheck"]["jobs"][0]["scheduledAt"].startswith("2026-08-14T01:00")
     assert result["scheduleCheck"]["jobs"][1]["actualStartedAt"].startswith("2026-08-14T03:00")
     assert result["findings"][0] == "Planlagt støvsuging kl. 01:00 ble ikke registrert."
+
+
+def test_schedule_check_keeps_an_active_job_running() -> None:
+    robot = row(duid="robot-live", name="Dagrobot", model="Qrevo")
+    schedule = row(
+        robot_duid="robot-live", schedule_id="night-0300", cron="0 3 * * *", enabled=True,
+        fan_power=104, water_box_mode=200, mop_mode=300, repeat=1,
+    )
+    active_job = row(
+        robot_duid="robot-live", record_id="active-1",
+        begin_at=datetime(2026, 8, 14, 1, 0), end_at=None,
+        duration_minutes=10.0, duration_seconds=600, cleaned_area_m2=5.0, area_m2=5.0,
+        complete=False, error_code=0, wash_count=None, clean_times=1,
+    )
+
+    report = build_night_report(
+        date(2026, 8, 14),
+        [robot],
+        [active_job],
+        [],
+        [],
+        generated_at=datetime(2026, 8, 14, 3, 10),
+        schedules=[schedule],
+    )
+
+    planned = report["robots"][0]["scheduleCheck"]
+    assert planned["completed"] == 0
+    assert planned["running"] == 1
+    assert planned["jobs"][0]["status"] == "running"
+    assert planned["jobs"][0]["statusLabel"] == "Pågår"

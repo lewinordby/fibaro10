@@ -398,6 +398,18 @@ def test_roborock_night_report_is_available_in_operations() -> None:
     assert "Nattforløp" in detail
 
 
+def test_roborock_overview_includes_the_full_day_timeline() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    core = (repo_root / "main.py").read_text(encoding="utf-8")
+    operations = (repo_root / "operations_app" / "frontend" / "src" / "components" / "RoborockSpecial.tsx").read_text(encoding="utf-8")
+
+    assert '"timeline": {' in core
+    assert '"startAt": api_local_iso(timeline_window["start"])' in core
+    assert "function DayTimeline" in operations
+    assert "I dag · 00:00–24:00" in operations
+    assert "Ikke-planlagte og automatisk utløste dagjobber vises også." in operations
+
+
 def test_specialized_views_have_narrow_proxy_access() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     parking_backend = (repo_root / "parking_app" / "app" / "main.py").read_text(encoding="utf-8")

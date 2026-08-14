@@ -97,6 +97,7 @@ export type RoborockOverviewSummary = {
 export type RoborockModuleData = {
   robots: RoborockRobotSummary[];
   summary?: RoborockOverviewSummary | null;
+  timeline?: RoborockDayTimeline | null;
 };
 
 export type RoborockNightJob = {
@@ -115,7 +116,7 @@ export type RoborockNightJob = {
   batteryEnd?: number | null;
   washCount?: number | null;
   expectedWashCount?: number | null;
-  status: "ok" | "warning" | "error";
+  status: "ok" | "warning" | "error" | "running";
   statusLabel: string;
   issues: string[];
 };
@@ -129,7 +130,7 @@ export type RoborockNightPlannedJob = {
   cleaningType: "vacuum" | "mop" | "vacuum_mop";
   cleaningTypeLabel: string;
   modeLabel: string;
-  status: "completed" | "delayed" | "running" | "pending" | "missing";
+  status: "completed" | "delayed" | "running" | "pending" | "missing" | "failed";
   statusLabel: string;
 };
 
@@ -147,6 +148,7 @@ export type RoborockNightRobot = {
     completed: number;
     missing: number;
     delayed: number;
+    failed: number;
     running: number;
     pending: number;
   };
@@ -198,6 +200,7 @@ export type RoborockNightReport = {
     areaM2: number;
     warnings: number;
     jobWarnings: number;
+    running: number;
     errors: number;
     readyBeforeOpening: number;
     plannedJobs: number;
@@ -207,6 +210,37 @@ export type RoborockNightReport = {
     plannedPending: number;
   };
   robots: RoborockNightRobot[];
+};
+
+export type RoborockDayTimelineJob = {
+  recordId: string;
+  startedAt: string;
+  endedAt?: string | null;
+  cleaningType: "vacuum" | "mop" | "vacuum_mop" | "cleaning";
+  cleaningTypeLabel: string;
+  status: "complete" | "running" | "stopped" | "error";
+  statusLabel: string;
+  planned: boolean;
+  areaM2: number;
+};
+
+export type RoborockDayTimeline = {
+  day: string;
+  generatedAt: string;
+  window: { startAt: string; endAt: string };
+  summary: {
+    planned: number;
+    plannedCompleted: number;
+    missing: number;
+    pending: number;
+    actual: number;
+  };
+  robots: Array<{
+    duid: string;
+    name: string;
+    planned: RoborockNightPlannedJob[];
+    jobs: RoborockDayTimelineJob[];
+  }>;
 };
 
 export type RoborockRobotDetail = {

@@ -83,7 +83,7 @@ from roborock_profiles import (
     cleaning_profile_summary,
     validate_cleaning_profile,
 )
-from roborock_reports import build_night_report, report_window
+from roborock_reports import build_night_report, build_schedule_check, report_window
 from roborock_door_automation import (
     automation_counter_start,
     automation_decision,
@@ -32519,6 +32519,75 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "schedules": overview_schedules(robot.duid),
                     }
                 )
+            timeline_now = local_now_naive()
+            timeline_window = {
+                "start": datetime.combine(today_local, time.min),
+                "end": datetime.combine(tomorrow_local, time.min),
+                "ready_by": datetime.combine(tomorrow_local, time.min),
+            }
+            timeline_robots = []
+            for robot in robots:
+                day_jobs = sorted(
+                    jobs_by_robot_day.get((robot.duid, today_local), []),
+                    key=lambda row: row.begin_at or datetime.min,
+                )
+                schedule_check = build_schedule_check(
+                    schedules_by_robot.get(robot.duid, []),
+                    day_jobs,
+                    [],
+                    timeline_window,
+                    timeline_now,
+                )
+                plan_by_record = {
+                    row["actualRecordId"]: row
+                    for row in schedule_check["jobs"]
+                    if row.get("actualRecordId")
+                }
+                actual_jobs = []
+                for job in day_jobs:
+                    record_id = str(job.record_id or job.id or "")
+                    plan = plan_by_record.get(record_id)
+                    status_key, status_label = roborock_job_status(job.complete, job.error_code, job.end_at)
+                    actual_jobs.append(
+                        {
+                            "recordId": record_id,
+                            "startedAt": api_local_iso(utc_naive_to_local_naive(job.begin_at)),
+                            "endedAt": api_local_iso(utc_naive_to_local_naive(job.end_at)),
+                            "cleaningType": plan["cleaningType"] if plan else "cleaning",
+                            "cleaningTypeLabel": plan["cleaningTypeLabel"] if plan else "Rengjøring",
+                            "status": status_key,
+                            "statusLabel": status_label,
+                            "planned": bool(plan),
+                            "areaM2": round(float(job.cleaned_area_m2 if job.cleaned_area_m2 is not None else job.area_m2 or 0), 1),
+                        }
+                    )
+                timeline_robots.append(
+                    {
+                        "duid": robot.duid,
+                        "name": robot.name,
+                        "planned": schedule_check["jobs"],
+                        "jobs": actual_jobs,
+                    }
+                )
+            timeline_summary = {
+                "planned": sum(len(row["planned"]) for row in timeline_robots),
+                "plannedCompleted": sum(
+                    planned["status"] in {"completed", "delayed"}
+                    for row in timeline_robots
+                    for planned in row["planned"]
+                ),
+                "missing": sum(
+                    planned["status"] == "missing"
+                    for row in timeline_robots
+                    for planned in row["planned"]
+                ),
+                "pending": sum(
+                    planned["status"] == "pending"
+                    for row in timeline_robots
+                    for planned in row["planned"]
+                ),
+                "actual": sum(len(row["jobs"]) for row in timeline_robots),
+            }
             overview_updates = [
                 row["readiness"]["telemetry_at"] or row["status_at"]
                 for row in robot_summaries
@@ -32585,6 +32654,16 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "roborock": {
                     "summary": overview_summary,
                     "robots": robot_summaries,
+                    "timeline": {
+                        "day": today_local.isoformat(),
+                        "generatedAt": api_local_iso(timeline_now),
+                        "window": {
+                            "startAt": api_local_iso(timeline_window["start"]),
+                            "endAt": api_local_iso(timeline_window["end"]),
+                        },
+                        "summary": timeline_summary,
+                        "robots": timeline_robots,
+                    },
                 },
             }
 

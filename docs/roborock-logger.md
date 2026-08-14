@@ -202,6 +202,12 @@ Planhistorikken kommer fra de aktive planene som Roborock rapporterer nå. Ved v
 derfor en kontroll mot gjeldende gjentakende plan, mens selve jobbhistorikken, telemetrien og innstillingene er
 historiske data fra den valgte natten.
 
+Renhold-oversikten har i tillegg en døgnlinje for inneværende dag fra kl. 00:00 til 24:00. Den bruker samme
+planmarkører og jobbstatus som nattrapporten, men tar også med ikke-planlagte jobber, inngangsstyrt rengjøring
+og andre jobber som utløses i åpningstiden. En blå loddrett linje viser tidspunktet dataene sist ble bygget for.
+Pågående rengjøring vises direkte fra den aktive robotsyklusen selv før den ferdige jobben er tilgjengelig i
+Roborocks jobbhistorikk.
+
 ## Feilsøking
 
 Hvis Renhold viser gamle data:
