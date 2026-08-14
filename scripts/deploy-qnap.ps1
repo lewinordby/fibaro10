@@ -167,7 +167,8 @@ set_env_value() {
     key="`$2"
     value="`$3"
     temp="`$file.tmp"
-    awk -v key="`$key" -v value="`$value" 'BEGIN { found=0 } index(`$0, key "=") == 1 { print key "=" value; found=1; next } { print } END { if (!found) print key "=" value }' "`$file" > "`$temp"
+    grep -v "^`$key=" "`$file" > "`$temp" 2>/dev/null || true
+    printf '%s=%s\n' "`$key" "`$value" >> "`$temp"
     mv "`$temp" "`$file"
 }
 if [ ! -f dreame_logger/.env ]; then
