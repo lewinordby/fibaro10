@@ -12,6 +12,32 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1741",
+        "date": "14.08.2026",
+        "headline": "Renholdsprofiler kan redigeres igjen",
+        "title": "Bygg og drift videresender nå profilendringer til Fibaro10",
+        "description": (
+            "Sikkerhetslisten i Bygg og drift manglet rutene for rengjøringsprofiler. Oppretting, redigering "
+            "og sletting ble derfor avvist i mikroappen selv om endepunktene var tilgjengelige i Fibaro10."
+        ),
+        "applications": [
+            "Bygg og drift build 60: tillater de avgrensede API-rutene for rengjøringsprofiler.",
+            "Fibaro10 build 1741: regresjonstest verifiserer både profilsamlingen og den enkelte profilen.",
+        ],
+        "request": (
+            "Jeg har ikke mulighet til å endre innstillingene på renholdsprofiler. Får bare feil: "
+            "Endepunktet er ikke tilgjengelig i Bygg og drift."
+        ),
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Åpner bare de nødvendige rutene for oppretting, endring og sletting av rengjøringsprofiler.",
+            "Beholder masterkontrollen og valideringen i Fibaro10 uendret.",
+            "Legger til regresjonstest som hindrer at profilrutene faller ut av mikroappen igjen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1740",
         "date": "14.08.2026",
         "headline": "Komplett døgnforløp for robotene",

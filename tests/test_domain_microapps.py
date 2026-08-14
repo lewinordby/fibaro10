@@ -452,6 +452,11 @@ def test_operations_proxy_allows_roborock_detail_endpoint() -> None:
     assert operations_main.DOMAIN_PATTERN.fullmatch("renhold/robots")
 
 
+def test_operations_proxy_allows_roborock_cleaning_profile_endpoints() -> None:
+    assert operations_main.DOMAIN_PATTERN.fullmatch("renhold/cleaning-profiles")
+    assert operations_main.DOMAIN_PATTERN.fullmatch("renhold/cleaning-profiles/42")
+
+
 def test_shared_proxy_preserves_case_sensitive_dynamic_ids() -> None:
     source = (Path(__file__).resolve().parents[1] / "microapp_backend" / "runtime.py").read_text(encoding="utf-8")
     assert 'clean_path = core_path.strip("/")' in source
