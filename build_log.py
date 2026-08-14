@@ -12,6 +12,34 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1750",
+        "date": "14.08.2026",
+        "headline": "Mobilappen viser alle robotvaskerne",
+        "title": "Robotstatus og siste jobber er tilgjengelig i mobilgrensesnittet",
+        "description": (
+            "Mobilens dashboard har fått en kompakt renholdsoversikt med alle Roborock- og Dreame-robotene. "
+            "En egen Renhold-side viser aktuell tilstand, batteri, siste avlesning og siste registrerte jobb "
+            "uten å gjøre den daglige mobilflaten tung eller uoversiktlig."
+        ),
+        "applications": [
+            "Fibaro10 build 1750: leser samlet robotstatus og siste jobb fra det felles datagrunnlaget.",
+            "Lilletorget Mobil: ny renholdsoversikt på dashboardet og egen side på /renhold.",
+            "Offentlig dashboardsynk: overfører de samme robotopplysningene uten interne robot-ID-er.",
+        ],
+        "request": "Jeg ønsker oversikt over robotene også i mobilgrensesnittet mitt.",
+        "work_duration": "ca. 40 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser alle robotene med leverandør, tilstand, batteri og tidspunkt for siste status.",
+            "Viser tidspunkt, varighet, areal og resultat for robotens siste jobb.",
+            "Markerer aktiv rengjøring, feil, frakobling og ventende Dreame-oppsett med egne statusfarger.",
+            "Legger Renhold inn som en tydelig, klikkbar seksjon på mobildashboardet.",
+            "Legger til en egen mobilside med samlede nøkkeltall og komplett robotliste.",
+            "Lar robotoversikten følge eksisterende snapshotsynk til mobilappen uten å dele interne ID-er.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1749",
         "date": "14.08.2026",
         "headline": "Renhold samler robotstatus og siste jobber",

@@ -1764,6 +1764,146 @@ body.appkit-mobile .door-dashboard-card {
     background: var(--appkit-surface-soft);
 }
 
+body.appkit-mobile .robot-mobile-block {
+    border-top: 3px solid var(--appkit-energy);
+}
+
+body.appkit-mobile .robot-summary-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 4px 9px;
+    border: 1px solid color-mix(in srgb, var(--appkit-energy) 34%, var(--appkit-line));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--appkit-energy) 9%, var(--appkit-surface));
+    color: color-mix(in srgb, var(--appkit-energy) 74%, var(--appkit-text));
+    font-size: 0.67rem;
+    font-weight: 750;
+    line-height: 1.15;
+    text-align: right;
+}
+
+body.appkit-mobile .robot-mobile-list {
+    margin: 0 -12px;
+    border-top: 1px solid var(--appkit-line);
+}
+
+body.appkit-mobile .robot-mobile-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 5px 12px;
+    min-width: 0;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--appkit-line);
+}
+
+body.appkit-mobile .robot-mobile-card:last-child {
+    border-bottom: 0;
+}
+
+body.appkit-mobile .robot-mobile-status,
+body.appkit-mobile .robot-mobile-reading {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+body.appkit-mobile .robot-mobile-status {
+    gap: 9px;
+}
+
+body.appkit-mobile .robot-mobile-status > div {
+    min-width: 0;
+}
+
+body.appkit-mobile .robot-mobile-status strong,
+body.appkit-mobile .robot-mobile-status small,
+body.appkit-mobile .robot-mobile-job span,
+body.appkit-mobile .robot-mobile-job small {
+    display: block;
+}
+
+body.appkit-mobile .robot-mobile-status strong {
+    overflow: hidden;
+    color: var(--appkit-text);
+    font-size: 0.82rem;
+    font-weight: 750;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body.appkit-mobile .robot-mobile-status small,
+body.appkit-mobile .robot-mobile-job span {
+    margin-top: 2px;
+    color: var(--appkit-muted);
+    font-size: 0.65rem;
+    line-height: 1.25;
+}
+
+body.appkit-mobile .robot-mobile-dot {
+    width: 9px;
+    height: 9px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: #37bc9b;
+    box-shadow: 0 0 0 3px color-mix(in srgb, #37bc9b 14%, transparent);
+}
+
+body.appkit-mobile .robot-mobile-reading {
+    justify-content: flex-end;
+    gap: 7px;
+    text-align: right;
+}
+
+body.appkit-mobile .robot-mobile-reading strong {
+    color: var(--appkit-text);
+    font-size: 0.76rem;
+    font-weight: 750;
+}
+
+body.appkit-mobile .robot-mobile-reading span {
+    min-width: 35px;
+    color: var(--appkit-muted);
+    font-size: 0.69rem;
+    font-variant-numeric: tabular-nums;
+}
+
+body.appkit-mobile .robot-mobile-job {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+    padding-left: 18px;
+}
+
+body.appkit-mobile .robot-mobile-job small {
+    overflow: hidden;
+    color: var(--appkit-muted);
+    font-size: 0.65rem;
+    line-height: 1.25;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body.appkit-mobile .robot-mobile-card.is-active .robot-mobile-dot { background: #4a89dc; box-shadow: 0 0 0 3px color-mix(in srgb, #4a89dc 16%, transparent); }
+body.appkit-mobile .robot-mobile-card.is-active .robot-mobile-reading strong { color: #3b75c4; }
+body.appkit-mobile .robot-mobile-card.is-warning .robot-mobile-dot,
+body.appkit-mobile .robot-mobile-card.is-pending .robot-mobile-dot { background: #f6bb42; box-shadow: 0 0 0 3px color-mix(in srgb, #f6bb42 18%, transparent); }
+body.appkit-mobile .robot-mobile-card.is-warning .robot-mobile-reading strong,
+body.appkit-mobile .robot-mobile-card.is-pending .robot-mobile-reading strong { color: #a56c00; }
+body.appkit-mobile .robot-mobile-card.is-error .robot-mobile-dot { background: #ed5565; box-shadow: 0 0 0 3px color-mix(in srgb, #ed5565 18%, transparent); }
+body.appkit-mobile .robot-mobile-card.is-error .robot-mobile-reading strong { color: #d73b4d; }
+
+body.appkit-mobile .robot-mobile-block > .card-time {
+    margin-top: 10px;
+}
+
+body.appkit-mobile .detail-robot .detail-stats article {
+    border-left-color: var(--appkit-energy);
+}
+
 body.appkit-mobile .detail-page {
     display: grid;
     gap: 8px;
@@ -1847,6 +1987,11 @@ body.appkit-mobile .login-card button {
 :root[data-theme="dark"] body.appkit-mobile .door-dashboard-card {
     background: var(--appkit-surface-soft);
 }
+
+:root[data-theme="dark"] body.appkit-mobile .robot-mobile-card.is-active .robot-mobile-reading strong { color: #8ab8f4; }
+:root[data-theme="dark"] body.appkit-mobile .robot-mobile-card.is-warning .robot-mobile-reading strong,
+:root[data-theme="dark"] body.appkit-mobile .robot-mobile-card.is-pending .robot-mobile-reading strong { color: #ffd06b; }
+:root[data-theme="dark"] body.appkit-mobile .robot-mobile-card.is-error .robot-mobile-reading strong { color: #ff929e; }
 
 @media (max-width: 520px) {
     body.appkit-mobile .topbar {

@@ -78,3 +78,47 @@ def test_energy_performance_panel_has_energy_modifier() -> None:
     assert "42,8 kWh" in html
     assert "is-negative" in html
     assert "is-positive" in html
+
+
+def test_mobile_robot_overview_shows_status_battery_and_latest_job() -> None:
+    robots = [
+        {
+            "name": "1.etg A",
+            "provider": "roborock",
+            "status": "ok",
+            "state_label": "Lader",
+            "battery": 96,
+            "status_at": online_main.datetime(2026, 8, 14, 14, 20),
+            "job_started_at": online_main.datetime(2026, 8, 14, 5, 0),
+            "job_duration_minutes": 61,
+            "job_area_m2": 39.4,
+            "job_status": "Fullført",
+        },
+        {
+            "name": "Aqua10",
+            "provider": "dreame",
+            "status": "pending",
+            "state_label": "Venter på konto",
+            "battery": None,
+            "status_at": None,
+            "job_started_at": None,
+            "job_status": "Ingen jobb registrert",
+        },
+    ]
+
+    html = online_main.render_robot_overview_cards(robots)
+
+    assert "1.etg A" in html
+    assert "Lader" in html
+    assert "96%" in html
+    assert "61 min" in html
+    assert "39,4 m²" in html
+    assert "Aqua10" in html
+    assert "Venter på konto" in html
+    assert online_main.robot_overview_summary(robots) == "1 klare · 1 må følges opp"
+
+
+def test_mobile_robot_state_prioritizes_active_and_error_states() -> None:
+    assert online_main.mobile_robot_state({"state_code": 6, "in_cleaning": True}) == ("Rengjør", "active")
+    assert online_main.mobile_robot_state({"state_code": 8, "error_code": 12}) == ("Feil", "error")
+    assert online_main.mobile_robot_state({"integration_status": "pending"}) == ("Venter på konto", "pending")

@@ -77,6 +77,43 @@ SUNROOM_DOOR_EXIT_GRACE_MINUTES = float(os.getenv("SUNROOM_DOOR_EXIT_GRACE_MINUT
 SUNROOM_DOOR_WARN_AFTER_END_MINUTES = float(os.getenv("SUNROOM_DOOR_WARN_AFTER_END_MINUTES", "5"))
 SUNROOM_DOOR_ALERT_AFTER_END_MINUTES = float(os.getenv("SUNROOM_DOOR_ALERT_AFTER_END_MINUTES", "10"))
 HC3_DOOR_DEBOUNCE_SECONDS = max(0.0, float(os.getenv("HC3_DOOR_DEBOUNCE_SECONDS", "5")))
+DREAME_EXPECTED_ROBOT_NAME = os.getenv("DREAME_EXPECTED_ROBOT_NAME", "Aqua10").strip() or "Aqua10"
+
+ROBOT_STATE_LABELS = {
+    1: "Starter opp",
+    2: "Venter",
+    3: "Hviler",
+    4: "Klar",
+    5: "Fjernstyring",
+    6: "Rengjør",
+    7: "Returnerer",
+    8: "Lader",
+    9: "Ladefeil",
+    10: "Pause",
+    11: "Flekkrengjøring",
+    12: "Feil",
+    13: "Slår av",
+    14: "Oppdaterer",
+    15: "Dokker",
+    16: "Går til målpunkt",
+    17: "Sonerengjøring",
+    18: "Romrengjøring",
+    22: "Tømmer støvbeholder",
+    23: "Vasker mopp",
+    26: "Går til moppvask",
+    28: "Kartlegger",
+}
+ROBOT_ACTIVE_STATE_CODES = {6, 7, 11, 15, 16, 17, 18, 22, 23, 26, 28}
+ROBOT_RAW_STATE_LABELS = {
+    "charging": "Lader",
+    "charging_complete": "Fulladet",
+    "cleaning": "Rengjør",
+    "docked": "I dock",
+    "idle": "Klar",
+    "paused": "Pause",
+    "returning": "Returnerer",
+    "working": "Rengjør",
+}
 
 SOLROOM_DOOR_CONFIG = [
     {"device_id": 459, "device_key": "door_solrom_01", "title": "Solrom 1", "section_title": "1.etg", "group_key": "solrom", "sort_order": 1, "room_id": "rom-01", "sun2_bed_id": "640"},
@@ -349,6 +386,45 @@ def fmt_utc_time(value: Any) -> str:
     if value.tzinfo is None:
         value = value.replace(tzinfo=ZoneInfo("UTC"))
     return value.astimezone(LOCAL_TZ).strftime("%d.%m %H:%M")
+
+
+def utc_naive_to_local(value: Any) -> Any:
+    if not isinstance(value, datetime):
+        return value
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=ZoneInfo("UTC"))
+    return value.astimezone(LOCAL_TZ).replace(tzinfo=None)
+
+
+def mobile_robot_state(row: dict[str, Any]) -> tuple[str, str]:
+    if str(row.get("integration_status") or "active").lower() == "pending":
+        return "Venter på konto", "pending"
+    error_code = row.get("error_code")
+    if row.get("last_error") or error_code not in {None, 0, "0"}:
+        return "Feil", "error"
+    state_code = row.get("state_code")
+    try:
+        state_code = int(state_code) if state_code is not None else None
+    except (TypeError, ValueError):
+        state_code = None
+    raw_state = str(row.get("state_name") or "").strip()
+    state_label = ROBOT_RAW_STATE_LABELS.get(raw_state.lower()) or ROBOT_STATE_LABELS.get(state_code) or raw_state or "Ukjent"
+    if row.get("in_cleaning") is True or state_code in ROBOT_ACTIVE_STATE_CODES:
+        return state_label, "active"
+    if row.get("cloud_online") is False:
+        return state_label, "warning"
+    return state_label, "ok"
+
+
+def mobile_robot_job_status(row: dict[str, Any]) -> str:
+    error_code = row.get("job_error_code")
+    if error_code not in {None, 0, "0"}:
+        return "Feil"
+    if not row.get("job_started_at"):
+        return "Ingen jobb registrert"
+    if not row.get("job_ended_at"):
+        return "Pågår"
+    return "Fullført" if row.get("job_complete") else "Avbrutt"
 
 
 def state_label(value: Any) -> str:
@@ -1883,6 +1959,86 @@ async def many_mappings(query: str, params: Optional[dict[str, Any]] = None) -> 
     return [dict(row) for row in rows]
 
 
+async def mobile_robot_overview() -> list[dict[str, Any]]:
+    rows = await many_mappings(
+        """
+        select r.duid,
+               r.name,
+               coalesce(r.provider, 'roborock') as provider,
+               r.integration_status,
+               r.cloud_online,
+               r.last_seen_at,
+               r.last_error,
+               status.timestamp as status_at,
+               status.state_code,
+               status.state_name,
+               status.battery,
+               status.error_code,
+               status.in_cleaning,
+               job.begin_at as job_started_at,
+               job.end_at as job_ended_at,
+               job.duration_minutes as job_duration_minutes,
+               coalesce(job.cleaned_area_m2, job.area_m2) as job_area_m2,
+               job.complete as job_complete,
+               job.error_code as job_error_code
+        from roborock_robots r
+        left join lateral (
+            select s.timestamp, s.state_code, s.state_name, s.battery, s.error_code, s.in_cleaning
+            from roborock_status_samples s
+            where s.robot_duid = r.duid
+            order by s.timestamp desc, s.id desc
+            limit 1
+        ) status on true
+        left join lateral (
+            select j.begin_at, j.end_at, j.duration_minutes, j.cleaned_area_m2,
+                   j.area_m2, j.complete, j.error_code
+            from roborock_clean_jobs j
+            where j.robot_duid = r.duid and j.begin_at is not null
+            order by j.begin_at desc, j.id desc
+            limit 1
+        ) job on true
+        order by lower(r.name), r.duid
+        """
+    )
+    robots = []
+    for row in rows:
+        state_label, status = mobile_robot_state(row)
+        robots.append(
+            {
+                "name": str(row.get("name") or "Robot"),
+                "provider": str(row.get("provider") or "roborock").lower(),
+                "integration_status": str(row.get("integration_status") or "active"),
+                "state_label": state_label,
+                "status": status,
+                "battery": row.get("battery"),
+                "status_at": utc_naive_to_local(row.get("status_at") or row.get("last_seen_at")),
+                "job_started_at": utc_naive_to_local(row.get("job_started_at")),
+                "job_ended_at": utc_naive_to_local(row.get("job_ended_at")),
+                "job_duration_minutes": row.get("job_duration_minutes"),
+                "job_area_m2": row.get("job_area_m2"),
+                "job_status": mobile_robot_job_status(row),
+            }
+        )
+    if not any(robot["provider"] == "dreame" for robot in robots):
+        robots.append(
+            {
+                "name": DREAME_EXPECTED_ROBOT_NAME,
+                "provider": "dreame",
+                "integration_status": "pending",
+                "state_label": "Venter på konto",
+                "status": "pending",
+                "battery": None,
+                "status_at": None,
+                "job_started_at": None,
+                "job_ended_at": None,
+                "job_duration_minutes": None,
+                "job_area_m2": None,
+                "job_status": "Ingen jobb registrert",
+            }
+        )
+    return robots
+
+
 async def source_dashboard_data() -> dict[str, Any]:
     now = local_now()
     today = now.date()
@@ -2232,6 +2388,7 @@ async def source_dashboard_data() -> dict[str, Any]:
     other_doors = await other_door_statuses()
     door_alarm = await solroom_door_alarm_statuses(solroom_doors)
     door_day_control = await solroom_door_day_control()
+    robots = await mobile_robot_overview()
 
     inside_values = [vent.get("temp_1etg"), vent.get("temp_2etg"), vent.get("temp_vip")]
     inside_values = [float(value) for value in inside_values if value is not None]
@@ -2299,6 +2456,7 @@ async def source_dashboard_data() -> dict[str, Any]:
         "other_doors": other_doors,
         "door_alarm": door_alarm,
         "door_day_control": door_day_control,
+        "robots": robots,
     }
     data["revenue"] = {
         "today": amount_sum(data["soling"].get("amount"), data["parking"].get("amount")),
@@ -2389,6 +2547,7 @@ async def latest_snapshot_payload() -> dict[str, Any]:
             "fan_items": [],
             "solroom_doors": [],
             "other_doors": [],
+            "robots": [],
             "door_alarm": {
                 "generated_at": now,
                 "items": [],
@@ -2801,6 +2960,8 @@ async def dashboard(request: Request):
         html = html.replace(key, value)
     html = html.replace("{{ light_cards }}", render_state_cards(data["light_items"], "light"))
     html = html.replace("{{ fan_cards }}", render_state_cards(data["fan_items"], "fan"))
+    html = html.replace("{{ robot_summary }}", escape(robot_overview_summary(data.get("robots") or [])))
+    html = html.replace("{{ robot_cards }}", render_robot_overview_cards(data.get("robots") or []))
     html = html.replace("{{ solroom_door_summary }}", render_solroom_door_summary(data.get("solroom_doors") or []))
     html = html.replace("{{ solroom_door_cards }}", render_door_dashboard_cards(data.get("solroom_doors") or []))
     html = html.replace("{{ door_alarm_summary }}", render_door_alarm_summary(data.get("door_alarm") or {}))
@@ -3254,6 +3415,32 @@ async def temperature_detail(request: Request):
     return render_detail_page("Drift", "Status, klima og ventilasjon akkurat nå.", body, icon="temperature")
 
 
+@app.get("/renhold", response_class=HTMLResponse)
+async def cleaning_detail(request: Request):
+    data = await dashboard_data()
+    robots = list(data.get("robots") or [])
+    active = sum(robot.get("status") == "active" for robot in robots)
+    ready = sum(robot.get("status") == "ok" for robot in robots)
+    attention = sum(robot.get("status") in {"error", "warning", "pending"} for robot in robots)
+    latest_jobs = sum(bool(robot.get("job_started_at")) for robot in robots)
+    body = detail_stats(
+        [
+            ("Roboter", fmt_int(len(robots)), "Roborock og Dreame"),
+            ("Klare", fmt_int(ready), "tilgjengelige nå"),
+            ("Rengjør nå", fmt_int(active), "pågående arbeid"),
+            ("Oppfølging", fmt_int(attention), "feil, frakoblet eller venter"),
+        ]
+    )
+    body += f"""
+    <section class="section-block robot-mobile-block">
+      <div class="section-title-row"><h2>ROBOTER</h2><span class="robot-summary-pill">{escape(robot_overview_summary(robots))}</span></div>
+      {render_robot_overview_cards(robots)}
+      <small class="card-time">Siste jobb registrert for {fmt_int(latest_jobs)} av {fmt_int(len(robots))} roboter</small>
+    </section>
+    """
+    return render_detail_page("Renhold", "Status og siste jobb for alle robotvaskerne.", body, icon="robot")
+
+
 @app.get("/lys", response_class=HTMLResponse)
 async def light_detail(request: Request):
     data = await dashboard_data()
@@ -3462,6 +3649,59 @@ def render_state_cards(items: list[tuple[str, Any]], icon_class: str) -> str:
             """
         )
     return "\n".join(cards)
+
+
+def robot_overview_summary(robots: list[dict[str, Any]]) -> str:
+    active = sum(robot.get("status") == "active" for robot in robots)
+    attention = sum(robot.get("status") in {"error", "warning", "pending"} for robot in robots)
+    if active:
+        return f"{active} rengjør nå · {len(robots)} totalt"
+    if attention:
+        return f"{len(robots) - attention} klare · {attention} må følges opp"
+    return f"{len(robots)} klare"
+
+
+def robot_job_detail(robot: dict[str, Any]) -> str:
+    started_at = robot.get("job_started_at")
+    if not isinstance(started_at, datetime):
+        return str(robot.get("job_status") or "Ingen jobb registrert")
+    parts = [display_stamp(started_at)]
+    duration = robot.get("job_duration_minutes")
+    if duration is not None:
+        parts.append(f"{float(duration):.0f} min")
+    area = robot.get("job_area_m2")
+    if area is not None:
+        parts.append(f"{float(area):.1f} m²".replace(".", ","))
+    parts.append(str(robot.get("job_status") or ""))
+    return " · ".join(part for part in parts if part)
+
+
+def render_robot_overview_cards(robots: list[dict[str, Any]]) -> str:
+    if not robots:
+        return '<p class="empty-list">Ingen robotstatus er tilgjengelig.</p>'
+    cards = []
+    for robot in robots:
+        status = str(robot.get("status") or "unknown")
+        if status not in {"ok", "active", "warning", "error", "pending", "unknown"}:
+            status = "unknown"
+        battery = robot.get("battery")
+        battery_label = f"{float(battery):.0f}%" if battery is not None else "-"
+        status_at = robot.get("status_at")
+        status_time = fmt_clock(status_at) if isinstance(status_at, datetime) else "Ikke lest"
+        provider = "Dreame" if str(robot.get("provider") or "").lower() == "dreame" else "Roborock"
+        cards.append(
+            f"""
+            <article class="robot-mobile-card is-{status}">
+              <div class="robot-mobile-status">
+                <span class="robot-mobile-dot" aria-hidden="true"></span>
+                <div><strong>{escape(str(robot.get('name') or 'Robot'))}</strong><small>{escape(provider)} · {escape(status_time)}</small></div>
+              </div>
+              <div class="robot-mobile-reading"><strong>{escape(str(robot.get('state_label') or 'Ukjent'))}</strong><span>{escape(battery_label)}</span></div>
+              <div class="robot-mobile-job"><span>Siste jobb</span><small>{escape(robot_job_detail(robot))}</small></div>
+            </article>
+            """
+        )
+    return f'<div class="robot-mobile-list">{"".join(cards)}</div>'
 
 
 def detail_stats(items: list[tuple[str, str, str]]) -> str:
@@ -4045,6 +4285,14 @@ METRIC_ICONS = {
   <path d="M14.3 12h.01"></path>
 </svg>
 """,
+    "robot": """
+<svg class="metric-icon" viewBox="0 0 24 24" aria-hidden="true">
+  <rect x="4" y="7" width="16" height="11" rx="3"></rect>
+  <path d="M9 7V5.5h6V7M8 18v2M16 18v2"></path>
+  <circle cx="9" cy="12" r="1"></circle>
+  <circle cx="15" cy="12" r="1"></circle>
+</svg>
+""",
 }
 
 
@@ -4107,7 +4355,7 @@ LOGIN_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1702">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1750">
   <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-page">
@@ -4148,7 +4396,7 @@ DASHBOARD_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1702">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1750">
   <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
@@ -4254,6 +4502,14 @@ DASHBOARD_HTML = """<!doctype html>
       <small class="card-time">Oppdatert {{ temp_time }}</small>
     </a>
 
+    <a class="section-block card-link robot-mobile-block" href="/renhold">
+      <div class="section-title-row">
+        <h2>RENHOLD</h2>
+        <span class="robot-summary-pill">{{ robot_summary }}</span>
+      </div>
+      {{ robot_cards }}
+    </a>
+
     <a class="section-block card-link solroom-doors-block" href="/solrom">
       <div class="section-title-row">
         <h2>SOLROM</h2>
@@ -4295,7 +4551,7 @@ DETAIL_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1702">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1750">
   <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
 </head>
 <body class="appkit-mobile theme-light">

@@ -73,6 +73,8 @@ def test_mobile_apps_use_appkit_dashboard_patterns() -> None:
     assert "{{ dashboard_highlight }}" in DASHBOARD_HTML
     assert '<section class="metric-grid">' in DASHBOARD_HTML
     assert "appkit-content-title" in DASHBOARD_HTML
+    assert 'href="/renhold"' in DASHBOARD_HTML
+    assert "{{ robot_cards }}" in DASHBOARD_HTML
 
 
 def test_online_detail_pages_use_the_fixed_header_as_the_only_title() -> None:
