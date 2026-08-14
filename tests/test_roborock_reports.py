@@ -77,3 +77,24 @@ def test_water_shortage_is_reported_without_marking_completed_job_as_failed() ->
     assert result["complete"] is True
     assert result["status"] == "warning"
     assert result["issues"] == ["Vannvarsel kl. 05:00"]
+
+
+def test_mop_mode_is_ignored_when_water_is_explicitly_off() -> None:
+    robot = row(duid="robot-b", name="1.etg B", model="Q5")
+    job = row(
+        robot_duid="robot-b", record_id="vacuum-1",
+        begin_at=datetime(2026, 8, 13, 21, 30), end_at=datetime(2026, 8, 13, 22, 0),
+        duration_minutes=30.0, duration_seconds=1800, cleaned_area_m2=24.0, area_m2=24.0,
+        complete=True, error_code=0, wash_count=None, clean_times=2,
+    )
+    samples = [
+        row(robot_duid="robot-b", timestamp=datetime(2026, 8, 13, 23, 30), in_cleaning=True, battery=100, fan_power=104, water_box_mode=200, mop_mode=300, water_shortage_status=0, clear_water_status=0, clear_water_status_name="okay", dock_error_status=0, is_charging=False),
+        row(robot_duid="robot-b", timestamp=datetime(2026, 8, 14, 0, 0), in_cleaning=True, battery=80, fan_power=104, water_box_mode=200, mop_mode=300, water_shortage_status=0, clear_water_status=0, clear_water_status_name="okay", dock_error_status=0, is_charging=False),
+    ]
+
+    report = build_night_report(date(2026, 8, 14), [robot], [job], samples, [])
+
+    result = report["robots"][0]["jobs"][0]
+    assert result["cleaningType"] == "vacuum"
+    assert result["cleaningTypeLabel"] == "Støvsuging"
+    assert result["modeLabel"] == "Maks · 2 runder"

@@ -118,7 +118,8 @@ def job_cleaning_type(fan_power: Any, water_mode: Any, mop_mode: Any) -> tuple[s
     fan = integer(fan_power)
     water = integer(water_mode)
     mop = integer(mop_mode)
-    wet = (water is not None and water != 200) or mop is not None
+    # Roborock may retain a mop-mode code while water is explicitly off.
+    wet = water not in {None, 200}
     vacuum = fan is not None and fan != 105
     if wet and vacuum:
         return "vacuum_mop", "Støvsuging og vask"

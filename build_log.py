@@ -12,6 +12,31 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1736",
+        "date": "14.08.2026",
+        "headline": "Korrekt skille mellom støvsuging og vask",
+        "title": "Nattrapporten bruker faktisk vannmodus når rengjøringstypen bestemmes",
+        "description": (
+            "Produksjonskontrollen viste at Roborock kan beholde en standard moppkode selv når "
+            "vannmengden er slått av. Rapporten bruker nå vannmodus som avgjørende signal, slik at "
+            "rene støvsugerjobber ikke vises som kombinasjonsvask."
+        ),
+        "applications": [
+            "Fibaro10 rapportdomene: korrigert maskinell klassifisering av rengjøringstype.",
+            "Bygg og drift build 55: komplett tegnforklaring og korrekt entallsform i robotoverskrifter.",
+        ],
+        "request": "Kvalitetssikring av den nye maskinelle nattrapporten før ferdigstilling.",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Tolk vannmodus 200 som vask avslått selv om moppmodus fortsatt rapporteres.",
+            "Vis støvsuging med blått og kombinasjonsjobb med lilla i tidslinjen.",
+            "Legg til egen regresjonstest for Roborocks hengende moppkode.",
+            "Rett 1 jobber til 1 jobb i robotrapporten.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1735",
         "date": "14.08.2026",
         "headline": "Maskinell nattrapport for robotvaskerne",
