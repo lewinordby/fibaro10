@@ -12,6 +12,40 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1744",
+        "date": "14.08.2026",
+        "headline": "Bygg og drift har fått et samlet operativt situasjonsbilde",
+        "title": "Ventilasjon, lys, dører, pullerter og renhold på én ryddig oversikt",
+        "description": (
+            "Driftsoversikten er bygget på nytt som en praktisk kontrollflate for bygget. Normal drift, "
+            "forsinkede data og reelle avvik vurderes likt på tvers av fem fagområder, samtidig som hvert "
+            "område viser de viktigste målingene og gir direkte tilgang til detaljene."
+        ),
+        "applications": [
+            "Fibaro10 build 1744: nytt lettvekts-API som samler bare relevante driftsdata.",
+            "Bygg og drift build 63: ny responsiv driftsoversikt med avviksprioritering og fagkort.",
+            "HC3, UniFi Protect, Roborock og Dreame: eksisterende statuser samles uten å endre styringen.",
+        ],
+        "request": (
+            "Bygg og drift - oversikt kan gjøres mye mer ut av. Den bør ha status for både Ventilasjon, "
+            "Lys, Dører, Pullerter og Renhold. Lag den ryddig, nyttig og fin."
+        ),
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Erstatter generiske kort og tabeller med ett samlet situasjonsbilde for fem driftsområder.",
+            "Viser åpning, samlet systemstatus, antall avvik og nøyaktig kontrolltid i et kompakt toppfelt.",
+            "Prioriterer aktive alarmer, utdaterte målinger, ukjent status og visuelle avvik i én oppfølgingsliste.",
+            "Viser vifter, temperatur, luftfuktighet, lux og faktisk av/på-status uten å tolke forventet av-status som feil.",
+            "Skiller ledige og brukte solrom fra andre dører og vurderer byggdørene mot normalstillingen.",
+            "Samler pullert-, fasade- og trappekontroll med kameradekning, AI-profiler og aktive hendelser.",
+            "Viser hele robotparken med status, batteri, dagens jobber og Aqua10-plassen i samme flate.",
+            "Lar alle fagkort og alle robotrader åpne riktig detaljside direkte.",
+            "Fjerner den tunge omsetningsberegningen fra driftsoversikten og retter Åpent/Åpner til korrekt norsk.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1743",
         "date": "14.08.2026",
         "headline": "Dreame og Aqua10 er klargjort som eget renholdsundersystem",

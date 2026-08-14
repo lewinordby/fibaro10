@@ -54,3 +54,51 @@ export type OperationsOverviewResponse = {
     checkedAt?: string | null;
   }>;
 };
+
+export type OperationsDashboardMetric = {
+  label: string;
+  value: string | number;
+  detail?: string;
+};
+
+export type OperationsDashboardItem = {
+  label: string;
+  value: string;
+  detail?: string;
+  state?: "ok" | "on" | "off" | "active" | "warning" | "error" | "unknown" | "pending" | "open" | "closed";
+  href?: string;
+};
+
+export type OperationsDashboardArea = {
+  key: "ventilation" | "lights" | "doors" | "bollards" | "cleaning";
+  label: string;
+  status: "ok" | "active" | "warning" | "error" | "unknown";
+  statusLabel: string;
+  detail: string;
+  href: string;
+  updatedAt?: string | null;
+  metrics: OperationsDashboardMetric[];
+  items: OperationsDashboardItem[];
+  issues: string[];
+};
+
+export type OperationsDashboardResponse = {
+  generatedAt: string;
+  operatingWindow: { label: string; detail: string; open: boolean };
+  summary: {
+    status: "ok" | "warning" | "error";
+    label: string;
+    normal: number;
+    attention: number;
+    critical: number;
+    total: number;
+  };
+  areas: OperationsDashboardArea[];
+  incidents: Array<{
+    area: string;
+    severity: "warning" | "error" | "unknown";
+    title: string;
+    detail?: string;
+    href: string;
+  }>;
+};

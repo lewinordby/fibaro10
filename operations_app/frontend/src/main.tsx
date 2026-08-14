@@ -12,7 +12,7 @@ import {
 import { domainApi } from "@lilletorget/microapp-ui/api";
 import "@lilletorget/mosaic-theme/font.css";
 import type { RoborockModuleData } from "./roborock-types";
-import type { ControlSettings, OperationsOverviewResponse, VentilationData } from "./types";
+import type { ControlSettings, OperationsDashboardResponse } from "./types";
 import "./style.css";
 
 const RoborockSpecial = lazy(() => import("./components/RoborockSpecial").then((module) => ({ default: module.RoborockSpecial })));
@@ -20,6 +20,7 @@ const BollardsSpecial = lazy(() => import("./components/BollardsSpecial").then((
 const DoorsSpecial = lazy(() => import("./components/DoorsSpecial").then((module) => ({ default: module.DoorsSpecial })));
 const VentilationSpecial = lazy(() => import("./components/OperationsSpecial").then((module) => ({ default: module.VentilationSpecial })));
 const ControlSettingsSpecial = lazy(() => import("./components/OperationsSpecial").then((module) => ({ default: module.ControlSettingsSpecial })));
+const OperationsDashboard = lazy(() => import("./components/OperationsDashboard").then((module) => ({ default: module.OperationsDashboard })));
 
 const doorViews = new Set([
   "oversikt", "andre", "solrom", "soltimer", "romkontroll-ny2",
@@ -29,25 +30,8 @@ const doorViews = new Set([
   "radata",
 ]);
 
-function stateLabel(state: boolean | null) {
-  if (state === true) return "På";
-  if (state === false) return "Av";
-  return "Ukjent";
-}
-
-function operationsModule(data: OperationsOverviewResponse): ModuleResponse {
-  const cards = data.cards.filter((card) => ["Drift", "Energi", "Temperatur", "Vær"].includes(card.group || ""));
-  return {
-    title: "Driftsoversikt",
-    subtitle: `${data.operatingWindow.label} · ${data.operatingWindow.detail} · Oppdatert ${new Date(data.generatedAt).toLocaleString("nb-NO")}`,
-    cards,
-    tables: [
-      { title: "Lys", columns: ["funksjon", "status", "detalj"], rows: data.lightItems.map((item) => ({ funksjon: item.label, status: stateLabel(item.state), detalj: item.tooltip || "" })) },
-      { title: "Viftestyring", columns: ["funksjon", "status", "kilde", "sist kontrollert"], rows: data.fanItems.map((item) => ({ funksjon: item.label, status: stateLabel(item.state), kilde: item.statusSource || item.tooltip || "", "sist kontrollert": item.checkedAt || "" })) },
-      { title: "Siste driftshendelser", columns: ["hendelse", "verdi", "detalj"], rows: data.latestItems.filter((item) => /energi|temp/i.test(item.label)).map((item) => ({ hendelse: item.label, verdi: item.value, detalj: item.detail || "" })) },
-      { title: "Status datakilder", columns: ["nr", "datakilde", "status", "sist lest", "neste kjøring"], rows: data.services.map((service) => ({ nr: service.sourceNo ?? "", datakilde: service.label, status: service.status, "sist lest": service.detail || service.lastSuccessAt || "", "neste kjøring": service.nextExpectedAt || "" })) },
-    ],
-  };
+function operationsModule(data: OperationsDashboardResponse): ModuleResponse {
+  return { title: "Driftsoversikt", subtitle: "Samlet situasjonsbilde for bygget", cards: [], tables: [], operationsDashboard: data };
 }
 
 function withRobotNavigation(config: DomainUiConfig, data: ModuleResponse | null | undefined): DomainUiConfig {
@@ -98,10 +82,12 @@ const operationsExtensions: DomainAppExtensions = {
   enhanceConfig: withRobotNavigation,
   skipModuleLoad: ({ item }) => item.module === "dorer" || item.module === "pullerter",
   loadModule: ({ item }) => item.module === "status" && item.view === "drift"
-    ? domainApi.get<OperationsOverviewResponse>("/api/overview").then(operationsModule)
+    ? domainApi.get<OperationsDashboardResponse>("/api/operations/overview").then(operationsModule)
     : null,
   renderModule: ({ data, module, view, reload }) => {
     const roborock = data.roborock as RoborockModuleData | null | undefined;
+    const operationsDashboard = data.operationsDashboard as OperationsDashboardResponse | null | undefined;
+    if (module === "status" && view === "drift" && operationsDashboard) return { content: <Suspense fallback={null}><OperationsDashboard data={operationsDashboard} /></Suspense>, hideFilters: true, hideCards: true, hideCharts: true, hideTables: true };
     if (module === "renhold" && roborock) return { content: <Suspense fallback={null}><RoborockSpecial data={roborock} /></Suspense>, hideCards: true, hideCharts: true, hideTables: true };
     if (module === "pullerter") return { content: <Suspense fallback={null}><BollardsSpecial /></Suspense>, hideCards: true, hideCharts: true, hideTables: true };
     if (module === "dorer" && doorViews.has(view)) return { content: <Suspense fallback={null}><DoorsSpecial view={view} /></Suspense>, hideFilters: true, hideCards: true, hideCharts: true, hideTables: true };

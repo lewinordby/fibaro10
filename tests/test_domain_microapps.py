@@ -447,6 +447,28 @@ def test_operations_proxy_allows_bollard_workbench_endpoints() -> None:
     assert operations_main.DOMAIN_PATTERN.fullmatch("unifi-protect/bollards/mobile-notifications/test")
 
 
+def test_operations_proxy_allows_the_dedicated_dashboard_endpoint() -> None:
+    assert operations_main.DOMAIN_PATTERN.fullmatch("operations/overview")
+
+
+def test_operations_dashboard_covers_every_operational_area() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    core = (repo_root / "main.py").read_text(encoding="utf-8")
+    entry = (repo_root / "operations_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
+    dashboard = (repo_root / "operations_app" / "frontend" / "src" / "components" / "OperationsDashboard.tsx").read_text(encoding="utf-8")
+
+    assert '@app.get("/api/operations/overview")' in core
+    assert '"ventilation"' in core
+    assert '"lights"' in core
+    assert '"doors"' in core
+    assert '"bollards"' in core
+    assert '"cleaning"' in core
+    assert 'domainApi.get<OperationsDashboardResponse>("/api/operations/overview")' in entry
+    assert "<OperationsDashboard" in entry
+    assert "Prioritert oppfølging" in dashboard
+    assert "Ingen aktive driftsavvik" in dashboard
+
+
 def test_operations_proxy_allows_roborock_detail_endpoint() -> None:
     assert operations_main.DOMAIN_PATTERN.fullmatch("renhold/robots/abc-123")
     assert operations_main.DOMAIN_PATTERN.fullmatch("renhold/robots")

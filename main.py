@@ -8556,12 +8556,12 @@ def operating_window(now: datetime) -> Dict[str, Any]:
     open_at = datetime.combine(now.date(), time.min).replace(hour=7)
     close_at = datetime.combine(now.date(), time.min).replace(hour=23)
     if now < open_at:
-        return {"label": "Stengt", "detail": "Apner 07:00", "progress": 0}
+        return {"label": "Stengt", "detail": "Åpner 07:00", "progress": 0}
     if now >= close_at:
         return {"label": "Stengt", "detail": "Stengte 23:00", "progress": 100}
     total_seconds = (close_at - open_at).total_seconds()
     progress = int(((now - open_at).total_seconds() / total_seconds) * 100)
-    return {"label": "Apent", "detail": "Stenger 23:00", "progress": max(0, min(100, progress))}
+    return {"label": "Åpent", "detail": "Stenger 23:00", "progress": max(0, min(100, progress))}
 
 
 def normalize_month(value: Optional[str], fallback: date) -> date:
@@ -20442,6 +20442,421 @@ async def api_v2_revenue_year_comparison(year: Optional[str] = Query(None)):
     }
 
 
+def operations_area_status(
+    key: str,
+    label: str,
+    status: str,
+    status_label: str,
+    detail: str,
+    href: str,
+    updated_at: Optional[datetime],
+    metrics: list[Dict[str, Any]],
+    items: list[Dict[str, Any]],
+    issues: Optional[list[str]] = None,
+) -> Dict[str, Any]:
+    return {
+        "key": key,
+        "label": label,
+        "status": status,
+        "statusLabel": status_label,
+        "detail": detail,
+        "href": href,
+        "updatedAt": api_local_iso(updated_at),
+        "metrics": metrics,
+        "items": items,
+        "issues": issues or [],
+    }
+
+
+def operations_metric(label: str, value: Any, detail: str = "") -> Dict[str, Any]:
+    return {"label": label, "value": value, "detail": detail}
+
+
+def operations_switch_item(label: str, state: Optional[bool]) -> Dict[str, Any]:
+    return {
+        "label": label,
+        "value": "På" if state is True else "Av" if state is False else "Ukjent",
+        "state": "on" if state is True else "off" if state is False else "unknown",
+    }
+
+
+@app.get("/api/operations/overview")
+async def api_operations_overview():
+    now_dt = local_now_naive()
+    today_start = datetime.combine(now_dt.date(), time.min)
+    tomorrow_start = today_start + timedelta(days=1)
+    jobs_from = local_naive_to_utc_naive(today_start)
+    jobs_to = local_naive_to_utc_naive(tomorrow_start)
+
+    door_task = asyncio.create_task(api_hc3_doors_status(history_limit=20, period_limit=20))
+    bollard_task = asyncio.create_task(api_unifi_protect_bollards())
+    vent_switch_configs = [
+        config
+        for device in VENT_TIMELINE_DEVICES
+        if (config := hc3_switch_config_for_timeline_device(device)) is not None
+    ]
+    fan_task = asyncio.create_task(hc3_fetch_switch_statuses(vent_switch_configs))
+
+    async with async_session() as session:
+        latest_light = (
+            await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.bucket_start.desc()).limit(1))
+        ).scalars().first()
+        latest_ventilation = (
+            await session.execute(select(VentilationSample).order_by(VentilationSample.bucket_start.desc()).limit(1))
+        ).scalars().first()
+        robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
+        robot_duids = [robot.duid for robot in robots]
+        latest_statuses: list[RoborockStatusSample] = []
+        latest_telemetry: list[RoborockTelemetrySample] = []
+        jobs: list[RoborockCleanJob] = []
+        if robot_duids:
+            latest_status_subquery = (
+                select(
+                    RoborockStatusSample.robot_duid.label("robot_duid"),
+                    func.max(RoborockStatusSample.id).label("latest_id"),
+                )
+                .where(RoborockStatusSample.robot_duid.in_(robot_duids))
+                .group_by(RoborockStatusSample.robot_duid)
+                .subquery()
+            )
+            latest_statuses = (
+                await session.execute(
+                    select(RoborockStatusSample).join(
+                        latest_status_subquery,
+                        RoborockStatusSample.id == latest_status_subquery.c.latest_id,
+                    )
+                )
+            ).scalars().all()
+            latest_telemetry_subquery = (
+                select(
+                    RoborockTelemetrySample.robot_duid.label("robot_duid"),
+                    func.max(RoborockTelemetrySample.id).label("latest_id"),
+                )
+                .where(RoborockTelemetrySample.robot_duid.in_(robot_duids))
+                .group_by(RoborockTelemetrySample.robot_duid)
+                .subquery()
+            )
+            latest_telemetry = (
+                await session.execute(
+                    select(RoborockTelemetrySample).join(
+                        latest_telemetry_subquery,
+                        RoborockTelemetrySample.id == latest_telemetry_subquery.c.latest_id,
+                    )
+                )
+            ).scalars().all()
+            jobs = (
+                await session.execute(
+                    select(RoborockCleanJob)
+                    .where(
+                        RoborockCleanJob.robot_duid.in_(robot_duids),
+                        RoborockCleanJob.begin_at >= jobs_from,
+                        RoborockCleanJob.begin_at < jobs_to,
+                    )
+                    .order_by(RoborockCleanJob.begin_at.desc())
+                )
+            ).scalars().all()
+        active_door_alarms = (
+            await session.execute(
+                select(AlarmEvent)
+                .where(AlarmEvent.domain == "doors", AlarmEvent.status == "active")
+                .order_by(AlarmEvent.detected_at.desc())
+                .limit(10)
+            )
+        ).scalars().all()
+
+    door_result, bollard_result, fan_statuses = await asyncio.gather(
+        door_task,
+        bollard_task,
+        fan_task,
+        return_exceptions=True,
+    )
+
+    areas: list[Dict[str, Any]] = []
+    incidents: list[Dict[str, Any]] = []
+
+    fan_lookup = fan_statuses if isinstance(fan_statuses, dict) else {}
+    fan_items = [
+        ventilation_status_payload(device, latest_ventilation, fan_lookup.get(str(device.get("key"))))
+        for device in VENT_TIMELINE_DEVICES
+    ]
+    fan_unknown = [item for item in fan_items if item.get("state") is None]
+    fan_errors = [item for item in fan_items if item.get("error")]
+    vent_updated = normalize_local_naive(
+        (latest_ventilation.bucket_start or latest_ventilation.timestamp) if latest_ventilation else None
+    )
+    vent_age = minutes_since(vent_updated, now_dt)
+    vent_issues = [str(item.get("error")) for item in fan_errors if item.get("error")]
+    if latest_ventilation is None:
+        vent_status, vent_label = "error", "Ingen data"
+        vent_issues.append("Ventilasjonsloggeren har ikke levert målinger.")
+    elif vent_age is not None and vent_age > 10:
+        vent_status, vent_label = "warning", "Data er forsinket"
+        vent_issues.append(f"Siste ventilasjonsmåling er {vent_age} minutter gammel.")
+    elif fan_errors or fan_unknown:
+        vent_status, vent_label = "warning", "Delvis status"
+        if fan_unknown:
+            vent_issues.append(f"Status mangler for {len(fan_unknown)} vifte(r).")
+    else:
+        vent_status, vent_label = "ok", "Normal drift"
+    for issue in vent_issues:
+        incidents.append({"area": "Ventilasjon", "severity": vent_status, "title": issue, "href": "/ventilasjon"})
+    fan_on = sum(item.get("state") is True for item in fan_items)
+    areas.append(operations_area_status(
+        "ventilation",
+        "Ventilasjon",
+        vent_status,
+        vent_label,
+        latest_ventilation.mode if latest_ventilation and latest_ventilation.mode else "Styringsmodus er ikke rapportert",
+        "/ventilasjon",
+        vent_updated,
+        [
+            operations_metric("Vifter på", f"{fan_on} / {len(fan_items)}"),
+            operations_metric("Inne", f"{latest_ventilation.temp_avg_inne:.1f} °C" if latest_ventilation and latest_ventilation.temp_avg_inne is not None else "-"),
+            operations_metric("Ute", f"{latest_ventilation.temp_ute:.1f} °C" if latest_ventilation and latest_ventilation.temp_ute is not None else "-"),
+            operations_metric("Kjeller", f"{latest_ventilation.humidity_kjeller:.0f} %" if latest_ventilation and latest_ventilation.humidity_kjeller is not None else "-", "luftfuktighet"),
+        ],
+        [
+            {"label": item.get("label"), "value": "På" if item.get("state") is True else "Av" if item.get("state") is False else "Ukjent", "state": "on" if item.get("state") is True else "off" if item.get("state") is False else "unknown"}
+            for item in fan_items
+        ],
+        vent_issues,
+    ))
+
+    light_updated = normalize_local_naive((latest_light.bucket_start or latest_light.timestamp) if latest_light else None)
+    light_age = minutes_since(light_updated, now_dt)
+    light_items = [
+        operations_switch_item(device["name"], light_sample_state(latest_light, device) if latest_light else None)
+        for device in LIGHT_TIMELINE_DEVICES
+    ]
+    light_unknown = sum(item["state"] == "unknown" for item in light_items)
+    light_issues: list[str] = []
+    if latest_light is None:
+        light_status, light_label = "error", "Ingen data"
+        light_issues.append("Lysloggeren har ikke levert målinger.")
+    elif light_age is not None and light_age > 10:
+        light_status, light_label = "warning", "Data er forsinket"
+        light_issues.append(f"Siste lysmåling er {light_age} minutter gammel.")
+    elif light_unknown:
+        light_status, light_label = "warning", "Delvis status"
+        light_issues.append(f"Status mangler for {light_unknown} lyspunkt(er).")
+    else:
+        light_status, light_label = "ok", "Normal drift"
+    for issue in light_issues:
+        incidents.append({"area": "Lys", "severity": light_status, "title": issue, "href": "/lys"})
+    light_on = sum(item["state"] == "on" for item in light_items)
+    areas.append(operations_area_status(
+        "lights",
+        "Lys",
+        light_status,
+        light_label,
+        latest_light.mode if latest_light and latest_light.mode else "Automatisk lysstyring",
+        "/lys",
+        light_updated,
+        [
+            operations_metric("Lyspunkter på", f"{light_on} / {len(light_items)}"),
+            operations_metric("Lux", f"{latest_light.lux:.0f}" if latest_light and latest_light.lux is not None else "-"),
+            operations_metric("Modus", latest_light.mode if latest_light and latest_light.mode else "-"),
+        ],
+        light_items,
+        light_issues,
+    ))
+
+    if isinstance(door_result, Exception):
+        door_summary: Dict[str, Any] = {}
+        door_rows: list[Dict[str, Any]] = []
+        door_status, door_label = "error", "Status utilgjengelig"
+        door_issues = [f"Dørstatus kunne ikke hentes: {door_result}"]
+        door_updated = None
+    else:
+        door_summary = door_result.get("summary") or {}
+        door_rows = door_result.get("doors") or []
+        door_updated = normalize_local_naive(datetime.fromisoformat(door_result["generatedAt"])) if door_result.get("generatedAt") else None
+        unknown_doors = [door for door in door_rows if door.get("isConfigured") and door.get("state") == "unknown"]
+        abnormal_doors = [
+            door for door in door_rows
+            if door.get("isConfigured") and door.get("groupKey") != "solrom" and door.get("state") not in {"unknown", door.get("normalState")}
+        ]
+        door_issues = []
+        if active_door_alarms:
+            door_status, door_label = "error", f"{len(active_door_alarms)} aktiv alarm"
+            door_issues.extend(alarm.title for alarm in active_door_alarms[:3])
+        elif abnormal_doors or unknown_doors:
+            door_status, door_label = "warning", "Krever oppmerksomhet"
+            door_issues.extend(f"{door.get('title')}: {str(door.get('stateLabel') or 'ukjent').lower()}" for door in abnormal_doors[:3])
+            if unknown_doors:
+                door_issues.append(f"{len(unknown_doors)} konfigurert dør har ukjent status.")
+        else:
+            door_status, door_label = "ok", "Normal status"
+    for issue in door_issues:
+        incidents.append({"area": "Dører", "severity": door_status, "title": issue, "href": "/dorer/alarm" if active_door_alarms else "/dorer"})
+    solroom_rows = [door for door in door_rows if door.get("groupKey") == "solrom"]
+    other_rows = [door for door in door_rows if door.get("groupKey") != "solrom" and door.get("isConfigured")]
+    recent_door_items = [] if isinstance(door_result, Exception) else [
+        {"label": change.get("deviceName") or change.get("deviceKey"), "value": change.get("stateLabel"), "detail": change.get("ageLabel"), "state": change.get("state")}
+        for change in (door_result.get("changes") or [])[:4]
+    ]
+    areas.append(operations_area_status(
+        "doors",
+        "Dører",
+        door_status,
+        door_label,
+        door_summary.get("latestChangeText") or "Status fra magnetsensorene",
+        "/dorer",
+        door_updated,
+        [
+            operations_metric("Solrom ledige", sum(door.get("state") == "open" for door in solroom_rows), f"av {len(solroom_rows)}"),
+            operations_metric("Solrom i bruk", sum(door.get("state") == "closed" for door in solroom_rows)),
+            operations_metric("Andre åpne", sum(door.get("state") == "open" for door in other_rows), f"av {len(other_rows)}"),
+            operations_metric("Alarmer", len(active_door_alarms)),
+        ],
+        recent_door_items,
+        door_issues,
+    ))
+
+    if isinstance(bollard_result, Exception):
+        bollard_summary: Dict[str, Any] = {}
+        bollard_status, bollard_label = "error", "Kontroll utilgjengelig"
+        bollard_issues = [f"Pullertkontrollen kunne ikke hentes: {bollard_result}"]
+        bollard_updated = None
+        bollard_items: list[Dict[str, Any]] = []
+    else:
+        bollard_summary = bollard_result.get("summary") or {}
+        active_incidents = [row for row in (bollard_result.get("incidents") or []) if str(row.get("status") or "").lower() in {"active", "open", "new"}]
+        active_count = int(bollard_summary.get("active_incidents") or len(active_incidents))
+        bollard_issues = [str(row.get("display_name") or row.get("title") or "Visuelt avvik") for row in active_incidents[:3]]
+        if active_count:
+            bollard_status, bollard_label = "error", f"{active_count} aktivt avvik"
+            if not bollard_issues:
+                bollard_issues.append(f"{active_count} kontrollobjekt krever visuell kontroll.")
+        elif not bollard_result.get("runtime", {}).get("last_success_at"):
+            bollard_status, bollard_label = "warning", "Venter på kontroll"
+            bollard_issues.append("Det finnes ikke et tidspunkt for siste vellykkede bildekontroll.")
+        else:
+            bollard_status, bollard_label = "ok", "Ingen aktive avvik"
+        runtime_at = bollard_result.get("runtime", {}).get("last_success_at")
+        bollard_updated = normalize_local_naive(datetime.fromisoformat(runtime_at)) if runtime_at else None
+        bollard_items = [
+            {"label": row.get("display_name") or row.get("name"), "value": row.get("status") or "Kontrollert", "state": "warning" if row in active_incidents else "ok"}
+            for row in (bollard_result.get("asset_monitors") or bollard_result.get("camera_monitors") or [])[:4]
+        ]
+    for issue in bollard_issues:
+        incidents.append({"area": "Pullerter", "severity": bollard_status, "title": issue, "href": "/pullerter"})
+    areas.append(operations_area_status(
+        "bollards",
+        "Pullerter og fasade",
+        bollard_status,
+        bollard_label,
+        "Lokal bildeanalyse og visuell kontroll",
+        "/pullerter",
+        bollard_updated,
+        [
+            operations_metric("Kontrollobjekter", int(bollard_summary.get("inspection_objects") or 0)),
+            operations_metric("Kameraer", f"{int(bollard_summary.get('connected_cameras') or 0)} / {int(bollard_summary.get('target_cameras') or 0)}"),
+            operations_metric("Aktive avvik", int(bollard_summary.get("active_incidents") or 0)),
+            operations_metric("AI-profiler", f"{int(bollard_summary.get('ai_profiles_ready') or 0)} / {int(bollard_summary.get('ai_profiles_total') or 0)}"),
+        ],
+        bollard_items,
+        bollard_issues,
+    ))
+
+    status_by_robot = {row.robot_duid: row for row in latest_statuses}
+    telemetry_by_robot = {row.robot_duid: row for row in latest_telemetry}
+    robot_items = []
+    cleaning_issues: list[str] = []
+    cleaning_updated_values: list[datetime] = []
+    for robot in robots:
+        telemetry = telemetry_by_robot.get(robot.duid)
+        status_row = status_by_robot.get(robot.duid)
+        source_row = telemetry or status_row
+        source_at = utc_naive_to_local_naive(source_row.timestamp) if source_row and source_row.timestamp else None
+        if source_at:
+            cleaning_updated_values.append(source_at)
+        state_name = source_row.state_name if source_row else None
+        battery = source_row.battery if source_row else None
+        error_code = source_row.error_code if source_row else None
+        active = bool(source_row and source_row.in_cleaning)
+        age = minutes_since(source_at, now_dt)
+        if robot.integration_status == "pending":
+            state_key, state_label = "pending", "Venter på oppsett"
+        elif robot.cloud_online is False:
+            state_key, state_label = "error", "Frakoblet"
+            cleaning_issues.append(f"{robot.name} er frakoblet.")
+        elif robot.last_error or (error_code not in {None, 0}):
+            state_key, state_label = "error", "Feil"
+            cleaning_issues.append(f"{robot.name}: {robot.last_error or f'feilkode {error_code}'}")
+        elif age is None or age > 20:
+            state_key, state_label = "warning", "Utdatert status"
+            cleaning_issues.append(f"{robot.name} har ikke levert fersk status.")
+        elif active:
+            state_key, state_label = "active", state_name or "Rengjør"
+        else:
+            state_key, state_label = "ok", state_name or "Klar"
+        robot_items.append({
+            "label": robot.name,
+            "value": state_label,
+            "detail": f"{battery} %" if battery is not None else robot.model or "",
+            "state": state_key,
+            "href": f"/renhold/robot/{quote(robot.duid, safe='')}",
+        })
+    if not any(cleaning_provider(robot.provider) == "dreame" for robot in robots):
+        robot_items.append({"label": DREAME_EXPECTED_ROBOT_NAME, "value": "Venter på konto", "detail": "Dreame", "state": "pending", "href": "/renhold/dreame"})
+    cleaning_errors = sum(item["state"] == "error" for item in robot_items)
+    cleaning_warnings = sum(item["state"] == "warning" for item in robot_items)
+    cleaning_active = sum(item["state"] == "active" for item in robot_items)
+    if cleaning_errors:
+        cleaning_status, cleaning_label = "error", f"{cleaning_errors} robot med feil"
+    elif cleaning_warnings:
+        cleaning_status, cleaning_label = "warning", "Krever oppmerksomhet"
+    elif cleaning_active:
+        cleaning_status, cleaning_label = "active", f"{cleaning_active} rengjør nå"
+    else:
+        cleaning_status, cleaning_label = "ok", "Robotparken er klar"
+    for issue in cleaning_issues:
+        incidents.append({"area": "Renhold", "severity": cleaning_status, "title": issue, "href": "/renhold"})
+    areas.append(operations_area_status(
+        "cleaning",
+        "Renhold",
+        cleaning_status,
+        cleaning_label,
+        "Roborock og Dreame samlet",
+        "/renhold",
+        max(cleaning_updated_values, default=None),
+        [
+            operations_metric("Tilkoblet", sum(item["state"] not in {"pending", "error"} for item in robot_items), f"av {len(robot_items)}"),
+            operations_metric("Rengjør nå", cleaning_active),
+            operations_metric("Jobber i dag", len(jobs)),
+            operations_metric("Areal i dag", f"{sum(float(job.cleaned_area_m2 if job.cleaned_area_m2 is not None else job.area_m2 or 0) for job in jobs):.0f} m²"),
+        ],
+        robot_items,
+        cleaning_issues,
+    ))
+
+    critical_count = sum(area["status"] == "error" for area in areas)
+    attention_count = sum(area["status"] in {"warning", "unknown"} for area in areas)
+    normal_count = len(areas) - critical_count - attention_count
+    overall_status = "error" if critical_count else "warning" if attention_count else "ok"
+    overall_label = "Kritiske avvik" if critical_count else "Noe krever oppmerksomhet" if attention_count else "Normal drift"
+    operating = operating_window(now_dt)
+    return {
+        "generatedAt": api_local_iso(now_dt),
+        "operatingWindow": {
+            "label": operating["label"],
+            "detail": operating["detail"],
+            "open": operating["label"] == "Åpent",
+        },
+        "summary": {
+            "status": overall_status,
+            "label": overall_label,
+            "normal": normal_count,
+            "attention": attention_count,
+            "critical": critical_count,
+            "total": len(areas),
+        },
+        "areas": areas,
+        "incidents": incidents,
+    }
+
+
 @app.get("/api/overview")
 async def api_v2_overview():
     now_dt = local_now_naive()
@@ -20996,7 +21411,7 @@ async def api_v2_overview():
     ]
     return {
         "generatedAt": api_local_iso(now_dt),
-        "operatingWindow": {"label": operating["label"], "detail": operating["detail"], "open": operating["label"] == "Apent"},
+        "operatingWindow": {"label": operating["label"], "detail": operating["detail"], "open": operating["label"] == "Åpent"},
         "cards": cards,
         "statusPeriods": status_periods,
         "latestItems": latest_items,
