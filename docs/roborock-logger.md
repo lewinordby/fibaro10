@@ -123,6 +123,9 @@ eksempel `I morgen kl. 23:30`, mens robotdetaljen også viser selve gjentakelses
   adresser brukes direkte mellom søkene.
 - Kart hentes ved oppstart når `MAP_SYNC_ON_START=true`, og ellers ved manuell `Synk med kart`.
 - En ugyldig linje i den lokale sendekøen flyttes til `pending_batches.invalid.jsonl`; øvrige batcher fortsetter.
+- Etter en vellykket cloud-synk behandles planlisten som et komplett øyeblikksbilde. Planer som ikke lenger
+  finnes hos Roborock tas straks ut av aktive beregninger og merkes med slettet tidspunkt i Fibaro10. Ved feil
+  i cloud-kallet blir ingen planer slettet. Dersom samme plan-ID senere kommer tilbake, aktiveres raden igjen.
 
 ## Soner og rengjøringsprofiler
 

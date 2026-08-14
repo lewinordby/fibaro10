@@ -897,7 +897,15 @@ function CleaningZones({ duid, data, reload }: { duid: string; data: RoborockRob
 }
 
 function ScheduleRows({ schedules }: { schedules: JsonRecord[] }) {
-  return <div className="divide-y divide-gray-100 px-5 dark:divide-gray-700/60">{schedules.map((row, index) => <div className={`grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${row.enabled === false ? "opacity-50" : ""}`} key={String(row.schedule_id || index)}><div className="min-w-0"><strong className="block truncate text-sm font-medium text-gray-700 dark:text-gray-200">{String(row.schedule_label || row.cron || "Ukjent plan")}</strong><small className="mt-0.5 block truncate text-gray-400">{[row.next_label, row.rounds_label, row.fan_label, row.mop_label, row.water_label].filter(Boolean).join(" · ")}</small></div><span className={`text-xs font-semibold ${row.enabled === false ? "text-gray-400" : "text-green-700 dark:text-green-400"}`}>{row.enabled === false ? "Av" : "Aktiv"}</span></div>)}{!schedules.length ? <div className="py-6 text-sm text-gray-400">Ingen planer er mottatt.</div> : null}</div>;
+  const current = schedules.filter((row) => !row.deleted_at);
+  const deleted = schedules
+    .filter((row) => Boolean(row.deleted_at))
+    .sort((left, right) => String(right.deleted_at || "").localeCompare(String(left.deleted_at || "")));
+  const rowContent = (row: JsonRecord, index: number, isDeleted = false) => <div className={`grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${isDeleted || row.enabled === false ? "opacity-55" : ""}`} key={String(row.schedule_id || index)}><div className="min-w-0"><strong className="block truncate text-sm font-medium text-gray-700 dark:text-gray-200">{String(row.schedule_label || row.cron || "Ukjent plan")}</strong><small className="mt-0.5 block truncate text-gray-400">{[row.next_label, row.rounds_label, row.fan_label, row.mop_label, row.water_label].filter(Boolean).join(" · ")}</small></div>{isDeleted ? <span className="text-right"><strong className="block text-xs font-semibold text-red-600 dark:text-red-400">Slettet</strong><small className="block whitespace-nowrap text-gray-400">{stamp(row.deleted_at)}</small></span> : <span className={`text-xs font-semibold ${row.enabled === false ? "text-gray-400" : "text-green-700 dark:text-green-400"}`}>{row.enabled === false ? "Av" : "Aktiv"}</span>}</div>;
+  return <div>
+    <div className="divide-y divide-gray-100 px-5 dark:divide-gray-700/60">{current.map((row, index) => rowContent(row, index))}{!current.length ? <div className="py-6 text-sm text-gray-400">Ingen gjeldende planer er mottatt.</div> : null}</div>
+    {deleted.length ? <details className="border-t border-gray-100 px-5 dark:border-gray-700/60"><summary className="flex cursor-pointer list-none items-center justify-between py-3 text-xs font-semibold text-gray-500 dark:text-gray-300"><span>Slettede planer</span><span className="rounded-full bg-gray-100 px-2 py-0.5 tabular-nums text-gray-500 dark:bg-gray-700 dark:text-gray-300">{deleted.length}</span></summary><div className="divide-y divide-gray-100 border-t border-gray-100 dark:divide-gray-700/60 dark:border-gray-700/60">{deleted.map((row, index) => rowContent(row, index, true))}</div></details> : null}
+  </div>;
 }
 
 function ConsumableGrid({ consumables }: { consumables: JsonRecord }) {
@@ -1062,7 +1070,7 @@ function RobotDetail({ duid, summary }: { duid: string; summary?: RoborockRobotS
       <Panel title="Driftsklar" subtitle={readiness?.telemetry_at ? `Kontrollert ${stamp(readiness.telemetry_at)}` : "Siste telemetri"}><ReadinessGrid readiness={readiness} /></Panel>
     </div>
     <div className="grid gap-5 xl:grid-cols-2">
-      <Panel title="Planlagte jobber" subtitle={`${data.schedules.filter((row) => row.enabled !== false).length} aktive planer`}><ScheduleRows schedules={data.schedules} /></Panel>
+      <Panel title="Planlagte jobber" subtitle={`${data.schedules.filter((row) => !row.deleted_at && row.enabled !== false).length} aktive planer`}><ScheduleRows schedules={data.schedules} /></Panel>
       <Panel title="Forbruksdeler" subtitle={consumables.timestamp ? `Registrert bruk siden nullstilling · målt ${stamp(consumables.timestamp)}` : "Ikke mottatt"}><ConsumableGrid consumables={consumables} /></Panel>
     </div>
     <Panel title="Rengjøringshistorikk" subtitle="Ferdige jobber, nyeste først">{activeCycle ? <ActiveCycleBand cycle={activeCycle} /> : null}<CompactTable columns={["begin_at", "end_at", "duration_minutes", "cleaned_area_m2", "rounds_label", "status_label", "error_label"]} rows={data.jobs} /></Panel>

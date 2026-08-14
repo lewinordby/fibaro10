@@ -12,6 +12,38 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1742",
+        "date": "14.08.2026",
+        "headline": "Slettede Roborock-planer håndteres korrekt",
+        "title": "Planoversikten følger nå hele livssyklusen i Roborock",
+        "description": (
+            "Et vellykket planoppslag behandles nå som et komplett øyeblikksbilde. Planer som er fjernet i "
+            "Roborock tas ut av aktive beregninger, mens slettet tidspunkt beholdes som kontrollhistorikk."
+        ),
+        "applications": [
+            "Fibaro10 API: avstemmer lagrede planer mot siste komplette Roborock-liste.",
+            "Bygg og drift build 61: skiller gjeldende og slettede planer i robotdetaljen.",
+            "Nattrapport og døgnforløp: bruker bare planer som fortsatt finnes hos Roborock.",
+            "Roborock-dokumentasjon: beskriver sikker sletting, synkfeil og gjenoppretting.",
+        ],
+        "request": (
+            "Det ser ikke ut til at jobber jeg har slettet blir borte fra Planlagte jobber-oversikten. "
+            "Det er viktig at både nye kommer og at de som slettes i Roborock også blir borte, eventuelt "
+            "merket med slettet og dato."
+        ),
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Merker manglende planer med slettet tidspunkt etter en vellykket komplett synk.",
+            "Deaktiverer slettede planer i neste-plan, rapporter og døgnforløp.",
+            "Lar en plan med samme ID gjenoppstå dersom den senere kommer tilbake fra Roborock.",
+            "Foretar ingen sletting når Roborock sitt cloud-kall feiler eller planlisten mangler.",
+            "Viser slettede planer samlet i en lukket historikkseksjon under gjeldende planer.",
+            "Fjerner samtidig et N+1-oppslag ved innlesing av planene.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1741",
         "date": "14.08.2026",
         "headline": "Renholdsprofiler kan redigeres igjen",

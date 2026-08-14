@@ -1,11 +1,28 @@
 import json
 from collections.abc import Mapping
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterable, Optional
 from zoneinfo import ZoneInfo
 
 
 LOCAL_TZ = ZoneInfo("Europe/Oslo")
+
+
+def reconcile_roborock_schedule_snapshot(
+    schedules: Iterable[Any],
+    seen_schedule_ids: set[str],
+    deleted_at: datetime,
+) -> int:
+    deleted_count = 0
+    for schedule in schedules:
+        if str(schedule.schedule_id) in seen_schedule_ids:
+            schedule.deleted_at = None
+            continue
+        if schedule.deleted_at is None:
+            schedule.deleted_at = deleted_at
+            schedule.enabled = False
+            deleted_count += 1
+    return deleted_count
 
 ROBOROCK_STATE_LABELS = {
     1: "Starter opp",

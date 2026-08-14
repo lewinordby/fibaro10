@@ -175,6 +175,7 @@ from roborock_domain import (
     roborock_next_schedule_text,
     roborock_next_schedule_score,
     roborock_operational_readiness,
+    reconcile_roborock_schedule_snapshot,
     roborock_rounds_label,
     roborock_schedule_text,
     roborock_signal_label,
@@ -1134,6 +1135,7 @@ class RoborockSchedule(Base):
     water_box_mode = Column(Integer, nullable=True)
     repeat = Column(Integer, nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow, index=True)
+    deleted_at = Column(DateTime, nullable=True, index=True)
     raw = Column(JSON, nullable=True)
 
 
@@ -2984,7 +2986,7 @@ ROBOROCK_JOB_COLUMNS = [
 
 ROBOROCK_SCHEDULE_COLUMNS = [
     "id", "robot_duid", "schedule_id", "cron", "enabled", "repeated", "segments",
-    "fan_power", "mop_mode", "water_box_mode", "repeat", "updated_at", "raw",
+    "fan_power", "mop_mode", "water_box_mode", "repeat", "updated_at", "deleted_at", "raw",
 ]
 
 ROBOROCK_MAP_COLUMNS = [
@@ -4446,6 +4448,9 @@ STARTUP_COLUMNS = {
         ("serial_number", "VARCHAR"),
         ("last_map_at", "TIMESTAMP"),
     ],
+    "roborock_schedules": [
+        ("deleted_at", "TIMESTAMP"),
+    ],
     "kjoretoy": [
         ("navn", "TEXT"),
         ("omrade", "TEXT"),
@@ -4751,6 +4756,11 @@ PERFORMANCE_INDEXES = [
         "ix_roborock_probes_robot_command_timestamp",
         "CREATE INDEX IF NOT EXISTS ix_roborock_probes_robot_command_timestamp "
         "ON roborock_probe_results (robot_duid, command, timestamp DESC)",
+    ),
+    (
+        "ix_roborock_schedules_current",
+        "CREATE INDEX IF NOT EXISTS ix_roborock_schedules_current "
+        "ON roborock_schedules (robot_duid, deleted_at, enabled)",
     ),
     (
         "ix_parkering_plate_start",
@@ -14648,22 +14658,34 @@ async def ingest_roborock_robot(session, robot_data: Dict[str, Any], batch_time:
         existing_job.updated_at = batch_time
         existing_job.raw = job
 
-    schedule_payloads = robot_data.get("schedules") or []
+    raw_schedules = robot_data.get("schedules")
+    schedules_received = isinstance(raw_schedules, list) and all(
+        isinstance(schedule, dict) and str(schedule.get("id") or schedule.get("schedule_id") or "")
+        for schedule in raw_schedules
+    )
+    schedule_payloads = raw_schedules if schedules_received else []
+    existing_schedules = []
+    schedules_by_id: Dict[str, RoborockSchedule] = {}
+    if schedules_received:
+        existing_schedules = (
+            await session.execute(
+                select(RoborockSchedule).where(RoborockSchedule.robot_duid == duid)
+            )
+        ).scalars().all()
+        schedules_by_id = {str(row.schedule_id): row for row in existing_schedules}
+    seen_schedule_ids: set[str] = set()
     for schedule in schedule_payloads:
         schedule_id = str(schedule.get("id") or schedule.get("schedule_id") or "")
         if not schedule_id:
             continue
+        seen_schedule_ids.add(schedule_id)
         params = roborock_schedule_params(schedule)
-        existing_schedule = (
-            await session.execute(
-                select(RoborockSchedule)
-                .where(RoborockSchedule.robot_duid == duid)
-                .where(RoborockSchedule.schedule_id == schedule_id)
-            )
-        ).scalars().first()
+        existing_schedule = schedules_by_id.get(schedule_id)
         if not existing_schedule:
             existing_schedule = RoborockSchedule(robot_duid=duid, schedule_id=schedule_id)
             session.add(existing_schedule)
+            existing_schedules.append(existing_schedule)
+            schedules_by_id[schedule_id] = existing_schedule
         existing_schedule.cron = schedule.get("cron")
         existing_schedule.enabled = bool_value(schedule.get("enabled"))
         existing_schedule.repeated = bool_value(schedule.get("repeated"))
@@ -14674,6 +14696,12 @@ async def ingest_roborock_robot(session, robot_data: Dict[str, Any], batch_time:
         existing_schedule.repeat = int_value(params.get("repeat"))
         existing_schedule.updated_at = batch_time
         existing_schedule.raw = schedule
+
+    deleted_schedules = (
+        reconcile_roborock_schedule_snapshot(existing_schedules, seen_schedule_ids, batch_time)
+        if schedules_received
+        else 0
+    )
 
     try:
         zone_import = await import_roborock_cleaning_zones(session, duid, schedule_payloads, source)
@@ -14725,7 +14753,7 @@ async def ingest_roborock_robot(session, robot_data: Dict[str, Any], batch_time:
                 raw=probe,
             )
         )
-    return {"ok": True, "duid": duid}
+    return {"ok": True, "duid": duid, "deleted_schedules": deleted_schedules}
 
 
 def roborock_telemetry_sample_values(telemetry: Dict[str, Any]) -> Dict[str, Any]:
@@ -18794,6 +18822,7 @@ async def index(request: Request):
             await session.execute(
                 select(RoborockSchedule)
                 .where(RoborockSchedule.enabled == True)
+                .where(RoborockSchedule.deleted_at.is_(None))
                 .order_by(RoborockSchedule.cron)
             )
         ).scalars().all()
@@ -32315,6 +32344,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 await session.execute(
                     select(RoborockSchedule)
                     .where(RoborockSchedule.enabled == True)
+                    .where(RoborockSchedule.deleted_at.is_(None))
                     .order_by(RoborockSchedule.robot_duid, RoborockSchedule.schedule_id)
                 )
             ).scalars().all()
@@ -39209,6 +39239,7 @@ async def cleaning_overview(request: Request):
                     select(RoborockSchedule)
                     .where(RoborockSchedule.robot_duid.in_(robot_duids))
                     .where(RoborockSchedule.enabled == True)
+                    .where(RoborockSchedule.deleted_at.is_(None))
                 )
             ).scalars().all()
             schedules_by_robot: Dict[str, list[RoborockSchedule]] = {}
@@ -39455,6 +39486,7 @@ async def api_cleaning_night_report(day: Optional[str] = None):
                 select(RoborockSchedule)
                 .where(RoborockSchedule.robot_duid.in_(robot_duids or [""]))
                 .where(RoborockSchedule.enabled == True)
+                .where(RoborockSchedule.deleted_at.is_(None))
                 .order_by(RoborockSchedule.robot_duid, RoborockSchedule.cron)
             )
         ).scalars().all()
@@ -39655,11 +39687,13 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
     schedule_rows = []
     for row in schedules:
         item = row_to_dict(row, [column for column in ROBOROCK_SCHEDULE_COLUMNS if column != "raw"])
+        item["updated_at"] = api_local_iso(row.updated_at)
+        item["deleted_at"] = api_local_iso(row.deleted_at)
         item.update(
             {
                 "schedule_label": roborock_schedule_text(row),
-                "next_label": roborock_next_schedule_text(row) if row.enabled else None,
-                "enabled_label": roborock_bool_label(row.enabled),
+                "next_label": roborock_next_schedule_text(row) if row.enabled and not row.deleted_at else None,
+                "enabled_label": "Slettet" if row.deleted_at else roborock_bool_label(row.enabled),
                 "rounds_label": roborock_rounds_label(row.repeat),
                 "fan_label": roborock_fan_label(row.fan_power),
                 "mop_label": roborock_mop_label(row.mop_mode),
@@ -40084,6 +40118,7 @@ async def api_import_roborock_cleaning_zones(request: Request, duid: str):
             await session.execute(
                 select(RoborockSchedule)
                 .where(RoborockSchedule.robot_duid == duid)
+                .where(RoborockSchedule.deleted_at.is_(None))
                 .order_by(RoborockSchedule.updated_at.desc(), RoborockSchedule.schedule_id)
             )
         ).scalars().all()
@@ -40378,6 +40413,7 @@ async def cleaning_robot_detail(request: Request, duid: str):
             await session.execute(
                 select(RoborockSchedule)
                 .where(RoborockSchedule.robot_duid == duid)
+                .where(RoborockSchedule.deleted_at.is_(None))
                 .order_by(RoborockSchedule.cron)
             )
         ).scalars().all()
