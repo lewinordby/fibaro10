@@ -63,9 +63,13 @@ def automation_decision(
     retry_minutes: int = 5,
 ) -> dict[str, Any]:
     issues = [str(issue) for issue in validation_issues if str(issue).strip()]
-    next_allowed_at = (
-        last_started_at + timedelta(minutes=minimum_interval_minutes) if last_started_at else None
+    last_started_today = (
+        last_started_at
+        if last_started_at and open_at <= last_started_at < close_at
+        else None
     )
+    interval_anchor_at = last_started_today or open_at
+    next_allowed_at = interval_anchor_at + timedelta(minutes=minimum_interval_minutes)
     remaining_interval_seconds = (
         max(0, int((next_allowed_at - now).total_seconds()))
         if next_allowed_at and now < next_allowed_at
@@ -117,6 +121,7 @@ def automation_decision(
         "detail": detail,
         "eligible": key == "ready",
         "pending": key in {"minimum_interval", "door_open", "retry_wait"} and opening_count >= opening_threshold,
+        "interval_anchor_at": interval_anchor_at,
         "next_allowed_at": next_allowed_at,
         "remaining_interval_seconds": remaining_interval_seconds,
         "retry_at": retry_at,

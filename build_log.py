@@ -12,6 +12,36 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1734",
+        "date": "14.08.2026",
+        "headline": "Ny dag nullstiller dørstyrt robotautomatikk",
+        "title": "1. etg B kan aldri starte før minimumstiden har gått fra dagens åpning",
+        "description": (
+            "Den inngangsstyrte støvsugingen starter hver driftsdag med ny åpningsteller og ny tidslås. "
+            "Første automatiske jobb kan tidligst starte ett konfigurert minimumsintervall etter åpning, "
+            "mens senere jobber samme dag fortsatt må vente intervallet fra forrige vellykkede start."
+        ),
+        "applications": [
+            "Fibaro10 API og worker: daglig tidsanker ved åpning og uendret intervall mellom senere starter.",
+            "Bygg og drift: viser når dagens teller startet og forklarer første tillatte start.",
+            "Renholdsdokumentasjon: presiserer daglig nullstilling av antall og tid.",
+        ],
+        "request": (
+            "Den automatiske styringen på 1.etg B skal telle på nytt fra morgenen, både antall åpninger "
+            "av døren og tid. Den skal aldri kunne gå før en time etter åpning."
+        ),
+        "work_duration": "ca. 25 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bruker dagens åpningstid som tidsanker før første automatiske jobb.",
+            "Ignorerer forrige dags robotstart når dagens neste tillatte start beregnes.",
+            "Beholder siste vellykkede start som tidsanker mellom senere jobber samme dag.",
+            "Viser dagens tellingsstart og forklaring av første startlås på robotsiden.",
+            "Legger til regresjonstester for åpning kl. 07:00 og tidligste start kl. 08:00.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1733",
         "date": "13.08.2026",
         "headline": "Riktig tidspunkt for dørstatus",

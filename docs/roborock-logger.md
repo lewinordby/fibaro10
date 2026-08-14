@@ -156,15 +156,20 @@ Telleren bruker bare reelle tilstandsendringer for inngangsdørens HC3-enhet `54
 - døråpningene har skjedd samme dag og etter dagens åpningstid startet
 - antall åpninger har nådd den konfigurerte terskelen
 - inngangsdøren er lukket
+- første automatiske start er tidligst ett minimumsintervall etter dagens åpningstid
 - konfigurert minimumstid har gått siden forrige automatiske støvsuging startet
 - kontrollen skjer før dagens stengetid
 - minst én valgt sone, en aktiv ren støvsugingsprofil og Roborock-styring er tilgjengelig
 
-Åpningstiden hentes fra `Ventilasjon -> Innstillinger` (`open_from` og `close_at`). Nattens hendelser tas ikke med.
+Åpningstiden hentes fra `Ventilasjon -> Innstillinger` (`open_from` og `close_at`). Ved hver ny driftsdag starter
+både åpningstelleren og tidslåsen på nytt ved `open_from`. Med dagens åpning kl. 07:00 og minimumsintervall 60
+minutter kan første jobb dermed aldri starte før kl. 08:00. Nattens hendelser og forrige dags siste robotstart tas ikke med.
 Når åpningsterskelen nås før minimumsintervallet er utløpt, beholdes telleren og jobben starter automatisk så snart
 minimumstiden er nådd; det kreves ingen ny døråpning. Telleren nullstilles etter en vellykket start eller med
-`Nullstill teller`, men ikke når oppsettet lagres. Minimumsintervallet kan gå på tvers av datoer og påvirkes ikke av
-en manuell nullstilling av telleren. Hvis roboten avviser en start,
+`Nullstill teller`, men ikke når oppsettet lagres. Mellom senere starter samme driftsdag måles minimumsintervallet
+fra forrige vellykkede start og påvirkes ikke av en manuell nullstilling av telleren. Ved ny driftsdag brukes dagens
+åpningstid som nytt tidsanker.
+Hvis roboten avviser en start,
 beholdes telleren og Fibaro10 venter fem minutter før nytt forsøk. Alle forsøk lagres i den samme kontrollhistorikken
 som manuelle robotkommandoer, med bruker `door_automation`.
 

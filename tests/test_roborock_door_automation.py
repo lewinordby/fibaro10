@@ -66,6 +66,54 @@ def test_automation_requires_count_closed_door_and_minimum_interval():
     assert first_run["eligible"] is True
 
 
+def test_first_daily_run_waits_minimum_interval_from_opening_time():
+    common = {
+        "enabled": True,
+        "open_at": datetime(2026, 8, 14, 7, 0),
+        "close_at": datetime(2026, 8, 14, 23, 0),
+        "opening_count": 10,
+        "opening_threshold": 10,
+        "minimum_interval_minutes": 60,
+        "door_is_open": False,
+        "validation_issues": [],
+    }
+    waiting = automation_decision(
+        now=datetime(2026, 8, 14, 7, 45),
+        last_started_at=datetime(2026, 8, 13, 22, 30),
+        **common,
+    )
+    ready = automation_decision(
+        now=datetime(2026, 8, 14, 8, 0),
+        last_started_at=datetime(2026, 8, 13, 22, 30),
+        **common,
+    )
+
+    assert waiting["key"] == "minimum_interval"
+    assert waiting["interval_anchor_at"] == datetime(2026, 8, 14, 7, 0)
+    assert waiting["next_allowed_at"] == datetime(2026, 8, 14, 8, 0)
+    assert waiting["remaining_interval_seconds"] == 15 * 60
+    assert ready["eligible"] is True
+
+
+def test_daily_interval_uses_last_start_only_when_it_is_after_todays_opening():
+    decision = automation_decision(
+        now=datetime(2026, 8, 14, 10, 20),
+        enabled=True,
+        open_at=datetime(2026, 8, 14, 7, 0),
+        close_at=datetime(2026, 8, 14, 23, 0),
+        opening_count=10,
+        opening_threshold=10,
+        minimum_interval_minutes=60,
+        last_started_at=datetime(2026, 8, 14, 9, 45),
+        door_is_open=False,
+        validation_issues=[],
+    )
+
+    assert decision["key"] == "minimum_interval"
+    assert decision["interval_anchor_at"] == datetime(2026, 8, 14, 9, 45)
+    assert decision["next_allowed_at"] == datetime(2026, 8, 14, 10, 45)
+
+
 def test_reached_threshold_starts_when_minimum_interval_expires_without_new_opening():
     last_started_at = datetime(2026, 8, 13, 13, 20)
     common = {
