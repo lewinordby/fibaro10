@@ -12,6 +12,32 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1737",
+        "date": "14.08.2026",
+        "headline": "Robotinnstillinger i nattrapporten",
+        "title": "Hver robot viser innstillingene som gjaldt ved rapportslutt",
+        "description": (
+            "Statusområdet for hver robot viser nå de relevante innstillingene som Roborock faktisk "
+            "rapporterte før slutten av den valgte natten. Historiske rapporter bruker dermed historiske "
+            "verdier og blir ikke overskrevet av innstillinger som er endret senere."
+        ),
+        "applications": [
+            "Fibaro10 API: leser og tolker flere historiske Roborock-innstillinger per rapportdato.",
+            "Bygg og drift build 56: kompakt innstillingsoversikt i statusområdet for hver robot.",
+        ],
+        "request": "Kan du i statusfeltet på robotene også ta med innstillinger som er gjort for roboten?",
+        "work_duration": "ca. 25 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser standard sugekraft og vannmengde.",
+            "Viser moppevaskmodus og intervall.",
+            "Viser tørketid og automatisk støvtømming med valgt nivå.",
+            "Viser teppemodus og ikke-forstyrr-innstilling der disse støttes.",
+            "Bruker siste registrerte verdi før rapportslutt for å bevare historisk riktige rapporter.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1736",
         "date": "14.08.2026",
         "headline": "Korrekt skille mellom støvsuging og vask",

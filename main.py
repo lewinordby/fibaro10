@@ -39381,7 +39381,21 @@ async def api_cleaning_night_report(day: Optional[str] = None):
             await session.execute(
                 select(RoborockProbeResult)
                 .join(latest_probe_subq, RoborockProbeResult.id == latest_probe_subq.c.latest_id)
-                .where(RoborockProbeResult.command.in_(["GET_SMART_WASH_PARAMS", "GET_WASH_TOWEL_MODE"]))
+                .where(
+                    RoborockProbeResult.command.in_(
+                        [
+                            "GET_SMART_WASH_PARAMS",
+                            "GET_WASH_TOWEL_MODE",
+                            "GET_CUSTOM_MODE",
+                            "GET_WATER_BOX_CUSTOM_MODE",
+                            "APP_GET_DRYER_SETTING",
+                            "GET_DUST_COLLECTION_MODE",
+                            "GET_DUST_COLLECTION_SWITCH_STATUS",
+                            "GET_CARPET_MODE",
+                            "GET_DND_TIMER",
+                        ]
+                    )
+                )
             )
         ).scalars().all()
     return build_night_report(

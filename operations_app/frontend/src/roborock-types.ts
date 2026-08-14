@@ -133,6 +133,11 @@ export type RoborockNightRobot = {
     mode?: number | null;
     modeLabel?: string | null;
     automatic: boolean;
+    items: Array<{
+      key: string;
+      label: string;
+      value: string;
+    }>;
   };
   totals: {
     jobs: number;

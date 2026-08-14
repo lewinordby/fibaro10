@@ -82,6 +82,10 @@ ROBOROCK_WATER_LABELS = {
     201: "Lav",
     202: "Medium",
     203: "Høy",
+    204: "Tilpasset",
+    207: "Tilpasset",
+    208: "Maks",
+    209: "Smart",
 }
 
 ROBOROCK_CHARGE_LABELS = {

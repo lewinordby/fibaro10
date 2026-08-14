@@ -40,6 +40,13 @@ def test_night_report_summarizes_modes_battery_and_mop_washes() -> None:
     probes = [
         row(robot_duid="robot-a", command="GET_SMART_WASH_PARAMS", ok=True, raw={"value": {"smart_wash": 0, "wash_interval": 600}}),
         row(robot_duid="robot-a", command="GET_WASH_TOWEL_MODE", ok=True, raw={"value": {"wash_mode": 1}}),
+        row(robot_duid="robot-a", command="GET_CUSTOM_MODE", ok=True, raw={"value": [104]}),
+        row(robot_duid="robot-a", command="GET_WATER_BOX_CUSTOM_MODE", ok=True, raw={"value": {"water_box_mode": 207}}),
+        row(robot_duid="robot-a", command="APP_GET_DRYER_SETTING", ok=True, raw={"value": {"status": 0, "on": {"dry_time": 7200}}}),
+        row(robot_duid="robot-a", command="GET_DUST_COLLECTION_MODE", ok=True, raw={"value": {"mode": 0}}),
+        row(robot_duid="robot-a", command="GET_DUST_COLLECTION_SWITCH_STATUS", ok=True, raw={"value": {"status": 1}}),
+        row(robot_duid="robot-a", command="GET_CARPET_MODE", ok=True, raw={"value": [{"enable": 1}]}),
+        row(robot_duid="robot-a", command="GET_DND_TIMER", ok=True, raw={"value": [{"enabled": 1, "start_hour": 22, "start_minute": 0, "end_hour": 7, "end_minute": 0}]}),
     ]
 
     report = build_night_report(date(2026, 8, 14), [robot], [job], samples, probes)
@@ -53,6 +60,15 @@ def test_night_report_summarizes_modes_battery_and_mop_washes() -> None:
     assert result["jobs"][0]["batteryEnd"] == 75
     assert result["jobs"][0]["expectedWashCount"] == 7
     assert result["settings"]["modeLabel"] == "Balansert"
+    assert result["settings"]["items"] == [
+        {"key": "fan", "label": "Standard sugekraft", "value": "Maks"},
+        {"key": "water", "label": "Standard vannmengde", "value": "Tilpasset"},
+        {"key": "mop-wash", "label": "Moppevask", "value": "Balansert · hvert 10. min"},
+        {"key": "dryer", "label": "Tørketid", "value": "2 t"},
+        {"key": "dust", "label": "Støvtømming", "value": "På · Smart"},
+        {"key": "carpet", "label": "Teppemodus", "value": "På"},
+        {"key": "dnd", "label": "Ikke forstyrr", "value": "22:00–07:00"},
+    ]
     assert result["readiness"]["batteryAtOpening"] == 96
     assert result["readiness"]["fullChargeAt"].startswith("2026-08-14T07:00")
 
