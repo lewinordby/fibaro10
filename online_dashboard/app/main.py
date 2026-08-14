@@ -957,6 +957,28 @@ def render_drift_performance(data: dict[str, Any]) -> str:
     )
 
 
+def render_robot_drift_entry(robots: list[dict[str, Any]]) -> str:
+    active = sum(robot.get("status") == "active" for robot in robots)
+    ready = sum(robot.get("status") == "ok" for robot in robots)
+    attention = sum(robot.get("status") in {"error", "warning", "pending"} for robot in robots)
+    status_times = [robot.get("status_at") for robot in robots if isinstance(robot.get("status_at"), datetime)]
+    latest_status_at = max(status_times) if status_times else None
+    return f"""
+    <a class="section-block card-link robot-mobile-block robot-drift-entry" href="/renhold">
+      <div class="section-title-row">
+        <h2>RENHOLD</h2>
+        <span class="robot-summary-pill">{escape(robot_overview_summary(robots))}</span>
+      </div>
+      <div class="robot-drift-stats">
+        <span><small>Klare</small><strong>{fmt_int(ready)}</strong></span>
+        <span><small>Rengjør nå</small><strong>{fmt_int(active)}</strong></span>
+        <span><small>Oppfølging</small><strong>{fmt_int(attention)}</strong></span>
+      </div>
+      <small class="card-time">Sist lest {fmt_clock(latest_status_at) if latest_status_at else '-'}</small>
+    </a>
+    """
+
+
 def operating_window(now: datetime) -> dict[str, Any]:
     open_at = datetime.combine(now.date(), datetime.min.time()).replace(hour=7)
     close_at = datetime.combine(now.date(), datetime.min.time()).replace(hour=23)
@@ -3401,6 +3423,7 @@ async def temperature_detail(request: Request):
     else:
         ranges = await temperature_ranges(data["now"].date())
     body = render_drift_performance(data)
+    body += render_robot_drift_entry(list(data.get("robots") or []))
     body += detail_stats(
         [
             ("Inne nå", fmt_temp(data["inside_avg"]), f"{fmt_temp(ranges.get('min_inne'))} - {fmt_temp(ranges.get('max_inne'))}"),
@@ -4355,7 +4378,7 @@ LOGIN_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1750">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1751">
   <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-page">
@@ -4396,7 +4419,7 @@ DASHBOARD_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1750">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1751">
   <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
@@ -4551,7 +4574,7 @@ DETAIL_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1750">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1751">
   <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
 </head>
 <body class="appkit-mobile theme-light">

@@ -12,6 +12,31 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1751",
+        "date": "14.08.2026",
+        "headline": "Drift gir direkte tilgang til robotene",
+        "title": "Renholdsstatus er synlig uten å forlate den mobile driftsoversikten",
+        "description": (
+            "Drift-siden i mobilgrensesnittet har fått en kompakt Renhold-flate med antall klare roboter, "
+            "pågående rengjøring og enheter som trenger oppfølging. Hele flaten åpner den komplette "
+            "robotoversikten med batteri, status og siste jobb."
+        ),
+        "applications": [
+            "Fibaro10 build 1751: leverer den kompakte renholdsstatusen i mobilens Drift-side.",
+            "Lilletorget Mobil: ny direkte inngang fra Drift til /renhold.",
+        ],
+        "request": "Det burde vel også vært en inngang fra Drift?",
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser klare, aktive og oppfølgingskrevende roboter på Drift.",
+            "Viser tidspunktet for siste robotstatus.",
+            "Gjør hele Renhold-flaten klikkbar og leder til komplett robotoversikt.",
+            "Tilpasser flaten til både lyst og mørkt mobiltema.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1750",
         "date": "14.08.2026",
         "headline": "Mobilappen viser alle robotvaskerne",

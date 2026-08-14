@@ -1900,6 +1900,50 @@ body.appkit-mobile .robot-mobile-block > .card-time {
     margin-top: 10px;
 }
 
+body.appkit-mobile .robot-drift-entry {
+    padding-bottom: 11px;
+}
+
+body.appkit-mobile .robot-drift-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 2px 0 0;
+    border-top: 1px solid var(--appkit-line);
+    border-bottom: 1px solid var(--appkit-line);
+}
+
+body.appkit-mobile .robot-drift-stats > span {
+    min-width: 0;
+    padding: 9px 8px 8px;
+    border-right: 1px solid var(--appkit-line);
+    text-align: center;
+}
+
+body.appkit-mobile .robot-drift-stats > span:last-child {
+    border-right: 0;
+}
+
+body.appkit-mobile .robot-drift-stats small,
+body.appkit-mobile .robot-drift-stats strong {
+    display: block;
+}
+
+body.appkit-mobile .robot-drift-stats small {
+    overflow: hidden;
+    color: var(--appkit-muted);
+    font-size: 0.66rem;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body.appkit-mobile .robot-drift-stats strong {
+    margin-top: 2px;
+    color: var(--appkit-text);
+    font-size: 1rem;
+    font-variant-numeric: tabular-nums;
+}
+
 body.appkit-mobile .detail-robot .detail-stats article {
     border-left-color: var(--appkit-energy);
 }

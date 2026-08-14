@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 os.environ.setdefault(
     "DATABASE_URL",
@@ -37,6 +38,24 @@ def test_generic_performance_panel_supports_operational_status() -> None:
     assert "<em>" not in html
     assert html.count('class="dashboard-performance-stat"') == 2
     assert '<span>Solrom</span><strong>7 ledige</strong><small>5 i bruk</small>' in html
+
+
+def test_drift_robot_entry_links_to_full_robot_overview() -> None:
+    html = online_main.render_robot_drift_entry(
+        [
+            {"name": "1.etg A", "status": "ok", "status_at": datetime(2026, 8, 14, 16, 37)},
+            {"name": "1.etg B", "status": "active", "status_at": datetime(2026, 8, 14, 16, 38)},
+            {"name": "Aqua10", "status": "pending", "status_at": None},
+        ]
+    )
+
+    assert 'href="/renhold"' in html
+    assert "1 rengjør nå" in html
+    assert "3 totalt" in html
+    assert "Klare" in html
+    assert "Oppfølging" in html
+    assert "Rengjør nå" in html
+    assert "Sist lest kl. 16:38" in html
 
 
 def test_drift_performance_uses_door_climate_and_fan_status() -> None:
