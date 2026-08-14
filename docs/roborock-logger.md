@@ -145,6 +145,23 @@ bestilte innstillingene. Valgt profil, sone, segment, bruker og bekreftede verdi
 Roborocks `Custom`- og `Smart`-moduser er foreløpig ikke tilgjengelige i profilbyggeren. Kodene alene er ikke
 tilstrekkelige; de trenger ekstra modellavhengige vendorparametere og ville derfor ikke gitt en entydig fast profil.
 
+## Robotstyring og moppevask i dokk
+
+Detaljsiden skiller mellom tre typer handlinger:
+
+- `Renhold nå` starter, pauser, fortsetter eller stopper roboten.
+- `Moppevask i dokk` bestemmer hvor grundig og hvor ofte moppene vaskes mens en gulvvask pågår.
+- `Diagnostikk og funksjonstest` kontrollerer forbindelsen eller gjør en kort kontrollert start- og stopptest.
+
+Moppeintervallet er ikke en plan for hvor ofte gulvet skal vaskes. `Hvert 10. minutt` betyr at roboten returnerer
+til dokken omtrent hvert tiende minutt under aktiv gulvvask for å vaske moppene. Fast intervall slår av Roborocks
+automatiske intervallvalg. Støttede valg er 10, 15, 20 og 25 minutter, med styrke Lett, Balansert, Dyp eller Ekstra dyp.
+
+Fibaro10 sender begge innstillingene lokalt til roboten, leser dem tilbake og godtar ikke endringen før roboten
+bekrefter verdiene. De bekreftede verdiene lagres straks som telemetri og brukes av robotsiden og historiske
+nattrapporter. Innstillingene kan ikke endres mens roboten rengjør. Roboter uten vaskefunksjon i dokken viser bare
+at funksjonen ikke støttes.
+
 ## Inngangsstyrt støvsuging for 1.etg B
 
 Robotsiden for `1.etg B` har en egen automatikk som kan starte én felles støvsugingsjobb i én eller flere valgte

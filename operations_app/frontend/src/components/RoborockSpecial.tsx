@@ -429,7 +429,33 @@ const controlActionLabels: Record<string, string> = {
   dock: "Til dokk",
   test_start_stop: "Kort kontrolltest",
   clean_zone: "Vask sone",
+  set_mop_wash: "Moppevask i dokk",
 };
+
+const mopWashModes = [
+  { value: 0, label: "Lett" },
+  { value: 1, label: "Balansert" },
+  { value: 2, label: "Dyp" },
+  { value: 8, label: "Ekstra dyp" },
+];
+
+const mopWashIntervals = [10, 15, 20, 25];
+
+function probeObject(data: RoborockRobotDetail, command: string): JsonRecord | null {
+  const probe = data.telemetryProbes?.find((item) => item.command === command && item.supported);
+  const value = probe?.value;
+  if (value && typeof value === "object" && !Array.isArray(value)) return value as JsonRecord;
+  if (Array.isArray(value)) {
+    const first = value.find((item) => item && typeof item === "object" && !Array.isArray(item));
+    return first ? first as JsonRecord : null;
+  }
+  return null;
+}
+
+function integerOrNull(value: unknown) {
+  const parsed = Number(value);
+  return value !== null && value !== undefined && Number.isFinite(parsed) ? Math.round(parsed) : null;
+}
 
 function controlStateLabel(value: JsonRecord | null | undefined) {
   return robotStateLabel(value?.state_name || value?.state_code);
@@ -438,6 +464,21 @@ function controlStateLabel(value: JsonRecord | null | undefined) {
 function RobotControls({ duid, data, reload }: { duid: string; data: RoborockRobotDetail; reload: () => void }) {
   const [running, setRunning] = useState("");
   const [message, setMessage] = useState("");
+  const [failed, setFailed] = useState(false);
+  const washModeProbe = probeObject(data, "GET_WASH_TOWEL_MODE");
+  const smartWashProbe = probeObject(data, "GET_SMART_WASH_PARAMS");
+  const currentWashMode = integerOrNull(washModeProbe?.wash_mode);
+  const currentWashInterval = integerOrNull(smartWashProbe?.wash_interval);
+  const currentWashIntervalMinutes = currentWashInterval ? Math.round(currentWashInterval / 60) : null;
+  const supportsMopWash = Boolean(washModeProbe && smartWashProbe);
+  const [washMode, setWashMode] = useState(currentWashMode ?? 1);
+  const [washIntervalMinutes, setWashIntervalMinutes] = useState(currentWashIntervalMinutes ?? 10);
+
+  useEffect(() => {
+    if (currentWashMode !== null) setWashMode(currentWashMode);
+    if (currentWashIntervalMinutes !== null) setWashIntervalMinutes(currentWashIntervalMinutes);
+  }, [currentWashMode, currentWashIntervalMinutes]);
+
   if (!data.canControl) return null;
 
   async function run(action: string) {
@@ -450,6 +491,7 @@ function RobotControls({ duid, data, reload }: { duid: string; data: RoborockRob
     if (!window.confirm(question)) return;
     setRunning(action);
     setMessage("");
+    setFailed(false);
     try {
       const response = await domainApi.mutate<{ message?: string }>(
         `/api/renhold/robots/${encodeURIComponent(duid)}/control`,
@@ -459,6 +501,33 @@ function RobotControls({ duid, data, reload }: { duid: string; data: RoborockRob
       setMessage(response.message || `${label} er utført.`);
       reload();
     } catch (error) {
+      setFailed(true);
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setRunning("");
+    }
+  }
+
+  async function saveMopWash() {
+    const modeLabel = mopWashModes.find((option) => option.value === washMode)?.label || `Modus ${washMode}`;
+    if (!window.confirm(`Lagre ${modeLabel.toLowerCase()} moppevask hvert ${washIntervalMinutes}. minutt?`)) return;
+    setRunning("set_mop_wash");
+    setMessage("");
+    setFailed(false);
+    try {
+      const response = await domainApi.mutate<{ message?: string }>(
+        `/api/renhold/robots/${encodeURIComponent(duid)}/control`,
+        "POST",
+        {
+          action: "set_mop_wash",
+          wash_mode: washMode,
+          wash_interval_minutes: washIntervalMinutes,
+        },
+      );
+      setMessage(response.message || "Moppevaskinnstillingene er lagret.");
+      reload();
+    } catch (error) {
+      setFailed(true);
       setMessage(error instanceof Error ? error.message : String(error));
     } finally {
       setRunning("");
@@ -466,26 +535,53 @@ function RobotControls({ duid, data, reload }: { duid: string; data: RoborockRob
   }
 
   const latest = data.controlHistory?.[0];
-  const buttons = [
-    ["dry_run", "Kontroller"],
+  const cleaningButtons = [
     ["start", "Start"],
     ["pause", "Pause"],
     ["resume", "Fortsett"],
     ["stop", "Stopp og dokk"],
-    ["test_start_stop", "Test start/stopp"],
   ];
-  return <Panel title="Manuell styring" subtitle="Kun master · alle kommandoer logges med status før og etter">
+  return <Panel title="Robotstyring" subtitle="Kun master · alle endringer og kommandoer logges">
     <div className="space-y-4 p-5">
-      <div className="flex flex-wrap gap-2">
-        {buttons.map(([action, label]) => <button
-          className={`btn ${action === "test_start_stop" ? "bg-green-600 text-white hover:bg-green-700" : action === "stop" ? "border-red-200 text-red-600 dark:border-red-500/30 dark:text-red-400" : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"}`}
-          disabled={Boolean(running)}
-          key={action}
-          onClick={() => run(action)}
-          title={controlActionLabels[action]}
-        >{running === action ? "Utfører ..." : label}</button>)}
-      </div>
-      {message ? <div className={`rounded-md px-3 py-2 text-sm ${message.toLowerCase().includes("feil") ? "bg-red-500/10 text-red-600 dark:text-red-400" : "bg-green-500/10 text-green-700 dark:text-green-400"}`}>{message}</div> : null}
+      <section className="grid gap-3 md:grid-cols-[minmax(10rem,0.32fr)_1fr] md:items-start">
+        <div><h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Renhold nå</h3><p className="mt-1 text-xs leading-5 text-gray-400">Direkte kommandoer til roboten.</p></div>
+        <div className="flex flex-wrap gap-2">
+          {cleaningButtons.map(([action, label]) => <button
+            className={`btn ${action === "start" ? "bg-green-600 text-white hover:bg-green-700" : action === "stop" ? "border-red-200 bg-white text-red-600 dark:border-red-500/30 dark:bg-gray-800 dark:text-red-400" : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"}`}
+            disabled={Boolean(running)}
+            key={action}
+            onClick={() => run(action)}
+            title={controlActionLabels[action]}
+          >{running === action ? "Utfører ..." : label}</button>)}
+        </div>
+      </section>
+
+      <section className="grid gap-3 border-t border-gray-100 pt-4 md:grid-cols-[minmax(10rem,0.32fr)_1fr] dark:border-gray-700/60">
+        <div><h3 className="flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-100"><MosaicIcon name="settings" size={16} />Moppevask i dokk</h3><p className="mt-1 text-xs leading-5 text-gray-400">Bestemmer hvor ofte roboten returnerer til dokken for å vaske moppene under gulvvask.</p></div>
+        {supportsMopWash ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(10rem,1fr)_minmax(9rem,0.75fr)_auto] xl:items-end">
+          <label className="text-xs font-semibold text-gray-500 dark:text-gray-300">Grundighet
+            <select className="form-select mt-1 w-full text-sm font-medium" disabled={Boolean(running)} value={washMode} onChange={(event) => setWashMode(Number(event.target.value))}>
+              {mopWashModes.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </label>
+          <label className="text-xs font-semibold text-gray-500 dark:text-gray-300">Vask moppene
+            <select className="form-select mt-1 w-full text-sm font-medium" disabled={Boolean(running)} value={washIntervalMinutes} onChange={(event) => setWashIntervalMinutes(Number(event.target.value))}>
+              {mopWashIntervals.map((minutes) => <option key={minutes} value={minutes}>Hvert {minutes}. minutt</option>)}
+            </select>
+          </label>
+          <button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 sm:col-span-2 xl:col-span-1" disabled={Boolean(running)} onClick={saveMopWash}>{running === "set_mop_wash" ? "Kontrollerer ..." : "Lagre og kontroller"}</button>
+        </div> : <div className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-500 dark:bg-gray-900/30 dark:text-gray-400">Denne roboten rapporterer ikke støtte for moppevask i dokk.</div>}
+      </section>
+
+      <details className="border-t border-gray-100 pt-3 dark:border-gray-700/60">
+        <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-gray-500 dark:text-gray-300"><MosaicIcon name="chevron-down" size={15} />Diagnostikk og funksjonstest</summary>
+        <div className="mt-3 flex flex-wrap gap-2 pl-6">
+          <button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" disabled={Boolean(running)} onClick={() => run("dry_run")}>{running === "dry_run" ? "Kontrollerer ..." : "Kontroller tilkobling"}</button>
+          <button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" disabled={Boolean(running)} onClick={() => run("test_start_stop")}>{running === "test_start_stop" ? "Tester ..." : "Kort start- og stopptest"}</button>
+        </div>
+      </details>
+
+      {message ? <div className={`rounded-md px-3 py-2 text-sm ${failed ? "bg-red-500/10 text-red-600 dark:text-red-400" : "bg-green-500/10 text-green-700 dark:text-green-400"}`}>{message}</div> : null}
       {latest ? <div className="grid gap-3 border-t border-gray-100 pt-4 text-sm sm:grid-cols-[minmax(9rem,0.8fr)_1fr_1fr_auto] dark:border-gray-700/60">
         <div><span className="block text-xs font-semibold uppercase text-gray-400">Siste kommando</span><strong className="block font-medium text-gray-700 dark:text-gray-200">{controlActionLabels[latest.action] || latest.action}</strong>{latest.profile?.name ? <small className="text-gray-400">{String(latest.profile.name)}</small> : null}</div>
         <div><span className="block text-xs font-semibold uppercase text-gray-400">Før</span><strong className="font-medium text-gray-700 dark:text-gray-200">{controlStateLabel(latest.before_state)}</strong></div>

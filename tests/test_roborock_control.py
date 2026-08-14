@@ -130,6 +130,56 @@ def test_logger_applies_and_verifies_every_profile_setting(monkeypatch):
     assert result["verified"]["mop_mode"] == 303
 
 
+def test_mop_wash_settings_accept_only_supported_modes_and_intervals():
+    assert logger.validated_mop_wash_settings(1, 10) == {
+        "wash_mode": 1,
+        "wash_interval_minutes": 10,
+        "wash_interval_seconds": 600,
+        "smart_wash": 0,
+    }
+    with pytest.raises(HTTPException, match="styrke"):
+        logger.validated_mop_wash_settings(10, 10)
+    with pytest.raises(HTTPException, match="intervall"):
+        logger.validated_mop_wash_settings(1, 12)
+
+
+def test_logger_applies_and_reads_back_mop_wash_settings(monkeypatch):
+    pytest.importorskip("roborock.roborock_typing")
+    calls = []
+    state = {"wash_mode": 1, "smart_wash": 0, "wash_interval": 600}
+
+    class Rpc:
+        async def send_command(self, command, params=None):
+            calls.append((command.value, params))
+            if command.value == "set_wash_towel_mode":
+                state["wash_mode"] = params["wash_mode"]
+                return ["ok"]
+            if command.value == "set_smart_wash_params":
+                state.update(params)
+                return ["ok"]
+            if command.value == "get_wash_towel_mode":
+                return {"wash_mode": state["wash_mode"]}
+            if command.value == "get_smart_wash_params":
+                return {"smart_wash": state["smart_wash"], "wash_interval": state["wash_interval"]}
+            raise AssertionError(command.value)
+
+    async def no_sleep(_seconds):
+        return None
+
+    monkeypatch.setattr(logger.asyncio, "sleep", no_sleep)
+    result = asyncio.run(logger.apply_mop_wash_settings(Rpc(), 2, 15))
+
+    assert calls == [
+        ("set_wash_towel_mode", {"wash_mode": 2}),
+        ("set_smart_wash_params", {"smart_wash": 0, "wash_interval": 900}),
+        ("get_wash_towel_mode", None),
+        ("get_smart_wash_params", None),
+    ]
+    assert result["settings"]["wash_mode_label"] == "Dyp"
+    assert result["settings"]["wash_interval_minutes"] == 15
+    assert result["probes"]["GET_SMART_WASH_PARAMS"]["wash_interval"] == 900
+
+
 def test_control_start_rejects_active_error_and_low_battery():
     with pytest.raises(HTTPException, match="rengjør allerede"):
         logger.validate_control_start({"state_name": "cleaning", "battery": 90, "error_code": 0})
@@ -149,6 +199,9 @@ def test_core_control_route_is_master_protected_and_audited():
     assert '"confirmation": f"CONFIRM:{duid}:{action}"' in route[:6000]
     assert '"segment_id": segment_id' in route[:6000]
     assert '"profile": {' in route[:7000]
+    assert '"set_mop_wash"' in route[:2000]
+    assert '"wash_interval_minutes": values.wash_interval_minutes' in route[:7000]
+    assert 'source="local-telemetry"' in route[:11000]
 
 
 def test_logger_control_route_requires_shared_token():

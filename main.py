@@ -2260,6 +2260,8 @@ class RoborockControlIn(BaseModel):
     test_duration_seconds: int = Field(default=5, ge=3, le=12)
     zone_number: Optional[int] = Field(default=None, ge=1, le=59)
     profile_id: Optional[int] = Field(default=None, ge=1)
+    wash_mode: Optional[int] = None
+    wash_interval_minutes: Optional[int] = None
 
 
 class RoborockCleaningProfileIn(BaseModel):
@@ -40096,12 +40098,27 @@ async def api_cleaning_robot_control(request: Request, duid: str, values: Roboro
         return forbidden
     if not ROBOROCK_CONTROL_TOKEN:
         raise HTTPException(status_code=503, detail="Robotstyring er ikke konfigurert")
-    allowed_actions = {"dry_run", "start", "pause", "resume", "stop", "dock", "test_start_stop", "clean_zone"}
+    allowed_actions = {
+        "dry_run",
+        "start",
+        "pause",
+        "resume",
+        "stop",
+        "dock",
+        "test_start_stop",
+        "clean_zone",
+        "set_mop_wash",
+    }
     action = values.action.strip().lower()
     if action not in allowed_actions:
         raise HTTPException(status_code=400, detail="Ukjent robotkommando")
     if action == "clean_zone" and (values.zone_number is None or values.profile_id is None):
         raise HTTPException(status_code=400, detail="Sone og rengjøringsprofil må velges")
+    if action == "set_mop_wash":
+        if values.wash_mode not in {0, 1, 2, 8}:
+            raise HTTPException(status_code=400, detail="Ugyldig styrke for moppevask")
+        if values.wash_interval_minutes not in {10, 15, 20, 25}:
+            raise HTTPException(status_code=400, detail="Ugyldig intervall for moppevask")
 
     actor = getattr(request.state, "access_key_name", None) or "master"
     request_id = f"fibaro10-{secrets.token_hex(12)}"
@@ -40167,6 +40184,8 @@ async def api_cleaning_robot_control(request: Request, duid: str, values: Roboro
                 "test_duration_seconds": values.test_duration_seconds,
                 "zone_number": values.zone_number,
                 "segment_id": segment_id,
+                "wash_mode": values.wash_mode,
+                "wash_interval_minutes": values.wash_interval_minutes,
                 "profile": {
                     "id": profile_payload["id"],
                     "name": profile_payload["name"],
@@ -40185,6 +40204,8 @@ async def api_cleaning_robot_control(request: Request, duid: str, values: Roboro
         message = (
             "Kontrolltest fullført"
             if action == "test_start_stop"
+            else "Moppevaskinnstillingene er lagret og kontrollert mot roboten"
+            if action == "set_mop_wash"
             else f"{profile_payload['name']} startet i {zone_name} på {robot_name}"
             if action == "clean_zone"
             else "Robotkommando utført"
@@ -40207,6 +40228,23 @@ async def api_cleaning_robot_control(request: Request, duid: str, values: Roboro
             command_run.before_state = before_state
             command_run.after_state = after_state
             command_run.result = result
+            if action == "set_mop_wash" and command_status == "ok":
+                control_result = result.get("result") if isinstance(result, dict) else None
+                probes = control_result.get("probes") if isinstance(control_result, dict) else None
+                if isinstance(probes, dict):
+                    probe_timestamp = local_now_naive()
+                    for command, value in probes.items():
+                        session.add(
+                            RoborockProbeResult(
+                                robot_duid=duid,
+                                timestamp=probe_timestamp,
+                                source="local-telemetry",
+                                command=command,
+                                ok=True,
+                                result_type="dict",
+                                raw={"value": value},
+                            )
+                        )
             await session.commit()
 
     if command_status != "ok":
@@ -40220,6 +40258,9 @@ async def api_cleaning_robot_control(request: Request, duid: str, values: Roboro
         "zoneNumber": values.zone_number if action == "clean_zone" else None,
         "segmentId": segment_id,
         "profile": profile_payload,
+        "settings": result.get("result", {}).get("settings")
+        if action == "set_mop_wash" and isinstance(result.get("result"), dict)
+        else None,
     }
 
 

@@ -86,7 +86,17 @@ class CleaningProfileRequest(BaseModel):
 
 
 class ControlRequest(BaseModel):
-    action: Literal["dry_run", "start", "pause", "resume", "stop", "dock", "test_start_stop", "clean_zone"]
+    action: Literal[
+        "dry_run",
+        "start",
+        "pause",
+        "resume",
+        "stop",
+        "dock",
+        "test_start_stop",
+        "clean_zone",
+        "set_mop_wash",
+    ]
     request_id: str = Field(min_length=8, max_length=100)
     actor: str = Field(default="Fibaro10", min_length=1, max_length=100)
     confirmation: str = Field(min_length=1, max_length=200)
@@ -96,6 +106,12 @@ class ControlRequest(BaseModel):
     zone_numbers: list[int] | None = Field(default=None, min_length=1, max_length=12)
     segment_ids: list[int] | None = Field(default=None, min_length=1, max_length=12)
     profile: CleaningProfileRequest | None = None
+    wash_mode: int | None = None
+    wash_interval_minutes: int | None = None
+
+
+MOP_WASH_MODES = {0: "Lett", 1: "Balansert", 2: "Dyp", 8: "Ekstra dyp"}
+MOP_WASH_INTERVALS = {10, 15, 20, 25}
 
 
 TELEMETRY_SETTING_COMMANDS = (
@@ -582,6 +598,77 @@ async def apply_cleaning_profile(
     return {"settings": settings, "verified": after, "commands": results}
 
 
+def validated_mop_wash_settings(wash_mode: int | None, wash_interval_minutes: int | None) -> dict[str, int]:
+    if wash_mode not in MOP_WASH_MODES:
+        raise HTTPException(status_code=400, detail="Ugyldig styrke for moppevask")
+    if wash_interval_minutes not in MOP_WASH_INTERVALS:
+        raise HTTPException(status_code=400, detail="Ugyldig intervall for moppevask")
+    return {
+        "wash_mode": wash_mode,
+        "wash_interval_minutes": wash_interval_minutes,
+        "wash_interval_seconds": wash_interval_minutes * 60,
+        "smart_wash": 0,
+    }
+
+
+async def apply_mop_wash_settings(
+    rpc: Any,
+    wash_mode: int | None,
+    wash_interval_minutes: int | None,
+) -> dict[str, Any]:
+    """Apply a fixed dock mop-wash interval and verify both values from the robot."""
+    from roborock.roborock_typing import RoborockCommand
+
+    settings = validated_mop_wash_settings(wash_mode, wash_interval_minutes)
+    command_results = {
+        RoborockCommand.SET_WASH_TOWEL_MODE.value: jsonable(
+            await rpc.send_command(
+                RoborockCommand.SET_WASH_TOWEL_MODE,
+                params={"wash_mode": settings["wash_mode"]},
+            )
+        ),
+        RoborockCommand.SET_SMART_WASH_PARAMS.value: jsonable(
+            await rpc.send_command(
+                RoborockCommand.SET_SMART_WASH_PARAMS,
+                params={
+                    "smart_wash": settings["smart_wash"],
+                    "wash_interval": settings["wash_interval_seconds"],
+                },
+            )
+        ),
+    }
+    await asyncio.sleep(0.5)
+    mode_value = jsonable(await rpc.send_command(RoborockCommand.GET_WASH_TOWEL_MODE))
+    smart_value = jsonable(await rpc.send_command(RoborockCommand.GET_SMART_WASH_PARAMS))
+    mode = first_dict(mode_value)
+    smart = first_dict(smart_value)
+    mismatches = {}
+    if mode.get("wash_mode") != settings["wash_mode"]:
+        mismatches["wash_mode"] = {"requested": settings["wash_mode"], "actual": mode.get("wash_mode")}
+    if smart.get("smart_wash") != settings["smart_wash"]:
+        mismatches["smart_wash"] = {"requested": settings["smart_wash"], "actual": smart.get("smart_wash")}
+    if smart.get("wash_interval") != settings["wash_interval_seconds"]:
+        mismatches["wash_interval"] = {
+            "requested": settings["wash_interval_seconds"],
+            "actual": smart.get("wash_interval"),
+        }
+    if mismatches:
+        raise RuntimeError(f"Roboten bekreftet ikke moppevaskinnstillingene: {mismatches}")
+    return {
+        "settings": {
+            "wash_mode": settings["wash_mode"],
+            "wash_mode_label": MOP_WASH_MODES[settings["wash_mode"]],
+            "wash_interval_minutes": settings["wash_interval_minutes"],
+            "smart_wash": settings["smart_wash"],
+        },
+        "probes": {
+            "GET_WASH_TOWEL_MODE": mode,
+            "GET_SMART_WASH_PARAMS": smart,
+        },
+        "commands": command_results,
+    }
+
+
 async def wait_for_control_state(
     rpc: Any,
     model: str | None,
@@ -636,6 +723,19 @@ async def execute_control_command(duid: str, values: ControlRequest) -> dict[str
 
         if values.action == "dry_run":
             result = {"validated": True, "host": host, "model": model}
+            after = before
+        elif values.action == "set_mop_wash":
+            if control_is_active(before):
+                raise HTTPException(
+                    status_code=409,
+                    detail="Moppevaskinnstillinger kan ikke endres mens roboten rengjør",
+                )
+            result = await apply_mop_wash_settings(
+                rpc,
+                values.wash_mode,
+                values.wash_interval_minutes,
+            )
+            audit["target"] = result["settings"]
             after = before
         elif values.action == "clean_zone":
             zone_numbers = list(values.zone_numbers or ([] if values.zone_number is None else [values.zone_number]))

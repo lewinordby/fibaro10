@@ -12,6 +12,39 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1738",
+        "date": "14.08.2026",
+        "headline": "Ryddig robotstyring med kontrollert moppevask",
+        "title": "Moppevask i dokken kan stilles inn og bekreftes direkte mot roboten",
+        "description": (
+            "Robotstyringen er delt i daglig renhold, moppevask i dokk og diagnostikk. Masterbrukeren kan velge "
+            "hvor grundig og hvor ofte moppene skal vaskes under en gulvvask, mens Fibaro10 leser verdiene tilbake "
+            "fra roboten før endringen godtas."
+        ),
+        "applications": [
+            "Roborock_logger: trygg skriving og tilbakesjekk av moppevaskstyrke og fast vaskeintervall.",
+            "Fibaro10 API: validering, revisjonslogg og umiddelbar lagring av bekreftede innstillinger.",
+            "Bygg og drift build 57: ryddig robotstyring med separat moppevask og innfelt diagnostikk.",
+            "Roborock-dokumentasjon: forklarer skillet mellom gulvvask og vask av moppene i dokken.",
+        ],
+        "request": (
+            "Manuell styring-feltet på hver robot er litt uryddig, blant annet med «test start/stopp». Kan du se på "
+            "feltet og vurdere om grunninnstillinger for roboten kunne vært der, altså hvor ofte den vasker moppene?"
+        ),
+        "work_duration": "ca. 35 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Samler start, pause, fortsett og stopp i en tydelig kontrollrad.",
+            "Flytter tilkoblingskontroll og kort starttest under Diagnostikk og funksjonstest.",
+            "Legger til styrkevalgene Lett, Balansert, Dyp og Ekstra dyp.",
+            "Legger til fast moppevaskintervall på 10, 15, 20 eller 25 minutter.",
+            "Avviser endring under aktiv rengjøring og ved ugyldige verdier.",
+            "Leser innstillingene tilbake fra roboten og lagrer bare bekreftede verdier.",
+            "Gjør bekreftede innstillinger tilgjengelige umiddelbart i robotsiden og nattrapporten.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1737",
         "date": "14.08.2026",
         "headline": "Robotinnstillinger i nattrapporten",
