@@ -12,6 +12,34 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1746",
+        "date": "14.08.2026",
+        "headline": "Driftsoversikten har fått en tydeligere operativ puls",
+        "title": "Bygg og drift er mer visuell, kompakt og enklere å skanne",
+        "description": (
+            "Driftsoversikten er visuelt bygget om med en samlet statuspuls, klikkbare fagindikatorer og "
+            "tydeligere identitet for ventilasjon, lys, dører, pullerter og renhold. Nøkkeltallene får mer "
+            "vekt, mens detaljradene beholder den rolige og presise Mosaic-strukturen."
+        ),
+        "applications": [
+            "Fibaro10 build 1746: registrerer den samlede designoppgraderingen.",
+            "Bygg og drift build 64: ny driftsoversikt og forbedret presentasjon av statusverdier.",
+        ],
+        "request": "Kan du lage oversiktssiden på Bygg og drift mer sexy?",
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Samler hovedstatus, åpning, systemstatus og kontrolltid i én strammere statusflate.",
+            "Legger inn fem klikkbare fagindikatorer som gir et raskt bilde av hele driften.",
+            "Gir hvert fagområde en konsekvent farge, tydeligere ikon, tonet topp og sterkere nøkkeltall.",
+            "Fjerner den separate grønne normalstatuslinjen når det ikke finnes aktive avvik.",
+            "Viser renholdsrobotene i én jevn rad på brede skjermer.",
+            "Oversetter tekniske statuser som KJOLING, charging og suspected til lesbare norske tekster.",
+            "Strammer typografi og bokstavavstand i både lyst og mørkt tema.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1745",
         "date": "14.08.2026",
         "headline": "Dørnavn vises konsekvent i driftsoversikten",
