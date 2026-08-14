@@ -143,8 +143,8 @@ Eldre romkontroll-varianter er synlige i Dører-menyen igjen mens design og funk
 
 - `Vedlikehold/Oversikt`: vedlikeholdslogger, oppgaver og oppfølging.
 - `Vedlikehold/Besøk`: OwnTracks-besøk på Lilletorget koblet til oppgaver.
-- `Renhold/Oversikt`: renholdsstatus.
-- `Renhold/Roboter`: Roborock-status og robotdata.
+- `Renhold/Oversikt`: samlet status, døgnforløp, planlagte og utførte jobber for alle robotleverandører.
+- `Renhold/Roboter`: Roborock- og Dreame-status, telemetri, historikk, planer og leverandørtilpasset styring.
 
 Mobil vedlikeholdsregistrering ligger i egen app på `vedl.lilletorget.net`, men skriver til samme datagrunnlag.
 

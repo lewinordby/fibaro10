@@ -30,7 +30,7 @@ Dette er tekstversjonen av den korte oversiktsmanualen. Den levende manualen lig
 | Dører2 | `/dorer2/oversikt` | Ny operativ situasjonsflate for solrom og byggdører med avvik først, romkart og detaljvisning. |
 | Dører | `/dorer/oversikt` | Byggdører, åpne/lukke-historikk, alarmhistorikk og daglig avvikstabell mot Sun2-timer. |
 | Vedlikehold | `/vedlikehold/besok` | Besøk på Lilletorget og oppgaver utført under hvert besøk. |
-| Renhold | `/renhold/oversikt` | Roborock-status, siste jobber, robotdetaljer og loggerstatus. |
+| Renhold | `/renhold/oversikt` | Samlet Roborock- og Dreame-status, døgnforløp, siste jobber, planer og robotdetaljer. |
 | Mobil og iPad | `/mobil/oversikt` | Kontroll av hva de lette mobil- og iPad-flatene viser. |
 | Ideer | `/ideer/oversikt` | Forslag, analyseideer og mulige forbedringer før de flyttes inn i fagområder. |
 
@@ -62,6 +62,7 @@ Løsningen består av hovedappen `fibaro10` og flere sideapper. De viktigste er:
 | `car_info_lookup` | Svenske og danske kjøretøyoppslag etter SVV. |
 | `parking_sun_linker` | Bakgrunnsmotor for kobling mellom parkering og SUN2-ID. |
 | `roborock_logger` | Logger robotvaskere og vaskehistorikk. |
+| `dreame_logger` | Egen logger og kontrolltjeneste for Aqua10 via Dreamehome. |
 
 Bruk `Admin -> Systemkart` for klikkbare lenker, porter og health-status. Bruk `Admin -> Datakilder` for å se om datagrunnlaget faktisk er ferskt.
 
@@ -69,7 +70,7 @@ Bruk `Admin -> Systemkart` for klikkbare lenker, porter og health-status. Bruk `
 
 - Hovedappen viser data fra egen database, ikke direkte fra tredjepartsflater i sanntid.
 - HC3 poster energi, lys, ventilasjon og dørhendelser inn i Fibaro10.
-- SUN2, EasyPark, Axis, OwnTracks, Roborock og kjøretøyoppslag kjører som egne tjenester ved siden av hovedappen.
+- SUN2, EasyPark, Axis, OwnTracks, Roborock, Dreame og kjøretøyoppslag kjører som egne tjenester ved siden av hovedappen.
 - Datakilder er fasit for om en import eller logger er frisk.
 - Buildlogg er fasit for hva som er endret og hvilke tester som ble kjørt.
 - Systemkart er fasit for hvilke underapper og webflater som finnes.

@@ -36,6 +36,7 @@ Dette repoet dokumenterer hovedappen `Fibaro10 / Lilletorget drift`, underappene
 | `scripts/generate-system-documentation-pdf.py` | Genererer komplett PDF-håndbok med arkitektur, teknologi, datakilder, drift, backup og restore til `output/pdf/`. |
 | `docs/sun2-enkeltimer.md` | SUN2 enkelttimer, romidentitet og kobling mot energi/bilder. |
 | `docs/roborock-logger.md` | Drift av lokal Roborock-logger på QNAP/Docker. |
+| `docs/dreame-logger.md` | Oppsett, dataflyt og drift for Aqua10/Dreame-loggeren. |
 | `docs/roborock-datakilder.md` | Hvilke Roborock-data som kan hentes fra cloud og lokal LAN. |
 | `docs/roborock-telemetri.md` | Intervaller, komplett feltkatalog, modellstøtte og bruk av Roborock-telemetri. |
 | `docs/render-online-dashboard.md` | Notater om ekstern online dashboard-flate. |
@@ -49,6 +50,7 @@ Dette repoet dokumenterer hovedappen `Fibaro10 / Lilletorget drift`, underappene
 | `car_info_lookup/README.md` | Nordiske kjøretøyoppslag. |
 | `easypark_downloader/README.md` | EasyPark-nedlasting og påloggingsflyt. |
 | `roborock_logger/README.md` | Lokal Roborock-logger og webflate på port 8095. |
+| `dreame_logger/README.md` | Lokal Dreame-logger og webflate på port 8094. |
 | `sun2_session_scraper/README.md` | Løpende skraping/import av SUN2 enkelttimer, produkter og finansgrunnlag. |
 | `sun2_importer/README.md` | Import av SUN2 romsummer fra nedlastede dagsfiler. |
 | `sun2_backfill_downloader/README.md` | Nattlig og historisk nedlasting av SUN2 romstatistikk. |

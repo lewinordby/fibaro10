@@ -34,6 +34,8 @@ param(
         "http://192.168.20.218:8099/json",
         "http://192.168.20.218:8109/health",
         "http://192.168.20.218:8095/health",
+        "http://192.168.20.218:8094/health",
+        "http://192.168.20.218:8094/",
         "https://online.lilletorget.net/health",
         "https://online.lilletorget.net/",
         "https://online.lilletorget.net/soling",

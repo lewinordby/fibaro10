@@ -67,13 +67,23 @@ function withRobotNavigation(config: DomainUiConfig, data: ModuleResponse | null
       corePath: "/renhold/rapport",
     };
     const robotItems: NavigationItem[] = robots.map((robot) => {
+      if (robot.integration_status === "pending") return {
+        to: "/renhold/dreame",
+        label: robot.name,
+        icon: "robot",
+        title: robot.name,
+        description: "Oppsett og status for Dreame-integrasjonen.",
+        module: "renhold",
+        view: "dreame",
+        corePath: "/renhold/dreame",
+      };
       const encodedDuid = encodeURIComponent(robot.duid);
       return {
         to: `/renhold/robot/${encodedDuid}`,
         label: robot.name,
         icon: "robot",
         title: robot.name,
-        description: `Status, telemetri og historikk for ${robot.name}.`,
+        description: `Status, telemetri og historikk for ${robot.name} (${robot.provider_label || "Roborock"}).`,
         module: "renhold",
         view: "robot",
         corePath: `/renhold/robot/${encodedDuid}`,

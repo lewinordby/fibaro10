@@ -185,6 +185,15 @@ IMPORT_JOB_DEFINITIONS = {
         "warning_after_minutes": 6,
         "description": "Fibaro10 overvåker lokal dørstatus og spør HC3 bare når statusen ser uventet ut.",
     },
+    # Kept last so existing, user-facing data-source numbers remain stable.
+    "dreame_sync": {
+        "title": "Dreame logger",
+        "category": "Renhold",
+        "source": "QNAP",
+        "expected_interval_minutes": 5,
+        "warning_after_minutes": 20,
+        "description": "Aqua10-status, jobbhistorikk, planer og driftsdata fra Dreamehome.",
+    },
 }
 
 IMPORT_JOB_NUMBER_BY_NAME = {
@@ -284,6 +293,10 @@ IMPORT_JOB_DETAILS = {
     "owntracks_site_visits": {
         "data_flow": "Fibaro10 poller OwnTracks sitt interne visits-API for waypoint Lilletorget 3 og lagrer resultatet i site_visits. Vedlikeholdslogger kobles automatisk til riktig besøk basert på tidspunkt.",
         "dependencies": ["owntracks_service", "OwnTracks PostgreSQL", "Fibaro10 backend", "PostgreSQL"],
+    },
+    "dreame_sync": {
+        "data_flow": "Dreame-loggeren på QNAP henter Aqua10-status, jobbhistorikk, planer og driftsdata fra Dreamehome og poster et leverandørnøytralt robotformat til Fibaro10. Tjenesten er isolert fra Roborock-loggeren, og kartbehandling er deaktivert i første fase for stabil drift.",
+        "dependencies": ["dreame_logger", "Dreamehome", "Aqua10", "Fibaro10 API", "PostgreSQL"],
     },
 }
 

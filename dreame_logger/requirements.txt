@@ -1,0 +1,10 @@
+fastapi==0.139.2
+uvicorn==0.49.0
+pillow==12.3.0
+numpy==2.5.2
+requests==2.34.2
+pycryptodome==3.23.0
+python-miio==0.5.12
+mini-racer==0.14.1
+paho-mqtt==2.1.0
+

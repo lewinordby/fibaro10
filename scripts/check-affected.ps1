@@ -2,7 +2,8 @@ param(
     [string[]]$Services = @(),
     [string[]]$ChangedFiles = @(),
     [switch]$EasyPark,
-    [switch]$Roborock
+    [switch]$Roborock,
+    [switch]$Dreame
 )
 
 $ErrorActionPreference = "Stop"
@@ -49,6 +50,9 @@ if ("operations_app" -in $Services) {
 }
 if ($Roborock) {
     Run "python" @("-m", "pytest", "tests/test_roborock_control.py", "tests/test_roborock_logger_resilience.py", "tests/test_roborock_profiles.py", "tests/test_roborock_schedules.py", "tests/test_roborock_telemetry.py", "tests/test_roborock_timestamps.py", "tests/test_roborock_zones.py", "-q")
+}
+if ($Dreame) {
+    Run "python" @("-m", "pytest", "tests/test_cleaning_robot_domain.py", "tests/test_dreame_logger.py", "-q")
 }
 
 Run "git" @("diff", "--check")

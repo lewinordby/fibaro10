@@ -12,6 +12,41 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1743",
+        "date": "14.08.2026",
+        "headline": "Dreame og Aqua10 er klargjort som eget renholdsundersystem",
+        "title": "Renhold samler Roborock og Dreame i én ryddig robotpark",
+        "description": (
+            "Et separat Dreame-undersystem er bygget etter samme prinsipp som Roborock-loggeren. "
+            "Renhold er samtidig gjort leverandørnøytralt og viser Aqua10 som klargjort frem til "
+            "Dreamehome-kontoen kobles til, uten å dikte opp status eller måleverdier."
+        ),
+        "applications": [
+            "Dreame-logger build 1: separat FastAPI-tjeneste for oppdagelse, status, telemetri, historikk, planer og styring.",
+            "Fibaro10 build 1743: felles datamodell, import, datakilde og kontrollruting for Roborock og Dreame.",
+            "Bygg og drift build 62: ryddet Renhold-oversikt, Aqua10-klargjøring og leverandørtilpasset robotdetalj.",
+            "Drift og backup: egen container, helseovervåking, selektiv utrulling, nattlig backup og gjenopprettingsdokumentasjon.",
+        ],
+        "request": (
+            "Videre vil jeg ha inn en løsning for Dreame. Jeg tror den bør få sin egen applikasjon som undersystem "
+            "på samme måte som Roborock-logger. Forbered dette, rydd grundig i renholdsgrensesnittet og gi plass "
+            "til den nye roboten Aqua10."
+        ),
+        "work_duration": "ca. 2 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Isolerer Dreame-integrasjonen på intern port 8094 med egne nøkler, kø, helseendepunkt og statusside.",
+            "Fester Dreame-biblioteket til en kontrollert versjon og fjerner den valgfrie eksterne analysetrafikken.",
+            "Bevarer eksisterende Roborock-identiteter og gir Dreame-enheter et separat, kollisjonsfritt ID-navnerom.",
+            "Utvider innlesingen med status, batteri, dock, vanntanker, forbruksdeler, planer, innstillinger og jobbhistorikk.",
+            "Viser Aqua10 som ventende oppsett til ekte Dreame-data foreligger, med tydelige neste trinn i grensesnittet.",
+            "Forenkler Renhold-oversikten med robotpark, aktive jobber, dagens resultat og driftsavvik som hovedinformasjon.",
+            "Tilpasser kontrollene og detaljvisningen til robotleverandør uten å vise Roborock-funksjoner på Dreame.",
+            "Legger Dreame til datakilder, systemoversikt, brukermanual, deployplan, røyketest, overvåking og backup.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1742",
         "date": "14.08.2026",
         "headline": "Slettede Roborock-planer håndteres korrekt",

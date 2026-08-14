@@ -2,6 +2,10 @@ import type { JsonRecord } from "@lilletorget/microapp-ui/types";
 
 export type RoborockRobotSummary = {
   duid: string;
+  provider?: "roborock" | "dreame";
+  provider_label?: string;
+  external_id?: string | null;
+  integration_status?: "active" | "pending" | "error";
   name: string;
   model?: string | null;
   cloud_online?: boolean | null;
@@ -50,6 +54,8 @@ export type RoborockConsumableSummary = {
   side_brush?: string | null;
   filter?: string | null;
   sensor?: string | null;
+  mop?: string | null;
+  detergent?: string | null;
   captured_at?: string | null;
 };
 
@@ -69,7 +75,7 @@ export type RoborockDailySummary = {
 };
 
 export type RoborockReadinessSummary = {
-  status: "ready" | "active" | "attention" | "offline";
+  status: "ready" | "active" | "attention" | "offline" | "pending";
   label: string;
   issues: string[];
   telemetry_at?: string | null;
@@ -84,6 +90,8 @@ export type RoborockReadinessSummary = {
 
 export type RoborockOverviewSummary = {
   robot_count: number;
+  connected_count?: number;
+  pending_count?: number;
   ready_count: number;
   active_count: number;
   attention_count: number;

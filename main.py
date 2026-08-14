@@ -91,6 +91,13 @@ from roborock_door_automation import (
     profile_command_payload,
     unique_ints,
 )
+from cleaning_robot_domain import (
+    cleaning_provider,
+    cleaning_provider_label,
+    cleaning_robot_external_id,
+    cleaning_robot_uid,
+    expected_dreame_summary,
+)
 from energy_helpers import (
     circuit_technical_label,
     energy_circuit_is_sunbed,
@@ -477,6 +484,9 @@ UNIFI_PROTECT_EVENTS_URL = os.getenv("UNIFI_PROTECT_EVENTS_URL", "http://unifi_p
 UNIFI_PROTECT_READ_API_TOKEN = os.getenv("UNIFI_PROTECT_READ_API_TOKEN", "").strip()
 ROBOROCK_LOGGER_URL = os.getenv("ROBOROCK_LOGGER_URL", "http://roborock_logger:8095").rstrip("/")
 ROBOROCK_CONTROL_TOKEN = os.getenv("ROBOROCK_CONTROL_TOKEN", "").strip()
+DREAME_LOGGER_URL = os.getenv("DREAME_LOGGER_URL", "http://dreame_logger:8094").rstrip("/")
+DREAME_CONTROL_TOKEN = os.getenv("DREAME_CONTROL_TOKEN", "").strip()
+DREAME_EXPECTED_ROBOT_NAME = os.getenv("DREAME_EXPECTED_ROBOT_NAME", "Aqua10").strip() or "Aqua10"
 UNIFI_PROTECT_API_TIMEOUT_SECONDS = max(1, int(os.getenv("UNIFI_PROTECT_API_TIMEOUT_SECONDS", "10")))
 NIGHTLY_BACKUP_STATUS_PATH = Path(
     os.getenv("NIGHTLY_BACKUP_STATUS_PATH", "/system_backup_status/nightly/LATEST_STATUS.txt")
@@ -983,6 +993,9 @@ class RoborockRobot(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     duid = Column(String, unique=True, index=True, nullable=False)
+    provider = Column(String, index=True, nullable=False, default="roborock")
+    external_id = Column(String, index=True, nullable=True)
+    integration_status = Column(String, nullable=False, default="active")
     name = Column(String, index=True, nullable=False)
     product = Column(String, nullable=True)
     model = Column(String, nullable=True)
@@ -2907,7 +2920,7 @@ YR_LOG_TABLE_COLUMNS = [
 ]
 
 ROBOROCK_ROBOT_COLUMNS = [
-    "id", "duid", "name", "product", "model", "firmware", "protocol_version",
+    "id", "duid", "provider", "external_id", "integration_status", "name", "product", "model", "firmware", "protocol_version",
     "serial_number", "local_ip", "cloud_online", "shared", "time_zone_id",
     "last_seen_at", "last_cloud_at", "last_local_at", "last_status_at",
     "last_map_at", "last_error", "capabilities", "extra",
@@ -4447,6 +4460,9 @@ STARTUP_COLUMNS = {
     "roborock_robots": [
         ("serial_number", "VARCHAR"),
         ("last_map_at", "TIMESTAMP"),
+        ("provider", "VARCHAR DEFAULT 'roborock'"),
+        ("external_id", "VARCHAR"),
+        ("integration_status", "VARCHAR DEFAULT 'active'"),
     ],
     "roborock_schedules": [
         ("deleted_at", "TIMESTAMP"),
@@ -14540,11 +14556,14 @@ async def save_record(record, notification: Optional[dict[str, Any]] = None) -> 
 
 
 async def ingest_roborock_robot(session, robot_data: Dict[str, Any], batch_time: datetime, source: str) -> Dict[str, Any]:
-    duid = robot_data.get("duid") or robot_data.get("robot_duid")
+    meta = robot_data.get("metadata") or robot_data
+    provider = cleaning_provider(robot_data.get("provider") or meta.get("provider"), source)
+    raw_identity = robot_data.get("external_id") or robot_data.get("duid") or robot_data.get("robot_duid")
+    external_id = cleaning_robot_external_id(provider, raw_identity)
+    duid = cleaning_robot_uid(provider, external_id)
     if not duid:
         return {"ok": False, "error": "Mangler DUID"}
 
-    meta = robot_data.get("metadata") or robot_data
     network = robot_data.get("network") or {}
     capabilities = robot_data.get("capabilities") or robot_data.get("probe_results") or {}
     local_ip = robot_data.get("local_ip") or network.get("ip") or meta.get("local_ip")
@@ -14556,10 +14575,19 @@ async def ingest_roborock_robot(session, robot_data: Dict[str, Any], batch_time:
         await session.execute(select(RoborockRobot).where(RoborockRobot.duid == duid))
     ).scalars().first()
     if not existing:
-        existing = RoborockRobot(duid=duid, name=meta.get("name") or duid)
+        existing = RoborockRobot(
+            duid=duid,
+            provider=provider,
+            external_id=external_id,
+            integration_status="active",
+            name=robot_data.get("name") or meta.get("name") or duid,
+        )
         session.add(existing)
 
-    existing.name = meta.get("name") or existing.name or duid
+    existing.provider = provider
+    existing.external_id = external_id
+    existing.integration_status = "active"
+    existing.name = robot_data.get("name") or meta.get("name") or existing.name or duid
     existing.product = robot_data.get("product") or meta.get("product") or meta.get("product_id") or existing.product
     existing.model = robot_data.get("model") or meta.get("model") or existing.model
     existing.firmware = meta.get("firmware") or meta.get("fv") or existing.firmware
@@ -14582,8 +14610,10 @@ async def ingest_roborock_robot(session, robot_data: Dict[str, Any], batch_time:
     existing.capabilities = capabilities or existing.capabilities
     existing.extra = {
         "source": source,
+        "provider": provider,
         "metadata": meta,
         "summary": robot_data.get("clean_summary"),
+        "settings": robot_data.get("settings"),
     }
 
     if status:
@@ -14703,18 +14733,25 @@ async def ingest_roborock_robot(session, robot_data: Dict[str, Any], batch_time:
         else 0
     )
 
-    try:
-        zone_import = await import_roborock_cleaning_zones(session, duid, schedule_payloads, source)
+    if provider == "roborock":
+        try:
+            zone_import = await import_roborock_cleaning_zones(session, duid, schedule_payloads, source)
+            zone_import_status = {
+                "status": "ok",
+                "checkedAt": api_local_iso(batch_time),
+                "imported": zone_import["imported"],
+            }
+        except RoborockZoneScheduleError as exc:
+            zone_import_status = {
+                "status": "error",
+                "checkedAt": api_local_iso(batch_time),
+                "message": str(exc),
+            }
+    else:
         zone_import_status = {
-            "status": "ok",
+            "status": "not_applicable",
             "checkedAt": api_local_iso(batch_time),
-            "imported": zone_import["imported"],
-        }
-    except RoborockZoneScheduleError as exc:
-        zone_import_status = {
-            "status": "error",
-            "checkedAt": api_local_iso(batch_time),
-            "message": str(exc),
+            "message": "Soner administreres av Dreamehome.",
         }
     existing.extra = {**(existing.extra or {}), "cleaning_zone_import": zone_import_status}
 
@@ -14806,7 +14843,10 @@ async def ingest_roborock_telemetry_robot(
     batch_time: datetime,
     source: str,
 ) -> Dict[str, Any]:
-    duid = str(robot_data.get("duid") or "")
+    provider = cleaning_provider(robot_data.get("provider"), source)
+    raw_identity = robot_data.get("external_id") or robot_data.get("duid") or robot_data.get("robot_duid")
+    external_id = cleaning_robot_external_id(provider, raw_identity)
+    duid = cleaning_robot_uid(provider, external_id)
     if not duid:
         return {"ok": False, "error": "Mangler DUID", "events": 0}
 
@@ -14814,8 +14854,17 @@ async def ingest_roborock_telemetry_robot(
         await session.execute(select(RoborockRobot).where(RoborockRobot.duid == duid))
     ).scalars().first()
     if not robot:
-        robot = RoborockRobot(duid=duid, name=robot_data.get("name") or duid)
+        robot = RoborockRobot(
+            duid=duid,
+            provider=provider,
+            external_id=external_id,
+            integration_status="active",
+            name=robot_data.get("name") or duid,
+        )
         session.add(robot)
+    robot.provider = provider
+    robot.external_id = external_id
+    robot.integration_status = "active"
     robot.name = robot_data.get("name") or robot.name
     robot.model = robot_data.get("model") or robot.model
     robot.local_ip = robot_data.get("local_ip") or robot.local_ip
@@ -32418,6 +32467,20 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 consumable = latest_consumables_by_robot.get(robot_duid)
                 if not consumable:
                     return None
+                raw = consumable.raw if isinstance(consumable.raw, dict) else {}
+                if raw.get("unit") == "percent_remaining":
+                    def percent_label(value: Any) -> Optional[str]:
+                        normalized = int_value(value)
+                        return f"{normalized} % igjen" if normalized is not None else None
+                    return {
+                        "main_brush": percent_label(raw.get("main_brush_percent")),
+                        "side_brush": percent_label(raw.get("side_brush_percent")),
+                        "filter": percent_label(raw.get("filter_percent")),
+                        "sensor": percent_label(raw.get("sensor_percent")),
+                        "mop": percent_label(raw.get("mop_percent")),
+                        "detergent": percent_label(raw.get("detergent_percent")),
+                        "captured_at": api_local_iso(consumable.timestamp),
+                    }
                 return {
                     "main_brush": format_seconds_as_hours(consumable.main_brush_work_time),
                     "side_brush": format_seconds_as_hours(consumable.side_brush_work_time),
@@ -32529,6 +32592,10 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 robot_summaries.append(
                     {
                         "duid": robot.duid,
+                        "provider": cleaning_provider(robot.provider),
+                        "provider_label": cleaning_provider_label(robot.provider),
+                        "external_id": robot.external_id,
+                        "integration_status": robot.integration_status or "active",
                         "name": robot.name,
                         "model": robot.model,
                         "cloud_online": robot.cloud_online,
@@ -32549,6 +32616,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "schedules": overview_schedules(robot.duid),
                     }
                 )
+            if not any(cleaning_provider(robot.provider) == "dreame" for robot in robots):
+                robot_summaries.append(expected_dreame_summary(DREAME_EXPECTED_ROBOT_NAME))
             timeline_now = local_now_naive()
             timeline_window = {
                 "start": datetime.combine(today_local, time.min),
@@ -32625,6 +32694,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             ]
             overview_summary = {
                 "robot_count": len(robot_summaries),
+                "connected_count": sum(1 for row in robot_summaries if row.get("integration_status") == "active"),
+                "pending_count": sum(1 for row in robot_summaries if row.get("integration_status") == "pending"),
                 "ready_count": sum(1 for row in robot_summaries if row["readiness"]["status"] == "ready"),
                 "active_count": sum(1 for row in robot_summaries if row["readiness"]["status"] == "active"),
                 "attention_count": sum(1 for row in robot_summaries if row["readiness"]["status"] == "attention"),
@@ -32673,10 +32744,10 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 ]
             return {
                 "title": v2_module_title("renhold", view),
-                "subtitle": "Roborock-roboter, status og siste vasker.",
+                "subtitle": "Robotvaskere, status, planer og utført renhold.",
                 "cards": [
-                    api_card("Roboter", len(robots), "stk", f"{online} online/ikke avvist", "status", href="/renhold/roboter"),
-                    api_card("Siste jobber", len(jobs), "stk", "Hentet fra Roborock", "status", href="/renhold/oversikt"),
+                    api_card("Roboter", len(robot_summaries), "stk", f"{len(robots)} tilkoblet", "status", href="/renhold/roboter"),
+                    api_card("Siste jobber", len(jobs), "stk", "Hentet fra robotsystemene", "status", href="/renhold/oversikt"),
                     api_card("Siste status", statuses[0].state_name if statuses else "-", "", statuses[0].timestamp.strftime("%H:%M") if statuses and statuses[0].timestamp else "", "status", href="/renhold/roboter"),
                     api_card("Feil", sum(1 for row in statuses[:20] if row.error_code and row.error_code != 0), "siste", "Siste 20 statuser", "status", href="/renhold/roboter"),
                 ],
@@ -35218,7 +35289,19 @@ async def import_status_detail(job_name: str):
 
 @app.post("/api/renhold/ingest")
 async def roborock_ingest(data: RoborockIngestIn):
-    batch_time = data.timestamp or datetime.utcnow()
+    batch_time = normalize_local_naive(data.timestamp) or local_now_naive()
+    batch_provider = cleaning_provider(
+        next(
+            (
+                robot.get("provider") if isinstance(robot, dict) else getattr(robot, "provider", None)
+                for robot in data.robots
+                if (robot.get("provider") if isinstance(robot, dict) else getattr(robot, "provider", None))
+            ),
+            None,
+        ),
+        data.source,
+    )
+    import_job_name = "dreame_sync" if batch_provider == "dreame" else "roborock_sync"
     results = []
     async with async_session() as session:
         session.add(
@@ -35236,13 +35319,13 @@ async def roborock_ingest(data: RoborockIngestIn):
             results.append(await ingest_roborock_robot(session, robot, batch_time, data.source))
         await record_import_job(
             session,
-            "roborock_sync",
+            import_job_name,
             ok=data.ok,
             source=data.source,
             records_imported=len(data.robots),
             records_total=len(data.robots),
             message=data.message or f"{len(data.robots)} roboter synkronisert",
-            raw={"collector_id": data.collector_id, "extra": data.extra},
+            raw={"collector_id": data.collector_id, "provider": batch_provider, "extra": data.extra},
         )
         await session.commit()
     return {"status": "ok", "robots": results}
@@ -35250,7 +35333,7 @@ async def roborock_ingest(data: RoborockIngestIn):
 
 @app.post("/api/renhold/telemetry/ingest")
 async def roborock_telemetry_ingest(data: RoborockTelemetryIn):
-    batch_time = data.timestamp or local_now_naive()
+    batch_time = normalize_local_naive(data.timestamp) or local_now_naive()
     results = []
     async with async_session() as session:
         for robot in data.robots:
@@ -39656,7 +39739,7 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
         item = row_to_dict(row, [column for column in ROBOROCK_STATUS_COLUMNS if column != "raw"])
         item.update(
             {
-                "state_label": roborock_state_label(row.state_code),
+                "state_label": row.state_name if cleaning_provider(robot.provider) == "dreame" and row.state_name else roborock_state_label(row.state_code),
                 "error_label": roborock_error_label(row.error_code),
                 "fan_label": roborock_fan_label(row.fan_power),
                 "mop_label": roborock_mop_label(row.mop_mode),
@@ -39703,14 +39786,29 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
         schedule_rows.append(item)
     consumable_data = None
     if consumables:
-        consumable_data = {
-            "timestamp": api_local_iso(consumables.timestamp),
-            "main_brush": format_seconds_as_hours(consumables.main_brush_work_time),
-            "side_brush": format_seconds_as_hours(consumables.side_brush_work_time),
-            "filter": format_seconds_as_hours(consumables.filter_work_time),
-            "sensor": format_seconds_as_hours(consumables.sensor_dirty_time),
-            "dust_collection": consumables.dust_collection_work_times,
-        }
+        raw_consumables = consumables.raw if isinstance(consumables.raw, dict) else {}
+        if raw_consumables.get("unit") == "percent_remaining":
+            def percent_label(value: Any) -> Optional[str]:
+                normalized = int_value(value)
+                return f"{normalized} % igjen" if normalized is not None else None
+            consumable_data = {
+                "timestamp": api_local_iso(consumables.timestamp),
+                "main_brush": percent_label(raw_consumables.get("main_brush_percent")),
+                "side_brush": percent_label(raw_consumables.get("side_brush_percent")),
+                "filter": percent_label(raw_consumables.get("filter_percent")),
+                "sensor": percent_label(raw_consumables.get("sensor_percent")),
+                "mop": percent_label(raw_consumables.get("mop_percent")),
+                "detergent": percent_label(raw_consumables.get("detergent_percent")),
+            }
+        else:
+            consumable_data = {
+                "timestamp": api_local_iso(consumables.timestamp),
+                "main_brush": format_seconds_as_hours(consumables.main_brush_work_time),
+                "side_brush": format_seconds_as_hours(consumables.side_brush_work_time),
+                "filter": format_seconds_as_hours(consumables.filter_work_time),
+                "sensor": format_seconds_as_hours(consumables.sensor_dirty_time),
+                "dust_collection": consumables.dust_collection_work_times,
+            }
     map_data = None
     if latest_map:
         map_data = {
@@ -39722,7 +39820,7 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
         item = row_to_dict(row, [column for column in ROBOROCK_TELEMETRY_COLUMNS if column != "raw"])
         item.update(
             {
-                "state_label": roborock_state_label(row.state_code),
+                "state_label": row.state_name if cleaning_provider(robot.provider) == "dreame" and row.state_name else roborock_state_label(row.state_code),
                 "error_label": roborock_error_label(row.error_code),
                 "charge_label": roborock_telemetry_value_label("is_charging", row.is_charging),
                 "dock_label": roborock_dock_type_label(row.dock_type),
@@ -39801,7 +39899,15 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
             }
         )
     robot_data = row_to_dict(robot, [column for column in ROBOROCK_ROBOT_COLUMNS if column not in {"extra", "capabilities"}])
-    robot_data.update({"shared_label": roborock_bool_label(robot.shared), "cloud_label": roborock_bool_label(robot.cloud_online)})
+    provider = cleaning_provider(robot.provider)
+    robot_data.update(
+        {
+            "provider": provider,
+            "provider_label": cleaning_provider_label(provider),
+            "shared_label": roborock_bool_label(robot.shared),
+            "cloud_label": roborock_bool_label(robot.cloud_online),
+        }
+    )
     command_rows = [
         {
             "id": row.id,
@@ -39849,8 +39955,11 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
         "telemetryFields": telemetry_fields,
         "rawStatusFields": raw_status_fields,
         "telemetryProbes": probe_rows,
-        "canControl": bool(ROBOROCK_CONTROL_TOKEN and getattr(request.state, "auth_is_master", False)),
-        "canManageCleaningZones": bool(getattr(request.state, "auth_is_master", False)),
+        "canControl": bool(
+            (DREAME_CONTROL_TOKEN if provider == "dreame" else ROBOROCK_CONTROL_TOKEN)
+            and getattr(request.state, "auth_is_master", False)
+        ),
+        "canManageCleaningZones": bool(provider == "roborock" and getattr(request.state, "auth_is_master", False)),
         "controlHistory": command_rows,
         "cleaningZones": cleaning_zone_rows,
         "cleaningZoneImport": cleaning_zone_import,
@@ -39884,6 +39993,35 @@ def post_roborock_control(duid: str, payload: Dict[str, Any]) -> Dict[str, Any]:
             error_data = {}
         detail = error_data.get("detail") if isinstance(error_data, dict) else None
         raise RuntimeError(str(detail or raw or f"Roborock_logger svarte {exc.code}")) from exc
+
+
+def post_dreame_control(external_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    body = json.dumps(
+        {"action": payload.get("action"), "request_id": payload.get("request_id")},
+        ensure_ascii=False,
+    ).encode("utf-8")
+    control_request = urllib.request.Request(
+        f"{DREAME_LOGGER_URL}/robots/{quote(external_id, safe='')}/control",
+        data=body,
+        method="POST",
+        headers={
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "x-dreame-control-token": DREAME_CONTROL_TOKEN,
+        },
+    )
+    try:
+        with urllib.request.urlopen(control_request, timeout=40) as response:
+            data = json.loads(response.read().decode("utf-8") or "{}")
+            return data if isinstance(data, dict) else {"result": data}
+    except urllib.error.HTTPError as exc:
+        raw = exc.read().decode("utf-8", errors="replace")
+        try:
+            error_data = json.loads(raw or "{}")
+        except json.JSONDecodeError:
+            error_data = {}
+        detail = error_data.get("detail") if isinstance(error_data, dict) else None
+        raise RuntimeError(str(detail or raw or f"Dreame_logger svarte {exc.code}")) from exc
 
 
 ROBOROCK_DOOR_AUTOMATION_POLL_SECONDS = 30
@@ -40219,8 +40357,6 @@ async def api_cleaning_robot_control(request: Request, duid: str, values: Roboro
     forbidden = require_master(request)
     if forbidden:
         return forbidden
-    if not ROBOROCK_CONTROL_TOKEN:
-        raise HTTPException(status_code=503, detail="Robotstyring er ikke konfigurert")
     allowed_actions = {
         "dry_run",
         "start",
@@ -40252,6 +40388,15 @@ async def api_cleaning_robot_control(request: Request, duid: str, values: Roboro
         robot = (await session.execute(select(RoborockRobot).where(RoborockRobot.duid == duid))).scalars().first()
         if not robot:
             raise HTTPException(status_code=404, detail="Ukjent robot")
+        provider = cleaning_provider(robot.provider)
+        external_id = robot.external_id or cleaning_robot_external_id(provider, robot.duid)
+        if provider == "dreame":
+            if not DREAME_CONTROL_TOKEN:
+                raise HTTPException(status_code=503, detail="Dreame-styring er ikke konfigurert")
+            if action not in {"start", "pause", "resume", "stop", "dock"}:
+                raise HTTPException(status_code=400, detail="Denne kommandoen er ikke tilgjengelig for Dreame ennå")
+        elif not ROBOROCK_CONTROL_TOKEN:
+            raise HTTPException(status_code=503, detail="Roborock-styring er ikke konfigurert")
         robot_name = robot.name
         if action == "clean_zone":
             zone_pair = (
@@ -40289,16 +40434,18 @@ async def api_cleaning_robot_control(request: Request, duid: str, values: Roboro
             requested_at=datetime.utcnow(),
             requested_by=actor,
             status="running",
-            message="Kommando sendt til Roborock_logger",
+            message=f"Kommando sendt til {cleaning_provider_label(provider)}-loggeren",
         )
         session.add(command_run)
         await session.commit()
         command_id = command_run.id
 
     try:
+        control_sender = post_dreame_control if provider == "dreame" else post_roborock_control
+        control_identity = external_id if provider == "dreame" else duid
         result = await asyncio.to_thread(
-            post_roborock_control,
-            duid,
+            control_sender,
+            control_identity,
             {
                 "action": action,
                 "request_id": request_id,

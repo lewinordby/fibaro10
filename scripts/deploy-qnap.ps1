@@ -82,8 +82,9 @@ $hasComposeServicesValue = if ($standardServices.Count -gt 0) { "1" } else { "0"
 $deployAllValue = if ($deployPlan.All) { "1" } else { "0" }
 $deployEasyParkValue = if ($deployPlan.EasyPark) { "1" } else { "0" }
 $deployRoborockValue = if ($deployPlan.Roborock) { "1" } else { "0" }
+$deployDreameValue = if ($deployPlan.Dreame) { "1" } else { "0" }
 $restartProxyValue = if (@($changedFiles | Where-Object { ([string]$_).Replace("\", "/") -eq "Caddyfile" }).Count -gt 0) { "1" } else { "0" }
-Write-Host "Deploy plan: services=[$displayServices], core=$coreDeployValue, EasyPark=$deployEasyParkValue, Roborock=$deployRoborockValue, full=$deployAllValue"
+Write-Host "Deploy plan: services=[$displayServices], core=$coreDeployValue, EasyPark=$deployEasyParkValue, Roborock=$deployRoborockValue, Dreame=$deployDreameValue, full=$deployAllValue"
 $broadValidation = $deployPlan.All -or $deployPlan.Services.Count -gt 4
 if (-not $SkipLocalCheck) {
     if ($broadValidation) {
@@ -92,6 +93,7 @@ if (-not $SkipLocalCheck) {
         $checkArguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "check-affected.ps1"), "-Services") + @($deployPlan.Services) + @("-ChangedFiles") + @($changedFiles)
         if ($deployPlan.EasyPark) { $checkArguments += "-EasyPark" }
         if ($deployPlan.Roborock) { $checkArguments += "-Roborock" }
+        if ($deployPlan.Dreame) { $checkArguments += "-Dreame" }
         Run "powershell" $checkArguments
     }
 }
@@ -117,7 +119,7 @@ if [ "$BackupRetentionCount" -gt 0 ]; then
             | while IFS= read -r old_backup; do rm -rf -- "`$old_backup"; done
     fi
 fi
-for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* car_info_lookup/.env car_info_lookup/.env.* sun2_backfill_downloader/.env sun2_backfill_downloader/.env.* sun2_importer/.env sun2_importer/.env.* sun2_session_scraper/.env sun2_session_scraper/.env.* roborock_logger/.env roborock_logger/.env.* axis_camera_snapshots/data/config.json axis_camera_snapshots/data/state.json; do
+for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* car_info_lookup/.env car_info_lookup/.env.* sun2_backfill_downloader/.env sun2_backfill_downloader/.env.* sun2_importer/.env sun2_importer/.env.* sun2_session_scraper/.env sun2_session_scraper/.env.* roborock_logger/.env roborock_logger/.env.* dreame_logger/.env dreame_logger/.env.* axis_camera_snapshots/data/config.json axis_camera_snapshots/data/state.json; do
     case "`$file" in .env.example|.env.qnap.example|*/.env.example) continue ;; esac
     [ -f "`$file" ] || continue
     target="`$backup_dir/`$file"
@@ -134,8 +136,8 @@ legacy_sun2_dir="$RemoteDir/../sun2_session_scraper"
 [ -d "`$legacy_sun2_dir/data" ] && mkdir -p "`$backup_dir/sun2_session_scraper" && cp -a "`$legacy_sun2_dir/data" "`$backup_dir/sun2_session_scraper/data"
 git fetch origin "$Branch"
 git reset --hard "origin/$Branch"
-git clean -fdx -e .env -e '.env.*' -e easypark_downloader/.env -e 'easypark_downloader/.env.*' -e easypark_downloader/data/ -e car_info_lookup/.env -e 'car_info_lookup/.env.*' -e car_info_lookup/data/ -e sun2_backfill_downloader/.env -e 'sun2_backfill_downloader/.env.*' -e sun2_importer/.env -e 'sun2_importer/.env.*' -e sun2_session_scraper/.env -e 'sun2_session_scraper/.env.*' -e sun2_session_scraper/data/ -e roborock_logger/.env -e 'roborock_logger/.env.*' -e axis_camera_snapshots/data/ -e axis_camera_snapshots/snapshots/ -e owntracks_service/data/ -e owntracks_service/postgres_data/ -e unifi_protect_events/data/ -e visual_anomaly_service/data/
-for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* car_info_lookup/.env car_info_lookup/.env.* sun2_backfill_downloader/.env sun2_backfill_downloader/.env.* sun2_importer/.env sun2_importer/.env.* sun2_session_scraper/.env sun2_session_scraper/.env.* roborock_logger/.env roborock_logger/.env.* axis_camera_snapshots/data/config.json axis_camera_snapshots/data/state.json; do
+git clean -fdx -e .env -e '.env.*' -e easypark_downloader/.env -e 'easypark_downloader/.env.*' -e easypark_downloader/data/ -e car_info_lookup/.env -e 'car_info_lookup/.env.*' -e car_info_lookup/data/ -e sun2_backfill_downloader/.env -e 'sun2_backfill_downloader/.env.*' -e sun2_importer/.env -e 'sun2_importer/.env.*' -e sun2_session_scraper/.env -e 'sun2_session_scraper/.env.*' -e sun2_session_scraper/data/ -e roborock_logger/.env -e 'roborock_logger/.env.*' -e dreame_logger/.env -e 'dreame_logger/.env.*' -e axis_camera_snapshots/data/ -e axis_camera_snapshots/snapshots/ -e owntracks_service/data/ -e owntracks_service/postgres_data/ -e unifi_protect_events/data/ -e visual_anomaly_service/data/
+for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* car_info_lookup/.env car_info_lookup/.env.* sun2_backfill_downloader/.env sun2_backfill_downloader/.env.* sun2_importer/.env sun2_importer/.env.* sun2_session_scraper/.env sun2_session_scraper/.env.* roborock_logger/.env roborock_logger/.env.* dreame_logger/.env dreame_logger/.env.* axis_camera_snapshots/data/config.json axis_camera_snapshots/data/state.json; do
     case "`$file" in .env.example|.env.qnap.example|*/.env.example) continue ;; esac
     source="`$backup_dir/`$file"
     [ -f "`$source" ] || continue
@@ -153,6 +155,44 @@ mkdir -p easypark_downloader/data
 mkdir -p owntracks_service/data
 mkdir -p owntracks_service/postgres_data
 mkdir -p visual_anomaly_service/data
+env_value() {
+    file="`$1"
+    key="`$2"
+    [ -f "`$file" ] || return 0
+    line=`$(grep -m 1 "^`$key=" "`$file" 2>/dev/null || true)
+    printf '%s' "`${line#*=}"
+}
+set_env_value() {
+    file="`$1"
+    key="`$2"
+    value="`$3"
+    temp="`$file.tmp"
+    awk -v key="`$key" -v value="`$value" 'BEGIN { found=0 } index(`$0, key "=") == 1 { print key "=" value; found=1; next } { print } END { if (!found) print key "=" value }' "`$file" > "`$temp"
+    mv "`$temp" "`$file"
+}
+if [ ! -f dreame_logger/.env ]; then
+    cp dreame_logger/.env.example dreame_logger/.env
+fi
+dreame_token=`$(env_value dreame_logger/.env DREAME_CONTROL_TOKEN)
+if [ -z "`$dreame_token" ] || [ "`$dreame_token" = "replace-with-long-random-token" ]; then
+    if command -v openssl >/dev/null 2>&1; then
+        dreame_token=`$(openssl rand -hex 32)
+    else
+        dreame_token=`$(printf '%s' "`$(date +%s)-`${RANDOM:-0}-`${RANDOM:-0}" | sha256sum | cut -d' ' -f1)
+    fi
+    set_env_value dreame_logger/.env DREAME_CONTROL_TOKEN "`$dreame_token"
+fi
+for key in FIBARO10_API_USERNAME FIBARO10_API_PASSWORD; do
+    current=`$(env_value dreame_logger/.env "`$key")
+    case "`$current" in ''|replace-with-fibaro10-password|logger)
+        inherited=`$(env_value roborock_logger/.env "`$key")
+        [ -n "`$inherited" ] && set_env_value dreame_logger/.env "`$key" "`$inherited"
+        ;;
+    esac
+done
+set_env_value .env DREAME_CONTROL_TOKEN "`$dreame_token"
+set_env_value .env DREAME_LOGGER_URL "http://dreame_logger:8094"
+set_env_value .env DREAME_EXPECTED_ROBOT_NAME "Aqua10"
 [ -d "`$legacy_sun2_dir" ] && (cd "`$legacy_sun2_dir" && "$Docker" compose down || true)
 export APP_COMMIT=`$(git rev-parse --short HEAD)
 export APP_BUILD=`$(cat BUILD)
@@ -197,6 +237,10 @@ fi
 if [ "$deployRoborockValue" = "1" ]; then
     (cd roborock_logger && "$Docker" compose -f docker-compose.qnap.yml up -d --build)
 fi
+if [ "$deployDreameValue" = "1" ]; then
+    "$Docker" volume inspect dreame_logger_dreame_logger_data >/dev/null 2>&1 || "$Docker" volume create dreame_logger_dreame_logger_data >/dev/null
+    (cd dreame_logger && "$Docker" compose -f docker-compose.qnap.yml up -d --build)
+fi
 roborock_ready=0
 while [ "`$roborock_ready" -lt 30 ]; do
     curl -fsS --max-time 5 http://192.168.20.218:8095/health >/dev/null 2>&1 && break
@@ -204,10 +248,20 @@ while [ "`$roborock_ready" -lt 30 ]; do
     sleep 2
 done
 curl -fsS --max-time 180 http://192.168.20.218:8095/sync-now >/dev/null
+if [ "$deployDreameValue" = "1" ]; then
+    dreame_ready=0
+    while [ "`$dreame_ready" -lt 45 ]; do
+        curl -fsS --max-time 5 http://192.168.20.218:8094/health >/dev/null 2>&1 && break
+        dreame_ready=`$((dreame_ready + 1))
+        sleep 2
+    done
+    curl -fsS --max-time 5 http://192.168.20.218:8094/health >/dev/null
+fi
 "$Docker" exec fibaro10_proxy caddy validate --config /etc/caddy/Caddyfile || { "$Docker" logs --tail=80 fibaro10_proxy; exit 1; }
 "$Docker" exec fibaro10 caddy validate --config /etc/caddy/Caddyfile || { "$Docker" logs --tail=80 fibaro10; exit 1; }
 "$Docker" compose -f docker-compose.qnap.yml ps
 (cd easypark_downloader && "$Docker" compose ps)
+[ ! -f dreame_logger/.env ] || (cd dreame_logger && "$Docker" compose -f docker-compose.qnap.yml ps)
 echo "Backup: `$backup_dir"
 "@
 
@@ -233,6 +287,7 @@ if ($broadValidation) {
     $smokeArguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "smoke-affected.ps1"), "-Services") + @($deployPlan.Services)
     if ($deployPlan.EasyPark) { $smokeArguments += "-EasyPark" }
     if ($deployPlan.Roborock) { $smokeArguments += "-Roborock" }
+    if ($deployPlan.Dreame) { $smokeArguments += "-Dreame" }
     if ($SkipSmoke) { $smokeArguments += "-SkipRoutes" }
     Run "powershell" $smokeArguments
 }

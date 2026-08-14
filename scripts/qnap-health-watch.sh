@@ -63,6 +63,7 @@ check unifi_protect_events curl -fsS --max-time 15 http://192.168.20.218:8130/he
 check visual_anomaly_service "$DOCKER" exec visual_anomaly_service python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8140/health', timeout=10).read()"
 check easypark_downloader curl -fsS --max-time 15 http://192.168.20.218:8109/health
 check roborock_logger curl -fsS --max-time 15 http://192.168.20.218:8095/health
+check dreame_logger curl -fsS --max-time 15 http://192.168.20.218:8094/health
 check sun2_backfill_downloader curl -fsS --max-time 15 http://192.168.20.218:8097/json
 check sun2_importer curl -fsS --max-time 15 http://192.168.20.218:8096/json
 check sun2_session_scraper curl -fsS --max-time 15 http://192.168.20.218:8099/json

@@ -1,16 +1,16 @@
 # Systemoversikt
 
-Oppdatert 12.08.2026.
+Oppdatert 14.08.2026.
 
 Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene er `docker-compose.qnap.yml`, `Caddyfile`, `system_inventory.py`, `import_jobs.py` og siste QNAP-status.
 
 ## Nøkkeltall
 
-- 30 dokumenterte systemkomponenter i `system_inventory.py`.
-- 28 komponenter er aktive i dagens runtime eller som aktivt verktøy.
-- 25 komponenter har webflate eller lokal statusflate.
-- 23 datakilder/importjobber er aktive i Fibaro10.
-- Produksjonsbuild ved siste sjekk: Fibaro10 build `1710`; commit settes ved deploy.
+- 31 dokumenterte systemkomponenter i `system_inventory.py`.
+- 28 komponenter er aktive i dagens runtime eller som aktivt verktøy; Dreame er klargjort for aktivering.
+- 26 komponenter har webflate eller lokal statusflate.
+- 24 datakilder/importjobber er definert i Fibaro10.
+- Produksjonsbuild ved siste sjekk: Fibaro10 build `1743`; commit settes ved deploy.
 - QNAP-appmappe: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`.
 - Backup/arkivvolum: `/share/CACHEDEV3_DATA/fibaro10_archive`.
 
@@ -40,6 +40,7 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 | EasyPark downloader | `http://192.168.20.218:8109/status` | Lokal statusflate for EasyPark-nedlasting. |
 | Koble worker | `http://192.168.20.218:8127/` | Lokal status/API for parkering/SUN2-koblingsmotor. |
 | Roborock logger | `http://192.168.20.218:8095/` | Lokal status/API for robotstøvsugere og sync. |
+| Dreame logger | `http://192.168.20.218:8094/` | Lokal status/API for Aqua10, Dreamehome og sync. |
 | SUN2 importer | `http://192.168.20.218:8096/` | Verktøy for historiske/daglige SUN2-romsummer. |
 | SUN2 backfill | `http://192.168.20.218:8097/` | Verktøy for historisk SUN2-filnedlasting. |
 
@@ -77,6 +78,7 @@ hver enkelt app.
 | `sun2_importer` | Lav/verktøy | Aktiv container som importerer SUN2 dagsfiler og romsummer. |
 | `sun2_backfill_downloader` | Lav/verktøy | Aktiv container som laster ned historiske SUN2 dagsfiler. |
 | `roborock_logger` | Normal | Separat compose/container for Roborock-status, historikk, planer og kartdata. |
+| `dreame_logger` | Normal | Separat compose/container for Dreame/Aqua10-status, historikk, planer og styring. |
 | `parking_sun_linker` | Høy | Bakgrunnsmotor for kobling mellom parkeringer og SUN2-brukere. |
 | `fibaro10_proxy` | Kritisk | Caddy reverse proxy for offentlige mobilflater og intern HTTPS til Fibaro10. |
 | `easypark_downloader` | Kritisk | Separat compose/app for EasyPark-nedlasting og importtrigger. |
@@ -154,6 +156,8 @@ på nytt fra appvelgeren.
 | 20 | Koble parkering/SUN2 | Koble | `parking_sun_linker` | ca. 10 min |
 | 21 | OwnTracks Lilletorget-besøk | Vedlikehold | OwnTracks | ca. 2 min |
 | 22 | Dørhendelser fra HC3 | Bygg og drift | HC3 | hendelsesstyrt |
+| 23 | HC3 dørstatus ved avvik | Bygg og drift | Fibaro10 / HC3 API | ca. 2 min ved behov |
+| 24 | Dreame logger | Renhold | QNAP / Dreamehome | ca. 5 min |
 
 `Admin -> Datakilder` er operativ fasit for status, siste kjøring, alder, feilmelding og forklaring per kilde.
 
@@ -165,7 +169,7 @@ på nytt fra appvelgeren.
 - Protect-bilder ligger på SSD-arkivvolumet via `UNIFI_PROTECT_HOST_SNAPSHOT_DIR`.
 - AI-modeller og kalibreringsmetadata ligger på SSD via `VISUAL_AI_HOST_DATA_DIR` og tas med i nattlig backup.
 - Deploy-backuper lagres i `/share/CACHEDEV3_DATA/fibaro10_archive/fibaro10_deploy_backups`.
-- Nattlig/manuell full backup håndteres av `scripts/qnap-backup.sh` og inkluderer separate SQL-dumper for Fibaro10 og OwnTracks samt Roborock-data. Backupen publiseres atomisk med SHA-256-kontrollsummer og kan replikeres til en annen maskin med `BACKUP_REPLICA_TARGET`.
+- Nattlig/manuell full backup håndteres av `scripts/qnap-backup.sh` og inkluderer separate SQL-dumper for Fibaro10 og OwnTracks samt Roborock- og Dreame-data. Backupen publiseres atomisk med SHA-256-kontrollsummer og kan replikeres til en annen maskin med `BACKUP_REPLICA_TARGET`.
 - Restore-test kjøres fra Windows med `scripts/verify-qnap-backup.ps1` og leser begge SQL-dumpene inn i midlertidige databaser.
 - `Varslinger -> Oversikt` leser statusfilene for nattbackup og full gjenopprettingsbackup via to separate, skrivebeskyttede containermonteringer. Backupfeil og for gamle backuper blir aktive hendelser.
 - Det operative hendelsessenteret samler også feilede datakilder, aktive døralarmer, pullertavvik og ntfy-kø. Kvittering og operatørnotat lagres separat i `operational_incident_reviews`; kildesystemets status overskrives aldri.
@@ -181,7 +185,7 @@ Standard deploy går gjennom:
 2. Git push til `main`
 3. QNAP backup av runtimefiler/data
 4. Git-diff mot kjørende QNAP-commit og bygging av bare berørte tjenester. Ukjente endringer gir full rebuild som sikker fallback.
-5. Health-check av 25 HTTP-endepunkter, 23 datakilder og alle forventede containere
+5. Health-check av alle dokumenterte HTTP-endepunkter, 24 datakilder og forventede containere
 6. Smoke-check av interne flater, importører og eksterne proxyadresser
 7. Innlogget live-smoke gjennom desktop- og fagapprutene, med p50/p95-måling
 

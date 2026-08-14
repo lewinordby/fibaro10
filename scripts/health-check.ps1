@@ -31,6 +31,7 @@ $checks = @(
     @{ Name = "sun2_session_scraper"; Url = "http://${HostAddress}:8099/json"; Kind = "job" },
     @{ Name = "easypark_downloader"; Url = "http://${HostAddress}:8109/health"; Kind = "ok" },
     @{ Name = "roborock_logger"; Url = "http://${HostAddress}:8095/health"; Kind = "ok" },
+    @{ Name = "dreame_logger"; Url = "http://${HostAddress}:8094/health"; Kind = "ok" },
     @{ Name = "online_dashboard"; Url = "https://online.lilletorget.net/health"; Kind = "ok" },
     @{ Name = "owntracks_proxy"; Url = "https://owntracks.lilletorget.net/health"; Kind = "ok" },
     @{ Name = "maintenance_mobile"; Url = "https://vedl.lilletorget.net/health"; Kind = "ok" },
@@ -119,7 +120,7 @@ if (-not $SkipContainerCheck) {
         "maintenance_app", "system_app", "link_app", "online_dashboard", "maintenance_mobile", "alarm_mobile",
         "fibaro10ipad", "axis_camera_snapshots", "car_info_lookup", "sun2_backfill_downloader",
         "sun2_importer", "sun2_session_scraper", "parking_sun_linker", "unifi_protect_events",
-        "visual_anomaly_service", "easypark_downloader", "roborock_logger", "fibaro10_proxy"
+        "visual_anomaly_service", "easypark_downloader", "roborock_logger", "dreame_logger", "fibaro10_proxy"
     )
     $remote = @"
 set -e

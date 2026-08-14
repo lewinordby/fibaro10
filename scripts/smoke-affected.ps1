@@ -2,6 +2,7 @@ param(
     [string[]]$Services = @(),
     [switch]$EasyPark,
     [switch]$Roborock,
+    [switch]$Dreame,
     [switch]$SkipRoutes
 )
 
@@ -43,6 +44,11 @@ if ($EasyPark) {
 if ($Roborock -or "operations_app" -in $Services) {
     Invoke-WebRequest -UseBasicParsing -Uri "http://${hostAddress}:8095/health" -TimeoutSec 30 | Out-Null
     Write-Host "Health OK: roborock_logger"
+}
+if ($Dreame -or "operations_app" -in $Services) {
+    $dreameHealth = Invoke-RestMethod -Uri "http://${hostAddress}:8094/health" -TimeoutSec 30
+    if ($dreameHealth.status -ne "ok") { throw "dreame_logger rapporterte status $($dreameHealth.status)" }
+    Write-Host "Health OK: dreame_logger (configured=$($dreameHealth.configured))"
 }
 
 $appIds = @{

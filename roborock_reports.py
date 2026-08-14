@@ -200,10 +200,16 @@ def robot_settings(probes: list[Any]) -> dict[str, Any]:
     return {**wash, "items": items}
 
 
-def resource_problem(row: Any) -> bool:
+def resource_problem(row: Any, provider: str = "roborock") -> bool:
     shortage = integer(row_value(row, "water_shortage_status"))
     clear_name = str(row_value(row, "clear_water_status_name") or "").strip().lower()
     clear_status = integer(row_value(row, "clear_water_status"))
+    if provider == "dreame":
+        if shortage not in {None, 0}:
+            return True
+        if clear_name:
+            return clear_name not in {"okay", "ok", "normal", "installed", "present"}
+        return False
     return (
         shortage not in {None, 0}
         or clear_status not in {None, 0}
@@ -225,7 +231,7 @@ def job_cleaning_type(fan_power: Any, water_mode: Any, mop_mode: Any) -> tuple[s
     return "vacuum", "Støvsuging"
 
 
-def build_job(job: Any, samples: list[Any], settings: dict[str, Any]) -> dict[str, Any]:
+def build_job(job: Any, samples: list[Any], settings: dict[str, Any], provider: str = "roborock") -> dict[str, Any]:
     started_at = utc_naive_to_local_naive(row_value(job, "begin_at"))
     ended_at = utc_naive_to_local_naive(row_value(job, "end_at"))
     if started_at is None:
@@ -242,10 +248,13 @@ def build_job(job: Any, samples: list[Any], settings: dict[str, Any]) -> dict[st
     fan_power = dominant_value(mode_rows, "fan_power")
     water_mode = dominant_value(mode_rows, "water_box_mode")
     mop_mode = dominant_value(mode_rows, "mop_mode")
-    cleaning_type, cleaning_type_label = job_cleaning_type(fan_power, water_mode, mop_mode)
+    if provider == "dreame":
+        cleaning_type, cleaning_type_label = "cleaning", "Rengjøring"
+    else:
+        cleaning_type, cleaning_type_label = job_cleaning_type(fan_power, water_mode, mop_mode)
     start_sample = nearest_sample(observed, started_at, before=False)
     end_sample = nearest_sample(observed, job_end, before=True)
-    water_samples = [row for row in observed if resource_problem(row)]
+    water_samples = [row for row in observed if resource_problem(row, provider)]
     dock_error_samples = [
         row for row in observed if integer(row_value(row, "dock_error_status")) not in {None, 0}
     ]
@@ -270,7 +279,9 @@ def build_job(job: Any, samples: list[Any], settings: dict[str, Any]) -> dict[st
         expected_washes = max(1, int((duration_minutes + interval - 0.001) // interval))
     rounds = integer(row_value(job, "clean_times")) or 1
     mode_parts = []
-    if cleaning_type in {"vacuum", "vacuum_mop"}:
+    if provider == "dreame":
+        mode_parts.append("Rapportert av Dreamehome")
+    elif cleaning_type in {"vacuum", "vacuum_mop"}:
         mode_parts.append(roborock_fan_label(fan_power))
     if cleaning_type in {"mop", "vacuum_mop"}:
         mode_parts.extend([roborock_mop_label(mop_mode), f"{roborock_water_label(water_mode).lower()} vannmengde"])
@@ -324,7 +335,11 @@ def battery_at(samples: list[Any], target: datetime) -> Optional[int]:
     return integer(row_value(sample, "battery")) if sample else None
 
 
-def schedule_occurrences(schedules: list[Any], window: dict[str, datetime]) -> list[dict[str, Any]]:
+def schedule_occurrences(
+    schedules: list[Any],
+    window: dict[str, datetime],
+    provider: str = "roborock",
+) -> list[dict[str, Any]]:
     occurrences = []
     current_day = window["start"].date()
     while current_day <= window["end"].date():
@@ -343,14 +358,19 @@ def schedule_occurrences(schedules: list[Any], window: dict[str, datetime]) -> l
             scheduled_at = datetime.combine(current_day, time(hour, minute))
             if not window["start"] <= scheduled_at < window["end"]:
                 continue
-            cleaning_type, cleaning_type_label = job_cleaning_type(
-                row_value(schedule, "fan_power"),
-                row_value(schedule, "water_box_mode"),
-                row_value(schedule, "mop_mode"),
-            )
+            if provider == "dreame":
+                cleaning_type, cleaning_type_label = "cleaning", "Rengjøring"
+            else:
+                cleaning_type, cleaning_type_label = job_cleaning_type(
+                    row_value(schedule, "fan_power"),
+                    row_value(schedule, "water_box_mode"),
+                    row_value(schedule, "mop_mode"),
+                )
             rounds = integer(row_value(schedule, "repeat")) or 1
             mode_parts = []
-            if cleaning_type in {"vacuum", "vacuum_mop"}:
+            if provider == "dreame":
+                mode_parts.append("Dreamehome-plan")
+            elif cleaning_type in {"vacuum", "vacuum_mop"}:
                 mode_parts.append(roborock_fan_label(row_value(schedule, "fan_power")))
             if cleaning_type in {"mop", "vacuum_mop"}:
                 mode_parts.extend(
@@ -380,8 +400,9 @@ def build_schedule_check(
     samples: list[Any],
     window: dict[str, datetime],
     generated_at: datetime,
+    provider: str = "roborock",
 ) -> dict[str, Any]:
-    expected = schedule_occurrences(schedules, window)
+    expected = schedule_occurrences(schedules, window, provider)
     actual_starts = [
         (
             index,
@@ -463,7 +484,7 @@ def build_schedule_check(
         )
 
     return {
-        "basis": "Gjeldende aktive Roborock-planer",
+        "basis": f"Gjeldende aktive {'Dreamehome' if provider == 'dreame' else 'Roborock'}-planer",
         "jobs": rows,
         "expected": len(rows),
         "completed": sum(row["status"] in {"completed", "delayed"} for row in rows),
@@ -488,9 +509,37 @@ def build_robot_report(
         samples,
         key=lambda row: normalize_local_naive(row_value(row, "timestamp")) or datetime.min,
     )
-    settings = robot_settings(probes)
-    job_rows = [build_job(job, ordered_samples, settings) for job in sorted(jobs, key=lambda row: row_value(row, "begin_at") or datetime.min)]
-    schedule_check = build_schedule_check(schedules, jobs, ordered_samples, window, generated_at)
+    provider = str(row_value(robot, "provider") or "roborock").strip().lower()
+    if provider == "dreame":
+        extra = row_value(robot, "extra")
+        raw_settings = extra.get("settings") if isinstance(extra, dict) and isinstance(extra.get("settings"), dict) else {}
+        setting_labels = {
+            "cleaning_mode": "Rengjøringsmodus",
+            "suction_level": "Sugekraft",
+            "water_volume": "Vannmengde",
+            "mop_wash_level": "Moppevask",
+            "mop_clean_frequency": "Vaskefrekvens",
+            "auto_empty_mode": "Støvtømming",
+        }
+        settings = {
+            "supported": bool(raw_settings),
+            "intervalMinutes": None,
+            "mode": None,
+            "modeLabel": None,
+            "automatic": False,
+            "items": [
+                {"key": key, "label": setting_labels.get(key, key), "value": str(value)}
+                for key, value in raw_settings.items()
+                if value is not None and value != ""
+            ],
+        }
+    else:
+        settings = robot_settings(probes)
+    job_rows = [
+        build_job(job, ordered_samples, settings, provider)
+        for job in sorted(jobs, key=lambda row: row_value(row, "begin_at") or datetime.min)
+    ]
+    schedule_check = build_schedule_check(schedules, jobs, ordered_samples, window, generated_at, provider)
     last_end = max(
         (utc_naive_to_local_naive(row_value(job, "end_at")) for job in jobs if row_value(job, "end_at")),
         default=None,
@@ -553,6 +602,7 @@ def build_robot_report(
 
     return {
         "duid": str(row_value(robot, "duid") or ""),
+        "provider": provider,
         "name": str(row_value(robot, "name") or row_value(robot, "duid") or "Robot"),
         "model": row_value(robot, "model"),
         "status": status,

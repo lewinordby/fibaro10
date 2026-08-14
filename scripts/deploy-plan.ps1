@@ -15,6 +15,7 @@ function Get-DeployPlan([string[]]$ChangedFiles, [bool]$ForceAll = $false) {
     $deployAll = $ForceAll
     $deployEasyPark = $false
     $deployRoborock = $false
+    $deployDreame = $false
 
     foreach ($fileName in $ChangedFiles) {
         $path = ([string]$fileName).Replace("\", "/").Trim()
@@ -34,6 +35,9 @@ function Get-DeployPlan([string[]]$ChangedFiles, [bool]$ForceAll = $false) {
         }
         elseif ($path -match '^roborock_logger/') {
             $deployRoborock = $true
+        }
+        elseif ($path -match '^dreame_logger/') {
+            $deployDreame = $true
         }
         elseif ($path -match '^microapp_backend/') {
             foreach ($service in $microApps) { [void]$services.Add($service) }
@@ -79,5 +83,6 @@ function Get-DeployPlan([string[]]$ChangedFiles, [bool]$ForceAll = $false) {
         Services = @($allServices | Where-Object { $services.Contains($_) })
         EasyPark = $deployEasyPark
         Roborock = $deployRoborock
+        Dreame = $deployDreame
     }
 }

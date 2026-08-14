@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "deploy-plan.ps1")
 
 $core = Get-DeployPlan -ChangedFiles @("main.py", "desktop_v2/src/App.tsx", "BUILD", "scripts/readme.ps1")
-if ($core.All -or ($core.Services -join ",") -ne "fibaro10" -or $core.EasyPark -or $core.Roborock) {
+if ($core.All -or ($core.Services -join ",") -ne "fibaro10" -or $core.EasyPark -or $core.Roborock -or $core.Dreame) {
     throw "Core deploy plan is wrong: $($core | ConvertTo-Json -Compress)"
 }
 
@@ -46,6 +46,11 @@ if (-not $easyPark.EasyPark -or $easyPark.Services.Count -ne 0) {
     throw "EasyPark deploy plan is wrong: $($easyPark | ConvertTo-Json -Compress)"
 }
 
+$dreame = Get-DeployPlan -ChangedFiles @("dreame_logger/app/main.py")
+if (-not $dreame.Dreame -or $dreame.Services.Count -ne 0 -or $dreame.Roborock) {
+    throw "Dreame deploy plan is wrong: $($dreame | ConvertTo-Json -Compress)"
+}
+
 $multiple = Get-DeployPlan -ChangedFiles @("main.py", "unifi_protect_events/app/main.py")
 if ($multiple.All -or ($multiple.Services -join ",") -ne "fibaro10,unifi_protect_events") {
     throw "Multiple-service deploy plan is wrong: $($multiple | ConvertTo-Json -Compress)"
@@ -67,7 +72,7 @@ if ($coreGateway.All -or ($coreGateway.Services -join ",") -ne "fibaro10") {
 }
 
 $full = Get-DeployPlan -ChangedFiles @("docker-compose.qnap.yml")
-if (-not $full.All -or $full.EasyPark -or $full.Roborock -or $full.Services.Count -lt 20) {
+if (-not $full.All -or $full.EasyPark -or $full.Roborock -or $full.Dreame -or $full.Services.Count -lt 20) {
     throw "Full deploy plan is wrong: $($full | ConvertTo-Json -Compress)"
 }
 

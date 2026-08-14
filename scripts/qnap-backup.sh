@@ -9,6 +9,7 @@ POSTGRES_USER="${POSTGRES_USER:-app}"
 POSTGRES_DB="${POSTGRES_DB:-fibaro10_local}"
 OWNTRACKS_POSTGRES_CONTAINER="${OWNTRACKS_POSTGRES_CONTAINER:-owntracks_postgres}"
 ROBOROCK_CONTAINER="${ROBOROCK_CONTAINER:-roborock_logger}"
+DREAME_CONTAINER="${DREAME_CONTAINER:-dreame_logger}"
 BACKUP_SNAPSHOTS="${BACKUP_SNAPSHOTS:-0}"
 BACKUP_RETENTION_COUNT="${BACKUP_RETENTION_COUNT:-20}"
 BACKUP_REPLICA_TARGET="${BACKUP_REPLICA_TARGET:-}"
@@ -78,7 +79,7 @@ OWNTRACKS_POSTGRES_USER="${OWNTRACKS_POSTGRES_USER:-owntracks}"
 OWNTRACKS_POSTGRES_DB="${OWNTRACKS_POSTGRES_DB:-$(env_value .env OWNTRACKS_POSTGRES_DB)}"
 OWNTRACKS_POSTGRES_DB="${OWNTRACKS_POSTGRES_DB:-owntracks}"
 
-for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* car_info_lookup/.env car_info_lookup/.env.* sun2_backfill_downloader/.env sun2_backfill_downloader/.env.* sun2_importer/.env sun2_importer/.env.* sun2_session_scraper/.env sun2_session_scraper/.env.* roborock_logger/.env roborock_logger/.env.* hc3_vedlikehold/.env hc3_vedlikehold/.env.*; do
+for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* car_info_lookup/.env car_info_lookup/.env.* sun2_backfill_downloader/.env sun2_backfill_downloader/.env.* sun2_importer/.env sun2_importer/.env.* sun2_session_scraper/.env sun2_session_scraper/.env.* roborock_logger/.env roborock_logger/.env.* dreame_logger/.env dreame_logger/.env.* hc3_vedlikehold/.env hc3_vedlikehold/.env.*; do
     case "$file" in .env.example|.env.qnap.example|*/.env.example) continue ;; esac
     [ -f "$file" ] || continue
     target="$partial_dir/$file"
@@ -113,6 +114,11 @@ test -s "$partial_dir/owntracks.sql"
 if "$DOCKER" inspect "$ROBOROCK_CONTAINER" >/dev/null 2>&1; then
     mkdir -p "$partial_dir/roborock_logger/data"
     "$DOCKER" cp "$ROBOROCK_CONTAINER:/data/." "$partial_dir/roborock_logger/data"
+fi
+
+if "$DOCKER" inspect "$DREAME_CONTAINER" >/dev/null 2>&1; then
+    mkdir -p "$partial_dir/dreame_logger/data"
+    "$DOCKER" cp "$DREAME_CONTAINER:/data/." "$partial_dir/dreame_logger/data"
 fi
 
 printf 'created=%s\nbuild=%s\ncommit=%s\n' \

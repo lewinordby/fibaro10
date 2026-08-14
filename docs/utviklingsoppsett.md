@@ -97,7 +97,7 @@ ufarlige eksempeldata.
 
 `desktop_v2/scripts/smoke-live.mjs` sjekker alltid QNAP `/health`. Hvis `.env.live-smoke` finnes, logger den i tillegg inn med `fibaro-smoke` og gaar gjennom alle desktop-rutene som ogsaa brukes av lokal UI-smoke. Deploy-scriptet kjorer denne live-smoken automatisk etter vanlig smoke.
 
-Standard deploy sammenligner QNAP-commit med commiten som skal rulles ut og bygger bare tjenestene som faktisk er berort. For smale endringer kjører `check-affected.ps1` og `smoke-affected.ps1`; de bygger, tester og kontrollerer bare de valgte tjenestene. Full systemkontroll brukes ved endringer i felles UI, Compose, ukjente filer eller mer enn fire tjenester. Endringer i `main.py` eller `desktop_v2` rulles ut med to kjernespor: ny versjon bygges og helsesjekkes i det inaktive sporet, den stabile `fibaro10`-gatewayen flytter trafikken, og forrige spor stoppes forst etter et vellykket bytte. Bakgrunnsjobbene kjorer i `fibaro10_worker` og startes pa ny versjon etter at webtrafikken er flyttet. EasyPark og Roborock bygges bare nar deres egne filer endres; en endring i hovedstackens Compose-fil starter dem ikke pa nytt. Selve deployplanen kan regresjonstestes med `scripts/test-deploy-plan.ps1`.
+Standard deploy sammenligner QNAP-commit med commiten som skal rulles ut og bygger bare tjenestene som faktisk er berort. For smale endringer kjører `check-affected.ps1` og `smoke-affected.ps1`; de bygger, tester og kontrollerer bare de valgte tjenestene. Full systemkontroll brukes ved endringer i felles UI, Compose, ukjente filer eller mer enn fire tjenester. Endringer i `main.py` eller `desktop_v2` rulles ut med to kjernespor: ny versjon bygges og helsesjekkes i det inaktive sporet, den stabile `fibaro10`-gatewayen flytter trafikken, og forrige spor stoppes forst etter et vellykket bytte. Bakgrunnsjobbene kjorer i `fibaro10_worker` og startes pa ny versjon etter at webtrafikken er flyttet. EasyPark, Roborock og Dreame bygges bare nar deres egne filer endres; en endring i hovedstackens Compose-fil starter dem ikke pa nytt. Selve deployplanen kan regresjonstestes med `scripts/test-deploy-plan.ps1`.
 
 Appspesifikk frontendkode skal ligge i riktig `<app>/frontend`. Fellespakken
 `packages/microapp-ui` er bare for reelt delte primitiver og rammeverk. En endring
@@ -185,9 +185,9 @@ Uten dette vedlegget vil brutto mynt/kortautomat ikke kunne kontrolleres automat
 
 ## Backup
 
-Deploy-scriptet tar backup av `.env`, `.env.*`, EasyPark `.env` og EasyPark runtime-data for hver deploy.
+Deploy-scriptet tar backup av `.env`, `.env.*` og tjenestespesifikke runtimefiler for blant annet EasyPark, Roborock og Dreame før hver deploy.
 
-QNAP-backup-scriptet ligger i `scripts/qnap-backup.sh` og tar vare paa alle runtime-`.env`-filer, importerdata, AI-modeller, Roborock-data og separate SQL-dumper av baade Fibaro10- og OwnTracks-databasen:
+QNAP-backup-scriptet ligger i `scripts/qnap-backup.sh` og tar vare paa alle runtime-`.env`-filer, importerdata, AI-modeller, Roborock- og Dreame-data og separate SQL-dumper av baade Fibaro10- og OwnTracks-databasen:
 
 ```sh
 sh /share/CACHEDEV1_DATA/Public/containerdata/fibaro10/scripts/qnap-backup.sh

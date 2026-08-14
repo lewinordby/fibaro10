@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import os
+from datetime import date
 from pathlib import Path
 from typing import Iterable, Sequence
 
@@ -55,9 +56,14 @@ SOFT_RED = HexColor("#FFF0F0")
 SOFT_PURPLE = HexColor("#F3F0FF")
 WHITE = colors.white
 
-BUILD = "1706"
-COMMIT = "2395a9b"
-GENERATED = "9. august 2026"
+BUILD = (ROOT / "BUILD").read_text(encoding="utf-8").strip()
+COMMIT = os.getenv("APP_COMMIT", "se GitHub")
+MONTHS_NO = (
+    "januar", "februar", "mars", "april", "mai", "juni",
+    "juli", "august", "september", "oktober", "november", "desember",
+)
+_generated_date = date.today()
+GENERATED = f"{_generated_date.day}. {MONTHS_NO[_generated_date.month - 1]} {_generated_date.year}"
 
 
 def register_fonts() -> None:
@@ -507,7 +513,7 @@ def data_flow_diagram() -> Drawing:
         _arrow(d, 600, y + 24, 620, y + 24, color=color)
 
     d.add(Rect(140, 5, 600, 25, rx=4, ry=4, fillColor=SOFT_GREEN, strokeColor=GREEN, strokeWidth=0.7))
-    d.add(String(440, 14, "Importstatus, siste kjøring, antall rader, varighet og feil vises samlet som 23 datakilder.", textAnchor="middle", fontName="Segoe", fontSize=7.4, fillColor=INK))
+    d.add(String(440, 14, "Importstatus, siste kjøring, antall rader, varighet og feil vises samlet som 24 datakilder.", textAnchor="middle", fontName="Segoe", fontSize=7.4, fillColor=INK))
     d.scale(0.96, 0.84)
     d.width = w * 0.96
     d.height = h * 0.84
@@ -548,7 +554,7 @@ def deployment_diagram() -> Drawing:
         (20, "Lokalt", "Python · typecheck · builds"),
         (175, "Sikkerhet", "npm audit · statisk kontroll"),
         (330, "Runtime", "25 HTTP · alle containere"),
-        (485, "Data", "23 datakilder"),
+        (485, "Data", "24 datakilder"),
         (640, "UI", "235 ruter · live smoke"),
     ]
     for x, title, sub in checks:
@@ -569,7 +575,7 @@ def storage_backup_diagram() -> Drawing:
         (15, 285, "Hoveddatabase", "PostgreSQL", BLUE),
         (15, 210, "OwnTracks DB", "PostgreSQL 17", PURPLE),
         (15, 135, "Protect / AI", "bilder og modeller", RED),
-        (15, 60, "Roborock / runtime", "data og .env", GREEN),
+        (15, 60, "Robotlogger / runtime", "Roborock · Dreame · .env", GREEN),
     ]
     for x, y, title, sub, color in sources:
         _box(d, x, y, 145, 52, [title, sub], fill=PAPER, stroke=color, font_size=8)
@@ -666,6 +672,7 @@ COMPONENTS = [
     ("easypark_downloader", "Parkering", "Kritisk", "Planlagt nedlasting og importtrigger."),
     ("parking_sun_linker", "Koble", "Høy", "Kontinuerlig koblingsmotor."),
     ("roborock_logger", "Renhold", "Normal", "Robotstatus, historikk, planer og kart."),
+    ("dreame_logger", "Renhold", "Normal", "Aqua10-status, historikk, planer og kontroll via Dreamehome."),
     ("hc3_vedlikehold / scener", "HC3", "Normal", "Lua, blokk-scener og vedlikeholdsverktøy."),
 ]
 
@@ -693,6 +700,7 @@ DATA_SOURCES = [
     (21, "OwnTracks Lilletorget-besøk", "Vedlikehold", "OwnTracks", "Ca. 2 min", "Oppretter og oppdaterer stedbesøk."),
     (22, "Dørhendelser fra HC3", "Bygg og drift", "HC3", "Hendelsesstyrt", "Åpne/lukke-hendelser med sekundoppløsning."),
     (23, "HC3 dørstatus ved avvik", "Bygg og drift", "Fibaro10 poll", "Ca. 2 min ved behov", "Spør HC3 bare når lokal status er uventet."),
+    (24, "Dreame logger", "Renhold", "Dreamehome", "Ca. 5 min", "Aqua10-status, historikk, planer og driftsdata."),
 ]
 
 TECH_STACK = [
@@ -709,6 +717,7 @@ TECH_STACK = [
 ]
 
 PORTS = [
+    ("8094", "dreame_logger", "Lokal Dreame/Aqua10-status og API"),
     ("8095", "roborock_logger", "Lokal Roborock-status og API"),
     ("8096", "sun2_importer", "Sun2 dagsimport"),
     ("8097", "sun2_backfill_downloader", "Historisk Sun2-nedlasting"),
@@ -837,15 +846,15 @@ def build_document() -> Path:
         info_cards(
             [
                 ("Produksjon", f"Build {BUILD}", f"Commit {COMMIT}"),
-                ("Komponenter", "30", "Dokumenterte systemdeler"),
-                ("Datakilder", "23 / 23", "Grønne ved dokumentuttak"),
+                ("Komponenter", "31", "Dokumenterte systemdeler"),
+                ("Datakilder", "24", "Separate kilder med friskhetsstatus"),
             ],
             s,
         ),
         Spacer(1, 10),
     ]
     story += [p("Den nye appstakken består av en appvelger og åtte fagapper på port 8151-8158. De deler Mosaic-basert design, felles React-komponenter og én databasesesjon for innlogging. Fibaro10-kjernen er fortsatt det sentrale API- og datalaget, mens fagappene er tynnere, raskere brukerflater.", s["Body"])]
-    story += [p("Innsamling er flyttet ut i separate tjenester der det gir verdi: EasyPark, Sun2, Axis, UniFi Protect, kjøretøyoppslag, Roborock, OwnTracks og koblingsmotoren kjører ved siden av kjernen. Denne oppdelingen reduserer påvirkning mellom integrasjoner og gjør feil enklere å lokalisere.", s["Body"])]
+    story += [p("Innsamling er flyttet ut i separate tjenester der det gir verdi: EasyPark, Sun2, Axis, UniFi Protect, kjøretøyoppslag, Roborock, Dreame, OwnTracks og koblingsmotoren kjører ved siden av kjernen. Denne oppdelingen reduserer påvirkning mellom integrasjoner og gjør feil enklere å lokalisere.", s["Body"])]
     story += [Paragraph("Viktigste arkitekturvalg", s["Heading2"])]
     for text in [
         "Én sentral PostgreSQL-database for forretningsdata og en separat PostgreSQL-database for OwnTracks.",
@@ -866,7 +875,7 @@ def build_document() -> Path:
         ("Lokal-først", "Kritiske data, integrasjoner og AI kjøres på QNAP eller lokalt nett. Eksterne tjenester brukes som datakilder, ikke som eneste lagringssted."),
         ("Kildebasert historikk", "Rå hendelser og importresultater lagres før presentasjon og analyse. Beregnede verdier kan dermed kontrolleres mot kilden."),
         ("Tynn brukerflate", "Fagappene inneholder visning og lokal interaksjon, men forretningsregler og skriving ligger primært i Fibaro10 API."),
-        ("Isolerte integrasjoner", "Tjenester som EasyPark, Sun2, kamera og Roborock har egne prosesser, healthchecks og restart-policy."),
+        ("Isolerte integrasjoner", "Tjenester som EasyPark, Sun2, kamera, Roborock og Dreame har egne prosesser, healthchecks og restart-policy."),
         ("Reversibel deploy", "Ny web-build verifiseres i inaktivt spor. Trafikken flyttes først når helsesjekken er grønn."),
         ("Synlig datakvalitet", "Alle viktige datakilder har nummer, status, siste suksess, neste forventning og feildetaljer."),
     ]
@@ -887,7 +896,7 @@ def build_document() -> Path:
     ]
 
     story += [PageBreak(), Paragraph("4. Tjenestelandskap", s["Heading1"])]
-    story += [p("Compose-oppsettet består av kjernen, brukerrettede apper, datainnsamlere, kamera/AI og infrastrukturtjenester. Enkelte tjenester som EasyPark og Roborock har egen compose for å unngå unødvendig restart når hovedstacken bygges.", s["Body"])]
+    story += [p("Compose-oppsettet består av kjernen, brukerrettede apper, datainnsamlere, kamera/AI og infrastrukturtjenester. Enkelte tjenester som EasyPark, Roborock og Dreame har egen compose for å unngå unødvendig restart når hovedstacken bygges.", s["Body"])]
     story.append(make_table([["Komponent", "Område", "Kritikalitet", "Ansvar"], *COMPONENTS], [45 * mm, 30 * mm, 22 * mm, 57 * mm], s, font_size=6.8))
 
     story += [NextPageTemplate("landscape"), PageBreak(), Paragraph("5. Innlogging, nettverk og forespørselsflyt", s["Heading1"]), request_auth_diagram(), NextPageTemplate("body"), PageBreak()]
@@ -916,7 +925,7 @@ def build_document() -> Path:
 
     story += [NextPageTemplate("landscape"), PageBreak(), Paragraph("6. Dataflyt og integrasjoner", s["Heading1"]), data_flow_diagram(), NextPageTemplate("body"), PageBreak()]
     story += [Paragraph("6.1 Datakilder", s["Heading2"])]
-    story += [p("Ved dokumentuttaket rapporterte health-endepunktet 23 av 23 datakilder som OK. Tabellen under beskriver normal rytme og ansvar. Engangsmigreringen for parkeringshistorikk er grønn selv om den ikke har neste kjøring.", s["Body"])]
+    story += [p("Health-endepunktet oppsummerer 24 separate datakilder. Tabellen under beskriver normal rytme og ansvar. Dreame-kilden kan stå som klargjort og vente på konto uten at Aqua10-verdier fabrikkeres.", s["Body"])]
     story.append(make_table([["Nr", "Datakilde", "Kategori", "Kilde", "Rytme", "Innhold"], *DATA_SOURCES], [9 * mm, 38 * mm, 24 * mm, 28 * mm, 25 * mm, 40 * mm], s, font_size=6.3))
     story += [Paragraph("6.2 Parkering", s["Heading2"])]
     story += [p("EasyPark-downloaderen henter i går og i dag på faste tidspunkt 08:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00 og 23:00. Etter vellykket import lagres ny parkeringsprognose. Norske kjøretøy kontrolleres først hos SVV; manglende treff sendes videre til svensk og deretter dansk tjeneste. Historiske Flowbird/Park Nordic-perioder før 2026 krever eget oppgjørsgrunnlag.", s["Body"])]
@@ -981,7 +990,7 @@ def build_document() -> Path:
     for text in [
         "Separate validerte SQL-dumper av Fibaro10- og OwnTracks-databasene.",
         "Alle runtime-.env-filer og konfigurasjon som trengs for å starte stackene.",
-        "EasyPark-, Sun2-, Roborock-, Protect- og AI-data som ikke ligger i databasen.",
+        "EasyPark-, Sun2-, Roborock-, Dreame-, Protect- og AI-data som ikke ligger i databasen.",
         "Repo-/oppsettreferanser, BACKUP_MANIFEST.txt og CHECKSUMS.sha256.",
         "Axis-arkivet tas ikke med i sin helhet. Bilder som er knyttet til soltimer ligger i PostgreSQL og følger databasedumpen.",
     ]:
@@ -992,15 +1001,15 @@ def build_document() -> Path:
         ("2", "Hent repo fra GitHub eller restore-pakken og legg det i forventet appområde."),
         ("3", "Gjenopprett .env, sertifikatdata, runtimekataloger og eventuelle tjenestespesifikke nøkler."),
         ("4", "Opprett PostgreSQL og importer Fibaro10-dumpen. Start OwnTracks PostgreSQL og importer egen dump."),
-        ("5", "Gjenopprett AI-, Protect-, Roborock- og importerdata til dokumenterte mount-punkter."),
+        ("5", "Gjenopprett AI-, Protect-, Roborock-, Dreame- og importerdata til dokumenterte mount-punkter."),
         ("6", "Start compose-stackene og verifiser database, proxy, core, worker og datainnsamlere i den rekkefølgen."),
-        ("7", "Kontroller DNS/privat IP, TLS, 23 datakilder, smoke-ruter og innlogging på tvers av mikroappene."),
+        ("7", "Kontroller DNS/privat IP, TLS, 24 datakilder, smoke-ruter og innlogging på tvers av mikroappene."),
     ]
     story.append(make_table([["Trinn", "Handling"], *restore_steps], [14 * mm, 140 * mm], s, font_size=7.8))
 
     story += [PageBreak(), Paragraph("11. Drift, overvåking og varsling", s["Heading1"])]
     story += [Paragraph("11.1 Health og readiness", s["Heading2"])]
-    story += [p("Hver brukerrettede tjeneste har /health, og fagappene har også /ready som kontrollerer forbindelsen til Fibaro10. Hovedhealth kjører SELECT 1 mot databasen og oppsummerer alle 23 datakilder. Docker-health brukes i tillegg for containernivå og oppstartsrekkefølge.", s["Body"])]
+    story += [p("Hver brukerrettede tjeneste har /health, og fagappene har også /ready som kontrollerer forbindelsen til Fibaro10. Hovedhealth kjører SELECT 1 mot databasen og oppsummerer alle 24 datakilder. Docker-health brukes i tillegg for containernivå og oppstartsrekkefølge.", s["Body"])]
     story += [Paragraph("11.2 Operativt hendelsessenter", s["Heading2"])]
     for text in [
         "Feilede eller for gamle datakilder blir operative hendelser.",

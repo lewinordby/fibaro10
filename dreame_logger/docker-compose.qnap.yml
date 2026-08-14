@@ -1,0 +1,30 @@
+services:
+  dreame_logger:
+    build: .
+    container_name: dreame_logger
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      LOCAL_TIMEZONE: Europe/Oslo
+      DREAME_DATA_DIR: /data
+      DREAME_SYNC_INTERVAL_SECONDS: ${DREAME_SYNC_INTERVAL_SECONDS:-300}
+      DREAME_EXPECTED_ROBOT_NAME: ${DREAME_EXPECTED_ROBOT_NAME:-Aqua10}
+      FIBARO10_API_BASE_URL: http://fibaro10:8110
+    ports:
+      - "192.168.20.218:8094:8094"
+    volumes:
+      - dreame_logger_data:/data
+    networks:
+      - fibaro10_default
+
+volumes:
+  dreame_logger_data:
+    external: true
+    name: dreame_logger_dreame_logger_data
+
+networks:
+  fibaro10_default:
+    external: true
+    name: fibaro10_default
+
