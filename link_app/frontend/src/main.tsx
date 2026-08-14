@@ -15,7 +15,8 @@ const linkExtensions: DomainAppExtensions = {
     if (customViews.has(view)) return {
       content: <Suspense fallback={null}><LinkReviewSpecial review={review} view={view} reload={reload} /></Suspense>,
       hideActions: true,
-      hideCards: view !== "oversikt",
+      hideFilters: true,
+      hideCards: true,
       hideTables: true,
     };
     const tables = view === "treffgrunnlag"

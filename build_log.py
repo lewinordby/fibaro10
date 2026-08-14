@@ -12,6 +12,41 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1747",
+        "date": "14.08.2026",
+        "headline": "Mikroappene prioriterer nyttig informasjon tydeligere",
+        "title": "Førstesider, kort og tabeller er ryddet for raskere oversikt",
+        "description": (
+            "Alle mikroappene er vurdert som én arbeidsflate. De sterke dashboardene for omsetning, "
+            "parkering, soling og drift er bevart, mens Vedlikehold, System, Koble og appvelgeren er "
+            "bygget om der tekniske detaljer tidligere tok oppmerksomheten fra handling og status."
+        ),
+        "applications": [
+            "Fibaro10 build 1747: nytt og mer målrettet datagrunnlag for Vedlikehold, System og Koble.",
+            "Appvelger build 36: kompakt helsestatus og kortere, fullt klikkbare appinnganger.",
+            "Omsetning build 37, Parkering build 29 og Soling build 29: felles kort- og tabellforbedringer.",
+            "Energi build 26 og Bygg og drift build 65: kompaktere felles presentasjon og norske feltnavn.",
+            "Vedlikehold build 25: oppfølging og siste utførte arbeid prioriteres på førstesiden.",
+            "System build 31: avvik, datakildeferskhet og siste endringer vises uten teknisk støy.",
+            "Koble build 24: kvalifiseringskrav, sterke kandidater og kontrollinnganger forklares samlet.",
+        ],
+        "request": "Kan du ta en grundig gjennomgang av alle mikro appene og se om du kan gjøre forbedringer med hensyn til at systemet skal gi enkel og nyttig informasjon",
+        "work_duration": "ca. 75 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Reduserer generiske kort til fire kolonner, mindre typografi og kortere høyde.",
+            "Lar forklarende korttekst gå over to linjer i stedet for å bli skjult.",
+            "Fjerner vertikal bevegelse på klikkbare kort og bruker rolig skyggerespons.",
+            "Oversetter vanlige database- og API-felter til tydelige norske tabelloverskrifter.",
+            "Lar lange beskrivelser, meldinger og notater bryte linjer uten å presse siden sideveis.",
+            "Prioriterer åpne oppfølgingspunkter og siste arbeid på Vedlikehold.",
+            "Prioriterer datakildeavvik og arbeidsliste på System, og flytter AI-logg bort fra førstesiden.",
+            "Samler Kobles viktigste krav, nøkkeltall og tre naturlige kontrollsteg i en arbeidsflate.",
+            "Forenkler appvelgeren fra tre store statuskort til én kompakt, automatisk oppdatert statuslinje.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1746",
         "date": "14.08.2026",
         "headline": "Driftsoversikten har fått en tydeligere operativ puls",

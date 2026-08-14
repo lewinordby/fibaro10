@@ -31041,6 +31041,9 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 ),
                 "kobleReview": {
                     "generatedAt": api_local_iso(now_dt),
+                    "workerStatus": state.status or "-",
+                    "workerDetail": worker_detail,
+                    "workerSeenAt": api_local_iso(state.last_worker_seen_at),
                     "generation": generation,
                     "minMatches": min_required_matches,
                     "maxMinutes": int_or_zero(state.max_minutes),
@@ -33352,39 +33355,31 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "title": v2_module_title("vedlikehold", view),
                 "subtitle": "Logg for arbeid og observasjoner hver gang du er tilstede på Sun2.",
                 "cards": [
+                    api_card("Må følges opp", len(follow_up_logs), "stk", "Åpne punkter som krever handling", "danger" if follow_up_logs else "status", href="/vedlikehold/oversikt"),
                     api_card("I dag", today_count, "stk", "Registrerte aktiviteter", "status", href="/vedlikehold/oversikt"),
-                    api_card("Denne måneden", month_count, "stk", f"{sunbed_month_count} på senger", "status", href="/vedlikehold/oversikt"),
-                    api_card("Oppfølging", len(follow_up_logs), "stk", "Åpne punkter", "status", href="/vedlikehold/oversikt"),
-                    api_card("Besøk i dag", today_visit_count, "stk", site_visit_label(active_visit) or "Fra OwnTracks", "status", href="/vedlikehold/besok"),
-                    api_card("Sist logget", format_source_datetime_short(latest.performed_at) if latest else "-", "", latest.summary[:80] if latest and latest.summary else "", "status", href="/vedlikehold/oversikt"),
+                    api_card("Denne måneden", month_count, "stk", f"{sunbed_month_count} gjelder solsenger", "status", href="/vedlikehold/oversikt"),
+                    api_card("Sist logget", format_source_datetime_short(latest.performed_at) if latest else "-", "", latest.summary[:80] if latest and latest.summary else "Ingen registreringer", "status", href="/vedlikehold/oversikt"),
                 ],
                 "tables": [
                     api_table(
-                        "Vedlikeholdslogg",
+                        "Krever oppfølging",
                         [
                             "performed_at",
-                            "site_visit",
-                            "target_type",
                             "target_name",
-                            "action_type",
                             "priority",
-                            "status",
                             "summary",
-                            "tags",
-                            "performed_by",
-                            "duration_minutes",
-                            "follow_up_needed",
                             "follow_up_text",
+                            "status",
                         ],
-                        log_rows,
+                        [maintenance_log_row(row, site_visit_by_id.get(int(row.site_visit_id or 0))) for row in follow_up_logs],
                         edit=edit_config,
                     ),
                     api_table(
-                        "Siste Lilletorget-besøk",
-                        ["started_at", "ended_at", "duration", "status", "tasks_count", "last_synced_at"],
-                        visit_rows[:20],
+                        "Siste vedlikehold",
+                        ["performed_at", "target_name", "action_type", "summary", "status", "performed_by"],
+                        log_rows,
+                        edit=edit_config,
                     ),
-                    api_table("Tagger", ["tag", "count", "last_seen"], tag_rows[:80]),
                 ],
             }
 
@@ -33413,21 +33408,24 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             ]
             build_log_columns = ["date", "build", "headline"]
             urgent_task_count = sum(1 for row in admin_task_rows if row["severity"] in {"Kritisk", "Høy"})
+            problem_import_rows = [row for row in import_api_rows if row.get("status") != "ok"]
+            ok_import_count = len(import_api_rows) - len(problem_import_rows)
             actions = []
             charts = []
             reconciliation = None
             admin_cards = [
-                api_card("Oppgaver", len(admin_task_rows), "stk", f"{urgent_task_count} kritisk/høy", "status", href="/admin/oppgaver"),
-                api_card("Build", APP_BUILD, "", BUILD_LOG[0]["title"], "status", href="/admin/build"),
-                api_card("Datakilder OK", sum(1 for row in import_rows if row["status"] == "ok"), "stk", f"{len(import_rows)} totalt", "status", href="/admin/datakilder"),
-                api_card("Treg/feil", sum(1 for row in import_rows if row["status"] != "ok"), "stk", "Fra importstatus", "status", href="/admin/datakilder"),
-                api_card("Brukere", len(access_keys), "stk", "Tilgangsnøkler uten hemmelige verdier", "status", href="/admin/brukere"),
+                api_card("Datakilder", f"{ok_import_count}/{len(import_api_rows)}", "OK", "Alle ferske" if not problem_import_rows else f"{len(problem_import_rows)} krever kontroll", "danger" if problem_import_rows else "status", href="/admin/datakilder"),
+                api_card("Krever oppfølging", len(admin_task_rows), "stk", "Samlet arbeidsliste", "danger" if urgent_task_count else "status", href="/admin/oppgaver"),
+                api_card("Kritisk / høy", urgent_task_count, "stk", "Prioriteres først", "danger" if urgent_task_count else "status", href="/admin/oppgaver"),
+                api_card("Siste build", APP_BUILD, "", BUILD_LOG[0]["title"], "status", href="/admin/build"),
             ]
-            tables = [
-                api_table("Datakilder", ["source_no", "title", "category", "status", "status_text", "age", "last_success_at", "message"], import_api_rows),
-                api_table("Buildlogg", build_log_columns, [api_build_log_row(row) for row in BUILD_LOG[:25]]),
-                api_table("AI-logg", ["timestamp", "username", "question", "ok", "error"], [api_pick(row, AI_QUERY_COLUMNS) for row in ai_logs]),
-            ]
+            tables = []
+            if problem_import_rows:
+                tables.append(api_table("Datakilder som krever oppmerksomhet", ["source_no", "title", "category", "status", "age", "message"], problem_import_rows))
+            tables.extend([
+                api_table("Datakilder", ["source_no", "title", "category", "status", "age", "message"], import_api_rows),
+                api_table("Siste endringer", build_log_columns, [api_build_log_row(row) for row in BUILD_LOG[:8]]),
+            ])
             if view == "oppgaver":
                 actions = [
                     {

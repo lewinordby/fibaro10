@@ -157,33 +157,24 @@ const toneClasses: Record<string, { icon: string; badge: string }> = {
 
 function AppCard({ app }: { app: AppRow }) {
   const tone = toneClasses[app.tone] || toneClasses.system;
-  return (
-    <div className="flex flex-col col-span-full sm:col-span-6 xl:col-span-4 bg-white dark:bg-gray-800 shadow-sm rounded-xl">
-      <div className="px-5 pt-5 grow">
-        <header className="flex justify-between items-start mb-2">
-          <span className={`flex items-center justify-center w-10 h-10 rounded-full ${tone.icon}`}><Glyph name={app.icon} className="text-current" size={18} /></span>
-          <span className={`text-sm font-medium px-1.5 rounded-full ${app.status === "ok" ? "text-green-700 bg-green-500/20" : app.available ? "text-red-700 bg-red-500/20" : tone.badge}`}>{app.statusText}</span>
-        </header>
-        <div className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase mb-1">{app.category}</div>
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{app.name}</h2>
-        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{app.description}</p>
-      </div>
-      <div className="px-5 py-4 mt-5 border-t border-gray-100 dark:border-gray-700/60 flex items-center justify-between">
-        <span className="text-xs text-gray-400 dark:text-gray-500">{app.build ? `Build ${app.build}` : app.available ? "Build ikke tilgjengelig" : `Port ${new URL(app.url).port}`}</span>
-        {app.available ? <a className="font-medium text-sm text-violet-500 hover:text-violet-600 dark:hover:text-violet-400" href={app.url}>Åpne <span aria-hidden="true">-&gt;</span></a> : <span className="text-xs font-semibold uppercase text-gray-400 dark:text-gray-500">Planlagt</span>}
+  const card = <>
+    <div className="flex grow gap-4 px-5 py-5">
+      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tone.icon}`}><Glyph name={app.icon} className="text-current" size={18} /></span>
+      <div className="min-w-0">
+        <div className="text-xs font-semibold uppercase text-gray-400 dark:text-gray-500">{app.category}</div>
+        <h2 className="mt-0.5 text-lg font-semibold text-gray-800 dark:text-gray-100">{app.name}</h2>
+        <p className="mt-1 text-sm leading-5 text-gray-500 dark:text-gray-400">{app.description}</p>
       </div>
     </div>
-  );
-}
-
-function StatCard({ label, value, tone }: { label: string; value: number; tone: "violet" | "green" | "gray" }) {
-  const color = tone === "green" ? "text-green-700 bg-green-500/20" : tone === "violet" ? "text-violet-600 bg-violet-500/20" : "text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-300";
-  return (
-    <div className="col-span-full sm:col-span-4 bg-white dark:bg-gray-800 shadow-sm rounded-xl px-5 py-4 flex items-center justify-between">
-      <div><div className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase mb-1">{label}</div><div className="text-2xl font-bold text-gray-800 dark:text-gray-100 tabular-nums">{value}</div></div>
-      <span className={`w-9 h-9 rounded-full flex items-center justify-center ${color}`}><Glyph name={tone === "green" ? "settings" : "apps"} className="text-current" /></span>
+    <div className="flex items-center justify-between border-t border-gray-100 px-5 py-3 dark:border-gray-700/60">
+      <span className={`inline-flex items-center gap-2 text-xs font-medium ${app.status === "ok" ? "text-green-700 dark:text-green-400" : app.available ? "text-red-600 dark:text-red-400" : "text-gray-400"}`}><span className={`h-2 w-2 rounded-full ${app.status === "ok" ? "bg-green-500" : app.available ? "bg-red-500" : "bg-gray-400"}`} />{app.statusText}</span>
+      <span className="text-xs font-medium text-violet-600 dark:text-violet-400">{app.available ? "Åpne →" : "Planlagt"}</span>
     </div>
-  );
+  </>;
+  const classes = "col-span-full flex min-h-44 flex-col rounded-lg bg-white shadow-sm transition-shadow sm:col-span-6 xl:col-span-3 dark:bg-gray-800";
+  return app.available
+    ? <a className={`${classes} hover:shadow-md`} href={app.url} title={app.build ? `${app.name}, build ${app.build}` : app.name}>{card}</a>
+    : <div className={`${classes} opacity-75`}>{card}</div>;
 }
 
 export default function App() {
@@ -227,15 +218,13 @@ export default function App() {
 
             {!loading && !error && appsData ? (
               <>
-                <div className="grid grid-cols-12 gap-6 mb-6">
-                  <StatCard label="I drift" value={appsData.summary.available} tone="violet" />
-                  <StatCard label="Klare" value={appsData.summary.healthy} tone="green" />
-                  <StatCard label="Planlagt" value={appsData.summary.planned} tone="gray" />
+                <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700/60">
+                  <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300"><span className={`h-2.5 w-2.5 rounded-full ${appsData.summary.healthy === appsData.summary.available ? "bg-green-500" : "bg-yellow-500"}`} /><strong className="text-gray-800 dark:text-gray-100">{appsData.summary.healthy} av {appsData.summary.available} apper klare</strong>{appsData.summary.planned ? <span>· {appsData.summary.planned} planlagt</span> : null}</div>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">Status oppdateres automatisk hvert 30. sekund</span>
                 </div>
-                <div className="grid grid-cols-12 gap-6">
+                <div className="grid grid-cols-12 gap-5">
                   {appsData.apps.map((app) => <AppCard app={app} key={app.id} />)}
                 </div>
-                <div className="mt-8 text-xs text-gray-400 dark:text-gray-500">Appskallet inneholder ingen fagdata eller forretningslogikk.</div>
               </>
             ) : null}
           </div>

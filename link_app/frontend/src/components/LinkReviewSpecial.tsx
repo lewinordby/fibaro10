@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { MosaicIcon, Panel, nok } from "@lilletorget/microapp-ui";
+import { AppLink, MosaicIcon, Panel, nok } from "@lilletorget/microapp-ui";
 import { domainApi } from "@lilletorget/microapp-ui/api";
 import type { KobleQualifiedRow, KobleQualifiedSun2Row, KobleReviewCandidate, KobleReviewData } from "../types";
 
@@ -78,5 +78,34 @@ export function LinkReviewSpecial({ review, view, reload }: { review: KobleRevie
   if (view === "sun2" || view === "sun2-kontroll") return <Sun2Control review={review} />;
   if (view === "kandidater") return <Candidates review={review} reload={reload} />;
   if (view !== "oversikt") return null;
-  return <Panel title="Slik kvalifiseres en kobling" subtitle={`Samme bil og samme Sun2-ID på minst ${review.minMatches} ulike parkeringer, med solstart innen ${review.maxMinutes} minutter`}><div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-4"><div><span className="text-xs uppercase text-gray-400">Kandidater</span><strong className="block text-2xl text-gray-800 dark:text-gray-100">{review.candidateCount}</strong></div><div><span className="text-xs uppercase text-gray-400">Sterke</span><strong className="block text-2xl text-gray-800 dark:text-gray-100">{review.strongCandidateCount}</strong></div><div><span className="text-xs uppercase text-gray-400">Enkelttreff, ikke kandidater</span><strong className="block text-2xl text-gray-800 dark:text-gray-100">{review.rawOneOffPairCount || 0}</strong></div><div><span className="text-xs uppercase text-gray-400">Parkeringer behandlet</span><strong className="block text-2xl text-gray-800 dark:text-gray-100">{review.processedCount}</strong></div></div></Panel>;
+  const workerState = String(review.workerStatus || "").toLowerCase();
+  const workerFailed = workerState.includes("feil");
+  const workerPaused = !workerState || workerState === "-" || workerState.includes("stopp");
+  const workerTone = workerFailed ? "bg-red-500/15 text-red-600 dark:text-red-400" : workerPaused ? "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400" : "bg-green-500/15 text-green-700 dark:text-green-400";
+  const workerDot = workerFailed ? "bg-red-500" : workerPaused ? "bg-yellow-500" : "bg-green-500";
+  return <div className="space-y-5">
+    <Panel
+      title="Koblingsstatus"
+      subtitle={`Oppdatert ${dateTime(review.generatedAt)} · generasjon ${review.generation}`}
+      actions={<span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${workerTone}`}><span className={`h-2 w-2 rounded-full ${workerDot}`} />{review.workerStatus || "Ukjent"}</span>}
+    >
+      <div className="grid gap-x-8 gap-y-5 px-5 py-5 sm:grid-cols-2 xl:grid-cols-4">
+        <div><span className="text-xs font-semibold uppercase text-gray-400">Kvalifiserte biler</span><strong className="mt-1 block text-2xl font-semibold tabular-nums text-gray-800 dark:text-gray-100">{nok(review.qualifiedPlateCount || 0)}</strong><small className="text-gray-500 dark:text-gray-400">Minst {review.minMatches} parkeringer med samme Sun2-ID</small></div>
+        <div><span className="text-xs font-semibold uppercase text-gray-400">Bil / Sun2-par</span><strong className="mt-1 block text-2xl font-semibold tabular-nums text-gray-800 dark:text-gray-100">{nok(review.qualifiedPairCount || 0)}</strong><small className="text-gray-500 dark:text-gray-400">Oppfyller grunnkravet</small></div>
+        <div><span className="text-xs font-semibold uppercase text-gray-400">Sterke til kontroll</span><strong className="mt-1 block text-2xl font-semibold tabular-nums text-gray-800 dark:text-gray-100">{nok(review.strongCandidateCount)}</strong><small className="text-gray-500 dark:text-gray-400">Minst 70 % sannsynlighet</small></div>
+        <div><span className="text-xs font-semibold uppercase text-gray-400">Parkert ved soltreff</span><strong className="mt-1 block text-2xl font-semibold tabular-nums text-gray-800 dark:text-gray-100">{money(review.qualifiedMatchedPaidTotal)}</strong><small className="text-gray-500 dark:text-gray-400">Kun parkeringer med kvalifisert treff</small></div>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-5 py-3 text-sm dark:border-gray-700/60">
+        <p className="text-gray-500 dark:text-gray-400"><strong className="text-gray-700 dark:text-gray-200">Krav:</strong> Samme bil og Sun2-ID på minst {review.minMatches} ulike parkeringer, med solstart innen {review.maxMinutes} minutter.</p>
+        <span className="whitespace-nowrap text-xs text-gray-400">Worker sist sett {dateTime(review.workerSeenAt)}</span>
+      </div>
+    </Panel>
+    <Panel title="Kontroller koblingene" subtitle="Start med de sterke kandidatene, og bruk bil- eller Sun2-visningen når du vil se hele grunnlaget.">
+      <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
+        <AppLink className="flex items-center justify-between gap-5 px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/20" to="/kandidater"><div><strong className="text-gray-800 dark:text-gray-100">Vurder kandidater</strong><p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Bekreft eller avvis forslag med tidslinje og sannsynlighet.</p></div><span className="shrink-0 font-semibold tabular-nums text-violet-600 dark:text-violet-400">{nok(review.strongCandidateCount)} sterke <MosaicIcon className="ml-1 inline" name="arrow-right" /></span></AppLink>
+        <AppLink className="flex items-center justify-between gap-5 px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/20" to="/biltreff"><div><strong className="text-gray-800 dark:text-gray-100">Se biler med gjentatte treff</strong><p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Vis hvor ofte bilen parkerer med og uten tilhørende soltime.</p></div><span className="shrink-0 font-semibold tabular-nums text-violet-600 dark:text-violet-400">{nok(review.qualifiedPlateCount || 0)} biler <MosaicIcon className="ml-1 inline" name="arrow-right" /></span></AppLink>
+        <AppLink className="flex items-center justify-between gap-5 px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/20" to="/sun2"><div><strong className="text-gray-800 dark:text-gray-100">Kontroller per Sun2-ID</strong><p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Se hvilke biler som peker mot samme bruker.</p></div><span className="shrink-0 font-semibold text-violet-600 dark:text-violet-400">Åpne <MosaicIcon className="ml-1 inline" name="arrow-right" /></span></AppLink>
+      </div>
+    </Panel>
+  </div>;
 }

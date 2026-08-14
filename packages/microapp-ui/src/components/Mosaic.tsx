@@ -2,7 +2,7 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 export function Panel({ title, subtitle, actions, children, className = "" }: { title?: string; subtitle?: string; actions?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={`bg-white dark:bg-gray-800 shadow-sm rounded-xl ${className}`}>
+    <section className={`bg-white dark:bg-gray-800 shadow-sm rounded-lg ${className}`}>
       {title || subtitle || actions ? (
         <header className="px-5 py-4 border-b border-gray-100 dark:border-gray-700/60 flex items-center justify-between gap-6">
           <div>{title ? <h2 className="font-semibold text-gray-800 dark:text-gray-100">{title}</h2> : null}{subtitle ? <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{subtitle}</p> : null}</div>
@@ -17,10 +17,10 @@ export function Panel({ title, subtitle, actions, children, className = "" }: { 
 export function MetricCard({ label, value, unit, detail, tone = "gray" }: { label: string; value: string | number; unit?: string; detail?: string; tone?: "violet" | "red" | "sky" | "yellow" | "green" | "gray" }) {
   const toneClass = { violet: "text-violet-500", red: "text-red-500", sky: "text-sky-500", yellow: "text-yellow-500", green: "text-green-500", gray: "text-gray-400 dark:text-gray-500" }[tone];
   return (
-    <article className="min-w-0 bg-white dark:bg-gray-800 shadow-sm rounded-xl px-5 py-5">
+    <article className="min-w-0 bg-white dark:bg-gray-800 shadow-sm rounded-lg px-4 py-4">
       <div className={`text-xs font-semibold uppercase mb-1 ${toneClass}`}>{label}</div>
-      <div className="flex items-start"><div className="text-3xl font-bold text-gray-800 dark:text-gray-100 tabular-nums">{value}</div>{unit ? <span className="ml-2 mt-1 text-sm font-medium text-gray-400 dark:text-gray-500">{unit}</span> : null}</div>
-      {detail ? <p className="mt-2 truncate text-xs text-gray-500 dark:text-gray-400">{detail}</p> : null}
+      <div className="flex items-start"><div className="text-2xl font-semibold text-gray-800 dark:text-gray-100 tabular-nums">{value}</div>{unit ? <span className="ml-2 mt-1 text-sm font-medium text-gray-400 dark:text-gray-500">{unit}</span> : null}</div>
+      {detail ? <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-gray-500 dark:text-gray-400">{detail}</p> : null}
     </article>
   );
 }

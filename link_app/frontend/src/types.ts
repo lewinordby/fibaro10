@@ -65,6 +65,9 @@ export type KobleQualifiedSun2Row = KobleQualifiedRow & {
 
 export type KobleReviewData = {
   generatedAt?: string | null;
+  workerStatus?: string | null;
+  workerDetail?: string | null;
+  workerSeenAt?: string | null;
   generation: number;
   minMatches: number;
   maxMinutes: number;
