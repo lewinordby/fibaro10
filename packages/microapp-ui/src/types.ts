@@ -33,7 +33,15 @@ export type ModuleChartSeries = {
   color?: string;
   yAxisIndex?: number;
   step?: "start" | "middle" | "end";
+  smooth?: boolean;
   hidden?: boolean;
+};
+
+export type ModuleChartMetric = {
+  key: string;
+  label: string;
+  unit?: string;
+  series: ModuleChartSeries[];
 };
 
 export type ModuleChart = {
@@ -41,8 +49,16 @@ export type ModuleChart = {
   subtitle?: string;
   type?: "line" | "bar";
   x: string[];
+  xAxisType?: "category" | "time";
+  xAxisMin?: string | null;
+  xAxisMax?: string | null;
+  disableZoom?: boolean;
   height?: number;
   series: ModuleChartSeries[];
+  metrics?: ModuleChartMetric[];
+  defaultMetric?: string;
+  defaultVisibleSeries?: string[];
+  dayNavigation?: ModuleDayNavigation | null;
 };
 
 export type ModuleEditField = {

@@ -6,7 +6,7 @@ import { resolveCorePath } from "../navigation";
 import { filterTableRows, sortTableRows, type TableSort } from "../table";
 import type { Accent, DomainUiConfig, JsonRecord, ModuleAction, ModuleChart, ModuleEditConfig, ModuleEditField, ModuleFilter, ModuleResponse, ModuleRow, ModuleTable } from "../types";
 import { Chart, mosaicChartColors, type MosaicChartConfig } from "./Chart";
-import { MetricCard, Panel } from "./Mosaic";
+import { IconButton, MetricCard, Panel, Segmented } from "./Mosaic";
 import { MosaicIcon } from "./MosaicIcon";
 
 const palette = [mosaicChartColors.sky, mosaicChartColors.violet, mosaicChartColors.yellow, mosaicChartColors.green, mosaicChartColors.red, mosaicChartColors.gray];
@@ -43,13 +43,71 @@ function ModuleCards({ data, config }: { data: ModuleResponse["cards"]; config: 
   })}</section>;
 }
 
-function chartConfig(chart: ModuleChart): MosaicChartConfig {
-  const unit = chart.series.find((series) => series.unit)?.unit || "";
-  return { type: chart.type === "bar" ? "bar" : "line", labels: chart.x, tooltipUnit: unit, yTick: (value) => Math.abs(value) >= 1000 ? `${Math.round(value / 1000)}k` : String(Math.round(value)), datasets: chart.series.map((series, index) => ({ label: series.name, type: (series.type || chart.type) === "bar" ? "bar" : "line", data: series.data.map((value) => Array.isArray(value) ? value[1] : value), color: series.color || palette[index % palette.length], stepped: Boolean(series.step), hidden: series.hidden })) };
+function chartConfig(chart: ModuleChart, series: ModuleChart["series"], metricUnit = ""): MosaicChartConfig {
+  const timeAxis = chart.xAxisType === "time";
+  const requestedVisible = new Set(chart.defaultVisibleSeries || []);
+  const useRequestedVisibility = requestedVisible.size > 0 && series.some((item) => requestedVisible.has(item.name));
+  const primaryUnit = metricUnit || series.find((item) => (item.yAxisIndex || 0) === 0 && item.unit)?.unit || "";
+  const secondaryUnits = Array.from(new Set(series.filter((item) => item.yAxisIndex === 1).map((item) => item.unit).filter(Boolean))) as string[];
+  const parseTime = (value: string) => {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+  return {
+    type: chart.type === "bar" ? "bar" : "line",
+    labels: timeAxis ? undefined : chart.x,
+    xType: timeAxis ? "linear" : "category",
+    xMin: timeAxis && chart.xAxisMin ? parseTime(chart.xAxisMin) : undefined,
+    xMax: timeAxis && chart.xAxisMax ? parseTime(chart.xAxisMax) : undefined,
+    xTick: timeAxis ? (value) => new Date(Number(value)).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" }) : undefined,
+    yUnit: primaryUnit,
+    y1Unit: secondaryUnits.length === 1 ? secondaryUnits[0] : secondaryUnits.length ? "Vær / sol" : undefined,
+    y1Min: secondaryUnits.length ? 0 : undefined,
+    y1Max: secondaryUnits.length === 1 && secondaryUnits[0] === "%" ? 100 : undefined,
+    tooltipUnit: primaryUnit,
+    yTick: (value) => Math.abs(value) >= 1000 ? `${Math.round(value / 1000)}k` : String(Math.round(value)),
+    datasets: series.map((item, index) => ({
+      label: item.name,
+      type: (item.type || chart.type) === "bar" ? "bar" : "line",
+      data: item.data.map((value, pointIndex) => Array.isArray(value)
+        ? (timeAxis ? (value[1] == null ? null : { x: parseTime(value[0]), y: value[1] }) : value[1])
+        : (timeAxis ? (value == null ? null : { x: pointIndex, y: value }) : value)),
+      color: item.color || palette[index % palette.length],
+      unit: item.unit || primaryUnit,
+      yAxisID: item.yAxisIndex === 1 ? "y1" : "y",
+      stepped: Boolean(item.step),
+      hidden: useRequestedVisibility ? !requestedVisible.has(item.name) : item.hidden,
+    })),
+  };
+}
+
+function ModuleChartPanel({ chart }: { chart: ModuleChart }) {
+  const metrics = chart.metrics || [];
+  const [metricKey, setMetricKey] = useState(chart.defaultMetric || metrics[0]?.key || "");
+  const [params, setParams] = useAppSearchParams();
+  const activeMetric = metrics.find((metric) => metric.key === metricKey) || metrics[0];
+  const activeSeries = activeMetric?.series || chart.series;
+  const config = useMemo(() => chartConfig(chart, activeSeries, activeMetric?.unit), [chart, activeMetric, activeSeries]);
+  const go = (day: string) => {
+    const next = new URLSearchParams(params);
+    if (day) next.set("day", day); else next.delete("day");
+    setParams(next);
+  };
+  const day = chart.dayNavigation;
+  const actions = metrics.length > 1 || day ? <div className="flex flex-wrap items-center justify-end gap-3">
+    {metrics.length > 1 ? <Segmented options={metrics.map((metric) => ({ value: metric.key, label: metric.label }))} value={activeMetric?.key || metricKey} onChange={setMetricKey} /> : null}
+    {day ? <div className="flex items-center gap-2">
+      <IconButton aria-label="Forrige dag" onClick={() => go(day.prevDay)}><MosaicIcon name="arrow-left" /></IconButton>
+      <button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" type="button" onClick={() => go("")}>I dag</button>
+      <IconButton aria-label="Neste dag" disabled={day.isToday} onClick={() => go(day.nextDay)}><MosaicIcon name="arrow-right" /></IconButton>
+      <input aria-label="Dato" className="form-input w-36" type="date" value={day.selectedDay} onChange={(event) => go(event.target.value)} />
+    </div> : null}
+  </div> : undefined;
+  return <Panel title={chart.title} subtitle={chart.subtitle} actions={actions}><div className="px-3 py-3"><Chart config={config} height={Math.min(460, Math.max(280, chart.height || 340))} /></div></Panel>;
 }
 
 function ModuleCharts({ charts = [] }: { charts?: ModuleChart[] }) {
-  return <>{charts.map((chart) => <Panel key={chart.title} title={chart.title} subtitle={chart.subtitle}><div className="px-3 py-3"><Chart config={chartConfig(chart)} height={Math.min(460, Math.max(280, chart.height || 340))} /></div></Panel>)}</>;
+  return <>{charts.map((chart) => <ModuleChartPanel chart={chart} key={chart.title} />)}</>;
 }
 
 function RowLink({ path, config, coreUrl, children }: { path: string; config: DomainUiConfig; coreUrl: string; children: React.ReactNode }) {

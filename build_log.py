@@ -12,6 +12,37 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1748",
+        "date": "14.08.2026",
+        "headline": "Tidsserier og grafvalg fungerer i mikroappene",
+        "title": "Den felles grafmotoren viser hele datagrunnlaget riktig",
+        "description": (
+            "Den visuelle kvalitetssjekken av mikroappene avdekket at tidsserier hadde data i tabellene, "
+            "men manglet i grafene. Den felles grafkomponenten er utvidet med tidsakse, metrikkvalg, "
+            "sekundær akse, datovelger og tydeligere enheter. Forbedringen gjelder alle fagappene."
+        ),
+        "applications": [
+            "Fibaro10 build 1748: registrerer og leverer den utvidede felles grafmodellen.",
+            "Omsetning build 38, Parkering build 30 og Soling build 30: oppdatert felles grafmotor.",
+            "Energi build 27: effekt- og forbruksserier vises igjen med døgnakse og datovelger.",
+            "Bygg og drift build 66: lys- og driftsgrafer får korrekt tidsakse og sekundær akse.",
+            "Vedlikehold build 26, System build 32 og Koble build 25: samme verifiserte komponentgrunnlag.",
+        ],
+        "request": "Kan du ta en grundig gjennomgang av alle mikro appene og se om du kan gjøre forbedringer med hensyn til at systemet skal gi enkel og nyttig informasjon",
+        "work_duration": "ca. 100 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Retter tomme tidsseriegrafer i mikroappene uten å endre eller rekonstruere kildedata.",
+            "Bruker reelle klokkeslett langs x-aksen og låser dagsgrafer til valgt døgn.",
+            "Gjeninnfører valg mellom effekt og akkumulert forbruk der API-et tilbyr flere måletyper.",
+            "Viser datovelger og forrige/neste dag direkte sammen med dagsgrafen.",
+            "Støtter sekundær akse for prosent, vær og solhøyde uten å presse verdiene inn på effektaksen.",
+            "Viser riktig enhet per dataserie i verktøytips.",
+            "Respekterer hvilke serier som skal være synlige når grafen åpnes.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1747",
         "date": "14.08.2026",
         "headline": "Mikroappene prioriterer nyttig informasjon tydeligere",

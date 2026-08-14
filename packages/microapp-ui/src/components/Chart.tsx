@@ -52,6 +52,8 @@ export type MosaicChartDataset = {
   data: Array<number | null | Point>;
   type?: "line" | "bar";
   color: string;
+  unit?: string;
+  yAxisID?: "y" | "y1";
   fill?: boolean;
   stepped?: boolean;
   dashed?: boolean;
@@ -65,6 +67,12 @@ export type MosaicChartConfig = {
   labels?: Array<string | number>;
   datasets: MosaicChartDataset[];
   xType?: "category" | "linear";
+  xMin?: number;
+  xMax?: number;
+  yUnit?: string;
+  y1Unit?: string;
+  y1Min?: number;
+  y1Max?: number;
   stacked?: boolean;
   beginAtZero?: boolean;
   yInteger?: boolean;
@@ -92,6 +100,7 @@ export function Chart({ config, height = 360 }: { config: MosaicChartConfig; hei
       label: dataset.label,
       data: dataset.data,
       type: dataset.type,
+      yAxisID: dataset.yAxisID,
       borderColor: dataset.color,
       backgroundColor: dataset.fill ? opacity(dataset.color, .16) : dataset.color,
       borderWidth: 2,
@@ -123,6 +132,8 @@ export function Chart({ config, height = 360 }: { config: MosaicChartConfig; hei
         scales: {
           x: {
             type: config.xType || "category",
+            min: config.xMin,
+            max: config.xMax,
             stacked: config.stacked,
             border: { display: false },
             grid: { display: false },
@@ -147,7 +158,20 @@ export function Chart({ config, height = 360 }: { config: MosaicChartConfig; hei
               maxTicksLimit: 6,
               callback: (value) => config.yTick ? config.yTick(Number(value)) : String(value),
             },
+            title: config.yUnit ? { display: true, text: config.yUnit, color: textColor } : undefined,
           },
+          ...(config.datasets.some((dataset) => dataset.yAxisID === "y1") ? {
+            y1: {
+              position: "right" as const,
+              beginAtZero: true,
+              min: config.y1Min,
+              max: config.y1Max,
+              border: { display: false },
+              grid: { display: false },
+              ticks: { color: textColor, maxTicksLimit: 6 },
+              title: config.y1Unit ? { display: true, text: config.y1Unit, color: textColor } : undefined,
+            },
+          } : {}),
         },
         plugins: {
           legend: { display: true, position: "top", align: "end", labels: { color: textColor, usePointStyle: true, pointStyle: "circle", boxWidth: 8, boxHeight: 8 } },
@@ -155,7 +179,10 @@ export function Chart({ config, height = 360 }: { config: MosaicChartConfig; hei
             bodyColor: dark ? css("--color-gray-400") : css("--color-gray-500"),
             backgroundColor: dark ? css("--color-gray-700") : css("--color-white"),
             borderColor: dark ? css("--color-gray-600") : css("--color-gray-200"),
-            callbacks: { label: (context) => `${context.dataset.label}: ${Number(context.parsed.y || 0).toLocaleString("nb-NO")}${config.tooltipUnit ? ` ${config.tooltipUnit}` : ""}` },
+            callbacks: { label: (context) => {
+              const unit = config.datasets[context.datasetIndex]?.unit || config.tooltipUnit || "";
+              return `${context.dataset.label}: ${Number(context.parsed.y || 0).toLocaleString("nb-NO")}${unit ? ` ${unit}` : ""}`;
+            } },
           },
         },
       },
