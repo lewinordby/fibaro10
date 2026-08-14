@@ -12,6 +12,28 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1745",
+        "date": "14.08.2026",
+        "headline": "Dørnavn vises konsekvent i driftsoversikten",
+        "title": "Inngangsdøren vises med brukernavn i stedet for rånavnet fra HC3",
+        "description": (
+            "Oversikten over siste dørhendelser slår nå opp det konfigurerte navnet i dørregisteret før "
+            "den eventuelt bruker det tekniske enhetsnavnet fra HC3. Dermed vises 131.0 Door Sensor som Inngang."
+        ),
+        "applications": [
+            "Fibaro10 build 1745: normaliserer dørnavn i API-et for Bygg og drift-oversikten.",
+        ],
+        "request": "Hvorfor får ikke 131.0 Door Sensor navn også i grensesnittet på oversikten?",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bruker visningsnavn fra dørregisteret ved matching på deviceKey eller HC3-ID.",
+            "Beholder HC3-navnet som reserve dersom en sensor ennå ikke er registrert med et brukernavn.",
+            "Legger inn regresjonstest for at HC3 541 / 131.0 Door Sensor vises som Inngang.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1744",
         "date": "14.08.2026",
         "headline": "Bygg og drift har fått et samlet operativt situasjonsbilde",

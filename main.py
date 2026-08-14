@@ -20480,6 +20480,39 @@ def operations_switch_item(label: str, state: Optional[bool]) -> Dict[str, Any]:
     }
 
 
+def operations_recent_door_items(door_result: Dict[str, Any], limit: int = 4) -> list[Dict[str, Any]]:
+    doors = door_result.get("doors") or []
+    titles_by_key = {
+        str(door.get("deviceKey")): door.get("title")
+        for door in doors
+        if door.get("deviceKey") is not None and door.get("title")
+    }
+    titles_by_id = {
+        str(door.get("deviceId")): door.get("title")
+        for door in doors
+        if door.get("deviceId") is not None and door.get("title")
+    }
+    items = []
+    for change in (door_result.get("changes") or [])[:limit]:
+        device_key = change.get("deviceKey")
+        device_id = change.get("deviceId")
+        label = (
+            titles_by_key.get(str(device_key))
+            or titles_by_id.get(str(device_id))
+            or change.get("deviceName")
+            or device_key
+            or device_id
+            or "Ukjent dør"
+        )
+        items.append({
+            "label": label,
+            "value": change.get("stateLabel"),
+            "detail": change.get("ageLabel"),
+            "state": change.get("state"),
+        })
+    return items
+
+
 @app.get("/api/operations/overview")
 async def api_operations_overview():
     now_dt = local_now_naive()
@@ -20691,10 +20724,7 @@ async def api_operations_overview():
         incidents.append({"area": "Dører", "severity": door_status, "title": issue, "href": "/dorer/alarm" if active_door_alarms else "/dorer"})
     solroom_rows = [door for door in door_rows if door.get("groupKey") == "solrom"]
     other_rows = [door for door in door_rows if door.get("groupKey") != "solrom" and door.get("isConfigured")]
-    recent_door_items = [] if isinstance(door_result, Exception) else [
-        {"label": change.get("deviceName") or change.get("deviceKey"), "value": change.get("stateLabel"), "detail": change.get("ageLabel"), "state": change.get("state")}
-        for change in (door_result.get("changes") or [])[:4]
-    ]
+    recent_door_items = [] if isinstance(door_result, Exception) else operations_recent_door_items(door_result)
     areas.append(operations_area_status(
         "doors",
         "Dører",

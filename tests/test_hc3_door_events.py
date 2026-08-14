@@ -147,6 +147,21 @@ class SunroomDoorTimingTests(unittest.TestCase):
         self.assertEqual(config["device_id"], 543)
         self.assertEqual(config["hc3_name"], "148.0 Door Sensor")
 
+    def test_operations_overview_uses_friendly_door_name(self):
+        result = self.main.operations_recent_door_items({
+            "doors": [{"deviceId": 541, "deviceKey": "door_inngang", "title": "Inngang"}],
+            "changes": [{
+                "deviceId": 541,
+                "deviceKey": "door_inngang",
+                "deviceName": "131.0 Door Sensor",
+                "stateLabel": "Lukket",
+                "ageLabel": "2 min siden",
+                "state": "closed",
+            }],
+        })
+
+        self.assertEqual(result[0]["label"], "Inngang")
+
     def test_expected_exit_uses_payment_delay_sun_time_and_exit_grace(self):
         row = self.main.Sun2TanningSession(
             started_at=datetime(2026, 7, 11, 12, 0),
