@@ -12,6 +12,40 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1735",
+        "date": "14.08.2026",
+        "headline": "Maskinell nattrapport for robotvaskerne",
+        "title": "Renhold får en daglig rapport med nattforløp, jobbkvalitet og driftsklar status",
+        "description": (
+            "En ny rapportside bygger en konsistent nattrapport direkte fra lagrede Roborock-jobber, "
+            "minutt-telemetri og historiske innstillinger. Rapporten bruker ingen AI og kan derfor "
+            "genereres likt på nytt for enhver dato med tilgjengelige data."
+        ),
+        "applications": [
+            "Fibaro10 API: nytt avgrenset rapportendepunkt med eksplisitt Oslo-tid og nattvindu.",
+            "Bygg og drift build 54: ny Nattrapport under Renhold med kalender og dagvis navigasjon.",
+            "Roborock rapportdomene: maskinell vurdering av jobber, batteri, vann, dokk og moppevask.",
+        ],
+        "request": (
+            "Jeg ønsker en rapportside som er ryddig og fin i Fibaro10, basert på det vi nå har "
+            "undersøkt og PDF-rapporten for sist natt. Rapporten skal genereres maskinelt uten AI, "
+            "være nyttig og ha datovelger slik at man kan bla mellom dagene."
+        ),
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Definerer natt som kl. 20:00 til 08:00 og viser fristen før åpning kl. 06:45.",
+            "Viser maskinell konklusjon, samlet tid, areal, fullføring og avvik.",
+            "Legger inn en felles tidslinje med alle robotjobber og tydelig åpningsmarkør.",
+            "Viser per jobb start/slutt, rengjøringstype, nivå, runder, batteri, areal og moppevasker.",
+            "Fanger opp robotfeil, manglende fullføring, vannmangel og dokkfeil uten AI-tolkning.",
+            "Viser historisk moppevaskinnstilling, batteri ved åpning og tidspunkt for full lading.",
+            "Legger til forrige/neste dag, Siste natt og direkte datovelger.",
+            "Legger til tester for nattvindu, tidssone, modus, batteri, vaskefrekvens og vannvarsel.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1734",
         "date": "14.08.2026",
         "headline": "Ny dag nullstiller dørstyrt robotautomatikk",

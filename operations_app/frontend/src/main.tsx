@@ -56,6 +56,16 @@ function withRobotNavigation(config: DomainUiConfig, data: ModuleResponse | null
   const navigation = config.navigation.map((group) => {
     const overview = group.items.find((candidate) => candidate.module === "renhold" && candidate.view === "oversikt");
     if (!overview) return group;
+    const report: NavigationItem = {
+      to: "/renhold/rapport",
+      label: "Nattrapport",
+      icon: "calendar",
+      title: "Nattrapport",
+      description: "Maskinell døgnrapport for rengjøring, batteri, vann og driftsklar status.",
+      module: "renhold",
+      view: "rapport",
+      corePath: "/renhold/rapport",
+    };
     const robotItems: NavigationItem[] = robots.map((robot) => {
       const encodedDuid = encodeURIComponent(robot.duid);
       return {
@@ -69,7 +79,7 @@ function withRobotNavigation(config: DomainUiConfig, data: ModuleResponse | null
         corePath: `/renhold/robot/${encodedDuid}`,
       };
     });
-    return { ...group, items: [overview, ...robotItems] };
+    return { ...group, items: [overview, report, ...robotItems] };
   });
   return { ...config, navigation };
 }

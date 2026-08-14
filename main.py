@@ -83,6 +83,7 @@ from roborock_profiles import (
     cleaning_profile_summary,
     validate_cleaning_profile,
 )
+from roborock_reports import build_night_report, report_window
 from roborock_door_automation import (
     automation_counter_start,
     automation_decision,
@@ -39330,6 +39331,67 @@ async def roborock_door_automation_payload(
             "profile": profile_command_payload(profile_payload),
         }
     return public_payload, command_payload
+
+
+@app.get("/api/renhold/night-report")
+async def api_cleaning_night_report(day: Optional[str] = None):
+    today = datetime.now(LOCAL_TZ).date()
+    try:
+        selected_day = date.fromisoformat(day) if day else today
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Ugyldig dato. Bruk YYYY-MM-DD.") from exc
+    if selected_day > today:
+        raise HTTPException(status_code=400, detail="Rapporten kan ikke vises for en fremtidig dato.")
+
+    window = report_window(selected_day)
+    job_start = local_naive_to_utc_naive(window["start"])
+    job_end = local_naive_to_utc_naive(window["end"])
+    telemetry_start = window["start"] - timedelta(minutes=15)
+    telemetry_end = window["end"] + timedelta(minutes=15)
+    async with async_session() as session:
+        robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
+        robot_duids = [robot.duid for robot in robots]
+        jobs = (
+            await session.execute(
+                select(RoborockCleanJob)
+                .where(RoborockCleanJob.robot_duid.in_(robot_duids or [""]))
+                .where(RoborockCleanJob.begin_at >= job_start)
+                .where(RoborockCleanJob.begin_at < job_end)
+                .order_by(RoborockCleanJob.robot_duid, RoborockCleanJob.begin_at)
+            )
+        ).scalars().all()
+        telemetry_samples = (
+            await session.execute(
+                select(RoborockTelemetrySample)
+                .where(RoborockTelemetrySample.robot_duid.in_(robot_duids or [""]))
+                .where(RoborockTelemetrySample.timestamp >= telemetry_start)
+                .where(RoborockTelemetrySample.timestamp <= telemetry_end)
+                .order_by(RoborockTelemetrySample.robot_duid, RoborockTelemetrySample.timestamp)
+            )
+        ).scalars().all()
+        latest_probe_subq = (
+            select(func.max(RoborockProbeResult.id).label("latest_id"))
+            .where(RoborockProbeResult.robot_duid.in_(robot_duids or [""]))
+            .where(RoborockProbeResult.source == "local-telemetry")
+            .where(RoborockProbeResult.timestamp <= window["end"])
+            .group_by(RoborockProbeResult.robot_duid, RoborockProbeResult.command)
+            .subquery()
+        )
+        probes = (
+            await session.execute(
+                select(RoborockProbeResult)
+                .join(latest_probe_subq, RoborockProbeResult.id == latest_probe_subq.c.latest_id)
+                .where(RoborockProbeResult.command.in_(["GET_SMART_WASH_PARAMS", "GET_WASH_TOWEL_MODE"]))
+            )
+        ).scalars().all()
+    return build_night_report(
+        selected_day,
+        list(robots),
+        list(jobs),
+        list(telemetry_samples),
+        list(probes),
+        generated_at=local_now_naive(),
+    )
 
 
 @app.get("/api/renhold/robots/{duid}")

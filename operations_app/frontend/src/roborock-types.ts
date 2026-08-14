@@ -99,6 +99,82 @@ export type RoborockModuleData = {
   summary?: RoborockOverviewSummary | null;
 };
 
+export type RoborockNightJob = {
+  recordId: string;
+  startedAt: string;
+  endedAt?: string | null;
+  durationMinutes?: number | null;
+  areaM2: number;
+  complete: boolean;
+  errorCode?: number | null;
+  cleaningType: "vacuum" | "mop" | "vacuum_mop";
+  cleaningTypeLabel: string;
+  modeLabel: string;
+  rounds: number;
+  batteryStart?: number | null;
+  batteryEnd?: number | null;
+  washCount?: number | null;
+  expectedWashCount?: number | null;
+  status: "ok" | "warning" | "error";
+  statusLabel: string;
+  issues: string[];
+};
+
+export type RoborockNightRobot = {
+  duid: string;
+  name: string;
+  model?: string | null;
+  status: "ok" | "warning" | "error" | "neutral";
+  statusLabel: string;
+  jobs: RoborockNightJob[];
+  settings: {
+    supported: boolean;
+    intervalMinutes?: number | null;
+    mode?: number | null;
+    modeLabel?: string | null;
+    automatic: boolean;
+  };
+  totals: {
+    jobs: number;
+    completed: number;
+    durationMinutes: number;
+    areaM2: number;
+    washCount: number;
+  };
+  readiness: {
+    readyBeforeOpening: boolean;
+    lastJobEndedAt?: string | null;
+    batteryAtOpening?: number | null;
+    fullChargeAt?: string | null;
+  };
+  findings: string[];
+};
+
+export type RoborockNightReport = {
+  day: string;
+  previousDay: string;
+  nextDay: string;
+  generatedAt: string;
+  window: { startAt: string; endAt: string; readyBy: string };
+  conclusion: {
+    status: "ok" | "warning" | "error" | "neutral";
+    title: string;
+    detail: string;
+  };
+  summary: {
+    robots: number;
+    activeRobots: number;
+    jobs: number;
+    completed: number;
+    durationMinutes: number;
+    areaM2: number;
+    warnings: number;
+    errors: number;
+    readyBeforeOpening: number;
+  };
+  robots: RoborockNightRobot[];
+};
+
 export type RoborockRobotDetail = {
   robot: JsonRecord;
   metadata: JsonRecord;

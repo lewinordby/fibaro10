@@ -387,6 +387,17 @@ def test_roborock_details_no_longer_depend_on_the_classic_ui() -> None:
     assert "Teknisk informasjon og API-diagnostikk" in detail
 
 
+def test_roborock_night_report_is_available_in_operations() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    core = (repo_root / "main.py").read_text(encoding="utf-8")
+    operations = (repo_root / "operations_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
+    detail = (repo_root / "operations_app" / "frontend" / "src" / "components" / "RoborockSpecial.tsx").read_text(encoding="utf-8")
+    assert '@app.get("/api/renhold/night-report")' in core
+    assert 'to: "/renhold/rapport"' in operations
+    assert "function NightReport()" in detail
+    assert "Nattforløp" in detail
+
+
 def test_specialized_views_have_narrow_proxy_access() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     parking_backend = (repo_root / "parking_app" / "app" / "main.py").read_text(encoding="utf-8")

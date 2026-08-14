@@ -11,6 +11,9 @@ import type {
   RoborockDailySummary,
   RoborockJobSummary,
   RoborockModuleData,
+  RoborockNightJob,
+  RoborockNightReport,
+  RoborockNightRobot,
   RoborockOverviewSummary,
   RoborockReadinessSummary,
   RoborockRobotDetail,
@@ -283,6 +286,121 @@ function RobotOverview({ data }: { data: RoborockModuleData }) {
     <OverviewStrip summary={data.summary} robots={robots} />
     <div className="grid items-start gap-5 md:grid-cols-2">{robots.map((robot) => <RobotCard robot={robot} key={robot.duid} />)}</div>
     {!robots.length ? <Panel><div className="p-8 text-sm text-gray-400">Ingen roboter er registrert.</div></Panel> : null}
+  </div>;
+}
+
+function norwayDay() {
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Oslo" }).format(new Date());
+}
+
+function reportDayLabel(value: string) {
+  const parsed = new Date(`${value}T12:00:00`);
+  const label = parsed.toLocaleDateString("nb-NO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function reportTime(value: string | null | undefined) {
+  const parsed = parsedDate(value);
+  return parsed ? parsed.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Oslo" }) : "-";
+}
+
+function reportTone(status: string) {
+  if (status === "error") return { panel: "border-red-200 bg-red-50/70 dark:border-red-500/30 dark:bg-red-500/10", text: "text-red-700 dark:text-red-300", dot: "bg-red-500" };
+  if (status === "warning") return { panel: "border-amber-200 bg-amber-50/70 dark:border-amber-500/30 dark:bg-amber-500/10", text: "text-amber-800 dark:text-amber-300", dot: "bg-amber-500" };
+  if (status === "ok") return { panel: "border-green-200 bg-green-50/70 dark:border-green-500/30 dark:bg-green-500/10", text: "text-green-800 dark:text-green-300", dot: "bg-green-500" };
+  return { panel: "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/20", text: "text-gray-600 dark:text-gray-300", dot: "bg-gray-400" };
+}
+
+function jobBarColor(job: RoborockNightJob) {
+  if (job.status === "error") return "bg-red-500";
+  if (job.status === "warning") return "bg-amber-500";
+  if (job.cleaningType === "mop") return "bg-emerald-500";
+  if (job.cleaningType === "vacuum_mop") return "bg-violet-500";
+  return "bg-sky-500";
+}
+
+function timelinePosition(value: string | null | undefined, startAt: string, endAt: string) {
+  const valueDate = parsedDate(value);
+  const start = parsedDate(startAt);
+  const end = parsedDate(endAt);
+  if (!valueDate || !start || !end || end <= start) return 0;
+  return Math.max(0, Math.min(100, ((valueDate.getTime() - start.getTime()) / (end.getTime() - start.getTime())) * 100));
+}
+
+function NightTimeline({ report }: { report: RoborockNightReport }) {
+  const hourLabels = ["20", "22", "00", "02", "04", "06", "08"];
+  const readyPosition = timelinePosition(report.window.readyBy, report.window.startAt, report.window.endAt);
+  return <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xs dark:border-gray-700/60 dark:bg-gray-800">
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3 dark:border-gray-700/60">
+      <div><h2 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Nattforløp</h2><p className="mt-0.5 text-xs text-gray-400">Registrerte jobber og frist før åpning kl. {reportTime(report.window.readyBy)}</p></div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-300"><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-sky-500" />Støvsuging</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />Vask</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-amber-500" />Varsel</span></div>
+    </header>
+    <div className="px-5 py-4">
+      <div className="mb-1 grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3 text-[0.65rem] font-medium text-gray-400"><span /><div className="flex justify-between">{hourLabels.map((hour) => <span key={hour}>{hour}:00</span>)}</div></div>
+      <div className="space-y-2.5">{report.robots.map((robot) => <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-3" key={robot.duid}><strong className="truncate text-xs font-semibold text-gray-600 dark:text-gray-200" title={robot.name}>{robot.name}</strong><div className="relative h-7 overflow-hidden rounded-md border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30">
+        <span className="absolute inset-y-0 z-10 border-l border-dashed border-red-400/80" style={{ left: `${readyPosition}%` }} title={`Åpning ${reportTime(report.window.readyBy)}`} />
+        {robot.jobs.map((job) => { const left = timelinePosition(job.startedAt, report.window.startAt, report.window.endAt); const right = timelinePosition(job.endedAt || job.startedAt, report.window.startAt, report.window.endAt); return <span className={`absolute inset-y-1 rounded-sm ${jobBarColor(job)}`} key={job.recordId} style={{ left: `${left}%`, width: `${Math.max(0.7, right - left)}%` }} title={`${reportTime(job.startedAt)}–${reportTime(job.endedAt)} · ${job.cleaningTypeLabel} · ${decimal(job.areaM2, 1)} m²`} />; })}
+      </div></div>)}</div>
+    </div>
+  </section>;
+}
+
+function batteryRange(job: RoborockNightJob) {
+  if (job.batteryStart == null && job.batteryEnd == null) return "-";
+  if (job.batteryStart == null) return `${job.batteryEnd} %`;
+  if (job.batteryEnd == null) return `${job.batteryStart} %`;
+  return `${job.batteryStart} → ${job.batteryEnd} %`;
+}
+
+function washCountLabel(job: RoborockNightJob) {
+  if (job.cleaningType === "vacuum") return "-";
+  if (job.washCount == null) return "Ikke mottatt";
+  return job.expectedWashCount == null ? `${job.washCount}` : `${job.washCount} / ca. ${job.expectedWashCount}`;
+}
+
+function NightRobotReport({ robot, readyBy }: { robot: RoborockNightRobot; readyBy: string }) {
+  const tone = reportTone(robot.status);
+  const settings = robot.settings.supported
+    ? `${robot.settings.modeLabel || "Moppevask"}${robot.settings.intervalMinutes ? ` · hvert ${robot.settings.intervalMinutes}. min` : ""}${robot.settings.automatic ? " · automatisk" : ""}`
+    : "Ikke støttet på denne roboten";
+  return <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xs dark:border-gray-700/60 dark:bg-gray-800">
+    <header className="grid gap-4 border-b border-gray-100 px-5 py-4 md:grid-cols-[minmax(12rem,1fr)_auto_auto] md:items-center dark:border-gray-700/60">
+      <div className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-500/10 text-green-700 dark:text-green-400"><MosaicIcon name="robot" size={18} /></span><div className="min-w-0"><h2 className="truncate text-base font-semibold text-gray-800 dark:text-gray-100">{robot.name}</h2><p className="truncate text-xs text-gray-400">{robot.model || "Modell ikke registrert"}</p></div></div>
+      <div className="text-sm tabular-nums text-gray-500 dark:text-gray-300"><strong className="font-semibold text-gray-800 dark:text-gray-100">{robot.totals.jobs} jobber</strong> · {durationLabel(robot.totals.durationMinutes)} · {decimal(robot.totals.areaM2, 1)} m²</div>
+      <span className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ${tone.panel} ${tone.text}`}><i className={`h-2 w-2 rounded-full ${tone.dot}`} />{robot.statusLabel}</span>
+    </header>
+    <div className="grid border-b border-gray-100 bg-gray-50/60 sm:grid-cols-3 dark:border-gray-700/60 dark:bg-gray-900/20">
+      <div className="border-b px-5 py-3 sm:border-b-0 sm:border-r dark:border-gray-700/60"><span className="block text-[0.65rem] font-semibold uppercase text-gray-400">Siste jobb ferdig</span><strong className="mt-1 block text-sm font-semibold tabular-nums text-gray-700 dark:text-gray-200">{reportTime(robot.readiness.lastJobEndedAt)}</strong><small className={robot.readiness.readyBeforeOpening ? "text-green-700 dark:text-green-400" : "text-amber-700 dark:text-amber-400"}>{robot.jobs.length ? robot.readiness.readyBeforeOpening ? `Før åpning ${reportTime(readyBy)}` : `Etter åpning ${reportTime(readyBy)}` : "Ingen jobb"}</small></div>
+      <div className="border-b px-5 py-3 sm:border-b-0 sm:border-r dark:border-gray-700/60"><span className="block text-[0.65rem] font-semibold uppercase text-gray-400">Batteri ved åpning</span><strong className="mt-1 block text-sm font-semibold tabular-nums text-gray-700 dark:text-gray-200">{robot.readiness.batteryAtOpening == null ? "-" : `${robot.readiness.batteryAtOpening} %`}</strong><small className="text-gray-400">{robot.readiness.fullChargeAt ? `Fullt kl. ${reportTime(robot.readiness.fullChargeAt)}` : "Ikke fullt før rapportslutt"}</small></div>
+      <div className="px-5 py-3"><span className="block text-[0.65rem] font-semibold uppercase text-gray-400">Innstilling moppevask</span><strong className="mt-1 block text-sm font-semibold text-gray-700 dark:text-gray-200">{settings}</strong><small className="text-gray-400">Sist registrerte innstilling denne natten</small></div>
+    </div>
+    <div className="overflow-x-auto"><table className="w-full min-w-[58rem] table-auto"><thead className="bg-white text-[0.65rem] uppercase text-gray-400 dark:bg-gray-800"><tr><th className="px-5 py-3 text-left font-semibold">Tid</th><th className="px-4 py-3 text-left font-semibold">Rengjøring</th><th className="px-4 py-3 text-right font-semibold">Aktiv tid</th><th className="px-4 py-3 text-right font-semibold">Areal</th><th className="px-4 py-3 text-right font-semibold">Batteri</th><th className="px-4 py-3 text-right font-semibold">Moppevask</th><th className="px-5 py-3 text-left font-semibold">Resultat</th></tr></thead><tbody className="divide-y divide-gray-100 text-sm dark:divide-gray-700/60">{robot.jobs.map((job) => { const jobToneValue = reportTone(job.status); return <tr className="align-top hover:bg-gray-50/60 dark:hover:bg-gray-700/20" key={job.recordId}><td className="whitespace-nowrap px-5 py-3 font-medium tabular-nums text-gray-700 dark:text-gray-200">{reportTime(job.startedAt)}–{reportTime(job.endedAt)}</td><td className="px-4 py-3"><strong className="block font-medium text-gray-700 dark:text-gray-200">{job.cleaningTypeLabel}</strong><small className="block text-gray-400">{job.modeLabel}</small></td><td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{durationLabel(job.durationMinutes)}</td><td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{decimal(job.areaM2, 1)} m²</td><td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{batteryRange(job)}</td><td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{washCountLabel(job)}</td><td className="px-5 py-3"><span className={`inline-flex items-center gap-1.5 font-semibold ${jobToneValue.text}`}><i className={`h-2 w-2 rounded-full ${jobToneValue.dot}`} />{job.statusLabel}</span>{job.issues.length ? <small className="mt-1 block max-w-xs text-gray-500 dark:text-gray-400">{job.issues.join(" · ")}</small> : null}</td></tr>; })}{!robot.jobs.length ? <tr><td className="px-5 py-7 text-center text-sm text-gray-400" colSpan={7}>Ingen rengjøringsjobber i nattvinduet.</td></tr> : null}</tbody></table></div>
+    {robot.findings.length ? <div className="flex flex-wrap gap-x-5 gap-y-1 border-t border-gray-100 bg-gray-50/60 px-5 py-3 text-xs text-gray-500 dark:border-gray-700/60 dark:bg-gray-900/20 dark:text-gray-300">{robot.findings.map((finding) => <span className="flex items-start gap-1.5" key={finding}><i className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${tone.dot}`} />{finding}</span>)}</div> : null}
+  </section>;
+}
+
+function NightReport() {
+  const { search, navigate } = useAppLocation();
+  const today = norwayDay();
+  const selectedDay = new URLSearchParams(search).get("day") || today;
+  const result = useApi(() => domainApi.get<RoborockNightReport>(`/api/renhold/night-report?day=${encodeURIComponent(selectedDay)}`), `roborock-night-report-${selectedDay}`);
+  const go = (day: string) => navigate(`/renhold/rapport?day=${encodeURIComponent(day)}`);
+  if (result.loading && !result.data) return <Panel><div className="p-8 text-sm text-gray-400">Bygger nattrapport ...</div></Panel>;
+  if (result.error || !result.data) return <Panel><div className="flex items-center justify-between gap-3 p-6 text-sm text-red-500"><span>{result.error?.message || "Kunne ikke bygge rapporten"}</span><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={result.reload}>Prøv igjen</button></div></Panel>;
+  const report = result.data;
+  const tone = reportTone(report.conclusion.status);
+  return <div className="space-y-4">
+    <section className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-xs dark:border-gray-700/60 dark:bg-gray-800">
+      <div className="flex items-center gap-2"><button aria-label="Forrige dag" className="btn h-9 w-9 border-gray-200 bg-white p-0 dark:border-gray-700 dark:bg-gray-800" onClick={() => go(report.previousDay)} title="Forrige dag"><MosaicIcon name="arrow-left" /></button><button className="btn h-9 border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-800" onClick={() => go(today)}>Siste natt</button><button aria-label="Neste dag" className="btn h-9 w-9 border-gray-200 bg-white p-0 dark:border-gray-700 dark:bg-gray-800" disabled={report.nextDay > today} onClick={() => go(report.nextDay)} title="Neste dag"><MosaicIcon name="arrow-right" /></button></div>
+      <div className="text-center"><h1 className="text-base font-semibold text-gray-800 dark:text-gray-100">Natt til {reportDayLabel(report.day).toLocaleLowerCase("nb-NO")}</h1><p className="mt-0.5 text-xs text-gray-400">Kl. {reportTime(report.window.startAt)}–{reportTime(report.window.endAt)} · maskinelt generert {stamp(report.generatedAt)}</p></div>
+      <label className="flex items-center gap-2 text-xs font-medium text-gray-400"><MosaicIcon name="calendar" /><input className="form-input h-9 py-1.5 text-sm" max={today} type="date" value={report.day} onChange={(event) => event.target.value && go(event.target.value)} /></label>
+    </section>
+    <section className={`overflow-hidden rounded-lg border ${tone.panel}`}>
+      <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"><div className="flex min-w-0 items-start gap-3"><span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/70 ${tone.text} dark:bg-gray-900/30`}><MosaicIcon name={report.conclusion.status === "ok" ? "robot" : "warning"} size={18} /></span><div><h2 className={`text-base font-semibold ${tone.text}`}>{report.conclusion.title}</h2><p className="mt-0.5 text-sm text-gray-600 dark:text-gray-300">{report.conclusion.detail}</p></div></div><span className={`inline-flex items-center gap-2 text-xs font-semibold ${tone.text}`}><i className={`h-2 w-2 rounded-full ${tone.dot}`} />{report.summary.errors ? `${report.summary.errors} feil` : report.summary.warnings ? `${report.summary.warnings} varsler` : "Ingen registrerte avvik"}</span></div>
+      <div className="grid border-t border-black/5 bg-white/50 sm:grid-cols-2 xl:grid-cols-4 dark:border-white/10 dark:bg-gray-900/20"><div className="border-b px-5 py-3 sm:border-r xl:border-b-0 dark:border-gray-700/40"><span className="text-[0.65rem] font-semibold uppercase text-gray-400">Jobber</span><strong className="mt-0.5 block text-lg font-semibold tabular-nums text-gray-800 dark:text-gray-100">{report.summary.completed}/{report.summary.jobs}</strong><small className="text-gray-500 dark:text-gray-400">fullført</small></div><div className="border-b px-5 py-3 xl:border-b-0 xl:border-r dark:border-gray-700/40"><span className="text-[0.65rem] font-semibold uppercase text-gray-400">Rengjøringstid</span><strong className="mt-0.5 block text-lg font-semibold tabular-nums text-gray-800 dark:text-gray-100">{durationLabel(report.summary.durationMinutes)}</strong><small className="text-gray-500 dark:text-gray-400">aktiv tid</small></div><div className="border-b px-5 py-3 sm:border-b-0 sm:border-r dark:border-gray-700/40"><span className="text-[0.65rem] font-semibold uppercase text-gray-400">Areal</span><strong className="mt-0.5 block text-lg font-semibold tabular-nums text-gray-800 dark:text-gray-100">{decimal(report.summary.areaM2, 1)} m²</strong><small className="text-gray-500 dark:text-gray-400">samlet registrert</small></div><div className="px-5 py-3"><span className="text-[0.65rem] font-semibold uppercase text-gray-400">Ferdig før åpning</span><strong className="mt-0.5 block text-lg font-semibold tabular-nums text-gray-800 dark:text-gray-100">{report.summary.readyBeforeOpening}/{report.summary.activeRobots}</strong><small className="text-gray-500 dark:text-gray-400">aktive roboter</small></div></div>
+    </section>
+    <NightTimeline report={report} />
+    {report.robots.map((robot) => <NightRobotReport key={robot.duid} robot={robot} readyBy={report.window.readyBy} />)}
   </div>;
 }
 
@@ -807,6 +925,7 @@ function RobotDetail({ duid, summary }: { duid: string; summary?: RoborockRobotS
 export function RoborockSpecial({ data }: { data: RoborockModuleData }) {
   const { pathname } = useAppLocation();
   const robots = data.robots || [];
+  if (pathname === "/renhold/rapport") return <NightReport />;
   const match = pathname.match(/^\/renhold\/robot\/([^/]+)$/);
   const selected = match ? decodeURIComponent(match[1]) : "";
   const summary = robots.find((robot) => robot.duid === selected);
