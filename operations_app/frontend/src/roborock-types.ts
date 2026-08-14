@@ -120,6 +120,19 @@ export type RoborockNightJob = {
   issues: string[];
 };
 
+export type RoborockNightPlannedJob = {
+  scheduleId: string;
+  scheduledAt: string;
+  actualStartedAt?: string | null;
+  actualRecordId?: string | null;
+  delayMinutes?: number | null;
+  cleaningType: "vacuum" | "mop" | "vacuum_mop";
+  cleaningTypeLabel: string;
+  modeLabel: string;
+  status: "completed" | "delayed" | "running" | "pending" | "missing";
+  statusLabel: string;
+};
+
 export type RoborockNightRobot = {
   duid: string;
   name: string;
@@ -127,6 +140,16 @@ export type RoborockNightRobot = {
   status: "ok" | "warning" | "error" | "neutral";
   statusLabel: string;
   jobs: RoborockNightJob[];
+  scheduleCheck: {
+    basis: string;
+    jobs: RoborockNightPlannedJob[];
+    expected: number;
+    completed: number;
+    missing: number;
+    delayed: number;
+    running: number;
+    pending: number;
+  };
   settings: {
     supported: boolean;
     intervalMinutes?: number | null;
@@ -174,8 +197,14 @@ export type RoborockNightReport = {
     durationMinutes: number;
     areaM2: number;
     warnings: number;
+    jobWarnings: number;
     errors: number;
     readyBeforeOpening: number;
+    plannedJobs: number;
+    plannedCompleted: number;
+    plannedMissing: number;
+    plannedDelayed: number;
+    plannedPending: number;
   };
   robots: RoborockNightRobot[];
 };

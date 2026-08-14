@@ -39371,6 +39371,14 @@ async def api_cleaning_night_report(day: Optional[str] = None):
                 .order_by(RoborockTelemetrySample.robot_duid, RoborockTelemetrySample.timestamp)
             )
         ).scalars().all()
+        schedules = (
+            await session.execute(
+                select(RoborockSchedule)
+                .where(RoborockSchedule.robot_duid.in_(robot_duids or [""]))
+                .where(RoborockSchedule.enabled == True)
+                .order_by(RoborockSchedule.robot_duid, RoborockSchedule.cron)
+            )
+        ).scalars().all()
         latest_probe_subq = (
             select(func.max(RoborockProbeResult.id).label("latest_id"))
             .where(RoborockProbeResult.robot_duid.in_(robot_duids or [""]))
@@ -39407,6 +39415,7 @@ async def api_cleaning_night_report(day: Optional[str] = None):
         list(telemetry_samples),
         list(probes),
         generated_at=local_now_naive(),
+        schedules=list(schedules),
     )
 
 

@@ -114,3 +114,42 @@ def test_mop_mode_is_ignored_when_water_is_explicitly_off() -> None:
     assert result["cleaningType"] == "vacuum"
     assert result["cleaningTypeLabel"] == "Støvsuging"
     assert result["modeLabel"] == "Maks · 2 runder"
+
+
+def test_night_report_marks_an_enabled_schedule_without_a_job_as_missing() -> None:
+    robot = row(duid="robot-2", name="2.etg", model="Qrevo")
+    schedules = [
+        row(robot_duid="robot-2", schedule_id="vacuum-0100", cron="0 1 * * *", enabled=True, fan_power=104, water_box_mode=200, mop_mode=300, repeat=1),
+        row(robot_duid="robot-2", schedule_id="mop-0300", cron="0 3 * * *", enabled=True, fan_power=105, water_box_mode=203, mop_mode=303, repeat=2),
+    ]
+    completed_job = row(
+        robot_duid="robot-2", record_id="job-0300",
+        begin_at=datetime(2026, 8, 14, 1, 0), end_at=datetime(2026, 8, 14, 3, 50),
+        duration_minutes=127.0, duration_seconds=7620, cleaned_area_m2=74.0, area_m2=74.0,
+        complete=True, error_code=0, wash_count=13, clean_times=2,
+    )
+    samples = [
+        row(robot_duid="robot-2", timestamp=datetime(2026, 8, 14, 1, 0), in_cleaning=False, battery=100, fan_power=104, water_box_mode=200, mop_mode=300, water_shortage_status=0, clear_water_status=0, clear_water_status_name="okay", dock_error_status=0, is_charging=True),
+        row(robot_duid="robot-2", timestamp=datetime(2026, 8, 14, 3, 4), in_cleaning=True, battery=99, fan_power=105, water_box_mode=203, mop_mode=303, water_shortage_status=0, clear_water_status=0, clear_water_status_name="okay", dock_error_status=0, is_charging=False),
+    ]
+
+    report = build_night_report(
+        date(2026, 8, 14),
+        [robot],
+        [completed_job],
+        samples,
+        [],
+        generated_at=datetime(2026, 8, 14, 8, 5),
+        schedules=schedules,
+    )
+
+    result = report["robots"][0]
+    assert report["conclusion"]["status"] == "warning"
+    assert report["summary"]["plannedJobs"] == 2
+    assert report["summary"]["plannedCompleted"] == 1
+    assert report["summary"]["plannedMissing"] == 1
+    assert result["statusLabel"] == "Planlagt jobb uteble"
+    assert [planned["status"] for planned in result["scheduleCheck"]["jobs"]] == ["missing", "completed"]
+    assert result["scheduleCheck"]["jobs"][0]["scheduledAt"].startswith("2026-08-14T01:00")
+    assert result["scheduleCheck"]["jobs"][1]["actualStartedAt"].startswith("2026-08-14T03:00")
+    assert result["findings"][0] == "Planlagt støvsuging kl. 01:00 ble ikke registrert."

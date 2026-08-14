@@ -190,6 +190,18 @@ Hvis roboten avviser en start,
 beholdes telleren og Fibaro10 venter fem minutter før nytt forsøk. Alle forsøk lagres i den samme kontrollhistorikken
 som manuelle robotkommandoer, med bruker `door_automation`.
 
+## Plan mot utførelse i nattrapporten
+
+Nattrapporten sammenholder aktive, gjentakende planer fra Roborock med jobbene som faktisk finnes i
+jobbhistorikken. Planlagt start og faktisk start kobles innenfor et kontrollvindu på 45 minutter. Oppstart mer
+enn 10 minutter fra planen merkes som forsinket, og en plan som fortsatt ikke har en jobb 20 minutter etter
+start, merkes som uteblitt. Rapporten viser derfor både plan og utførelse; en jobb som aldri startet, forsvinner
+ikke lenger bare fra oversikten.
+
+Planhistorikken kommer fra de aktive planene som Roborock rapporterer nå. Ved visning av eldre datoer er dette
+derfor en kontroll mot gjeldende gjentakende plan, mens selve jobbhistorikken, telemetrien og innstillingene er
+historiske data fra den valgte natten.
+
 ## Feilsøking
 
 Hvis Renhold viser gamle data:

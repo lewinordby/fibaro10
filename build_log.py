@@ -12,6 +12,32 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1739",
+        "date": "14.08.2026",
+        "headline": "Nattrapporten oppdager uteblitte robotjobber",
+        "title": "Planlagte Roborock-jobber kontrolleres mot det som faktisk ble utført",
+        "description": (
+            "Nattrapporten viser nå aktive Roborock-planer ved siden av de registrerte jobbene. En planlagt jobb "
+            "som ikke starter, blir dermed synlig som et eget avvik i stedet for å forsvinne fra rapporten."
+        ),
+        "applications": [
+            "Fibaro10 API: beregner planlagte starttidspunkt og kobler dem mot faktisk jobbhistorikk.",
+            "Bygg og drift build 58: viser plan mot utførelse per robot og planmarkører i nattlinjen.",
+            "Roborock-dokumentasjon: beskriver hvordan uteblitte og forsinkede jobber blir vurdert.",
+        ],
+        "request": "Det ser ut til at rapporten ikke får med seg første jobben kl. 01:00 på robot 2.etg. Kan du ta en kontroll på dette?",
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bekrefter at 2.etg sto på lading kl. 01:00 og først startet den registrerte jobben kl. 03:00.",
+            "Viser planlagt klokkeslett, rengjøringstype, faktisk start og resultat for hver aktiv plan.",
+            "Markerer uteblitte planstarter tydelig i nattlinjen og i konklusjonen.",
+            "Skiller planlagte jobber fra registrerte jobber i sammendraget.",
+            "Varsler også når en jobb starter mer enn ti minutter fra planlagt tidspunkt.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1738",
         "date": "14.08.2026",
         "headline": "Ryddig robotstyring med kontrollert moppevask",

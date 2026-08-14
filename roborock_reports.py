@@ -5,6 +5,8 @@ from datetime import date, datetime, time, timedelta
 from typing import Any, Iterable, Optional
 
 from roborock_domain import (
+    roborock_cron_parts,
+    roborock_cron_weekdays,
     roborock_error_label,
     roborock_fan_label,
     roborock_mop_label,
@@ -16,6 +18,9 @@ from time_formatting import LOCAL_TZ, normalize_local_naive, utc_naive_to_local_
 REPORT_START = time(20, 0)
 REPORT_END = time(8, 0)
 REPORT_READY_BY = time(6, 45)
+SCHEDULE_MATCH_TOLERANCE = timedelta(minutes=45)
+SCHEDULE_ON_TIME_TOLERANCE = timedelta(minutes=10)
+SCHEDULE_MISSING_GRACE = timedelta(minutes=20)
 
 WASH_MODE_LABELS = {
     0: "Lett",
@@ -46,6 +51,17 @@ def local_iso(value: Optional[datetime]) -> Optional[str]:
         return None
     local = normalize_local_naive(value)
     return local.replace(tzinfo=LOCAL_TZ).isoformat() if local else None
+
+
+def local_datetime_value(value: Any) -> Optional[datetime]:
+    if isinstance(value, datetime):
+        return normalize_local_naive(value)
+    if isinstance(value, str):
+        try:
+            return normalize_local_naive(datetime.fromisoformat(value))
+        except ValueError:
+            return None
+    return None
 
 
 def row_value(row: Any, field: str, default: Any = None) -> Any:
@@ -302,12 +318,151 @@ def battery_at(samples: list[Any], target: datetime) -> Optional[int]:
     return integer(row_value(sample, "battery")) if sample else None
 
 
+def schedule_occurrences(schedules: list[Any], window: dict[str, datetime]) -> list[dict[str, Any]]:
+    occurrences = []
+    current_day = window["start"].date()
+    while current_day <= window["end"].date():
+        for schedule in schedules:
+            if row_value(schedule, "enabled") is not True:
+                continue
+            parts = roborock_cron_parts(row_value(schedule, "cron"))
+            if not parts:
+                continue
+            minute, hour, day_field = parts
+            if not 0 <= minute <= 59 or not 0 <= hour <= 23:
+                continue
+            weekdays = roborock_cron_weekdays(day_field)
+            if weekdays == set() or (weekdays is not None and current_day.weekday() not in weekdays):
+                continue
+            scheduled_at = datetime.combine(current_day, time(hour, minute))
+            if not window["start"] <= scheduled_at < window["end"]:
+                continue
+            cleaning_type, cleaning_type_label = job_cleaning_type(
+                row_value(schedule, "fan_power"),
+                row_value(schedule, "water_box_mode"),
+                row_value(schedule, "mop_mode"),
+            )
+            rounds = integer(row_value(schedule, "repeat")) or 1
+            mode_parts = []
+            if cleaning_type in {"vacuum", "vacuum_mop"}:
+                mode_parts.append(roborock_fan_label(row_value(schedule, "fan_power")))
+            if cleaning_type in {"mop", "vacuum_mop"}:
+                mode_parts.extend(
+                    [
+                        roborock_mop_label(row_value(schedule, "mop_mode")),
+                        f"{roborock_water_label(row_value(schedule, 'water_box_mode')).lower()} vannmengde",
+                    ]
+                )
+            mode_parts.append(f"{rounds} {'runde' if rounds == 1 else 'runder'}")
+            occurrences.append(
+                {
+                    "scheduleId": str(row_value(schedule, "schedule_id") or row_value(schedule, "id") or ""),
+                    "scheduledAtValue": scheduled_at,
+                    "scheduledAt": local_iso(scheduled_at),
+                    "cleaningType": cleaning_type,
+                    "cleaningTypeLabel": cleaning_type_label,
+                    "modeLabel": " · ".join(part for part in mode_parts if part and part != "-"),
+                }
+            )
+        current_day += timedelta(days=1)
+    return sorted(occurrences, key=lambda row: row["scheduledAtValue"])
+
+
+def build_schedule_check(
+    schedules: list[Any],
+    jobs: list[Any],
+    samples: list[Any],
+    window: dict[str, datetime],
+    generated_at: datetime,
+) -> dict[str, Any]:
+    expected = schedule_occurrences(schedules, window)
+    actual_starts = [
+        (index, utc_naive_to_local_naive(row_value(job, "begin_at")), str(row_value(job, "record_id") or row_value(job, "id") or ""))
+        for index, job in enumerate(jobs)
+    ]
+    actual_starts = [row for row in actual_starts if row[1] is not None]
+    matched_actual: set[int] = set()
+    pairs = sorted(
+        (
+            (abs((actual_at - occurrence["scheduledAtValue"]).total_seconds()), occurrence_index, actual_index, actual_at, record_id)
+            for occurrence_index, occurrence in enumerate(expected)
+            for actual_index, actual_at, record_id in actual_starts
+            if abs(actual_at - occurrence["scheduledAtValue"]) <= SCHEDULE_MATCH_TOLERANCE
+        ),
+        key=lambda row: row[0],
+    )
+    matched_occurrences: dict[int, tuple[datetime, str]] = {}
+    for _, occurrence_index, actual_index, actual_at, record_id in pairs:
+        if occurrence_index in matched_occurrences or actual_index in matched_actual:
+            continue
+        matched_occurrences[occurrence_index] = (actual_at, record_id)
+        matched_actual.add(actual_index)
+
+    rows = []
+    for index, occurrence in enumerate(expected):
+        scheduled_at = occurrence.pop("scheduledAtValue")
+        match = matched_occurrences.get(index)
+        if match:
+            actual_at, record_id = match
+            delay_minutes = round((actual_at - scheduled_at).total_seconds() / 60)
+            delayed = abs(actual_at - scheduled_at) > SCHEDULE_ON_TIME_TOLERANCE
+            status = "delayed" if delayed else "completed"
+            status_label = f"Startet {delay_minutes:+d} min" if delayed else "Gjennomført"
+            rows.append(
+                {
+                    **occurrence,
+                    "status": status,
+                    "statusLabel": status_label,
+                    "actualStartedAt": local_iso(actual_at),
+                    "actualRecordId": record_id,
+                    "delayMinutes": delay_minutes,
+                }
+            )
+            continue
+
+        active_near_schedule = any(
+            row_value(sample, "in_cleaning") is True
+            and (stamp := normalize_local_naive(row_value(sample, "timestamp"))) is not None
+            and scheduled_at - timedelta(minutes=5) <= stamp <= scheduled_at + SCHEDULE_MATCH_TOLERANCE
+            for sample in samples
+        )
+        if active_near_schedule and generated_at <= window["end"]:
+            status, status_label = "running", "Pågår"
+        elif generated_at < scheduled_at + SCHEDULE_MISSING_GRACE:
+            status, status_label = "pending", "Ikke forfalt"
+        else:
+            status, status_label = "missing", "Ikke registrert"
+        rows.append(
+            {
+                **occurrence,
+                "status": status,
+                "statusLabel": status_label,
+                "actualStartedAt": None,
+                "actualRecordId": None,
+                "delayMinutes": None,
+            }
+        )
+
+    return {
+        "basis": "Gjeldende aktive Roborock-planer",
+        "jobs": rows,
+        "expected": len(rows),
+        "completed": sum(row["status"] in {"completed", "delayed"} for row in rows),
+        "missing": sum(row["status"] == "missing" for row in rows),
+        "delayed": sum(row["status"] == "delayed" for row in rows),
+        "running": sum(row["status"] == "running" for row in rows),
+        "pending": sum(row["status"] == "pending" for row in rows),
+    }
+
+
 def build_robot_report(
     robot: Any,
     jobs: list[Any],
     samples: list[Any],
     probes: list[Any],
+    schedules: list[Any],
     window: dict[str, datetime],
+    generated_at: datetime,
 ) -> dict[str, Any]:
     ordered_samples = sorted(
         samples,
@@ -315,6 +470,7 @@ def build_robot_report(
     )
     settings = robot_settings(probes)
     job_rows = [build_job(job, ordered_samples, settings) for job in sorted(jobs, key=lambda row: row_value(row, "begin_at") or datetime.min)]
+    schedule_check = build_schedule_check(schedules, jobs, ordered_samples, window, generated_at)
     last_end = max(
         (utc_naive_to_local_naive(row_value(job, "end_at")) for job in jobs if row_value(job, "end_at")),
         default=None,
@@ -326,6 +482,10 @@ def build_robot_report(
     error_jobs = sum(row["status"] == "error" for row in job_rows)
     if error_jobs:
         status, status_label = "error", "Feil i natt"
+    elif schedule_check["missing"]:
+        status, status_label = "warning", "Planlagt jobb uteble"
+    elif schedule_check["delayed"]:
+        status, status_label = "warning", "Forsinket oppstart"
     elif warning_jobs:
         status, status_label = "warning", "Må kontrolleres"
     elif job_rows and ready_before_opening:
@@ -336,6 +496,18 @@ def build_robot_report(
         status, status_label = "neutral", "Ingen nattjobb"
 
     findings = []
+    for planned in schedule_check["jobs"]:
+        if planned["status"] == "missing":
+            scheduled_at = local_datetime_value(planned["scheduledAt"])
+            findings.append(
+                f"Planlagt {planned['cleaningTypeLabel'].lower()} kl. {scheduled_at.strftime('%H:%M') if scheduled_at else '-'} ble ikke registrert."
+            )
+        elif planned["status"] == "delayed":
+            scheduled_at = local_datetime_value(planned["scheduledAt"])
+            actual_at = local_datetime_value(planned["actualStartedAt"])
+            findings.append(
+                f"Planlagt jobb kl. {scheduled_at.strftime('%H:%M') if scheduled_at else '-'} startet kl. {actual_at.strftime('%H:%M') if actual_at else '-'}."
+            )
     if error_jobs:
         findings.append(f"{error_jobs} {'jobb har' if error_jobs == 1 else 'jobber har'} feil eller mangler fullføring.")
     if warning_jobs:
@@ -356,6 +528,7 @@ def build_robot_report(
         "status": status,
         "statusLabel": status_label,
         "jobs": job_rows,
+        "scheduleCheck": schedule_check,
         "settings": settings,
         "totals": {
             "jobs": len(job_rows),
@@ -381,36 +554,62 @@ def build_night_report(
     samples: list[Any],
     probes: list[Any],
     generated_at: Optional[datetime] = None,
+    schedules: Optional[list[Any]] = None,
 ) -> dict[str, Any]:
     window = report_window(report_day)
+    report_generated_at = normalize_local_naive(generated_at or datetime.now(LOCAL_TZ)) or datetime.now(LOCAL_TZ).replace(tzinfo=None)
     jobs_by_robot: dict[str, list[Any]] = {}
     samples_by_robot: dict[str, list[Any]] = {}
     probes_by_robot: dict[str, list[Any]] = {}
+    schedules_by_robot: dict[str, list[Any]] = {}
     for row in jobs:
         jobs_by_robot.setdefault(str(row_value(row, "robot_duid") or ""), []).append(row)
     for row in samples:
         samples_by_robot.setdefault(str(row_value(row, "robot_duid") or ""), []).append(row)
     for row in probes:
         probes_by_robot.setdefault(str(row_value(row, "robot_duid") or ""), []).append(row)
+    for row in schedules or []:
+        schedules_by_robot.setdefault(str(row_value(row, "robot_duid") or ""), []).append(row)
     robot_rows = [
         build_robot_report(
             robot,
             jobs_by_robot.get(str(row_value(robot, "duid") or ""), []),
             samples_by_robot.get(str(row_value(robot, "duid") or ""), []),
             probes_by_robot.get(str(row_value(robot, "duid") or ""), []),
+            schedules_by_robot.get(str(row_value(robot, "duid") or ""), []),
             window,
+            report_generated_at,
         )
         for robot in robots
     ]
     jobs_count = sum(row["totals"]["jobs"] for row in robot_rows)
     error_count = sum(job["status"] == "error" for row in robot_rows for job in row["jobs"])
     warning_count = sum(job["status"] == "warning" for row in robot_rows for job in row["jobs"])
+    expected_count = sum(row["scheduleCheck"]["expected"] for row in robot_rows)
+    planned_completed_count = sum(row["scheduleCheck"]["completed"] for row in robot_rows)
+    missing_count = sum(row["scheduleCheck"]["missing"] for row in robot_rows)
+    delayed_count = sum(row["scheduleCheck"]["delayed"] for row in robot_rows)
+    pending_count = sum(row["scheduleCheck"]["pending"] for row in robot_rows)
     ready_count = sum(row["readiness"]["readyBeforeOpening"] and bool(row["jobs"]) for row in robot_rows)
-    active_robot_count = sum(bool(row["jobs"]) for row in robot_rows)
+    active_robot_count = sum(bool(row["jobs"] or row["scheduleCheck"]["expected"]) for row in robot_rows)
     if error_count:
         conclusion_status = "error"
         conclusion_title = "Natten har avvik som må følges opp"
         conclusion_detail = f"{error_count} {'jobb mangler' if error_count == 1 else 'jobber mangler'} fullføring eller har robotfeil."
+    elif missing_count:
+        conclusion_status = "warning"
+        conclusion_title = "En eller flere planlagte jobber uteble"
+        missing_labels = [
+            f"{row['name']} kl. {local_datetime_value(job['scheduledAt']).strftime('%H:%M')}"
+            for row in robot_rows
+            for job in row["scheduleCheck"]["jobs"]
+            if job["status"] == "missing" and local_datetime_value(job["scheduledAt"])
+        ]
+        conclusion_detail = f"Ikke registrert: {', '.join(missing_labels)}."
+    elif delayed_count:
+        conclusion_status = "warning"
+        conclusion_title = "Planlagt rengjøring startet forsinket"
+        conclusion_detail = f"{delayed_count} {'jobb startet' if delayed_count == 1 else 'jobber startet'} mer enn 10 minutter fra planlagt tid."
     elif warning_count:
         conclusion_status = "warning"
         conclusion_title = "Rengjøringen ble gjennomført, men har varsler"
@@ -427,7 +626,7 @@ def build_night_report(
         "day": report_day.isoformat(),
         "previousDay": (report_day - timedelta(days=1)).isoformat(),
         "nextDay": (report_day + timedelta(days=1)).isoformat(),
-        "generatedAt": local_iso(generated_at or datetime.now(LOCAL_TZ)),
+        "generatedAt": local_iso(report_generated_at),
         "window": {
             "startAt": local_iso(window["start"]),
             "endAt": local_iso(window["end"]),
@@ -445,9 +644,15 @@ def build_night_report(
             "completed": sum(row["totals"]["completed"] for row in robot_rows),
             "durationMinutes": round(sum(row["totals"]["durationMinutes"] for row in robot_rows), 1),
             "areaM2": round(sum(row["totals"]["areaM2"] for row in robot_rows), 1),
-            "warnings": warning_count,
+            "warnings": warning_count + missing_count + delayed_count,
+            "jobWarnings": warning_count,
             "errors": error_count,
             "readyBeforeOpening": ready_count,
+            "plannedJobs": expected_count,
+            "plannedCompleted": planned_completed_count,
+            "plannedMissing": missing_count,
+            "plannedDelayed": delayed_count,
+            "plannedPending": pending_count,
         },
         "robots": robot_rows,
     }
