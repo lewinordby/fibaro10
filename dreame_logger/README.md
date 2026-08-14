@@ -13,6 +13,8 @@ Dreamehome og sender normalisert status, telemetri, historikk og planer til Fiba
 
 Tjenesten er isolert fra Roborock-loggeren. En feil eller ny build her påvirker derfor ikke de eksisterende
 robotene. Dersom Fibaro10 er utilgjengelig, legges ferdige batcher i lokal kø og sendes senere.
+Eksempelfilen er versjonsstyrt, mens den virkelige `.env`-filen bevares lokalt på QNAP ved hver utrulling og
+tas med i nattbackupen.
 
 ## Teknisk avhengighet
 
