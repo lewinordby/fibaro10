@@ -12,6 +12,34 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1761",
+        "date": "15.08.2026",
+        "headline": "Vannkortet viser hele dokk- og vannstatusen",
+        "title": "Alle separate Roborock-signaler er samlet rundt den automatiske vannsperren",
+        "description": (
+            "Vannrapporten viser nå også støvpose og dokkens egen feilstatus sammen med rentvann, "
+            "skittentvann, rengjøringsmiddel, vannmangel i roboten, vanntank, mopp og vannfilter. "
+            "Dette gjør det tydelig hvilket signal som sperrer vask, og hvilke signaler som bare er diagnostikk."
+        ),
+        "applications": [
+            "Fibaro10 build 1761: utvider vannrapportens datamodell og testdekning.",
+            "Bygg og drift build 73: viser støvpose og dokkstatus med forståelige etiketter.",
+        ],
+        "request": (
+            "Få frem alle data og sperr vaskejobber straks rentvann i dokken er tomt, "
+            "med automatisk åpning når status er OK igjen."
+        ),
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger støvpose i dokk og dokkstatus inn på hvert vannkort.",
+            "Skiller dokkfeil fra de andre ressurskodene og markerer bare reelle feilkoder.",
+            "Retter entall og flertall for antall vaskeplaner som er satt på pause.",
+            "Beholder clear_water_status som eneste styrende signal for den automatiske vannsperren.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1760",
         "date": "15.08.2026",
         "headline": "Vannsperren bruker verifisert timerformat",

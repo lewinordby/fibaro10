@@ -262,6 +262,8 @@ export type RoborockWaterRobot = {
     dockSupported: boolean;
     cleanWater: RoborockWaterResource;
     dirtyWater: RoborockWaterResource;
+    dustBag: RoborockWaterResource;
+    dockStatus: RoborockWaterResource;
     robotWater: RoborockWaterResource;
     waterBox: RoborockWaterResource;
     mopAttached: RoborockWaterResource;

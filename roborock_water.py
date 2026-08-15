@@ -3,7 +3,11 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from typing import Any, Iterable, Optional
 
-from roborock_domain import roborock_resource_status_label, roborock_water_label
+from roborock_domain import (
+    roborock_dock_error_label,
+    roborock_resource_status_label,
+    roborock_water_label,
+)
 from roborock_reports import integer, number, probe_value, row_value, wash_settings
 from time_formatting import LOCAL_TZ, normalize_local_naive, utc_naive_to_local_naive
 
@@ -56,6 +60,17 @@ def _attached(value: Any) -> dict[str, Any]:
         "supported": True,
         "label": "Montert" if status != 0 else "Ikke montert",
         "attention": status == 0,
+    }
+
+
+def _dock_status(value: Any) -> dict[str, Any]:
+    status = integer(value)
+    if status is None:
+        return {"supported": False, "label": "Ikke støttet", "attention": False}
+    return {
+        "supported": True,
+        "label": roborock_dock_error_label(status),
+        "attention": status != 0,
     }
 
 
@@ -219,17 +234,25 @@ def build_water_report(
             row_value(telemetry, "dirty_water_status"),
             row_value(telemetry, "dirty_water_status_name"),
         )
+        dust_bag = _resource(
+            row_value(telemetry, "dust_bag_status"),
+            row_value(telemetry, "dust_bag_status_name"),
+        )
         detergent = _resource(
             row_value(telemetry, "clean_fluid_status"),
             row_value(telemetry, "clean_fluid_status_name"),
         )
+        dock_status = _dock_status(row_value(telemetry, "dock_error_status"))
         robot_water = _shortage(row_value(telemetry, "water_shortage_status"))
         water_box = _attached(row_value(telemetry, "water_box_status"))
         mop_attached = _attached(row_value(telemetry, "water_box_carriage_status"))
         water_filter = _resource(row_value(telemetry, "water_box_filter_status"))
         interlock = _interlock(telemetry)
         dock_supported = clean_water["supported"] or dirty_water["supported"] or bool(wash["supported"])
-        attention = any(item["attention"] for item in (clean_water, dirty_water, detergent, robot_water)) or interlock["status"] == "error"
+        attention = any(
+            item["attention"]
+            for item in (clean_water, dirty_water, dust_bag, detergent, dock_status, robot_water)
+        ) or interlock["status"] == "error"
 
         wash_count = 0
         mop_jobs = 0
@@ -284,6 +307,8 @@ def build_water_report(
                     "dockSupported": dock_supported,
                     "cleanWater": clean_water,
                     "dirtyWater": dirty_water,
+                    "dustBag": dust_bag,
+                    "dockStatus": dock_status,
                     "robotWater": robot_water,
                     "waterBox": water_box,
                     "mopAttached": mop_attached,

@@ -17,8 +17,11 @@ def test_water_report_combines_settings_usage_and_resource_events() -> None:
         clear_water_status_name="out_of_water",
         dirty_water_status=0,
         dirty_water_status_name="okay",
+        dust_bag_status=0,
+        dust_bag_status_name="okay",
         clean_fluid_status=0,
         clean_fluid_status_name="okay",
+        dock_error_status=0,
         water_shortage_status=0,
         water_box_status=1,
         water_box_carriage_status=1,
@@ -62,6 +65,9 @@ def test_water_report_combines_settings_usage_and_resource_events() -> None:
     result = report["robots"][0]
     assert result["status"] == "attention"
     assert result["current"]["cleanWater"]["label"] == "Tom"
+    assert result["current"]["dustBag"]["label"] == "OK"
+    assert result["current"]["dockStatus"]["label"] == "Ingen feil"
+    assert result["current"]["dockStatus"]["attention"] is False
     assert result["current"]["waterBox"]["label"] == "Montert"
     assert result["current"]["mopAttached"]["label"] == "Montert"
     assert result["current"]["waterFilter"]["label"] == "OK"
