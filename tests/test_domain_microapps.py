@@ -775,7 +775,8 @@ def test_large_module_payloads_only_include_visible_table_fields() -> None:
     assert "energy_chart_rows = decimate_rows(chronological_energy_rows, 720)" in source
     assert "[api_pick(row, energy_table_columns) for row in selected_energy_rows[:500]]" in source
     assert "[api_pick(row, light_sample_table_columns) for row in samples]" in source
-    assert "[api_pick(row, robot_table_columns) for row in robots]" in source
+    assert '"battery": latest_status.battery if latest_status else None' in source
+    assert 'api_table("Roboter", robot_table_columns, robot_table_rows)' in source
     assert "[api_pick(row, ROBOROCK_ROBOT_COLUMNS) for row in robots]" not in source
 
 

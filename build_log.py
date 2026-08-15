@@ -12,6 +12,34 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1783",
+        "date": "15.08.2026",
+        "headline": "Renholdsoversikten henter batteriet fra riktig statusmåling",
+        "title": "Robotoversikten er frisk igjen etter den tverrgående payload-oppryddingen",
+        "description": (
+            "Produksjonstesten etter helhetskontrollen fant at den klassiske renholdsoversikten "
+            "forsøkte å lese batteri direkte fra robotens grunndata. Batteriet tilhører siste "
+            "statusmåling. Tabellen bygger nå en eksplisitt, kompakt visningsrad og kobler batteriet "
+            "til riktig robotstatus uten å sende unødvendige felt."
+        ),
+        "applications": [
+            "Fibaro10: retter datagrunnlaget for Renhold / oversikt.",
+            "Bygg og drift: beholder kompakte robotdata med korrekt batteriverdi.",
+            "Testpakken: beskytter koblingen mellom robot og siste statusmåling mot regresjon.",
+        ],
+        "request": (
+            "Ta en kontroll av helheten, vurder løsningen på alle mulige måter og forbedre det som trengs."
+        ),
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Henter batterinivå fra nyeste Roborock-status i stedet for robotens statiske metadata.",
+            "Bygger bare de sju feltene som faktisk vises i robottabellen.",
+            "Legger til regresjonstest for kompakt robotpayload og korrekt batterikilde.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1782",
         "date": "15.08.2026",
         "headline": "Helhetskontroll styrker ytelse, sikkerhet og tilgjengelighet",

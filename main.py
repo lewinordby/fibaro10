@@ -33374,8 +33374,22 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             robot_table_columns = ["name", "model", "cloud_online", "local_ip", "battery", "last_seen_at", "last_error"]
             job_table_columns = ["begin_at", "end_at", "duration_minutes", "cleaned_area_m2", "complete", "error_code", "finish_reason"]
             status_table_columns = ["timestamp", "robot_duid", "state_name", "battery", "error_code", "clean_area_m2", "rssi"]
+            robot_table_rows = []
+            for robot in robots:
+                latest_status = latest_status_by_robot.get(robot.duid)
+                robot_table_rows.append(
+                    {
+                        "name": robot.name,
+                        "model": robot.model,
+                        "cloud_online": robot.cloud_online,
+                        "local_ip": robot.local_ip,
+                        "battery": latest_status.battery if latest_status else None,
+                        "last_seen_at": robot.last_seen_at,
+                        "last_error": robot.last_error,
+                    }
+                )
             tables = [
-                api_table("Roboter", robot_table_columns, [api_pick(row, robot_table_columns) for row in robots]),
+                api_table("Roboter", robot_table_columns, robot_table_rows),
                 api_table("Siste vasker", job_table_columns, [api_pick(row, job_table_columns) for row in jobs]),
                 api_table("Siste statuser", status_table_columns, [api_pick(row, status_table_columns) for row in statuses]),
             ]
