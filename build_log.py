@@ -12,6 +12,35 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1762",
+        "date": "15.08.2026",
+        "headline": "Nattrapporten vurderer vann under selve jobben",
+        "title": "Tom dokk etter rengjøring gjør ikke en fullført vask gul",
+        "description": (
+            "En fullført Roborock-jobb vises nå grønn når roboten ikke rapporterte intern vannmangel "
+            "mens rengjøringen pågikk. Tom rentvannsdokk og dokkstatus håndteres separat av vannoversikten "
+            "og sperren for fremtidige vaskejobber. Varsler som oppstår etter jobbslutt påvirker ikke lenger "
+            "kvalitetsstatusen til jobben som allerede er gjennomført."
+        ),
+        "applications": [
+            "Fibaro10 build 1762: korrigerer maskinell kvalitetsvurdering i Roborock-nattrapporten.",
+            "Bygg og drift: bruker den korrigerte rapportstatusen uten frontendendringer.",
+        ],
+        "request": (
+            "Nattrapportens jobber bør være grønne så lenge Vann i robot ikke viser vannmangel, "
+            "fordi dette betyr at vasken er fullført uten registrert intern vannmangel."
+        ),
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bruker bare Vannmangel i robot som vannrelatert kvalitetsvarsel for Roborock-jobber.",
+            "Avgrenser vannkontrollen til telemetri fra tidsrommet der den enkelte jobben faktisk pågikk.",
+            "Lar tom dokk etter jobbslutt sperre neste vask uten å nedgradere den fullførte jobben.",
+            "Beholder robotfeil, manglende fullføring, uteblitte planer og sen ferdigstillelse som egne avvik.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1761",
         "date": "15.08.2026",
         "headline": "Vannkortet viser hele dokk- og vannstatusen",

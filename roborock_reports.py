@@ -202,19 +202,17 @@ def robot_settings(probes: list[Any]) -> dict[str, Any]:
 
 def resource_problem(row: Any, provider: str = "roborock") -> bool:
     shortage = integer(row_value(row, "water_shortage_status"))
-    clear_name = str(row_value(row, "clear_water_status_name") or "").strip().lower()
-    clear_status = integer(row_value(row, "clear_water_status"))
+    if shortage not in {None, 0}:
+        return True
     if provider == "dreame":
-        if shortage not in {None, 0}:
-            return True
+        clear_name = str(row_value(row, "clear_water_status_name") or "").strip().lower()
         if clear_name:
             return clear_name not in {"okay", "ok", "normal", "installed", "present"}
         return False
-    return (
-        shortage not in {None, 0}
-        or clear_status not in {None, 0}
-        or clear_name not in {"", "okay", "ok"}
-    )
+    # For Roborock, clear_water_status describes the dock. A dock that becomes
+    # empty after a completed job must block future washes, not downgrade the
+    # wash that the robot already completed without an internal shortage.
+    return False
 
 
 def job_cleaning_type(fan_power: Any, water_mode: Any, mop_mode: Any) -> tuple[str, str]:
@@ -254,17 +252,22 @@ def build_job(job: Any, samples: list[Any], settings: dict[str, Any], provider: 
         cleaning_type, cleaning_type_label = job_cleaning_type(fan_power, water_mode, mop_mode)
     start_sample = nearest_sample(observed, started_at, before=False)
     end_sample = nearest_sample(observed, job_end, before=True)
-    water_samples = [row for row in observed if resource_problem(row, provider)]
-    dock_error_samples = [
-        row for row in observed if integer(row_value(row, "dock_error_status")) not in {None, 0}
+    interval_samples = [
+        row
+        for row in observed
+        if (stamp := normalize_local_naive(row_value(row, "timestamp")))
+        and started_at <= stamp <= job_end
     ]
+    active_interval_samples = [row for row in interval_samples if row_value(row, "in_cleaning") is True]
+    quality_samples = active_interval_samples or interval_samples
+    water_samples = [row for row in quality_samples if resource_problem(row, provider)]
     error_code = integer(row_value(job, "error_code"))
     complete = row_value(job, "complete") is True
     if error_code not in {None, 0} or (ended_at is not None and not complete):
         status, status_label = "error", "Feil"
     elif ended_at is None and not complete:
         status, status_label = "running", "Pågår"
-    elif water_samples or dock_error_samples:
+    elif water_samples:
         status, status_label = "warning", "Kontroller"
     else:
         status, status_label = "ok", "Fullført"
@@ -294,9 +297,6 @@ def build_job(job: Any, samples: list[Any], settings: dict[str, Any], provider: 
     if water_samples:
         water_at = normalize_local_naive(row_value(water_samples[0], "timestamp"))
         issue_parts.append(f"Vannvarsel kl. {water_at.strftime('%H:%M')}" if water_at else "Vannvarsel")
-    if dock_error_samples:
-        dock_at = normalize_local_naive(row_value(dock_error_samples[0], "timestamp"))
-        issue_parts.append(f"Dokkfeil kl. {dock_at.strftime('%H:%M')}" if dock_at else "Dokkfeil")
     return {
         "recordId": str(row_value(job, "record_id") or row_value(job, "id") or ""),
         "startedAt": local_iso(started_at),
@@ -584,7 +584,7 @@ def build_robot_report(
     if error_jobs:
         findings.append(f"{error_jobs} {'jobb har' if error_jobs == 1 else 'jobber har'} feil eller mangler fullføring.")
     if warning_jobs:
-        findings.append(f"{warning_jobs} {'jobb har' if warning_jobs == 1 else 'jobber har'} vann- eller dokkvarsel.")
+        findings.append(f"{warning_jobs} {'jobb har' if warning_jobs == 1 else 'jobber har'} vannmangel i robot.")
     if running_jobs:
         running_start = min(
             (local_datetime_value(row["startedAt"]) for row in job_rows if row["status"] == "running"),
@@ -693,8 +693,8 @@ def build_night_report(
         conclusion_detail = f"{delayed_count} {'jobb startet' if delayed_count == 1 else 'jobber startet'} mer enn 10 minutter fra planlagt tid."
     elif warning_count:
         conclusion_status = "warning"
-        conclusion_title = "Rengjøringen ble gjennomført, men har varsler"
-        conclusion_detail = f"{warning_count} {'jobb har' if warning_count == 1 else 'jobber har'} vann- eller dokkvarsel som bør kontrolleres."
+        conclusion_title = "Rengjøringen ble gjennomført, men manglet vann"
+        conclusion_detail = f"{warning_count} {'jobb har' if warning_count == 1 else 'jobber har'} rapportert vannmangel i robot under rengjøringen."
     elif running_count:
         conclusion_status = "neutral"
         conclusion_title = "Rengjøringen pågår"

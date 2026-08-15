@@ -95,6 +95,50 @@ def test_water_shortage_is_reported_without_marking_completed_job_as_failed() ->
     assert result["issues"] == ["Vannvarsel kl. 05:00"]
 
 
+def test_empty_dock_after_completed_wash_does_not_downgrade_the_job() -> None:
+    robot = row(duid="robot-a", name="2.etg", model="Qrevo")
+    job = row(
+        robot_duid="robot-a", record_id="job-dock-empty",
+        begin_at=datetime(2026, 8, 14, 2, 0), end_at=datetime(2026, 8, 14, 3, 0),
+        duration_minutes=60.0, duration_seconds=3600, cleaned_area_m2=30.0, area_m2=30.0,
+        complete=True, error_code=0, wash_count=6, clean_times=1,
+    )
+    samples = [
+        row(robot_duid="robot-a", timestamp=datetime(2026, 8, 14, 4, 1), in_cleaning=True, battery=90, fan_power=105, water_box_mode=203, mop_mode=303, water_shortage_status=0, clear_water_status=0, clear_water_status_name="okay", dock_error_status=0, is_charging=False),
+        row(robot_duid="robot-a", timestamp=datetime(2026, 8, 14, 5, 0), in_cleaning=True, battery=75, fan_power=105, water_box_mode=203, mop_mode=303, water_shortage_status=0, clear_water_status=0, clear_water_status_name="okay", dock_error_status=0, is_charging=False),
+        row(robot_duid="robot-a", timestamp=datetime(2026, 8, 14, 5, 5), in_cleaning=False, battery=75, fan_power=105, water_box_mode=203, mop_mode=303, water_shortage_status=0, clear_water_status=1, clear_water_status_name="out_of_water", dock_error_status=39, is_charging=True),
+    ]
+
+    report = build_night_report(date(2026, 8, 14), [robot], [job], samples, [])
+
+    result = report["robots"][0]["jobs"][0]
+    assert report["conclusion"]["status"] == "ok"
+    assert result["status"] == "ok"
+    assert result["statusLabel"] == "Fullført"
+    assert result["issues"] == []
+
+
+def test_robot_water_shortage_after_job_does_not_downgrade_completed_wash() -> None:
+    robot = row(duid="robot-a", name="1.etg A", model="Qrevo")
+    job = row(
+        robot_duid="robot-a", record_id="job-later-shortage",
+        begin_at=datetime(2026, 8, 14, 2, 0), end_at=datetime(2026, 8, 14, 3, 0),
+        duration_minutes=60.0, duration_seconds=3600, cleaned_area_m2=30.0, area_m2=30.0,
+        complete=True, error_code=0, wash_count=6, clean_times=1,
+    )
+    samples = [
+        row(robot_duid="robot-a", timestamp=datetime(2026, 8, 14, 4, 1), in_cleaning=True, battery=90, fan_power=105, water_box_mode=203, mop_mode=303, water_shortage_status=0, clear_water_status=0, clear_water_status_name="okay", dock_error_status=0, is_charging=False),
+        row(robot_duid="robot-a", timestamp=datetime(2026, 8, 14, 5, 0), in_cleaning=True, battery=75, fan_power=105, water_box_mode=203, mop_mode=303, water_shortage_status=0, clear_water_status=0, clear_water_status_name="okay", dock_error_status=0, is_charging=False),
+        row(robot_duid="robot-a", timestamp=datetime(2026, 8, 14, 5, 8), in_cleaning=False, battery=75, fan_power=105, water_box_mode=203, mop_mode=303, water_shortage_status=1, clear_water_status=1, clear_water_status_name="out_of_water", dock_error_status=39, is_charging=True),
+    ]
+
+    report = build_night_report(date(2026, 8, 14), [robot], [job], samples, [])
+
+    result = report["robots"][0]["jobs"][0]
+    assert result["status"] == "ok"
+    assert result["issues"] == []
+
+
 def test_mop_mode_is_ignored_when_water_is_explicitly_off() -> None:
     robot = row(duid="robot-b", name="1.etg B", model="Q5")
     job = row(
