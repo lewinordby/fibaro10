@@ -33033,6 +33033,9 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 dust_bag = roborock_telemetry_value_label(
                     "dust_bag_status", telemetry.dust_bag_status, telemetry.dust_bag_status_name
                 ) if telemetry else "Ikke støttet"
+                robot_water = roborock_telemetry_value_label(
+                    "water_shortage_status", telemetry.water_shortage_status
+                ) if telemetry else "Ikke støttet"
                 active = cleaning_robot_is_active(
                     source.in_cleaning if source else None,
                     source.state_code if source else None,
@@ -33054,6 +33057,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     dust_bag=dust_bag,
                     active=active,
                     data_age_minutes=telemetry_age_minutes,
+                    robot_water=robot_water,
                     stale_after_minutes=CLEANING_ROBOT_STATUS_STALE_AFTER_MINUTES,
                 )
                 if readiness["status"] == "active" and active_cycle and active_cycle.get("phase") == "charging_pause":
@@ -33067,6 +33071,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "dirty_water_label": dirty_water,
                     "dust_bag_label": dust_bag,
                     "dock_error_label": dock_error,
+                    "robot_water_label": robot_water,
                     "signal_label": roborock_signal_label(telemetry.rssi) if telemetry else "-",
                 }
 
@@ -40450,6 +40455,9 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
                 ),
                 "dust_bag_label": roborock_telemetry_value_label(
                     "dust_bag_status", row.dust_bag_status, row.dust_bag_status_name
+                ),
+                "robot_water_label": roborock_telemetry_value_label(
+                    "water_shortage_status", row.water_shortage_status
                 ),
                 "signal_label": roborock_signal_label(row.rssi),
             }

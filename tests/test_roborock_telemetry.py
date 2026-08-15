@@ -56,6 +56,8 @@ def test_roborock_resource_labels_are_readable():
     assert roborock_telemetry_value_label("dust_bag_status", 34, "full") == "Full"
     assert roborock_dock_type_label(8) == "Qrevo P10-dokk"
     assert roborock_dock_error_label(38) == "Rentvann mangler"
+    assert roborock_telemetry_value_label("water_shortage_status", 0) == "OK"
+    assert roborock_telemetry_value_label("water_shortage_status", 1) == "Vannmangel"
 
 
 def test_roborock_readiness_ignores_unsupported_values_and_marks_active_robot():
@@ -90,6 +92,24 @@ def test_roborock_readiness_collects_actionable_resource_problems():
     assert readiness["status"] == "attention"
     assert readiness["label"] == "Krever tilsyn"
     assert readiness["issues"] == ["Rentvann mangler", "Støvpose: Full"]
+
+
+def test_roborock_readiness_includes_internal_robot_water_shortage():
+    readiness = roborock_operational_readiness(
+        cloud_online=True,
+        last_error=None,
+        error_code=0,
+        dock_error="Ingen feil",
+        clear_water="OK",
+        dirty_water="OK",
+        dust_bag="OK",
+        active=False,
+        data_age_minutes=1,
+        robot_water="Vannmangel",
+    )
+
+    assert readiness["status"] == "attention"
+    assert readiness["issues"] == ["Vann i robot: Vannmangel"]
 
 
 def test_roborock_readiness_marks_stale_telemetry_for_follow_up():

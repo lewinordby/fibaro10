@@ -377,6 +377,9 @@ def test_roborock_details_no_longer_depend_on_the_classic_ui() -> None:
     assert '"today": overview_day' in core
     assert '"yesterday": overview_day' in core
     assert '"readiness": overview_readiness' in core
+    assert '"robot_water_label": robot_water' in core
+    assert "Rentvann i dokk" in detail
+    assert "Vann i robot" in detail
     assert '"summary": overview_summary' in core
     assert "OverviewStrip" in detail
     assert "DayActivity" in detail

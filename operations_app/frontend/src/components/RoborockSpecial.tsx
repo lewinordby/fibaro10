@@ -251,10 +251,11 @@ function RobotCard({ robot }: { robot: RoborockRobotSummary }) {
   const style = readinessStyle(readiness.status);
   const consumables = robot.consumables;
   const resources = [
-    ["Rentvann", readiness.clear_water_label],
-    ["Skittent vann", readiness.dirty_water_label],
-    ["Støvpose", readiness.dust_bag_label],
-    ["Dokk", readiness.dock_error_label],
+    ["Rentvann i dokk", readiness.clear_water_label],
+    ["Skittentvann i dokk", readiness.dirty_water_label],
+    ["Støvpose i dokk", readiness.dust_bag_label],
+    ["Dokkstatus", readiness.dock_error_label],
+    ["Vann i robot", readiness.robot_water_label],
   ].filter(([, value]) => isSupportedResource(value));
   const nextPlan = robot.schedules?.next_label
     ? `${robot.schedules.next_label}${robot.schedules.active_count > 1 ? ` · ${robot.schedules.active_count} planer` : ""}`
@@ -280,7 +281,7 @@ function RobotCard({ robot }: { robot: RoborockRobotSummary }) {
     {readiness.issues.length ? <div className="flex items-start gap-2 border-b border-red-100 bg-red-50 px-5 py-2.5 text-xs text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"><MosaicIcon className="mt-0.5" name="warning" size={14} /><span>{readiness.issues.join(" · ")}</span></div> : null}
     {robot.active_cycle ? <ActiveCycleBand cycle={robot.active_cycle} compact /> : null}
     <OverviewDayActivity robot={robot} />
-    {resources.length ? <div className={`grid gap-3 border-b border-gray-100 px-5 py-2.5 dark:border-gray-700/60 ${resources.length >= 4 ? "grid-cols-4" : resources.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>{resources.map(([label, value]) => <ResourceValue key={label} label={String(label)} value={value} />)}</div> : null}
+    {resources.length ? <div className="grid grid-cols-2 gap-x-4 gap-y-3 border-b border-gray-100 px-5 py-3 xl:grid-cols-3 dark:border-gray-700/60">{resources.map(([label, value]) => <ResourceValue key={label} label={String(label)} value={value} />)}</div> : null}
     {consumables && readiness.issues.length ? <div className="flex flex-wrap gap-x-4 gap-y-1 border-b border-gray-100 bg-gray-50/70 px-5 py-2 text-[0.7rem] text-gray-400 dark:border-gray-700/60 dark:bg-gray-900/20"><strong className="font-semibold text-gray-500 dark:text-gray-300">Forbruksdeler</strong><span>H.børste {consumables.main_brush || "-"}</span><span>S.børste {consumables.side_brush || "-"}</span><span>Filter {consumables.filter || "-"}</span></div> : null}
     <div className="mt-auto flex items-center justify-end px-5 py-2.5 text-xs"><span className="flex items-center gap-1 font-medium text-green-700 dark:text-green-400">Se robot <MosaicIcon name="arrow-right" size={14} /></span></div>
   </AppLink>;
@@ -598,10 +599,11 @@ function DetailDayRows({ summary }: { summary?: RoborockRobotSummary }) {
 
 function ReadinessGrid({ readiness }: { readiness?: RoborockReadinessSummary | null }) {
   const values = [
-    ["Rentvann", readiness?.clear_water_label],
-    ["Skittent vann", readiness?.dirty_water_label],
-    ["Støvpose", readiness?.dust_bag_label],
-    ["Dokk", readiness?.dock_error_label],
+    ["Rentvann i dokk", readiness?.clear_water_label],
+    ["Skittentvann i dokk", readiness?.dirty_water_label],
+    ["Støvpose i dokk", readiness?.dust_bag_label],
+    ["Dokkstatus", readiness?.dock_error_label],
+    ["Vann i robot", readiness?.robot_water_label],
     ["Lading", readiness?.charge_label],
     ["Signal", readiness?.signal_label],
   ];
@@ -1223,7 +1225,7 @@ function RobotDetail({ duid, summary }: { duid: string; summary?: RoborockRobotS
     </div>
     <Panel title="Alle telemetriverdier" subtitle={telemetry.timestamp ? `Sist lest ${stamp(telemetry.timestamp)}` : "Venter på første telemetrimåling"}>{telemetryFields.length ? <TelemetryFields fields={telemetryFields} /> : <div className="p-8 text-sm text-gray-400">Ingen telemetri er mottatt ennå.</div>}</Panel>
     <Panel title="Tilstandsendringer" subtitle={`${data.telemetryEvents.length} siste hendelser`}><CompactTable columns={["timestamp", "title", "previous_label", "current_label", "severity"]} rows={data.telemetryEvents} /></Panel>
-    <Panel title="Telemetrilogg" subtitle={`${data.telemetrySamples.length} minuttmålinger`}><CompactTable columns={["timestamp", "state_label", "battery", "charge_label", "clear_water_label", "dirty_water_label", "dust_bag_label", "dock_error_label"]} rows={data.telemetrySamples.slice(0, 120)} /></Panel>
+    <Panel title="Telemetrilogg" subtitle={`${data.telemetrySamples.length} minuttmålinger`}><CompactTable columns={["timestamp", "state_label", "battery", "charge_label", "clear_water_label", "dirty_water_label", "robot_water_label", "dust_bag_label", "dock_error_label"]} rows={data.telemetrySamples.slice(0, 120)} /></Panel>
     <details className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700/60 dark:bg-gray-800">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-sm font-semibold text-gray-700 dark:text-gray-200"><span className="flex items-center gap-2"><MosaicIcon name="settings" />{technicalTitle}</span><span className="flex items-center gap-2 text-xs font-medium text-gray-400">{isDreame ? "Dreamehome" : `${supportedProbes}/${data.telemetryProbes.length} lesekall støttes`} <MosaicIcon name="chevron-down" /></span></summary>
       <div className="space-y-6 border-t border-gray-100 p-5 dark:border-gray-700/60">

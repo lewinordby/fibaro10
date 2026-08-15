@@ -85,6 +85,7 @@ export type RoborockReadinessSummary = {
   dirty_water_label?: string | null;
   dust_bag_label?: string | null;
   dock_error_label?: string | null;
+  robot_water_label?: string | null;
   signal_label?: string | null;
 };
 

@@ -12,6 +12,35 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1758",
+        "date": "15.08.2026",
+        "headline": "Vannstatus skiller tydelig mellom dokk og robot",
+        "title": "Alle vannsignalene har fått forståelige etiketter i Renhold",
+        "description": (
+            "Robotoversikten viser nå eksplisitt hvilke vann- og ressursverdier som gjelder dokken, og "
+            "hvilken verdi som gjelder vannmangel inne i selve roboten. Det interne vannsignalet inngår "
+            "også i vurderingen av om roboten krever tilsyn."
+        ),
+        "applications": [
+            "Fibaro10 build 1758: leverer og vurderer robotens interne vannmangelsignal.",
+            "Bygg og drift build 71: tydelige etiketter for dokkstatus og vann i robot.",
+        ],
+        "request": (
+            "Greit å ha alle, men med forståelige etiketter. Vil gjerne også ha med den som viser "
+            "internt om det mangler."
+        ),
+        "work_duration": "ca. 25 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Endrer etikettene til Rentvann i dokk, Skittentvann i dokk, Støvpose i dokk og Dokkstatus.",
+            "Legger til Vann i robot basert på Roborocks water_shortage_status.",
+            "Oversetter intern status 0 til OK og andre rapporterte verdier til Vannmangel.",
+            "Lar intern vannmangel sette robotens samlede status til Krever tilsyn.",
+            "Viser det samme skillet både på oversiktskortet, robotsiden og i telemetriloggen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1757",
         "date": "15.08.2026",
         "headline": "Vannloggen viser både tom og fylt dokk",

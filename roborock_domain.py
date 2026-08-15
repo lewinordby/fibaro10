@@ -280,6 +280,11 @@ def roborock_telemetry_value_label(field_name: str, value: Any, name: Any = None
         return roborock_charge_label(value)
     if field_name in {"clear_water_status", "dirty_water_status", "dust_bag_status", "clean_fluid_status"}:
         return roborock_resource_status_label(value, name)
+    if field_name == "water_shortage_status":
+        number = int_value(value)
+        if number is None:
+            return "Ikke støttet"
+        return "OK" if number == 0 else "Vannmangel"
     if field_name == "rssi":
         return roborock_signal_label(value)
     if field_name in {"is_charging", "in_cleaning", "in_returning", "auto_dust_collection", "wash_ready"}:
@@ -463,6 +468,7 @@ def roborock_operational_readiness(
     dust_bag: str,
     active: bool,
     data_age_minutes: Optional[int],
+    robot_water: str = "Ikke støttet",
     stale_after_minutes: int = 10,
 ) -> Dict[str, Any]:
     issues = []
@@ -476,7 +482,7 @@ def roborock_operational_readiness(
         issues.append("Ingen telemetri mottatt")
     elif data_age_minutes > stale_after_minutes:
         issues.append(f"Telemetri er {data_age_minutes} min gammel")
-    issues.extend(roborock_resource_issues(dock_error, clear_water, dirty_water, dust_bag))
+    issues.extend(roborock_resource_issues(dock_error, clear_water, dirty_water, dust_bag, robot_water))
     if cloud_online is False:
         status, label = "offline", "Ikke tilkoblet"
     elif issues:
@@ -493,6 +499,7 @@ def roborock_resource_issues(
     clear_water: str,
     dirty_water: str,
     dust_bag: str,
+    robot_water: str = "Ikke støttet",
 ) -> list[str]:
     """Return resource problems without connection or freshness concerns."""
     issues = []
@@ -506,6 +513,8 @@ def roborock_resource_issues(
     ):
         if value not in {"OK", "Ikke støttet", "-"} and dock_marker not in dock_error_lower:
             issues.append(f"{label}: {value}")
+    if robot_water not in {"OK", "Ikke støttet", "-"}:
+        issues.append(f"Vann i robot: {robot_water}")
     return list(dict.fromkeys(issues))
 
 
