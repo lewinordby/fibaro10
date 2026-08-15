@@ -12,6 +12,34 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1766",
+        "date": "15.08.2026",
+        "headline": "Åpningstiden har fått et eget felt i robottidslinjen",
+        "title": "Planmarkører og åpningstid kan ikke lenger forveksles",
+        "description": (
+            "Den stiplede markøren ved åpningstid er erstattet av en svak, sammenhengende bakgrunnsfarge "
+            "fra kl. 06:45 til rapportslutt. En diskret heltrukket kant viser nøyaktig når åpningstiden "
+            "begynner, mens stiplede linjer nå bare brukes til aktive, pauserte og uteblitte robotplaner."
+        ),
+        "applications": [
+            "Fibaro10 build 1766: registrerer den visuelle presiseringen i nattrapporten.",
+            "Bygg og drift build 76: oppdaterer tidslinje og tegnforklaring for åpningstid.",
+        ],
+        "request": (
+            "Gjør åpningstidspunktet mindre misvisende enn en stiplet linje, og marker heller åpningstiden "
+            "med en annen bakgrunnsfarge."
+        ),
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fjerner den røde, stiplede linjen som tidligere markerte åpning.",
+            "Fargelegger hele tidsrommet fra åpning kl. 06:45 til kl. 08:00 svakt rosa.",
+            "Bruker en tynn heltrukket kant ved starten av åpningstiden.",
+            "Legger åpningstid inn som et eget bakgrunnsfelt i tegnforklaringen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1765",
         "date": "15.08.2026",
         "headline": "Nattrapporten viser planen for neste natt",
