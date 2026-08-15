@@ -18,7 +18,8 @@ from time_formatting import LOCAL_TZ, normalize_local_naive, utc_naive_to_local_
 REPORT_START = time(20, 0)
 REPORT_END = time(8, 0)
 REPORT_READY_BY = time(6, 45)
-SCHEDULE_MATCH_TOLERANCE = timedelta(minutes=45)
+SCHEDULE_EARLY_MATCH_TOLERANCE = timedelta(minutes=45)
+SCHEDULE_LATE_MATCH_TOLERANCE = timedelta(minutes=90)
 SCHEDULE_ON_TIME_TOLERANCE = timedelta(minutes=10)
 SCHEDULE_MISSING_GRACE = timedelta(minutes=20)
 
@@ -419,7 +420,9 @@ def build_schedule_check(
             (abs((actual_at - occurrence["scheduledAtValue"]).total_seconds()), occurrence_index, actual_index, actual_at, record_id, job)
             for occurrence_index, occurrence in enumerate(expected)
             for actual_index, actual_at, record_id, job in actual_starts
-            if abs(actual_at - occurrence["scheduledAtValue"]) <= SCHEDULE_MATCH_TOLERANCE
+            if occurrence["scheduledAtValue"] - SCHEDULE_EARLY_MATCH_TOLERANCE
+            <= actual_at
+            <= occurrence["scheduledAtValue"] + SCHEDULE_LATE_MATCH_TOLERANCE
         ),
         key=lambda row: row[0],
     )
@@ -463,7 +466,7 @@ def build_schedule_check(
         active_near_schedule = any(
             row_value(sample, "in_cleaning") is True
             and (stamp := normalize_local_naive(row_value(sample, "timestamp"))) is not None
-            and scheduled_at - timedelta(minutes=5) <= stamp <= scheduled_at + SCHEDULE_MATCH_TOLERANCE
+            and scheduled_at - timedelta(minutes=5) <= stamp <= scheduled_at + SCHEDULE_LATE_MATCH_TOLERANCE
             for sample in samples
         )
         if active_near_schedule and generated_at <= window["end"]:

@@ -12,6 +12,33 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1764",
+        "date": "15.08.2026",
+        "headline": "Forsinkede robotjobber regnes ikke som uteblitt",
+        "title": "Nattrapporten kobler nattens faktiske jobber til riktig plan",
+        "description": (
+            "Nattrapporten markerte tre fullførte vaskejobber som uteblitt fordi robotene startet 59–70 minutter "
+            "etter planlagt tid. Koblingen tillater nå den forsinkelsen som kan oppstå mens roboten lader, "
+            "og viser jobbene som forsinket gjennomført i stedet for ikke registrert."
+        ),
+        "applications": [
+            "Fibaro10 build 1764: korrigerer plan-til-jobb-koblingen i Roborock-nattrapporten.",
+            "Bygg og drift: viser de korrigerte rapportdataene uten frontendendringer.",
+        ],
+        "request": (
+            "Forklar og korriger hvorfor Nattrapport sier at jobber uteble når alle robotjobbene faktisk gikk."
+        ),
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Øker toleransen for forsinket faktisk start fra 45 til 90 minutter.",
+            "Beholder 45 minutter som maksimal toleranse for start før planlagt tidspunkt.",
+            "Lar fortsatt hver jobb bare dekke én plan og beholder reelle mangler som uteblitt.",
+            "Legger til regresjonstest med en fullført vask som startet 70 minutter etter planen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1763",
         "date": "15.08.2026",
         "headline": "Renholdsoversikten viser bare den nyttige daglinjen",

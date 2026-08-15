@@ -199,6 +199,46 @@ def test_night_report_marks_an_enabled_schedule_without_a_job_as_missing() -> No
     assert result["findings"][0] == "Planlagt støvsuging kl. 01:00 ble ikke registrert."
 
 
+def test_night_report_matches_a_completed_job_started_seventy_minutes_late() -> None:
+    robot = row(duid="robot-delayed", name="1.etg A", model="Qrevo")
+    schedule = row(
+        robot_duid="robot-delayed", schedule_id="mop-0005", cron="5 0 * * *", enabled=True,
+        fan_power=105, water_box_mode=203, mop_mode=303, repeat=1,
+    )
+    completed_job = row(
+        robot_duid="robot-delayed", record_id="job-0115",
+        begin_at=datetime(2026, 8, 13, 23, 15), end_at=datetime(2026, 8, 14, 0, 20),
+        duration_minutes=65.0, duration_seconds=3900, cleaned_area_m2=38.0, area_m2=38.0,
+        complete=True, error_code=0, wash_count=6, clean_times=1,
+    )
+    samples = [
+        row(
+            robot_duid="robot-delayed", timestamp=datetime(2026, 8, 14, 1, 15),
+            in_cleaning=True, battery=100, fan_power=105, water_box_mode=203, mop_mode=303,
+            water_shortage_status=0, clear_water_status=0, clear_water_status_name="okay",
+            dock_error_status=0, is_charging=False,
+        ),
+    ]
+
+    report = build_night_report(
+        date(2026, 8, 14),
+        [robot],
+        [completed_job],
+        samples,
+        [],
+        generated_at=datetime(2026, 8, 14, 8, 5),
+        schedules=[schedule],
+    )
+
+    planned = report["robots"][0]["scheduleCheck"]
+    assert planned["missing"] == 0
+    assert planned["completed"] == 1
+    assert planned["delayed"] == 1
+    assert planned["jobs"][0]["delayMinutes"] == 70
+    assert planned["jobs"][0]["statusLabel"] == "Startet +70 min"
+    assert report["conclusion"]["title"] == "Planlagt rengjøring startet forsinket"
+
+
 def test_schedule_check_keeps_an_active_job_running() -> None:
     robot = row(duid="robot-live", name="Dagrobot", model="Qrevo")
     schedule = row(
