@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { ErrorState, Loading, MetricCard, Panel, Segmented, useApi } from "@lilletorget/microapp-ui";
 import { domainApi } from "@lilletorget/microapp-ui/api";
 
@@ -9,6 +10,7 @@ type Monitor = {
   overlay_url?: string | null; baseline_crop_url?: string | null; latest_crop_url?: string | null; overlay_crop_url?: string | null;
   ai_heatmap_url?: string | null; ai_status?: string; ai_score?: number | null; ai_threshold?: number | null; ai_training_samples?: number | null;
   ai_last_checked_at?: string | null; ai_last_error?: string | null; last_error?: string | null;
+  display_crop?: { x: number; y: number; width: number; height: number } | null;
 };
 type Incident = { incident_id: number; display_name: string; status: string; severity?: string | null; detected_at: string; last_observed_at?: string | null; resolved_at?: string | null };
 type Status = { settings: { analysis_interval_seconds?: number; monitoring_enabled?: boolean }; camera_monitors: Monitor[]; asset_monitors?: Monitor[]; incidents?: Incident[]; summary: Record<string, number | boolean | undefined>; runtime: { last_success_at?: string | null; last_error?: string | null } };
@@ -20,6 +22,31 @@ function name(monitor: Monitor) { return monitor.display_name || monitor.camera_
 function statusLabel(value?: string) {
   const labels: Record<string, string> = { normal: "Normal", changed: "Endring", obscured: "Tildekket", suspected: "Kontroller", error: "Feil", training: "Trener", active: "Aktiv", resolved: "Løst", acknowledged: "Bekreftet" };
   return labels[String(value || "").toLowerCase()] || value || "Ukjent";
+}
+
+function imageFrameStyle(crop: Monitor["display_crop"], nativePixels: boolean): CSSProperties {
+  const width = Math.max(1, Number(crop?.width || 16));
+  const height = Math.max(1, Number(crop?.height || 9));
+  return {
+    aspectRatio: nativePixels ? undefined : `${width} / ${height}`,
+    width: nativePixels ? `${width}px` : "100%",
+    height: nativePixels ? `${height}px` : undefined,
+    maxWidth: nativePixels ? "none" : `${width}px`,
+  };
+}
+
+function ImageFrame({
+  crop,
+  nativePixels,
+  children,
+}: {
+  crop: Monitor["display_crop"];
+  nativePixels: boolean;
+  children: ReactNode;
+}) {
+  return <div className={`overflow-auto rounded-lg bg-gray-950 ${nativePixels ? "max-h-[62dvh]" : ""}`}>
+    <div className="relative mx-auto overflow-hidden bg-gray-950" style={imageFrameStyle(crop, nativePixels)}>{children}</div>
+  </div>;
 }
 
 export function BollardsSpecial() {
@@ -44,6 +71,7 @@ export function BollardsSpecial() {
 function Inspector({ monitor }: { monitor: Monitor }) {
   const [mode, setMode] = useState("compare");
   const [opacity, setOpacity] = useState(50);
+  const [nativePixels, setNativePixels] = useState(false);
   const [heatmap, setHeatmap] = useState(false);
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -56,17 +84,17 @@ function Inspector({ monitor }: { monitor: Monitor }) {
   const latest = monitor.latest_crop_url || monitor.latest_url || "";
   const difference = monitor.overlay_crop_url || monitor.overlay_url || "";
   return <Panel title={name(monitor)} subtitle={`Fast utsnitt · kontrollert ${stamp(monitor.last_checked_at)}`} actions={<span className={`rounded-full px-3 py-1 text-xs font-semibold ${monitor.status === "normal" ? "bg-green-500/10 text-green-700 dark:text-green-300" : "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300"}`}>{statusLabel(monitor.status)}</span>}>
-    <div className="space-y-4 p-5"><div className="flex flex-wrap items-center justify-between gap-4"><Segmented value={mode} onChange={setMode} options={[{ value: "compare", label: "Gjennomsiktig" }, { value: "side", label: "Side om side" }, { value: "difference", label: "Markerte forskjeller" }]} />{mode === "compare" ? <label className="flex min-w-72 items-center gap-3 text-xs font-semibold text-gray-500"><span>Referanse</span><input className="w-full accent-violet-500" type="range" min="0" max="100" step="5" value={opacity} onChange={(event) => setOpacity(Number(event.target.value))} /><span>Siste {opacity}%</span></label> : null}</div>
-      {mode === "side" ? <div className="grid gap-3 lg:grid-cols-2"><ImageFigure label="Referanse" stampValue={monitor.baseline_captured_at} src={reference} /><ImageFigure label="Siste bilde" stampValue={monitor.latest_captured_at} src={latest} /></div> : mode === "difference" ? <ImageFigure label="Endrede piksler" stampValue={monitor.latest_captured_at} src={difference} /> : <figure><figcaption className="mb-2 flex justify-between text-xs text-gray-500"><span>Referanse: {stamp(monitor.baseline_captured_at)}</span><span>Siste: {stamp(monitor.latest_captured_at)}</span></figcaption><div className="relative mx-auto aspect-video max-h-[62dvh] overflow-hidden rounded-lg bg-gray-950"><img className="absolute inset-0 h-full w-full object-contain" src={reference} alt={`Referanse ${name(monitor)}`} /><img className="absolute inset-0 h-full w-full object-contain" style={{ opacity: opacity / 100 }} src={latest} alt={`Siste bilde ${name(monitor)}`} /></div></figure>}
+    <div className="space-y-4 p-5"><div className="flex flex-wrap items-center justify-between gap-4"><div className="flex flex-wrap items-center gap-3"><Segmented value={mode} onChange={setMode} options={[{ value: "compare", label: "Gjennomsiktig" }, { value: "side", label: "Side om side" }, { value: "difference", label: "Markerte forskjeller" }]} /><Segmented value={nativePixels ? "native" : "fit"} onChange={(value) => setNativePixels(value === "native")} options={[{ value: "fit", label: "Tilpasset" }, { value: "native", label: "1:1 piksler" }]} /></div>{mode === "compare" ? <label className="flex min-w-72 items-center gap-3 text-xs font-semibold text-gray-500"><span>Referanse</span><input className="w-full accent-violet-500" type="range" min="0" max="100" step="5" value={opacity} onChange={(event) => setOpacity(Number(event.target.value))} /><span>Siste {opacity}%</span></label> : null}</div>
+      {mode === "side" ? <div className="grid gap-3 lg:grid-cols-2"><ImageFigure crop={monitor.display_crop} nativePixels={nativePixels} label="Referanse" stampValue={monitor.baseline_captured_at} src={reference} /><ImageFigure crop={monitor.display_crop} nativePixels={nativePixels} label="Siste bilde" stampValue={monitor.latest_captured_at} src={latest} /></div> : mode === "difference" ? <ImageFigure crop={monitor.display_crop} nativePixels={nativePixels} label="Endrede piksler" stampValue={monitor.latest_captured_at} src={difference} /> : <figure><figcaption className="mb-2 flex justify-between text-xs text-gray-500"><span>Referanse: {stamp(monitor.baseline_captured_at)}</span><span>Siste: {stamp(monitor.latest_captured_at)}</span></figcaption><ImageFrame crop={monitor.display_crop} nativePixels={nativePixels}><img className="absolute inset-0 block h-full w-full" src={reference} alt={`Referanse ${name(monitor)}`} /><img className="absolute inset-0 block h-full w-full" style={{ opacity: opacity / 100 }} src={latest} alt={`Siste bilde ${name(monitor)}`} /></ImageFrame></figure>}
       <div className="grid gap-3 rounded-lg bg-gray-50 p-4 text-sm dark:bg-gray-900/30 sm:grid-cols-3"><div><small className="block text-gray-400">Visuell status</small><strong>{statusLabel(monitor.status)}</strong></div><div><small className="block text-gray-400">Endringsscore</small><strong>{monitor.change_score == null ? "-" : `${Math.round(monitor.change_score * 100)} %`}</strong></div><div><small className="block text-gray-400">AI-kontroll</small><strong>{statusLabel(monitor.ai_status)}{monitor.ai_score == null ? "" : ` · ${monitor.ai_score.toFixed(2)}`}</strong></div></div>
-      {monitor.ai_heatmap_url ? <div><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={() => setHeatmap((value) => !value)}>{heatmap ? "Skjul AI-varmekart" : "Vis AI-varmekart"}</button>{heatmap ? <div className="mt-3"><ImageFigure label="Områder AI reagerer på" stampValue={monitor.ai_last_checked_at} src={monitor.ai_heatmap_url} /><p className="mt-2 text-xs text-gray-500">Varmekartet er forklaringsstøtte. Kontroller alltid mot referanse og siste bilde.</p></div> : null}</div> : null}
+      {monitor.ai_heatmap_url ? <div><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={() => setHeatmap((value) => !value)}>{heatmap ? "Skjul AI-varmekart" : "Vis AI-varmekart"}</button>{heatmap ? <div className="mt-3"><ImageFigure crop={monitor.display_crop} nativePixels={nativePixels} label="Områder AI reagerer på" stampValue={monitor.ai_last_checked_at} src={monitor.ai_heatmap_url} /><p className="mt-2 text-xs text-gray-500">Varmekartet er forklaringsstøtte. Kontroller alltid mot referanse og siste bilde.</p></div> : null}</div> : null}
       {monitor.last_error || monitor.ai_last_error ? <div className="rounded-lg bg-yellow-500/10 p-3 text-sm text-yellow-700 dark:text-yellow-300">{monitor.last_error || monitor.ai_last_error}</div> : null}
     </div>
   </Panel>;
 }
 
-function ImageFigure({ label, stampValue, src }: { label: string; stampValue?: string | null; src: string }) {
-  return <figure><figcaption className="mb-2 flex justify-between text-xs text-gray-500"><strong>{label}</strong><span>{stamp(stampValue)}</span></figcaption><div className="aspect-video overflow-hidden rounded-lg bg-gray-950">{src ? <img className="h-full w-full object-contain" src={src} alt={label} /> : <div className="flex h-full items-center justify-center text-gray-400">Bilde mangler</div>}</div></figure>;
+function ImageFigure({ crop, nativePixels, label, stampValue, src }: { crop: Monitor["display_crop"]; nativePixels: boolean; label: string; stampValue?: string | null; src: string }) {
+  return <figure className="min-w-0"><figcaption className="mb-2 flex justify-between text-xs text-gray-500"><strong>{label}</strong><span>{stamp(stampValue)}</span></figcaption><ImageFrame crop={crop} nativePixels={nativePixels}>{src ? <img className="absolute inset-0 block h-full w-full" src={src} alt={label} /> : <div className="flex h-full items-center justify-center text-gray-400">Bilde mangler</div>}</ImageFrame></figure>;
 }
 
 function Incidents({ incidents }: { incidents: Incident[] }) {

@@ -103,11 +103,12 @@ function combinedCameraStatus(monitor: BollardCameraMonitor): ReturnType<typeof 
 }
 
 function frameStyle(crop?: BollardCameraMonitor["display_crop"]): CSSProperties {
-  const aspect = crop ? Math.max(0.35, Math.min(3.2, crop.width / crop.height)) : 16 / 9;
-  const widthCap = aspect < 1 ? `${Math.round(aspect * 560)}px` : "100%";
+  const width = Math.max(1, Number(crop?.width || 16));
+  const height = Math.max(1, Number(crop?.height || 9));
   return {
-    "--bollard-crop-aspect": aspect.toFixed(4),
-    "--bollard-crop-width-cap": widthCap,
+    "--bollard-crop-aspect": `${width} / ${height}`,
+    "--bollard-crop-native-width": `${width}px`,
+    "--bollard-crop-native-height": `${height}px`,
   } as CSSProperties;
 }
 
@@ -210,6 +211,7 @@ function CameraNavigator({
 function CameraInspector({ monitor }: { monitor: BollardCameraMonitor }) {
   const [selectedMode, setSelectedMode] = useState<ImageMode>("compare");
   const [opacity, setOpacity] = useState(50);
+  const [nativePixels, setNativePixels] = useState(false);
   const [showAiDetails, setShowAiDetails] = useState(false);
   const status = combinedCameraStatus(monitor);
   const baseline = imageUrl(monitor.baseline_crop_url || monitor.baseline_url, monitor.baseline_captured_at);
@@ -273,6 +275,10 @@ function CameraInspector({ monitor }: { monitor: BollardCameraMonitor }) {
                 </button>
               ))}
             </div>
+            <div className="bollard-image-switch" role="group" aria-label="Velg bildestørrelse">
+              <button type="button" className={nativePixels ? "" : "is-active"} onClick={() => setNativePixels(false)}>Tilpasset</button>
+              <button type="button" className={nativePixels ? "is-active" : ""} onClick={() => setNativePixels(true)}>1:1 piksler</button>
+            </div>
             {mode === "compare" ? (
               <label className="bollard-opacity-inline">
                 <span className="bollard-opacity-endpoint is-reference">
@@ -300,14 +306,18 @@ function CameraInspector({ monitor }: { monitor: BollardCameraMonitor }) {
             <div className="bollard-visual-pair" aria-label={`Visuell sammenligning av ${name}`}>
               <figure className="bollard-visual-panel is-reference">
                 <figcaption><strong>Referanse</strong><span>{formatImageStamp(monitor.baseline_captured_at)}</span></figcaption>
-                <div className="bollard-workbench-frame" style={frameStyle(monitor.display_crop)}>
-                  <img src={baseline} alt={`Referansebilde fra ${name}`} decoding="async" />
+                <div className={nativePixels ? "bollard-pixel-viewport is-native" : "bollard-pixel-viewport"}>
+                  <div className={nativePixels ? "bollard-workbench-frame is-native" : "bollard-workbench-frame"} style={frameStyle(monitor.display_crop)}>
+                    <img src={baseline} alt={`Referansebilde fra ${name}`} decoding="async" />
+                  </div>
                 </div>
               </figure>
               <figure className="bollard-visual-panel is-latest">
                 <figcaption><strong>Siste bilde</strong><span>{formatImageStamp(monitor.latest_captured_at)}</span></figcaption>
-                <div className="bollard-workbench-frame" style={frameStyle(monitor.display_crop)}>
-                  <img src={latest} alt={`Siste bilde fra ${name}`} decoding="async" />
+                <div className={nativePixels ? "bollard-pixel-viewport is-native" : "bollard-pixel-viewport"}>
+                  <div className={nativePixels ? "bollard-workbench-frame is-native" : "bollard-workbench-frame"} style={frameStyle(monitor.display_crop)}>
+                    <img src={latest} alt={`Siste bilde fra ${name}`} decoding="async" />
+                  </div>
                 </div>
               </figure>
             </div>
@@ -317,22 +327,24 @@ function CameraInspector({ monitor }: { monitor: BollardCameraMonitor }) {
                 <span>{IMAGE_MODE_LABELS[mode]}</span>
                 {showsReference ? <span className="bollard-reference-key"><i /> Dra bryteren for å se endringer</span> : null}
               </div>
-              <div className={`bollard-workbench-frame is-${mode}`} style={frameStyle(monitor.display_crop)}>
-                <img
-                  className={showsReference ? "bollard-reference-layer" : undefined}
-                  src={baseUrl}
-                  alt={`${IMAGE_MODE_LABELS[mode]} fra ${name}`}
-                  decoding="async"
-                />
-                {mode === "compare" ? (
-                  <div className="bollard-overlay-layer" style={{ opacity: opacity / 100 }}>
-                    <img className="bollard-latest-layer" src={latest} alt={`Siste bilde fra ${name}`} decoding="async" />
+              <div className={nativePixels ? "bollard-pixel-viewport is-native" : "bollard-pixel-viewport"}>
+                <div className={`bollard-workbench-frame is-${mode}${nativePixels ? " is-native" : ""}`} style={frameStyle(monitor.display_crop)}>
+                  <img
+                    className={showsReference ? "bollard-reference-layer" : undefined}
+                    src={baseUrl}
+                    alt={`${IMAGE_MODE_LABELS[mode]} fra ${name}`}
+                    decoding="async"
+                  />
+                  {mode === "compare" ? (
+                    <div className="bollard-overlay-layer" style={{ opacity: opacity / 100 }}>
+                      <img className="bollard-latest-layer" src={latest} alt={`Siste bilde fra ${name}`} decoding="async" />
+                    </div>
+                  ) : null}
+                  <div className="bollard-frame-legend" aria-hidden="true">
+                    {showsReference ? <span className="is-reference">Referanse</span> : null}
+                    {mode === "compare" ? <span className="is-latest">Siste bilde · {opacity} %</span> : null}
+                    {mode === "overlay" ? <span className="is-difference">Pikselforskjeller markert</span> : null}
                   </div>
-                ) : null}
-                <div className="bollard-frame-legend" aria-hidden="true">
-                  {showsReference ? <span className="is-reference">Referanse</span> : null}
-                  {mode === "compare" ? <span className="is-latest">Siste bilde · {opacity} %</span> : null}
-                  {mode === "overlay" ? <span className="is-difference">Pikselforskjeller markert</span> : null}
                 </div>
               </div>
             </figure>

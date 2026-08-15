@@ -12,6 +12,35 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1784",
+        "date": "15.08.2026",
+        "headline": "Pullertbilder vises med eksakt utsnittsgeometri",
+        "title": "Fast sideforhold og ekte pikselvisning gjør referansekontrollen presis",
+        "description": (
+            "Pullertkontrollen brukte fortsatt en generell 16:9-visningsramme i Bygg og drift, "
+            "selv om de fire faste kamerautsnittene har svært ulike formater. Referanse, siste bilde, "
+            "forskjellsbilde og AI-bilde bruker nå det eksakte bredde-/høydeforholdet fra det lagrede "
+            "kildeutsnittet. En egen 1:1-visning lar kontrolløren se én kildepiksel per skjermpiksel "
+            "uten skalering, mens originalbildene og beskjæringskoordinatene forblir urørt."
+        ),
+        "applications": [
+            "Bygg og drift build 87: retter alle pullertvisninger og legger til 1:1 piksler.",
+            "Fibaro10: gir den klassiske pullertsiden samme presise visningsgeometri.",
+            "Testpakken: hindrer gjeninnføring av 16:9-ramme og object-contain for pullertbilder.",
+        ],
+        "request": "På pullerter er det fortsatt pikselforskyvning på bildene som gjør kontrollen vanskelig.",
+        "work_duration": "ca. 35 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fjerner generell 16:9-ramme fra pullertbildene i mikroappen.",
+            "Bruker utsnittets eksakte pikselbredde og -høyde i alle visningsmoduser.",
+            "Legger til Tilpasset og 1:1 piksler som konsistente bildestørrelser.",
+            "Fjerner object-fit-beregning mellom overliggende referanse- og sistebilde.",
+            "Beholder original JPEG, fast beskjæring og analyse helt uendret.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1783",
         "date": "15.08.2026",
         "headline": "Renholdsoversikten henter batteriet fra riktig statusmåling",

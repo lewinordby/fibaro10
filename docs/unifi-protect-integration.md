@@ -88,7 +88,9 @@ skaleres, roteres eller perspektivjusteres aldri. Endret kameraoppløsning gir e
 feil i stedet for automatisk normalisering. Grensesnittet får et ferdig utsnitt
 fra ett absolutt 4K-pikselrektangel per kamera. Referanse og siste bilde bruker
 alltid identisk rektangel og vises uten fargefilter; slideren endrer bare
-gjennomsiktigheten mellom lagene.
+gjennomsiktigheten mellom lagene. Visningen bruker utsnittets eksakte sideforhold,
+ikke en felles 16:9-ramme. Valget `1:1 piksler` viser én kildepiksel per skjermpiksel
+og kan rulles når utsnittet er større enn arbeidsflaten.
 
 Trappa ved Solstudio er et selvstendig kontrollobjekt på kameraet
 `G6 Solstudio Front`. Pullertene bruker sitt kompakte utsnitt, mens trappa bruker

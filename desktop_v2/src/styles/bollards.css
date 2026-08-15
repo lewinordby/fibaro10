@@ -337,6 +337,7 @@
 
 .bollard-workbench-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -553,7 +554,7 @@
 
 .bollard-workbench-frame {
   position: relative;
-  width: min(100%, var(--bollard-crop-width-cap, 100%));
+  width: min(100%, var(--bollard-crop-native-width, 100%));
   aspect-ratio: var(--bollard-crop-aspect, 16 / 9);
   margin: 0 auto;
   overflow: hidden;
@@ -563,13 +564,31 @@
   box-shadow: var(--shadow-sm);
 }
 
+.bollard-pixel-viewport {
+  min-width: 0;
+}
+
+.bollard-pixel-viewport.is-native {
+  max-height: 62vh;
+  overflow: auto;
+  background: var(--dark-bg-image);
+  border-radius: var(--radius-md);
+}
+
+.bollard-workbench-frame.is-native {
+  width: var(--bollard-crop-native-width);
+  height: var(--bollard-crop-native-height);
+  max-width: none;
+  aspect-ratio: auto;
+  margin: 0;
+}
+
 .bollard-workbench-frame img {
   position: absolute;
   inset: 0;
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: contain;
   user-select: none;
 }
 

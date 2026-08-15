@@ -463,6 +463,16 @@ def test_self_loading_operations_views_do_not_fetch_the_generic_module_first() -
     assert "skipModuleLoad" in operations
 
 
+def test_bollard_comparison_preserves_crop_geometry_and_offers_native_pixels() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    source = (repo_root / "operations_app" / "frontend" / "src" / "components" / "BollardsSpecial.tsx").read_text(encoding="utf-8")
+
+    assert 'aspectRatio: nativePixels ? undefined : `${width} / ${height}`' in source
+    assert 'label: "1:1 piksler"' in source
+    assert "aspect-video" not in source
+    assert "object-contain" not in source
+
+
 def test_shared_ui_has_no_domain_owned_specialists() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     shared = (repo_root / "packages" / "microapp-ui" / "src")
