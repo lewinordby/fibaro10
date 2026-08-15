@@ -415,6 +415,8 @@ def test_roborock_refill_log_is_available_in_operations() -> None:
     operations = (repo_root / "operations_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
     detail = (repo_root / "operations_app" / "frontend" / "src" / "components" / "RefillLog.tsx").read_text(encoding="utf-8")
     assert '@app.get("/api/renhold/refill-log")' in core
+    assert "iso_week_start as refill_iso_week_start" in core
+    assert "selected_week = refill_iso_week_start(" in core
     assert 'to: "/renhold/pafylling"' in operations
     assert "function RefillLog()" in detail
     assert "rentvannstanken i dokken" in detail

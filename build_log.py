@@ -12,6 +12,28 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1756",
+        "date": "15.08.2026",
+        "headline": "Påfyllingsloggen bruker entydig ukevelger",
+        "title": "Navnekollisjon i kjernen er rettet før siden tas i bruk",
+        "description": (
+            "Den visuelle produksjonskontrollen avdekket at en eldre ukehjelper i Fibaro10 hadde samme navn "
+            "som ukevelgeren for påfyllingsloggen. Importen har fått et entydig navn og siden kan nå hente "
+            "den valgte uken uten serverfeil."
+        ),
+        "applications": [
+            "Fibaro10 build 1756: retter ukeoppslag for Renhold / Påfylling.",
+        ],
+        "request": "Ferdigstill egen ukelogg for når renholdspersonalet fyller rentvannstanken i robotdokkene.",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Gir den nye ISO-ukefunksjonen et entydig importnavn i hovedapplikasjonen.",
+            "Legger til regresjonskontroll for å hindre at den eldre ukehjelperen overstyrer påfyllingsloggen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1755",
         "date": "15.08.2026",
         "headline": "Renhold har fått ukelogg for fylling av rentvann",

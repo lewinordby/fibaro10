@@ -85,7 +85,7 @@ from roborock_profiles import (
 )
 from roborock_reports import build_night_report, build_schedule_check, report_window
 from roborock_water import build_water_report
-from roborock_refills import build_refill_log, iso_week_start
+from roborock_refills import build_refill_log, iso_week_start as refill_iso_week_start
 from roborock_door_automation import (
     automation_counter_start,
     automation_decision,
@@ -40183,7 +40183,7 @@ async def api_cleaning_water_report(days: int = Query(default=7, ge=1, le=90)):
 async def api_cleaning_refill_log(week: Optional[str] = Query(default=None)):
     now = local_now_naive()
     try:
-        selected_week = iso_week_start(week, today=now.date())
+        selected_week = refill_iso_week_start(week, today=now.date())
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     period_start = datetime.combine(selected_week, time.min)
