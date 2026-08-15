@@ -712,6 +712,23 @@ def test_revenue_dashboard_is_scoped_and_has_no_nested_horizontal_scroller() -> 
     assert 'm-4 overflow-x-auto' not in dashboard_source
 
 
+def test_shared_metric_cards_balance_five_items_on_wide_screens() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    source = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "ModuleContent.tsx").read_text(encoding="utf-8")
+
+    assert 'data.length === 5 ? "xl:grid-cols-5" : "xl:grid-cols-4"' in source
+
+
+def test_energy_elvia_summary_formats_period_and_hour_counts() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    source = (repo_root / "energy_app" / "frontend" / "src" / "components" / "EnergySpecial.tsx").read_text(encoding="utf-8")
+
+    assert "function dateOnly" in source
+    assert "dateOnly(data.summary.firstAt)" in source
+    assert "dateOnly(data.summary.lastAt)" in source
+    assert 'label: "Timer", value: value(total.hours_count)' in source
+
+
 def test_each_domain_rejects_another_domains_module() -> None:
     cases = [
         (revenue_app, "/api/modules/parkering"),

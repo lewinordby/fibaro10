@@ -12,6 +12,37 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1781",
+        "date": "15.08.2026",
+        "headline": "Felles sluttkontroll strammer kortoppsett og Elvia-visning",
+        "title": "Fem nøkkelkort holder én rad og Elvia viser lesbare perioder",
+        "description": (
+            "Den visuelle produksjonskontrollen av alle fagappene avdekket to små helhetsavvik. "
+            "Kortgrupper med fem nøkkeltall la tidligere det siste kortet alene på en ny rad, og "
+            "Elvia-grunnlaget viste rå ISO-tid og et uformatert timetall. Felleskortene tilpasser nå "
+            "kolonneantallet til innholdet, mens Elvia presenterer norske datoer og grupperte tall."
+        ),
+        "applications": [
+            "Felles microapp-ui: bruker fem kolonner når en nøkkeltallgruppe inneholder fem kort.",
+            "Energi build 29: formaterer Elvia-periode og timeantall for raskere avlesning.",
+            "Alle fagapper er bygget på nytt og versjonert etter den felles visuelle justeringen.",
+        ],
+        "request": (
+            "Vurder kvalitet, funksjonalitet, ryddighet og design på hver mikroapp grundig, og "
+            "gjennomfør forbedringer som gir nytte."
+        ),
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Holder fem nøkkelkort på én balansert rad i brede arbeidsflater.",
+            "Beholder to kolonner på mindre skjermer slik at tekst og tall ikke blir presset.",
+            "Viser Elvia-perioden som norske datoer uten teknisk tidsformat.",
+            "Formaterer antall Elvia-timer og estimerte timer med tusenskilletegn.",
+            "Versjonerer alle berørte mikroapper etter felleskomponentendringen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1780",
         "date": "15.08.2026",
         "headline": "System viser avvik først og laster bare nødvendige data",

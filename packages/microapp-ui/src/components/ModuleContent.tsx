@@ -36,7 +36,8 @@ function cardValue(value: string | number, unit?: string) {
 
 function ModuleCards({ data, config }: { data: ModuleResponse["cards"]; config: DomainUiConfig }) {
   if (!data.length) return null;
-  return <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{data.map((card) => {
+  const desktopColumns = data.length === 5 ? "xl:grid-cols-5" : "xl:grid-cols-4";
+  return <section className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${desktopColumns}`}>{data.map((card) => {
     const content = <MetricCard label={card.title} value={cardValue(card.value, card.unit)} unit={card.unit} detail={card.detail} tone={tone(card.tone, config.accent)} />;
     const local = localPath(card.href, config);
     return local ? <AppLink key={card.title} to={local} className="block rounded-lg transition-shadow hover:shadow-md">{content}</AppLink> : <div key={card.title}>{content}</div>;

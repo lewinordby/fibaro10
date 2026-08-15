@@ -11,6 +11,11 @@ function value(value: unknown, suffix = "") {
   return `${String(value)}${suffix}`;
 }
 
+function dateOnly(value: unknown) {
+  if (value == null || value === "") return "-";
+  return displayCell("period_first", value).split(",", 1)[0];
+}
+
 function SimpleTable({ columns, rows }: { columns: Array<{ key: string; label: string }>; rows: JsonRecord[] }) {
   return <div className="overflow-x-auto"><table className="table-auto w-full dark:text-gray-300"><thead className="bg-gray-50 text-xs uppercase text-gray-400 dark:bg-gray-700/50 dark:text-gray-500"><tr>{columns.map((column) => <th className="whitespace-nowrap px-4 py-3 text-left font-semibold" key={column.key}>{column.label}</th>)}</tr></thead><tbody className="divide-y divide-gray-100 text-sm dark:divide-gray-700/60">{rows.map((row, index) => <tr className="hover:bg-gray-50/70 dark:hover:bg-gray-700/20" key={String(row.id || index)}>{columns.map((column) => <td className={`${column.key === "message" ? "min-w-72 whitespace-normal" : "whitespace-nowrap"} px-4 py-3 tabular-nums`} key={column.key}>{displayCell(column.key, row[column.key])}</td>)}</tr>)}{!rows.length ? <tr><td className="px-5 py-10 text-center text-gray-400" colSpan={columns.length}>Ingen data i valgt utvalg</td></tr> : null}</tbody></table></div>;
 }
@@ -42,10 +47,10 @@ export function EnergyElviaSpecial({ data, reload }: { data: EnergyElviaData; re
     }
   };
   const summaryRows = [
-    { id: "period", label: "Periode", value: `${data.summary.firstAt || "-"} - ${data.summary.lastAt || "-"}` },
+    { id: "period", label: "Periode", value: `${dateOnly(data.summary.firstAt)} - ${dateOnly(data.summary.lastAt)}` },
     { id: "consumption", label: "Forbruk", value: `${value(total.consumption_kwh, " kWh")}` },
     { id: "production", label: "Produksjon", value: `${value(total.production_kwh, " kWh")}` },
-    { id: "hours", label: "Timer", value: total.hours_count, detail: total.estimated_hours_count ? `${total.estimated_hours_count} estimerte` : "Alle faktiske" },
+    { id: "hours", label: "Timer", value: value(total.hours_count), detail: total.estimated_hours_count ? `${value(total.estimated_hours_count)} estimerte` : "Alle faktiske" },
   ];
   const periodRows = data.yearly.map((row, index) => ({ id: index, periode: row.period_label || row.period, forbruk_kwh: row.consumption_kwh, produksjon_kwh: row.production_kwh, timer: row.hours_count, estimerte: row.estimated_hours_count, dager: row.days_count }));
   return <div className="space-y-5">
