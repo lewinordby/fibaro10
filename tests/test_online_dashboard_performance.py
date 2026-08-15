@@ -1,5 +1,6 @@
+import asyncio
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 os.environ.setdefault(
     "DATABASE_URL",
@@ -51,7 +52,7 @@ def test_drift_robot_entry_links_to_full_robot_overview() -> None:
 
     assert 'href="/renhold"' in html
     assert "1 rengjør nå" in html
-    assert "3 totalt" in html
+    assert "1 må følges opp" in html
     assert "Klare" in html
     assert "Oppfølging" in html
     assert "Rengjør nå" in html
@@ -138,6 +139,77 @@ def test_mobile_robot_overview_shows_status_battery_and_latest_job() -> None:
 
 
 def test_mobile_robot_state_prioritizes_active_and_error_states() -> None:
-    assert online_main.mobile_robot_state({"state_code": 6, "in_cleaning": True}) == ("Rengjør", "active")
+    now = datetime(2026, 8, 14, 16, 0)
+    assert online_main.mobile_robot_state(
+        {"state_code": 6, "in_cleaning": True}, status_at=now, now=now
+    ) == ("Rengjør", "active")
+    assert online_main.mobile_robot_state(
+        {"state_code": 7, "in_cleaning": False}, status_at=now, now=now
+    ) == ("Returnerer", "active")
+    assert online_main.mobile_robot_state(
+        {"provider": "dreame", "state_code": 6, "state_name": "charging", "in_cleaning": False},
+        status_at=now,
+        now=now,
+    ) == ("Lader", "ok")
     assert online_main.mobile_robot_state({"state_code": 8, "error_code": 12}) == ("Feil", "error")
     assert online_main.mobile_robot_state({"integration_status": "pending"}) == ("Venter på konto", "pending")
+
+
+def test_mobile_robot_state_never_reports_stale_or_offline_activity_as_active() -> None:
+    now = datetime(2026, 8, 14, 16, 0)
+    stale = now - timedelta(minutes=21)
+
+    assert online_main.mobile_robot_state(
+        {"state_code": 6, "in_cleaning": True, "cloud_online": False},
+        status_at=now,
+        now=now,
+    ) == ("Frakoblet", "error")
+    assert online_main.mobile_robot_state(
+        {"state_code": 6, "in_cleaning": True, "cloud_online": True},
+        status_at=stale,
+        now=now,
+    ) == ("Utdatert status", "warning")
+    assert online_main.mobile_robot_state(
+        {"state_code": 4, "cloud_online": True},
+        now=now,
+    ) == ("Utdatert status", "warning")
+
+
+def test_mobile_robot_overview_uses_freshest_sample_and_keeps_status_in_local_time(monkeypatch) -> None:
+    captured = {}
+
+    async def fake_many_mappings(query, params=None):
+        captured["query"] = query
+        return [
+            {
+                "duid": "robot-a",
+                "name": "1.etg A",
+                "provider": "roborock",
+                "integration_status": "active",
+                "cloud_online": True,
+                "status_at": datetime(2026, 8, 14, 14, 20),
+                "state_code": 8,
+                "state_name": "charging",
+                "battery": 96,
+                "error_code": 0,
+                "in_cleaning": False,
+                "job_started_at": datetime(2026, 8, 14, 12, 20),
+                "job_ended_at": datetime(2026, 8, 14, 13, 20),
+                "job_duration_minutes": 60,
+                "job_area_m2": 39.4,
+                "job_complete": True,
+                "job_error_code": 0,
+            }
+        ]
+
+    monkeypatch.setattr(online_main, "many_mappings", fake_many_mappings)
+    monkeypatch.setattr(online_main, "local_now", lambda: datetime(2026, 8, 14, 14, 25))
+
+    robots = asyncio.run(online_main.mobile_robot_overview())
+
+    assert "roborock_telemetry_samples" in captured["query"]
+    assert "telemetry.timestamp >= status.timestamp" in captured["query"]
+    assert robots[0]["status_at"] == datetime(2026, 8, 14, 14, 20)
+    assert robots[0]["job_started_at"] == datetime(2026, 8, 14, 14, 20)
+    assert robots[0]["state_label"] == "Lader"
+    assert robots[0]["status"] == "ok"

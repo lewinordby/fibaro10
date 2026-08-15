@@ -1,4 +1,6 @@
 from cleaning_robot_domain import (
+    cleaning_robot_is_active,
+    cleaning_robot_operational_state,
     cleaning_provider,
     cleaning_provider_label,
     cleaning_robot_external_id,
@@ -31,3 +33,56 @@ def test_expected_aqua10_is_a_pending_slot_without_fabricated_telemetry():
     assert row["cloud_online"] is None
     assert row["readiness"]["status"] == "pending"
 
+
+def test_cleaning_robot_operational_state_prioritizes_setup_connection_and_errors():
+    assert cleaning_robot_operational_state(
+        integration_status="pending",
+        cloud_online=False,
+        error_code=12,
+        data_age_minutes=None,
+        active=True,
+    ) == ("pending", "Venter på oppsett")
+    assert cleaning_robot_operational_state(
+        cloud_online=False,
+        data_age_minutes=0,
+        active=True,
+    ) == ("error", "Frakoblet")
+    assert cleaning_robot_operational_state(
+        cloud_online=True,
+        error_code="12",
+        data_age_minutes=0,
+    ) == ("error", "Feil")
+
+
+def test_cleaning_robot_operational_state_requires_fresh_data_before_active_or_ready():
+    assert cleaning_robot_operational_state(
+        cloud_online=True,
+        data_age_minutes=None,
+        active=True,
+    ) == ("warning", "Utdatert status")
+    assert cleaning_robot_operational_state(
+        cloud_online=True,
+        data_age_minutes=21,
+        active=True,
+    ) == ("warning", "Utdatert status")
+    assert cleaning_robot_operational_state(
+        cloud_online=True,
+        error_code="0",
+        data_age_minutes=20,
+        active=True,
+        active_label="Vasker mopp",
+    ) == ("active", "Vasker mopp")
+    assert cleaning_robot_operational_state(
+        cloud_online=True,
+        data_age_minutes=0,
+        ready_label="Lader",
+    ) == ("ok", "Lader")
+
+
+def test_cleaning_robot_active_state_is_shared_across_overviews():
+    assert cleaning_robot_is_active(True, 8) is True
+    assert cleaning_robot_is_active(False, 7) is True
+    assert cleaning_robot_is_active(None, "23") is True
+    assert cleaning_robot_is_active(False, 8) is False
+    assert cleaning_robot_is_active(False, 6, "dreame") is False
+    assert cleaning_robot_is_active(True, 6, "dreame") is True

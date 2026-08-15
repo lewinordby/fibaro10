@@ -12,6 +12,66 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1753",
+        "date": "15.08.2026",
+        "headline": "Vannforbruk og moppevask samlet under Renhold",
+        "title": "Ny vannside viser status, innstillinger, faktisk vaskebelastning og vannhendelser",
+        "description": (
+            "Bygg og drift har fått en egen side for vann og moppevask. Den skiller mellom aktuell status "
+            "i robot og dokk, valgt moppevaskintervall og vaskestyrke, og faktisk rapporterte moppevasker. "
+            "Siden viser tomt og fylt rentvann, fullt og tømt skittentvann og vannmangel med tidspunkt."
+        ),
+        "applications": [
+            "Fibaro10 build 1753: leverer et samlet og kildebasert vannrapport-API.",
+            "Bygg og drift build 68: ny Renhold/Vann-side med perioder, robotstatus og hendelseshistorikk.",
+        ],
+        "request": (
+            "Lag en egen side under Bygg og drift - Renhold med all informasjon om vannforbruk, "
+            "inkludert når rentvann i robot og dokk går tomt, og ta med tidsintervallet for moppevask."
+        ),
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser rentvann, skittentvann, vannmangel i robot og rengjøringsmiddel per robot.",
+            "Viser moppevaskintervall, vaskestyrke og valgt vannmengde på gulvet.",
+            "Summerer faktiske moppevasker, vaskejobber, rengjort areal og areal per moppevask.",
+            "Lagrer ikke beregnede liter; siden forklarer tydelig hvilke mål som faktisk finnes i API-et.",
+            "Lister tom/fylt og full/tømt som tidsfestede hendelser og gir daglig belastningsoversikt.",
+            "Skiller roboter uten vanndokk fra roboter som faktisk har en vannfeil.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1752",
+        "date": "14.08.2026",
+        "headline": "Mobil robotstatus er fersk og pålitelig",
+        "title": "Drift og Bygg og drift vurderer robotene etter de samme statusreglene",
+        "description": (
+            "Robotstatusen i mobilgrensesnittet bruker nå den ferskeste av status- og telemetrimålingene, "
+            "og gamle eller manglende data markeres tydelig i stedet for å bli vist som klare. Frakoblede "
+            "roboter kan ikke lenger fremstå som aktive, og tidspunktet for siste status vises i riktig lokal tid."
+        ),
+        "applications": [
+            "Fibaro10 build 1752: samler leverandørnøytrale regler for robotstatus og ferskhet.",
+            "Bygg og drift: bruker den samme prioriteringen for oppsett, frakobling, feil, ferskhet og aktivitet.",
+            "Lilletorget Mobil: leser ferskeste robotmåling og varsler ved status eldre enn 20 minutter.",
+        ],
+        "request": "Kan du fortsette på Fibaro10 utviklingen herfra",
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Flytter felles statusprioritering til cleaning_robot_domain.py.",
+            "Lar mobiloversikten velge nyeste måling fra både minuttstelemetri og ordinære statussample.",
+            "Markerer manglende og mer enn 20 minutter gamle målinger som Utdatert status.",
+            "Lar frakoblet og feil vinne over en gammel aktiv-markering.",
+            "Vurderer Roborock-faser som rengjøring, retur, dokking og moppvask likt i begge oversiktene.",
+            "Viser samtidig pågående rengjøring og annet oppfølgingsbehov i sammendraget.",
+            "Beholder lokalt status-tidspunkt uten feil UTC-konvertering, mens jobb-tider fortsatt konverteres fra UTC.",
+            "Sikrer at endringer i det delte robotdomenet bygger både Fibaro10 og online-dashboardet.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1751",
         "date": "14.08.2026",
         "headline": "Drift gir direkte tilgang til robotene",

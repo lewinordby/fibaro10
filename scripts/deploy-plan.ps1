@@ -54,6 +54,11 @@ function Get-DeployPlan([string[]]$ChangedFiles, [bool]$ForceAll = $false) {
             foreach ($service in $microApps) { [void]$services.Add($service) }
             [void]$services.Add("shell_app")
         }
+        elseif ($path -eq "cleaning_robot_domain.py") {
+            foreach ($service in @("fibaro10", "online_dashboard")) {
+                [void]$services.Add($service)
+            }
+        }
         elseif ($path -match '^(revenue_app|parking_app|sun_app|energy_app|operations_app|maintenance_app|system_app|link_app|shell_app|owntracks_service|unifi_protect_events|visual_anomaly_service|online_dashboard|maintenance_mobile|alarm_mobile|fibaro10ipad|axis_camera_snapshots|car_info_lookup|sun2_backfill_downloader|sun2_importer|sun2_session_scraper|parking_sun_linker)/') {
             [void]$services.Add($Matches[1])
         }

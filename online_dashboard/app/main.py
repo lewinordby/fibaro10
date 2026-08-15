@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from cleaning_robot_domain import cleaning_robot_is_active, cleaning_robot_operational_state
 from microapp_backend import PwaConfig, inject_pwa_head, register_pwa
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -103,7 +104,6 @@ ROBOT_STATE_LABELS = {
     26: "Går til moppvask",
     28: "Kartlegger",
 }
-ROBOT_ACTIVE_STATE_CODES = {6, 7, 11, 15, 16, 17, 18, 22, 23, 26, 28}
 ROBOT_RAW_STATE_LABELS = {
     "charging": "Lader",
     "charging_complete": "Fulladet",
@@ -396,12 +396,20 @@ def utc_naive_to_local(value: Any) -> Any:
     return value.astimezone(LOCAL_TZ).replace(tzinfo=None)
 
 
-def mobile_robot_state(row: dict[str, Any]) -> tuple[str, str]:
-    if str(row.get("integration_status") or "active").lower() == "pending":
-        return "Venter på konto", "pending"
-    error_code = row.get("error_code")
-    if row.get("last_error") or error_code not in {None, 0, "0"}:
-        return "Feil", "error"
+def local_naive_datetime(value: Any) -> Any:
+    if not isinstance(value, datetime):
+        return value
+    if value.tzinfo is not None:
+        return value.astimezone(LOCAL_TZ).replace(tzinfo=None)
+    return value.replace(tzinfo=None)
+
+
+def mobile_robot_state(
+    row: dict[str, Any],
+    *,
+    status_at: Optional[datetime] = None,
+    now: Optional[datetime] = None,
+) -> tuple[str, str]:
     state_code = row.get("state_code")
     try:
         state_code = int(state_code) if state_code is not None else None
@@ -409,11 +417,28 @@ def mobile_robot_state(row: dict[str, Any]) -> tuple[str, str]:
         state_code = None
     raw_state = str(row.get("state_name") or "").strip()
     state_label = ROBOT_RAW_STATE_LABELS.get(raw_state.lower()) or ROBOT_STATE_LABELS.get(state_code) or raw_state or "Ukjent"
-    if row.get("in_cleaning") is True or state_code in ROBOT_ACTIVE_STATE_CODES:
-        return state_label, "active"
-    if row.get("cloud_online") is False:
-        return state_label, "warning"
-    return state_label, "ok"
+    status_at = status_at if isinstance(status_at, datetime) else row.get("status_at")
+    now_value = now or local_now()
+    if isinstance(status_at, datetime):
+        if status_at.tzinfo is not None:
+            status_at = status_at.astimezone(LOCAL_TZ).replace(tzinfo=None)
+        if now_value.tzinfo is not None:
+            now_value = now_value.astimezone(LOCAL_TZ).replace(tzinfo=None)
+        data_age_minutes = max(0, int((now_value - status_at).total_seconds() // 60))
+    else:
+        data_age_minutes = None
+    status, label = cleaning_robot_operational_state(
+        integration_status=row.get("integration_status"),
+        cloud_online=row.get("cloud_online"),
+        last_error=row.get("last_error"),
+        error_code=row.get("error_code"),
+        data_age_minutes=data_age_minutes,
+        active=cleaning_robot_is_active(row.get("in_cleaning"), state_code, row.get("provider")),
+        pending_label="Venter på konto",
+        active_label=state_label,
+        ready_label=state_label,
+    )
+    return label, status
 
 
 def mobile_robot_job_status(row: dict[str, Any]) -> str:
@@ -1991,12 +2016,36 @@ async def mobile_robot_overview() -> list[dict[str, Any]]:
                r.cloud_online,
                r.last_seen_at,
                r.last_error,
-               status.timestamp as status_at,
-               status.state_code,
-               status.state_name,
-               status.battery,
-               status.error_code,
-               status.in_cleaning,
+               case
+                   when telemetry.timestamp is not null
+                        and (status.timestamp is null or telemetry.timestamp >= status.timestamp)
+                   then telemetry.timestamp else status.timestamp
+               end as status_at,
+               case
+                   when telemetry.timestamp is not null
+                        and (status.timestamp is null or telemetry.timestamp >= status.timestamp)
+                   then telemetry.state_code else status.state_code
+               end as state_code,
+               case
+                   when telemetry.timestamp is not null
+                        and (status.timestamp is null or telemetry.timestamp >= status.timestamp)
+                   then telemetry.state_name else status.state_name
+               end as state_name,
+               case
+                   when telemetry.timestamp is not null
+                        and (status.timestamp is null or telemetry.timestamp >= status.timestamp)
+                   then telemetry.battery else status.battery
+               end as battery,
+               case
+                   when telemetry.timestamp is not null
+                        and (status.timestamp is null or telemetry.timestamp >= status.timestamp)
+                   then telemetry.error_code else status.error_code
+               end as error_code,
+               case
+                   when telemetry.timestamp is not null
+                        and (status.timestamp is null or telemetry.timestamp >= status.timestamp)
+                   then telemetry.in_cleaning else status.in_cleaning
+               end as in_cleaning,
                job.begin_at as job_started_at,
                job.end_at as job_ended_at,
                job.duration_minutes as job_duration_minutes,
@@ -2012,6 +2061,13 @@ async def mobile_robot_overview() -> list[dict[str, Any]]:
             limit 1
         ) status on true
         left join lateral (
+            select t.timestamp, t.state_code, t.state_name, t.battery, t.error_code, t.in_cleaning
+            from roborock_telemetry_samples t
+            where t.robot_duid = r.duid
+            order by t.timestamp desc, t.id desc
+            limit 1
+        ) telemetry on true
+        left join lateral (
             select j.begin_at, j.end_at, j.duration_minutes, j.cleaned_area_m2,
                    j.area_m2, j.complete, j.error_code
             from roborock_clean_jobs j
@@ -2023,8 +2079,10 @@ async def mobile_robot_overview() -> list[dict[str, Any]]:
         """
     )
     robots = []
+    overview_now = local_now()
     for row in rows:
-        state_label, status = mobile_robot_state(row)
+        status_at = local_naive_datetime(row.get("status_at"))
+        state_label, status = mobile_robot_state(row, status_at=status_at, now=overview_now)
         robots.append(
             {
                 "name": str(row.get("name") or "Robot"),
@@ -2033,7 +2091,7 @@ async def mobile_robot_overview() -> list[dict[str, Any]]:
                 "state_label": state_label,
                 "status": status,
                 "battery": row.get("battery"),
-                "status_at": utc_naive_to_local(row.get("status_at") or row.get("last_seen_at")),
+                "status_at": status_at,
                 "job_started_at": utc_naive_to_local(row.get("job_started_at")),
                 "job_ended_at": utc_naive_to_local(row.get("job_ended_at")),
                 "job_duration_minutes": row.get("job_duration_minutes"),
@@ -3677,6 +3735,8 @@ def render_state_cards(items: list[tuple[str, Any]], icon_class: str) -> str:
 def robot_overview_summary(robots: list[dict[str, Any]]) -> str:
     active = sum(robot.get("status") == "active" for robot in robots)
     attention = sum(robot.get("status") in {"error", "warning", "pending"} for robot in robots)
+    if active and attention:
+        return f"{active} rengjør nå · {attention} må følges opp"
     if active:
         return f"{active} rengjør nå · {len(robots)} totalt"
     if attention:

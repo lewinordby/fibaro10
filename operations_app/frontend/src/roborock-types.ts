@@ -220,6 +220,95 @@ export type RoborockNightReport = {
   robots: RoborockNightRobot[];
 };
 
+export type RoborockWaterResource = {
+  supported: boolean;
+  label: string;
+  attention: boolean;
+};
+
+export type RoborockWaterRobot = {
+  duid: string;
+  name: string;
+  provider: string;
+  model?: string | null;
+  status: "ready" | "attention" | "unsupported";
+  statusLabel: string;
+  observedAt?: string | null;
+  current: {
+    dockSupported: boolean;
+    cleanWater: RoborockWaterResource;
+    dirtyWater: RoborockWaterResource;
+    robotWater: RoborockWaterResource;
+    detergent: RoborockWaterResource;
+  };
+  settings: {
+    washSupported: boolean;
+    intervalMinutes?: number | null;
+    washModeLabel?: string | null;
+    automatic: boolean;
+    waterMode?: number | null;
+    waterModeLabel?: string | null;
+  };
+  usage: {
+    jobs: number;
+    mopJobs: number;
+    washCount: number;
+    areaM2: number;
+    durationMinutes: number;
+    areaPerWashM2?: number | null;
+  };
+  lastCleanWaterEmptyAt?: string | null;
+  lastCleanWaterRestoredAt?: string | null;
+  lastDirtyWaterFullAt?: string | null;
+  lastDirtyWaterClearedAt?: string | null;
+  lastRobotWaterEmptyAt?: string | null;
+  lastRobotWaterRestoredAt?: string | null;
+};
+
+export type RoborockWaterReport = {
+  period: {
+    days: number;
+    fromDay: string;
+    toDay: string;
+    generatedAt: string;
+  };
+  summary: {
+    robots: number;
+    waterCapable: number;
+    dockReady: number;
+    dockAttention: number;
+    washCount: number;
+    mopJobs: number;
+    areaM2: number;
+    areaPerWashM2?: number | null;
+    waterWarnings: number;
+    restoredEvents: number;
+  };
+  robots: RoborockWaterRobot[];
+  daily: Array<{
+    day: string;
+    jobs: number;
+    mopJobs: number;
+    washCount: number;
+    areaM2: number;
+    areaPerWashM2?: number | null;
+    waterWarnings: number;
+  }>;
+  events: Array<{
+    id: string;
+    robotDuid: string;
+    robotName: string;
+    timestamp?: string | null;
+    field: string;
+    title: string;
+    previousLabel: string;
+    currentLabel: string;
+    severity: "info" | "warning" | "critical" | string;
+    kind: string;
+  }>;
+  measurementNote: string;
+};
+
 export type RoborockDayTimelineJob = {
   recordId: string;
   startedAt: string;

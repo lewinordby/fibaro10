@@ -21,6 +21,9 @@ import type {
   RoborockReadinessSummary,
   RoborockRobotDetail,
   RoborockRobotSummary,
+  RoborockWaterReport,
+  RoborockWaterResource,
+  RoborockWaterRobot,
 } from "../roborock-types";
 import { MosaicIcon, Panel } from "@lilletorget/microapp-ui";
 
@@ -481,6 +484,110 @@ function NightReport() {
     </section>
     <NightTimeline report={report} />
     {report.robots.map((robot) => <NightRobotReport key={robot.duid} robot={robot} readyBy={report.window.readyBy} />)}
+  </div>;
+}
+
+const waterPeriods = [
+  { days: 1, label: "I dag" },
+  { days: 7, label: "7 dager" },
+  { days: 30, label: "30 dager" },
+  { days: 90, label: "90 dager" },
+];
+
+function waterTone(status: RoborockWaterRobot["status"]) {
+  if (status === "attention") return { badge: "bg-red-500/10 text-red-600 dark:text-red-400", dot: "bg-red-500" };
+  if (status === "ready") return { badge: "bg-green-500/10 text-green-700 dark:text-green-400", dot: "bg-green-500" };
+  return { badge: "bg-gray-500/10 text-gray-500 dark:text-gray-400", dot: "bg-gray-400" };
+}
+
+function WaterResource({ label, resource }: { label: string; resource: RoborockWaterResource }) {
+  const tone = !resource.supported
+    ? "text-gray-400"
+    : resource.attention
+      ? "text-red-600 dark:text-red-400"
+      : "text-green-700 dark:text-green-400";
+  return <div className="flex items-center justify-between gap-3 border-b border-gray-100 py-2.5 last:border-0 dark:border-gray-700/60"><span className="text-sm text-gray-500 dark:text-gray-400">{label}</span><strong className={`inline-flex items-center gap-2 text-sm font-semibold ${tone}`}><i className={`h-2 w-2 rounded-full ${resource.attention ? "bg-red-500" : resource.supported ? "bg-green-500" : "bg-gray-400"}`} />{resource.label}</strong></div>;
+}
+
+function waterEventLabel(kind: string) {
+  const labels: Record<string, string> = {
+    clean_empty: "Rentvann tomt",
+    clean_restored: "Rentvann fylt",
+    dirty_full: "Skittentvann fullt",
+    dirty_cleared: "Skittentvann tømt",
+    robot_empty: "Vannmangel i robot",
+    robot_restored: "Vann i robot gjenopprettet",
+    tank_removed: "Vanntank fjernet",
+    tank_mounted: "Vanntank montert",
+    detergent_warning: "Rengjøringsmiddel krever kontroll",
+    detergent_ok: "Rengjøringsmiddel OK",
+  };
+  return labels[kind] || "Vannstatus endret";
+}
+
+function WaterRobotCard({ robot, periodDays }: { robot: RoborockWaterRobot; periodDays: number }) {
+  const tone = waterTone(robot.status);
+  const interval = robot.settings.automatic
+    ? "Automatisk intervall"
+    : robot.settings.intervalMinutes
+      ? `Hvert ${robot.settings.intervalMinutes}. minutt`
+      : "Ikke tilgjengelig";
+  return <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xs dark:border-gray-700/60 dark:bg-gray-800">
+    <header className="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 dark:border-gray-700/60">
+      <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="truncate text-base font-semibold text-gray-800 dark:text-gray-100">{robot.name}</h2><span className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold ${tone.badge}`}><i className={`h-2 w-2 rounded-full ${tone.dot}`} />{robot.statusLabel}</span></div><p className="mt-1 text-xs text-gray-400">{robot.model || "Modell ikke registrert"} · sist lest {relativeStamp(robot.observedAt)}</p></div>
+      <AppLink className="text-xs font-semibold text-violet-600 hover:text-violet-700 dark:text-violet-400" to={`/renhold/robot/${encodeURIComponent(robot.duid)}`}>Detaljer</AppLink>
+    </header>
+    <div className="grid md:grid-cols-2">
+      <div className="border-b px-5 py-3 md:border-b-0 md:border-r dark:border-gray-700/60">
+        <span className="text-[0.65rem] font-semibold uppercase text-gray-400">Status akkurat nå</span>
+        <div className="mt-1"><WaterResource label="Rentvann i dokk" resource={robot.current.cleanWater} /><WaterResource label="Skittentvann i dokk" resource={robot.current.dirtyWater} /><WaterResource label="Vann i robot" resource={robot.current.robotWater} /><WaterResource label="Rengjøringsmiddel" resource={robot.current.detergent} /></div>
+      </div>
+      <div className="px-5 py-3">
+        <span className="text-[0.65rem] font-semibold uppercase text-gray-400">Moppevask og vannmengde</span>
+        <div className="mt-1"><Field label="Moppevaskintervall" value={robot.settings.washSupported ? interval : "Ikke støttet"} /><Field label="Vaskestyrke" value={robot.settings.washModeLabel || "Ikke støttet"} /><Field label="Vannmengde på gulv" value={robot.settings.waterModeLabel || "Ikke mottatt"} /></div>
+      </div>
+    </div>
+    <div className="grid grid-cols-2 border-t border-gray-100 bg-gray-50/60 sm:grid-cols-4 dark:border-gray-700/60 dark:bg-gray-900/20">
+      <div className="border-b border-r px-4 py-3 sm:border-b-0 dark:border-gray-700/50"><span className="block text-[0.65rem] font-semibold uppercase text-gray-400">Moppevasker</span><strong className="mt-0.5 block text-lg font-semibold tabular-nums text-gray-800 dark:text-gray-100">{robot.usage.washCount}</strong><small className="text-gray-400">{periodDays === 1 ? "i dag" : `på ${periodDays} dager`}</small></div>
+      <div className="border-b px-4 py-3 sm:border-b-0 sm:border-r dark:border-gray-700/50"><span className="block text-[0.65rem] font-semibold uppercase text-gray-400">Vaskejobber</span><strong className="mt-0.5 block text-lg font-semibold tabular-nums text-gray-800 dark:text-gray-100">{robot.usage.mopJobs}</strong><small className="text-gray-400">av {robot.usage.jobs} jobber</small></div>
+      <div className="border-r px-4 py-3 dark:border-gray-700/50"><span className="block text-[0.65rem] font-semibold uppercase text-gray-400">Vasket areal</span><strong className="mt-0.5 block text-lg font-semibold tabular-nums text-gray-800 dark:text-gray-100">{decimal(robot.usage.areaM2, 1)} m²</strong><small className="text-gray-400">med moppevask</small></div>
+      <div className="px-4 py-3"><span className="block text-[0.65rem] font-semibold uppercase text-gray-400">Areal per vask</span><strong className="mt-0.5 block text-lg font-semibold tabular-nums text-gray-800 dark:text-gray-100">{robot.usage.areaPerWashM2 == null ? "-" : `${decimal(robot.usage.areaPerWashM2, 1)} m²`}</strong><small className="text-gray-400">belastningsindikator</small></div>
+    </div>
+    {robot.current.dockSupported ? <footer className="grid gap-x-8 gap-y-2 border-t border-gray-100 px-5 py-3 text-xs text-gray-400 sm:grid-cols-2 dark:border-gray-700/60"><span>Dokk tom / fylt: <strong className="font-medium text-gray-600 dark:text-gray-300">{robot.lastCleanWaterEmptyAt ? stamp(robot.lastCleanWaterEmptyAt) : "-"} / {robot.lastCleanWaterRestoredAt ? stamp(robot.lastCleanWaterRestoredAt) : "-"}</strong></span><span>Robot tom / gjenopprettet: <strong className="font-medium text-gray-600 dark:text-gray-300">{robot.lastRobotWaterEmptyAt ? stamp(robot.lastRobotWaterEmptyAt) : "-"} / {robot.lastRobotWaterRestoredAt ? stamp(robot.lastRobotWaterRestoredAt) : "-"}</strong></span><span>Skittentvann fullt / tømt: <strong className="font-medium text-gray-600 dark:text-gray-300">{robot.lastDirtyWaterFullAt ? stamp(robot.lastDirtyWaterFullAt) : "-"} / {robot.lastDirtyWaterClearedAt ? stamp(robot.lastDirtyWaterClearedAt) : "-"}</strong></span><span className="text-gray-400">Hendelser i valgt periode ({periodDays === 1 ? "i dag" : `${periodDays} dager`})</span></footer> : null}
+  </section>;
+}
+
+function WaterReport() {
+  const { search, navigate } = useAppLocation();
+  const requestedDays = Number(new URLSearchParams(search).get("days") || 7);
+  const days = waterPeriods.some((period) => period.days === requestedDays) ? requestedDays : 7;
+  const result = useApi(() => domainApi.get<RoborockWaterReport>(`/api/renhold/water-report?days=${days}`), `roborock-water-${days}`);
+  if (result.loading && !result.data) return <Panel><div className="p-8 text-sm text-gray-400">Henter vannstatus ...</div></Panel>;
+  if (result.error || !result.data) return <Panel><div className="flex items-center justify-between gap-3 p-6 text-sm text-red-500"><span>{result.error?.message || "Kunne ikke hente vannrapporten"}</span><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={result.reload}>Prøv igjen</button></div></Panel>;
+  const report = result.data;
+  const maxWashes = Math.max(1, ...report.daily.map((row) => row.washCount));
+  const maxArea = Math.max(1, ...report.daily.map((row) => row.areaM2));
+  return <div className="space-y-4">
+    <section className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-xs dark:border-gray-700/60 dark:bg-gray-800">
+      <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-900/50">{waterPeriods.map((period) => <button className={`rounded-md px-3 py-1.5 text-sm font-semibold transition ${days === period.days ? "bg-white text-gray-800 shadow-xs dark:bg-gray-700 dark:text-gray-100" : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"}`} key={period.days} onClick={() => navigate(`/renhold/vann?days=${period.days}`)}>{period.label}</button>)}</div>
+      <div className="text-right"><strong className="block text-sm font-semibold text-gray-700 dark:text-gray-200">Vann og moppevask</strong><small className="text-gray-400">Oppdatert {stamp(report.period.generatedAt)}</small></div>
+    </section>
+    <section className="grid overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xs sm:grid-cols-2 xl:grid-cols-4 dark:border-gray-700/60 dark:bg-gray-800">
+      <div className="border-b px-5 py-4 sm:border-r xl:border-b-0 dark:border-gray-700/60"><span className="text-[0.65rem] font-semibold uppercase text-gray-400">Vanndokker nå</span><strong className={`mt-1 block text-xl font-semibold tabular-nums ${report.summary.dockAttention ? "text-red-600 dark:text-red-400" : "text-gray-800 dark:text-gray-100"}`}>{report.summary.dockReady}/{report.summary.waterCapable} OK</strong><small className="text-gray-400">{report.summary.dockAttention ? `${report.summary.dockAttention} krever kontroll` : "alle rapporterte dokker"}</small></div>
+      <div className="border-b px-5 py-4 xl:border-b-0 xl:border-r dark:border-gray-700/60"><span className="text-[0.65rem] font-semibold uppercase text-gray-400">Moppevasker</span><strong className="mt-1 block text-xl font-semibold tabular-nums text-gray-800 dark:text-gray-100">{report.summary.washCount}</strong><small className="text-gray-400">fra {report.summary.mopJobs} vaskejobber</small></div>
+      <div className="border-b px-5 py-4 sm:border-b-0 sm:border-r dark:border-gray-700/60"><span className="text-[0.65rem] font-semibold uppercase text-gray-400">Vasket areal</span><strong className="mt-1 block text-xl font-semibold tabular-nums text-gray-800 dark:text-gray-100">{decimal(report.summary.areaM2, 1)} m²</strong><small className="text-gray-400">jobber med rapportert moppevask</small></div>
+      <div className="px-5 py-4"><span className="text-[0.65rem] font-semibold uppercase text-gray-400">Areal per moppevask</span><strong className="mt-1 block text-xl font-semibold tabular-nums text-gray-800 dark:text-gray-100">{report.summary.areaPerWashM2 == null ? "-" : `${decimal(report.summary.areaPerWashM2, 1)} m²`}</strong><small className={report.summary.waterWarnings ? "text-amber-600 dark:text-amber-400" : "text-gray-400"}>{report.summary.waterWarnings ? `${report.summary.waterWarnings} vannvarsler i perioden` : "ingen vannvarsler i perioden"}</small></div>
+    </section>
+    <div className="grid gap-4 xl:grid-cols-2">{report.robots.map((robot) => <WaterRobotCard key={robot.duid} periodDays={days} robot={robot} />)}</div>
+    <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xs dark:border-gray-700/60 dark:bg-gray-800">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-gray-700/60"><div><h2 className="text-base font-semibold text-gray-800 dark:text-gray-100">Vaskebelastning per dag</h2><p className="mt-0.5 text-xs text-gray-400">Faktiske moppevasker og rengjort areal. Viser ikke beregnede liter.</p></div><span className="text-xs text-gray-400">{report.period.fromDay}–{report.period.toDay}</span></header>
+      <div className="max-h-[32rem] overflow-auto"><table className="w-full min-w-[44rem] table-auto"><thead className="sticky top-0 z-10 bg-gray-50 text-[0.65rem] uppercase text-gray-400 dark:bg-gray-700"><tr><th className="px-5 py-3 text-left font-semibold">Dag</th><th className="px-4 py-3 text-right font-semibold">Vasker</th><th className="w-[32%] px-4 py-3 text-left font-semibold">Moppevasker</th><th className="px-4 py-3 text-right font-semibold">Areal</th><th className="w-[32%] px-5 py-3 text-left font-semibold">Rengjort areal</th></tr></thead><tbody className="divide-y divide-gray-100 text-sm dark:divide-gray-700/60">{[...report.daily].reverse().map((row) => <tr key={row.day}><td className="whitespace-nowrap px-5 py-3 font-medium text-gray-700 dark:text-gray-200">{new Date(`${row.day}T12:00:00`).toLocaleDateString("nb-NO", { weekday: "short", day: "2-digit", month: "2-digit" })}</td><td className="px-4 py-3 text-right font-semibold tabular-nums">{row.washCount}</td><td className="px-4 py-3"><div className="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700"><i className="block h-full rounded-full bg-sky-500" style={{ width: `${Math.max(row.washCount ? 4 : 0, row.washCount / maxWashes * 100)}%` }} /></div></td><td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{decimal(row.areaM2, 1)} m²</td><td className="px-5 py-3"><div className="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700"><i className="block h-full rounded-full bg-violet-500" style={{ width: `${Math.max(row.areaM2 ? 4 : 0, row.areaM2 / maxArea * 100)}%` }} /></div></td></tr>)}</tbody></table></div>
+    </section>
+    <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xs dark:border-gray-700/60 dark:bg-gray-800">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-gray-700/60"><div><h2 className="text-base font-semibold text-gray-800 dark:text-gray-100">Vannhendelser</h2><p className="mt-0.5 text-xs text-gray-400">Tomt og fylt rentvann, fullt og tømt skittentvann samt vannmangel i robot.</p></div><span className="text-xs text-gray-400">{report.events.length} hendelser</span></header>
+      <div className="overflow-x-auto"><table className="w-full min-w-[48rem] table-auto"><thead className="bg-gray-50 text-[0.65rem] uppercase text-gray-400 dark:bg-gray-700/50"><tr><th className="px-5 py-3 text-left font-semibold">Tid</th><th className="px-4 py-3 text-left font-semibold">Robot</th><th className="px-4 py-3 text-left font-semibold">Hendelse</th><th className="px-4 py-3 text-left font-semibold">Fra</th><th className="px-5 py-3 text-left font-semibold">Til</th></tr></thead><tbody className="divide-y divide-gray-100 text-sm dark:divide-gray-700/60">{report.events.map((event) => <tr className={event.severity === "warning" || event.severity === "critical" ? "bg-red-50/40 dark:bg-red-500/5" : ""} key={event.id}><td className="whitespace-nowrap px-5 py-3 tabular-nums text-gray-500 dark:text-gray-300">{stamp(event.timestamp)}</td><td className="whitespace-nowrap px-4 py-3 font-medium text-gray-700 dark:text-gray-200">{event.robotName}</td><td className="px-4 py-3 font-medium text-gray-700 dark:text-gray-200">{waterEventLabel(event.kind)}</td><td className="px-4 py-3 text-gray-400">{event.previousLabel}</td><td className={`px-5 py-3 font-semibold ${event.severity === "warning" || event.severity === "critical" ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>{event.currentLabel}</td></tr>)}{!report.events.length ? <tr><td className="px-5 py-8 text-center text-sm text-gray-400" colSpan={5}>Ingen vannhendelser i valgt periode.</td></tr> : null}</tbody></table></div>
+      <footer className="border-t border-gray-100 bg-gray-50/60 px-5 py-3 text-xs text-gray-500 dark:border-gray-700/60 dark:bg-gray-900/20 dark:text-gray-400">{report.measurementNote}</footer>
+    </section>
   </div>;
 }
 
@@ -1132,6 +1239,7 @@ export function RoborockSpecial({ data }: { data: RoborockModuleData }) {
   const { pathname } = useAppLocation();
   const robots = data.robots || [];
   if (pathname === "/renhold/rapport") return <NightReport />;
+  if (pathname === "/renhold/vann") return <WaterReport />;
   if (pathname === "/renhold/dreame") return <DreameOnboarding robot={robots.find((robot) => robot.provider === "dreame")} />;
   const match = pathname.match(/^\/renhold\/robot\/([^/]+)$/);
   const selected = match ? decodeURIComponent(match[1]) : "";

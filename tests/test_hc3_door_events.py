@@ -162,6 +162,18 @@ class SunroomDoorTimingTests(unittest.TestCase):
 
         self.assertEqual(result[0]["label"], "Inngang")
 
+    def test_operations_overview_uses_newest_local_robot_sample_for_freshness(self):
+        now = datetime(2026, 8, 14, 14, 20)
+        status = self.main.RoborockStatusSample(timestamp=now - timedelta(minutes=21))
+        telemetry = self.main.RoborockTelemetrySample(timestamp=now - timedelta(minutes=45))
+
+        source = self.main.latest_cleaning_robot_sample(status, telemetry)
+        source_at = self.main.normalize_local_naive(source.timestamp)
+
+        self.assertIs(source, status)
+        self.assertEqual(source_at, datetime(2026, 8, 14, 13, 59))
+        self.assertEqual(self.main.minutes_since(source_at, now), 21)
+
     def test_expected_exit_uses_payment_delay_sun_time_and_exit_grace(self):
         row = self.main.Sun2TanningSession(
             started_at=datetime(2026, 7, 11, 12, 0),

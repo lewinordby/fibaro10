@@ -34,6 +34,11 @@ if ($mobileTheme.All -or ($mobileTheme.Services -join ",") -ne "online_dashboard
     throw "Mobile theme deploy plan is wrong: $($mobileTheme | ConvertTo-Json -Compress)"
 }
 
+$cleaningRobotDomain = Get-DeployPlan -ChangedFiles @("cleaning_robot_domain.py")
+if ($cleaningRobotDomain.All -or ($cleaningRobotDomain.Services -join ",") -ne "fibaro10,online_dashboard") {
+    throw "Cleaning robot domain deploy plan is wrong: $($cleaningRobotDomain | ConvertTo-Json -Compress)"
+}
+
 $sharedBackend = Get-DeployPlan -ChangedFiles @("microapp_backend/pwa.py")
 foreach ($requiredService in @("fibaro10", "shell_app", "online_dashboard")) {
     if ($sharedBackend.All -or $sharedBackend.Services.Count -ne 11 -or $requiredService -notin $sharedBackend.Services) {

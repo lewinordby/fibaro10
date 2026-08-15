@@ -84,6 +84,7 @@ from roborock_profiles import (
     validate_cleaning_profile,
 )
 from roborock_reports import build_night_report, build_schedule_check, report_window
+from roborock_water import build_water_report
 from roborock_door_automation import (
     automation_counter_start,
     automation_decision,
@@ -92,6 +93,8 @@ from roborock_door_automation import (
     unique_ints,
 )
 from cleaning_robot_domain import (
+    cleaning_robot_is_active,
+    cleaning_robot_operational_state,
     cleaning_provider,
     cleaning_provider_label,
     cleaning_robot_external_id,
@@ -20515,6 +20518,15 @@ def operations_recent_door_items(door_result: Dict[str, Any], limit: int = 4) ->
     return items
 
 
+def latest_cleaning_robot_sample(status_sample: Any = None, telemetry_sample: Any = None) -> Any:
+    candidates = [sample for sample in (telemetry_sample, status_sample) if sample is not None]
+    return max(
+        candidates,
+        key=lambda sample: normalize_local_naive(getattr(sample, "timestamp", None)) or datetime.min,
+        default=None,
+    )
+
+
 @app.get("/api/operations/overview")
 async def api_operations_overview():
     now_dt = local_now_naive()
@@ -20812,30 +20824,35 @@ async def api_operations_overview():
     for robot in robots:
         telemetry = telemetry_by_robot.get(robot.duid)
         status_row = status_by_robot.get(robot.duid)
-        source_row = telemetry or status_row
-        source_at = utc_naive_to_local_naive(source_row.timestamp) if source_row and source_row.timestamp else None
+        source_row = latest_cleaning_robot_sample(status_row, telemetry)
+        source_at = normalize_local_naive(source_row.timestamp) if source_row and source_row.timestamp else None
         if source_at:
             cleaning_updated_values.append(source_at)
         state_name = source_row.state_name if source_row else None
         battery = source_row.battery if source_row else None
         error_code = source_row.error_code if source_row else None
-        active = bool(source_row and source_row.in_cleaning)
+        active = cleaning_robot_is_active(
+            source_row.in_cleaning if source_row else None,
+            source_row.state_code if source_row else None,
+            robot.provider,
+        )
         age = minutes_since(source_at, now_dt)
-        if robot.integration_status == "pending":
-            state_key, state_label = "pending", "Venter på oppsett"
-        elif robot.cloud_online is False:
-            state_key, state_label = "error", "Frakoblet"
+        state_key, state_label = cleaning_robot_operational_state(
+            integration_status=robot.integration_status,
+            cloud_online=robot.cloud_online,
+            last_error=robot.last_error,
+            error_code=error_code,
+            data_age_minutes=age,
+            active=active,
+            active_label=state_name,
+            ready_label=state_name,
+        )
+        if state_key == "error" and robot.cloud_online is False:
             cleaning_issues.append(f"{robot.name} er frakoblet.")
-        elif robot.last_error or (error_code not in {None, 0}):
-            state_key, state_label = "error", "Feil"
+        elif state_key == "error":
             cleaning_issues.append(f"{robot.name}: {robot.last_error or f'feilkode {error_code}'}")
-        elif age is None or age > 20:
-            state_key, state_label = "warning", "Utdatert status"
+        elif state_key == "warning":
             cleaning_issues.append(f"{robot.name} har ikke levert fersk status.")
-        elif active:
-            state_key, state_label = "active", state_name or "Rengjør"
-        else:
-            state_key, state_label = "ok", state_name or "Klar"
         robot_items.append({
             "label": robot.name,
             "value": state_label,
@@ -40082,6 +40099,78 @@ async def api_cleaning_night_report(day: Optional[str] = None):
         list(probes),
         generated_at=local_now_naive(),
         schedules=list(schedules),
+    )
+
+
+@app.get("/api/renhold/water-report")
+async def api_cleaning_water_report(days: int = Query(default=7, ge=1, le=90)):
+    now = local_now_naive()
+    period_start = datetime.combine(now.date() - timedelta(days=days - 1), time.min)
+    job_start = local_naive_to_utc_naive(period_start)
+    job_end = local_naive_to_utc_naive(now)
+    async with async_session() as session:
+        robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
+        robot_duids = [robot.duid for robot in robots]
+        jobs = (
+            await session.execute(
+                select(RoborockCleanJob)
+                .where(RoborockCleanJob.robot_duid.in_(robot_duids or [""]))
+                .where(RoborockCleanJob.begin_at >= job_start)
+                .where(RoborockCleanJob.begin_at <= job_end)
+                .order_by(RoborockCleanJob.robot_duid, RoborockCleanJob.begin_at)
+            )
+        ).scalars().all()
+        events = (
+            await session.execute(
+                select(RoborockTelemetryEvent)
+                .where(RoborockTelemetryEvent.robot_duid.in_(robot_duids or [""]))
+                .where(RoborockTelemetryEvent.category == "vann")
+                .where(RoborockTelemetryEvent.timestamp >= period_start)
+                .where(RoborockTelemetryEvent.timestamp <= now)
+                .order_by(RoborockTelemetryEvent.timestamp.desc(), RoborockTelemetryEvent.id.desc())
+                .limit(1000)
+            )
+        ).scalars().all()
+        latest_telemetry_subq = (
+            select(func.max(RoborockTelemetrySample.id).label("latest_id"))
+            .where(RoborockTelemetrySample.robot_duid.in_(robot_duids or [""]))
+            .group_by(RoborockTelemetrySample.robot_duid)
+            .subquery()
+        )
+        telemetry_samples = (
+            await session.execute(
+                select(RoborockTelemetrySample).join(
+                    latest_telemetry_subq,
+                    RoborockTelemetrySample.id == latest_telemetry_subq.c.latest_id,
+                )
+            )
+        ).scalars().all()
+        latest_probe_subq = (
+            select(func.max(RoborockProbeResult.id).label("latest_id"))
+            .where(RoborockProbeResult.robot_duid.in_(robot_duids or [""]))
+            .where(RoborockProbeResult.source == "local-telemetry")
+            .group_by(RoborockProbeResult.robot_duid, RoborockProbeResult.command)
+            .subquery()
+        )
+        probes = (
+            await session.execute(
+                select(RoborockProbeResult)
+                .join(latest_probe_subq, RoborockProbeResult.id == latest_probe_subq.c.latest_id)
+                .where(
+                    RoborockProbeResult.command.in_(
+                        ["GET_SMART_WASH_PARAMS", "GET_WASH_TOWEL_MODE", "GET_WATER_BOX_CUSTOM_MODE"]
+                    )
+                )
+            )
+        ).scalars().all()
+    return build_water_report(
+        days,
+        list(robots),
+        list(jobs),
+        list(telemetry_samples),
+        list(events),
+        list(probes),
+        generated_at=now,
     )
 
 

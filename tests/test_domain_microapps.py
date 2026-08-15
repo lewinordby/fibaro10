@@ -398,6 +398,17 @@ def test_roborock_night_report_is_available_in_operations() -> None:
     assert "Nattforløp" in detail
 
 
+def test_roborock_water_report_is_available_in_operations() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    core = (repo_root / "main.py").read_text(encoding="utf-8")
+    operations = (repo_root / "operations_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
+    detail = (repo_root / "operations_app" / "frontend" / "src" / "components" / "RoborockSpecial.tsx").read_text(encoding="utf-8")
+    assert '@app.get("/api/renhold/water-report")' in core
+    assert 'to: "/renhold/vann"' in operations
+    assert "function WaterReport()" in detail
+    assert "Moppevaskintervall" in detail
+
+
 def test_roborock_overview_includes_the_full_day_timeline() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     core = (repo_root / "main.py").read_text(encoding="utf-8")
@@ -468,6 +479,10 @@ def test_operations_dashboard_covers_every_operational_area() -> None:
     assert "Prioritert oppfølging" in dashboard
     assert "Ingen aktive driftsavvik" in dashboard
     assert '"recentJobs": recent_jobs or []' in core
+    assert "source_row = latest_cleaning_robot_sample(status_row, telemetry)" in core
+    assert "source_at = normalize_local_naive(source_row.timestamp)" in core
+    assert "source_at = utc_naive_to_local_naive(source_row.timestamp)" not in core
+    assert "active = cleaning_robot_is_active(" in core
     assert "Roboter" in dashboard
     assert "Siste jobber" in dashboard
 
@@ -480,6 +495,10 @@ def test_operations_proxy_allows_roborock_detail_endpoint() -> None:
 def test_operations_proxy_allows_roborock_cleaning_profile_endpoints() -> None:
     assert operations_main.DOMAIN_PATTERN.fullmatch("renhold/cleaning-profiles")
     assert operations_main.DOMAIN_PATTERN.fullmatch("renhold/cleaning-profiles/42")
+
+
+def test_operations_proxy_allows_roborock_water_report_endpoint() -> None:
+    assert operations_main.DOMAIN_PATTERN.fullmatch("renhold/water-report")
 
 
 def test_shared_proxy_preserves_case_sensitive_dynamic_ids() -> None:
