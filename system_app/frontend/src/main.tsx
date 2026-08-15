@@ -1,6 +1,6 @@
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
-import { DomainApp, ThemeProvider, getDomainConfig, type DomainAppExtensions } from "@lilletorget/microapp-ui";
+import { DomainApp, Loading, ThemeProvider, getDomainConfig, type DomainAppExtensions } from "@lilletorget/microapp-ui";
 import "@lilletorget/mosaic-theme/font.css";
 import "./style.css";
 import type { SystemNotificationsData, SystemSubsystemsData } from "./types";
@@ -13,12 +13,12 @@ const SystemDetailRoute = lazy(() => import("./components/SystemDetailPages").th
 
 const systemExtensions: DomainAppExtensions = {
   isRoute: ({ pathname }) => /^\/(?:datakilder|build)\/[^/]+$/.test(pathname),
-  renderRoute: ({ pathname, config, coreUrl }) => <Suspense fallback={null}><SystemDetailRoute pathname={pathname} config={config} coreUrl={coreUrl} /></Suspense>,
+  renderRoute: ({ pathname, config, coreUrl }) => <Suspense fallback={<Loading />}><SystemDetailRoute pathname={pathname} config={config} coreUrl={coreUrl} /></Suspense>,
   renderModule: ({ data, module }) => {
-    if (module === "mobil") return { content: <Suspense fallback={null}><MobilePreviewSpecial table={data.tables[0]} /></Suspense>, hideCards: true, hideCharts: true, hideTables: true };
-    if (module === "ideer") return { content: <Suspense fallback={null}><IdeasSpecial rows={data.tables[0]?.rows || []} /></Suspense>, hideCards: true, hideCharts: true, hideTables: true };
-    if (module === "varslinger" && data.systemNotifications) return { content: <Suspense fallback={null}><NotificationsSpecial data={data.systemNotifications as unknown as SystemNotificationsData} /></Suspense>, hideCards: true, hideCharts: true, hideTables: true };
-    if (module === "undersystemer" && data.systemSubsystems) return { content: <Suspense fallback={null}><SubsystemsSpecial data={data.systemSubsystems as unknown as SystemSubsystemsData} /></Suspense>, hideCards: true, hideCharts: true, hideTables: true };
+    if (module === "mobil") return { content: <Suspense fallback={<Loading />}><MobilePreviewSpecial table={data.tables[0]} /></Suspense>, hideCards: true, hideCharts: true, hideTables: true };
+    if (module === "ideer") return { content: <Suspense fallback={<Loading />}><IdeasSpecial rows={data.tables[0]?.rows || []} /></Suspense>, hideCards: true, hideCharts: true, hideTables: true };
+    if (module === "varslinger" && data.systemNotifications) return { content: <Suspense fallback={<Loading />}><NotificationsSpecial data={data.systemNotifications as unknown as SystemNotificationsData} /></Suspense>, hideCards: true, hideCharts: true, hideTables: true };
+    if (module === "undersystemer" && data.systemSubsystems) return { content: <Suspense fallback={<Loading />}><SubsystemsSpecial data={data.systemSubsystems as unknown as SystemSubsystemsData} /></Suspense>, hideCards: true, hideCharts: true, hideTables: true };
     return null;
   },
 };

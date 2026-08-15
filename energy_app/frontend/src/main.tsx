@@ -1,6 +1,6 @@
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
-import { DomainApp, ThemeProvider, getDomainConfig, type DomainAppExtensions } from "@lilletorget/microapp-ui";
+import { DomainApp, Loading, ThemeProvider, getDomainConfig, type DomainAppExtensions } from "@lilletorget/microapp-ui";
 import "@lilletorget/mosaic-theme/font.css";
 import "./style.css";
 import type { EnergyCircuitLoadsData, EnergyElviaData, EnergySunbedsData } from "./types";
@@ -12,9 +12,9 @@ const EnergyCircuitLoadsSpecial = lazy(() => import("./components/EnergySpecial"
 const energyExtensions: DomainAppExtensions = {
   renderModule: ({ data, module, view, reload }) => {
     if (module !== "energi") return null;
-    if (view === "elvia" && data.energyElvia) return { content: <Suspense fallback={null}><EnergyElviaSpecial data={data.energyElvia as EnergyElviaData} reload={reload} /></Suspense>, hideUpload: true, hideCards: true, hideCharts: true, hideTables: true };
-    if (view === "forbruk-per-seng" && data.energySunbeds) return { content: <Suspense fallback={null}><EnergySunbedsSpecial data={data.energySunbeds as unknown as EnergySunbedsData} /></Suspense>, hideTables: true };
-    if (view === "kurs-last" && data.energyCircuitLoads) return { content: <Suspense fallback={null}><EnergyCircuitLoadsSpecial data={data.energyCircuitLoads as unknown as EnergyCircuitLoadsData} reload={reload} /></Suspense>, hideTables: true };
+    if (view === "elvia" && data.energyElvia) return { content: <Suspense fallback={<Loading />}><EnergyElviaSpecial data={data.energyElvia as EnergyElviaData} reload={reload} /></Suspense>, hideUpload: true, hideCards: true, hideCharts: true, hideTables: true };
+    if (view === "forbruk-per-seng" && data.energySunbeds) return { content: <Suspense fallback={<Loading />}><EnergySunbedsSpecial data={data.energySunbeds as unknown as EnergySunbedsData} /></Suspense>, hideTables: true };
+    if (view === "kurs-last" && data.energyCircuitLoads) return { content: <Suspense fallback={<Loading />}><EnergyCircuitLoadsSpecial data={data.energyCircuitLoads as unknown as EnergyCircuitLoadsData} reload={reload} /></Suspense>, hideTables: true };
     return null;
   },
 };

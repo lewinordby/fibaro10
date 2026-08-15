@@ -24,7 +24,7 @@ function endpointFromTemplate(template: string, row: ModuleRow) {
 export const domainApi = {
   config: () => request<AppConfig>("/api/app/config"),
   user: () => request<AuthUser>("/api/auth/me"),
-  businessOverview: () => request<BusinessOverviewResponse>("/api/overview"),
+  businessOverview: (domain: "parking" | "sun") => request<BusinessOverviewResponse>(`/api/overview?scope=${domain}`),
   businessComparison: (params: URLSearchParams) => request<BusinessComparisonResponse>(`/api/status/comparison?${params.toString()}`),
   yearComparison: (domain: "soling" | "parkering", year?: string) => request<YearComparisonResponse>(`/api/${domain}/year-comparison${year ? `?year=${encodeURIComponent(year)}` : ""}`),
   get: <T = JsonRecord>(path: string) => request<T>(path),

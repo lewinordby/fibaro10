@@ -16,7 +16,7 @@ export function NotificationsSpecial({ data }: { data: SystemNotificationsData }
       <MetricCard label="Publiserer" value={data.summary.publishing} unit="stk" detail="Sender automatiske varsler" tone="sky" />
     </div>
     <div className="grid gap-5 xl:grid-cols-2">
-      {data.subscriptions.map((channel) => <Panel key={channel.key} title={channel.title} subtitle={channel.area} actions={<StatusPill active={channel.configured && channel.publishingEnabled} label={!channel.configured ? "Ikke konfigurert" : channel.publishingEnabled ? "Aktiv" : "Utsending av"} />}>
+      {data.subscriptions.map((channel) => <Panel key={channel.key} title={channel.title} subtitle={channel.area} actions={<StatusPill active={channel.configured && channel.publishingEnabled} label={!channel.configured ? "Ikke konfigurert" : channel.publishingEnabled ? "Aktiv" : "Utsending avslått"} />}>
         <div className="space-y-4 p-5">
           <p className="text-sm leading-6 text-gray-500 dark:text-gray-400">{channel.description}</p>
           <div className="flex flex-wrap gap-2">{channel.triggers.map((trigger) => <span className="rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-700/70 dark:text-gray-300" key={trigger}>{trigger}</span>)}</div>

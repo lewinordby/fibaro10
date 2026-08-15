@@ -47,12 +47,12 @@ function driverComparisonLabel(periodKey: string, comparison: PeriodComparison, 
   return shortComparisonLabel(comparison.label);
 }
 
-const driverGrid = "grid-cols-[minmax(150px,1.25fr)_minmax(75px,.6fr)_minmax(110px,.8fr)_minmax(135px,1fr)]";
+const driverGrid = "grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,.8fr))]";
 
 function DriverRow({ kind, amount, count, comparisons }: { kind: "sun" | "parking"; amount: number; count: number; comparisons: Array<PeriodComparison | undefined> }) {
   const sun = kind === "sun";
   return (
-    <div className={`grid min-h-14 ${driverGrid} items-center border-t border-gray-100 px-4 py-2 dark:border-gray-700/60`}>
+    <div className={`grid min-h-14 ${driverGrid} items-center border-t border-gray-100 px-3 py-2 sm:px-4 dark:border-gray-700/60`}>
       <span className="flex min-w-0 items-center gap-3">
         <span className={`h-3 w-3 shrink-0 rounded-full ${sun ? "bg-yellow-500" : "bg-sky-500"}`} />
         <span className="min-w-0">
@@ -60,12 +60,12 @@ function DriverRow({ kind, amount, count, comparisons }: { kind: "sun" | "parkin
           <small className="block truncate text-[10px] text-gray-400 dark:text-gray-500">{count} stk · {count ? nok(amount / count) : 0} kr snitt</small>
         </span>
       </span>
-      <strong className="tabular-nums text-right text-sm font-semibold text-gray-800 dark:text-gray-100">{nok(amount)} kr</strong>
+      <strong className="tabular-nums truncate text-right text-xs font-semibold text-gray-800 sm:text-sm dark:text-gray-100">{nok(amount)} kr</strong>
       {comparisons.map((comparison, index) => {
         if (!comparison) return <em className="text-right text-sm not-italic text-gray-400" key={index}>-</em>;
         const referenceAmount = sun ? comparison.sol : comparison.parking;
         const delta = amount - referenceAmount;
-        return <em className={`tabular-nums text-right text-sm font-semibold not-italic ${tone(delta)}`} key={`${comparison.label}-${index}`}>{signedNok(delta)}</em>;
+        return <em className={`tabular-nums truncate text-right text-xs font-semibold not-italic sm:text-sm ${tone(delta)}`} key={`${comparison.label}-${index}`}>{signedNok(delta)}</em>;
       })}
     </div>
   );
@@ -116,11 +116,14 @@ function PeriodCard({ period }: { period: StatusPeriod }) {
         })}
       </div>
 
-      <div className="m-4 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700/60">
-        <div className="min-w-[570px]">
-          <div className={`grid h-8 ${driverGrid} items-center bg-gray-50 px-4 text-[9px] font-semibold uppercase text-gray-400 dark:bg-gray-900/30 dark:text-gray-500`}>
+      <div className="m-4 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700/60">
+        <div>
+          <div className={`grid h-8 ${driverGrid} items-center bg-gray-50 px-3 text-[9px] font-semibold uppercase text-gray-400 sm:px-4 dark:bg-gray-900/30 dark:text-gray-500`}>
             <span>Inntektskilde</span><span className="text-right">Hittil</span>
-            {driverComparisons.map((comparison, index) => <span className="text-right" key={comparison?.label || index}>{comparison ? driverComparisonLabel(period.key, comparison, index) : "-"}</span>)}
+            {driverComparisons.map((comparison, index) => {
+              const label = comparison ? driverComparisonLabel(period.key, comparison, index) : "-";
+              return <span className="truncate text-right" title={label} key={comparison?.label || index}>{label}</span>;
+            })}
           </div>
           <DriverRow kind="sun" amount={period.sol} count={period.solCount} comparisons={driverComparisons} />
           <DriverRow kind="parking" amount={period.parking} count={period.parkingCount} comparisons={driverComparisons} />

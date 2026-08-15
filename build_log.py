@@ -12,6 +12,238 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1780",
+        "date": "15.08.2026",
+        "headline": "System viser avvik først og laster bare nødvendige data",
+        "title": "Systemstatus, datakilder, buildlogg og tekniske detaljer er ryddet",
+        "description": (
+            "System er gjennomgått på tvers av status, datakilder, jobber, kontroller, systemkart, "
+            "brukere, manual, buildlogg, varslinger og undersystemer. Hvert menyvalg henter nå bare "
+            "datagrunnlaget siden trenger. Systemstatus viser avvik og siste leveranser i stedet for å "
+            "duplisere hele datakilderegisteret, og detaljsidene skiller operativ informasjon fra teknisk "
+            "grunnlag."
+        ),
+        "applications": [
+            "Fibaro10 build 1780: avgrenser adminspørringer og gir riktige nøkkeltall per systemside.",
+            "System build 33: forbedrer status, datakildedetaljer, varslingstekster og lasting.",
+            "Felles microapp-ui: oversetter Dato og vanlige systemstatuser konsekvent.",
+        ],
+        "request": (
+            "Vurder kvalitet, funksjonalitet, ryddighet og design på System, forbedre ytelse og CSS, "
+            "gå gjennom all funksjonalitet og gjennomfør nyttige forbedringer."
+        ),
+        "work_duration": "ca. 55 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Unngår å hente AI-logg, brukere og tilgangslogg på sider som ikke bruker disse dataene.",
+            "Lar Systemstatus vise bare datakildeavvik og siste builds, ikke hele datakildetabellen.",
+            "Gir Buildlogg, Datakilder og AI egne relevante nøkkeltall.",
+            "Deler datakildedetaljen i operativ status og et sammenleggbart teknisk grunnlag.",
+            "Fargekoder feilstatus på datakildedetaljen og komprimerer nøkkelkortene.",
+            "Gjør kapitlene på manualens forside direkte klikkbare.",
+            "Oversetter rå systemstatus og Date til konsekvent norsk visning.",
+            "Retter varslingsteksten Utsending av til Utsending avslått.",
+            "Viser lastestatus på alle kodeoppdelte systemflater.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1779",
+        "date": "15.08.2026",
+        "headline": "Vedlikehold skiller aktive besøk fra manglende avslutninger",
+        "title": "Besøkslisten er operativ, detaljsiden er ryddigere og lasting er redusert",
+        "description": (
+            "Vedlikehold er gjennomgått fra oppfølgingslisten og registreringsdialogen til OwnTracks-besøk "
+            "og besøksdetaljer. Gamle åpne besøk presenteres ikke lenger som aktive i hundrevis av timer, "
+            "men merkes som manglende avslutning. Besøkslisten viser bare feltene som trengs for å velge "
+            "riktig besøk, mens oppgaver, notat og teknisk grunnlag er samlet på detaljsiden."
+        ),
+        "applications": [
+            "Fibaro10 build 1779: forbedrer besøksstatus og deler opp vedlikeholdsspørringene.",
+            "Vedlikehold build 27: rydder besøkslisten og detaljarbeidsflaten.",
+            "Felles microapp-ui: legger til forståelig kolonnenavn for besøksnotat.",
+        ],
+        "request": (
+            "Vurder kvalitet, funksjonalitet, ryddighet og design på Vedlikehold, forbedre ytelse og CSS, "
+            "gå gjennom all funksjonalitet og gjennomfør nyttige forbedringer."
+        ),
+        "work_duration": "ca. 50 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Merker åpne besøk eldre enn 24 timer som Mangler avslutning i stedet for Aktiv.",
+            "Fjerner misvisende varigheter på flere hundre timer og viser ukjent varighet uten leave-hendelse.",
+            "Viser OwnTracks-sikkerhet korrekt som 100 prosent når kilden leverer 1,0.",
+            "Reduserer besøkslisten fra ti tekniske kolonner til seks operative felt.",
+            "Flytter oppgavene ut av den samlede besøkslisten og beholder dem på valgt besøks detaljside.",
+            "Gjør besøksnotatet mer kompakt og hindrer lagring når teksten ikke er endret.",
+            "Fjerner den dupliserte Ny-knappen fra tabellen Krever oppfølging.",
+            "Unngår å laste komplett besøks- og vedlikeholdsgrunnlag samtidig på begge hovedsidene.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1778",
+        "date": "15.08.2026",
+        "headline": "Energi er lettere og Elvia-historikken viser riktige data",
+        "title": "Statusflaten er avgrenset og importhistorikken er reparert",
+        "description": (
+            "Energi er kontrollert fra realtime status og Elvia til kurs-/lasthierarkiet og forbruk "
+            "per solseng. Statuskallet henter ikke lenger komplette kurs- og lastregistre, og de to "
+            "store redigeringstabellene er fjernet fra oversikten fordi de allerede har egne sider. "
+            "Elvia-importhistorikken bruker nå de faktiske feltene fra importjobben og viser periode, "
+            "timer, forbruk, resultat og melding."
+        ),
+        "applications": [
+            "Fibaro10 build 1778: skiller Elvia og energistatus i målrettede API-responser.",
+            "Energi build 28: reparerer importhistorikken og innfører synlige lastetilstander.",
+        ],
+        "request": (
+            "Vurder kvalitet, funksjonalitet, ryddighet og design på Energi, forbedre ytelse og CSS, "
+            "gå gjennom all funksjonalitet og gjennomfør nyttige forbedringer."
+        ),
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fjerner kurs- og lasttabellene som dupliserte egne administrasjonssider på statusoversikten.",
+            "Unngår kurs-, filter- og lastspørringer når bare energistatus eller Elvia åpnes.",
+            "Flytter Elvia til en avgrenset API-funksjon uten sanntidsberegningene fra statussiden.",
+            "Retter importhistorikkens felter slik at tid, fil, resultat, periode, timer og kWh vises.",
+            "Lar lange importmeldinger brytes i stedet for å lage et svært bredt tabellfelt.",
+            "Viser lastestatus på alle kodeoppdelte energisider.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1777",
+        "date": "15.08.2026",
+        "headline": "Bygg og drift viser renere status og forståelige driftslogger",
+        "title": "Lasting, dagenavigasjon, dørvarighet og ventilasjonstekster er kvalitetssikret",
+        "description": (
+            "Bygg og drift er kontrollert på tvers av driftsoversikt, ventilasjon, lys, dører, pullerter "
+            "og renhold. Hovedoversikten og de omfattende kontrollflatene er beholdt, mens konkrete "
+            "språk- og navigasjonsfeil er fjernet. Alle kodeoppdelte spesialsider viser nå lastestatus, "
+            "ventilasjonsloggen oversetter interne styringskoder, og både dørkort og dagsnavigasjon er "
+            "gjort mer presise."
+        ),
+        "applications": [
+            "Fibaro10 build 1777: leverer presentasjonsklare ventilasjonsverdier.",
+            "Bygg og drift build 84: forbedrer lasting, dørkort og ventilasjonsdagslogg.",
+        ],
+        "request": (
+            "Vurder kvalitet, funksjonalitet, ryddighet og design på Bygg og drift, forbedre ytelse og "
+            "CSS, gå gjennom all funksjonalitet og gjennomfør nyttige forbedringer."
+        ),
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Kontrollerer driftsoversikten og alle seks fagområder med faktiske produksjonsdata.",
+            "Viser lastestatus i stedet for blank skjerm på alle kodeoppdelte spesialflater.",
+            "Oversetter PAA, KJOLING, FORKJOLING og UTENFOR_DRIFTSTID i ventilasjonstabellene.",
+            "Retter dørtekster som tidligere kunne vises som Siden 16 t siden.",
+            "Samordner dørkortenes radius med øvrige paneler.",
+            "Sperrer ventilasjonsdagsloggen mot navigasjon til fremtidige datoer.",
+            "Beholder alle alternative dørvisninger og all eksisterende styringsfunksjonalitet.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1776",
+        "date": "15.08.2026",
+        "headline": "Soling gir tryggere dagsnavigasjon og tydelig lasting",
+        "title": "Dagslinjen er ryddet, fremtidige datoer er sperret og filtre er kvalitetssikret",
+        "description": (
+            "Soling er gjennomgått fra dashboard og dagslinje til enkelttimer, bilder, analyser og oppgjør. "
+            "Dashboardet bruker den nye avgrensede forretningsresponsen. Dagslinjens kode og grensesnitt er "
+            "ryddet, neste dag kan ikke lenger føre brukeren inn i fremtiden, og tunge spesialsider viser "
+            "en lastetilstand i stedet for et tomt felt. Statusfilteret på enkelttimer er sikret mot å bruke "
+            "betalingsverdier."
+        ),
+        "applications": [
+            "Fibaro10 build 1776: kvalitetssikrer soltimestatus som eget filtergrunnlag.",
+            "Soling build 31: rydder dagslinjen og innfører synlige lastetilstander.",
+            "Felles microapp-ui: leverer avgrenset dashboardrespons også til Soling.",
+        ],
+        "request": (
+            "Vurder kvalitet, funksjonalitet, ryddighet og design på Soling, forbedre ytelse og CSS, "
+            "gå gjennom all funksjonalitet og gjennomfør nyttige forbedringer."
+        ),
+        "work_duration": "ca. 35 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Lar Soling-dashboardet hente bare nødvendige forretnings- og datakildedata.",
+            "Viser en tydelig lastetilstand ved åpning av oppgjør, dagslinje og enkeltimer.",
+            "Deaktiverer neste dag når dagens dato er valgt.",
+            "Begrenser kalenderen til dagens dato i norsk tidssone.",
+            "Deler opp og rydder den kompakte dagslinjekomponenten for enklere videreutvikling.",
+            "Legger inn regresjonstest for at Status bruker soltimestatus, ikke betalingsmåte.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1775",
+        "date": "15.08.2026",
+        "headline": "Parkering er raskere og dagslisten er enklere å lese",
+        "title": "Norsk status, kompakte klokkeslett og trygg dagenavigasjon rydder arbeidsflaten",
+        "description": (
+            "Parkering er gjennomgått fra dashboard og dagsliste til kjøretøy, analyse og oppgjør. "
+            "Dashboardet bruker nå en avgrenset forretningsrespons. Dagslisten utnytter bredden bedre ved "
+            "å vise klokkeslett uten å gjenta valgt dato, samtidig som full dato beholdes som verktøytips. "
+            "Råstatusene er oversatt til norsk, og dagenavigasjonen hindrer valg av fremtidige dager."
+        ),
+        "applications": [
+            "Fibaro10 build 1775: avgrenser forretningsoversikten og leverer norske statusvalg.",
+            "Parkering build 31: komprimerer dagslisten og sikrer dagenavigasjonen.",
+            "Felles microapp-ui: sender domene til det avgrensede dashboardendepunktet.",
+        ],
+        "request": (
+            "Vurder kvalitet, funksjonalitet, ryddighet og design på Parkering, forbedre ytelse og CSS, "
+            "gå gjennom all funksjonalitet og gjennomfør nyttige forbedringer."
+        ),
+        "work_duration": "ca. 40 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Lar parkeringsdashboardet hente bare statusperioder og relevante datakildetider.",
+            "Viser bare klokkeslett i dagslistens start- og sluttkolonner.",
+            "Beholder komplett dato og klokkeslett som verktøytips på tidsfeltene.",
+            "Oversetter Ongoing og Ended til Pågående og Avsluttet i tabell og filter.",
+            "Deaktiverer neste dag og begrenser kalenderen når dagens dato er valgt.",
+            "Legger inn kontrakttester for dashboardscope og dagslistens visningsregler.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1774",
+        "date": "15.08.2026",
+        "headline": "Omsetning er raskere og responsiv uten interne rullefelt",
+        "title": "Dashboardet henter bare nødvendige data og holder sammenligningene lesbare",
+        "description": (
+            "Omsetning er gjennomgått med vekt på kvalitet, funksjonalitet, ryddighet og ytelse. "
+            "Dashboardet bruker nå en avgrenset omsetningsrespons og slipper å vente på lys, ventilasjon, "
+            "energi og HC3-status. Inntektskildene tilpasser seg kortbredden uten egne horisontale "
+            "rullefelt, og resultattabellene viser konsekvente norske kolonnenavn."
+        ),
+        "applications": [
+            "Fibaro10 build 1774: støtter en avgrenset og raskere omsetningsrespons.",
+            "Omsetning build 39: innfører responsiv driver-tabell og norsk tabellterminologi.",
+            "Felles microapp-ui: kompletterer norske etiketter for omsetningsfelter.",
+        ],
+        "request": (
+            "Vurder kvalitet, funksjonalitet, ryddighet og design på hver mikroapp. Forbedre ytelse og "
+            "CSS, gå gjennom funksjonaliteten og gjennomfør nyttige forbedringer. Start med Omsetning."
+        ),
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Avgrenser Omsetning-dashboardet fra den komplette Fibaro10-oversikten.",
+            "Unngår HC3-, lys-, ventilasjons- og energikall når bare omsetningsdata etterspørres.",
+            "Fjerner de interne horisontale rullefeltene i alle fire periodekort.",
+            "Lar fire sammenligningskolonner tilpasse seg tilgjengelig kortbredde.",
+            "Erstatter interne engelske tabellfelter med forståelige norske overskrifter.",
+            "Legger inn kontrakttest for avgrenset lasting og responsivt kortoppsett.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1773",
         "date": "15.08.2026",
         "headline": "Renhold-oversikten prioriterer det som krever handling",

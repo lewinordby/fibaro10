@@ -504,6 +504,7 @@ OWNTRACKS_VISIT_SYNC_ENABLED = os.getenv("OWNTRACKS_VISIT_SYNC_ENABLED", "true")
 OWNTRACKS_VISIT_SYNC_INTERVAL_SECONDS = max(30, int(os.getenv("OWNTRACKS_VISIT_SYNC_INTERVAL_SECONDS", "60")))
 OWNTRACKS_VISIT_SYNC_LOOKBACK_HOURS = max(1, int(os.getenv("OWNTRACKS_VISIT_SYNC_LOOKBACK_HOURS", str(24 * 14))))
 OWNTRACKS_VISIT_SYNC_TIMEOUT_SECONDS = max(2, int(os.getenv("OWNTRACKS_VISIT_SYNC_TIMEOUT_SECONDS", "10")))
+SITE_VISIT_ACTIVE_MAX_HOURS = max(1, int(os.getenv("SITE_VISIT_ACTIVE_MAX_HOURS", "24")))
 OWNTRACKS_LILLETORGET_WAYPOINTS = [
     item.strip()
     for item in os.getenv("OWNTRACKS_LILLETORGET_WAYPOINTS", "Lilletorget 3,Lilletorget,Sun2").split(",")
@@ -6671,6 +6672,16 @@ def display_action(action: Optional[str]) -> str:
     if action == "PAA":
         return "PÅ"
     return action or ""
+
+
+def display_control_mode(value: Any) -> str:
+    normalized = str(value or "").strip().upper()
+    return {
+        "FORKJOLING": "Forkjøling",
+        "KJOLING": "Kjøling",
+        "NORMAL": "Normal",
+        "UTENFOR_DRIFTSTID": "Utenfor driftstid",
+    }.get(normalized, str(value or "-"))
 
 
 def clean_display_text(value: Optional[str]) -> str:
@@ -21080,7 +21091,8 @@ async def api_operations_overview():
 
 
 @app.get("/api/overview")
-async def api_v2_overview():
+async def api_v2_overview(scope: Optional[str] = None):
+    business_only = scope in {"revenue", "parking", "sun"}
     now_dt = local_now_naive()
     today = now_dt.date()
     yesterday = today - timedelta(days=1)
@@ -21119,21 +21131,26 @@ async def api_v2_overview():
         config
         for device in VENT_TIMELINE_DEVICES
         if (config := hc3_switch_config_for_timeline_device(device)) is not None
-    ]
-    vent_status_task = asyncio.create_task(hc3_fetch_switch_statuses(vent_switch_configs))
+    ] if not business_only else []
+    vent_status_task = asyncio.create_task(hc3_fetch_switch_statuses(vent_switch_configs)) if not business_only else None
     async with async_session() as session:
-        latest_light_sample = (
-            await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.timestamp.desc()).limit(1))
-        ).scalars().first()
-        latest_light = (
-            await session.execute(select(OutdoorLightEvent).order_by(OutdoorLightEvent.timestamp.desc()).limit(1))
-        ).scalars().first()
-        latest_sample = (
-            await session.execute(select(VentilationSample).order_by(VentilationSample.timestamp.desc()).limit(1))
-        ).scalars().first()
-        latest_yr_sample = (
-            await session.execute(select(YrForecastSample).order_by(YrForecastSample.timestamp.desc()).limit(1))
-        ).scalars().first()
+        latest_light_sample = None
+        latest_light = None
+        latest_sample = None
+        latest_yr_sample = None
+        if not business_only:
+            latest_light_sample = (
+                await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.timestamp.desc()).limit(1))
+            ).scalars().first()
+            latest_light = (
+                await session.execute(select(OutdoorLightEvent).order_by(OutdoorLightEvent.timestamp.desc()).limit(1))
+            ).scalars().first()
+            latest_sample = (
+                await session.execute(select(VentilationSample).order_by(VentilationSample.timestamp.desc()).limit(1))
+            ).scalars().first()
+            latest_yr_sample = (
+                await session.execute(select(YrForecastSample).order_by(YrForecastSample.timestamp.desc()).limit(1))
+            ).scalars().first()
         import_rows = await import_status_rows(session)
         sun_as_of = source_as_of(import_rows, "sun2_sessions_import", now_dt)
         parking_as_of = source_as_of(import_rows, "easypark_parking_import", now_dt)
@@ -21316,45 +21333,51 @@ async def api_v2_overview():
         two_years_parking = parking["two_years_full"]
         previous_year_same_time_parking = parking["previous_year"]
         two_years_same_time_parking = parking["two_years"]
-        active_parking = (
-            await session.execute(
-                select(func.count(ParkingSession.id)).where(
-                    ParkingSession.start_time <= now_dt,
-                    or_(
-                        ParkingSession.end_time.is_(None),
-                        ParkingSession.end_time >= now_dt,
-                        func.lower(func.coalesce(ParkingSession.status, "")) == "ongoing",
-                    ),
+        active_parking = 0
+        latest_parking = None
+        latest_soling = None
+        latest_energy_sample = None
+        today_energy_fibaro = None
+        if not business_only:
+            active_parking = (
+                await session.execute(
+                    select(func.count(ParkingSession.id)).where(
+                        ParkingSession.start_time <= now_dt,
+                        or_(
+                            ParkingSession.end_time.is_(None),
+                            ParkingSession.end_time >= now_dt,
+                            func.lower(func.coalesce(ParkingSession.status, "")) == "ongoing",
+                        ),
+                    )
                 )
-            )
-        ).scalar_one()
-        latest_parking = (
-            await session.execute(
-                select(ParkingSession)
-                .where(ParkingSession.start_time >= today_start, ParkingSession.start_time < tomorrow_start)
-                .order_by(ParkingSession.start_time.desc())
-                .limit(1)
-            )
-        ).scalars().first()
-        latest_soling = (
-            await session.execute(
-                select(Sun2TanningSession)
-                .where(Sun2TanningSession.stat_date == today)
-                .order_by(Sun2TanningSession.started_at.desc())
-                .limit(1)
-            )
-        ).scalars().first()
-        latest_energy_sample = (
-            await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))
-        ).scalars().first()
-        today_energy_fibaro = (
-            await session.execute(
-                select(
-                    func.coalesce(func.sum(EnergyFibaroSample.inntak_delta_kwh), 0).label("kwh"),
-                    func.count(EnergyFibaroSample.id).label("samples"),
-                ).where(EnergyFibaroSample.bucket_start >= today_start, EnergyFibaroSample.bucket_start < tomorrow_start)
-            )
-        ).one()
+            ).scalar_one()
+            latest_parking = (
+                await session.execute(
+                    select(ParkingSession)
+                    .where(ParkingSession.start_time >= today_start, ParkingSession.start_time < tomorrow_start)
+                    .order_by(ParkingSession.start_time.desc())
+                    .limit(1)
+                )
+            ).scalars().first()
+            latest_soling = (
+                await session.execute(
+                    select(Sun2TanningSession)
+                    .where(Sun2TanningSession.stat_date == today)
+                    .order_by(Sun2TanningSession.started_at.desc())
+                    .limit(1)
+                )
+            ).scalars().first()
+            latest_energy_sample = (
+                await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))
+            ).scalars().first()
+            today_energy_fibaro = (
+                await session.execute(
+                    select(
+                        func.coalesce(func.sum(EnergyFibaroSample.inntak_delta_kwh), 0).label("kwh"),
+                        func.count(EnergyFibaroSample.id).label("samples"),
+                    ).where(EnergyFibaroSample.bucket_start >= today_start, EnergyFibaroSample.bucket_start < tomorrow_start)
+                )
+            ).one()
         revenue_sun_summaries = await get_sun2_summaries(session)
         revenue_parking_summaries = await get_parking_summaries(session)
 
@@ -21587,11 +21610,31 @@ async def api_v2_overview():
             ],
         },
     ]
+    if business_only:
+        services = [
+            {
+                "sourceNo": row["source_no"],
+                "jobName": row["job_name"],
+                "label": row["title"],
+                "status": row["status"] if row["status"] in {"ok", "warn", "bad"} else "unknown",
+                "detail": row["age"] or row["status_text"],
+                "ageMinutes": minutes_since(row["last_success_at"]) if row.get("last_success_at") else None,
+                "lastSuccessAt": api_local_iso(row.get("last_success_at")),
+                "nextExpectedAt": api_local_iso(row.get("next_expected_at")),
+            }
+            for row in import_rows
+        ]
+        return {
+            "generatedAt": api_local_iso(now_dt),
+            "statusPeriods": status_periods,
+            "services": services,
+        }
+
     light_items = [
         {"label": device["name"], "state": api_bool_state(light_sample_state(latest_light_sample, device) if latest_light_sample else None)}
         for device in LIGHT_TIMELINE_DEVICES
     ]
-    vent_hc3_statuses = await vent_status_task
+    vent_hc3_statuses = await vent_status_task if vent_status_task is not None else {}
     fan_items = [
         ventilation_status_payload(device, latest_sample, vent_hc3_statuses.get(str(device.get("key"))))
         for device in VENT_TIMELINE_DEVICES
@@ -25340,14 +25383,42 @@ async def fetch_owntracks_lilletorget_visits() -> list[Dict[str, Any]]:
 
 
 def site_visit_status_label(row: SiteVisit) -> str:
+    if site_visit_is_stale(row):
+        return "Mangler avslutning"
     return "Aktiv" if row.status == "open" else "Avsluttet"
+
+
+def site_visit_is_stale(row: SiteVisit, now_value: Optional[datetime] = None) -> bool:
+    if row.status != "open" or not row.started_at:
+        return False
+    return row.started_at < (now_value or local_now_naive()) - timedelta(hours=SITE_VISIT_ACTIVE_MAX_HOURS)
+
+
+def site_visit_is_current(row: SiteVisit, now_value: Optional[datetime] = None) -> bool:
+    return row.status == "open" and not site_visit_is_stale(row, now_value)
+
+
+def site_visit_display_duration(row: SiteVisit) -> str:
+    if site_visit_is_stale(row):
+        return "Ukjent"
+    return site_visit_duration_label(row.duration_seconds, row.started_at, row.ended_at)
+
+
+def site_visit_confidence_percent(value: Any) -> Optional[float]:
+    if value is None:
+        return None
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return None
+    return round(numeric * 100 if 0 <= numeric <= 1 else numeric, 1)
 
 
 def site_visit_label(row: Optional[SiteVisit]) -> Optional[str]:
     if not row:
         return None
     started = format_source_datetime_short(row.started_at) if row.started_at else "-"
-    duration = site_visit_duration_label(row.duration_seconds, row.started_at, row.ended_at)
+    duration = site_visit_display_duration(row)
     return f"{row.location_name} {started} ({duration})"
 
 
@@ -25363,14 +25434,14 @@ def site_visit_row(row: SiteVisit, tasks_count: int = 0) -> Dict[str, Any]:
         "location_name": row.location_name,
         "started_at": row.started_at.isoformat(timespec="minutes") if row.started_at else None,
         "ended_at": row.ended_at.isoformat(timespec="minutes") if row.ended_at else None,
-        "duration": site_visit_duration_label(row.duration_seconds, row.started_at, row.ended_at),
+        "duration": site_visit_display_duration(row),
         "duration_seconds": row.duration_seconds,
         "status": site_visit_status_label(row),
         "tasks_count": tasks_count,
         "topic": row.topic,
         "username": row.username,
         "device": row.device,
-        "confidence": row.confidence,
+        "confidence": site_visit_confidence_percent(row.confidence),
         "enter_source": row.enter_source,
         "leave_source": row.leave_source,
         "notes": row.notes,
@@ -30807,6 +30878,63 @@ async def energy_elvia_control_module_payload(session, selected_day: date, today
     }
 
 
+async def energy_elvia_module_payload(session) -> Dict[str, Any]:
+    elvia_rows = (
+        await session.execute(
+            select(EnergyHourlyConsumption)
+            .order_by(EnergyHourlyConsumption.measured_at.desc())
+            .limit(120)
+        )
+    ).scalars().all()
+    elvia_imports = (
+        await session.execute(
+            select(EnergyImportRun)
+            .order_by(EnergyImportRun.timestamp.desc())
+            .limit(80)
+        )
+    ).scalars().all()
+    summaries = await get_energy_summaries(session)
+    elvia_status = (
+        await session.execute(
+            select(ImportJobStatus)
+            .where(ImportJobStatus.job_name == "elvia_monthly_import")
+        )
+    ).scalars().first()
+    energy_elvia_data = api_energy_elvia_payload(
+        summaries,
+        elvia_imports,
+        elvia_rows,
+        elvia_status,
+    )
+    total = summaries.get("total") or {}
+    latest_import = elvia_imports[0] if elvia_imports else None
+    period_detail = "-"
+    if summaries.get("first_at") and summaries.get("last_at"):
+        period_detail = (
+            f"{format_local_datetime(summaries['first_at'])} - "
+            f"{format_local_datetime(summaries['last_at'])}"
+        )
+    latest_detail = "Ingen import ennå"
+    if latest_import:
+        latest_period = format_source_datetime(latest_import.period_last) if latest_import.period_last else "-"
+        latest_detail = f"Data til {latest_period}"
+    return {
+        "title": v2_module_title("energi", "elvia"),
+        "subtitle": "Elvia-timesdata, importhistorikk og kontrollgrunnlag.",
+        "cards": [
+            api_card("Totalt forbruk", format_short_number(total.get("consumption_kwh")), "kWh", f"{int_or_zero(total.get('hours_count'))} timer", "energy", href="/energi/elvia"),
+            api_card("Periode", int_or_zero(total.get("days_count")), "dager", period_detail, "energy", href="/energi/elvia"),
+            api_card("Estimerte timer", int_or_zero(total.get("estimated_hours_count")), "stk", "Elvia-status ulik OK", "status", href="/energi/elvia"),
+            api_card("Siste import", format_local_datetime(latest_import.timestamp) if latest_import else "-", "", latest_detail, "status", href="/energi/elvia"),
+        ],
+        "charts": [],
+        "tables": [],
+        "filters": [],
+        "energyElvia": energy_elvia_data,
+        "energySunbeds": None,
+    }
+
+
 @app.get("/api/modules/{module}")
 async def api_v2_module(request: Request, module: str, view: Optional[str] = None, q: Optional[str] = None, day: Optional[str] = None):
     module = module.strip().lower()
@@ -31525,6 +31653,14 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 status_options = api_filter_options(
                     (await session.execute(select(ParkingSession.status).distinct().order_by(ParkingSession.status.asc()))).scalars().all()
                 )
+                parking_status_labels = {"ongoing": "Pågående", "ended": "Avsluttet"}
+                status_options = [
+                    {
+                        **option,
+                        "label": parking_status_labels.get(str(option["value"]).casefold(), option["label"]),
+                    }
+                    for option in status_options
+                ]
                 return {
                     "title": v2_module_title("parkering", view),
                     "subtitle": "EasyPark, aktive parkeringer og kj\u00f8ret\u00f8ygrunnlag.",
@@ -32222,6 +32358,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             energy_limit_value = api_filter_int(params, "limit", 500, 25, 1000)
             if view == "elvia-kontroll":
                 return await energy_elvia_control_module_payload(session, selected_day, today)
+            if view == "elvia":
+                return await energy_elvia_module_payload(session)
             if view == "forbruk-per-seng":
                 energy_sunbeds_data = await load_sunbed_power_analysis(
                     session,
@@ -32457,74 +32595,9 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     .order_by(EnergyFibaroSample.bucket_start.desc())
                 )
             ).scalars().all()
-            all_circuits = (
-                await session.execute(select(EnergyCircuit).order_by(EnergyCircuit.circuit_no.asc()))
-            ).scalars().all()
-            circuits = filter_energy_circuits_by_sunbed(all_circuits, energy_sunbeds_value if view == "kurser" else None)
-            sunbed_circuit_numbers = [row.circuit_no for row in all_circuits if energy_circuit_is_sunbed(row)]
-            energy_circuit_no = None
-            if energy_circuit_value:
-                try:
-                    energy_circuit_no = int(energy_circuit_value)
-                except ValueError:
-                    energy_circuit_no = None
-            load_conditions = []
-            if energy_q_value:
-                pattern = f"%{energy_q_value}%"
-                load_conditions.append(
-                    or_(
-                        EnergyLoad.name.ilike(pattern),
-                        EnergyLoad.area.ilike(pattern),
-                        EnergyLoad.note.ilike(pattern),
-                        EnergyLoad.load_type.ilike(pattern),
-                    )
-                )
-            if energy_circuit_no is not None:
-                load_conditions.append(EnergyLoad.circuit_no == energy_circuit_no)
-            if energy_load_type_value:
-                load_conditions.append(EnergyLoad.load_type == energy_load_type_value)
-            if energy_active_value == "1":
-                load_conditions.append(EnergyLoad.active.is_(True))
-            elif energy_active_value == "0":
-                load_conditions.append(EnergyLoad.active.is_(False))
-            if energy_sunbeds_value == "hide":
-                load_conditions.append(or_(EnergyLoad.circuit_no.is_(None), ~EnergyLoad.circuit_no.in_(sunbed_circuit_numbers)))
-            elif energy_sunbeds_value == "only":
-                load_conditions.append(EnergyLoad.circuit_no.in_(sunbed_circuit_numbers))
-            load_stmt = select(EnergyLoad).order_by(EnergyLoad.active.desc(), EnergyLoad.circuit_no.asc(), EnergyLoad.name.asc()).limit(energy_limit_value)
-            load_count_stmt = select(func.count(EnergyLoad.id))
-            if load_conditions:
-                load_stmt = load_stmt.where(*load_conditions)
-                load_count_stmt = load_count_stmt.where(*load_conditions)
-            loads = (await session.execute(load_stmt)).scalars().all()
-            filtered_load_count = (await session.execute(load_count_stmt)).scalar_one()
-            load_type_options = api_filter_options(
-                (
-                    await session.execute(
-                        select(EnergyLoad.load_type)
-                        .where(EnergyLoad.load_type.is_not(None))
-                        .where(func.trim(EnergyLoad.load_type) != "")
-                        .distinct()
-                        .order_by(EnergyLoad.load_type.asc())
-                    )
-                ).scalars().all()
-            )
-            circuit_options = [
-                {
-                    "label": f"{row.circuit_no} - {row.description}" if row.description else str(row.circuit_no),
-                    "value": str(row.circuit_no),
-                }
-                for row in all_circuits
-                if row.circuit_no is not None
-            ]
-            sunbed_filter_options = [
-                {"label": "Skjul solsenger", "value": "hide"},
-                {"label": "Kun solsenger", "value": "only"},
-            ]
-            elvia_rows = []
-            elvia_imports = []
-            energy_elvia_data = None
-            energy_sunbeds_data = None
+            registered_load_count = (
+                await session.execute(select(func.count(EnergyLoad.id)))
+            ).scalar_one()
             total_kwh = sum(float_or_zero(row.inntak_delta_kwh) for row in selected_energy_rows)
             chronological_energy_rows = list(reversed(selected_energy_rows))
             energy_chart_rows = decimate_rows(chronological_energy_rows, 1440)
@@ -32582,139 +32655,14 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             ]
             tables = [
                 api_table("Energisamples valgt dag", ["bucket_start", "inntak_w", "varmepumper_w", "belysning_w", "massasje_w", "annet_w", "avfukter_w", "differanse_beregnet_w"], [api_pick(row, ENERGY_FIBARO_COLUMNS) for row in selected_energy_rows[:500]]),
-                api_table("Kurser", ["circuit_no", "description", "breaker", "breaker_type", "is_sunbed", "status"], [circuit_row_api(row) for row in circuits], edit=api_energy_circuit_edit()),
-                api_table("Laster", ["name", "load_type", "area", "circuit_no", "power_profile", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads], edit=api_energy_load_edit()),
             ]
             filters = []
             energy_cards = [
                 api_card("Inntak nå", format_short_number(latest.inntak_w if latest else None), "W", "Realtime", "energy", href="/energi/status"),
                 api_card("Forbruk i dag" if selected_day == today else "Forbruk valgt dag", format_short_number(total_kwh, 1), "kWh", f"{len(selected_energy_rows)} samples", "energy", href="/energi/status"),
                 api_card("Diff nå", format_short_number(latest.differanse_beregnet_w if latest else None), "W", "Beregnet fra realtime", "energy", href="/energi/status"),
-                api_card("Laster", filtered_load_count, "stk", "Aktive og registrerte", "status", href="/energi/laster"),
+                api_card("Laster", registered_load_count, "stk", "Registrert i lastregisteret", "status", href="/energi/laster"),
             ]
-            if view == "kurser":
-                filters = [
-                    api_filter("sunbeds", "Solsenger", "select", energy_sunbeds_value, options=sunbed_filter_options),
-                ]
-                energy_cards = [
-                    api_card("Kurser", len(circuits), "stk", "Valgt kursfilter", "energy", href="/energi/kurser"),
-                    api_card("Solsengkurser", sum(1 for row in circuits if energy_circuit_is_sunbed(row)), "stk", "Blant viste", "sun2", href="/energi/forbruk-per-seng"),
-                    api_card("Med vern", sum(1 for row in circuits if row.breaker_rating_a is not None), "stk", "Registrert", "status", href="/energi/kurser"),
-                    api_card("Uten vern", sum(1 for row in circuits if row.breaker_rating_a is None), "stk", "Mangler data", "status", href="/energi/kurser"),
-                ]
-                tables = [api_table("Kurser", ["circuit_no", "description", "breaker", "breaker_type", "is_sunbed", "status", "note"], [circuit_row_api(row) for row in circuits], edit=api_energy_circuit_edit())]
-            elif view == "laster":
-                filters = [
-                    api_filter("q", "Søk", "text", energy_q_value, "Navn, område, type eller notat"),
-                    api_filter("circuit", "Kurs", "select", energy_circuit_value, options=circuit_options),
-                    api_filter("load_type", "Type", "select", energy_load_type_value, options=load_type_options),
-                    api_filter(
-                        "active",
-                        "Aktiv",
-                        "select",
-                        energy_active_value,
-                        options=[{"label": "Aktive", "value": "1"}, {"label": "Inaktive", "value": "0"}],
-                    ),
-                    api_filter("sunbeds", "Solsenger", "select", energy_sunbeds_value, options=sunbed_filter_options),
-                    api_filter("limit", "Antall", "number", energy_limit_value),
-                ]
-                energy_cards = [
-                    api_card("Treff", filtered_load_count, "stk", f"Viser {len(loads)} laster", "energy", href="/energi/laster"),
-                    api_card("Aktive vist", sum(1 for row in loads if row.active), "stk", "I tabellen", "status", href="/energi/laster"),
-                    api_card("Direktemålt", sum(1 for row in loads if row.measured_direct), "stk", "I tabellen", "energy", href="/energi/laster"),
-                    api_card("Effekt vist", format_short_number(sum(float_or_zero(row.expected_power_w) for row in loads)), "W", "For viste rader", "energy", href="/energi/laster"),
-                ]
-                tables = [api_table("Laster", ["name", "load_type", "area", "circuit_no", "power_profile", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads], edit=api_energy_load_edit())]
-            elif view == "elvia":
-                elvia_rows = (
-                    await session.execute(
-                        select(EnergyHourlyConsumption).order_by(EnergyHourlyConsumption.measured_at.desc()).limit(120)
-                    )
-                ).scalars().all()
-                elvia_imports = (
-                    await session.execute(select(EnergyImportRun).order_by(EnergyImportRun.timestamp.desc()).limit(80))
-                ).scalars().all()
-                summaries = await get_energy_summaries(session)
-                elvia_status = (
-                    await session.execute(select(ImportJobStatus).where(ImportJobStatus.job_name == "elvia_monthly_import"))
-                ).scalars().first()
-                energy_elvia_data = api_energy_elvia_payload(summaries, elvia_imports, elvia_rows, elvia_status)
-                total = summaries.get("total") or {}
-                latest_import = elvia_imports[0] if elvia_imports else None
-                period_detail = "-"
-                if summaries.get("first_at") and summaries.get("last_at"):
-                    period_detail = f"{format_local_datetime(summaries['first_at'])} - {format_local_datetime(summaries['last_at'])}"
-                latest_detail = "Ingen import ennå"
-                if latest_import:
-                    latest_detail = f"Data til {format_source_datetime(latest_import.period_last) if latest_import.period_last else '-'}"
-                charts = []
-                energy_cards = [
-                    api_card("Totalt forbruk", format_short_number(total.get("consumption_kwh")), "kWh", f"{int_or_zero(total.get('hours_count'))} timer", "energy", href="/energi/elvia"),
-                    api_card("Periode", int_or_zero(total.get("days_count")), "dager", period_detail, "energy", href="/energi/elvia"),
-                    api_card("Estimerte timer", int_or_zero(total.get("estimated_hours_count")), "stk", "Elvia-status ulik OK", "status", href="/energi/elvia"),
-                    api_card("Siste import", format_local_datetime(latest_import.timestamp) if latest_import else "-", "", latest_detail, "status", href="/energi/elvia"),
-                ]
-                tables = [
-                    api_table("Årssummer", ["period", "consumption_kwh", "days_count", "hours_count", "estimated_hours_count"], energy_elvia_data["yearly"]),
-                    api_table("Topp dager", ["period_label", "consumption_kwh", "hours_count", "estimated_hours_count"], energy_elvia_data["topDays"]),
-                    api_table("Topp måneder", ["period", "consumption_kwh", "days_count", "estimated_hours_count"], energy_elvia_data["topMonths"]),
-                    api_table("Elvia timer", ["measured_at", "stat_date", "hour", "consumption_kwh", "status", "is_estimated", "source"], [api_pick(row, ENERGY_HOURLY_COLUMNS) for row in elvia_rows]),
-                    api_table("Elvia importer", ["timestamp", "period_first", "period_last", "hours_count", "total_kwh", "ok", "message"], [api_pick(row, ENERGY_IMPORT_COLUMNS) for row in elvia_imports]),
-                ]
-            elif view == "forbruk-per-seng":
-                energy_sunbeds_data = await load_sunbed_power_analysis(
-                    session,
-                    energy_sunbed_date_from or None,
-                    energy_sunbed_date_to or None,
-                    today,
-                )
-                sunbed_summary = energy_sunbeds_data["summary"]
-                sunbed_circuits = {row.circuit_no for row in circuits if energy_circuit_is_sunbed(row)}
-                filters = [
-                    api_filter("date_from", "Fra", "date", energy_sunbeds_data["dateFrom"]),
-                    api_filter("date_to", "Til", "date", energy_sunbeds_data["dateTo"]),
-                ]
-                energy_cards = [
-                    api_card("Senger med estimat", sunbed_summary.get("rooms_count"), "stk", "Rom med rene målepunkter", "sun2", href="/energi/forbruk-per-seng"),
-                    api_card("Rene målepunkter", sunbed_summary.get("single_samples"), "stk", f"Intervall {format_short_number(sunbed_summary.get('sample_interval_seconds'))} sek", "energy", href="/energi/forbruk-per-seng"),
-                    api_card("Baseline", format_short_number(sunbed_summary.get("global_baseline_w")), "W", "Median uten aktiv solseng", "energy", href="/energi/forbruk-per-seng"),
-                    api_card("Takvifte korrigert", sunbed_summary.get("roof_exhaust_adjusted_samples"), "stk", f"-{format_short_number(sunbed_summary.get('roof_exhaust_adjustment_w'))} W ved på", "vent", href="/energi/forbruk-per-seng"),
-                ]
-                tables = [
-                    api_table("Estimert effekt per seng", ["label", "estimate_w", "avg_w", "p25_w", "p75_w", "samples_count", "sessions_count", "kwh_15_min", "estimated_kwh", "confidence"], energy_sunbeds_data["rooms"]),
-                    api_table("Siste rene solinger", ["start", "label", "duration_minutes", "samples_count", "avg_w", "avg_observed_w", "avg_baseline_w", "estimated_kwh"], energy_sunbeds_data["observations"]),
-                    api_table("Solrelaterte kurser", ["circuit_no", "description", "breaker", "status", "note"], [circuit_row_api(row) for row in circuits if row.circuit_no in sunbed_circuits]),
-                    api_table("Solrelaterte laster", ["name", "load_type", "area", "circuit_no", "power_profile", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads if row.circuit_no in sunbed_circuits or (row.load_type or "").lower().find("sol") >= 0]),
-                ]
-            elif view == "verktoy":
-                tables = [
-                    api_table(
-                        "Energiverktøy",
-                        ["tool", "path", "description", "count"],
-                        [
-                            api_tool_row("Energi status", "/energi/status", "Klassisk realtime energiside med Elvia-sammenligning.", len(recent)),
-                            api_tool_row("Kurser", "/energi/kurser", "Kursregister med redigering og tekniske data.", len(circuits)),
-                            api_tool_row("Laster", "/energi/laster", "Lastregister med målere, kurser og forventet effekt.", len(loads)),
-                            api_tool_row("Elvia", "/energi/elvia", "Import og kontroll av Elvia-timesdata.", len(elvia_imports)),
-                            api_tool_row("Kurs-PDF", "/classic/energi/kurser/pdf", "Eksporter kurslisten som PDF.", len(circuits)),
-                            api_tool_row("Last-PDF", "/classic/energi/laster/pdf", "Eksporter lastlisten som PDF.", len(loads)),
-                        ],
-                    ),
-                    api_table(
-                        "Datagrunnlag",
-                        ["key", "value"],
-                        api_config_value_rows(
-                            {
-                                "samples_i_dag": len(today_rows),
-                                "siste_sample": latest.bucket_start if latest else None,
-                                "inntak_na_w": latest.inntak_w if latest else None,
-                                "differanse_na_w": latest.differanse_beregnet_w if latest else None,
-                                "aktive_laster": sum(1 for row in loads if row.active),
-                                "direktemalte_laster": sum(1 for row in loads if row.measured_direct),
-                            }
-                        ),
-                    ),
-                ]
             return {
                 "title": v2_module_title("energi", view),
                 "subtitle": "Realtime HC3-måling, kursregister og lastregister.",
@@ -32722,8 +32670,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "charts": charts,
                 "tables": tables,
                 "filters": filters,
-                "energyElvia": energy_elvia_data,
-                "energySunbeds": energy_sunbeds_data,
+                "energyElvia": None,
+                "energySunbeds": None,
             }
 
         if module == "ventilasjon":
@@ -32781,16 +32729,23 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             day_sample_rows = [
                 {
                     "time": row.get("time"),
-                    "mode": row.get("mode"),
-                    **{key: row.get(key) for key in sample_columns if key != "bucket_start"},
+                    "mode": display_control_mode(row.get("mode")),
+                    **{key: row.get(key) for key in sample_columns if key not in {"bucket_start", "mode"}},
                 }
                 for row in ventilation_data["day"]["samples"]
             ]
+            event_table_rows = []
+            for row in events:
+                event_row = api_pick(row, VENT_COLUMNS)
+                event_row["action"] = display_action(event_row.get("action"))
+                event_row["mode"] = display_control_mode(event_row.get("mode"))
+                event_row["reason"] = clean_display_text(event_row.get("reason"))
+                event_table_rows.append(event_row)
             tables = [
                 api_table("Dagsmålinger", ["time", "mode", "temp_1etg", "humidity_1etg", "temp_2etg", "humidity_2etg", "temp_vip", "humidity_vip", "temp_ute", "temp_loft", "temp_kjeller", "humidity_kjeller", "fan_vip", "fan_2etg", "fan_tak", "fan_avfukter"], day_sample_rows),
                 api_table("Temperatur og fukt", sample_columns, [api_pick(row, VENT_SAMPLE_COLUMNS) for row in samples]),
                 api_table("Yr", YR_LOG_TABLE_COLUMNS, [api_pick(row, YR_LOG_TABLE_COLUMNS) for row in yr_rows]),
-                api_table("Hendelser", ["timestamp", "action", "device_name", "mode", "reason", "state"], [api_pick(row, VENT_COLUMNS) for row in events]),
+                api_table("Hendelser", ["timestamp", "action", "device_name", "mode", "reason", "state"], event_table_rows),
             ]
             if active_view == "dagslogg":
                 tables = [tables[0], tables[3]]
@@ -33464,6 +33419,100 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             }
 
         if module == "vedlikehold":
+            edit_config = api_maintenance_log_edit(now_dt.replace(second=0, microsecond=0))
+            if view == "besok":
+                site_visits = (
+                    await session.execute(
+                        select(SiteVisit)
+                        .where(SiteVisit.location_key == OWNTRACKS_SITE_VISIT_LOCATION_KEY)
+                        .order_by(SiteVisit.started_at.desc(), SiteVisit.id.desc())
+                        .limit(200)
+                    )
+                ).scalars().all()
+                site_visit_import_status = (
+                    await session.execute(
+                        select(ImportJobStatus)
+                        .where(ImportJobStatus.job_name == "owntracks_site_visits")
+                        .limit(1)
+                    )
+                ).scalars().first()
+                site_visit_counts = {
+                    int(row.visit_id): int(row.tasks_count)
+                    for row in (
+                        await session.execute(
+                            select(
+                                MaintenanceLogEntry.site_visit_id.label("visit_id"),
+                                func.count(MaintenanceLogEntry.id).label("tasks_count"),
+                            )
+                            .where(MaintenanceLogEntry.site_visit_id.isnot(None))
+                            .group_by(MaintenanceLogEntry.site_visit_id)
+                        )
+                    )
+                    if row.visit_id is not None
+                }
+                today_visit_count = sum(
+                    1
+                    for row in site_visits
+                    if row.started_at and today_start <= row.started_at < tomorrow_start
+                )
+                active_visit = next(
+                    (row for row in site_visits if site_visit_is_current(row, now_dt)),
+                    None,
+                )
+                stale_visits = [row for row in site_visits if site_visit_is_stale(row, now_dt)]
+                latest_visit_sync = (
+                    site_visit_import_status.last_success_at
+                    if site_visit_import_status and site_visit_import_status.last_success_at
+                    else max((row.last_synced_at for row in site_visits if row.last_synced_at), default=None)
+                )
+                site_visit_sync_detail = (
+                    site_visit_import_status.message
+                    if site_visit_import_status and site_visit_import_status.message
+                    else "Fra OwnTracks API"
+                )
+                visit_rows = [
+                    site_visit_row(row, site_visit_counts.get(int(row.id or 0), 0))
+                    for row in site_visits
+                ]
+                return {
+                    "title": v2_module_title("vedlikehold", view),
+                    "subtitle": "Lilletorget-besøk fra OwnTracks med oppgaver og besøksnotater.",
+                    "cards": [
+                        api_card("Besøk i dag", today_visit_count, "stk", "Registrert fra OwnTracks", "status", href="/vedlikehold/besok"),
+                        api_card(
+                            "Aktivt besøk",
+                            "Ja" if active_visit else "Nei",
+                            "",
+                            site_visit_label(active_visit) or "Ingen aktivt besøk",
+                            "status",
+                            href="/vedlikehold/besok",
+                        ),
+                        api_card(
+                            "Mangler avslutning",
+                            len(stale_visits),
+                            "stk",
+                            f"Åpne lenger enn {SITE_VISIT_ACTIVE_MAX_HOURS} timer",
+                            "danger" if stale_visits else "status",
+                            href="/vedlikehold/besok",
+                        ),
+                        api_card(
+                            "Sist synket",
+                            format_source_datetime_short(latest_visit_sync) if latest_visit_sync else "-",
+                            "",
+                            site_visit_sync_detail[:120],
+                            "status",
+                            href="/vedlikehold/besok",
+                        ),
+                    ],
+                    "tables": [
+                        api_table(
+                            "Lilletorget-besøk",
+                            ["started_at", "ended_at", "duration", "status", "tasks_count", "notes"],
+                            visit_rows,
+                        ),
+                    ],
+                }
+
             logs = (
                 await session.execute(
                     select(MaintenanceLogEntry)
@@ -33471,47 +33520,25 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     .limit(300)
                 )
             ).scalars().all()
-            site_visits = (
-                await session.execute(
-                    select(SiteVisit)
-                    .where(SiteVisit.location_key == OWNTRACKS_SITE_VISIT_LOCATION_KEY)
-                    .order_by(SiteVisit.started_at.desc(), SiteVisit.id.desc())
-                    .limit(200)
-                )
-            ).scalars().all()
-            site_visit_import_status = (
-                await session.execute(
-                    select(ImportJobStatus)
-                    .where(ImportJobStatus.job_name == "owntracks_site_visits")
-                    .limit(1)
-                )
-            ).scalars().first()
-            site_visit_counts = {
-                int(row.visit_id): int(row.tasks_count)
-                for row in (
+            linked_visit_ids = sorted({int(row.site_visit_id) for row in logs if row.site_visit_id})
+            site_visit_by_id: Dict[int, SiteVisit] = {}
+            if linked_visit_ids:
+                linked_visits = (
                     await session.execute(
-                        select(MaintenanceLogEntry.site_visit_id.label("visit_id"), func.count(MaintenanceLogEntry.id).label("tasks_count"))
-                        .where(MaintenanceLogEntry.site_visit_id.isnot(None))
-                        .group_by(MaintenanceLogEntry.site_visit_id)
-                    )
-                )
-                if row.visit_id is not None
-            }
-            site_visit_by_id = {int(row.id): row for row in site_visits if row.id}
-            linked_visit_ids = {int(row.site_visit_id) for row in logs if row.site_visit_id}
-            missing_visit_ids = sorted(linked_visit_ids - set(site_visit_by_id))
-            if missing_visit_ids:
-                extra_visits = (
-                    await session.execute(
-                        select(SiteVisit).where(SiteVisit.id.in_(missing_visit_ids))
+                        select(SiteVisit).where(SiteVisit.id.in_(linked_visit_ids))
                     )
                 ).scalars().all()
-                site_visit_by_id.update({int(row.id): row for row in extra_visits if row.id})
-            today_count = sum(1 for row in logs if row.performed_at and today_start <= row.performed_at < tomorrow_start)
-            month_count = sum(1 for row in logs if row.performed_at and month_start_dt <= row.performed_at < tomorrow_start)
-            today_visit_count = sum(1 for row in site_visits if row.started_at and today_start <= row.started_at < tomorrow_start)
-            active_visit = next((row for row in site_visits if row.status == "open"), None)
-            linked_log_count = sum(1 for row in logs if row.site_visit_id)
+                site_visit_by_id = {int(row.id): row for row in linked_visits if row.id}
+            today_count = sum(
+                1
+                for row in logs
+                if row.performed_at and today_start <= row.performed_at < tomorrow_start
+            )
+            month_count = sum(
+                1
+                for row in logs
+                if row.performed_at and month_start_dt <= row.performed_at < tomorrow_start
+            )
             follow_up_logs = [
                 row
                 for row in logs
@@ -33524,83 +33551,16 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 and row.performed_at
                 and month_start_dt <= row.performed_at < tomorrow_start
             )
-            tag_stats: Dict[str, Dict[str, Any]] = {}
-            for row in logs:
-                for tag in normalize_maintenance_tags(row.tags):
-                    key = tag.casefold()
-                    item = tag_stats.setdefault(key, {"tag": tag, "count": 0, "last_seen": None})
-                    item["count"] += 1
-                    if row.performed_at and (not item["last_seen"] or row.performed_at > item["last_seen"]):
-                        item["last_seen"] = row.performed_at
-            tag_rows = [
-                {
-                    "tag": item["tag"],
-                    "count": item["count"],
-                    "last_seen": item["last_seen"].isoformat(timespec="minutes") if item["last_seen"] else None,
-                }
-                for item in sorted(tag_stats.values(), key=lambda value: (-int(value["count"]), str(value["tag"]).casefold()))
-            ]
             latest = logs[0] if logs else None
-            latest_visit_sync = (
-                site_visit_import_status.last_success_at
-                if site_visit_import_status and site_visit_import_status.last_success_at
-                else max((row.last_synced_at for row in site_visits if row.last_synced_at), default=None)
-            )
-            site_visit_sync_detail = (
-                site_visit_import_status.message
-                if site_visit_import_status and site_visit_import_status.message
-                else "Fra OwnTracks API"
-            )
-            edit_config = api_maintenance_log_edit(now_dt.replace(second=0, microsecond=0))
-            visit_rows = [site_visit_row(row, site_visit_counts.get(int(row.id or 0), 0)) for row in site_visits]
-            log_rows = [maintenance_log_row(row, site_visit_by_id.get(int(row.site_visit_id or 0))) for row in logs]
-            if view == "besok":
-                return {
-                    "title": v2_module_title("vedlikehold", view),
-                    "subtitle": "Lilletorget-besøk fra OwnTracks og vedlikeholdsoppgaver koblet til oppholdene.",
-                    "cards": [
-                        api_card("Besøk i dag", today_visit_count, "stk", f"{linked_log_count} oppgaver koblet i listen", "status", href="/vedlikehold/besok"),
-                        api_card("Aktivt besøk", "Ja" if active_visit else "Nei", "", site_visit_label(active_visit) or "Ingen aktivt registrert", "status", href="/vedlikehold/besok"),
-                        api_card("Sist synket", format_source_datetime_short(latest_visit_sync) if latest_visit_sync else "-", "", site_visit_sync_detail[:120], "status", href="/vedlikehold/besok"),
-                        api_card("Vedlikehold i dag", today_count, "stk", "Logget arbeid/observasjoner", "status", href="/vedlikehold/oversikt"),
-                    ],
-                    "tables": [
-                        api_table(
-                            "Lilletorget-besøk",
-                            [
-                                "started_at",
-                                "ended_at",
-                                "duration",
-                                "status",
-                                "tasks_count",
-                                "confidence",
-                                "enter_source",
-                                "leave_source",
-                                "last_synced_at",
-                                "source_visit_id",
-                            ],
-                            visit_rows,
-                        ),
-                        api_table(
-                            "Oppgaver koblet til besøk",
-                            [
-                                "performed_at",
-                                "site_visit",
-                                "target_type",
-                                "target_name",
-                                "action_type",
-                                "status",
-                                "summary",
-                                "tags",
-                            ],
-                            [row for row in log_rows if row.get("site_visit_id")],
-                            edit=edit_config,
-                        ),
-                    ],
-                }
+            log_rows = [
+                maintenance_log_row(row, site_visit_by_id.get(int(row.site_visit_id or 0)))
+                for row in logs
+            ]
+            follow_up_edit = dict(edit_config)
+            follow_up_edit.pop("createEndpoint", None)
             return {
                 "title": v2_module_title("vedlikehold", view),
-                "subtitle": "Logg for arbeid og observasjoner hver gang du er tilstede på Sun2.",
+                "subtitle": "Arbeid, observasjoner og oppfølgingspunkter på Lilletorget.",
                 "cards": [
                     api_card("Må følges opp", len(follow_up_logs), "stk", "Åpne punkter som krever handling", "danger" if follow_up_logs else "status", href="/vedlikehold/oversikt"),
                     api_card("I dag", today_count, "stk", "Registrerte aktiviteter", "status", href="/vedlikehold/oversikt"),
@@ -33610,16 +33570,15 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "tables": [
                     api_table(
                         "Krever oppfølging",
+                        ["performed_at", "target_name", "priority", "summary", "follow_up_text", "status"],
                         [
-                            "performed_at",
-                            "target_name",
-                            "priority",
-                            "summary",
-                            "follow_up_text",
-                            "status",
+                            maintenance_log_row(
+                                row,
+                                site_visit_by_id.get(int(row.site_visit_id or 0)),
+                            )
+                            for row in follow_up_logs
                         ],
-                        [maintenance_log_row(row, site_visit_by_id.get(int(row.site_visit_id or 0))) for row in follow_up_logs],
-                        edit=edit_config,
+                        edit=follow_up_edit,
                     ),
                     api_table(
                         "Siste vedlikehold",
@@ -33631,48 +33590,89 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             }
 
         if module == "admin":
-            import_rows = await import_status_rows(session)
-            import_api_rows = api_import_status_rows(import_rows)
-            admin_task_rows = await build_admin_task_rows(session, import_rows, now_dt)
-            ai_logs = (
-                await session.execute(select(AiQueryLog).order_by(AiQueryLog.timestamp.desc()).limit(80))
-            ).scalars().all()
-            access_keys = (
-                await session.execute(select(AccessKey).order_by(AccessKey.created_at.desc()).limit(200))
-            ).scalars().all()
-            access_logs = (
-                await session.execute(select(AccessLog).order_by(AccessLog.timestamp.desc()).limit(120))
-            ).scalars().all()
+            import_rows = []
+            import_api_rows = []
+            admin_task_rows = []
+            ai_logs = []
+            access_keys = []
+            access_logs = []
+            import_views = {"", "drift", "oppgaver", "datakvalitet", "datakilder", "teknisk", "manual"}
+            if view in import_views:
+                import_rows = await import_status_rows(session)
+                import_api_rows = api_import_status_rows(import_rows)
+            if view in {"", "drift", "oppgaver"}:
+                admin_task_rows = await build_admin_task_rows(session, import_rows, now_dt)
+            if view == "ai":
+                ai_logs = (
+                    await session.execute(
+                        select(AiQueryLog)
+                        .order_by(AiQueryLog.timestamp.desc())
+                        .limit(80)
+                    )
+                ).scalars().all()
+            if view in {"brukere", "manual", "verktoy"}:
+                access_keys = (
+                    await session.execute(
+                        select(AccessKey)
+                        .order_by(AccessKey.created_at.desc())
+                        .limit(200)
+                    )
+                ).scalars().all()
+            if view == "brukere":
+                access_logs = (
+                    await session.execute(
+                        select(AccessLog)
+                        .order_by(AccessLog.timestamp.desc())
+                        .limit(120)
+                    )
+                ).scalars().all()
+
             admin_tools = [
                 api_tool_row("Buildlogg", "/admin/build", "Klikkbar leveransehistorikk med detaljvisning per build.", len(BUILD_LOG)),
                 api_tool_row("Teknisk", "/admin/teknisk", "Teknisk driftsside.", None),
                 api_tool_row("Manual", "/manual/oversikt", "Intern manual og driftsnotater.", None),
-                api_tool_row("Brukere og tilgang", "/admin/brukere", "Administrer brukere, roller og tilgang.", len(access_keys)),
-                api_tool_row("AI-innstillinger", "/admin/ai", "Sett modell og API-nøkkel for analyseassistent.", len(ai_logs)),
+                api_tool_row("Brukere og tilgang", "/admin/brukere", "Administrer brukere, roller og tilgang.", len(access_keys) if access_keys else None),
+                api_tool_row("AI-innstillinger", "/admin/ai", "Sett modell og API-nøkkel for analyseassistent.", len(ai_logs) if ai_logs else None),
                 api_tool_row("Health", "/health", "Rask serverhelse og lagringsliste.", None),
                 api_tool_row("Events JSON", "/events/json", "Generiske hendelser som JSON.", None),
                 api_tool_row("Events CSV", "/download", "Generiske hendelser som CSV.", None),
             ]
             build_log_columns = ["date", "build", "headline"]
-            urgent_task_count = sum(1 for row in admin_task_rows if row["severity"] in {"Kritisk", "Høy"})
-            problem_import_rows = [row for row in import_api_rows if row.get("status") != "ok"]
+            urgent_task_count = sum(
+                1 for row in admin_task_rows if row["severity"] in {"Kritisk", "Høy"}
+            )
+            problem_import_rows = [
+                row for row in import_api_rows if row.get("status") != "ok"
+            ]
             ok_import_count = len(import_api_rows) - len(problem_import_rows)
             actions = []
             charts = []
             reconciliation = None
-            admin_cards = [
-                api_card("Datakilder", f"{ok_import_count}/{len(import_api_rows)}", "OK", "Alle ferske" if not problem_import_rows else f"{len(problem_import_rows)} krever kontroll", "danger" if problem_import_rows else "status", href="/admin/datakilder"),
-                api_card("Krever oppfølging", len(admin_task_rows), "stk", "Samlet arbeidsliste", "danger" if urgent_task_count else "status", href="/admin/oppgaver"),
-                api_card("Kritisk / høy", urgent_task_count, "stk", "Prioriteres først", "danger" if urgent_task_count else "status", href="/admin/oppgaver"),
-                api_card("Siste build", APP_BUILD, "", BUILD_LOG[0]["title"], "status", href="/admin/build"),
-            ]
+            admin_cards = []
             tables = []
-            if problem_import_rows:
-                tables.append(api_table("Datakilder som krever oppmerksomhet", ["source_no", "title", "category", "status", "age", "message"], problem_import_rows))
-            tables.extend([
-                api_table("Datakilder", ["source_no", "title", "category", "status", "age", "message"], import_api_rows),
-                api_table("Siste endringer", build_log_columns, [api_build_log_row(row) for row in BUILD_LOG[:8]]),
-            ])
+            if view in {"", "drift"}:
+                admin_cards = [
+                    api_card("Datakilder", f"{ok_import_count}/{len(import_api_rows)}", "OK", "Alle ferske" if not problem_import_rows else f"{len(problem_import_rows)} krever kontroll", "danger" if problem_import_rows else "status", href="/admin/datakilder"),
+                    api_card("Krever oppfølging", len(admin_task_rows), "stk", "Samlet arbeidsliste", "danger" if urgent_task_count else "status", href="/admin/oppgaver"),
+                    api_card("Kritisk / høy", urgent_task_count, "stk", "Prioriteres først", "danger" if urgent_task_count else "status", href="/admin/oppgaver"),
+                    api_card("Siste build", APP_BUILD, "", BUILD_LOG[0]["title"], "status", href="/admin/build"),
+                ]
+                if problem_import_rows:
+                    tables.append(
+                        api_table(
+                            "Datakilder som krever oppmerksomhet",
+                            ["source_no", "title", "category", "status", "age", "message"],
+                            problem_import_rows,
+                        )
+                    )
+                tables.append(
+                    api_table(
+                        "Siste endringer",
+                        build_log_columns,
+                        [api_build_log_row(row) for row in BUILD_LOG[:8]],
+                    )
+                )
+
             if view == "oppgaver":
                 actions = [
                     {
@@ -33925,11 +33925,25 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 ]
                 charts = [relation_analysis["chart"]]
             elif view == "build":
+                current_build_row = BUILD_LOG[0]
+                builds_today = sum(1 for row in BUILD_LOG if row.get("date") == current_build_row.get("date"))
+                admin_cards = [
+                    api_card("Aktiv build", APP_BUILD, "", current_build_row.get("headline"), "status", href="/admin/build"),
+                    api_card("Loggførte builds", len(BUILD_LOG), "stk", "Komplett leveransehistorikk", "status", href="/admin/build"),
+                    api_card("I dag", builds_today, "stk", current_build_row.get("date"), "status", href="/admin/build"),
+                    api_card("Berørte apper", len(current_build_row.get("applications") or []), "stk", "I aktiv build", "status", href="/admin/build"),
+                ]
                 tables = [
                     api_table("Buildlogg", build_log_columns, [api_build_log_row(row) for row in BUILD_LOG[:80]]),
                     api_table("Buildverktøy", ["tool", "path", "description", "count"], [admin_tools[0], admin_tools[1], admin_tools[5]]),
                 ]
             elif view == "datakilder":
+                admin_cards = [
+                    api_card("Datakilder", len(import_api_rows), "stk", "Registrert i systemet", "status", href="/admin/datakilder"),
+                    api_card("OK", ok_import_count, "stk", "Ferske og vellykkede", "status", href="/admin/datakilder"),
+                    api_card("Krever kontroll", len(problem_import_rows), "stk", "Feil eller utdaterte", "danger" if problem_import_rows else "status", href="/admin/datakilder"),
+                    api_card("Områder", len({str(row.get('category') or '') for row in import_api_rows}), "stk", "Fagområder med datakilder", "status", href="/admin/datakilder"),
+                ]
                 tables = [
                     api_table("Datakilder", ["source_no", "title", "category", "status", "status_text", "age", "last_success_at", "message"], import_api_rows),
                     api_table(
@@ -33967,6 +33981,13 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 ]
             elif view == "ai":
                 ai_settings = await effective_openai_settings()
+                successful_ai_logs = sum(1 for row in ai_logs if row.ok)
+                admin_cards = [
+                    api_card("Modell", ai_settings["model"], "", "Aktiv modell", "status", href="/admin/ai"),
+                    api_card("API-nøkkel", "Ja" if ai_settings["has_env_key"] or ai_settings["has_stored_key"] else "Nei", "", ai_settings["source"], "status", href="/admin/ai"),
+                    api_card("Spørringer", len(ai_logs), "stk", "I siste loggutvalg", "status", href="/admin/ai"),
+                    api_card("Vellykket", successful_ai_logs, "stk", f"{len(ai_logs) - successful_ai_logs} feilet", "status", href="/admin/ai"),
+                ]
                 tables = [
                     api_table(
                         "AI-status",
@@ -35373,30 +35394,31 @@ async def api_v2_maintenance_site_visit_detail(visit_id: int):
     visit_row = site_visit_row(visit, len(task_rows))
     task_api_rows = [maintenance_log_row(row, visit) for row in task_rows]
     title_time = format_source_datetime_short(visit.started_at) if visit.started_at else f"#{visit.id}"
+    confidence_percent = site_visit_confidence_percent(visit.confidence)
+    confidence_label = f"{format_short_number(confidence_percent, 1)} %" if confidence_percent is not None else "-"
+    end_label = (
+        format_source_datetime_short(visit.ended_at)
+        if visit.ended_at
+        else "Mangler avslutning" if site_visit_is_stale(visit) else "Pågående"
+    )
     return {
         "status": "ok",
-        "title": f"Lilletorget-besok {title_time}",
-        "subtitle": site_visit_label(visit) or "OwnTracks-besok",
+        "title": f"Lilletorget-besøk {title_time}",
+        "subtitle": site_visit_label(visit) or "OwnTracks-besøk",
         "visit": visit_row,
         "cards": [
             api_card("Start", format_source_datetime_short(visit.started_at) if visit.started_at else "-", "", "Kom inn", "status"),
-            api_card("Slutt", format_source_datetime_short(visit.ended_at) if visit.ended_at else "Pågående", "", "Dro ut", "status"),
-            api_card("Varighet", site_visit_duration_label(visit.duration_seconds, visit.started_at, visit.ended_at), "", site_visit_status_label(visit), "status"),
+            api_card("Slutt", end_label, "", "Dro ut", "status"),
+            api_card("Varighet", site_visit_display_duration(visit), "", site_visit_status_label(visit), "status"),
             api_card("Oppgaver", len(task_rows), "stk", "Koblet til dette besøket", "status"),
         ],
         "fields": [
             {"label": "Sted", "value": visit.location_name},
             {"label": "Status", "value": site_visit_status_label(visit)},
-            {"label": "Kilde", "value": visit.source},
-            {"label": "OwnTracks-ID", "value": visit.source_visit_id},
-            {"label": "Topic", "value": visit.topic},
             {"label": "Bruker", "value": visit.username},
             {"label": "Enhet", "value": visit.device},
-            {"label": "Tillit", "value": visit.confidence},
-            {"label": "Kom-kilde", "value": visit.enter_source},
-            {"label": "Dro-kilde", "value": visit.leave_source},
+            {"label": "Sikkerhet", "value": confidence_label},
             {"label": "Sist synket", "value": visit.last_synced_at.isoformat(timespec="minutes") if visit.last_synced_at else None},
-            {"label": "Oppdatert", "value": visit.updated_at.isoformat(timespec="minutes") if visit.updated_at else None},
         ],
         "taskTable": api_table(
             "Oppgaver",
@@ -35418,7 +35440,7 @@ async def api_v2_maintenance_site_visit_detail(visit_id: int):
         "taskEdit": task_edit,
         "visitEdit": {
             "kind": "site-visit-note",
-            "title": "besoksnotat",
+            "title": "besøksnotat",
             "idField": "id",
             "endpoint": "/api/maintenance/site-visits/{id}",
             "method": "PATCH",

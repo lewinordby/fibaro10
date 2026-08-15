@@ -26,7 +26,7 @@ async function get<T>(path: string): Promise<T> {
 export const api = {
   config: () => get<AppConfig>("/api/app/config"),
   user: () => get<AuthUser>("/api/auth/me"),
-  dashboard: () => get<OverviewResponse>("/api/overview"),
+  dashboard: () => get<OverviewResponse>("/api/overview?scope=revenue"),
   overview: () => get<ModuleResponse>("/api/modules/omsetning?view=oversikt"),
   comparison: (params: URLSearchParams) => get<ComparisonResponse>(`/api/status/comparison?${params}`),
   year: (year?: string) => get<YearComparisonResponse>(`/api/omsetning/year-comparison${year ? `?year=${encodeURIComponent(year)}` : ""}`),

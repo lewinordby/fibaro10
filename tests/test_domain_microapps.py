@@ -117,6 +117,27 @@ def test_sun_sessions_keep_the_interactive_image_workflow() -> None:
     assert "selectSunSessionImage" in sun_api
 
 
+def test_sun_lazy_pages_show_feedback_and_day_navigation_stops_today() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    sun_main = (repo_root / "sun_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
+    timeline = (repo_root / "sun_app" / "frontend" / "src" / "components" / "SunTimelineSpecial.tsx").read_text(encoding="utf-8")
+
+    assert "fallback={<Loading />}" in sun_main
+    assert "fallback={null}" not in sun_main
+    assert "disabled={isToday}" in timeline
+    assert "max={today}" in timeline
+    assert 'timeZone: "Europe/Oslo"' in timeline
+
+
+def test_sun_session_status_filter_uses_session_status_values() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    backend = (repo_root / "main.py").read_text(encoding="utf-8")
+    sessions = backend[backend.index("async def sun2_sessions_module_payload"):backend.index("async def api_v2_soling_module")]
+
+    assert "select(Sun2TanningSession.status).distinct()" in sessions
+    assert 'api_filter("status", "Status", "select", status_value, options=status_options)' in sessions
+
+
 def test_sun_app_has_a_narrow_proxy_for_saved_session_images() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     sun_backend = (repo_root / "sun_app" / "app" / "main.py").read_text(encoding="utf-8")
@@ -242,6 +263,63 @@ def test_parity_critical_specialized_views_are_kept_in_microapps() -> None:
     assert "/manual/hc3-energi" in routes["system"]
 
 
+def test_energy_overview_and_elvia_imports_stay_focused() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    backend = (repo_root / "main.py").read_text(encoding="utf-8")
+    entry = (repo_root / "energy_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
+    special = (repo_root / "energy_app" / "frontend" / "src" / "components" / "EnergySpecial.tsx").read_text(encoding="utf-8")
+
+    status_start = backend.index('registered_load_count = (')
+    status_end = backend.index('        if module == "ventilasjon":', status_start)
+    status_source = backend[status_start:status_end]
+    assert 'api_table("Kurser"' not in status_source
+    assert 'api_table("Laster"' not in status_source
+    assert 'api_table("Energisamples valgt dag"' in status_source
+    assert 'return await energy_elvia_module_payload(session)' in backend
+    assert "fallback={<Loading />}" in entry
+    for field in ("timestamp", "source_file", "period_first", "period_last", "hours_count", "total_kwh"):
+        assert f'key:"{field}"' in special
+    for stale_field in ("created_at", "filename", "rows_imported"):
+        assert f'key:"{stale_field}"' not in special
+
+
+def test_maintenance_visits_handle_stale_sessions_and_keep_details_focused() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    backend = (repo_root / "main.py").read_text(encoding="utf-8")
+    entry = (repo_root / "maintenance_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
+    detail = (repo_root / "maintenance_app" / "frontend" / "src" / "components" / "MaintenanceVisitDetailPage.tsx").read_text(encoding="utf-8")
+
+    assert "SITE_VISIT_ACTIVE_MAX_HOURS" in backend
+    assert 'return "Mangler avslutning"' in backend
+    assert "site_visit_is_current(row, now_dt)" in backend
+    assert '["started_at", "ended_at", "duration", "status", "tasks_count", "notes"]' in backend
+    assert '"Oppgaver koblet til besøk"' not in backend
+    assert 'follow_up_edit.pop("createEndpoint", None)' in backend
+    assert "fallback={<Loading />}" in entry
+    assert "minmax(0,3fr)" in detail
+    assert "disabled={saving || !dirty}" in detail
+
+
+def test_system_pages_load_only_their_data_and_keep_status_operational() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    backend = (repo_root / "main.py").read_text(encoding="utf-8")
+    adapter = (repo_root / "system_app" / "app" / "main.py").read_text(encoding="utf-8")
+    entry = (repo_root / "system_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
+    special = (repo_root / "system_app" / "frontend" / "src" / "components" / "SystemSpecial.tsx").read_text(encoding="utf-8")
+
+    assert 'import_views = {"", "drift", "oppgaver", "datakvalitet", "datakilder", "teknisk", "manual"}' in backend
+    assert 'if view == "ai":\n                ai_logs =' in backend
+    assert 'if view == "brukere":\n                access_logs =' in backend
+    status_start = backend.index('            if view in {"", "drift"}:')
+    status_end = backend.index('            if view == "oppgaver":', status_start)
+    status_source = backend[status_start:status_end]
+    assert '"Siste endringer"' in status_source
+    assert 'api_table("Datakilder",' not in status_source
+    assert "fallback={<Loading />}" in entry
+    assert "Utsending avslått" in special
+    assert '"path": f\'/manual/{chapter.get("id")}\'' in adapter
+
+
 def test_shared_tables_keep_search_sorting_and_local_pagination() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     shared = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "ModuleContent.tsx").read_text(encoding="utf-8")
@@ -312,6 +390,26 @@ def test_parking_and_sun_have_domain_specific_dashboards_and_comparisons() -> No
     assert '"status/comparison"' in parking_backend
     assert '"soling/year-comparison"' in sun_backend
     assert '"status/comparison"' in sun_backend
+
+
+def test_business_dashboards_use_scoped_overview_payloads() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    dashboard = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "CountDashboardSpecial.tsx").read_text(encoding="utf-8")
+    api_source = (repo_root / "packages" / "microapp-ui" / "src" / "api.ts").read_text(encoding="utf-8")
+
+    assert "domainApi.businessOverview(domain)" in dashboard
+    assert '`/api/overview?scope=${domain}`' in api_source
+
+
+def test_daily_parking_list_uses_compact_norwegian_status_and_time() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    source = (repo_root / "parking_app" / "frontend" / "src" / "components" / "ModuleContent.tsx").read_text(encoding="utf-8")
+
+    assert 'return "Pågående"' in source
+    assert 'return "Avsluttet"' in source
+    assert 'compactTime={pathname === "/parkeringer"}' in source
+    assert "disabled={data.isToday}" in source
+    assert 'max={today}' in source
 
 
 def test_detail_routes_do_not_fall_back_to_generic_module_pages() -> None:
@@ -508,6 +606,22 @@ def test_operations_dashboard_covers_every_operational_area() -> None:
     assert "Siste jobber" in dashboard
 
 
+def test_operations_special_views_are_readable_while_loading_and_in_daily_logs() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    entry = (repo_root / "operations_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
+    ventilation = (repo_root / "operations_app" / "frontend" / "src" / "components" / "OperationsSpecial.tsx").read_text(encoding="utf-8")
+    doors = (repo_root / "operations_app" / "frontend" / "src" / "components" / "DoorsSpecial.tsx").read_text(encoding="utf-8")
+    core = (repo_root / "main.py").read_text(encoding="utf-8")
+
+    assert "fallback={<Loading />}" in entry
+    assert "fallback={null}" not in entry
+    assert "disabled={isToday}" in ventilation
+    assert "max={today}" in ventilation
+    assert "Siden ${door.ageLabel" not in doors
+    assert "display_control_mode(event_row.get(\"mode\"))" in core
+    assert "display_action(event_row.get(\"action\"))" in core
+
+
 def test_operations_proxy_allows_roborock_detail_endpoint() -> None:
     assert operations_main.DOMAIN_PATTERN.fullmatch("renhold/robots/abc-123")
     assert operations_main.DOMAIN_PATTERN.fullmatch("renhold/robots")
@@ -585,6 +699,17 @@ def test_revenue_dashboard_names_both_driver_references() -> None:
     assert "driverComparisons.map" in source
     assert 'if (periodKey === "today" && index === 1) return "Forrige uke";' in source
     assert "driverComparisonLabel(period.key, comparison, index)" in source
+
+
+def test_revenue_dashboard_is_scoped_and_has_no_nested_horizontal_scroller() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    api_source = (repo_root / "revenue_app" / "frontend" / "src" / "api.ts").read_text(encoding="utf-8")
+    dashboard_source = (repo_root / "revenue_app" / "frontend" / "src" / "pages" / "DashboardPage.tsx").read_text(encoding="utf-8")
+
+    assert 'dashboard: () => get<OverviewResponse>("/api/overview?scope=revenue")' in api_source
+    assert 'grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,.8fr))]' in dashboard_source
+    assert 'min-w-[570px]' not in dashboard_source
+    assert 'm-4 overflow-x-auto' not in dashboard_source
 
 
 def test_each_domain_rejects_another_domains_module() -> None:

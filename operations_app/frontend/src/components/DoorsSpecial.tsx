@@ -284,7 +284,7 @@ function DoorCard({ door, sunroom, changes }: { door: RecordValue; sunroom: bool
       : "text-red-700 dark:text-red-400";
   return (
     <article
-      className={`overflow-hidden rounded-xl border bg-white shadow-sm dark:bg-gray-800 ${color}`}
+      className={`overflow-hidden rounded-lg border bg-white shadow-sm dark:bg-gray-800 ${color}`}
     >
       <button
         className="w-full p-4 text-left transition hover:bg-gray-50 dark:hover:bg-gray-700/40"
@@ -306,7 +306,7 @@ function DoorCard({ door, sunroom, changes }: { door: RecordValue; sunroom: bool
           <div>
             <strong className={statusColor}>{known ? door.stateLabel : primary}</strong>
             <p className="mt-1 text-xs text-gray-500">
-              {known ? `Siden ${door.ageLabel || "ukjent"}` : "Ingen sikker status"}
+              {known ? door.ageLabel || "Tidspunkt ukjent" : "Ingen sikker status"}
             </p>
           </div>
           <span className="text-xs text-gray-400">

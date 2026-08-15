@@ -1,6 +1,6 @@
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
-import { DomainApp, ThemeProvider, getDomainConfig, type DomainAppExtensions } from "@lilletorget/microapp-ui";
+import { DomainApp, Loading, ThemeProvider, getDomainConfig, type DomainAppExtensions } from "@lilletorget/microapp-ui";
 import "@lilletorget/mosaic-theme/font.css";
 import "./style.css";
 
@@ -10,7 +10,7 @@ const maintenanceExtensions: DomainAppExtensions = {
   isRoute: ({ pathname }) => /^\/besok\/\d+$/.test(pathname),
   renderRoute: ({ pathname, config, coreUrl }) => {
     const visit = pathname.match(/^\/besok\/(\d+)$/);
-    return visit ? <Suspense fallback={null}><MaintenanceVisitDetailPage id={visit[1]} config={config} coreUrl={coreUrl} /></Suspense> : null;
+    return visit ? <Suspense fallback={<Loading />}><MaintenanceVisitDetailPage id={visit[1]} config={config} coreUrl={coreUrl} /></Suspense> : null;
   },
 };
 

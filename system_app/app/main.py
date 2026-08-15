@@ -158,8 +158,17 @@ async def manual_module(request: Request, client: httpx.AsyncClient, headers: di
     data = await core_json(client, headers, "/api/manual")
     chapters = data.get("chapters", [])
     if view == "oversikt":
-        rows = [{"kapittel": chapter.get("number"), "tittel": chapter.get("title"), "id": chapter.get("id"), "merknad": chapter.get("note", "")} for chapter in chapters]
-        return {"title": data.get("title", "Manual"), "subtitle": data.get("description", ""), "cards": [card("Build", data.get("build", "-")), card("Kapitler", len(chapters), "stk"), card("Daglig bruk", "02", "", "Anbefalt start"), card("Feils\u00f8king", "10", "", "Ved feil eller gamle data")], "tables": [{"title": "Kapitler", "columns": ["kapittel", "tittel", "id", "merknad"], "rows": rows}]}
+        rows = [
+            {
+                "kapittel": chapter.get("number"),
+                "tittel": chapter.get("title"),
+                "merknad": chapter.get("note", ""),
+                "path": f'/manual/{chapter.get("id")}',
+            }
+            for chapter in chapters
+            if chapter.get("id")
+        ]
+        return {"title": data.get("title", "Manual"), "subtitle": data.get("description", ""), "cards": [card("Build", data.get("build", "-")), card("Kapitler", len(chapters), "stk"), card("Daglig bruk", "02", "", "Anbefalt start"), card("Feils\u00f8king", "10", "", "Ved feil eller gamle data")], "tables": [{"title": "Kapitler", "columns": ["kapittel", "tittel", "merknad", "path"], "rows": rows}]}
 
     chapter_id = {"daglig-bruk": "daglig-bruk", "datagrunnlag": "datagrunnlag", "feilsoking": "feilsoking"}.get(view, view)
     chapter = next((item for item in chapters if item.get("id") == chapter_id), None)

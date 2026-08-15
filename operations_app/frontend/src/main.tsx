@@ -2,6 +2,7 @@ import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import {
   DomainApp,
+  Loading,
   ThemeProvider,
   getDomainConfig,
   type DomainAppExtensions,
@@ -107,12 +108,12 @@ const operationsExtensions: DomainAppExtensions = {
   renderModule: ({ data, module, view, reload }) => {
     const roborock = data.roborock as RoborockModuleData | null | undefined;
     const operationsDashboard = data.operationsDashboard as OperationsDashboardResponse | null | undefined;
-    if (module === "status" && view === "drift" && operationsDashboard) return { content: <Suspense fallback={null}><OperationsDashboard data={operationsDashboard} /></Suspense>, hideFilters: true, hideCards: true, hideCharts: true, hideTables: true };
-    if (module === "renhold" && roborock) return { content: <Suspense fallback={null}><RoborockSpecial data={roborock} /></Suspense>, hideCards: true, hideCharts: true, hideTables: true };
-    if (module === "pullerter") return { content: <Suspense fallback={null}><BollardsSpecial /></Suspense>, hideCards: true, hideCharts: true, hideTables: true };
-    if (module === "dorer" && doorViews.has(view)) return { content: <Suspense fallback={null}><DoorsSpecial view={view} /></Suspense>, hideFilters: true, hideCards: true, hideCharts: true, hideTables: true };
-    if (module === "ventilasjon" && data.ventilation) return { content: <Suspense fallback={null}><VentilationSpecial data={data} view={view} reload={reload} /></Suspense>, hideCharts: true, hideTables: view === "innstillinger" };
-    if (data.controlSettings) return { content: <Suspense fallback={null}><ControlSettingsSpecial settings={data.controlSettings as ControlSettings} reload={reload} /></Suspense>, hideTables: true };
+    if (module === "status" && view === "drift" && operationsDashboard) return { content: <Suspense fallback={<Loading />}><OperationsDashboard data={operationsDashboard} /></Suspense>, hideFilters: true, hideCards: true, hideCharts: true, hideTables: true };
+    if (module === "renhold" && roborock) return { content: <Suspense fallback={<Loading />}><RoborockSpecial data={roborock} /></Suspense>, hideCards: true, hideCharts: true, hideTables: true };
+    if (module === "pullerter") return { content: <Suspense fallback={<Loading />}><BollardsSpecial /></Suspense>, hideCards: true, hideCharts: true, hideTables: true };
+    if (module === "dorer" && doorViews.has(view)) return { content: <Suspense fallback={<Loading />}><DoorsSpecial view={view} /></Suspense>, hideFilters: true, hideCards: true, hideCharts: true, hideTables: true };
+    if (module === "ventilasjon" && data.ventilation) return { content: <Suspense fallback={<Loading />}><VentilationSpecial data={data} view={view} reload={reload} /></Suspense>, hideCharts: true, hideTables: view === "innstillinger" };
+    if (data.controlSettings) return { content: <Suspense fallback={<Loading />}><ControlSettingsSpecial settings={data.controlSettings as ControlSettings} reload={reload} /></Suspense>, hideTables: true };
     return null;
   },
 };

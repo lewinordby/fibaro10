@@ -39,6 +39,7 @@ export function valueLabel(key: string) {
     source: "Kilde",
     source_no: "Nr.",
     category: "Område",
+    date: "Dato",
     period_label: "Periode",
     period_start: "Fra",
     period_end: "Til",
@@ -79,6 +80,7 @@ export function valueLabel(key: string) {
     enter_source: "Kilde inn",
     leave_source: "Kilde ut",
     source_visit_id: "Kilde-ID",
+    notes: "Notat",
     tag: "Emneord",
     start_time: "Start",
     end_time: "Slutt",
@@ -96,6 +98,10 @@ export function valueLabel(key: string) {
     paid_total: "Betalt totalt",
     parking_paid: "Parkering",
     parking_count: "Parkeringer",
+    total_paid: "Sum omsetning",
+    total_count: "Antall totalt",
+    sun_paid: "Soling",
+    sun_count: "Solinger",
     vehicles: "Kjøretøy",
     vehicle_share: "Andel kjøretøy",
     parkeringer: "Parkeringer",
@@ -161,6 +167,10 @@ export function displayCell(key: string, value: unknown) {
     if (!Number.isNaN(date.getTime())) return value.length === 10
       ? date.toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" })
       : date.toLocaleString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+  if (key === "status" && typeof value === "string") {
+    const labels: Record<string, string> = { ok: "OK", error: "Feil", failed: "Feilet", running: "Kjører", warning: "Varsel" };
+    return labels[value.trim().toLowerCase()] || value;
   }
   return String(value);
 }

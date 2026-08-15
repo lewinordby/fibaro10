@@ -1,6 +1,6 @@
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
-import { CountComparisonSpecial, CountDashboardSpecial, DomainApp, ThemeProvider, YearComparisonSpecial, getDomainConfig, type DomainAppExtensions } from "@lilletorget/microapp-ui";
+import { CountComparisonSpecial, CountDashboardSpecial, DomainApp, Loading, ThemeProvider, YearComparisonSpecial, getDomainConfig, type DomainAppExtensions } from "@lilletorget/microapp-ui";
 import "@lilletorget/mosaic-theme/font.css";
 import "./style.css";
 import type { SunTimeline } from "./types";
@@ -17,7 +17,7 @@ const sunExtensions: DomainAppExtensions = {
   ),
   renderRoute: ({ pathname, item }) => {
     const settlement = pathname.match(/^\/oppgjor\/(\d+)$/);
-    if (settlement) return <Suspense fallback={null}><SettlementDetailPage domain="sun" id={settlement[1]} /></Suspense>;
+    if (settlement) return <Suspense fallback={<Loading />}><SettlementDetailPage domain="sun" id={settlement[1]} /></Suspense>;
     if (item.module === "status" && item.view === "soling") return <CountDashboardSpecial domain="sun" />;
     if (item.module === "status" && item.view === "soling-comparison") return <CountComparisonSpecial domain="sun" />;
     if (item.module === "soling" && item.view === "sammenligning") return <YearComparisonSpecial domain="soling" />;
@@ -25,9 +25,9 @@ const sunExtensions: DomainAppExtensions = {
   },
   renderModule: ({ data, module, view, reload }) => {
     const timeline = data.sunTimeline as SunTimeline | null | undefined;
-    if (timeline) return { content: <Suspense fallback={null}><SunTimelineSpecial timeline={timeline} /></Suspense>, hideDayNavigation: true };
+    if (timeline) return { content: <Suspense fallback={<Loading />}><SunTimelineSpecial timeline={timeline} /></Suspense>, hideDayNavigation: true };
     return module === "soling" && view === "enkeltimer"
-      ? { content: <Suspense fallback={null}><SunSessionsSpecial table={data.tables.find((table) => table.title === "Enkeltimer")} reload={reload} /></Suspense>, hideTables: true }
+      ? { content: <Suspense fallback={<Loading />}><SunSessionsSpecial table={data.tables.find((table) => table.title === "Enkeltimer")} reload={reload} /></Suspense>, hideTables: true }
       : null;
   },
 };

@@ -87,7 +87,7 @@ function PeriodCard({ period, domain }: { period: BusinessStatusPeriod; domain: 
 }
 
 export function CountDashboardSpecial({ domain }: { domain: Domain }) {
-  const result = useApi(domainApi.businessOverview, `${domain}-dashboard`);
+  const result = useApi(() => domainApi.businessOverview(domain), `${domain}-dashboard`);
   if (result.loading) return <Loading />;
   if (result.error || !result.data) return <ErrorState error={result.error} onRetry={result.reload} />;
   const easypark = result.data.services.find((item) => item.jobName === "easypark_parking_import" || item.label.toLowerCase().includes("easypark"));

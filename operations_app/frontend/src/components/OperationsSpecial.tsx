@@ -10,6 +10,26 @@ function value(value: unknown, suffix = "") {
   return `${String(value)}${suffix}`;
 }
 
+function controlMode(value: unknown) {
+  const normalized = String(value || "").trim().toUpperCase();
+  const labels: Record<string, string> = {
+    FORKJOLING: "Forkjøling",
+    KJOLING: "Kjøling",
+    NORMAL: "Normal",
+    UTENFOR_DRIFTSTID: "Utenfor driftstid",
+  };
+  return labels[normalized] || String(value || "-");
+}
+
+function todayInOslo() {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Oslo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 function minute(time: unknown) {
   const match = typeof time === "string" ? time.match(/^(\d{1,2}):(\d{2})/) : null;
   return match ? Number(match[1]) * 60 + Number(match[2]) : null;
@@ -56,19 +76,61 @@ function SettingsEditor({ settings, reload }: { settings: SettingsData | Control
 }
 
 function VentilationSnapshot({ ventilation }: { ventilation: VentilationData }) {
-  return <Panel title="Siste ventilasjonssample" subtitle={`${ventilation.latest.bucketStart || "-"} · ${ventilation.latest.mode || "-"}`}><div className="grid gap-4 p-5 xl:grid-cols-[1fr_auto]"> <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{ventilation.latest.groups.flatMap((group) => group.fields).map((field) => <div className="rounded-lg bg-gray-50 px-4 py-3 dark:bg-gray-700/35" key={field.key}><span className="block text-xs font-semibold uppercase text-gray-400">{field.label}</span><strong className="mt-1 block text-lg text-gray-800 dark:text-gray-100">{value(field.temperature, " °C")}</strong><small>{field.humidity != null ? `${value(field.humidity, " %")}` : field.detail || ""}</small></div>)}</div><div className="min-w-48 text-right"><strong className="text-gray-800 dark:text-gray-100">{ventilation.latest.weather.text || "-"}</strong><p className="mt-1 text-sm">{value(ventilation.latest.weather.airTemperature, " °C")} · {value(ventilation.latest.weather.relativeHumidity, " %")}</p><p className="text-xs text-gray-400">Vind {value(ventilation.latest.weather.windSpeed, " m/s")} · sky {value(ventilation.latest.weather.cloudAreaFraction, " %")}</p></div></div><div className="flex flex-wrap gap-2 border-t border-gray-100 px-5 py-3 dark:border-gray-700">{ventilation.latest.fans.map((fan) => <span className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-sm dark:bg-gray-700" key={fan.key}>{fan.label}<strong className={fan.state ? "text-green-500" : "text-gray-500"}>{fan.state == null ? "-" : fan.state ? "PÅ" : "AV"}</strong></span>)}</div></Panel>;
+  return <Panel title="Siste ventilasjonssample" subtitle={`${ventilation.latest.bucketStart || "-"} · ${controlMode(ventilation.latest.mode)}`}><div className="grid gap-4 p-5 xl:grid-cols-[1fr_auto]"> <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{ventilation.latest.groups.flatMap((group) => group.fields).map((field) => <div className="rounded-lg bg-gray-50 px-4 py-3 dark:bg-gray-700/35" key={field.key}><span className="block text-xs font-semibold uppercase text-gray-400">{field.label}</span><strong className="mt-1 block text-lg text-gray-800 dark:text-gray-100">{value(field.temperature, " °C")}</strong><small>{field.humidity != null ? `${value(field.humidity, " %")}` : field.detail || ""}</small></div>)}</div><div className="min-w-48 text-right"><strong className="text-gray-800 dark:text-gray-100">{ventilation.latest.weather.text || "-"}</strong><p className="mt-1 text-sm">{value(ventilation.latest.weather.airTemperature, " °C")} · {value(ventilation.latest.weather.relativeHumidity, " %")}</p><p className="text-xs text-gray-400">Vind {value(ventilation.latest.weather.windSpeed, " m/s")} · sky {value(ventilation.latest.weather.cloudAreaFraction, " %")}</p></div></div><div className="flex flex-wrap gap-2 border-t border-gray-100 px-5 py-3 dark:border-gray-700">{ventilation.latest.fans.map((fan) => <span className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-sm dark:bg-gray-700" key={fan.key}>{fan.label}<strong className={fan.state ? "text-green-500" : "text-gray-500"}>{fan.state == null ? "-" : fan.state ? "PÅ" : "AV"}</strong></span>)}</div></Panel>;
 }
 
 function VentilationChart({ ventilation }: { ventilation: VentilationData }) {
   const [focus, setFocus] = useState<"temperature" | "humidity">("temperature");
   const [, setParams] = useAppSearchParams();
   const day = ventilation.day;
+  const today = todayInOslo();
+  const isToday = day.selectedDay >= today;
   const series = day.series.filter((item) => (item.kind === "humidity" || item.key.startsWith("humidity_")) === (focus === "humidity"));
   const labels = day.samples.map((sample) => String(sample.time || ""));
   const config: MosaicChartConfig = { type: "line", labels, tooltipUnit: focus === "humidity" ? "%" : "°C", beginAtZero: false, datasets: series.map((item, index) => ({ label: item.label, data: day.samples.map((sample) => typeof sample[item.key] === "number" ? Number(sample[item.key]) : null), color: item.color || [mosaicChartColors.sky, mosaicChartColors.yellow, mosaicChartColors.green, mosaicChartColors.violet][index % 4], hidden: !item.default })) };
   const go = (selectedDay: string) => { const next = new URLSearchParams(window.location.search); selectedDay ? next.set("day", selectedDay) : next.delete("day"); setParams(next); };
   const endPercent = day.isToday && day.nowMarker != null ? day.nowMarker : 100;
-  return <Panel title={focus === "humidity" ? "Dagslogg fuktighet" : "Dagslogg temperatur"} actions={<div className="flex rounded-lg bg-gray-100 p-1 dark:bg-gray-700"><button className={`rounded-md px-3 py-1 text-sm ${focus === "temperature" ? "bg-white font-semibold shadow-sm dark:bg-gray-800" : ""}`} onClick={() => setFocus("temperature")}>Temperatur</button><button className={`rounded-md px-3 py-1 text-sm ${focus === "humidity" ? "bg-white font-semibold shadow-sm dark:bg-gray-800" : ""}`} onClick={() => setFocus("humidity")}>Fuktighet</button></div>}><div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3 dark:border-gray-700"><div className="flex gap-2"><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={() => go(day.prevDay)}><MosaicIcon name="arrow-left" /></button><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={() => go("")}>I dag</button><button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={() => go(day.nextDay)}><MosaicIcon name="arrow-right" /></button></div><strong>{day.selectedDayLabel}</strong><input className="form-input" type="date" value={day.selectedDay} onChange={(event) => go(event.target.value)} /></div><div className="px-3 py-3"><Chart config={config} height={350} /></div><div className="space-y-2 border-t border-gray-100 p-5 dark:border-gray-700">{day.fans.map((fan, index) => { const color = fan.color || [mosaicChartColors.green, mosaicChartColors.sky, mosaicChartColors.yellow, mosaicChartColors.violet][index % 4]; const events = day.fanEvents.filter((event) => event.fan_key === fan.key); return <div className="grid grid-cols-[5rem_1fr] items-center gap-3" key={fan.key}><strong className="text-xs">{fan.short || fan.name}</strong><div className="relative h-7 overflow-hidden rounded-md border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30">{fanSegments(day.samples, fan.sample_attr, endPercent).map((segment, position) => <span className="absolute inset-y-1 rounded opacity-75" title={`${fan.name} på`} style={{ left: `${segment.left}%`, width: `${segment.width}%`, backgroundColor: color }} key={position} />)}{events.map((event, position) => <i className={`absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 ${event.class === "on" ? "bg-current" : "bg-white dark:bg-gray-800"}`} title={`${event.time} ${event.fan_name} ${event.action}${event.detail ? ` · ${event.detail}` : ""}`} style={{ left: `${event.x / 10}%`, borderColor: event.color || color, color: event.color || color }} key={`${event.time}-${position}`} />)}</div></div>; })}</div></Panel>;
+  return (
+    <Panel
+      title={focus === "humidity" ? "Dagslogg fuktighet" : "Dagslogg temperatur"}
+      actions={(
+        <div className="flex rounded-lg bg-gray-100 p-1 dark:bg-gray-700">
+          <button className={`rounded-md px-3 py-1 text-sm ${focus === "temperature" ? "bg-white font-semibold shadow-sm dark:bg-gray-800" : ""}`} onClick={() => setFocus("temperature")}>Temperatur</button>
+          <button className={`rounded-md px-3 py-1 text-sm ${focus === "humidity" ? "bg-white font-semibold shadow-sm dark:bg-gray-800" : ""}`} onClick={() => setFocus("humidity")}>Fuktighet</button>
+        </div>
+      )}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3 dark:border-gray-700">
+        <div className="flex gap-2">
+          <button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={() => go(day.prevDay)} title="Forrige dag"><MosaicIcon name="arrow-left" /></button>
+          <button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={() => go("")}>I dag</button>
+          <button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" disabled={isToday} onClick={() => go(day.nextDay)} title="Neste dag"><MosaicIcon name="arrow-right" /></button>
+        </div>
+        <strong>{day.selectedDayLabel}</strong>
+        <input className="form-input" max={today} type="date" value={day.selectedDay} onChange={(event) => go(event.target.value)} />
+      </div>
+      <div className="px-3 py-3"><Chart config={config} height={350} /></div>
+      <div className="space-y-2 border-t border-gray-100 p-5 dark:border-gray-700">
+        {day.fans.map((fan, index) => {
+          const color = fan.color || [mosaicChartColors.green, mosaicChartColors.sky, mosaicChartColors.yellow, mosaicChartColors.violet][index % 4];
+          const events = day.fanEvents.filter((event) => event.fan_key === fan.key);
+          return (
+            <div className="grid grid-cols-[5rem_1fr] items-center gap-3" key={fan.key}>
+              <strong className="text-xs">{fan.short || fan.name}</strong>
+              <div className="relative h-7 overflow-hidden rounded-md border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30">
+                {fanSegments(day.samples, fan.sample_attr, endPercent).map((segment, position) => (
+                  <span className="absolute inset-y-1 rounded opacity-75" title={`${fan.name} på`} style={{ left: `${segment.left}%`, width: `${segment.width}%`, backgroundColor: color }} key={position} />
+                ))}
+                {events.map((event, position) => (
+                  <i className={`absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 ${event.class === "on" ? "bg-current" : "bg-white dark:bg-gray-800"}`} title={`${event.time} ${event.fan_name} ${event.action}${event.detail ? ` · ${event.detail}` : ""}`} style={{ left: `${event.x / 10}%`, borderColor: event.color || color, color: event.color || color }} key={`${event.time}-${position}`} />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
+  );
 }
 
 export function VentilationSpecial({ data, view, reload }: { data: ModuleResponse; view: string; reload: () => void }) {

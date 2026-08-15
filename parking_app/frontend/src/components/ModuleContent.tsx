@@ -72,22 +72,37 @@ function RowLink({ path, fibaroUrl, children }: { path: string; fibaroUrl: strin
   return <a href={href} className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400" target={/^https?:\/\//.test(path) ? "_blank" : undefined} rel="noreferrer">{children}</a>;
 }
 
-function TableCell({ column, row, fibaroUrl }: { column: string; row: ModuleRow; fibaroUrl: string }) {
+function parkingTime(value: unknown) {
+  if (typeof value !== "string" || !value) return displayCell("timestamp", value);
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? displayCell("timestamp", value) : parsed.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
+}
+
+function parkingStatus(value: unknown) {
+  const normalized = String(value || "").toLowerCase();
+  if (normalized.includes("ongoing") || normalized.includes("pågående")) return "Pågående";
+  if (normalized.includes("ended") || normalized.includes("avsluttet")) return "Avsluttet";
+  return displayCell("status", value);
+}
+
+function TableCell({ column, row, fibaroUrl, compactTime = false }: { column: string; row: ModuleRow; fibaroUrl: string; compactTime?: boolean }) {
   const value = row[column];
   const rowPath = typeof row.path === "string" ? row.path : "";
+  const shownValue = compactTime && (column === "start_time" || column === "end_time") ? parkingTime(value) : displayCell(column, value);
   if ((column === "plate" || column === "car_license_number" || column === "period_label") && rowPath) return <RowLink path={rowPath} fibaroUrl={fibaroUrl}>{displayCell(column, value)}</RowLink>;
   if (column === "path" && typeof value === "string") return <RowLink path={value} fibaroUrl={fibaroUrl}>Åpne</RowLink>;
-  if (column === "start_time" && typeof row.unifi_start_url === "string" && row.unifi_start_url) return <span className="inline-flex items-center gap-2"><span>{displayCell(column, value)}</span><a href={row.unifi_start_url} target="_blank" rel="noreferrer" title="Åpne start i UniFi Protect"><MosaicIcon name="external" className="text-sky-500" /></a></span>;
-  if (column === "end_time" && typeof row.unifi_end_url === "string" && row.unifi_end_url) return <span className="inline-flex items-center gap-2"><span>{displayCell(column, value)}</span><a href={row.unifi_end_url} target="_blank" rel="noreferrer" title="Åpne slutt i UniFi Protect"><MosaicIcon name="external" className="text-sky-500" /></a></span>;
+  if (column === "start_time" && typeof row.unifi_start_url === "string" && row.unifi_start_url) return <span className="inline-flex items-center gap-2" title={String(displayCell(column, value))}><span>{shownValue}</span><a href={row.unifi_start_url} target="_blank" rel="noreferrer" title="Åpne start i UniFi Protect"><MosaicIcon name="external" className="text-sky-500" /></a></span>;
+  if (column === "end_time" && typeof row.unifi_end_url === "string" && row.unifi_end_url) return <span className="inline-flex items-center gap-2" title={String(displayCell(column, value))}><span>{shownValue}</span><a href={row.unifi_end_url} target="_blank" rel="noreferrer" title="Åpne slutt i UniFi Protect"><MosaicIcon name="external" className="text-sky-500" /></a></span>;
   if (column === "status") {
-    const label = displayCell(column, value);
+    const label = parkingStatus(value);
     const active = String(value || "").toLowerCase().includes("ongoing") || String(value || "").toLowerCase().includes("pågående");
     return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${active ? "bg-green-500/15 text-green-600 dark:text-green-400" : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"}`}>{label}</span>;
   }
-  return <>{displayCell(column, value)}</>;
+  return <>{shownValue}</>;
 }
 
 export function DataTable({ table, fibaroUrl }: { table: ModuleTable; fibaroUrl: string }) {
+  const { pathname } = useAppLocation();
   const [, setParams] = useAppSearchParams();
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<TableSort>(null);
@@ -128,7 +143,7 @@ export function DataTable({ table, fibaroUrl }: { table: ModuleTable; fibaroUrl:
             <tr>{table.columns.map((column) => <th className="px-4 py-3 whitespace-nowrap text-left font-semibold" key={column}><button className="inline-flex items-center gap-1.5 uppercase hover:text-gray-700 dark:hover:text-gray-200" type="button" onClick={() => toggleSort(column)} title={`Sorter etter ${valueLabel(column)}`}>{valueLabel(column)}{sort?.column === column ? <MosaicIcon name={sort.direction === "asc" ? "arrow-up" : "arrow-down"} size={12} /> : null}</button></th>)}</tr>
           </thead>
           <tbody className="text-sm divide-y divide-gray-100 dark:divide-gray-700/60">
-            {visibleRows.map((row, index) => <tr className="hover:bg-gray-50/70 dark:hover:bg-gray-700/20" key={`${String(row.id ?? row.plate ?? row.path ?? "row")}-${firstRow + index}`}>{table.columns.map((column) => <td className="px-4 py-3 whitespace-nowrap tabular-nums" key={column}><TableCell column={column} row={row} fibaroUrl={fibaroUrl} /></td>)}</tr>)}
+            {visibleRows.map((row, index) => <tr className="hover:bg-gray-50/70 dark:hover:bg-gray-700/20" key={`${String(row.id ?? row.plate ?? row.path ?? "row")}-${firstRow + index}`}>{table.columns.map((column) => <td className="px-4 py-3 whitespace-nowrap tabular-nums" key={column}><TableCell column={column} row={row} fibaroUrl={fibaroUrl} compactTime={pathname === "/parkeringer"} /></td>)}</tr>)}
             {!visibleRows.length ? <tr><td className="px-5 py-10 text-center text-gray-400" colSpan={Math.max(1, table.columns.length)}>{query ? "Ingen treff for søket" : "Ingen rader i valgt utvalg"}</td></tr> : null}
           </tbody>
         </table>
@@ -187,7 +202,7 @@ export function DayNavigation({ data }: { data: NonNullable<ModuleResponse["dayN
   const go = (day: string) => { const next = new URLSearchParams(params); next.set("day", day); setParams(next); };
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  return <Panel><div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"><div className="flex items-center gap-2"><button className="btn border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300" onClick={() => go(data.prevDay)} title="Forrige dag"><MosaicIcon name="arrow-left" /></button><button className="btn border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300" onClick={() => go(today)}>I dag</button><button className="btn border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300" onClick={() => go(data.nextDay)} title="Neste dag"><MosaicIcon name="arrow-right" /></button></div><label className="flex items-center gap-3 text-sm text-gray-500"><strong className="text-gray-800 dark:text-gray-100">{data.selectedDayLabel}</strong><input className="form-input" type="date" value={data.selectedDay} onChange={(event) => go(event.target.value)} /></label>{data.context ? <div className="text-right text-xs text-gray-500"><strong className="block text-sm text-gray-800 dark:text-gray-100">{data.context.label}: {data.context.value}</strong>{data.context.detail}</div> : null}</div></Panel>;
+  return <Panel><div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"><div className="flex items-center gap-2"><button className="btn border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300" onClick={() => go(data.prevDay)} title="Forrige dag"><MosaicIcon name="arrow-left" /></button><button className="btn border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300" onClick={() => go(today)}>I dag</button><button className="btn border-gray-200 bg-white text-gray-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300" disabled={data.isToday} onClick={() => go(data.nextDay)} title="Neste dag"><MosaicIcon name="arrow-right" /></button></div><label className="flex items-center gap-3 text-sm text-gray-500"><strong className="text-gray-800 dark:text-gray-100">{data.selectedDayLabel}</strong><input className="form-input" max={today} type="date" value={data.selectedDay} onChange={(event) => go(event.target.value)} /></label>{data.context ? <div className="text-right text-xs text-gray-500"><strong className="block text-sm text-gray-800 dark:text-gray-100">{data.context.label}: {data.context.value}</strong>{data.context.detail}</div> : null}</div></Panel>;
 }
 
 export function ParkingTimelineView({ timeline }: { timeline: ParkingTimeline }) {
