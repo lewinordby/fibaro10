@@ -324,27 +324,32 @@ export type RoborockRefillLog = {
     canNext: boolean;
   };
   summary: {
+    empties: number;
     fills: number;
     robots: number;
-    robotsWithFills: number;
-    latestAt?: string | null;
-    averageIntervalMinutes?: number | null;
+    pending: number;
+    latestFillAt?: string | null;
+    averageEmptyMinutes?: number | null;
   };
   robots: Array<{
     duid: string;
     name: string;
-    count: number;
-    lastAt?: string | null;
-    averageIntervalMinutes?: number | null;
+    empties: number;
+    fills: number;
+    pending: boolean;
+    currentEmptySince?: string | null;
+    lastEmptyAt?: string | null;
+    lastFillAt?: string | null;
+    averageEmptyMinutes?: number | null;
   }>;
-  events: Array<{
+  cycles: Array<{
     id: string;
     robotDuid: string;
     robotName: string;
-    timestamp: string;
-    previousLabel: string;
-    currentLabel: string;
-    minutesSincePrevious?: number | null;
+    emptyAt?: string | null;
+    refilledAt?: string | null;
+    emptyMinutes?: number | null;
+    status: "completed" | "pending";
   }>;
   measurementNote: string;
 };

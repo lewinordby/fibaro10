@@ -40188,7 +40188,8 @@ async def api_cleaning_refill_log(week: Optional[str] = Query(default=None)):
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     period_start = datetime.combine(selected_week, time.min)
     period_end = datetime.combine(selected_week + timedelta(days=7), time.min)
-    query_end = min(period_end, now)
+    query_start = period_start - timedelta(days=7)
+    query_end = min(period_end + timedelta(days=7), now)
     async with async_session() as session:
         robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
         robot_duids = [robot.duid for robot in robots]
@@ -40212,7 +40213,7 @@ async def api_cleaning_refill_log(week: Optional[str] = Query(default=None)):
                 select(RoborockTelemetryEvent)
                 .where(RoborockTelemetryEvent.robot_duid.in_(robot_duids or [""]))
                 .where(RoborockTelemetryEvent.field_name == "clear_water_status")
-                .where(RoborockTelemetryEvent.timestamp >= period_start)
+                .where(RoborockTelemetryEvent.timestamp >= query_start)
                 .where(RoborockTelemetryEvent.timestamp < query_end)
                 .order_by(RoborockTelemetryEvent.timestamp, RoborockTelemetryEvent.id)
             )

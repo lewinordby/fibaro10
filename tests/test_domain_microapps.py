@@ -419,7 +419,8 @@ def test_roborock_refill_log_is_available_in_operations() -> None:
     assert "selected_week = refill_iso_week_start(" in core
     assert 'to: "/renhold/pafylling"' in operations
     assert "function RefillLog()" in detail
-    assert "rentvannstanken i dokken" in detail
+    assert "Ble tom" in detail
+    assert "Fylt igjen" in detail
 
 
 def test_roborock_overview_includes_the_full_day_timeline() -> None:

@@ -12,6 +12,33 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1757",
+        "date": "15.08.2026",
+        "headline": "Vannloggen viser både tom og fylt dokk",
+        "title": "Hele rentvannssyklusen er synlig med tidspunkt og tomtid",
+        "description": (
+            "Påfyllingsloggen viser nå når rentvannstanken i hver dokk først ble registrert tom, når den "
+            "senere ble fylt igjen og hvor lenge den sto tom. Dokker som fortsatt er tomme vises løpende "
+            "som ventende, slik at behovet for påfylling er synlig før personalet har fylt tanken."
+        ),
+        "applications": [
+            "Fibaro10 build 1757: kobler tom- og fylt-overganger til komplette dokksykluser.",
+            "Bygg og drift build 70: viser ble tom, fylt igjen, tomtid og pågående tomstatus.",
+        ],
+        "request": "Du kan gjerne også ta med tidspunktet for når den blir tom.",
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser tidspunktet dokkens rentvannstank går fra OK til Tom.",
+            "Kobler neste overgang fra Tom til OK som fysisk påfylling av samme dokk.",
+            "Beregner tiden mellom tom og fylt og et ukentlig gjennomsnitt.",
+            "Markerer tanker som fortsatt er tomme og viser hvor lenge de har vært tomme.",
+            "Kobler hendelser riktig også når tom og fylt ligger på hver sin side av et ukeskifte.",
+            "Avviser andre dokkfeil som påfyllingsfeil og ikke montert fra tom/fylt-loggen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1756",
         "date": "15.08.2026",
         "headline": "Påfyllingsloggen bruker entydig ukevelger",
