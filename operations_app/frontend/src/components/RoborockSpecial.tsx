@@ -440,7 +440,7 @@ function NightTimeline({ report }: { report: RoborockNightReport }) {
   return <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xs dark:border-gray-700/60 dark:bg-gray-800">
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3 dark:border-gray-700/60">
       <div><h2 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Automatisk nattlig renhold</h2><p className="mt-0.5 text-xs text-gray-400">Etter stenging kl. 23:45 · frist før åpning kl. {reportTime(report.window.readyBy)}</p></div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-300">{!report.isForecast ? <><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-sky-500" />Støvsuging</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />Vask</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-violet-500" />Begge</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-gray-400" />Øvrig jobb</span></> : null}<span className="flex items-center gap-1.5"><i className="h-5 border-l-2 border-dashed border-amber-500" />Gjeldende plan</span><span className="flex items-center gap-1.5"><i className="h-3 w-4 rounded-sm bg-rose-100/80 dark:bg-rose-500/20" />Åpningstid med sikkerhetsmargin</span></div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-300">{!report.isForecast ? <><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-sky-500" />Støvsuging</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />Vask</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-violet-500" />Begge</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-gray-400" />Øvrig/uklassifisert</span></> : null}<span className="flex items-center gap-1.5"><i className="h-5 border-l-2 border-dashed border-amber-500" />Gjeldende plan</span><span className="flex items-center gap-1.5"><i className="h-3 w-4 rounded-sm bg-rose-100/80 dark:bg-rose-500/20" />Åpningstid med sikkerhetsmargin</span></div>
     </header>
     <div className="px-5 py-4">
       <div className="mb-1 grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3 text-[0.65rem] font-medium text-gray-400"><span /><div className="flex justify-between">{hourLabels.map((hour) => <span key={hour}>{hour}:00</span>)}</div></div>
@@ -469,6 +469,13 @@ function washCountLabel(job: RoborockNightJob) {
 
 function mopWashLabel(count: number) {
   return `${count} ${count === 1 ? "moppevask" : "moppevasker"}`;
+}
+
+function nightJobClassification(report: RoborockNightReport) {
+  const labels = [];
+  if (report.summary.otherJobs) labels.push(`${report.summary.otherJobs} øvrige`);
+  if (report.summary.unclassifiedJobs) labels.push(`${report.summary.unclassifiedJobs} ikke klassifisert`);
+  return labels.length ? labels.join(" · ") : "bare planlagte jobber";
 }
 
 function NightPlanTable({ robot, isForecast }: { robot: RoborockNightRobot; isForecast: boolean }) {
@@ -572,7 +579,7 @@ function NightReport() {
         <div className="px-5 py-3"><span className="text-[0.65rem] font-semibold uppercase text-gray-400">Roboter med aktiv plan</span><strong className="mt-0.5 block text-lg font-semibold tabular-nums text-gray-800 dark:text-gray-100">{report.summary.activeRobots}</strong><small className="text-gray-500 dark:text-gray-400">frist kl. {reportTime(report.window.readyBy)}</small></div>
       </div> : <div className="grid border-t border-black/5 bg-white/50 sm:grid-cols-2 xl:grid-cols-4 dark:border-white/10 dark:bg-gray-900/20">
         <div className="border-b px-4 py-2.5 sm:border-r xl:border-b-0 dark:border-gray-700/40"><span className="text-[0.62rem] font-semibold uppercase text-gray-400">Plan mot utførelse</span><strong className="mt-0.5 block text-base font-semibold tabular-nums text-gray-800 dark:text-gray-100">{report.summary.plannedJobs ? `${report.summary.plannedCompleted}/${report.summary.plannedJobs}` : "-"}</strong><small className="text-gray-500 dark:text-gray-400">{report.summary.plannedMissing ? `${report.summary.plannedMissing} uteblitt` : report.summary.plannedJobs ? "gjennomført" : "ingen lagret plan"}</small></div>
-        <div className="border-b px-4 py-2.5 xl:border-b-0 xl:border-r dark:border-gray-700/40"><span className="text-[0.62rem] font-semibold uppercase text-gray-400">Jobber og tid</span><strong className="mt-0.5 block text-base font-semibold tabular-nums text-gray-800 dark:text-gray-100">{report.summary.jobs} · {durationLabel(report.summary.durationMinutes)}</strong><small className="text-gray-500 dark:text-gray-400">{report.summary.otherJobs} øvrige jobber</small></div>
+        <div className="border-b px-4 py-2.5 xl:border-b-0 xl:border-r dark:border-gray-700/40"><span className="text-[0.62rem] font-semibold uppercase text-gray-400">Jobber og tid</span><strong className="mt-0.5 block text-base font-semibold tabular-nums text-gray-800 dark:text-gray-100">{report.summary.jobs} · {durationLabel(report.summary.durationMinutes)}</strong><small className="text-gray-500 dark:text-gray-400">{nightJobClassification(report)}</small></div>
         <div className="border-b px-4 py-2.5 sm:border-b-0 sm:border-r dark:border-gray-700/40"><span className="text-[0.62rem] font-semibold uppercase text-gray-400">Moppevasker</span><strong className="mt-0.5 block text-base font-semibold tabular-nums text-gray-800 dark:text-gray-100">{report.summary.washCount}</strong><small className="text-gray-500 dark:text-gray-400">{decimal(report.summary.areaM2, 1)} m² rengjort</small></div>
         <div className="px-4 py-2.5"><span className="text-[0.62rem] font-semibold uppercase text-gray-400">Plan ferdig før åpning</span><strong className="mt-0.5 block text-base font-semibold tabular-nums text-gray-800 dark:text-gray-100">{report.summary.activeRobots ? `${report.summary.readyBeforeOpening}/${report.summary.activeRobots}` : "-"}</strong><small className="text-gray-500 dark:text-gray-400">kun planlagte robotjobber</small></div>
       </div>}

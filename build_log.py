@@ -12,6 +12,32 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1772",
+        "date": "15.08.2026",
+        "headline": "Nattrapporten skiller øvrige og uklassifiserte jobber",
+        "title": "Manglende historisk plan beskrives nå uten en misvisende klassifisering",
+        "description": (
+            "Produksjonskontrollen av den kompakte Nattrapporten avdekket at historiske jobber uten lagret "
+            "plan ble omtalt som øvrig rengjøring i konklusjonen, selv om de korrekt sto som ikke "
+            "klassifisert i jobbtabellen. Rapporten skiller nå tydelig mellom øvrige jobber og jobber som "
+            "ikke kan klassifiseres fordi planhistorikken mangler."
+        ),
+        "applications": [
+            "Fibaro10 build 1772: rapporterer uklassifiserte nattjobber som en egen kategori.",
+            "Bygg og drift build 82: viser konsekvent klassifisering i konklusjon, nøkkeltall og tegnforklaring.",
+        ],
+        "request": "Kvalitetssikre og rydde Nattrapporten med faktiske produksjonsdata fra siste natt.",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger til egen opptelling for jobber som mangler historisk plangrunnlag.",
+            "Endrer konklusjonen slik at uklassifiserte jobber ikke omtales som øvrig rengjøring.",
+            "Viser korrekt fordeling under nattens samlede jobb- og tidsnøkkeltall.",
+            "Presiserer tidslinjens grå markør som øvrig eller uklassifisert jobb.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1771",
         "date": "15.08.2026",
         "headline": "Nattrapporten viser nattens faktiske arbeid først",

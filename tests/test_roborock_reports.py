@@ -439,6 +439,27 @@ def test_historical_report_does_not_guess_when_snapshot_history_is_missing() -> 
     assert report["summary"]["activeRobots"] == 0
 
 
+def test_jobs_without_plan_history_are_reported_as_unclassified() -> None:
+    robot = row(duid="robot-no-history-job", name="VIP", model="Qrevo", provider="roborock")
+    job = row(
+        robot_duid="robot-no-history-job", record_id="historical-job",
+        begin_at=datetime(2026, 8, 13, 23, 0), end_at=datetime(2026, 8, 14, 0, 0),
+        duration_minutes=60.0, duration_seconds=3600, cleaned_area_m2=25.0, area_m2=25.0,
+        complete=True, error_code=0, wash_count=5, clean_times=1, start_type=3,
+    )
+
+    report = build_night_report(
+        date(2026, 8, 14), [robot], [job], [], [],
+        generated_at=datetime(2026, 8, 14, 8, 5), schedule_snapshots=[],
+    )
+
+    assert report["robots"][0]["jobs"][0]["origin"] == "unknown"
+    assert report["robots"][0]["totals"]["otherJobs"] == 0
+    assert report["robots"][0]["totals"]["unclassifiedJobs"] == 1
+    assert report["summary"]["unclassifiedJobs"] == 1
+    assert report["conclusion"]["title"] == "Nattens rengjøring er registrert"
+
+
 def test_manual_job_near_schedule_time_does_not_satisfy_the_plan() -> None:
     robot = row(duid="robot-manual", name="1.etg A", model="Qrevo", provider="roborock")
     snapshot = row(

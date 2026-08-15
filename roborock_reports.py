@@ -755,6 +755,7 @@ def build_robot_report(
     error_jobs = sum(row["status"] == "error" for row in job_rows)
     running_jobs = sum(row["status"] == "running" for row in job_rows)
     other_jobs = sum(row["origin"] == "other" for row in job_rows)
+    unclassified_jobs = sum(row["origin"] == "unknown" for row in job_rows)
     if include_paused_schedules and schedule_check["expected"]:
         status, status_label = "neutral", "Planlagt"
     elif include_paused_schedules and schedule_check["paused"]:
@@ -838,6 +839,7 @@ def build_robot_report(
             "jobs": len(job_rows),
             "plannedJobs": len(matched_record_ids),
             "otherJobs": other_jobs,
+            "unclassifiedJobs": unclassified_jobs,
             "completed": sum(row["complete"] for row in job_rows),
             "durationMinutes": round(sum(row["durationMinutes"] or 0 for row in job_rows), 1),
             "areaM2": round(sum(row["areaM2"] or 0 for row in job_rows), 1),
@@ -914,6 +916,7 @@ def build_night_report(
     pending_count = sum(row["scheduleCheck"]["pending"] for row in robot_rows)
     paused_count = sum(row["scheduleCheck"]["paused"] for row in robot_rows)
     other_count = sum(row["totals"]["otherJobs"] for row in robot_rows)
+    unclassified_count = sum(row["totals"]["unclassifiedJobs"] for row in robot_rows)
     ready_count = sum(
         row["readiness"]["evaluated"] and row["readiness"]["readyBeforeOpening"] is True
         for row in robot_rows
@@ -956,6 +959,12 @@ def build_night_report(
         conclusion_status = "ok"
         conclusion_title = "Nattens planlagte rengjøring er gjennomført"
         conclusion_detail = f"{planned_completed_count} planlagte jobber er registrert. {ready_count} av {active_robot_count} planlagte roboter var ferdige før åpning."
+        if unclassified_count:
+            conclusion_detail += f" {unclassified_count} jobber kunne ikke klassifiseres fordi planhistorikk mangler."
+    elif unclassified_count:
+        conclusion_status = "neutral"
+        conclusion_title = "Nattens rengjøring er registrert"
+        conclusion_detail = f"{unclassified_count} jobber er registrert. Planhistorikk mangler, så de er ikke vurdert mot nattplanen."
     elif jobs_count:
         conclusion_status = "neutral"
         conclusion_title = "Øvrig rengjøring er registrert"
@@ -985,6 +994,7 @@ def build_night_report(
             "activeRobots": active_robot_count,
             "jobs": jobs_count,
             "otherJobs": other_count,
+            "unclassifiedJobs": unclassified_count,
             "planHistoryRobots": history_robot_count,
             "completed": sum(row["totals"]["completed"] for row in robot_rows),
             "durationMinutes": round(sum(row["totals"]["durationMinutes"] for row in robot_rows), 1),

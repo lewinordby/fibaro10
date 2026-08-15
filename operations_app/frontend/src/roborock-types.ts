@@ -219,6 +219,7 @@ export type RoborockNightRobot = {
     jobs: number;
     plannedJobs: number;
     otherJobs: number;
+    unclassifiedJobs: number;
     completed: number;
     durationMinutes: number;
     areaM2: number;
@@ -251,6 +252,7 @@ export type RoborockNightReport = {
     activeRobots: number;
     jobs: number;
     otherJobs: number;
+    unclassifiedJobs: number;
     planHistoryRobots: number;
     completed: number;
     durationMinutes: number;
