@@ -12,6 +12,31 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1767",
+        "date": "15.08.2026",
+        "headline": "Nattplanen viser bare det relevante tidsrommet",
+        "title": "Roborock-nattrapporten er avgrenset til kl. 22:00–08:00",
+        "description": (
+            "Nattvinduet startet tidligere kl. 20:00 og brukte unødvendig bredde før de aktuelle "
+            "renholdsjobbene. Rapportdata, planmatching, summeringer og tidsakse bruker nå konsekvent "
+            "kl. 22:00–08:00, én time på hver side av den offisielle åpningstiden."
+        ),
+        "applications": [
+            "Fibaro10 build 1767: avgrenser Roborock-rapportens datavindu til kl. 22:00–08:00.",
+            "Bygg og drift build 77: oppdaterer nattrapportens tidsakse til samme tidsrom.",
+        ],
+        "request": "Begrens nattplanen til kl. 22:00–08:00.",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Flytter rapportstart fra kl. 20:00 til kl. 22:00.",
+            "Lar bare planer og utførte jobber i det nye nattvinduet inngå i rapporten.",
+            "Fjerner klokkeslettet 20:00 fra tidsaksen.",
+            "Oppdaterer regresjonstesten for rapportvinduet.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1766",
         "date": "15.08.2026",
         "headline": "Åpningstiden har fått et eget felt i robottidslinjen",

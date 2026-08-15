@@ -433,7 +433,7 @@ function timelinePosition(value: string | null | undefined, startAt: string, end
 }
 
 function NightTimeline({ report }: { report: RoborockNightReport }) {
-  const hourLabels = ["20", "22", "00", "02", "04", "06", "08"];
+  const hourLabels = ["22", "00", "02", "04", "06", "08"];
   const readyPosition = timelinePosition(report.window.readyBy, report.window.startAt, report.window.endAt);
   return <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xs dark:border-gray-700/60 dark:bg-gray-800">
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3 dark:border-gray-700/60">

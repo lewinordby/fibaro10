@@ -15,7 +15,7 @@ from roborock_domain import (
 from time_formatting import LOCAL_TZ, normalize_local_naive, utc_naive_to_local_naive
 
 
-REPORT_START = time(20, 0)
+REPORT_START = time(22, 0)
 REPORT_END = time(8, 0)
 REPORT_READY_BY = time(6, 45)
 SCHEDULE_EARLY_MATCH_TOLERANCE = timedelta(minutes=45)

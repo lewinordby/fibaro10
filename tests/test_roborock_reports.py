@@ -10,7 +10,7 @@ def row(**values):
 
 def test_report_window_covers_evening_to_morning() -> None:
     window = report_window(date(2026, 8, 14))
-    assert window["start"] == datetime(2026, 8, 13, 20, 0)
+    assert window["start"] == datetime(2026, 8, 13, 22, 0)
     assert window["ready_by"] == datetime(2026, 8, 14, 6, 45)
     assert window["end"] == datetime(2026, 8, 14, 8, 0)
 
