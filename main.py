@@ -1157,6 +1157,17 @@ class RoborockSchedule(Base):
     raw = Column(JSON, nullable=True)
 
 
+class RoborockScheduleSnapshot(Base):
+    __tablename__ = "roborock_schedule_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    robot_duid = Column(String, index=True, nullable=False)
+    captured_at = Column(DateTime, index=True, nullable=False)
+    source = Column(String, nullable=True)
+    fingerprint = Column(String, nullable=False)
+    schedules = Column(JSON, nullable=False, default=list)
+
+
 class CleaningZone(Base):
     __tablename__ = "cleaning_zones"
 
@@ -4784,6 +4795,11 @@ PERFORMANCE_INDEXES = [
         "ON roborock_schedules (robot_duid, deleted_at, enabled)",
     ),
     (
+        "ix_roborock_schedule_snapshots_history",
+        "CREATE INDEX IF NOT EXISTS ix_roborock_schedule_snapshots_history "
+        "ON roborock_schedule_snapshots (robot_duid, captured_at DESC)",
+    ),
+    (
         "ix_parkering_plate_start",
         "CREATE INDEX IF NOT EXISTS ix_parkering_plate_start "
         "ON parkering (upper(car_license_number), start_time DESC)",
@@ -5065,6 +5081,106 @@ def json_value(value):
 def roborock_schedule_params(schedule: Dict[str, Any]) -> Dict[str, Any]:
     params = (((schedule.get("param") or {}).get("params")) or [])
     return params[0] if params and isinstance(params[0], dict) else {}
+
+
+def roborock_schedule_snapshot_rows(schedules: Iterable[Any]) -> list[Dict[str, Any]]:
+    rows = []
+    for schedule in schedules:
+        if isinstance(schedule, Mapping):
+            params = roborock_schedule_params(dict(schedule))
+            schedule_id = str(schedule.get("id") or schedule.get("schedule_id") or "")
+            row = {
+                "schedule_id": schedule_id,
+                "cron": schedule.get("cron"),
+                "enabled": bool_value(schedule.get("enabled")),
+                "repeated": bool_value(schedule.get("repeated")),
+                "segments": params.get("segments"),
+                "fan_power": int_value(params.get("fan_power")),
+                "mop_mode": int_value(params.get("mop_mode")),
+                "water_box_mode": int_value(params.get("water_box_mode")),
+                "repeat": int_value(params.get("repeat")),
+            }
+        else:
+            schedule_id = str(getattr(schedule, "schedule_id", "") or "")
+            row = {
+                "schedule_id": schedule_id,
+                "cron": getattr(schedule, "cron", None),
+                "enabled": getattr(schedule, "enabled", None),
+                "repeated": getattr(schedule, "repeated", None),
+                "segments": getattr(schedule, "segments", None),
+                "fan_power": getattr(schedule, "fan_power", None),
+                "mop_mode": getattr(schedule, "mop_mode", None),
+                "water_box_mode": getattr(schedule, "water_box_mode", None),
+                "repeat": getattr(schedule, "repeat", None),
+            }
+        if schedule_id:
+            rows.append(row)
+    return sorted(rows, key=lambda row: row["schedule_id"])
+
+
+def roborock_schedule_snapshot_fingerprint(rows: list[Dict[str, Any]]) -> str:
+    encoded = json.dumps(rows, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+async def record_roborock_schedule_snapshot(
+    session,
+    robot_duid: str,
+    schedules: Iterable[Any],
+    captured_at: datetime,
+    source: str,
+) -> bool:
+    rows = roborock_schedule_snapshot_rows(schedules)
+    fingerprint = roborock_schedule_snapshot_fingerprint(rows)
+    latest = (
+        await session.execute(
+            select(RoborockScheduleSnapshot)
+            .where(RoborockScheduleSnapshot.robot_duid == robot_duid)
+            .order_by(RoborockScheduleSnapshot.captured_at.desc(), RoborockScheduleSnapshot.id.desc())
+            .limit(1)
+        )
+    ).scalars().first()
+    if latest and latest.fingerprint == fingerprint:
+        return False
+    session.add(
+        RoborockScheduleSnapshot(
+            robot_duid=robot_duid,
+            captured_at=captured_at,
+            source=source,
+            fingerprint=fingerprint,
+            schedules=rows,
+        )
+    )
+    return True
+
+
+async def ensure_roborock_schedule_snapshot_backfill(session) -> int:
+    robots = (await session.execute(select(RoborockRobot.duid))).scalars().all()
+    existing_robot_duids = set(
+        (await session.execute(select(RoborockScheduleSnapshot.robot_duid).distinct())).scalars().all()
+    )
+    created = 0
+    captured_at = local_now_naive()
+    for robot_duid in robots:
+        if robot_duid in existing_robot_duids:
+            continue
+        schedules = (
+            await session.execute(
+                select(RoborockSchedule)
+                .where(RoborockSchedule.robot_duid == robot_duid)
+                .where(RoborockSchedule.deleted_at.is_(None))
+                .order_by(RoborockSchedule.schedule_id)
+            )
+        ).scalars().all()
+        if await record_roborock_schedule_snapshot(
+            session,
+            robot_duid,
+            schedules,
+            captured_at,
+            "startup-backfill",
+        ):
+            created += 1
+    return created
 
 
 def roborock_cleaning_profile_payload(profile: RoborockCleaningProfile) -> Dict[str, Any]:
@@ -14737,6 +14853,15 @@ async def ingest_roborock_robot(session, robot_data: Dict[str, Any], batch_time:
         if schedules_received
         else 0
     )
+    schedule_snapshot_created = False
+    if schedules_received:
+        schedule_snapshot_created = await record_roborock_schedule_snapshot(
+            session,
+            duid,
+            schedule_payloads,
+            batch_time,
+            source,
+        )
 
     if provider == "roborock":
         try:
@@ -14795,7 +14920,12 @@ async def ingest_roborock_robot(session, robot_data: Dict[str, Any], batch_time:
                 raw=probe,
             )
         )
-    return {"ok": True, "duid": duid, "deleted_schedules": deleted_schedules}
+    return {
+        "ok": True,
+        "duid": duid,
+        "deleted_schedules": deleted_schedules,
+        "schedule_snapshot_created": schedule_snapshot_created,
+    }
 
 
 def roborock_telemetry_sample_values(telemetry: Dict[str, Any]) -> Dict[str, Any]:
@@ -15970,6 +16100,13 @@ async def startup():
                 key.key_prefix = access_key_prefix(username, password, is_master=False)
         await ensure_default_roborock_cleaning_profiles(session)
         await ensure_default_roborock_door_automation(session)
+        snapshot_backfill = (
+            await ensure_roborock_schedule_snapshot_backfill(session)
+            if FIBARO10_BACKGROUND_TASKS_ENABLED
+            else 0
+        )
+        if snapshot_backfill:
+            logger.info("Opprettet %s innledende Roborock-plansnapshots", snapshot_backfill)
         await session.commit()
     async with async_session() as session:
         for config_key in CONFIG_DEFINITIONS:
@@ -40126,6 +40263,18 @@ async def api_cleaning_night_report(day: Optional[str] = None):
                 .order_by(RoborockSchedule.robot_duid, RoborockSchedule.cron)
             )
         ).scalars().all()
+        schedule_snapshots = (
+            await session.execute(
+                select(RoborockScheduleSnapshot)
+                .where(RoborockScheduleSnapshot.robot_duid.in_(robot_duids or [""]))
+                .where(RoborockScheduleSnapshot.captured_at <= window["end"])
+                .order_by(
+                    RoborockScheduleSnapshot.robot_duid,
+                    RoborockScheduleSnapshot.captured_at,
+                    RoborockScheduleSnapshot.id,
+                )
+            )
+        ).scalars().all()
         latest_probe_subq = (
             select(func.max(RoborockProbeResult.id).label("latest_id"))
             .where(RoborockProbeResult.robot_duid.in_(robot_duids or [""]))
@@ -40163,6 +40312,7 @@ async def api_cleaning_night_report(day: Optional[str] = None):
         list(probes),
         generated_at=local_now_naive(),
         schedules=list(schedules),
+        schedule_snapshots=list(schedule_snapshots),
     )
 
 

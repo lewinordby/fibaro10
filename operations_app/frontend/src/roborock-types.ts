@@ -140,6 +140,7 @@ export type RoborockNightJob = {
   areaM2: number;
   complete: boolean;
   errorCode?: number | null;
+  startType?: number | null;
   cleaningType: "vacuum" | "mop" | "vacuum_mop";
   cleaningTypeLabel: string;
   modeLabel: string;
@@ -151,6 +152,9 @@ export type RoborockNightJob = {
   status: "ok" | "warning" | "error" | "running";
   statusLabel: string;
   issues: string[];
+  origin: "planned" | "other" | "unknown";
+  originLabel: string;
+  planned?: boolean | null;
 };
 
 export type RoborockNightPlannedJob = {
@@ -175,6 +179,9 @@ export type RoborockNightRobot = {
   jobs: RoborockNightJob[];
   scheduleCheck: {
     basis: string;
+    historyAvailable: boolean;
+    snapshotAt?: string | null;
+    matchedRecordIds: string[];
     jobs: RoborockNightPlannedJob[];
     expected: number;
     paused: number;
@@ -199,13 +206,16 @@ export type RoborockNightRobot = {
   };
   totals: {
     jobs: number;
+    plannedJobs: number;
+    otherJobs: number;
     completed: number;
     durationMinutes: number;
     areaM2: number;
     washCount: number;
   };
   readiness: {
-    readyBeforeOpening: boolean;
+    evaluated: boolean;
+    readyBeforeOpening?: boolean | null;
     lastJobEndedAt?: string | null;
     batteryAtOpening?: number | null;
     fullChargeAt?: string | null;
@@ -229,6 +239,8 @@ export type RoborockNightReport = {
     robots: number;
     activeRobots: number;
     jobs: number;
+    otherJobs: number;
+    planHistoryRobots: number;
     completed: number;
     durationMinutes: number;
     areaM2: number;

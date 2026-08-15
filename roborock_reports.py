@@ -306,6 +306,7 @@ def build_job(job: Any, samples: list[Any], settings: dict[str, Any], provider: 
         "areaM2": round(number(row_value(job, "cleaned_area_m2")) or number(row_value(job, "area_m2")) or 0, 2),
         "complete": complete,
         "errorCode": error_code,
+        "startType": integer(row_value(job, "start_type")),
         "cleaningType": cleaning_type,
         "cleaningTypeLabel": cleaning_type_label,
         "modeLabel": " · ".join(part for part in mode_parts if part and part != "-"),
@@ -398,6 +399,64 @@ def schedule_occurrences(
     return sorted(occurrences, key=lambda row: row["scheduledAtValue"])
 
 
+def schedule_snapshot_occurrences(
+    snapshots: list[Any],
+    window: dict[str, datetime],
+    provider: str = "roborock",
+    include_paused: bool = False,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    ordered = sorted(
+        (
+            (normalize_local_naive(row_value(snapshot, "captured_at")), snapshot)
+            for snapshot in snapshots
+        ),
+        key=lambda item: item[0] or datetime.min,
+    )
+    ordered = [item for item in ordered if item[0] is not None and item[0] <= window["end"]]
+    baseline_index = next(
+        (index for index in range(len(ordered) - 1, -1, -1) if ordered[index][0] <= window["start"]),
+        None,
+    )
+    if baseline_index is None:
+        return [], {
+            "historyAvailable": False,
+            "snapshotAt": None,
+            "basis": "Planhistorikk er ikke tilgjengelig for denne natten",
+        }
+
+    relevant = ordered[baseline_index:]
+    occurrences: dict[tuple[str, str], dict[str, Any]] = {}
+    for index, (captured_at, snapshot) in enumerate(relevant):
+        effective_from = max(window["start"], captured_at)
+        next_at = relevant[index + 1][0] if index + 1 < len(relevant) else window["end"]
+        effective_to = min(window["end"], next_at)
+        if effective_from >= effective_to:
+            continue
+        snapshot_schedules = row_value(snapshot, "schedules")
+        if not isinstance(snapshot_schedules, list):
+            continue
+        for occurrence in schedule_occurrences(snapshot_schedules, window, provider, include_paused):
+            scheduled_at = occurrence["scheduledAtValue"]
+            if not effective_from <= scheduled_at < effective_to:
+                continue
+            key = (occurrence["scheduleId"], occurrence["scheduledAt"])
+            occurrences[key] = occurrence
+
+    baseline_at = relevant[0][0]
+    return sorted(occurrences.values(), key=lambda row: row["scheduledAtValue"]), {
+        "historyAvailable": True,
+        "snapshotAt": local_iso(baseline_at),
+        "basis": f"Lagret plan som gjaldt fra kl. {baseline_at.strftime('%H:%M')}",
+    }
+
+
+def schedule_job_can_match(job: Any, provider: str) -> bool:
+    start_type = integer(row_value(job, "start_type"))
+    if provider == "roborock" and start_type is not None:
+        return start_type == 3
+    return True
+
+
 def build_schedule_check(
     schedules: list[Any],
     jobs: list[Any],
@@ -406,8 +465,29 @@ def build_schedule_check(
     generated_at: datetime,
     provider: str = "roborock",
     include_paused: bool = False,
+    schedule_snapshots: Optional[list[Any]] = None,
+    require_history: bool = False,
 ) -> dict[str, Any]:
-    expected = schedule_occurrences(schedules, window, provider, include_paused)
+    if schedule_snapshots:
+        expected, plan_meta = schedule_snapshot_occurrences(
+            schedule_snapshots,
+            window,
+            provider,
+            include_paused,
+        )
+    elif require_history:
+        expected, plan_meta = [], {
+            "historyAvailable": False,
+            "snapshotAt": None,
+            "basis": "Planhistorikk er ikke tilgjengelig for denne natten",
+        }
+    else:
+        expected = schedule_occurrences(schedules, window, provider, include_paused)
+        plan_meta = {
+            "historyAvailable": True,
+            "snapshotAt": None,
+            "basis": "Gjeldende plan (historikk er ikke etablert ennå)",
+        }
     actual_starts = [
         (
             index,
@@ -416,6 +496,7 @@ def build_schedule_check(
             job,
         )
         for index, job in enumerate(jobs)
+        if schedule_job_can_match(job, provider)
     ]
     actual_starts = [row for row in actual_starts if row[1] is not None]
     matched_actual: set[int] = set()
@@ -504,14 +585,12 @@ def build_schedule_check(
         )
 
     paused_count = sum(row["status"] == "paused" for row in rows)
-    provider_label = "Dreamehome" if provider == "dreame" else "Roborock"
     return {
-        "basis": (
-            f"Gjeldende {provider_label}-planer, inkludert planer på pause"
-            if include_paused
-            else f"Gjeldende aktive {provider_label}-planer"
-        ),
+        **plan_meta,
         "jobs": rows,
+        "matchedRecordIds": sorted(
+            row["actualRecordId"] for row in rows if row.get("actualRecordId")
+        ),
         "expected": len(rows) - paused_count,
         "paused": paused_count,
         "completed": sum(row["status"] in {"completed", "delayed"} for row in rows),
@@ -529,9 +608,11 @@ def build_robot_report(
     samples: list[Any],
     probes: list[Any],
     schedules: list[Any],
+    schedule_snapshots: list[Any],
     window: dict[str, datetime],
     generated_at: datetime,
     include_paused_schedules: bool = False,
+    require_schedule_history: bool = False,
 ) -> dict[str, Any]:
     ordered_samples = sorted(
         samples,
@@ -575,18 +656,59 @@ def build_robot_report(
         generated_at,
         provider,
         include_paused_schedules,
+        schedule_snapshots=schedule_snapshots,
+        require_history=require_schedule_history and not include_paused_schedules,
     )
-    last_end = max(
+    matched_record_ids = set(schedule_check["matchedRecordIds"])
+    for job_row in job_rows:
+        if job_row["recordId"] in matched_record_ids:
+            job_row.update({"origin": "planned", "originLabel": "Gjeldende plan", "planned": True})
+        elif schedule_check["historyAvailable"]:
+            job_row.update({"origin": "other", "originLabel": "Øvrig jobb", "planned": False})
+        else:
+            job_row.update({"origin": "unknown", "originLabel": "Ikke klassifisert", "planned": None})
+
+    planned_jobs = [
+        job for job in jobs
+        if str(row_value(job, "record_id") or row_value(job, "id") or "") in matched_record_ids
+    ]
+    planned_last_end = max(
+        (
+            utc_naive_to_local_naive(row_value(job, "end_at"))
+            for job in planned_jobs
+            if row_value(job, "end_at")
+        ),
+        default=None,
+    )
+    last_any_end = max(
         (utc_naive_to_local_naive(row_value(job, "end_at")) for job in jobs if row_value(job, "end_at")),
         default=None,
     )
-    full_at = first_full_charge(ordered_samples, last_end, window["end"])
+    readiness_evaluated = bool(
+        not include_paused_schedules
+        and schedule_check["historyAvailable"]
+        and schedule_check["expected"]
+    )
+    ready_before_opening: Optional[bool] = None
+    if readiness_evaluated:
+        plan_finished = (
+            schedule_check["completed"] == schedule_check["expected"]
+            and not schedule_check["missing"]
+            and not schedule_check["failed"]
+            and not schedule_check["running"]
+            and not schedule_check["pending"]
+        )
+        ready_before_opening = bool(
+            plan_finished
+            and planned_last_end is not None
+            and planned_last_end <= window["ready_by"]
+        )
+    full_at = first_full_charge(ordered_samples, last_any_end, window["end"])
     battery_ready = battery_at(ordered_samples, window["ready_by"])
-    has_running_job = any(row["status"] == "running" for row in job_rows)
-    ready_before_opening = bool(not has_running_job and (last_end is None or last_end <= window["ready_by"]))
     warning_jobs = sum(row["status"] == "warning" for row in job_rows)
     error_jobs = sum(row["status"] == "error" for row in job_rows)
     running_jobs = sum(row["status"] == "running" for row in job_rows)
+    other_jobs = sum(row["origin"] == "other" for row in job_rows)
     if include_paused_schedules and schedule_check["expected"]:
         status, status_label = "neutral", "Planlagt"
     elif include_paused_schedules and schedule_check["paused"]:
@@ -601,10 +723,14 @@ def build_robot_report(
         status, status_label = "warning", "Må kontrolleres"
     elif running_jobs:
         status, status_label = "neutral", "Pågår"
-    elif job_rows and ready_before_opening:
-        status, status_label = "ok", "Ferdig før åpning"
+    elif readiness_evaluated and ready_before_opening:
+        status, status_label = "ok", "Planen ferdig før åpning"
+    elif readiness_evaluated:
+        status, status_label = "warning", "Planen ikke ferdig før åpning"
+    elif job_rows and not schedule_check["historyAvailable"]:
+        status, status_label = "neutral", "Planhistorikk mangler"
     elif job_rows:
-        status, status_label = "warning", "Ferdig etter åpning"
+        status, status_label = "neutral", "Øvrig rengjøring registrert"
     else:
         status, status_label = "neutral", "Ingen nattjobb"
 
@@ -636,10 +762,16 @@ def build_robot_report(
             default=None,
         )
         findings.append(f"Pågående jobb startet kl. {running_start.strftime('%H:%M') if running_start else '-'}.")
-    elif job_rows and ready_before_opening and last_end:
-        findings.append(f"Siste jobb var ferdig kl. {last_end.strftime('%H:%M')}, før åpning kl. {window['ready_by'].strftime('%H:%M')}.")
-    elif job_rows and last_end:
-        findings.append(f"Siste jobb var ferdig kl. {last_end.strftime('%H:%M')}, etter åpning kl. {window['ready_by'].strftime('%H:%M')}.")
+    elif readiness_evaluated and ready_before_opening and planned_last_end:
+        findings.append(f"Siste planjobb var ferdig kl. {planned_last_end.strftime('%H:%M')}, før åpning kl. {window['ready_by'].strftime('%H:%M')}.")
+    elif readiness_evaluated and planned_last_end:
+        findings.append(f"Siste planjobb var ferdig kl. {planned_last_end.strftime('%H:%M')}, etter åpning kl. {window['ready_by'].strftime('%H:%M')}.")
+    if other_jobs:
+        findings.append(
+            f"{other_jobs} {'øvrig jobb er' if other_jobs == 1 else 'øvrige jobber er'} markert, men inngår ikke i vurderingen mot åpningstid."
+        )
+    if not include_paused_schedules and not schedule_check["historyAvailable"]:
+        findings.append("Planhistorikk mangler for denne natten; jobbene er derfor ikke vurdert mot åpningstid.")
     if full_at:
         findings.append(f"Batteriet var fullt igjen kl. {full_at.strftime('%H:%M')}.")
     elif battery_ready is not None:
@@ -657,14 +789,17 @@ def build_robot_report(
         "settings": settings,
         "totals": {
             "jobs": len(job_rows),
+            "plannedJobs": len(matched_record_ids),
+            "otherJobs": other_jobs,
             "completed": sum(row["complete"] for row in job_rows),
             "durationMinutes": round(sum(row["durationMinutes"] or 0 for row in job_rows), 1),
             "areaM2": round(sum(row["areaM2"] or 0 for row in job_rows), 1),
             "washCount": sum(row["washCount"] or 0 for row in job_rows),
         },
         "readiness": {
+            "evaluated": readiness_evaluated,
             "readyBeforeOpening": ready_before_opening,
-            "lastJobEndedAt": local_iso(last_end),
+            "lastJobEndedAt": local_iso(planned_last_end),
             "batteryAtOpening": battery_ready,
             "fullChargeAt": local_iso(full_at),
         },
@@ -680,14 +815,17 @@ def build_night_report(
     probes: list[Any],
     generated_at: Optional[datetime] = None,
     schedules: Optional[list[Any]] = None,
+    schedule_snapshots: Optional[list[Any]] = None,
 ) -> dict[str, Any]:
     window = report_window(report_day)
     report_generated_at = normalize_local_naive(generated_at or datetime.now(LOCAL_TZ)) or datetime.now(LOCAL_TZ).replace(tzinfo=None)
     is_forecast = report_day > report_generated_at.date()
+    require_schedule_history = schedule_snapshots is not None
     jobs_by_robot: dict[str, list[Any]] = {}
     samples_by_robot: dict[str, list[Any]] = {}
     probes_by_robot: dict[str, list[Any]] = {}
     schedules_by_robot: dict[str, list[Any]] = {}
+    snapshots_by_robot: dict[str, list[Any]] = {}
     for row in jobs:
         jobs_by_robot.setdefault(str(row_value(row, "robot_duid") or ""), []).append(row)
     for row in samples:
@@ -696,6 +834,8 @@ def build_night_report(
         probes_by_robot.setdefault(str(row_value(row, "robot_duid") or ""), []).append(row)
     for row in schedules or []:
         schedules_by_robot.setdefault(str(row_value(row, "robot_duid") or ""), []).append(row)
+    for row in schedule_snapshots or []:
+        snapshots_by_robot.setdefault(str(row_value(row, "robot_duid") or ""), []).append(row)
     robot_rows = [
         build_robot_report(
             robot,
@@ -703,9 +843,11 @@ def build_night_report(
             samples_by_robot.get(str(row_value(robot, "duid") or ""), []),
             probes_by_robot.get(str(row_value(robot, "duid") or ""), []),
             schedules_by_robot.get(str(row_value(robot, "duid") or ""), []),
+            snapshots_by_robot.get(str(row_value(robot, "duid") or ""), []),
             window,
             report_generated_at,
             is_forecast,
+            require_schedule_history,
         )
         for robot in robots
     ]
@@ -719,8 +861,13 @@ def build_night_report(
     delayed_count = sum(row["scheduleCheck"]["delayed"] for row in robot_rows)
     pending_count = sum(row["scheduleCheck"]["pending"] for row in robot_rows)
     paused_count = sum(row["scheduleCheck"]["paused"] for row in robot_rows)
-    ready_count = sum(row["readiness"]["readyBeforeOpening"] and bool(row["jobs"]) for row in robot_rows)
-    active_robot_count = sum(bool(row["jobs"] or row["scheduleCheck"]["expected"]) for row in robot_rows)
+    other_count = sum(row["totals"]["otherJobs"] for row in robot_rows)
+    ready_count = sum(
+        row["readiness"]["evaluated"] and row["readiness"]["readyBeforeOpening"] is True
+        for row in robot_rows
+    )
+    active_robot_count = sum(row["scheduleCheck"]["expected"] > 0 for row in robot_rows)
+    history_robot_count = sum(row["scheduleCheck"]["historyAvailable"] for row in robot_rows)
     if is_forecast:
         conclusion_status = "warning" if paused_count else "neutral"
         conclusion_title = "Neste natts renholdsplan"
@@ -753,10 +900,14 @@ def build_night_report(
         conclusion_status = "neutral"
         conclusion_title = "Rengjøringen pågår"
         conclusion_detail = f"{running_count} {'jobb er' if running_count == 1 else 'jobber er'} fortsatt i gang."
-    elif jobs_count:
+    elif expected_count:
         conclusion_status = "ok"
-        conclusion_title = "Nattens rengjøring er gjennomført"
-        conclusion_detail = f"{jobs_count} jobber er registrert. {ready_count} av {active_robot_count} aktive roboter var ferdige før åpning."
+        conclusion_title = "Nattens planlagte rengjøring er gjennomført"
+        conclusion_detail = f"{planned_completed_count} planlagte jobber er registrert. {ready_count} av {active_robot_count} planlagte roboter var ferdige før åpning."
+    elif jobs_count:
+        conclusion_status = "neutral"
+        conclusion_title = "Øvrig rengjøring er registrert"
+        conclusion_detail = f"{jobs_count} jobber er markert, men inngår ikke i vurderingen av nattplanen."
     else:
         conclusion_status = "neutral"
         conclusion_title = "Ingen rengjøringsjobber er registrert"
@@ -781,6 +932,8 @@ def build_night_report(
             "robots": len(robot_rows),
             "activeRobots": active_robot_count,
             "jobs": jobs_count,
+            "otherJobs": other_count,
+            "planHistoryRobots": history_robot_count,
             "completed": sum(row["totals"]["completed"] for row in robot_rows),
             "durationMinutes": round(sum(row["totals"]["durationMinutes"] for row in robot_rows), 1),
             "areaM2": round(sum(row["totals"]["areaM2"] for row in robot_rows), 1),

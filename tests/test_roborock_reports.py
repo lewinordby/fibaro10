@@ -52,7 +52,7 @@ def test_night_report_summarizes_modes_battery_and_mop_washes() -> None:
     report = build_night_report(date(2026, 8, 14), [robot], [job], samples, probes)
 
     result = report["robots"][0]
-    assert report["conclusion"]["status"] == "ok"
+    assert report["conclusion"]["status"] == "neutral"
     assert report["summary"]["jobs"] == 1
     assert result["jobs"][0]["cleaningType"] == "mop"
     assert result["jobs"][0]["modeLabel"] == "Dyp · høy vannmengde · 1 runde"
@@ -112,7 +112,7 @@ def test_empty_dock_after_completed_wash_does_not_downgrade_the_job() -> None:
     report = build_night_report(date(2026, 8, 14), [robot], [job], samples, [])
 
     result = report["robots"][0]["jobs"][0]
-    assert report["conclusion"]["status"] == "ok"
+    assert report["conclusion"]["status"] == "neutral"
     assert result["status"] == "ok"
     assert result["statusLabel"] == "Fullført"
     assert result["issues"] == []
@@ -302,3 +302,153 @@ def test_next_night_shows_active_and_paused_plans_without_missing_jobs() -> None
     assert planned["expected"] == 1
     assert planned["paused"] == 1
     assert [job["status"] for job in planned["jobs"]] == ["pending", "paused"]
+
+
+def test_historical_report_uses_the_plan_snapshot_that_applied_at_night_start() -> None:
+    robot = row(duid="robot-history", name="VIP", model="Qrevo", provider="roborock")
+    current_schedule = row(
+        robot_duid="robot-history", schedule_id="new-0300", cron="0 3 * * *", enabled=True,
+        fan_power=105, water_box_mode=203, mop_mode=303, repeat=1,
+    )
+    snapshot = row(
+        robot_duid="robot-history",
+        captured_at=datetime(2026, 8, 13, 20, 0),
+        schedules=[{
+            "schedule_id": "old-0100", "cron": "0 1 * * *", "enabled": True,
+            "fan_power": 105, "water_box_mode": 203, "mop_mode": 303, "repeat": 1,
+        }],
+    )
+    job = row(
+        robot_duid="robot-history", record_id="scheduled-job",
+        begin_at=datetime(2026, 8, 13, 23, 0), end_at=datetime(2026, 8, 14, 0, 0),
+        duration_minutes=60.0, duration_seconds=3600, cleaned_area_m2=25.0, area_m2=25.0,
+        complete=True, error_code=0, wash_count=5, clean_times=1, start_type=3,
+    )
+
+    report = build_night_report(
+        date(2026, 8, 14), [robot], [job], [], [],
+        generated_at=datetime(2026, 8, 14, 8, 5),
+        schedules=[current_schedule], schedule_snapshots=[snapshot],
+    )
+
+    result = report["robots"][0]
+    assert result["scheduleCheck"]["historyAvailable"] is True
+    assert result["scheduleCheck"]["jobs"][0]["scheduleId"] == "old-0100"
+    assert result["scheduleCheck"]["completed"] == 1
+    assert result["jobs"][0]["origin"] == "planned"
+    assert result["readiness"]["evaluated"] is True
+    assert result["readiness"]["readyBeforeOpening"] is True
+
+
+def test_event_triggered_job_is_marked_but_not_used_for_plan_assessment() -> None:
+    robot = row(duid="robot-mixed", name="1.etg B", model="Q5", provider="roborock")
+    snapshot = row(
+        robot_duid="robot-mixed",
+        captured_at=datetime(2026, 8, 13, 20, 0),
+        schedules=[{
+            "schedule_id": "night-0100", "cron": "0 1 * * *", "enabled": True,
+            "fan_power": 104, "water_box_mode": 200, "mop_mode": 300, "repeat": 1,
+        }],
+    )
+    planned_job = row(
+        robot_duid="robot-mixed", record_id="planned",
+        begin_at=datetime(2026, 8, 13, 23, 0), end_at=datetime(2026, 8, 14, 0, 0),
+        duration_minutes=60.0, duration_seconds=3600, cleaned_area_m2=30.0, area_m2=30.0,
+        complete=True, error_code=0, wash_count=None, clean_times=1, start_type=3,
+    )
+    event_job = row(
+        robot_duid="robot-mixed", record_id="door-triggered",
+        begin_at=datetime(2026, 8, 14, 4, 30), end_at=datetime(2026, 8, 14, 5, 0),
+        duration_minutes=30.0, duration_seconds=1800, cleaned_area_m2=12.0, area_m2=12.0,
+        complete=True, error_code=0, wash_count=None, clean_times=1, start_type=2,
+    )
+
+    report = build_night_report(
+        date(2026, 8, 14), [robot], [planned_job, event_job], [], [],
+        generated_at=datetime(2026, 8, 14, 8, 5), schedule_snapshots=[snapshot],
+    )
+
+    result = report["robots"][0]
+    jobs = {job["recordId"]: job for job in result["jobs"]}
+    assert jobs["planned"]["origin"] == "planned"
+    assert jobs["door-triggered"]["origin"] == "other"
+    assert result["totals"]["otherJobs"] == 1
+    assert result["readiness"]["readyBeforeOpening"] is True
+    assert result["readiness"]["lastJobEndedAt"].startswith("2026-08-14T02:00")
+    assert report["summary"]["readyBeforeOpening"] == 1
+
+
+def test_historical_report_does_not_guess_when_snapshot_history_is_missing() -> None:
+    robot = row(duid="robot-no-history", name="2.etg", model="Qrevo", provider="roborock")
+    schedule = row(
+        robot_duid="robot-no-history", schedule_id="current", cron="0 1 * * *", enabled=True,
+        fan_power=105, water_box_mode=203, mop_mode=303, repeat=1,
+    )
+
+    report = build_night_report(
+        date(2026, 8, 14), [robot], [], [], [],
+        generated_at=datetime(2026, 8, 14, 8, 5),
+        schedules=[schedule], schedule_snapshots=[],
+    )
+
+    result = report["robots"][0]
+    assert result["scheduleCheck"]["historyAvailable"] is False
+    assert result["scheduleCheck"]["expected"] == 0
+    assert result["readiness"]["evaluated"] is False
+    assert report["summary"]["activeRobots"] == 0
+
+
+def test_manual_job_near_schedule_time_does_not_satisfy_the_plan() -> None:
+    robot = row(duid="robot-manual", name="1.etg A", model="Qrevo", provider="roborock")
+    snapshot = row(
+        robot_duid="robot-manual", captured_at=datetime(2026, 8, 13, 20, 0),
+        schedules=[{
+            "schedule_id": "night-0100", "cron": "0 1 * * *", "enabled": True,
+            "fan_power": 105, "water_box_mode": 203, "mop_mode": 303, "repeat": 1,
+        }],
+    )
+    manual_job = row(
+        robot_duid="robot-manual", record_id="manual-near-plan",
+        begin_at=datetime(2026, 8, 13, 23, 2), end_at=datetime(2026, 8, 14, 0, 0),
+        duration_minutes=58.0, duration_seconds=3480, cleaned_area_m2=25.0, area_m2=25.0,
+        complete=True, error_code=0, wash_count=5, clean_times=1, start_type=2,
+    )
+
+    report = build_night_report(
+        date(2026, 8, 14), [robot], [manual_job], [], [],
+        generated_at=datetime(2026, 8, 14, 8, 5), schedule_snapshots=[snapshot],
+    )
+
+    result = report["robots"][0]
+    assert result["scheduleCheck"]["missing"] == 1
+    assert result["scheduleCheck"]["matchedRecordIds"] == []
+    assert result["jobs"][0]["origin"] == "other"
+    assert result["readiness"]["readyBeforeOpening"] is False
+
+
+def test_schedule_change_during_night_only_affects_later_occurrences() -> None:
+    robot = row(duid="robot-plan-change", name="2.etg", model="Qrevo", provider="roborock")
+    baseline = row(
+        robot_duid="robot-plan-change", captured_at=datetime(2026, 8, 13, 20, 0),
+        schedules=[{
+            "schedule_id": "night-0100", "cron": "0 1 * * *", "enabled": True,
+            "fan_power": 105, "water_box_mode": 203, "mop_mode": 303, "repeat": 1,
+        }],
+    )
+    removed_before_start = row(
+        robot_duid="robot-plan-change", captured_at=datetime(2026, 8, 14, 0, 30),
+        schedules=[],
+    )
+
+    report = build_night_report(
+        date(2026, 8, 14), [robot], [], [], [],
+        generated_at=datetime(2026, 8, 14, 8, 5),
+        schedule_snapshots=[baseline, removed_before_start],
+    )
+
+    result = report["robots"][0]
+    assert result["scheduleCheck"]["historyAvailable"] is True
+    assert result["scheduleCheck"]["expected"] == 0
+    assert result["scheduleCheck"]["missing"] == 0
+    assert result["readiness"]["evaluated"] is False
+    assert report["summary"]["activeRobots"] == 0

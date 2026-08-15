@@ -1,6 +1,6 @@
 # Roborock_logger og Renhold
 
-Oppdatert 13.08.2026.
+Oppdatert 15.08.2026.
 
 `Roborock_logger` er den lokale innlesingsappen for robotstøvsugere. Den kjører på QNAP/Docker i samme nett som robotene og sender ferdig strukturerte data til Fibaro10.
 
@@ -42,6 +42,7 @@ Data lagres i egne tabeller for:
 - sync-kjøringer
 - telemetrimålinger
 - telemetrihendelser
+- historiske øyeblikksbilder av renholdsplanen
 
 ## QNAP / Docker
 
@@ -195,15 +196,19 @@ som manuelle robotkommandoer, med bruker `door_automation`.
 
 ## Plan mot utførelse i nattrapporten
 
-Nattrapporten sammenholder aktive, gjentakende planer fra Roborock med jobbene som faktisk finnes i
-jobbhistorikken. Planlagt start og faktisk start kobles innenfor et kontrollvindu på 45 minutter. Oppstart mer
-enn 10 minutter fra planen merkes som forsinket, og en plan som fortsatt ikke har en jobb 20 minutter etter
-start, merkes som uteblitt. Rapporten viser derfor både plan og utførelse; en jobb som aldri startet, forsvinner
-ikke lenger bare fra oversikten.
+Ved hver faktisk endring i Roborock-planen lagrer Fibaro10 et tidsstemplet øyeblikksbilde. Nattrapporten bruker
+dermed planen som var gjeldende på det aktuelle tidspunktet. En plan som legges til, pauses eller fjernes midt
+på natten påvirker bare starter etter endringen. Eldre netter fra før planhistorikken ble etablert blir ikke
+etterberegnet mot dagens plan; rapporten viser i stedet tydelig at plangrunnlaget mangler.
 
-Planhistorikken kommer fra de aktive planene som Roborock rapporterer nå. Ved visning av eldre datoer er dette
-derfor en kontroll mot gjeldende gjentakende plan, mens selve jobbhistorikken, telemetrien og innstillingene er
-historiske data fra den valgte natten.
+Nattrapporten sammenholder bare planlagte Roborock-starter (`start_type=3`) med de lagrede planene. Manuelle,
+dørstyrte og andre starter vises fortsatt i tidslinjen og tabellen som `Øvrig jobb`, men de inngår ikke i
+vurderingen av om nattplanen var ferdig før åpning. Planlagt start og faktisk start kobles innenfor et
+kontrollvindu fra 45 minutter før til 90 minutter etter planen. Oppstart mer enn 10 minutter fra planen merkes
+som forsinket, og en plan som fortsatt ikke har en jobb 20 minutter etter start merkes som uteblitt.
+
+Nattvinduet er kl. 22:00-08:00. Den røde bakgrunnen viser åpningstid med sikkerhetsmargin til kl. 23:45 på
+kvelden og fra kl. 06:45 om morgenen. Bare jobbene i den lagrede planen vurderes mot fristen kl. 06:45.
 
 Renhold-oversikten har i tillegg en døgnlinje for inneværende dag fra kl. 00:00 til 24:00. Den bruker samme
 planmarkører og jobbstatus som nattrapporten, men tar også med ikke-planlagte jobber, inngangsstyrt rengjøring

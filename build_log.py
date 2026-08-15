@@ -12,6 +12,39 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1770",
+        "date": "15.08.2026",
+        "headline": "Nattrapporten bruker planen som faktisk gjaldt",
+        "title": "Historisk plan, øvrige jobber og sikkerhetsmargin vurderes nå riktig",
+        "description": (
+            "Fibaro10 lagrer nå et tidsstemplet øyeblikksbilde hver gang Roborock-planen endres. "
+            "Nattrapporten sammenligner derfor utførelsen med planen som gjaldt den aktuelle natten, "
+            "også når en plan ble lagt til, pauset eller fjernet underveis. Bare planlagte starter teller "
+            "mot fristen før åpning; manuelle og inngangsstyrte jobber vises fortsatt som øvrige jobber. "
+            "Kveldens åpningstid med sikkerhetsmargin vises til kl. 23:45."
+        ),
+        "applications": [
+            "Fibaro10 build 1770: lagrer planhistorikk og bygger rapporten mot korrekt historisk plan.",
+            "Bygg og drift build 80: viser plangrunnlag, øvrige jobber og kveldsmargin til kl. 23:45.",
+        ],
+        "request": (
+            "Lagre gjeldende plan slik at rapporten kan sammenligne med planen som gjaldt på det aktuelle "
+            "tidspunktet. Bare planlagte jobber skal vurderes mot åpning, mens andre jobber skal vises uten "
+            "å inngå i vurderingen. Sikkerhetsmarginen på kvelden skal gå til kl. 23:45."
+        ),
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Lagrer komplette Roborock-planer som endringsbaserte, tidsstemplede øyeblikksbilder.",
+            "Bruker den planen som var gyldig ved hvert planlagt starttidspunkt i nattrapporten.",
+            "Lar bare Roborock-jobber med planlagt starttype oppfylle en planforekomst.",
+            "Viser manuelle, dørstyrte og andre jobber som øvrige jobber utenfor åpningsvurderingen.",
+            "Unngår å gjette historisk plan for netter fra før planhistorikken ble etablert.",
+            "Utvider kveldens markerte sikkerhetsmargin til kl. 23:45.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1769",
         "date": "15.08.2026",
         "headline": "Nattplanen har fått én samlet visuell markør",
