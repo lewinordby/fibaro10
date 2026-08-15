@@ -12,6 +12,35 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1769",
+        "date": "15.08.2026",
+        "headline": "Nattplanen har fått én samlet visuell markør",
+        "title": "Alle gjeldende planer vises med samme oransje stiplede linje",
+        "description": (
+            "Tidslinjen bruker nå én konsekvent oransje farge for alle planlagte robotstarter og én "
+            "felles tegnforklaring med teksten Gjeldende plan. Planstatus som aktiv, pauset eller uteblitt "
+            "beholdes i hoverinformasjon og detaljtabellen. Åpningstidsfeltet er samtidig presisert som "
+            "Åpningstid med sikkerhetsmargin."
+        ),
+        "applications": [
+            "Fibaro10 build 1769: registrerer den forenklede nattplantidslinjen.",
+            "Bygg og drift build 79: samler planmarkørene og oppdaterer tegnforklaringen.",
+        ],
+        "request": (
+            "Vis alle stiplede linjer i oransje med felles tekst Gjeldende plan, og endre Åpningstid "
+            "til Åpningstid med sikkerhetsmargin."
+        ),
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Gjør alle planlinjer i nattrapporten oransje.",
+            "Erstatter separate planforklaringer med Gjeldende plan.",
+            "Beholder statusforskjellene i hovertekst og plantabell.",
+            "Endrer åpningstidsforklaringen til Åpningstid med sikkerhetsmargin.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1768",
         "date": "15.08.2026",
         "headline": "Nattaksen skiller åpningstid fra automatisk renhold",

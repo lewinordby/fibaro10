@@ -360,10 +360,10 @@ function plannedJobTone(job: RoborockNightPlannedJob) {
   return { text: "text-green-700 dark:text-green-300", dot: "bg-green-500", line: "border-green-500" };
 }
 
-function PlannedTimelineMarker({ planned, position, extended = false }: { planned: RoborockNightPlannedJob; position: number; extended?: boolean }) {
+function PlannedTimelineMarker({ planned, position, extended = false, uniformPlanTone = false }: { planned: RoborockNightPlannedJob; position: number; extended?: boolean; uniformPlanTone?: boolean }) {
   const tone = plannedJobTone(planned);
   const title = `Planlagt ${reportTime(planned.scheduledAt)} · ${planned.cleaningTypeLabel} · ${planned.statusLabel}`;
-  return <span className={`absolute z-20 border-l-2 border-dashed ${extended ? "-inset-y-2" : "inset-y-0"} ${tone.line}`} style={{ left: `${position}%` }} title={title} />;
+  return <span className={`absolute z-20 border-l-2 border-dashed ${extended ? "-inset-y-2" : "inset-y-0"} ${uniformPlanTone ? "border-amber-500" : tone.line}`} style={{ left: `${position}%` }} title={title} />;
 }
 
 function dayJobBarColor(job: RoborockDayTimelineJob) {
@@ -439,14 +439,14 @@ function NightTimeline({ report }: { report: RoborockNightReport }) {
   return <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xs dark:border-gray-700/60 dark:bg-gray-800">
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3 dark:border-gray-700/60">
       <div><h2 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Automatisk nattlig renhold</h2><p className="mt-0.5 text-xs text-gray-400">Etter stenging kl. 23:45 · frist før åpning kl. {reportTime(report.window.readyBy)}</p></div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-300">{report.isForecast ? <><span className="flex items-center gap-1.5"><i className="h-5 border-l-2 border-dashed border-blue-500" />Aktiv plan</span><span className="flex items-center gap-1.5"><i className="h-5 border-l-2 border-dashed border-amber-500" />Satt på pause</span></> : <><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-sky-500" />Støvsuging</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />Vask</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-violet-500" />Begge</span><span className="flex items-center gap-1.5"><i className="h-5 border-l-2 border-dashed border-green-500" />Planlagt start</span><span className="flex items-center gap-1.5"><i className="h-5 border-l-2 border-dashed border-red-500" />Uteblitt</span></>}<span className="flex items-center gap-1.5"><i className="h-3 w-4 rounded-sm bg-rose-100/80 dark:bg-rose-500/20" />Åpningstid 06:45–23:15</span></div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-300">{!report.isForecast ? <><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-sky-500" />Støvsuging</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />Vask</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-violet-500" />Begge</span></> : null}<span className="flex items-center gap-1.5"><i className="h-5 border-l-2 border-dashed border-amber-500" />Gjeldende plan</span><span className="flex items-center gap-1.5"><i className="h-3 w-4 rounded-sm bg-rose-100/80 dark:bg-rose-500/20" />Åpningstid med sikkerhetsmargin</span></div>
     </header>
     <div className="px-5 py-4">
       <div className="mb-1 grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3 text-[0.65rem] font-medium text-gray-400"><span /><div className="flex justify-between">{hourLabels.map((hour) => <span key={hour}>{hour}:00</span>)}</div></div>
       <div className="space-y-2.5">{report.robots.map((robot) => <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-3" key={robot.duid}><strong className="truncate text-xs font-semibold text-gray-600 dark:text-gray-200" title={robot.name}>{robot.name}</strong><div className="relative h-7 overflow-visible rounded-md border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30">
         <span className="absolute inset-y-0 left-0 z-0 bg-rose-100/70 dark:bg-rose-500/10" style={{ width: `${closingPosition}%` }} title="Åpningstid til 23:15" />
         <span className="absolute inset-y-0 right-0 z-0 bg-rose-100/70 dark:bg-rose-500/10" style={{ left: `${readyPosition}%` }} title={`Åpningstid fra ${reportTime(report.window.readyBy)}`} />
-        {robot.scheduleCheck.jobs.map((planned) => <PlannedTimelineMarker extended key={`${planned.scheduleId}-${planned.scheduledAt}`} planned={planned} position={timelinePosition(planned.scheduledAt, report.window.startAt, report.window.endAt)} />)}
+        {robot.scheduleCheck.jobs.map((planned) => <PlannedTimelineMarker extended uniformPlanTone key={`${planned.scheduleId}-${planned.scheduledAt}`} planned={planned} position={timelinePosition(planned.scheduledAt, report.window.startAt, report.window.endAt)} />)}
         {robot.jobs.map((job) => { const left = timelinePosition(job.startedAt, report.window.startAt, report.window.endAt); const right = timelinePosition(job.endedAt || job.startedAt, report.window.startAt, report.window.endAt); return <span className={`absolute inset-y-1 rounded-sm ${jobBarColor(job)}`} key={job.recordId} style={{ left: `${left}%`, width: `${Math.max(0.7, right - left)}%` }} title={`${reportTime(job.startedAt)}–${reportTime(job.endedAt)} · ${job.cleaningTypeLabel} · ${decimal(job.areaM2, 1)} m²`} />; })}
       </div></div>)}</div>
     </div>
