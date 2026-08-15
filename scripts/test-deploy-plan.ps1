@@ -39,6 +39,11 @@ if ($cleaningRobotDomain.All -or ($cleaningRobotDomain.Services -join ",") -ne "
     throw "Cleaning robot domain deploy plan is wrong: $($cleaningRobotDomain | ConvertTo-Json -Compress)"
 }
 
+$roborockDomain = Get-DeployPlan -ChangedFiles @("roborock_domain.py")
+if ($roborockDomain.All -or ($roborockDomain.Services -join ",") -ne "fibaro10,online_dashboard") {
+    throw "Roborock domain deploy plan is wrong: $($roborockDomain | ConvertTo-Json -Compress)"
+}
+
 $sharedBackend = Get-DeployPlan -ChangedFiles @("microapp_backend/pwa.py")
 foreach ($requiredService in @("fibaro10", "shell_app", "online_dashboard")) {
     if ($sharedBackend.All -or $sharedBackend.Services.Count -ne 11 -or $requiredService -notin $sharedBackend.Services) {

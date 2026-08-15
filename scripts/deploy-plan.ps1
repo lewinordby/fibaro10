@@ -54,7 +54,7 @@ function Get-DeployPlan([string[]]$ChangedFiles, [bool]$ForceAll = $false) {
             foreach ($service in $microApps) { [void]$services.Add($service) }
             [void]$services.Add("shell_app")
         }
-        elseif ($path -eq "cleaning_robot_domain.py") {
+        elseif ($path -in @("cleaning_robot_domain.py", "roborock_domain.py")) {
             foreach ($service in @("fibaro10", "online_dashboard")) {
                 [void]$services.Add($service)
             }

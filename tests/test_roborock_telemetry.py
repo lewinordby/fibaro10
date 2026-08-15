@@ -6,6 +6,7 @@ from roborock_domain import (
     roborock_dock_type_label,
     roborock_job_status,
     roborock_operational_readiness,
+    roborock_resource_issues,
     roborock_telemetry_changes,
     roborock_telemetry_value_label,
 )
@@ -106,6 +107,30 @@ def test_roborock_readiness_marks_stale_telemetry_for_follow_up():
 
     assert readiness["status"] == "attention"
     assert readiness["issues"] == ["Telemetri er 17 min gammel"]
+
+
+def test_roborock_readiness_accepts_shared_twenty_minute_freshness_window():
+    readiness = roborock_operational_readiness(
+        cloud_online=True,
+        last_error=None,
+        error_code=0,
+        dock_error="Ingen feil",
+        clear_water="OK",
+        dirty_water="OK",
+        dust_bag="OK",
+        active=False,
+        data_age_minutes=17,
+        stale_after_minutes=20,
+    )
+
+    assert readiness == {"status": "ready", "label": "Klar", "issues": []}
+
+
+def test_roborock_resource_issues_deduplicates_dock_and_container_status():
+    assert roborock_resource_issues("Rentvann mangler", "Tom", "OK", "Full") == [
+        "Rentvann mangler",
+        "Støvpose: Full",
+    ]
 
 
 def test_roborock_telemetry_changes_only_emits_changed_operational_values():

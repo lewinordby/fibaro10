@@ -175,6 +175,26 @@ def test_mobile_robot_state_never_reports_stale_or_offline_activity_as_active() 
     ) == ("Utdatert status", "warning")
 
 
+def test_mobile_robot_state_includes_actionable_dock_status() -> None:
+    now = datetime(2026, 8, 14, 16, 0)
+    row = {
+        "provider": "roborock",
+        "state_code": 8,
+        "state_name": "charging",
+        "cloud_online": True,
+        "dock_error_status": 38,
+        "clear_water_status": 1,
+        "clear_water_status_name": "out_of_water",
+        "dirty_water_status": 0,
+        "dirty_water_status_name": "okay",
+        "dust_bag_status": 0,
+        "dust_bag_status_name": "okay",
+    }
+
+    assert online_main.mobile_robot_resource_issues(row) == ["Rentvann mangler"]
+    assert online_main.mobile_robot_state(row, status_at=now, now=now) == ("Krever tilsyn", "warning")
+
+
 def test_mobile_robot_overview_uses_freshest_sample_and_keeps_status_in_local_time(monkeypatch) -> None:
     captured = {}
 
@@ -209,6 +229,7 @@ def test_mobile_robot_overview_uses_freshest_sample_and_keeps_status_in_local_ti
 
     assert "roborock_telemetry_samples" in captured["query"]
     assert "telemetry.timestamp >= status.timestamp" in captured["query"]
+    assert "telemetry.clear_water_status" in captured["query"]
     assert robots[0]["status_at"] == datetime(2026, 8, 14, 14, 20)
     assert robots[0]["job_started_at"] == datetime(2026, 8, 14, 14, 20)
     assert robots[0]["state_label"] == "Lader"

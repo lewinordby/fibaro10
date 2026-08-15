@@ -93,6 +93,7 @@ from roborock_door_automation import (
     unique_ints,
 )
 from cleaning_robot_domain import (
+    CLEANING_ROBOT_STATUS_STALE_AFTER_MINUTES,
     cleaning_robot_is_active,
     cleaning_robot_operational_state,
     cleaning_provider,
@@ -33019,7 +33020,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 telemetry: Optional[RoborockTelemetrySample],
                 active_cycle: Optional[Dict[str, Any]],
             ) -> Dict[str, Any]:
-                error_code = telemetry.error_code if telemetry and telemetry.error_code is not None else status.error_code if status else None
+                source = latest_cleaning_robot_sample(status, telemetry)
+                error_code = source.error_code if source else None
                 dock_error = roborock_dock_error_label(telemetry.dock_error_status) if telemetry else "Ikke støttet"
                 clear_water = roborock_telemetry_value_label(
                     "clear_water_status", telemetry.clear_water_status, telemetry.clear_water_status_name
@@ -33030,10 +33032,10 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 dust_bag = roborock_telemetry_value_label(
                     "dust_bag_status", telemetry.dust_bag_status, telemetry.dust_bag_status_name
                 ) if telemetry else "Ikke støttet"
-                active = bool(
-                    telemetry.in_cleaning
-                    if telemetry and telemetry.in_cleaning is not None
-                    else status.in_cleaning if status else False
+                active = cleaning_robot_is_active(
+                    source.in_cleaning if source else None,
+                    source.state_code if source else None,
+                    robot.provider,
                 )
                 telemetry_at = normalize_local_naive(telemetry.timestamp) if telemetry and telemetry.timestamp else None
                 telemetry_age_minutes = (
@@ -33051,6 +33053,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     dust_bag=dust_bag,
                     active=active,
                     data_age_minutes=telemetry_age_minutes,
+                    stale_after_minutes=CLEANING_ROBOT_STATUS_STALE_AFTER_MINUTES,
                 )
                 if readiness["status"] == "active" and active_cycle and active_cycle.get("phase") == "charging_pause":
                     readiness["label"] = "Pågår – lader"
@@ -33079,6 +33082,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             for robot in robots:
                 status = latest_status_by_robot.get(robot.duid)
                 telemetry = latest_telemetry_by_robot.get(robot.duid)
+                source = latest_cleaning_robot_sample(status, telemetry)
                 cycle_history: list[Any] = list(statuses_by_robot.get(robot.duid, []))
                 if telemetry and telemetry.in_cleaning is not None:
                     cycle_history.append(telemetry)
@@ -33096,10 +33100,10 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "local_ip": robot.local_ip,
                         "last_seen_at": robot.last_seen_at,
                         "last_error": robot.last_error,
-                        "state_name": active_cycle.get("phase_label") if active_cycle else telemetry.state_name if telemetry and telemetry.state_name else status.state_name if status else None,
-                        "battery": telemetry.battery if telemetry and telemetry.battery is not None else status.battery if status else None,
-                        "error_code": telemetry.error_code if telemetry and telemetry.error_code is not None else status.error_code if status else None,
-                        "status_at": api_local_iso(telemetry.timestamp if telemetry else status.timestamp if status else None),
+                        "state_name": active_cycle.get("phase_label") if active_cycle else source.state_name if source else None,
+                        "battery": source.battery if source else None,
+                        "error_code": source.error_code if source else None,
+                        "status_at": api_local_iso(source.timestamp if source else None),
                         "latest_job_today": overview_job(latest_job_by_robot_day.get((robot.duid, today_local))),
                         "latest_job_yesterday": overview_job(latest_job_by_robot_day.get((robot.duid, yesterday_local))),
                         "today": overview_day(robot.duid, today_local, active_cycle),

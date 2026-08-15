@@ -463,6 +463,7 @@ def roborock_operational_readiness(
     dust_bag: str,
     active: bool,
     data_age_minutes: Optional[int],
+    stale_after_minutes: int = 10,
 ) -> Dict[str, Any]:
     issues = []
     if cloud_online is False:
@@ -473,8 +474,28 @@ def roborock_operational_readiness(
         issues.append(roborock_error_label(error_code))
     if data_age_minutes is None:
         issues.append("Ingen telemetri mottatt")
-    elif data_age_minutes > 10:
+    elif data_age_minutes > stale_after_minutes:
         issues.append(f"Telemetri er {data_age_minutes} min gammel")
+    issues.extend(roborock_resource_issues(dock_error, clear_water, dirty_water, dust_bag))
+    if cloud_online is False:
+        status, label = "offline", "Ikke tilkoblet"
+    elif issues:
+        status, label = "attention", "Krever tilsyn"
+    elif active:
+        status, label = "active", "Rengjør nå"
+    else:
+        status, label = "ready", "Klar"
+    return {"status": status, "label": label, "issues": list(dict.fromkeys(issues))}
+
+
+def roborock_resource_issues(
+    dock_error: str,
+    clear_water: str,
+    dirty_water: str,
+    dust_bag: str,
+) -> list[str]:
+    """Return resource problems without connection or freshness concerns."""
+    issues = []
     if dock_error not in {"Ingen feil", "Ikke støttet", "-"}:
         issues.append(dock_error)
     dock_error_lower = dock_error.lower()
@@ -485,15 +506,7 @@ def roborock_operational_readiness(
     ):
         if value not in {"OK", "Ikke støttet", "-"} and dock_marker not in dock_error_lower:
             issues.append(f"{label}: {value}")
-    if cloud_online is False:
-        status, label = "offline", "Ikke tilkoblet"
-    elif issues:
-        status, label = "attention", "Krever tilsyn"
-    elif active:
-        status, label = "active", "Rengjør nå"
-    else:
-        status, label = "ready", "Klar"
-    return {"status": status, "label": label, "issues": list(dict.fromkeys(issues))}
+    return list(dict.fromkeys(issues))
 
 
 def format_seconds_as_hours(value: Any) -> str:

@@ -19,6 +19,11 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from cleaning_robot_domain import cleaning_robot_is_active, cleaning_robot_operational_state
 from microapp_backend import PwaConfig, inject_pwa_head, register_pwa
+from roborock_domain import (
+    roborock_dock_error_label,
+    roborock_resource_issues,
+    roborock_telemetry_value_label,
+)
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -438,7 +443,32 @@ def mobile_robot_state(
         active_label=state_label,
         ready_label=state_label,
     )
+    if status in {"ok", "active"} and mobile_robot_resource_issues(row):
+        return "Krever tilsyn", "warning"
     return label, status
+
+
+def mobile_robot_resource_issues(row: dict[str, Any]) -> list[str]:
+    if str(row.get("provider") or "roborock").strip().lower() != "roborock":
+        return []
+    return roborock_resource_issues(
+        roborock_dock_error_label(row.get("dock_error_status")),
+        roborock_telemetry_value_label(
+            "clear_water_status",
+            row.get("clear_water_status"),
+            row.get("clear_water_status_name"),
+        ),
+        roborock_telemetry_value_label(
+            "dirty_water_status",
+            row.get("dirty_water_status"),
+            row.get("dirty_water_status_name"),
+        ),
+        roborock_telemetry_value_label(
+            "dust_bag_status",
+            row.get("dust_bag_status"),
+            row.get("dust_bag_status_name"),
+        ),
+    )
 
 
 def mobile_robot_job_status(row: dict[str, Any]) -> str:
@@ -2046,6 +2076,13 @@ async def mobile_robot_overview() -> list[dict[str, Any]]:
                         and (status.timestamp is null or telemetry.timestamp >= status.timestamp)
                    then telemetry.in_cleaning else status.in_cleaning
                end as in_cleaning,
+               telemetry.dock_error_status,
+               telemetry.clear_water_status,
+               telemetry.clear_water_status_name,
+               telemetry.dirty_water_status,
+               telemetry.dirty_water_status_name,
+               telemetry.dust_bag_status,
+               telemetry.dust_bag_status_name,
                job.begin_at as job_started_at,
                job.end_at as job_ended_at,
                job.duration_minutes as job_duration_minutes,
@@ -2061,7 +2098,10 @@ async def mobile_robot_overview() -> list[dict[str, Any]]:
             limit 1
         ) status on true
         left join lateral (
-            select t.timestamp, t.state_code, t.state_name, t.battery, t.error_code, t.in_cleaning
+            select t.timestamp, t.state_code, t.state_name, t.battery, t.error_code, t.in_cleaning,
+                   t.dock_error_status, t.clear_water_status, t.clear_water_status_name,
+                   t.dirty_water_status, t.dirty_water_status_name,
+                   t.dust_bag_status, t.dust_bag_status_name
             from roborock_telemetry_samples t
             where t.robot_duid = r.duid
             order by t.timestamp desc, t.id desc
@@ -2083,6 +2123,7 @@ async def mobile_robot_overview() -> list[dict[str, Any]]:
     for row in rows:
         status_at = local_naive_datetime(row.get("status_at"))
         state_label, status = mobile_robot_state(row, status_at=status_at, now=overview_now)
+        resource_issues = mobile_robot_resource_issues(row)
         robots.append(
             {
                 "name": str(row.get("name") or "Robot"),
@@ -2090,6 +2131,7 @@ async def mobile_robot_overview() -> list[dict[str, Any]]:
                 "integration_status": str(row.get("integration_status") or "active"),
                 "state_label": state_label,
                 "status": status,
+                "issues": resource_issues,
                 "battery": row.get("battery"),
                 "status_at": status_at,
                 "job_started_at": utc_naive_to_local(row.get("job_started_at")),

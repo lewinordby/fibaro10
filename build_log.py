@@ -12,6 +12,35 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1754",
+        "date": "15.08.2026",
+        "headline": "Robotstatus er avsluttet som én konsistent leveranse",
+        "title": "Mobil og Bygg og drift viser samme tilstand, ferskhet og behov for tilsyn",
+        "description": (
+            "Den uferdige statuspakken fra build 1752 er gjennomgått og fullført. Alle robotflater velger "
+            "nå den ferskeste tilstandsregistreringen, bruker samme grense for utdaterte data og tar med "
+            "reelle problemer i dokk og beholdere. Mobil kan derfor ikke lenger vise en robot som klar når "
+            "Bygg og drift samtidig viser at den krever tilsyn."
+        ),
+        "applications": [
+            "Fibaro10 build 1754: konsistent kildevalg og statusgrunnlag i renholds-API-et.",
+            "Bygg og drift: bruker 20 minutters felles ferskhetsgrense og nyeste statusfelt.",
+            "Lilletorget Mobil: viser dokk-, rentvann-, skittentvann- og støvposeavvik i robotstatusen.",
+        ],
+        "request": "Vi må jo rydde opp i den pakken som ikke er ferdig også.",
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Velger nyeste status- eller telemetrimåling for tilstand, batteri, feil og tidspunkt.",
+            "Gjenbruker én ressurskontroll for dokk, rentvann, skittentvann og støvpose.",
+            "Samordner grensen for utdaterte robotdata til 20 minutter i de nye oversiktene.",
+            "Markerer mobile robotkort som Krever tilsyn når en beholder eller dokk trenger handling.",
+            "Lar endringer i det delte Roborock-domenet bygge både Fibaro10 og mobilgrensesnittet.",
+            "Utvider kontrakt- og enhetstestene for kildevalg, ferskhet og beholderavvik.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1753",
         "date": "15.08.2026",
         "headline": "Vannforbruk og moppevask samlet under Renhold",
