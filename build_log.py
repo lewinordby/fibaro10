@@ -12,6 +12,34 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1763",
+        "date": "15.08.2026",
+        "headline": "Renholdsoversikten viser bare den nyttige daglinjen",
+        "title": "1.etg B vises kompakt gjennom åpningstiden",
+        "description": (
+            "Tidslinjen på renholdsoversikten er redusert til roboten 1.etg B, som er den eneste roboten "
+            "med inngangsstyrte intervalljobber på dagtid. Tidsvinduet følger den konfigurerte åpningstiden, "
+            "og visningen er komprimert til navn, klokkeslett og selve aktivitetslinjen."
+        ),
+        "applications": [
+            "Fibaro10 build 1763: avgrenser tidslinjedata til 1.etg B og åpningstiden.",
+            "Bygg og drift build 74: erstatter heldøgnspanelet med en kompakt énlinjevisning.",
+        ],
+        "request": (
+            "Vis bare åpningstiden og 1.etg B på tidslinjen på renholdsoversikten, "
+            "med samme linjetype og minst mulig ekstra høyde."
+        ),
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Henter tidsvinduet fra samme åpningstidskonfigurasjon som inngangsstyringen.",
+            "Sender bare jobber for 1.etg B som overlapper åpningstiden til oversiktstidslinjen.",
+            "Fjerner overskrift, sammendrag, tegnforklaring og forklaringstekst rundt linjen.",
+            "Beholder hoverdetaljer, planmarkører, aktivitetstype og markering av nåtid innenfor åpningstiden.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1762",
         "date": "15.08.2026",
         "headline": "Nattrapporten vurderer vann under selve jobben",

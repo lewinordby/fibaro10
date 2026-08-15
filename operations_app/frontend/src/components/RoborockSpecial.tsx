@@ -362,43 +362,51 @@ function dayJobBarColor(job: RoborockDayTimelineJob) {
   return "bg-gray-500";
 }
 
+function timelineTickLabels(startAt: string, endAt: string) {
+  const start = parsedDate(startAt);
+  const end = parsedDate(endAt);
+  if (!start || !end || end <= start) return ["-", "-", "-", "-", "-"];
+  const duration = end.getTime() - start.getTime();
+  return Array.from({ length: 5 }, (_, index) => reportTime(new Date(start.getTime() + (duration * index) / 4).toISOString()));
+}
+
 function DayTimeline({ timeline, robots }: { timeline: RoborockDayTimeline; robots: RoborockRobotSummary[] }) {
-  const hourLabels = ["00", "04", "08", "12", "16", "20", "24"];
+  const robot = timeline.robots[0];
+  if (!robot) return null;
+  const hourLabels = timelineTickLabels(timeline.window.startAt, timeline.window.endAt);
+  const start = parsedDate(timeline.window.startAt);
+  const end = parsedDate(timeline.window.endAt);
+  const generatedAt = parsedDate(timeline.generatedAt);
   const currentPosition = timelinePosition(timeline.generatedAt, timeline.window.startAt, timeline.window.endAt);
-  return <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xs dark:border-gray-700/60 dark:bg-gray-800">
-    <header className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 px-5 py-3 dark:border-gray-700/60">
-      <div><div className="flex flex-wrap items-center gap-2"><h2 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Døgnforløp</h2><span className="text-xs text-gray-400">I dag · 00:00–24:00</span>{timeline.summary.missing ? <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-500/10 dark:text-red-300"><i className="h-1.5 w-1.5 rounded-full bg-red-500" />{timeline.summary.missing} uteblitt</span> : null}</div><p className="mt-0.5 text-xs text-gray-400">{timeline.summary.actual} registrerte jobber · {timeline.summary.plannedCompleted}/{timeline.summary.planned} planlagte gjennomført · {timeline.summary.pending} gjenstår</p></div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-300"><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-sky-500" />Støvsuging</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />Vask</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-violet-500" />Begge</span><span className="flex items-center gap-1.5"><i className="h-4 border-l border-dashed border-green-500" />Plan</span><span className="flex items-center gap-1.5"><i className="h-4 border-l-2 border-dashed border-red-500" />Uteblitt</span></div>
-    </header>
-    <div className="px-5 py-4">
-      <div className="mb-1 grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3 text-[0.65rem] font-medium text-gray-400"><span /><div className="flex justify-between">{hourLabels.map((hour) => <span key={hour}>{hour}:00</span>)}</div></div>
-      <div className="space-y-2.5">{timeline.robots.map((robot) => {
-        const summaryRobot = robots.find((candidate) => candidate.duid === robot.duid);
-        const cycle = summaryRobot?.active_cycle;
-        const cycleStart = parsedDate(cycle?.started_at);
-        const start = parsedDate(timeline.window.startAt);
-        const end = parsedDate(timeline.window.endAt);
-        const hasCycleJob = cycleStart ? robot.jobs.some((job) => { const jobStart = parsedDate(job.startedAt); return jobStart && Math.abs(jobStart.getTime() - cycleStart.getTime()) < 10 * 60 * 1000; }) : false;
-        const activeJob: RoborockDayTimelineJob | null = cycleStart && start && end && cycleStart >= start && cycleStart < end && !hasCycleJob ? {
-          recordId: `active-${robot.duid}`,
-          startedAt: cycle?.started_at || timeline.generatedAt,
-          endedAt: timeline.generatedAt,
-          cleaningType: "cleaning",
-          cleaningTypeLabel: cycle?.phase_label || "Pågående rengjøring",
-          status: "running",
-          statusLabel: "Pågår",
-          planned: false,
-          areaM2: cycle?.cleaned_area_m2 || 0,
-        } : null;
-        const jobs = activeJob ? [...robot.jobs, activeJob] : robot.jobs;
-        return <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-3" key={robot.duid}><strong className="truncate text-xs font-semibold text-gray-600 dark:text-gray-200" title={robot.name}>{robot.name}</strong><div className="relative h-8 overflow-hidden rounded-md border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30">
-          {Array.from({ length: 11 }, (_, index) => <span className="absolute inset-y-0 border-l border-gray-200/70 dark:border-gray-700/70" key={index} style={{ left: `${((index + 1) / 12) * 100}%` }} />)}
-          <span className="absolute inset-y-0 z-10 border-l border-blue-500/80" style={{ left: `${currentPosition}%` }} title={`Nå ${reportTime(timeline.generatedAt)}`} />
+  const summaryRobot = robots.find((candidate) => candidate.duid === robot.duid);
+  const cycle = summaryRobot?.active_cycle;
+  const cycleStart = parsedDate(cycle?.started_at);
+  const hasCycleJob = cycleStart ? robot.jobs.some((job) => { const jobStart = parsedDate(job.startedAt); return jobStart && Math.abs(jobStart.getTime() - cycleStart.getTime()) < 10 * 60 * 1000; }) : false;
+  const activeJob: RoborockDayTimelineJob | null = cycleStart && start && end && cycleStart >= start && cycleStart < end && !hasCycleJob ? {
+    recordId: `active-${robot.duid}`,
+    startedAt: cycle?.started_at || timeline.generatedAt,
+    endedAt: timeline.generatedAt,
+    cleaningType: "cleaning",
+    cleaningTypeLabel: cycle?.phase_label || "Pågående rengjøring",
+    status: "running",
+    statusLabel: "Pågår",
+    planned: false,
+    areaM2: cycle?.cleaned_area_m2 || 0,
+  } : null;
+  const jobs = activeJob ? [...robot.jobs, activeJob] : robot.jobs;
+  const showCurrentTime = Boolean(generatedAt && start && end && generatedAt >= start && generatedAt <= end);
+  return <section aria-label={`${robot.name}, rengjøring i åpningstiden`} className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xs dark:border-gray-700/60 dark:bg-gray-800">
+    <div className="grid grid-cols-[4.75rem_minmax(0,1fr)] items-end gap-3 px-4 py-2">
+      <strong className="truncate pb-0.5 text-xs font-semibold text-gray-700 dark:text-gray-200" title={robot.name}>{robot.name}</strong>
+      <div className="min-w-0">
+        <div className="mb-1 flex justify-between text-[0.625rem] font-medium leading-none tabular-nums text-gray-400">{hourLabels.map((hour, index) => <span key={`${hour}-${index}`}>{hour}</span>)}</div>
+        <div className="relative h-7 overflow-hidden rounded-md border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30">
+          {Array.from({ length: 7 }, (_, index) => <span className="absolute inset-y-0 border-l border-gray-200/70 dark:border-gray-700/70" key={index} style={{ left: `${((index + 1) / 8) * 100}%` }} />)}
+          {showCurrentTime ? <span className="absolute inset-y-0 z-30 border-l border-blue-500/80" style={{ left: `${currentPosition}%` }} title={`Nå ${reportTime(timeline.generatedAt)}`} /> : null}
           {robot.planned.map((planned) => { const position = timelinePosition(planned.scheduledAt, timeline.window.startAt, timeline.window.endAt); const tone = plannedJobTone(planned); return <span className={`absolute inset-y-0 z-20 border-l border-dashed ${planned.status === "missing" || planned.status === "failed" ? "border-l-2" : ""} ${tone.line}`} key={`${planned.scheduleId}-${planned.scheduledAt}`} style={{ left: `${position}%` }} title={`Planlagt ${reportTime(planned.scheduledAt)} · ${planned.cleaningTypeLabel} · ${planned.statusLabel}`} />; })}
           {jobs.map((job) => { const left = timelinePosition(job.startedAt, timeline.window.startAt, timeline.window.endAt); const right = timelinePosition(job.endedAt || timeline.generatedAt, timeline.window.startAt, timeline.window.endAt); return <span className={`absolute inset-y-1 z-10 rounded-sm ${dayJobBarColor(job)} ${job.status === "running" ? "ring-2 ring-blue-300/70" : ""}`} key={job.recordId} style={{ left: `${left}%`, width: `${Math.max(0.45, right - left)}%` }} title={`${reportTime(job.startedAt)}–${job.status === "running" ? "nå" : reportTime(job.endedAt)} · ${job.cleaningTypeLabel} · ${job.statusLabel}${job.areaM2 ? ` · ${decimal(job.areaM2, 1)} m²` : ""}`} />; })}
-        </div></div>;
-      })}</div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[0.7rem] text-gray-400"><span>Ikke-planlagte og automatisk utløste dagjobber vises også.</span><span className="tabular-nums">Blå linje: nå kl. {reportTime(timeline.generatedAt)}</span></div>
+        </div>
+      </div>
     </div>
   </section>;
 }

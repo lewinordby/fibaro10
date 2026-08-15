@@ -33150,15 +33150,42 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             if not any(cleaning_provider(robot.provider) == "dreame" for robot in robots):
                 robot_summaries.append(expected_dreame_summary(DREAME_EXPECTED_ROBOT_NAME))
             timeline_now = local_now_naive()
+            ventilation_config = (
+                await session.execute(select(ControlConfig).where(ControlConfig.key == "ventilation"))
+            ).scalars().first()
+            ventilation_values = merge_config_values(
+                "ventilation",
+                ventilation_config.values if ventilation_config else config_defaults("ventilation"),
+            )
+            timeline_open_at, timeline_close_at = opening_window(
+                today_local,
+                ventilation_values.get("open_from"),
+                ventilation_values.get("close_at"),
+            )
             timeline_window = {
-                "start": datetime.combine(today_local, time.min),
-                "end": datetime.combine(tomorrow_local, time.min),
-                "ready_by": datetime.combine(tomorrow_local, time.min),
+                "start": timeline_open_at,
+                "end": timeline_close_at,
+                "ready_by": timeline_close_at,
             }
+            timeline_robot = next(
+                (robot for robot in robots if (robot.name or "").strip().casefold() == "1.etg b"),
+                None,
+            )
             timeline_robots = []
-            for robot in robots:
+            for robot in [timeline_robot] if timeline_robot else []:
                 day_jobs = sorted(
-                    jobs_by_robot_day.get((robot.duid, today_local), []),
+                    (
+                        job
+                        for job in jobs_by_robot_day.get((robot.duid, today_local), [])
+                        if (
+                            (local_begin := utc_naive_to_local_naive(job.begin_at)) is not None
+                            and local_begin < timeline_window["end"]
+                            and (
+                                utc_naive_to_local_naive(job.end_at)
+                                or timeline_now
+                            ) >= timeline_window["start"]
+                        )
+                    ),
                     key=lambda row: row.begin_at or datetime.min,
                 )
                 schedule_check = build_schedule_check(

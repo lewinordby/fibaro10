@@ -426,16 +426,20 @@ def test_roborock_refill_log_is_available_in_operations() -> None:
     assert "Fylt igjen" in detail
 
 
-def test_roborock_overview_includes_the_full_day_timeline() -> None:
+def test_roborock_overview_has_compact_opening_hours_timeline_for_first_floor_b() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     core = (repo_root / "main.py").read_text(encoding="utf-8")
     operations = (repo_root / "operations_app" / "frontend" / "src" / "components" / "RoborockSpecial.tsx").read_text(encoding="utf-8")
 
     assert '"timeline": {' in core
     assert '"startAt": api_local_iso(timeline_window["start"])' in core
+    assert 'timeline_open_at, timeline_close_at = opening_window(' in core
+    assert 'casefold() == "1.etg b"' in core
+    assert 'for robot in [timeline_robot] if timeline_robot else []:' in core
     assert "function DayTimeline" in operations
-    assert "I dag · 00:00–24:00" in operations
-    assert "Ikke-planlagte og automatisk utløste dagjobber vises også." in operations
+    assert "function timelineTickLabels" in operations
+    assert 'grid-cols-[4.75rem_minmax(0,1fr)]' in operations
+    assert "Døgnforløp" not in operations
 
 
 def test_specialized_views_have_narrow_proxy_access() -> None:
