@@ -12,6 +12,32 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1760",
+        "date": "15.08.2026",
+        "headline": "Vannsperren bruker verifisert timerformat",
+        "title": "Roborock-modellenes faktiske planprotokoll er kontrollert mot robot",
+        "description": (
+            "Produksjonskontrollen av build 1759 viste at robotene beholdt vaskeplanene på selv om kommandoen "
+            "ble besvart uten feil. Parameterformatet er derfor kontrollert direkte ved å slå én plan av og på "
+            "igjen. Loggeren sender nå det nestede timerformatet modellene faktisk krever, og beholder fortsatt "
+            "ny avlesning som fasit før en plan registreres som sperret."
+        ),
+        "applications": [
+            "Roborock_logger: korrigert og verifisert parameterformat for server-timere.",
+            "Fibaro10 build 1760: dokumenterer korrigeringen i felles buildlogg.",
+        ],
+        "request": "Få frem alle vanndata og sperr vaskejobber straks rentvann i dokken er tomt.",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Endrer UPD_SERVER_TIMER fra objektinnpakning til robotens verifiserte liste av timerpar.",
+            "Tester en aktiv VIP-plan av og på og bekrefter status med GET_SERVER_TIMER etter begge endringer.",
+            "Legger inn regresjonstest som låser det korrekte nestede parameterformatet.",
+            "Beholder sikkerhetsregelen om at en plan bare regnes som sperret etter vellykket avlesning.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1759",
         "date": "15.08.2026",
         "headline": "Tom rentvannsdokk sperrer vaskeplaner automatisk",

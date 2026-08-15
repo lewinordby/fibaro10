@@ -21,6 +21,7 @@ from zoneinfo import ZoneInfo
 from .water_interlock import (
     clear_water_state,
     interlock_label,
+    server_timer_update_params,
     timer_status_map,
     wash_schedule_rows,
 )
@@ -530,7 +531,7 @@ async def update_server_timer_statuses(duid: str, updates: dict[str, str]) -> di
                 await asyncio.wait_for(
                     rpc.send_command(
                         RoborockCommand.UPD_SERVER_TIMER,
-                        params={"data": [[timer_id, status] for timer_id, status in pending.items()], "need_retry": 1},
+                        params=server_timer_update_params(pending),
                     ),
                     timeout=6,
                 )

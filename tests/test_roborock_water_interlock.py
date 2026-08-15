@@ -5,6 +5,7 @@ from roborock_logger.app.water_interlock import (
     clear_water_state,
     schedule_timer_id,
     schedule_uses_water,
+    server_timer_update_params,
     timer_status_map,
     wash_schedule_rows,
 )
@@ -40,6 +41,10 @@ def test_water_interlock_helpers_distinguish_wash_from_vacuum() -> None:
         "vacuum": "on",
         "wash": "off",
     }
+    assert server_timer_update_params({"vacuum": "on", "wash": "off"}) == [
+        ["vacuum", "on"],
+        ["wash", "off"],
+    ]
     assert clear_water_state({"clear_water_status": 0}) == "ok"
     assert clear_water_state({"clear_water_status": 1}) == "empty"
     assert clear_water_state({}) == "unknown"

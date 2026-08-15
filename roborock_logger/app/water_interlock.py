@@ -67,6 +67,14 @@ def timer_status_map(value: Any) -> dict[str, str]:
     return statuses
 
 
+def server_timer_update_params(updates: dict[str, str]) -> list[list[str]]:
+    return [
+        [str(timer_id), status]
+        for timer_id, status in updates.items()
+        if status in {"on", "off"}
+    ]
+
+
 def clear_water_state(telemetry: dict[str, Any]) -> str:
     code = int_value(telemetry.get("clear_water_status"))
     if code is None:
