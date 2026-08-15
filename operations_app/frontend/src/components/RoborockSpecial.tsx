@@ -208,37 +208,38 @@ function DayActivity({ label, day, latest }: { label: string; day?: RoborockDail
   </div>;
 }
 
-function isSupportedResource(value: unknown) {
-  const text = String(value || "").trim().toLocaleLowerCase("nb-NO");
-  return Boolean(text && text !== "-" && text !== "ikke støttet");
+function nextPlanLabel(robot: RoborockRobotSummary) {
+  if (!robot.schedules?.next_label) return "Ingen aktiv plan";
+  return `${robot.schedules.next_label}${robot.schedules.active_count > 1 ? ` · ${robot.schedules.active_count} planer` : ""}`;
 }
 
-function ResourceValue({ label, value }: { label: string; value?: string | null }) {
-  return <div className="min-w-0"><span className="block text-[0.65rem] font-semibold uppercase text-gray-400">{label}</span><strong className={`mt-0.5 block truncate text-xs font-medium ${telemetryTone(value)}`} title={value || "Ikke mottatt"}>{value || "-"}</strong></div>;
+function pausedPlanLabel(interlock: RoborockReadinessSummary["water_interlock"]) {
+  const count = interlock?.paused_count || 0;
+  return count ? `${count} ${count === 1 ? "plan" : "planer"} pauset` : "Vannsperre aktiv";
 }
 
-function OverviewDayActivity({ robot }: { robot: RoborockRobotSummary }) {
-  const today = robot.today || emptyDay;
-  const yesterday = robot.yesterday || emptyDay;
-  const todayJobs = today.job_count === 1 ? "1 jobb" : `${today.job_count} jobber`;
-  const yesterdayJobs = yesterday.job_count === 1 ? "1 jobb" : `${yesterday.job_count} jobber`;
-  const latest = robot.latest_job_today;
-  return <div className="border-b border-gray-100 dark:border-gray-700/60">
-    <div className="px-5 py-3.5">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <strong className="text-sm font-semibold text-gray-800 dark:text-gray-100">I dag</strong>
-        <span className="text-xs font-medium tabular-nums text-gray-400">{todayJobs}</span>
-      </div>
-      {today.job_count ? <>
-        <div className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 tabular-nums"><strong className="text-lg font-semibold text-gray-800 dark:text-gray-100">{durationLabel(today.duration_minutes)}</strong><span className="text-sm font-medium text-gray-500 dark:text-gray-300">{decimal(today.cleaned_area_m2, 1)} m²</span></div>
-        <p className={`mt-1 text-xs font-medium ${jobTone(latest)}`}>{latest?.status === "complete" ? "Siste ferdige" : "Siste registrerte"}{latest?.begin_at ? ` kl. ${jobTime(latest.begin_at)}` : ""}{latest?.status_label ? ` · ${latest.status_label}` : ""}</p>
-      </> : <p className="mt-2 text-sm text-gray-400">Ingen rengjøring registrert i dag</p>}
-    </div>
-    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-gray-50/70 px-5 py-2.5 text-xs dark:bg-gray-900/20">
-      <span className="font-semibold text-gray-500 dark:text-gray-300">I går <span className="ml-1 font-normal text-gray-400">{yesterdayJobs}</span></span>
-      <span className="tabular-nums text-gray-500 dark:text-gray-400">{yesterday.job_count ? `${durationLabel(yesterday.duration_minutes)} · ${decimal(yesterday.cleaned_area_m2, 1)} m²` : "Ingen rengjøring"}</span>
-    </div>
-  </div>;
+function FleetAttention({ robots }: { robots: RoborockRobotSummary[] }) {
+  const attentionRobots = robots.filter((robot) => ["attention", "offline"].includes(robot.readiness?.status || ""));
+  if (!attentionRobots.length) return <section className="flex items-center justify-between gap-4 rounded-lg border border-green-200 bg-green-50/70 px-4 py-2.5 text-green-800 shadow-xs dark:border-green-500/25 dark:bg-green-500/10 dark:text-green-300">
+    <span className="flex items-center gap-2 text-sm font-semibold"><i className="h-2 w-2 rounded-full bg-green-500" />Alle tilkoblede roboter er klare</span>
+    <small className="text-green-700/75 dark:text-green-300/70">Ingen forhold krever handling</small>
+  </section>;
+  return <section className="overflow-hidden rounded-lg border border-red-200 bg-white shadow-xs dark:border-red-500/30 dark:bg-gray-800">
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-red-100 bg-red-50/70 px-4 py-2.5 dark:border-red-500/20 dark:bg-red-500/10">
+      <div className="flex items-center gap-2"><span className="flex h-7 w-7 items-center justify-center rounded-md bg-red-500/10 text-red-600 dark:text-red-400"><MosaicIcon name="warning" size={15} /></span><span><strong className="block text-sm font-semibold text-red-800 dark:text-red-300">Må håndteres</strong><small className="block text-[0.7rem] text-red-700/70 dark:text-red-300/70">Forhold som kan påvirke neste planlagte jobb</small></span></div>
+      <span className="rounded-full bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-700 dark:text-red-300">{attentionRobots.length} {attentionRobots.length === 1 ? "robot" : "roboter"}</span>
+    </header>
+    <div className="grid divide-y divide-red-100 xl:grid-cols-3 xl:divide-x xl:divide-y-0 dark:divide-red-500/20">{attentionRobots.map((robot) => {
+      const readiness = robot.readiness;
+      const issues = readiness?.issues?.length ? readiness.issues.join(" · ") : readiness?.label || "Status må kontrolleres";
+      const interlock = readiness?.water_interlock;
+      return <AppLink className="group min-w-0 px-4 py-2.5 transition hover:bg-red-50/60 dark:hover:bg-red-500/5" key={robot.duid} to={`/renhold/robot/${encodeURIComponent(robot.duid)}`}>
+        <div className="flex items-center justify-between gap-3"><strong className="truncate text-sm font-semibold text-gray-800 dark:text-gray-100">{robot.name}</strong><span className="shrink-0 text-[0.68rem] font-semibold text-red-600 dark:text-red-400">{readiness?.label || "Kontroller"}</span></div>
+        <p className="mt-1 line-clamp-2 text-xs font-medium text-red-700 dark:text-red-300" title={issues}>{issues}</p>
+        <div className="mt-1.5 flex items-center justify-between gap-3 text-[0.68rem] text-gray-400"><span className="truncate" title={nextPlanLabel(robot)}>Neste: {nextPlanLabel(robot)}</span><span className={`shrink-0 ${interlock?.status === "blocked" ? "font-semibold text-amber-700 dark:text-amber-300" : ""}`}>{interlock?.status === "blocked" ? pausedPlanLabel(interlock) : "Åpne"}</span></div>
+      </AppLink>;
+    })}</div>
+  </section>;
 }
 
 function RobotCard({ robot }: { robot: RoborockRobotSummary }) {
@@ -249,45 +250,31 @@ function RobotCard({ robot }: { robot: RoborockRobotSummary }) {
     issues: robot.last_error ? [robot.last_error] : [],
   } as RoborockReadinessSummary;
   const style = readinessStyle(readiness.status);
-  const consumables = robot.consumables;
-  const resources = [
-    ["Rentvann i dokk", readiness.clear_water_label],
-    ["Skittentvann i dokk", readiness.dirty_water_label],
-    ["Støvpose i dokk", readiness.dust_bag_label],
-    ["Dokkstatus", readiness.dock_error_label],
-    ["Vannmangel i robot", readiness.robot_water_label],
-    ["Vanntank i robot", readiness.water_box_label],
-    ["Mopp montert", readiness.mop_attached_label],
-    ["Vannfilter", readiness.water_filter_label],
-    ["Automatisk vannsperre", readiness.water_interlock?.label],
-  ].filter(([, value]) => isSupportedResource(value));
-  const nextPlan = robot.schedules?.next_label
-    ? `${robot.schedules.next_label}${robot.schedules.active_count > 1 ? ` · ${robot.schedules.active_count} planer` : ""}`
-    : "Ingen aktiv plan";
-  if (robot.integration_status === "pending") return <AppLink className="group flex min-h-72 flex-col overflow-hidden rounded-lg border border-amber-200 bg-white shadow-xs transition hover:border-amber-400 hover:shadow-md dark:border-amber-500/30 dark:bg-gray-800" to="/renhold/dreame">
-    <div className="flex items-center justify-between gap-4 border-b border-amber-100 px-5 py-3.5 dark:border-amber-500/20">
-      <span className="flex min-w-0 items-center gap-3"><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${style.icon}`}><MosaicIcon name="robot" size={18} /></span><span className="min-w-0"><span className="flex items-center gap-2"><strong className="block truncate text-base font-semibold text-gray-800 dark:text-gray-100">{robot.name}</strong><small className="rounded bg-gray-100 px-1.5 py-0.5 text-[0.65rem] font-semibold uppercase text-gray-500 dark:bg-gray-700 dark:text-gray-300">Dreame</small></span><small className="block text-xs text-gray-400">Ny robot · integrasjonen er klargjort</small></span></span>
-      <span className={`inline-flex shrink-0 items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold ${style.badge}`}><span className={`h-2 w-2 rounded-full ${style.dot}`} />{readiness.label}</span>
-    </div>
-    <div className="flex flex-1 flex-col justify-center px-5 py-5"><span className="text-xs font-semibold uppercase text-gray-400">Gjenstår før første synk</span><ol className="mt-3 space-y-2 text-sm text-gray-600 dark:text-gray-300"><li className="flex gap-3"><span className="font-semibold tabular-nums text-amber-600 dark:text-amber-300">01</span>Legg Aqua10 til i Dreamehome.</li><li className="flex gap-3"><span className="font-semibold tabular-nums text-amber-600 dark:text-amber-300">02</span>Koble Dreame-kontoen til loggeren.</li><li className="flex gap-3"><span className="font-semibold tabular-nums text-amber-600 dark:text-amber-300">03</span>Første synk oppretter roboten automatisk.</li></ol></div>
-    <div className="flex items-center justify-between bg-amber-50/60 px-5 py-2.5 text-xs dark:bg-amber-500/5"><span className="text-amber-800 dark:text-amber-300">Ingen konstruerte måleverdier vises</span><span className="flex items-center gap-1 font-semibold text-amber-700 dark:text-amber-300">Åpne oppsett <MosaicIcon name="arrow-right" size={14} /></span></div>
+  const today = robot.today || emptyDay;
+  const latest = robot.latest_job_today;
+  const latestTime = latest?.status === "complete" ? latest.end_at || latest.begin_at : latest?.begin_at;
+  const nextPlan = nextPlanLabel(robot);
+  const interlock = readiness.water_interlock;
+  if (robot.integration_status === "pending") return <AppLink className="group flex items-center justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-3 shadow-xs transition hover:border-amber-400 hover:bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/5 dark:hover:border-amber-400/60" to="/renhold/dreame">
+    <span className="flex min-w-0 items-center gap-3"><span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${style.icon}`}><MosaicIcon name="robot" size={16} /></span><span className="min-w-0"><span className="flex items-center gap-2"><strong className="truncate text-sm font-semibold text-gray-800 dark:text-gray-100">{robot.name}</strong><small className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[0.62rem] font-semibold uppercase text-amber-700 dark:text-amber-300">Dreame</small></span><small className="block truncate text-xs text-gray-500 dark:text-gray-400">Klargjort · venter på tilkobling og første synk</small></span></span>
+    <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-amber-700 dark:text-amber-300">Fullfør oppsett <MosaicIcon name="arrow-right" size={14} /></span>
   </AppLink>;
   return <AppLink className="group flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xs transition hover:border-green-400 hover:shadow-md dark:border-gray-700/60 dark:bg-gray-800 dark:hover:border-green-500/70" to={`/renhold/robot/${encodeURIComponent(robot.duid)}`}>
-    <div className="flex items-center justify-between gap-4 border-b border-gray-100 px-5 py-3.5 dark:border-gray-700/60">
-      <span className="flex min-w-0 items-center gap-3"><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${style.icon}`}><MosaicIcon name="robot" size={18} /></span><span className="min-w-0"><span className="flex items-center gap-2"><strong className="block truncate text-base font-semibold text-gray-800 dark:text-gray-100">{robot.name}</strong><small className="rounded bg-gray-100 px-1.5 py-0.5 text-[0.65rem] font-semibold uppercase text-gray-500 dark:bg-gray-700 dark:text-gray-300">{robot.provider_label || "Roborock"}</small></span><small className="block truncate text-xs text-gray-400" title={robot.model || undefined}>Oppdatert {relativeStamp(readiness.telemetry_at || robot.status_at || robot.last_seen_at)}</small></span></span>
+    <div className="flex items-center justify-between gap-4 border-b border-gray-100 px-4 py-2.5 dark:border-gray-700/60">
+      <span className="flex min-w-0 items-center gap-2.5"><span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${style.icon}`}><MosaicIcon name="robot" size={16} /></span><span className="min-w-0"><span className="flex items-center gap-2"><strong className="block truncate text-sm font-semibold text-gray-800 dark:text-gray-100">{robot.name}</strong><small className="rounded bg-gray-100 px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase text-gray-500 dark:bg-gray-700 dark:text-gray-300">{robot.provider_label || "Roborock"}</small></span><small className="block truncate text-[0.68rem] text-gray-400" title={robot.model || undefined}>Oppdatert {relativeStamp(readiness.telemetry_at || robot.status_at || robot.last_seen_at)}</small></span></span>
       <span className={`inline-flex shrink-0 items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold ${style.badge}`}><span className={`h-2 w-2 rounded-full ${style.dot}`} />{readiness.label}</span>
     </div>
-    <div className="grid grid-cols-[minmax(0,0.8fr)_auto_minmax(0,1.35fr)] gap-5 border-b border-gray-100 px-5 py-3 dark:border-gray-700/60">
-      <div className="min-w-0"><span className="block text-[0.68rem] font-semibold uppercase text-gray-400">Nå</span><strong className="mt-0.5 block truncate text-sm font-medium text-gray-700 dark:text-gray-200">{robotStateLabel(robot.state_name)}</strong></div>
-      <div><span className="block text-[0.68rem] font-semibold uppercase text-gray-400">Batteri</span><strong className="mt-0.5 block text-sm font-medium tabular-nums text-gray-700 dark:text-gray-200">{robot.battery == null ? "-" : `${robot.battery} %`}</strong></div>
-      <div className="min-w-0 text-right"><span className="block text-[0.68rem] font-semibold uppercase text-gray-400">Neste plan</span><strong className="mt-0.5 block truncate text-sm font-medium text-gray-700 dark:text-gray-200" title={nextPlan}>{nextPlan}</strong></div>
+    <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-b border-gray-100 px-4 py-2.5 sm:grid-cols-[0.75fr_0.65fr_0.85fr_1.55fr] dark:border-gray-700/60">
+      <div className="min-w-0"><span className="block text-[0.62rem] font-semibold uppercase text-gray-400">Nå</span><strong className="mt-0.5 block truncate text-sm font-medium text-gray-700 dark:text-gray-200">{robotStateLabel(robot.state_name)}</strong></div>
+      <div><span className="block text-[0.62rem] font-semibold uppercase text-gray-400">Batteri</span><strong className="mt-0.5 block text-sm font-medium tabular-nums text-gray-700 dark:text-gray-200">{robot.battery == null ? "-" : `${robot.battery} %`}</strong></div>
+      <div><span className="block text-[0.62rem] font-semibold uppercase text-gray-400">I dag</span><strong className="mt-0.5 block whitespace-nowrap text-sm font-medium tabular-nums text-gray-700 dark:text-gray-200">{today.job_count} {today.job_count === 1 ? "jobb" : "jobber"}</strong></div>
+      <div className="min-w-0 sm:text-right"><span className="block text-[0.62rem] font-semibold uppercase text-gray-400">Neste plan</span><strong className="mt-0.5 block truncate text-sm font-medium text-gray-700 dark:text-gray-200" title={nextPlan}>{nextPlan}</strong></div>
     </div>
-    {readiness.issues.length ? <div className="flex items-start gap-2 border-b border-red-100 bg-red-50 px-5 py-2.5 text-xs text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"><MosaicIcon className="mt-0.5" name="warning" size={14} /><span>{readiness.issues.join(" · ")}</span></div> : null}
     {robot.active_cycle ? <ActiveCycleBand cycle={robot.active_cycle} compact /> : null}
-    <OverviewDayActivity robot={robot} />
-    {resources.length ? <div className="grid grid-cols-2 gap-x-4 gap-y-3 border-b border-gray-100 px-5 py-3 xl:grid-cols-3 dark:border-gray-700/60">{resources.map(([label, value]) => <ResourceValue key={label} label={String(label)} value={value} />)}</div> : null}
-    {consumables && readiness.issues.length ? <div className="flex flex-wrap gap-x-4 gap-y-1 border-b border-gray-100 bg-gray-50/70 px-5 py-2 text-[0.7rem] text-gray-400 dark:border-gray-700/60 dark:bg-gray-900/20"><strong className="font-semibold text-gray-500 dark:text-gray-300">Forbruksdeler</strong><span>H.børste {consumables.main_brush || "-"}</span><span>S.børste {consumables.side_brush || "-"}</span><span>Filter {consumables.filter || "-"}</span></div> : null}
-    <div className="mt-auto flex items-center justify-end px-5 py-2.5 text-xs"><span className="flex items-center gap-1 font-medium text-green-700 dark:text-green-400">Se robot <MosaicIcon name="arrow-right" size={14} /></span></div>
+    <div className="flex min-h-10 flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-gray-50/60 px-4 py-2 text-xs dark:bg-gray-900/20">
+      <span className="tabular-nums text-gray-500 dark:text-gray-300">{today.job_count ? `${durationLabel(today.duration_minutes)} · ${decimal(today.cleaned_area_m2, 1)} m²${latestTime ? ` · siste ${jobTime(latestTime)}` : ""}` : "Ingen rengjøring registrert i dag"}</span>
+      <span className={`flex items-center gap-1.5 font-medium ${interlock?.status === "blocked" ? "text-amber-700 dark:text-amber-300" : readiness.status === "attention" ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}><i className={`h-1.5 w-1.5 rounded-full ${interlock?.status === "blocked" ? "bg-amber-500" : style.dot}`} />{interlock?.status === "blocked" ? pausedPlanLabel(interlock) : readiness.label}<MosaicIcon name="arrow-right" size={13} /></span>
+    </div>
   </AppLink>;
 }
 
@@ -297,20 +284,24 @@ function OverviewStrip({ summary, robots }: { summary?: RoborockOverviewSummary 
   const activeNames = robots.filter((robot) => robot.readiness?.status === "active" || robot.active_cycle).map((robot) => robot.name);
   return <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xs dark:border-gray-700/60 dark:bg-gray-800">
     <div className="grid sm:grid-cols-2 xl:grid-cols-4">
-      <div className="border-b border-gray-100 px-5 py-3.5 sm:border-r xl:border-b-0 dark:border-gray-700/60"><span className="text-xs font-semibold uppercase text-gray-400">Robotpark</span><strong className="mt-1 block text-lg font-semibold tabular-nums text-gray-800 dark:text-gray-100">{summary.connected_count ?? summary.robot_count} i drift</strong><small className="text-gray-400">{summary.pending_count ? `${summary.pending_count} klargjort · ` : ""}oppdatert {relativeStamp(summary.updated_at)}</small></div>
-      <div className="border-b border-gray-100 px-5 py-3.5 xl:border-b-0 xl:border-r dark:border-gray-700/60"><span className="text-xs font-semibold uppercase text-gray-400">Rengjør nå</span><strong className="mt-1 block text-lg font-semibold tabular-nums text-sky-700 dark:text-sky-400">{summary.active_count}</strong><small className="block truncate text-gray-400" title={activeNames.join(", ")}>{activeNames.length ? activeNames.join(", ") : "Ingen aktive jobber"}</small></div>
-      <div className="border-b border-gray-100 px-5 py-3.5 sm:border-b-0 sm:border-r dark:border-gray-700/60"><span className="text-xs font-semibold uppercase text-gray-400">Utført i dag</span><strong className="mt-1 block text-lg font-semibold tabular-nums text-gray-800 dark:text-gray-100">{summary.jobs_today} jobber</strong><small className="text-gray-400">{durationLabel(summary.duration_today)} · {decimal(summary.area_today, 1)} m²</small></div>
-      <div className="px-5 py-3.5"><span className="text-xs font-semibold uppercase text-gray-400">Driftsavvik</span><strong className={`mt-1 block text-lg font-semibold tabular-nums ${attention ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>{attention ? `${attention} krever tilsyn` : "Ingen avvik"}</strong><small className="text-gray-400">Tilkoblede roboter</small></div>
+      <div className="border-b border-gray-100 px-4 py-2.5 sm:border-r xl:border-b-0 dark:border-gray-700/60"><span className="text-[0.62rem] font-semibold uppercase text-gray-400">Robotpark</span><strong className="mt-0.5 block text-base font-semibold tabular-nums text-gray-800 dark:text-gray-100">{summary.connected_count ?? summary.robot_count} tilkoblet</strong><small className="text-gray-400">{summary.pending_count ? `${summary.pending_count} klargjort · ` : ""}oppdatert {relativeStamp(summary.updated_at)}</small></div>
+      <div className="border-b border-gray-100 px-4 py-2.5 xl:border-b-0 xl:border-r dark:border-gray-700/60"><span className="text-[0.62rem] font-semibold uppercase text-gray-400">Aktive nå</span><strong className="mt-0.5 block text-base font-semibold tabular-nums text-sky-700 dark:text-sky-400">{summary.active_count}</strong><small className="block truncate text-gray-400" title={activeNames.join(", ")}>{activeNames.length ? activeNames.join(", ") : "Ingen rengjøring pågår"}</small></div>
+      <div className="border-b border-gray-100 px-4 py-2.5 sm:border-b-0 sm:border-r dark:border-gray-700/60"><span className="text-[0.62rem] font-semibold uppercase text-gray-400">Utført i dag</span><strong className="mt-0.5 block text-base font-semibold tabular-nums text-gray-800 dark:text-gray-100">{summary.jobs_today} jobber</strong><small className="text-gray-400">{durationLabel(summary.duration_today)} · {decimal(summary.area_today, 1)} m²</small></div>
+      <div className="px-4 py-2.5"><span className="text-[0.62rem] font-semibold uppercase text-gray-400">Må håndteres</span><strong className={`mt-0.5 block text-base font-semibold tabular-nums ${attention ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>{attention ? `${attention} roboter` : "Ingen"}</strong><small className="text-gray-400">{attention ? "se konkrete forhold under" : "alle tilkoblede er klare"}</small></div>
     </div>
   </section>;
 }
 
 function RobotOverview({ data }: { data: RoborockModuleData }) {
   const robots = data.robots || [];
-  return <div className="space-y-4">
+  const connectedRobots = robots.filter((robot) => robot.integration_status !== "pending");
+  const pendingRobots = robots.filter((robot) => robot.integration_status === "pending");
+  return <div className="space-y-3">
     <OverviewStrip summary={data.summary} robots={robots} />
+    <FleetAttention robots={connectedRobots} />
+    <div className="grid items-start gap-3 xl:grid-cols-2">{connectedRobots.map((robot) => <RobotCard robot={robot} key={robot.duid} />)}</div>
+    {pendingRobots.map((robot) => <RobotCard robot={robot} key={robot.duid} />)}
     {data.timeline ? <DayTimeline timeline={data.timeline} robots={robots} /> : null}
-    <div className="grid items-start gap-5 md:grid-cols-2">{robots.map((robot) => <RobotCard robot={robot} key={robot.duid} />)}</div>
     {!robots.length ? <Panel><div className="p-8 text-sm text-gray-400">Ingen roboter er registrert.</div></Panel> : null}
   </div>;
 }

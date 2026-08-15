@@ -12,6 +12,38 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1773",
+        "date": "15.08.2026",
+        "headline": "Renhold-oversikten prioriterer det som krever handling",
+        "title": "En kortere operativ forside samler avvik, robotstatus og dagens renhold",
+        "description": (
+            "Renhold-oversikten er bygget om til en kompakt kontrollflate. Alle forhold som krever handling "
+            "samles øverst med robot, konkret årsak, neste plan og status for vannsperren. Robotkortene viser "
+            "deretter bare tilstand nå, batteri, dagens utførelse og neste plan. Tekniske normalverdier, "
+            "gårsdagens statistikk og forbruksdeler er fjernet fra oversikten og beholdes på detaljsidene."
+        ),
+        "applications": [
+            "Fibaro10 build 1773: registrerer den nye operative informasjonsstrukturen.",
+            "Bygg og drift build 83: innfører handlingsflate, kompakte robotkort og kort Aqua10-status.",
+        ],
+        "request": (
+            "Gjør en grundig vurdering av Renhold-oversikten slik at den gir et komplett og oversiktlig bilde "
+            "av det viktigste å ta stilling til, uten støy og uten at siden blir for lang."
+        ),
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Samler alle reelle driftsavvik i én prioritert Må håndteres-flate.",
+            "Viser årsak, neste plan og antall planer pauset av vannsperren per berørt robot.",
+            "Reduserer hvert robotkort til nåstatus, batteri, dagens jobber, utført tid og neste plan.",
+            "Fjerner normale beholderverdier, gårsdagstall og forbruksdeler fra den operative oversikten.",
+            "Beholder dagens 1.etg B-tidslinje i et kompakt felt nederst.",
+            "Komprimerer Aqua10-oppsettet til én tydelig statusrad.",
+            "Bruker sluttidspunktet når oversikten viser siste ferdige jobb.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1772",
         "date": "15.08.2026",
         "headline": "Nattrapporten skiller øvrige og uklassifiserte jobber",

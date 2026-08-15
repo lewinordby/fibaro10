@@ -93,6 +93,12 @@ Renhold -> Oversikt
 
 Derfra kan man åpne hver robot og se status, teknisk identitet, siste jobber, planer, kart og rå statuspakker.
 
+Oversikten er en operativ kontrollflate. Øverst vises samlet robotpark, aktive jobber, dagens rengjøring og antall
+roboter som krever handling. Reelle avvik listes deretter med årsak, neste plan og eventuell vannsperre. De
+kompakte robotkortene viser bare tilstand nå, batteri, dagens jobber og neste plan. Normale beholderverdier,
+gårsdagens historikk, forbruksdeler og øvrig telemetri ligger på robotsiden eller i Nattrapporten, slik at
+oversikten ikke skjuler det som faktisk må følges opp.
+
 I robotdetaljen vises også komplett telemetri. Dynamisk status leses hvert minutt. En bredere kontroll av
 modellspesifikke lesekall kjøres hvert 15. minutt. Se `docs/roborock-telemetri.md` for hele feltkatalogen.
 
