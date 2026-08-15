@@ -309,6 +309,46 @@ export type RoborockWaterReport = {
   measurementNote: string;
 };
 
+export type RoborockRefillLog = {
+  period: {
+    week: string;
+    weekNumber: number;
+    year: number;
+    fromDay: string;
+    toDay: string;
+    generatedAt: string;
+    isCurrentWeek: boolean;
+    currentWeek: string;
+    previousWeek: string;
+    nextWeek: string;
+    canNext: boolean;
+  };
+  summary: {
+    fills: number;
+    robots: number;
+    robotsWithFills: number;
+    latestAt?: string | null;
+    averageIntervalMinutes?: number | null;
+  };
+  robots: Array<{
+    duid: string;
+    name: string;
+    count: number;
+    lastAt?: string | null;
+    averageIntervalMinutes?: number | null;
+  }>;
+  events: Array<{
+    id: string;
+    robotDuid: string;
+    robotName: string;
+    timestamp: string;
+    previousLabel: string;
+    currentLabel: string;
+    minutesSincePrevious?: number | null;
+  }>;
+  measurementNote: string;
+};
+
 export type RoborockDayTimelineJob = {
   recordId: string;
   startedAt: string;

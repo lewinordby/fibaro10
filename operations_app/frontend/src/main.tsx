@@ -60,6 +60,16 @@ function withRobotNavigation(config: DomainUiConfig, data: ModuleResponse | null
       view: "vann",
       corePath: "/renhold/vann",
     };
+    const refill: NavigationItem = {
+      to: "/renhold/pafylling",
+      label: "Påfylling",
+      icon: "refresh",
+      title: "Påfyllingslogg",
+      description: "Ukelogg for når renholdspersonalet fyller rentvannstanken i robotdokkene.",
+      module: "renhold",
+      view: "pafylling",
+      corePath: "/renhold/pafylling",
+    };
     const robotItems: NavigationItem[] = robots.map((robot) => {
       if (robot.integration_status === "pending") return {
         to: "/renhold/dreame",
@@ -83,7 +93,7 @@ function withRobotNavigation(config: DomainUiConfig, data: ModuleResponse | null
         corePath: `/renhold/robot/${encodedDuid}`,
       };
     });
-    return { ...group, items: [overview, report, water, ...robotItems] };
+    return { ...group, items: [overview, report, water, refill, ...robotItems] };
   });
   return { ...config, navigation };
 }

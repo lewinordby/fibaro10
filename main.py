@@ -85,6 +85,7 @@ from roborock_profiles import (
 )
 from roborock_reports import build_night_report, build_schedule_check, report_window
 from roborock_water import build_water_report
+from roborock_refills import build_refill_log, iso_week_start
 from roborock_door_automation import (
     automation_counter_start,
     automation_decision,
@@ -40175,6 +40176,56 @@ async def api_cleaning_water_report(days: int = Query(default=7, ge=1, le=90)):
         list(events),
         list(probes),
         generated_at=now,
+    )
+
+
+@app.get("/api/renhold/refill-log")
+async def api_cleaning_refill_log(week: Optional[str] = Query(default=None)):
+    now = local_now_naive()
+    try:
+        selected_week = iso_week_start(week, today=now.date())
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    period_start = datetime.combine(selected_week, time.min)
+    period_end = datetime.combine(selected_week + timedelta(days=7), time.min)
+    query_end = min(period_end, now)
+    async with async_session() as session:
+        robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
+        robot_duids = [robot.duid for robot in robots]
+        latest_telemetry_subq = (
+            select(func.max(RoborockTelemetrySample.id).label("latest_id"))
+            .where(RoborockTelemetrySample.robot_duid.in_(robot_duids or [""]))
+            .where(RoborockTelemetrySample.clear_water_status.is_not(None))
+            .group_by(RoborockTelemetrySample.robot_duid)
+            .subquery()
+        )
+        telemetry_samples = (
+            await session.execute(
+                select(RoborockTelemetrySample).join(
+                    latest_telemetry_subq,
+                    RoborockTelemetrySample.id == latest_telemetry_subq.c.latest_id,
+                )
+            )
+        ).scalars().all()
+        events = (
+            await session.execute(
+                select(RoborockTelemetryEvent)
+                .where(RoborockTelemetryEvent.robot_duid.in_(robot_duids or [""]))
+                .where(RoborockTelemetryEvent.field_name == "clear_water_status")
+                .where(RoborockTelemetryEvent.timestamp >= period_start)
+                .where(RoborockTelemetryEvent.timestamp < query_end)
+                .order_by(RoborockTelemetryEvent.timestamp, RoborockTelemetryEvent.id)
+            )
+        ).scalars().all()
+    water_capable_duids = {
+        row.robot_duid for row in telemetry_samples if row.clear_water_status is not None
+    }
+    return build_refill_log(
+        selected_week,
+        list(robots),
+        list(events),
+        generated_at=now,
+        water_capable_duids=water_capable_duids,
     )
 
 

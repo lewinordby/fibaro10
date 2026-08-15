@@ -26,6 +26,7 @@ import type {
   RoborockWaterRobot,
 } from "../roborock-types";
 import { MosaicIcon, Panel } from "@lilletorget/microapp-ui";
+import { RefillLog } from "./RefillLog";
 
 const emptyDay: RoborockDailySummary = {
   job_count: 0,
@@ -1240,6 +1241,7 @@ export function RoborockSpecial({ data }: { data: RoborockModuleData }) {
   const robots = data.robots || [];
   if (pathname === "/renhold/rapport") return <NightReport />;
   if (pathname === "/renhold/vann") return <WaterReport />;
+  if (pathname === "/renhold/pafylling") return <RefillLog />;
   if (pathname === "/renhold/dreame") return <DreameOnboarding robot={robots.find((robot) => robot.provider === "dreame")} />;
   const match = pathname.match(/^\/renhold\/robot\/([^/]+)$/);
   const selected = match ? decodeURIComponent(match[1]) : "";

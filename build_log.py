@@ -12,6 +12,34 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1755",
+        "date": "15.08.2026",
+        "headline": "Renhold har fått ukelogg for fylling av rentvann",
+        "title": "Fysisk påfylling av robotdokkene kan følges uke for uke",
+        "description": (
+            "En egen side under Renhold viser når personalet har fylt rentvannstanken i hver Roborock-dokk. "
+            "Loggen bygger bare på den faktiske statusovergangen fra tom tank til OK, og kan blas ukevis "
+            "med tydelig klokkeslett, robotnavn og tid siden forrige fylling."
+        ),
+        "applications": [
+            "Fibaro10 build 1755: nytt ukeavgrenset API for rentvannspåfyllinger i dokkene.",
+            "Bygg og drift build 69: ny Renhold / Påfylling-side med ukevelger og hendelseslogg.",
+        ],
+        "request": "Kan du lage en egen side/logg for når det blir fylt vann i robotene, en liste hvor du også kan bla i uker eller noe. Presisert: når dokken går fra å være tom til å bli full, altså når renholdspersonalet fyller dokken.",
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Registrerer bare overgangen Rentvann fra Tom til OK i dokken.",
+            "Skiller denne loggen fra moppevask, skittentvann og robotens interne vannstatus.",
+            "Viser nyeste hendelse først, gruppert per dag i valgt uke.",
+            "Legger inn forrige uke, neste uke, denne uken og kalenderbasert ukevelger.",
+            "Beregner tid siden forrige fylling separat for hver dokk.",
+            "Avgrenser sammendraget til roboter som faktisk rapporterer rentvannstatus fra dokken.",
+            "Forklarer at tidspunktet er første statusavlesning etter fysisk fylling, fordi API-et ikke rapporterer liter eller eksakt fyllingsgrad.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1754",
         "date": "15.08.2026",
         "headline": "Robotstatus er avsluttet som én konsistent leveranse",

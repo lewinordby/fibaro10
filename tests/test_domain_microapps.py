@@ -409,6 +409,17 @@ def test_roborock_water_report_is_available_in_operations() -> None:
     assert "Moppevaskintervall" in detail
 
 
+def test_roborock_refill_log_is_available_in_operations() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    core = (repo_root / "main.py").read_text(encoding="utf-8")
+    operations = (repo_root / "operations_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
+    detail = (repo_root / "operations_app" / "frontend" / "src" / "components" / "RefillLog.tsx").read_text(encoding="utf-8")
+    assert '@app.get("/api/renhold/refill-log")' in core
+    assert 'to: "/renhold/pafylling"' in operations
+    assert "function RefillLog()" in detail
+    assert "rentvannstanken i dokken" in detail
+
+
 def test_roborock_overview_includes_the_full_day_timeline() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     core = (repo_root / "main.py").read_text(encoding="utf-8")
@@ -499,6 +510,10 @@ def test_operations_proxy_allows_roborock_cleaning_profile_endpoints() -> None:
 
 def test_operations_proxy_allows_roborock_water_report_endpoint() -> None:
     assert operations_main.DOMAIN_PATTERN.fullmatch("renhold/water-report")
+
+
+def test_operations_proxy_allows_roborock_refill_log_endpoint() -> None:
+    assert operations_main.DOMAIN_PATTERN.fullmatch("renhold/refill-log")
 
 
 def test_shared_proxy_preserves_case_sensitive_dynamic_ids() -> None:
