@@ -1,18 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
 
+const CACHE_FRESH_MS = 15 * 1000;
 const CACHE_TTL_MS = 2 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 80;
-const responseCache = new Map<string, { storedAt: number; value: unknown }>();
+type CacheEntry = { storedAt: number; value: unknown };
+const responseCache = new Map<string, CacheEntry>();
 const pendingLoads = new Map<string, Promise<unknown>>();
 
-function cachedValue<T>(key: string): T | null {
+function cachedEntry(key: string): CacheEntry | null {
   const cached = responseCache.get(key);
   if (!cached) return null;
   if (Date.now() - cached.storedAt > CACHE_TTL_MS) {
     responseCache.delete(key);
     return null;
   }
-  return cached.value as T;
+  return cached;
+}
+
+function cachedValue<T>(key: string): T | null {
+  return cachedEntry(key)?.value as T | null;
 }
 
 function storeValue<T>(key: string, value: T) {
@@ -44,12 +50,21 @@ export function useApi<T>(loader: () => Promise<T>, key: string) {
   const [state, setState] = useState<ApiState<T>>(() => initialState<T>(key));
   const [revision, setRevision] = useState(0);
 
-  const reload = useCallback(() => setRevision((value) => value + 1), []);
+  const reload = useCallback(() => {
+    responseCache.delete(key);
+    setRevision((value) => value + 1);
+  }, [key]);
 
   useEffect(() => {
     let active = true;
-    const cached = cachedValue<T>(key);
+    const entry = cachedEntry(key);
+    const cached = entry ? entry.value as T : null;
     setState({ key, data: cached, error: null, loading: !cached });
+    if (entry && Date.now() - entry.storedAt <= CACHE_FRESH_MS) {
+      return () => {
+        active = false;
+      };
+    }
     loadOnce(key, loader)
       .then((value) => {
         storeValue(key, value);

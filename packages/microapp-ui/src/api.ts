@@ -3,18 +3,37 @@ import { scopeAppPayload, withCurrentAppApiPath } from "./navigation";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isFormData = init?.body instanceof FormData;
-  const response = await fetch(withCurrentAppApiPath(path), {
-    credentials: "same-origin",
-    ...init,
-    headers: { Accept: "application/json", ...(isFormData ? {} : init?.headers) },
-  });
-  if (response.status === 401) {
-    window.location.assign("/auth/login");
-    throw new Error("Innlogging kreves");
+  const method = (init?.method || "GET").toUpperCase();
+  const timeoutMs = isFormData ? 120_000 : method === "GET" ? 50_000 : 60_000;
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (init?.signal?.aborted) abort();
+  else init?.signal?.addEventListener("abort", abort, { once: true });
+  const timeout = window.setTimeout(abort, timeoutMs);
+  try {
+    const response = await fetch(withCurrentAppApiPath(path), {
+      credentials: "same-origin",
+      cache: method === "GET" ? "default" : "no-store",
+      ...init,
+      signal: controller.signal,
+      headers: { Accept: "application/json", ...(isFormData ? {} : init?.headers) },
+    });
+    if (response.status === 401) {
+      window.location.assign("/auth/login");
+      throw new Error("Innlogging kreves");
+    }
+    const payload = (await response.json().catch(() => null)) as { detail?: string; message?: string } | null;
+    if (!response.ok) throw new Error(payload?.message || payload?.detail || `${response.status} ${response.statusText}`);
+    return scopeAppPayload(payload as T);
+  } catch (error) {
+    if (controller.signal.aborted && !init?.signal?.aborted) {
+      throw new Error("Forespørselen tok for lang tid. Prøv igjen.");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+    init?.signal?.removeEventListener("abort", abort);
   }
-  const payload = (await response.json().catch(() => null)) as { detail?: string; message?: string } | null;
-  if (!response.ok) throw new Error(payload?.message || payload?.detail || `${response.status} ${response.statusText}`);
-  return scopeAppPayload(payload as T);
 }
 
 function endpointFromTemplate(template: string, row: ModuleRow) {

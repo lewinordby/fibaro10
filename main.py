@@ -32600,7 +32600,9 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             ).scalar_one()
             total_kwh = sum(float_or_zero(row.inntak_delta_kwh) for row in selected_energy_rows)
             chronological_energy_rows = list(reversed(selected_energy_rows))
-            energy_chart_rows = decimate_rows(chronological_energy_rows, 1440)
+            # 720 points cover a full day at two-minute visual resolution and keep the
+            # multi-series response compact enough for quick tablet navigation.
+            energy_chart_rows = decimate_rows(chronological_energy_rows, 720)
             energy_chart_items = [
                 ("inntak", "Inntak", "#15803d"),
                 ("varmepumper", "Varmepumper", "#0891b2"),
@@ -32626,7 +32628,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "name": label,
                     "data": decimate_rows(
                         cumulative_energy_points(chronological_energy_rows, f"{key}_delta_kwh"),
-                        1440,
+                        720,
                     ),
                     "color": color,
                     "smooth": False,
@@ -32653,8 +32655,16 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     day_navigation=api_day_navigation(selected_day, today),
                 )
             ]
+            energy_table_columns = [
+                "bucket_start", "inntak_w", "varmepumper_w", "belysning_w",
+                "massasje_w", "annet_w", "avfukter_w", "differanse_beregnet_w",
+            ]
             tables = [
-                api_table("Energisamples valgt dag", ["bucket_start", "inntak_w", "varmepumper_w", "belysning_w", "massasje_w", "annet_w", "avfukter_w", "differanse_beregnet_w"], [api_pick(row, ENERGY_FIBARO_COLUMNS) for row in selected_energy_rows[:500]]),
+                api_table(
+                    "Energisamples valgt dag",
+                    energy_table_columns,
+                    [api_pick(row, energy_table_columns) for row in selected_energy_rows[:500]],
+                ),
             ]
             filters = []
             energy_cards = [
@@ -32743,7 +32753,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 event_table_rows.append(event_row)
             tables = [
                 api_table("Dagsmålinger", ["time", "mode", "temp_1etg", "humidity_1etg", "temp_2etg", "humidity_2etg", "temp_vip", "humidity_vip", "temp_ute", "temp_loft", "temp_kjeller", "humidity_kjeller", "fan_vip", "fan_2etg", "fan_tak", "fan_avfukter"], day_sample_rows),
-                api_table("Temperatur og fukt", sample_columns, [api_pick(row, VENT_SAMPLE_COLUMNS) for row in samples]),
+                api_table("Temperatur og fukt", sample_columns, [api_pick(row, sample_columns) for row in samples]),
                 api_table("Yr", YR_LOG_TABLE_COLUMNS, [api_pick(row, YR_LOG_TABLE_COLUMNS) for row in yr_rows]),
                 api_table("Hendelser", ["timestamp", "action", "device_name", "mode", "reason", "state"], event_table_rows),
             ]
@@ -32872,9 +32882,15 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     day_navigation=api_day_navigation(selected_day, today),
                 )
             ]
+            light_sample_table_columns = [
+                "bucket_start", "mode", "lux", "light_lyslist", "light_reklame",
+                "light_spot_glass_275", "light_spot_glass_299", "light_spot_inngang",
+                "light_parkering", "weather_text",
+            ]
+            light_event_table_columns = ["timestamp", "action", "device_name", "mode", "reason", "lux", "state"]
             tables = [
-                api_table("Lux-samples", ["bucket_start", "mode", "lux", "light_lyslist", "light_reklame", "light_spot_glass_275", "light_spot_glass_299", "light_spot_inngang", "light_parkering", "weather_text"], [api_pick(row, LIGHT_SAMPLE_COLUMNS) for row in samples]),
-                api_table("Hendelser", ["timestamp", "action", "device_name", "mode", "reason", "lux", "state"], [api_pick(row, LIGHT_COLUMNS) for row in events]),
+                api_table("Lux-samples", light_sample_table_columns, [api_pick(row, light_sample_table_columns) for row in samples]),
+                api_table("Hendelser", light_event_table_columns, [api_pick(row, light_event_table_columns) for row in events]),
             ]
             if view == "hendelser":
                 tables = [tables[1]]
@@ -33355,10 +33371,13 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "area_today": round(sum(float(row["today"]["cleaned_area_m2"]) for row in robot_summaries), 1),
                 "updated_at": max(overview_updates, default=None),
             }
+            robot_table_columns = ["name", "model", "cloud_online", "local_ip", "battery", "last_seen_at", "last_error"]
+            job_table_columns = ["begin_at", "end_at", "duration_minutes", "cleaned_area_m2", "complete", "error_code", "finish_reason"]
+            status_table_columns = ["timestamp", "robot_duid", "state_name", "battery", "error_code", "clean_area_m2", "rssi"]
             tables = [
-                api_table("Roboter", ["name", "model", "cloud_online", "local_ip", "battery", "last_seen_at", "last_error"], [api_pick(row, ROBOROCK_ROBOT_COLUMNS) for row in robots]),
-                api_table("Siste vasker", ["begin_at", "end_at", "duration_minutes", "cleaned_area_m2", "complete", "error_code", "finish_reason"], [api_pick(row, ROBOROCK_JOB_COLUMNS) for row in jobs]),
-                api_table("Siste statuser", ["timestamp", "robot_duid", "state_name", "battery", "error_code", "clean_area_m2", "rssi"], [api_pick(row, ROBOROCK_STATUS_COLUMNS) for row in statuses]),
+                api_table("Roboter", robot_table_columns, [api_pick(row, robot_table_columns) for row in robots]),
+                api_table("Siste vasker", job_table_columns, [api_pick(row, job_table_columns) for row in jobs]),
+                api_table("Siste statuser", status_table_columns, [api_pick(row, status_table_columns) for row in statuses]),
             ]
             if view == "roboter":
                 robot_rows = []
@@ -34002,7 +34021,11 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         ),
                     ),
                     api_table("Datasett", ["key", "table", "title", "time_column", "columns_count"], ai_dataset_overview()),
-                    api_table("AI-logg", ["timestamp", "username", "question", "ok", "error"], [api_pick(row, AI_QUERY_COLUMNS) for row in ai_logs]),
+                    api_table(
+                        "AI-logg",
+                        ["timestamp", "username", "question", "ok", "error"],
+                        [api_pick(row, ["timestamp", "username", "question", "ok", "error"]) for row in ai_logs],
+                    ),
                     api_table("AI-verktøy", ["tool", "path", "description", "count"], [admin_tools[4], api_tool_row("Datasett JSON", "/api/ai/datasets/json", "AI-godkjente datasett.", len(ai_dataset_overview())), api_tool_row("AI-logg JSON", "/api/ai/logs/json", "Siste AI-spørringer som JSON.", len(ai_logs))]),
                 ]
             elif view == "teknisk":

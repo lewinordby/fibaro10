@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import os
+import secrets
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, AsyncIterator, Awaitable, Callable, Pattern
+from urllib.parse import urlsplit
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
@@ -13,7 +15,13 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from .auth import AUTH_SESSION_COOKIE_NAME, clear_auth_cookies, forwarded_auth_headers
+from .auth import (
+    AUTH_SESSION_COOKIE_NAME,
+    clear_auth_cookies,
+    forwarded_auth_headers,
+    request_is_secure,
+    request_public_host,
+)
 from .login import render_login_page
 from .pwa import PWA_ICON_PATH, PwaConfig, inject_pwa_head, register_pwa
 
@@ -125,18 +133,44 @@ def create_domain_app(config: DomainAppConfig) -> FastAPI:
             )
         return inject_pwa_head(index_path.read_text(encoding="utf-8"), pwa)
 
-    def login_html(error: str = "") -> str:
-        return render_login_page(app_name=config.short_name, build=build, pwa=pwa, error=error)
+    def login_html(request: Request, error: str = "") -> str:
+        return render_login_page(
+            app_name=config.short_name,
+            build=build,
+            pwa=pwa,
+            error=error,
+            nonce=getattr(request.state, "csp_nonce", ""),
+        )
 
     @app.middleware("http")
     async def response_headers(request: Request, call_next):
-        response = await call_next(request)
+        request.state.csp_nonce = secrets.token_urlsafe(18)
+        if request.method in {"POST", "PATCH", "PUT", "DELETE"} and request.url.path.startswith("/api/"):
+            origin = request.headers.get("origin", "").strip()
+            origin_host = (urlsplit(origin).hostname or "").casefold() if origin else ""
+            if origin and origin_host != request_public_host(request):
+                response = JSONResponse({"detail": "Ugyldig opprinnelse for skriveoperasjon"}, status_code=403)
+            else:
+                response = await call_next(request)
+        else:
+            response = await call_next(request)
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        response.headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            f"default-src 'self'; script-src 'self' 'nonce-{request.state.csp_nonce}'; style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; "
+            "base-uri 'self'; form-action 'self'; frame-ancestors 'self'; worker-src 'self'; manifest-src 'self'",
+        )
+        if request_is_secure(request):
+            response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
         if request.url.path.startswith("/assets/"):
             response.headers.setdefault("Cache-Control", "public, max-age=31536000, immutable")
+        elif response.headers.get("content-type", "").startswith("text/html"):
+            response.headers.setdefault("Cache-Control", "no-cache")
         return response
 
     @app.get("/health")
@@ -185,13 +219,13 @@ def create_domain_app(config: DomainAppConfig) -> FastAPI:
             try:
                 validation = await client.get("/api/auth/me", headers=forwarded_headers(request))
             except httpx.RequestError:
-                return HTMLResponse(login_html("Fibaro10 er ikke tilgjengelig akkurat nå."), status_code=502)
+                return HTMLResponse(login_html(request, "Fibaro10 er ikke tilgjengelig akkurat nå."), status_code=502)
             if validation.status_code == 200:
                 return RedirectResponse("/", status_code=303)
-            response = HTMLResponse(login_html("Økten er utløpt. Logg inn på nytt."))
+            response = HTMLResponse(login_html(request, "Økten er utløpt. Logg inn på nytt."))
             clear_auth_cookies(response, request)
             return response
-        return HTMLResponse(login_html())
+        return HTMLResponse(login_html(request))
 
     @app.post("/auth/login")
     async def login_submit(request: Request) -> Response:
@@ -203,9 +237,9 @@ def create_domain_app(config: DomainAppConfig) -> FastAPI:
                 headers=forwarded_headers(request, accept="text/html"),
             )
         except httpx.RequestError:
-            return HTMLResponse(login_html("Fibaro10 er ikke tilgjengelig akkurat nå."), status_code=502)
+            return HTMLResponse(login_html(request, "Fibaro10 er ikke tilgjengelig akkurat nå."), status_code=502)
         if core_response.status_code not in {302, 303, 307, 308}:
-            return HTMLResponse(login_html("Ugyldig brukernavn eller passord."), status_code=401)
+            return HTMLResponse(login_html(request, "Ugyldig brukernavn eller passord."), status_code=401)
         response = RedirectResponse("/", status_code=303)
         for cookie in core_response.headers.get_list("set-cookie"):
             response.headers.append("set-cookie", cookie)

@@ -84,6 +84,7 @@ export type MosaicChartConfig = {
 export function Chart({ config, height = 360 }: { config: MosaicChartConfig; height?: number }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const { currentTheme } = useTheme();
+  const chartLabel = `Diagram med ${config.datasets.length} serier: ${config.datasets.map((dataset) => dataset.label).join(", ")}`;
 
   useEffect(() => {
     if (!canvas.current) return;
@@ -94,8 +95,9 @@ export function Chart({ config, height = 360 }: { config: MosaicChartConfig; hei
       const { Chart: ChartJS } = await loadChartModule();
       if (disposed || !canvas.current) return;
       const dark = currentTheme === "dark";
-      const textColor = dark ? css("--color-gray-500") : css("--color-gray-400");
+      const textColor = dark ? css("--color-gray-400") : css("--color-gray-500");
       const gridColor = dark ? opacity(css("--color-gray-700"), .6) : css("--color-gray-100");
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const datasets = config.datasets.map((dataset) => ({
       label: dataset.label,
       data: dataset.data,
@@ -128,7 +130,7 @@ export function Chart({ config, height = 360 }: { config: MosaicChartConfig; hei
         maintainAspectRatio: false,
         resizeDelay: 200,
         interaction: { intersect: false, mode: "nearest" },
-        animation: { duration: 500 },
+        animation: { duration: reducedMotion ? 0 : 350 },
         scales: {
           x: {
             type: config.xType || "category",
@@ -198,5 +200,5 @@ export function Chart({ config, height = 360 }: { config: MosaicChartConfig; hei
     };
   }, [config, currentTheme]);
 
-  return <div style={{ height }}><canvas ref={canvas} /></div>;
+  return <div style={{ height }}><canvas ref={canvas} role="img" aria-label={chartLabel}>Diagrammet viser {config.datasets.map((dataset) => dataset.label).join(", ")}.</canvas></div>;
 }

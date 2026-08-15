@@ -23,7 +23,6 @@
 
 	@outside_lan not remote_ip private_ranges
 	respond @outside_lan "Not found" 404
-
 }
 
 # These names exist in public DNS, but resolve to the private QNAP address.

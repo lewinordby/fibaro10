@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from pathlib import Path
 
 from fastapi import Request
@@ -74,6 +75,36 @@ def test_domain_apps_compress_larger_responses() -> None:
         response = client.get("/auth/login", headers={"Accept-Encoding": "gzip"})
         assert response.status_code == 200
         assert response.headers["content-encoding"] == "gzip"
+
+
+def test_domain_apps_apply_security_and_html_cache_headers() -> None:
+    with TestClient(revenue_app) as client:
+        response = client.get(
+            "/auth/login",
+            headers={
+                "X-Forwarded-Proto": "https",
+                "X-Forwarded-Host": "omsetning.lilletorget.net",
+            },
+        )
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-cache"
+    assert response.headers["strict-transport-security"] == "max-age=31536000"
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["x-permitted-cross-domain-policies"] == "none"
+    policy = response.headers["content-security-policy"]
+    nonce = re.search(r"script-src 'self' 'nonce-([^']+)'", policy)
+    assert nonce
+    assert f'nonce="{nonce.group(1)}"' in response.text
+
+
+def test_domain_apps_reject_foreign_origins_for_api_writes() -> None:
+    with TestClient(system_app) as client:
+        response = client.post(
+            "/api/actions/system/test",
+            headers={"Origin": "https://evil.example"},
+        )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Ugyldig opprinnelse for skriveoperasjon"
 
 
 def test_domain_apps_use_the_shared_branded_login_page() -> None:
@@ -274,7 +305,7 @@ def test_energy_overview_and_elvia_imports_stay_focused() -> None:
     status_source = backend[status_start:status_end]
     assert 'api_table("Kurser"' not in status_source
     assert 'api_table("Laster"' not in status_source
-    assert 'api_table("Energisamples valgt dag"' in status_source
+    assert '"Energisamples valgt dag"' in status_source
     assert 'return await energy_elvia_module_payload(session)' in backend
     assert "fallback={<Loading />}" in entry
     for field in ("timestamp", "source_file", "period_first", "period_last", "hours_count", "total_kwh"):
@@ -717,6 +748,35 @@ def test_shared_metric_cards_balance_five_items_on_wide_screens() -> None:
     source = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "ModuleContent.tsx").read_text(encoding="utf-8")
 
     assert 'data.length === 5 ? "xl:grid-cols-5" : "xl:grid-cols-4"' in source
+
+
+def test_shared_frontend_handles_fresh_cache_timeouts_and_accessibility() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    hooks = (repo_root / "packages" / "microapp-ui" / "src" / "hooks.ts").read_text(encoding="utf-8")
+    api = (repo_root / "packages" / "microapp-ui" / "src" / "api.ts").read_text(encoding="utf-8")
+    layout = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "Layout.tsx").read_text(encoding="utf-8")
+    states = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "PageState.tsx").read_text(encoding="utf-8")
+    module = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "ModuleContent.tsx").read_text(encoding="utf-8")
+    chart = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "Chart.tsx").read_text(encoding="utf-8")
+
+    assert "CACHE_FRESH_MS" in hooks
+    assert "responseCache.delete(key)" in hooks
+    assert "Forespørselen tok for lang tid" in api
+    assert 'href="#main-content"' in layout
+    assert 'document.title = `${item.title || item.label} · ${config.shortName}`' in layout
+    assert 'role="status" aria-live="polite"' in states
+    assert 'aria-sort=' in module
+    assert 'disabled={data.isToday}' in module
+    assert 'role="img" aria-label={chartLabel}' in chart
+
+
+def test_large_module_payloads_only_include_visible_table_fields() -> None:
+    source = (Path(__file__).resolve().parents[1] / "main.py").read_text(encoding="utf-8")
+    assert "energy_chart_rows = decimate_rows(chronological_energy_rows, 720)" in source
+    assert "[api_pick(row, energy_table_columns) for row in selected_energy_rows[:500]]" in source
+    assert "[api_pick(row, light_sample_table_columns) for row in samples]" in source
+    assert "[api_pick(row, robot_table_columns) for row in robots]" in source
+    assert "[api_pick(row, ROBOROCK_ROBOT_COLUMNS) for row in robots]" not in source
 
 
 def test_energy_elvia_summary_formats_period_and_hour_counts() -> None:

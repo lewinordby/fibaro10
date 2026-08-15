@@ -12,6 +12,45 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1782",
+        "date": "15.08.2026",
+        "headline": "Helhetskontroll styrker ytelse, sikkerhet og tilgjengelighet",
+        "title": "Felleslaget er lettere, sikrere og mer konsekvent i alle mikroappene",
+        "description": (
+            "En ny tverrgående kontroll har vurdert mikroappene som én samlet arbeidsflate. "
+            "Navigasjon, caching, nettverksfeil, sikkerhetsheadere, tastaturbruk, statusfarger, "
+            "tabeller, grafer og store API-payloads er gjennomgått. Felleskomponentene gir nå "
+            "raskere gjentatt navigasjon og tydeligere brukerrespons, mens Energi, Lys, Renhold "
+            "og System sender færre skjulte data som aldri ble vist i grensesnittet."
+        ),
+        "applications": [
+            "Alle mikroapper: nytt felles cache-, timeout-, navigasjons- og tilgjengelighetslag.",
+            "Fibaro10: reduserer graf- og tabellpayloads for Energi, Lys, Renhold og System.",
+            "Energi build 30: halverer maksimal grafoppløsning uten synlig tap og fjerner skjulte tabellfelt.",
+            "Parkering build 33: gjenbruker samme appkonfigurasjon på alle sider.",
+            "Felles Mosaic-tema: bedre fokusmarkering, grafkontrast og støtte for redusert bevegelse.",
+            "Mikroapp-gateway: CSP med nonce, opprinnelseskontroll og tryggere cache-headere.",
+        ],
+        "request": (
+            "Ta en kontroll av helheten, vurder løsningen på alle mulige måter og forbedre det som trengs."
+        ),
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Gjenbruker ferske API-svar i 15 sekunder og beholder en kort reserve ved midlertidige feil.",
+            "Avbryter hengende lesekall og skriveoperasjoner med forståelig feilmelding.",
+            "Lukker mobilmenyen ved valg eller Escape og oppdaterer nettlesertittel per side.",
+            "Legger til hopp-til-innhold, aria-live, aria-sort, dialogfokus og tastaturlukking.",
+            "Hindrer navigasjon til fremtidige dager i det delte datovelgerfeltet.",
+            "Skiller feil, varsler og positive statuser med riktig farge og norske etiketter.",
+            "Øker kontrasten i graftekst og respekterer redusert bevegelse fra operativsystemet.",
+            "Fjerner negativ bokstavavstand og gir alle interaktive elementer synlig tastaturfokus.",
+            "Reduserer energigrafen til maksimalt 720 punkter per serie og sender bare synlige tabellfelt.",
+            "Sikrer mikroappene med CSP, HSTS, skrivebeskyttelse mot fremmed Origin og no-cache for HTML.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1781",
         "date": "15.08.2026",
         "headline": "Felles sluttkontroll strammer kortoppsett og Elvia-visning",

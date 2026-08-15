@@ -1,4 +1,4 @@
-import { createContext, type MouseEvent, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, type AnchorHTMLAttributes, type MouseEvent, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { removeCurrentAppBasePath, withCurrentAppBasePath } from "./navigation";
 
 type RouterValue = {
@@ -43,14 +43,18 @@ export function useAppLocation() {
   return value;
 }
 
-export function AppLink({ to, className, children }: { to: string; className?: string; children: ReactNode }) {
+type AppLinkProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & { to: string };
+
+export function AppLink({ to, onClick: onLinkClick, ...props }: AppLinkProps) {
   const { navigate } = useAppLocation();
   function onClick(event: MouseEvent<HTMLAnchorElement>) {
+    onLinkClick?.(event);
+    if (event.defaultPrevented) return;
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     navigate(to);
   }
-  return <a href={withCurrentAppBasePath(to)} className={className} onClick={onClick}>{children}</a>;
+  return <a href={withCurrentAppBasePath(to)} {...props} onClick={onClick} />;
 }
 
 export function useAppSearchParams() {

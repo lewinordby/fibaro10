@@ -55,8 +55,15 @@ function Sidebar({ config, activeGroup, open, setOpen, coreUrl, build }: {
       const target = event.target as Node;
       if (open && sidebar.current && trigger.current && !sidebar.current.contains(target) && !trigger.current.contains(target)) setOpen(false);
     };
+    const closeWithKeyboard = (event: KeyboardEvent) => {
+      if (open && event.key === "Escape") setOpen(false);
+    };
     document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
+    document.addEventListener("keydown", closeWithKeyboard);
+    return () => {
+      document.removeEventListener("click", close);
+      document.removeEventListener("keydown", closeWithKeyboard);
+    };
   }, [open, setOpen]);
 
   const labelClass = "ml-4 text-sm font-medium duration-200 lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100";
@@ -65,11 +72,11 @@ function Sidebar({ config, activeGroup, open, setOpen, coreUrl, build }: {
 
   return (
     <div className="min-w-fit">
-      <div className={`fixed inset-0 z-40 bg-gray-900/30 transition-opacity duration-200 lg:hidden ${open ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-hidden="true" />
+      <button type="button" tabIndex={-1} aria-label="Lukk meny" onClick={() => setOpen(false)} className={`fixed inset-0 z-40 bg-gray-900/30 transition-opacity duration-200 lg:hidden ${open ? "opacity-100" : "pointer-events-none opacity-0"}`} />
       <aside ref={sidebar} className={`absolute left-0 top-0 z-40 flex h-[100dvh] w-64 shrink-0 flex-col overflow-y-auto rounded-r-2xl bg-white p-4 shadow-xs transition-all duration-200 dark:bg-gray-800 lg:static lg:w-20 lg:translate-x-0 lg:sidebar-expanded:!w-64 2xl:w-64! ${open ? "translate-x-0" : "-translate-x-64"}`}>
         <div className="mb-8 flex justify-between pr-3 sm:px-2">
           <button ref={trigger} className="text-gray-500 lg:hidden" onClick={() => setOpen(false)}><span className="sr-only">Lukk meny</span><MosaicIcon name="arrow-left" size={22} /></button>
-          <AppLink to="/" className="flex items-center text-xl font-bold text-gray-800 dark:text-gray-100">
+          <AppLink to="/" onClick={() => setOpen(false)} className="flex items-center text-xl font-bold text-gray-800 dark:text-gray-100">
             <span className="lg:hidden lg:sidebar-expanded:block 2xl:block">{config.shortName}</span>
             <MosaicIcon name={config.icon} className={`${iconClass} lg:block lg:sidebar-expanded:hidden 2xl:hidden`} size={24} />
           </AppLink>
@@ -81,7 +88,7 @@ function Sidebar({ config, activeGroup, open, setOpen, coreUrl, build }: {
               const active = group === activeGroup;
               return (
                 <li className={`rounded-lg px-3 py-2 ${active ? activeClass : ""}`} key={group.label}>
-                  <AppLink className="block truncate text-gray-800 dark:text-gray-100" to={group.items[0].to}>
+                  <AppLink className="block truncate text-gray-800 dark:text-gray-100" to={group.items[0].to} onClick={() => setOpen(false)}>
                     <div className="flex items-center">
                       <MosaicIcon name={group.icon} className={active ? iconClass : "text-gray-400 dark:text-gray-500"} />
                       <span className={labelClass}>{group.label}</span>
@@ -118,17 +125,17 @@ function Header({ title, open, setOpen, username, activeApp, shellUrl }: {
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between border-b border-gray-200 dark:border-gray-700/60">
           <div className="flex min-w-0 items-center gap-3">
-            <button className="shrink-0 text-gray-500 lg:hidden" aria-expanded={open} onClick={(event) => { event.stopPropagation(); setOpen(!open); }}><span className="sr-only">\u00c5pne meny</span><svg className="h-6 w-6 fill-current" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="2" /><rect x="4" y="11" width="16" height="2" /><rect x="4" y="17" width="16" height="2" /></svg></button>
+            <button className="shrink-0 text-gray-500 lg:hidden" aria-label="Åpne meny" aria-expanded={open} onClick={(event) => { event.stopPropagation(); setOpen(!open); }}><svg className="h-6 w-6 fill-current" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="2" /><rect x="4" y="11" width="16" height="2" /><rect x="4" y="17" width="16" height="2" /></svg></button>
             <span className="truncate text-sm font-semibold text-gray-700 dark:text-gray-200">{title}</span>
           </div>
           <div className="ml-4 flex shrink-0 items-center gap-3">
             <AppDock activeApp={activeApp} shellUrl={shellUrl} />
-            <button className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-800" title="Oppdater siden" onClick={() => window.location.reload()}><MosaicIcon name="refresh" className="text-gray-500 dark:text-gray-400" /></button>
+            <button className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-800" title="Oppdater siden" aria-label="Oppdater siden" onClick={() => window.location.reload()}><MosaicIcon name="refresh" className="text-gray-500 dark:text-gray-400" /></button>
             <ThemeToggle />
             <hr className="h-6 w-px border-none bg-gray-200 dark:bg-gray-700" />
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold uppercase text-gray-600 dark:bg-gray-700 dark:text-gray-200">{username.slice(0, 1)}</span>
             <span className="hidden text-sm font-medium text-gray-600 dark:text-gray-100 sm:block">{username}</span>
-            <form method="post" action="/konto/logg-ut"><button className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-800" title="Logg ut"><MosaicIcon name="logout" className="text-gray-500 dark:text-gray-400" /></button></form>
+            <form method="post" action="/konto/logg-ut"><button className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-800" title="Logg ut" aria-label="Logg ut"><MosaicIcon name="logout" className="text-gray-500 dark:text-gray-400" /></button></form>
           </div>
         </div>
       </div>
@@ -159,13 +166,18 @@ export function Layout({ config, children }: { config: DomainUiConfig; children:
   const group = useMemo(() => findNavigationGroup(config, item), [config, item]);
   const shellUrl = appConfig.data?.shellAppUrl || "https://app.lilletorget.net";
 
+  useEffect(() => {
+    document.title = `${item.title || item.label} · ${config.shortName}`;
+  }, [config.shortName, item.label, item.title]);
+
   return (
     <div className="flex h-[100dvh] overflow-hidden">
+      <a href="#main-content" className="sr-only z-50 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 focus:not-sr-only focus:fixed focus:left-3 focus:top-3 dark:bg-gray-800 dark:text-white">Hopp til innhold</a>
       <Sidebar config={config} activeGroup={group} open={sidebarOpen} setOpen={setSidebarOpen} coreUrl={appConfig.data?.fibaro10AppUrl || "https://fibaro10.lilletorget.net"} build={appConfig.data?.build || "-"} />
       <div className="relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
         <Header title={item.title || item.label} open={sidebarOpen} setOpen={setSidebarOpen} username={user.data?.username || "Bruker"} activeApp={config.appId} shellUrl={shellUrl} />
         <ContextNavigation group={group} item={item} accent={config.accent} />
-        <main className="grow"><div className="mx-auto w-full max-w-[96rem] px-4 py-6 sm:px-6 lg:px-8">{children}</div></main>
+        <main id="main-content" tabIndex={-1} className="grow"><div className="mx-auto w-full max-w-[96rem] px-4 py-6 sm:px-6 lg:px-8">{children}</div></main>
       </div>
     </div>
   );

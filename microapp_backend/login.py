@@ -13,7 +13,7 @@ LOGIN_PAGE_TEMPLATE = """<!doctype html>
 <meta name="color-scheme" content="light dark">
 <title>Logg inn - __APP_NAME__</title>
 __PWA_TAGS__
-<script>
+<script nonce="__CSP_NONCE__">
 (() => {
   try {
     const stored = window.localStorage.getItem("theme");
@@ -420,7 +420,7 @@ html[data-theme="dark"] .submit-button { color: #071b44; }
     </div>
   </section>
 </main>
-<script>
+<script nonce="__CSP_NONCE__">
 (() => {
   const button = document.querySelector(".password-toggle");
   const input = document.querySelector("#password");
@@ -439,7 +439,7 @@ html[data-theme="dark"] .submit-button { color: #071b44; }
 """
 
 
-def render_login_page(*, app_name: str, build: str, pwa: PwaConfig, error: str = "") -> str:
+def render_login_page(*, app_name: str, build: str, pwa: PwaConfig, error: str = "", nonce: str = "") -> str:
     safe_error = escape(error.strip())
     error_html = ""
     if safe_error:
@@ -454,4 +454,5 @@ def render_login_page(*, app_name: str, build: str, pwa: PwaConfig, error: str =
         .replace("__BUILD__", escape(str(build)))
         .replace("__PWA_TAGS__", pwa_head_tags(pwa))
         .replace("__ERROR_HTML__", error_html)
+        .replace("__CSP_NONCE__", escape(nonce))
     )

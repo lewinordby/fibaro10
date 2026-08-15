@@ -7,7 +7,7 @@ import { DataTable, ModuleActions, ModuleCards } from "../components/ModuleConte
 
 export default function VehiclePage({ plate }: { plate: string }) {
   const result = useApi(() => api.vehicle(plate), `vehicle-${plate}`);
-  const config = useApi(api.config, "app-config-vehicle");
+  const config = useApi(api.config, "app-config");
   if (result.loading || config.loading) return <Loading />;
   if (result.error || !result.data) return <ErrorState error={result.error} onRetry={result.reload} />;
   const data = result.data;
