@@ -59,6 +59,8 @@ def test_night_report_summarizes_modes_battery_and_mop_washes() -> None:
     assert result["jobs"][0]["batteryStart"] == 100
     assert result["jobs"][0]["batteryEnd"] == 75
     assert result["jobs"][0]["expectedWashCount"] == 7
+    assert result["jobs"][0]["waterStatus"] == "ok"
+    assert result["jobs"][0]["waterStatusLabel"] == "OK"
     assert result["settings"]["modeLabel"] == "Balansert"
     assert result["settings"]["items"] == [
         {"key": "fan", "label": "Standard sugekraft", "value": "Maks"},
@@ -69,6 +71,7 @@ def test_night_report_summarizes_modes_battery_and_mop_washes() -> None:
         {"key": "carpet", "label": "Teppemodus", "value": "På"},
         {"key": "dnd", "label": "Ikke forstyrr", "value": "22:00–07:00"},
     ]
+    assert report["summary"]["washCount"] == 7
     assert result["readiness"]["batteryAtOpening"] == 96
     assert result["readiness"]["fullChargeAt"].startswith("2026-08-14T07:00")
 
@@ -93,6 +96,9 @@ def test_water_shortage_is_reported_without_marking_completed_job_as_failed() ->
     assert result["complete"] is True
     assert result["status"] == "warning"
     assert result["issues"] == ["Vannvarsel kl. 05:00"]
+    assert result["waterStatus"] == "warning"
+    assert result["waterStatusLabel"] == "Vannmangel kl. 05:00"
+    assert result["waterWarningAt"].startswith("2026-08-14T05:00")
 
 
 def test_empty_dock_after_completed_wash_does_not_downgrade_the_job() -> None:
@@ -157,7 +163,42 @@ def test_mop_mode_is_ignored_when_water_is_explicitly_off() -> None:
     result = report["robots"][0]["jobs"][0]
     assert result["cleaningType"] == "vacuum"
     assert result["cleaningTypeLabel"] == "Støvsuging"
+    assert result["waterStatus"] == "not_applicable"
     assert result["modeLabel"] == "Maks · 2 runder"
+
+
+def test_night_report_exposes_relevant_water_events_with_timestamps() -> None:
+    robot = row(duid="robot-water-events", name="VIP", model="Qrevo")
+    events = [
+        row(
+            robot_duid="robot-water-events", timestamp=datetime(2026, 8, 14, 4, 20),
+            field_name="clear_water_status", previous_label="OK", current_label="Tom",
+            severity="warning",
+        ),
+        row(
+            robot_duid="robot-water-events", timestamp=datetime(2026, 8, 14, 6, 10),
+            field_name="clear_water_status", previous_label="Tom", current_label="OK",
+            severity="info",
+        ),
+        row(
+            robot_duid="robot-water-events", timestamp=datetime(2026, 8, 14, 6, 15),
+            field_name="water_box_status", previous_label="Montert", current_label="Ikke montert",
+            severity="info",
+        ),
+    ]
+
+    report = build_night_report(
+        date(2026, 8, 14), [robot], [], [], [], water_events=events,
+    )
+
+    water_events = report["robots"][0]["waterEvents"]
+    assert len(water_events) == 2
+    assert water_events[0]["timestamp"].startswith("2026-08-14T04:20")
+    assert water_events[0]["title"] == "Rentvann i dokk"
+    assert water_events[0]["currentLabel"] == "Tom"
+    assert water_events[0]["severity"] == "warning"
+    assert water_events[1]["currentLabel"] == "OK"
+    assert water_events[1]["severity"] == "ok"
 
 
 def test_night_report_marks_an_enabled_schedule_without_a_job_as_missing() -> None:

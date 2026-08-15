@@ -40255,6 +40255,20 @@ async def api_cleaning_night_report(day: Optional[str] = None):
                 .order_by(RoborockTelemetrySample.robot_duid, RoborockTelemetrySample.timestamp)
             )
         ).scalars().all()
+        water_events = (
+            await session.execute(
+                select(RoborockTelemetryEvent)
+                .where(RoborockTelemetryEvent.robot_duid.in_(robot_duids or [""]))
+                .where(RoborockTelemetryEvent.category == "vann")
+                .where(RoborockTelemetryEvent.timestamp >= window["start"])
+                .where(RoborockTelemetryEvent.timestamp <= window["end"])
+                .order_by(
+                    RoborockTelemetryEvent.robot_duid,
+                    RoborockTelemetryEvent.timestamp,
+                    RoborockTelemetryEvent.id,
+                )
+            )
+        ).scalars().all()
         schedules = (
             await session.execute(
                 select(RoborockSchedule)
@@ -40313,6 +40327,7 @@ async def api_cleaning_night_report(day: Optional[str] = None):
         generated_at=local_now_naive(),
         schedules=list(schedules),
         schedule_snapshots=list(schedule_snapshots),
+        water_events=list(water_events),
     )
 
 

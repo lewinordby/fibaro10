@@ -149,6 +149,9 @@ export type RoborockNightJob = {
   batteryEnd?: number | null;
   washCount?: number | null;
   expectedWashCount?: number | null;
+  waterStatus: "ok" | "warning" | "unknown" | "not_applicable";
+  waterStatusLabel: string;
+  waterWarningAt?: string | null;
   status: "ok" | "warning" | "error" | "running";
   statusLabel: string;
   issues: string[];
@@ -177,6 +180,14 @@ export type RoborockNightRobot = {
   status: "ok" | "warning" | "error" | "neutral";
   statusLabel: string;
   jobs: RoborockNightJob[];
+  waterEvents: Array<{
+    timestamp: string;
+    fieldName: string;
+    title: string;
+    previousLabel?: string | null;
+    currentLabel: string;
+    severity: "ok" | "warning";
+  }>;
   scheduleCheck: {
     basis: string;
     historyAvailable: boolean;
@@ -244,6 +255,7 @@ export type RoborockNightReport = {
     completed: number;
     durationMinutes: number;
     areaM2: number;
+    washCount: number;
     warnings: number;
     jobWarnings: number;
     running: number;

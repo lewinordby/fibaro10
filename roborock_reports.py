@@ -38,6 +38,14 @@ DUST_COLLECTION_MODE_LABELS = {
     4: "Maks",
 }
 
+NIGHT_WATER_EVENT_FIELDS = {
+    "clear_water_status": "Rentvann i dokk",
+    "dirty_water_status": "Skittentvann i dokk",
+    "water_shortage_status": "Vann i robot",
+    "clean_fluid_status": "Rengjøringsmiddel",
+    "water_box_filter_status": "Vannfilter",
+}
+
 
 def report_window(report_day: date) -> dict[str, datetime]:
     return {
@@ -216,6 +224,29 @@ def resource_problem(row: Any, provider: str = "roborock") -> bool:
     return False
 
 
+def build_night_water_events(events: list[Any], window: dict[str, datetime]) -> list[dict[str, Any]]:
+    rows = []
+    for event in events:
+        field_name = str(row_value(event, "field_name") or "")
+        if field_name not in NIGHT_WATER_EVENT_FIELDS:
+            continue
+        timestamp = normalize_local_naive(row_value(event, "timestamp"))
+        if timestamp is None or not window["start"] <= timestamp <= window["end"]:
+            continue
+        severity = str(row_value(event, "severity") or "info").lower()
+        rows.append(
+            {
+                "timestamp": local_iso(timestamp),
+                "fieldName": field_name,
+                "title": NIGHT_WATER_EVENT_FIELDS[field_name],
+                "previousLabel": row_value(event, "previous_label"),
+                "currentLabel": row_value(event, "current_label") or row_value(event, "current_value") or "Ukjent",
+                "severity": "warning" if severity in {"warning", "critical", "error"} else "ok",
+            }
+        )
+    return sorted(rows, key=lambda row: row["timestamp"] or "")
+
+
 def job_cleaning_type(fan_power: Any, water_mode: Any, mop_mode: Any) -> tuple[str, str]:
     fan = integer(fan_power)
     water = integer(water_mode)
@@ -298,6 +329,17 @@ def build_job(job: Any, samples: list[Any], settings: dict[str, Any], provider: 
     if water_samples:
         water_at = normalize_local_naive(row_value(water_samples[0], "timestamp"))
         issue_parts.append(f"Vannvarsel kl. {water_at.strftime('%H:%M')}" if water_at else "Vannvarsel")
+    else:
+        water_at = None
+    if cleaning_type == "vacuum":
+        water_status, water_status_label = "not_applicable", "Ikke relevant"
+    elif water_samples:
+        water_status = "warning"
+        water_status_label = f"Vannmangel kl. {water_at.strftime('%H:%M')}" if water_at else "Vannmangel"
+    elif quality_samples:
+        water_status, water_status_label = "ok", "OK"
+    else:
+        water_status, water_status_label = "unknown", "Ikke mottatt"
     return {
         "recordId": str(row_value(job, "record_id") or row_value(job, "id") or ""),
         "startedAt": local_iso(started_at),
@@ -315,6 +357,9 @@ def build_job(job: Any, samples: list[Any], settings: dict[str, Any], provider: 
         "batteryEnd": integer(row_value(end_sample, "battery")) if end_sample else None,
         "washCount": wash_count,
         "expectedWashCount": expected_washes,
+        "waterStatus": water_status,
+        "waterStatusLabel": water_status_label,
+        "waterWarningAt": local_iso(water_at),
         "status": status,
         "statusLabel": status_label,
         "issues": issue_parts,
@@ -609,6 +654,7 @@ def build_robot_report(
     probes: list[Any],
     schedules: list[Any],
     schedule_snapshots: list[Any],
+    water_events: list[Any],
     window: dict[str, datetime],
     generated_at: datetime,
     include_paused_schedules: bool = False,
@@ -787,6 +833,7 @@ def build_robot_report(
         "jobs": job_rows,
         "scheduleCheck": schedule_check,
         "settings": settings,
+        "waterEvents": build_night_water_events(water_events, window),
         "totals": {
             "jobs": len(job_rows),
             "plannedJobs": len(matched_record_ids),
@@ -816,6 +863,7 @@ def build_night_report(
     generated_at: Optional[datetime] = None,
     schedules: Optional[list[Any]] = None,
     schedule_snapshots: Optional[list[Any]] = None,
+    water_events: Optional[list[Any]] = None,
 ) -> dict[str, Any]:
     window = report_window(report_day)
     report_generated_at = normalize_local_naive(generated_at or datetime.now(LOCAL_TZ)) or datetime.now(LOCAL_TZ).replace(tzinfo=None)
@@ -826,6 +874,7 @@ def build_night_report(
     probes_by_robot: dict[str, list[Any]] = {}
     schedules_by_robot: dict[str, list[Any]] = {}
     snapshots_by_robot: dict[str, list[Any]] = {}
+    water_events_by_robot: dict[str, list[Any]] = {}
     for row in jobs:
         jobs_by_robot.setdefault(str(row_value(row, "robot_duid") or ""), []).append(row)
     for row in samples:
@@ -836,6 +885,8 @@ def build_night_report(
         schedules_by_robot.setdefault(str(row_value(row, "robot_duid") or ""), []).append(row)
     for row in schedule_snapshots or []:
         snapshots_by_robot.setdefault(str(row_value(row, "robot_duid") or ""), []).append(row)
+    for row in water_events or []:
+        water_events_by_robot.setdefault(str(row_value(row, "robot_duid") or ""), []).append(row)
     robot_rows = [
         build_robot_report(
             robot,
@@ -844,6 +895,7 @@ def build_night_report(
             probes_by_robot.get(str(row_value(robot, "duid") or ""), []),
             schedules_by_robot.get(str(row_value(robot, "duid") or ""), []),
             snapshots_by_robot.get(str(row_value(robot, "duid") or ""), []),
+            water_events_by_robot.get(str(row_value(robot, "duid") or ""), []),
             window,
             report_generated_at,
             is_forecast,
@@ -937,6 +989,7 @@ def build_night_report(
             "completed": sum(row["totals"]["completed"] for row in robot_rows),
             "durationMinutes": round(sum(row["totals"]["durationMinutes"] for row in robot_rows), 1),
             "areaM2": round(sum(row["totals"]["areaM2"] for row in robot_rows), 1),
+            "washCount": sum(row["totals"]["washCount"] for row in robot_rows),
             "warnings": warning_count + missing_count + delayed_count,
             "jobWarnings": warning_count,
             "running": running_count,

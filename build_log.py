@@ -12,6 +12,37 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1771",
+        "date": "15.08.2026",
+        "headline": "Nattrapporten viser nattens faktiske arbeid først",
+        "title": "Jobber, batteri, moppevask og vannhendelser er samlet i en kompakt kontrollvisning",
+        "description": (
+            "Nattrapporten er ryddet og komprimert slik at hver robot først viser jobbene som faktisk ble "
+            "utført siste natt. Tabellen samler tidspunkt, rengjøringstype, resultat, batteriforløp, antall "
+            "moppevasker og vannstatus. Eksakte hendelser for tomt eller gjenopprettet vann vises på samme "
+            "robot, mens historisk plan og tekniske robotinnstillinger er flyttet til et sammenfoldet felt."
+        ),
+        "applications": [
+            "Fibaro10 build 1771: utvider nattrapport-API-et med vannstatus, vannhendelser og samlet antall moppevasker.",
+            "Bygg og drift build 81: innfører den kompakte nattkontrollen og reduserer luft og gjentakelser.",
+        ],
+        "request": (
+            "Rydd i Nattrapport og robotoversiktene. Prioriter data fra siste natt, med liste over jobber, "
+            "status, batteri, antall vask og tidspunkt for når vann eventuelt gikk tomt."
+        ),
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Flytter faktisk utførte jobber foran plan og tekniske innstillinger på hver robot.",
+            "Samler jobbtid, type, varighet, areal, resultat, batteri og moppevask i én kompakt tabell.",
+            "Skiller vannstatus per jobb mellom OK, vannmangel, ikke mottatt og ikke relevant.",
+            "Viser tidsstemplete overganger for rentvann, skittentvann, vann i robot, middel og filter.",
+            "Legger samlet antall moppevasker inn i nattens hovedoppsummering.",
+            "Reduserer kort-, overskrifts- og nøkkeltallshøyder gjennom hele Nattrapporten.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1770",
         "date": "15.08.2026",
         "headline": "Nattrapporten bruker planen som faktisk gjaldt",

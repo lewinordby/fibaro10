@@ -207,6 +207,12 @@ vurderingen av om nattplanen var ferdig før åpning. Planlagt start og faktisk 
 kontrollvindu fra 45 minutter før til 90 minutter etter planen. Oppstart mer enn 10 minutter fra planen merkes
 som forsinket, og en plan som fortsatt ikke har en jobb 20 minutter etter start merkes som uteblitt.
 
+For en avsluttet natt viser hver robot først de faktiske jobbene med tidspunkt, type, resultat, batteri ved start
+og slutt, antall registrerte moppevasker og vannstatus. Vannstatusen er `OK` når en vaskejobb har telemetri uten
+rapportert vannmangel, `Vannmangel` med klokkeslett når roboten meldte mangel, og `Ikke relevant` for ren
+støvsuging. Endringer i rentvann, skittentvann, vann i robot, rengjøringsmiddel og vannfilter listes med nøyaktig
+tidspunkt under den aktuelle roboten. Historisk plan og tekniske robotinnstillinger kan foldes ut ved behov.
+
 Nattvinduet er kl. 22:00-08:00. Den røde bakgrunnen viser åpningstid med sikkerhetsmargin til kl. 23:45 på
 kvelden og fra kl. 06:45 om morgenen. Bare jobbene i den lagrede planen vurderes mot fristen kl. 06:45.
 
