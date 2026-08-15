@@ -12,6 +12,36 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1768",
+        "date": "15.08.2026",
+        "headline": "Nattaksen skiller åpningstid fra automatisk renhold",
+        "title": "Åpningstid kl. 06:45–23:15 vises i begge ender av tidslinjen",
+        "description": (
+            "Den røde bakgrunnen viser nå den faktiske åpningstiden uten en egen kantstrek. Fordi "
+            "nattaksen går fra kl. 22:00 til 08:00, vises åpningstiden både fra kl. 22:00 til 23:15 "
+            "og fra kl. 06:45 til 08:00. Feltet er samtidig gitt navnet Automatisk nattlig renhold, "
+            "med tydelig informasjon om oppstart etter stenging og frist før åpning."
+        ),
+        "applications": [
+            "Fibaro10 build 1768: registrerer den presiserte nattvisningen.",
+            "Bygg og drift build 78: oppdaterer bakgrunnsfelt, tittel, undertekst og tegnforklaring.",
+        ],
+        "request": (
+            "Fjern streken ved den røde bakgrunnen, vis åpningstid kl. 06:45–23:15, og kall feltet "
+            "Automatisk nattlig renhold med frist før åpning kl. 06:45 og etter stenging kl. 23:45."
+        ),
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fjerner kantstreken ved starten av det røde åpningstidsfeltet.",
+            "Viser åpningstid på begge sider av midnatt i nattaksen.",
+            "Endrer seksjonstittelen til Automatisk nattlig renhold.",
+            "Viser Etter stenging kl. 23:45 og frist før åpning kl. 06:45 som undertekst.",
+            "Presiserer åpningstiden som kl. 06:45–23:15 i tegnforklaringen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1767",
         "date": "15.08.2026",
         "headline": "Nattplanen viser bare det relevante tidsrommet",
