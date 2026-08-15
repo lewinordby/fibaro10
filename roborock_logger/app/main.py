@@ -18,6 +18,13 @@ from pathlib import Path
 from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
+from .water_interlock import (
+    clear_water_state,
+    interlock_label,
+    timer_status_map,
+    wash_schedule_rows,
+)
+
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, Query, status as http_status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
@@ -51,6 +58,12 @@ MAP_SYNC_ON_START = os.getenv("MAP_SYNC_ON_START", "true").lower() in {"1", "tru
 AUTO_SYNC_ENABLED = os.getenv("AUTO_SYNC_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
 ROBOROCK_CONTROL_TOKEN = os.getenv("ROBOROCK_CONTROL_TOKEN", "").strip()
 ROBOROCK_LOCAL_PORT = 58867
+ROBOROCK_WATER_INTERLOCK_ENABLED = os.getenv("ROBOROCK_WATER_INTERLOCK_ENABLED", "true").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
 
 @asynccontextmanager
@@ -281,7 +294,13 @@ def status_telemetry(status: dict[str, Any], model: str | None) -> dict[str, Any
 
 def load_state() -> dict[str, Any]:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    defaults = {"robots": {}, "last_sync": None, "last_error": None, "pending_batches": 0}
+    defaults = {
+        "robots": {},
+        "water_interlocks": {},
+        "last_sync": None,
+        "last_error": None,
+        "pending_batches": 0,
+    }
     if STATE_FILE.exists():
         try:
             state = json.loads(STATE_FILE.read_text(encoding="utf-8") or "{}")
@@ -480,6 +499,198 @@ def control_device(duid: str) -> tuple[dict[str, Any], str, str | None]:
     products = {product.get("id"): product for product in home.get("products", [])}
     model = (products.get(device.get("product_id")) or {}).get("model")
     return device, host, model
+
+
+async def read_server_timer_statuses(duid: str) -> dict[str, str]:
+    from roborock.roborock_typing import RoborockCommand
+
+    device, host, _ = control_device(duid)
+    rpc, channel = await get_local_rpc(device, host)
+    try:
+        return timer_status_map(await rpc.send_command(RoborockCommand.GET_SERVER_TIMER))
+    finally:
+        channel.close()
+
+
+async def update_server_timer_statuses(duid: str, updates: dict[str, str]) -> dict[str, Any]:
+    from roborock.roborock_typing import RoborockCommand
+
+    requested = {str(timer_id): status for timer_id, status in updates.items() if status in {"on", "off"}}
+    if not requested:
+        return {"ok": True, "requested": {}, "verified": {}, "send_error": None}
+
+    before = await read_server_timer_statuses(duid)
+    pending = {timer_id: status for timer_id, status in requested.items() if before.get(timer_id) != status}
+    send_error = None
+    if pending:
+        device, host, _ = control_device(duid)
+        rpc, channel = await get_local_rpc(device, host)
+        try:
+            try:
+                await asyncio.wait_for(
+                    rpc.send_command(
+                        RoborockCommand.UPD_SERVER_TIMER,
+                        params={"data": [[timer_id, status] for timer_id, status in pending.items()], "need_retry": 1},
+                    ),
+                    timeout=6,
+                )
+            except Exception as exc:
+                # Several models apply this command but do not return a response.
+                # The readback below is therefore authoritative.
+                send_error = f"{type(exc).__name__}: {exc}"
+        finally:
+            channel.close()
+        await asyncio.sleep(1)
+
+    after = await read_server_timer_statuses(duid)
+    failed = {
+        timer_id: {"expected": status, "actual": after.get(timer_id)}
+        for timer_id, status in requested.items()
+        if after.get(timer_id) != status
+    }
+    return {
+        "ok": not failed,
+        "requested": requested,
+        "before": before,
+        "verified": after,
+        "failed": failed,
+        "send_error": send_error,
+    }
+
+
+def public_water_interlock(entry: dict[str, Any]) -> dict[str, Any]:
+    paused = entry.get("paused_schedules") if isinstance(entry.get("paused_schedules"), list) else []
+    status = str(entry.get("status") or "ready")
+    return {
+        "enabled": ROBOROCK_WATER_INTERLOCK_ENABLED,
+        "status": status,
+        "label": interlock_label(status, len(paused)),
+        "water_status": entry.get("water_status"),
+        "checked_at": entry.get("checked_at"),
+        "blocked_at": entry.get("blocked_at"),
+        "restored_at": entry.get("restored_at"),
+        "paused_count": len(paused),
+        "paused_schedules": paused,
+        "last_action": entry.get("last_action"),
+        "last_error": entry.get("last_error"),
+    }
+
+
+async def reconcile_water_interlock(
+    duid: str,
+    robot_name: str,
+    telemetry: dict[str, Any],
+    state: dict[str, Any],
+) -> dict[str, Any]:
+    now = local_now_iso()
+    interlocks = state.setdefault("water_interlocks", {})
+    entry = interlocks.setdefault(duid, {"paused_schedules": []})
+    entry["checked_at"] = now
+    water_status = clear_water_state(telemetry)
+    entry["water_status"] = water_status
+
+    if not ROBOROCK_WATER_INTERLOCK_ENABLED:
+        entry.update({"status": "disabled", "last_error": None})
+        return public_water_interlock(entry)
+    if water_status == "unknown":
+        entry["status"] = "blocked" if entry.get("paused_schedules") else "unsupported"
+        entry["last_error"] = None
+        return public_water_interlock(entry)
+
+    robot_state = (state.get("robots") or {}).get(duid) or {}
+    schedules = robot_state.get("schedules") if isinstance(robot_state.get("schedules"), list) else []
+    wash_schedules = wash_schedule_rows(schedules)
+    schedules_by_timer = {row["timer_id"]: row for row in wash_schedules}
+    paused = {
+        str(row.get("timer_id")): row
+        for row in (entry.get("paused_schedules") or [])
+        if isinstance(row, dict) and row.get("timer_id")
+    }
+
+    if water_status == "empty":
+        actual = await read_server_timer_statuses(duid)
+        candidates = {
+            row["timer_id"]: row
+            for row in wash_schedules
+            if actual.get(row["timer_id"], "on" if row.get("enabled") else "off") == "on"
+        }
+        if candidates:
+            result = await update_server_timer_statuses(duid, {timer_id: "off" for timer_id in candidates})
+            verified = result.get("verified") or {}
+            for timer_id, row in candidates.items():
+                if verified.get(timer_id) == "off":
+                    paused[timer_id] = {**row, "paused_at": now}
+            entry["last_action"] = {
+                "action": "pause",
+                "at": now,
+                "count": sum(verified.get(timer_id) == "off" for timer_id in candidates),
+                "requested": len(candidates),
+            }
+            entry["last_error"] = None if result.get("ok") else json.dumps(result.get("failed"), ensure_ascii=False)
+            append_control_log(
+                {
+                    "request_id": f"water-interlock-{duid}-{int(time.time())}",
+                    "duid": duid,
+                    "robot_name": robot_name,
+                    "action": "water_interlock_pause",
+                    "actor": "Roborock_logger",
+                    "started_at": now,
+                    "finished_at": local_now_iso(),
+                    "status": "ok" if result.get("ok") else "error",
+                    "target": list(candidates.values()),
+                    "result": result,
+                }
+            )
+        elif paused:
+            entry["last_error"] = None
+        entry["paused_schedules"] = list(paused.values())
+        entry["blocked_at"] = entry.get("blocked_at") or now
+        entry["status"] = "error" if entry.get("last_error") else "blocked"
+        return public_water_interlock(entry)
+
+    restorable = {
+        timer_id: row
+        for timer_id, row in paused.items()
+        if timer_id in schedules_by_timer
+    }
+    if restorable:
+        result = await update_server_timer_statuses(duid, {timer_id: "on" for timer_id in restorable})
+        verified = result.get("verified") or {}
+        restored_ids = {timer_id for timer_id in restorable if verified.get(timer_id) == "on"}
+        paused = {timer_id: row for timer_id, row in paused.items() if timer_id not in restored_ids}
+        entry["last_action"] = {
+            "action": "restore",
+            "at": now,
+            "count": len(restored_ids),
+            "requested": len(restorable),
+        }
+        entry["last_error"] = None if result.get("ok") else json.dumps(result.get("failed"), ensure_ascii=False)
+        append_control_log(
+            {
+                "request_id": f"water-interlock-{duid}-{int(time.time())}",
+                "duid": duid,
+                "robot_name": robot_name,
+                "action": "water_interlock_restore",
+                "actor": "Roborock_logger",
+                "started_at": now,
+                "finished_at": local_now_iso(),
+                "status": "ok" if result.get("ok") else "error",
+                "target": list(restorable.values()),
+                "result": result,
+            }
+        )
+    elif paused:
+        # A plan removed in Roborock while blocked must never be recreated.
+        paused = {timer_id: row for timer_id, row in paused.items() if timer_id in schedules_by_timer}
+        entry["last_error"] = None
+    else:
+        entry["last_error"] = None
+    entry["paused_schedules"] = list(paused.values())
+    if not paused:
+        entry["restored_at"] = now if entry.get("blocked_at") else entry.get("restored_at")
+        entry["blocked_at"] = None
+    entry["status"] = "error" if entry.get("last_error") else ("blocked" if paused else "ready")
+    return public_water_interlock(entry)
 
 
 async def read_control_status(rpc: Any, model: str | None) -> dict[str, Any]:
@@ -1178,6 +1389,49 @@ async def collect_telemetry_once(force_settings: bool = False) -> dict[str, Any]
                 model,
                 include_settings=include_settings,
             )
+            if not isinstance(previous_robot.get("schedules"), list):
+                try:
+                    schedules, _ = await schedules_and_scenes(ROBOROCK_EMAIL, duid)
+                    previous_robot["schedules"] = schedules
+                    state.setdefault("robots", {}).setdefault(duid, {})["schedules"] = schedules
+                except Exception as exc:
+                    probes.append(
+                        {
+                            "source": "water-interlock",
+                            "command": "load_schedules",
+                            "ok": False,
+                            "error": f"{type(exc).__name__}: {exc}",
+                        }
+                    )
+            try:
+                telemetry["water_interlock"] = await reconcile_water_interlock(
+                    duid,
+                    str(device.get("name") or duid),
+                    telemetry,
+                    state,
+                )
+            except Exception as exc:
+                interlock_entry = state.setdefault("water_interlocks", {}).setdefault(
+                    duid,
+                    {"paused_schedules": []},
+                )
+                interlock_entry.update(
+                    {
+                        "checked_at": local_now_iso(),
+                        "water_status": clear_water_state(telemetry),
+                        "status": "error",
+                        "last_error": f"{type(exc).__name__}: {exc}",
+                    }
+                )
+                telemetry["water_interlock"] = public_water_interlock(interlock_entry)
+                probes.append(
+                    {
+                        "source": "water-interlock",
+                        "command": "reconcile",
+                        "ok": False,
+                        "error": interlock_entry["last_error"],
+                    }
+                )
             item.update({"ok": True, "telemetry": telemetry, "probes": probes})
             if include_settings:
                 telemetry_last_settings_at[duid] = now_monotonic
@@ -1290,12 +1544,14 @@ async def collect_once(include_maps: bool = False, force_home_refresh: bool = Fa
             robot["last_error"] = " | ".join(robot_errors)
         robots.append(robot)
         state["robots"][duid] = {
+            **previous_robot,
             "name": robot.get("name"),
             "model": robot.get("model"),
             "local_ip": robot.get("local_ip"),
             "last_status": local_now_iso(),
             "online": robot.get("online"),
             "last_error": robot.get("last_error"),
+            "schedules": robot.get("schedules", previous_robot.get("schedules", [])),
         }
     batch = {
         "source": "Roborock_logger",

@@ -255,7 +255,11 @@ function RobotCard({ robot }: { robot: RoborockRobotSummary }) {
     ["Skittentvann i dokk", readiness.dirty_water_label],
     ["Støvpose i dokk", readiness.dust_bag_label],
     ["Dokkstatus", readiness.dock_error_label],
-    ["Vann i robot", readiness.robot_water_label],
+    ["Vannmangel i robot", readiness.robot_water_label],
+    ["Vanntank i robot", readiness.water_box_label],
+    ["Mopp montert", readiness.mop_attached_label],
+    ["Vannfilter", readiness.water_filter_label],
+    ["Automatisk vannsperre", readiness.water_interlock?.label],
   ].filter(([, value]) => isSupportedResource(value));
   const nextPlan = robot.schedules?.next_label
     ? `${robot.schedules.next_label}${robot.schedules.active_count > 1 ? ` · ${robot.schedules.active_count} planer` : ""}`
@@ -521,8 +525,12 @@ function waterEventLabel(kind: string) {
     robot_restored: "Vann i robot gjenopprettet",
     tank_removed: "Vanntank fjernet",
     tank_mounted: "Vanntank montert",
+    mop_removed: "Mopp fjernet",
+    mop_mounted: "Mopp montert",
     detergent_warning: "Rengjøringsmiddel krever kontroll",
     detergent_ok: "Rengjøringsmiddel OK",
+    filter_warning: "Vannfilter krever kontroll",
+    filter_ok: "Vannfilter OK",
   };
   return labels[kind] || "Vannstatus endret";
 }
@@ -542,13 +550,14 @@ function WaterRobotCard({ robot, periodDays }: { robot: RoborockWaterRobot; peri
     <div className="grid md:grid-cols-2">
       <div className="border-b px-5 py-3 md:border-b-0 md:border-r dark:border-gray-700/60">
         <span className="text-[0.65rem] font-semibold uppercase text-gray-400">Status akkurat nå</span>
-        <div className="mt-1"><WaterResource label="Rentvann i dokk" resource={robot.current.cleanWater} /><WaterResource label="Skittentvann i dokk" resource={robot.current.dirtyWater} /><WaterResource label="Vann i robot" resource={robot.current.robotWater} /><WaterResource label="Rengjøringsmiddel" resource={robot.current.detergent} /></div>
+        <div className="mt-1"><WaterResource label="Rentvann i dokk" resource={robot.current.cleanWater} /><WaterResource label="Skittentvann i dokk" resource={robot.current.dirtyWater} /><WaterResource label="Vannmangel i robot" resource={robot.current.robotWater} /><WaterResource label="Vanntank i robot" resource={robot.current.waterBox} /><WaterResource label="Mopp montert" resource={robot.current.mopAttached} /><WaterResource label="Vannfilter" resource={robot.current.waterFilter} /><WaterResource label="Rengjøringsmiddel" resource={robot.current.detergent} /></div>
       </div>
       <div className="px-5 py-3">
         <span className="text-[0.65rem] font-semibold uppercase text-gray-400">Moppevask og vannmengde</span>
         <div className="mt-1"><Field label="Moppevaskintervall" value={robot.settings.washSupported ? interval : "Ikke støttet"} /><Field label="Vaskestyrke" value={robot.settings.washModeLabel || "Ikke støttet"} /><Field label="Vannmengde på gulv" value={robot.settings.waterModeLabel || "Ikke mottatt"} /></div>
       </div>
     </div>
+    <div className={`flex flex-wrap items-center justify-between gap-3 border-t px-5 py-3 text-sm ${robot.current.interlock.status === "blocked" ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300" : robot.current.interlock.status === "error" ? "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300" : "border-green-100 bg-green-50/60 text-green-800 dark:border-green-500/20 dark:bg-green-500/5 dark:text-green-300"}`}><span className="flex items-center gap-2 font-semibold"><MosaicIcon name={robot.current.interlock.status === "blocked" || robot.current.interlock.status === "error" ? "warning" : "robot"} size={16} />Automatisk vannsperre: {robot.current.interlock.label}</span><span className="text-xs tabular-nums opacity-75">{robot.current.interlock.pausedCount ? `${robot.current.interlock.pausedCount} vaskeplaner satt på pause` : "Støvsugeplaner påvirkes ikke"}</span></div>
     <div className="grid grid-cols-2 border-t border-gray-100 bg-gray-50/60 sm:grid-cols-4 dark:border-gray-700/60 dark:bg-gray-900/20">
       <div className="border-b border-r px-4 py-3 sm:border-b-0 dark:border-gray-700/50"><span className="block text-[0.65rem] font-semibold uppercase text-gray-400">Moppevasker</span><strong className="mt-0.5 block text-lg font-semibold tabular-nums text-gray-800 dark:text-gray-100">{robot.usage.washCount}</strong><small className="text-gray-400">{periodDays === 1 ? "i dag" : `på ${periodDays} dager`}</small></div>
       <div className="border-b px-4 py-3 sm:border-b-0 sm:border-r dark:border-gray-700/50"><span className="block text-[0.65rem] font-semibold uppercase text-gray-400">Vaskejobber</span><strong className="mt-0.5 block text-lg font-semibold tabular-nums text-gray-800 dark:text-gray-100">{robot.usage.mopJobs}</strong><small className="text-gray-400">av {robot.usage.jobs} jobber</small></div>
@@ -603,7 +612,11 @@ function ReadinessGrid({ readiness }: { readiness?: RoborockReadinessSummary | n
     ["Skittentvann i dokk", readiness?.dirty_water_label],
     ["Støvpose i dokk", readiness?.dust_bag_label],
     ["Dokkstatus", readiness?.dock_error_label],
-    ["Vann i robot", readiness?.robot_water_label],
+    ["Vannmangel i robot", readiness?.robot_water_label],
+    ["Vanntank i robot", readiness?.water_box_label],
+    ["Mopp montert", readiness?.mop_attached_label],
+    ["Vannfilter", readiness?.water_filter_label],
+    ["Automatisk vannsperre", readiness?.water_interlock?.label],
     ["Lading", readiness?.charge_label],
     ["Signal", readiness?.signal_label],
   ];
@@ -1225,7 +1238,7 @@ function RobotDetail({ duid, summary }: { duid: string; summary?: RoborockRobotS
     </div>
     <Panel title="Alle telemetriverdier" subtitle={telemetry.timestamp ? `Sist lest ${stamp(telemetry.timestamp)}` : "Venter på første telemetrimåling"}>{telemetryFields.length ? <TelemetryFields fields={telemetryFields} /> : <div className="p-8 text-sm text-gray-400">Ingen telemetri er mottatt ennå.</div>}</Panel>
     <Panel title="Tilstandsendringer" subtitle={`${data.telemetryEvents.length} siste hendelser`}><CompactTable columns={["timestamp", "title", "previous_label", "current_label", "severity"]} rows={data.telemetryEvents} /></Panel>
-    <Panel title="Telemetrilogg" subtitle={`${data.telemetrySamples.length} minuttmålinger`}><CompactTable columns={["timestamp", "state_label", "battery", "charge_label", "clear_water_label", "dirty_water_label", "robot_water_label", "dust_bag_label", "dock_error_label"]} rows={data.telemetrySamples.slice(0, 120)} /></Panel>
+    <Panel title="Telemetrilogg" subtitle={`${data.telemetrySamples.length} minuttmålinger`}><CompactTable columns={["timestamp", "state_label", "battery", "charge_label", "clear_water_label", "dirty_water_label", "robot_water_label", "water_box_label", "mop_attached_label", "water_filter_label", "dust_bag_label", "dock_error_label"]} rows={data.telemetrySamples.slice(0, 120)} /></Panel>
     <details className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700/60 dark:bg-gray-800">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-sm font-semibold text-gray-700 dark:text-gray-200"><span className="flex items-center gap-2"><MosaicIcon name="settings" />{technicalTitle}</span><span className="flex items-center gap-2 text-xs font-medium text-gray-400">{isDreame ? "Dreamehome" : `${supportedProbes}/${data.telemetryProbes.length} lesekall støttes`} <MosaicIcon name="chevron-down" /></span></summary>
       <div className="space-y-6 border-t border-gray-100 p-5 dark:border-gray-700/60">

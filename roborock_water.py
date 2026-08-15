@@ -13,7 +13,9 @@ WATER_EVENT_FIELDS = {
     "dirty_water_status",
     "clean_fluid_status",
     "water_shortage_status",
+    "water_box_status",
     "water_box_carriage_status",
+    "water_box_filter_status",
 }
 
 
@@ -46,6 +48,44 @@ def _shortage(value: Any) -> dict[str, Any]:
     }
 
 
+def _attached(value: Any) -> dict[str, Any]:
+    status = integer(value)
+    if status is None:
+        return {"supported": False, "label": "Ikke støttet", "attention": False}
+    return {
+        "supported": True,
+        "label": "Montert" if status != 0 else "Ikke montert",
+        "attention": status == 0,
+    }
+
+
+def _interlock(telemetry: Any) -> dict[str, Any]:
+    raw = row_value(telemetry, "raw")
+    normalized = raw.get("normalized") if isinstance(raw, dict) else None
+    value = normalized.get("water_interlock") if isinstance(normalized, dict) else None
+    if not isinstance(value, dict):
+        return {
+            "enabled": False,
+            "status": "unsupported",
+            "label": "Ikke mottatt",
+            "pausedCount": 0,
+            "pausedSchedules": [],
+        }
+    return {
+        "enabled": bool(value.get("enabled")),
+        "status": str(value.get("status") or "unsupported"),
+        "label": str(value.get("label") or "Ikke mottatt"),
+        "waterStatus": value.get("water_status"),
+        "checkedAt": value.get("checked_at"),
+        "blockedAt": value.get("blocked_at"),
+        "restoredAt": value.get("restored_at"),
+        "pausedCount": integer(value.get("paused_count")) or 0,
+        "pausedSchedules": value.get("paused_schedules") if isinstance(value.get("paused_schedules"), list) else [],
+        "lastAction": value.get("last_action"),
+        "lastError": value.get("last_error"),
+    }
+
+
 def _event_kind(row: Any) -> str:
     field = str(row_value(row, "field_name") or "")
     current_label = str(row_value(row, "current_label") or "")
@@ -56,10 +96,14 @@ def _event_kind(row: Any) -> str:
         return "dirty_full" if _status_problem(current_label) else "dirty_cleared"
     if field == "water_shortage_status":
         return "robot_empty" if current_value not in {None, 0} else "robot_restored"
-    if field == "water_box_carriage_status":
+    if field == "water_box_status":
         return "tank_removed" if current_value == 0 else "tank_mounted"
+    if field == "water_box_carriage_status":
+        return "mop_removed" if current_value == 0 else "mop_mounted"
     if field == "clean_fluid_status":
         return "detergent_warning" if _status_problem(current_label) else "detergent_ok"
+    if field == "water_box_filter_status":
+        return "filter_warning" if _status_problem(current_label) else "filter_ok"
     return "water_status"
 
 
@@ -71,7 +115,7 @@ def _event_value_label(field: str, value: Any, stored_label: Any) -> str:
     parsed = integer(value)
     if field == "water_shortage_status":
         return "OK" if parsed == 0 else "Vannmangel" if parsed is not None else "Ikke støttet"
-    if field == "water_box_carriage_status":
+    if field in {"water_box_status", "water_box_carriage_status"}:
         return "Montert" if parsed not in {None, 0} else "Ikke montert"
     return str(stored_label or "-") or "-"
 
@@ -180,8 +224,12 @@ def build_water_report(
             row_value(telemetry, "clean_fluid_status_name"),
         )
         robot_water = _shortage(row_value(telemetry, "water_shortage_status"))
+        water_box = _attached(row_value(telemetry, "water_box_status"))
+        mop_attached = _attached(row_value(telemetry, "water_box_carriage_status"))
+        water_filter = _resource(row_value(telemetry, "water_box_filter_status"))
+        interlock = _interlock(telemetry)
         dock_supported = clean_water["supported"] or dirty_water["supported"] or bool(wash["supported"])
-        attention = any(item["attention"] for item in (clean_water, dirty_water, detergent, robot_water))
+        attention = any(item["attention"] for item in (clean_water, dirty_water, detergent, robot_water)) or interlock["status"] == "error"
 
         wash_count = 0
         mop_jobs = 0
@@ -237,7 +285,11 @@ def build_water_report(
                     "cleanWater": clean_water,
                     "dirtyWater": dirty_water,
                     "robotWater": robot_water,
+                    "waterBox": water_box,
+                    "mopAttached": mop_attached,
+                    "waterFilter": water_filter,
                     "detergent": detergent,
+                    "interlock": interlock,
                 },
                 "settings": {
                     "washSupported": bool(wash["supported"]),

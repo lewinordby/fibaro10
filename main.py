@@ -2984,9 +2984,9 @@ ROBOROCK_TELEMETRY_DISPLAY_FIELDS = [
     ("Vann og beholdere", "dirty_water_status", "Skittent vann", "dirty_water_status_name"),
     ("Vann og beholdere", "dust_bag_status", "Støvpose", "dust_bag_status_name"),
     ("Vann og beholdere", "clean_fluid_status", "Rengjøringsmiddel", "clean_fluid_status_name"),
-    ("Vann og beholdere", "water_shortage_status", "Vannmangel", None),
-    ("Vann og beholdere", "water_box_status", "Vanntankstatus", None),
-    ("Vann og beholdere", "water_box_carriage_status", "Vanntank montert", None),
+    ("Vann og beholdere", "water_shortage_status", "Vannmangel i robot", None),
+    ("Vann og beholdere", "water_box_status", "Vanntank i robot", None),
+    ("Vann og beholdere", "water_box_carriage_status", "Mopp montert", None),
     ("Vann og beholdere", "water_box_filter_status", "Vannfilter", None),
     ("Vann og beholdere", "water_box_mode", "Vannmengde", None),
     ("Nettverk", "rssi", "WiFi-signal", None),
@@ -14840,6 +14840,13 @@ def roborock_telemetry_sample_values(telemetry: Dict[str, Any]) -> Dict[str, Any
         "dss": int_value(telemetry.get("dss")),
         "rss": int_value(telemetry.get("rss")),
     }
+
+
+def roborock_water_interlock_from_sample(sample: Any) -> Dict[str, Any]:
+    raw = getattr(sample, "raw", None)
+    normalized = raw.get("normalized") if isinstance(raw, dict) else None
+    interlock = normalized.get("water_interlock") if isinstance(normalized, dict) else None
+    return interlock if isinstance(interlock, dict) else {}
 
 
 async def ingest_roborock_telemetry_robot(
@@ -33036,6 +33043,16 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 robot_water = roborock_telemetry_value_label(
                     "water_shortage_status", telemetry.water_shortage_status
                 ) if telemetry else "Ikke støttet"
+                water_box = roborock_telemetry_value_label(
+                    "water_box_status", telemetry.water_box_status
+                ) if telemetry else "Ikke støttet"
+                mop_attached = roborock_telemetry_value_label(
+                    "water_box_carriage_status", telemetry.water_box_carriage_status
+                ) if telemetry else "Ikke støttet"
+                water_filter = roborock_telemetry_value_label(
+                    "water_box_filter_status", telemetry.water_box_filter_status
+                ) if telemetry else "Ikke støttet"
+                water_interlock = roborock_water_interlock_from_sample(telemetry) if telemetry else {}
                 active = cleaning_robot_is_active(
                     source.in_cleaning if source else None,
                     source.state_code if source else None,
@@ -33062,6 +33079,12 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 )
                 if readiness["status"] == "active" and active_cycle and active_cycle.get("phase") == "charging_pause":
                     readiness["label"] = "Pågår – lader"
+                if water_interlock.get("status") == "error":
+                    readiness["status"] = "attention"
+                    readiness["label"] = "Krever tilsyn"
+                    readiness["issues"] = list(
+                        dict.fromkeys([*readiness["issues"], "Automatisk vannsperre har feil"])
+                    )
                 return {
                     **readiness,
                     "telemetry_at": api_local_iso(telemetry.timestamp) if telemetry else None,
@@ -33072,6 +33095,10 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "dust_bag_label": dust_bag,
                     "dock_error_label": dock_error,
                     "robot_water_label": robot_water,
+                    "water_box_label": water_box,
+                    "mop_attached_label": mop_attached,
+                    "water_filter_label": water_filter,
+                    "water_interlock": water_interlock or None,
                     "signal_label": roborock_signal_label(telemetry.rssi) if telemetry else "-",
                 }
 
@@ -40459,6 +40486,16 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
                 "robot_water_label": roborock_telemetry_value_label(
                     "water_shortage_status", row.water_shortage_status
                 ),
+                "water_box_label": roborock_telemetry_value_label(
+                    "water_box_status", row.water_box_status
+                ),
+                "mop_attached_label": roborock_telemetry_value_label(
+                    "water_box_carriage_status", row.water_box_carriage_status
+                ),
+                "water_filter_label": roborock_telemetry_value_label(
+                    "water_box_filter_status", row.water_box_filter_status
+                ),
+                "water_interlock": roborock_water_interlock_from_sample(row) or None,
                 "signal_label": roborock_signal_label(row.rssi),
             }
         )

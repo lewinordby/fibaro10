@@ -20,6 +20,20 @@ def test_water_report_combines_settings_usage_and_resource_events() -> None:
         clean_fluid_status=0,
         clean_fluid_status_name="okay",
         water_shortage_status=0,
+        water_box_status=1,
+        water_box_carriage_status=1,
+        water_box_filter_status=0,
+        raw={
+            "normalized": {
+                "water_interlock": {
+                    "enabled": True,
+                    "status": "blocked",
+                    "label": "Vannsperre aktiv (2 planer)",
+                    "paused_count": 2,
+                    "paused_schedules": [{"timer_id": "one"}, {"timer_id": "two"}],
+                }
+            }
+        },
     )
     probes = [
         row(robot_duid="robot-a", command="GET_SMART_WASH_PARAMS", ok=True, raw={"value": {"smart_wash": 0, "wash_interval": 600}}),
@@ -48,6 +62,11 @@ def test_water_report_combines_settings_usage_and_resource_events() -> None:
     result = report["robots"][0]
     assert result["status"] == "attention"
     assert result["current"]["cleanWater"]["label"] == "Tom"
+    assert result["current"]["waterBox"]["label"] == "Montert"
+    assert result["current"]["mopAttached"]["label"] == "Montert"
+    assert result["current"]["waterFilter"]["label"] == "OK"
+    assert result["current"]["interlock"]["status"] == "blocked"
+    assert result["current"]["interlock"]["pausedCount"] == 2
     assert result["settings"]["intervalMinutes"] == 10
     assert result["settings"]["washModeLabel"] == "Balansert"
     assert result["settings"]["waterModeLabel"] == "Høy"

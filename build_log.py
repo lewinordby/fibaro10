@@ -12,6 +12,40 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1759",
+        "date": "15.08.2026",
+        "headline": "Tom rentvannsdokk sperrer vaskeplaner automatisk",
+        "title": "Kontinuerlig vannsperre beskytter robotene og åpner planene igjen etter påfylling",
+        "description": (
+            "Roborock_logger kontrollerer nå rentvann i dokken ved hvert minuttssample. Når dokken blir tom, "
+            "settes bare robotens aktive vaskeplaner på pause med en gang. Rene støvsugeplaner fortsetter. "
+            "Når tanken igjen rapporterer OK, aktiveres bare planene sperren selv stoppet. Alle vann-, tank-, "
+            "mopp- og filtersignaler vises samtidig med forståelige navn og egen status for sperren."
+        ),
+        "applications": [
+            "Roborock_logger: kontinuerlig, persistent og verifisert styring av Roborock-vaskeplaner.",
+            "Fibaro10 build 1759: lagrer sperrestatus og tydeliggjør alle separate vannsignaler.",
+            "Bygg og drift build 72: viser dokk, robot, tank, mopp, filter og vannsperre på oversikt og robotside.",
+        ],
+        "request": (
+            "Kan du få frem alle disse data og i tillegg legge inn sperren, men bør vi bare sperre med en gang "
+            "den er tom og åpne igjen når den er ok. Droppe å vente til et bestemt tidspunkt?"
+        ),
+        "work_duration": "ca. 2 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bruker bare clear_water_status for rentvann i dokken som styrende sperresignal.",
+            "Kontrollerer vannstatus hvert 60. sekund uten å vente til stengetid.",
+            "Setter aktive planer med vannmodus på pause og lar water_box_mode 200 støvsugeplaner fortsette.",
+            "Lagrer nøyaktig hvilke planer sperren stoppet og aktiverer bare disse etter påfylling.",
+            "Verifiserer hver planendring med ny avlesning fra roboten, også når Roborock ikke svarer på kommandoen.",
+            "Skiller vannmangel i robot, vanntank i robot, mopp montert, vannfilter og dokkens beholdere.",
+            "Viser aktiv sperre, antall stansede vaskeplaner, tidspunkt og feil i Bygg og drift.",
+            "Dokumenterer styringen og legger til regresjonstester for sperring og gjenåpning.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1758",
         "date": "15.08.2026",
         "headline": "Vannstatus skiller tydelig mellom dokk og robot",

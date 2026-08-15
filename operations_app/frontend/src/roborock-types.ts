@@ -86,7 +86,30 @@ export type RoborockReadinessSummary = {
   dust_bag_label?: string | null;
   dock_error_label?: string | null;
   robot_water_label?: string | null;
+  water_box_label?: string | null;
+  mop_attached_label?: string | null;
+  water_filter_label?: string | null;
+  water_interlock?: RoborockWaterInterlock | null;
   signal_label?: string | null;
+};
+
+export type RoborockWaterInterlock = {
+  enabled: boolean;
+  status: "ready" | "blocked" | "error" | "disabled" | "unsupported" | string;
+  label: string;
+  water_status?: "ok" | "empty" | "unknown" | string | null;
+  checked_at?: string | null;
+  blocked_at?: string | null;
+  restored_at?: string | null;
+  paused_count?: number;
+  paused_schedules?: Array<{
+    schedule_id?: string;
+    timer_id?: string;
+    cron?: string | null;
+    paused_at?: string | null;
+  }>;
+  last_action?: JsonRecord | null;
+  last_error?: string | null;
 };
 
 export type RoborockOverviewSummary = {
@@ -240,7 +263,23 @@ export type RoborockWaterRobot = {
     cleanWater: RoborockWaterResource;
     dirtyWater: RoborockWaterResource;
     robotWater: RoborockWaterResource;
+    waterBox: RoborockWaterResource;
+    mopAttached: RoborockWaterResource;
+    waterFilter: RoborockWaterResource;
     detergent: RoborockWaterResource;
+    interlock: {
+      enabled: boolean;
+      status: string;
+      label: string;
+      waterStatus?: string | null;
+      checkedAt?: string | null;
+      blockedAt?: string | null;
+      restoredAt?: string | null;
+      pausedCount: number;
+      pausedSchedules: JsonRecord[];
+      lastAction?: JsonRecord | null;
+      lastError?: string | null;
+    };
   };
   settings: {
     washSupported: boolean;

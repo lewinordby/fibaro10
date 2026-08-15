@@ -27,6 +27,7 @@ ROBOROCK_EMAIL=roborock.sun2@gmail.com
 FIBARO10_API_BASE_URL=http://fibaro10:8110
 FIBARO10_API_USERNAME=logger
 FIBARO10_API_PASSWORD=passord-fra-fibaro10
+ROBOROCK_WATER_INTERLOCK_ENABLED=true
 ```
 
 Brukeren i Fibaro10 kan være en vanlig bruker. Loggeren bruker headerne `x-access-username` og `x-access-password`.
@@ -98,3 +99,30 @@ append-only kontrolloggen med innstillinger og status før og etter.
 
 Kun deterministiske innstillinger som støttes av robotmodellene i anlegget godtas. `Custom` og `Smart` avvises fordi
 de krever flere modellavhengige parametere enn selve moduskoden.
+
+## Automatisk vannsperre
+
+Loggeren kontrollerer `clear_water_status`, som er Roborocks status for rentvannstanken i dokken, ved hver
+telemetriinnsamling (normalt hvert 60. sekund). Sperren er kontinuerlig og venter ikke til et bestemt klokkeslett:
+
+1. Når rentvann i dokken går til tom, settes alle aktive vaskeplaner for den roboten på pause.
+2. Rene støvsugeplaner, identifisert med `water_box_mode=200`, berøres ikke.
+3. Planene sperren faktisk satte på pause lagres i `/data/state.json`.
+4. Når rentvann igjen rapporteres OK, aktiveres bare disse planene på nytt.
+5. En plan som er slettet mens sperren er aktiv blir ikke opprettet på nytt.
+6. Hver endring verifiseres ved å lese planstatus tilbake fra roboten og logges i `/data/control_commands.jsonl`.
+
+Sperren kan slås av med `ROBOROCK_WATER_INTERLOCK_ENABLED=false`, men standard og anbefalt verdi er `true`.
+Fibaro10 mottar status, sperretid, eventuelle feil og hvilke vaskeplaner som er satt på pause sammen med hvert
+telemetrisample.
+
+Følgende vannsignaler holdes adskilt i data og grensesnitt:
+
+- `clear_water_status`: rentvann i dokken, og eneste signal som styrer den automatiske sperren.
+- `dirty_water_status`: skittentvann i dokken.
+- `clean_fluid_status`: rengjøringsmiddel i dokken.
+- `water_shortage_status`: roboten registrerer vannmangel under drift; dette er ikke en nivåmåler.
+- `water_box_status`: vanntanken i roboten er montert.
+- `water_box_carriage_status`: moppen er montert.
+- `water_box_filter_status`: vannfilterstatus.
+- `dock_error_status`: samlet dokkfeil; vises som diagnose, men styrer ikke sperren.

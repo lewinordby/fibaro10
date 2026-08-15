@@ -162,8 +162,10 @@ ROBOROCK_TELEMETRY_EVENT_FIELDS = {
     "dirty_water_status": ("vann", "Skittent vann"),
     "dust_bag_status": ("dokk", "Støvpose"),
     "clean_fluid_status": ("vann", "Rengjøringsmiddel"),
-    "water_shortage_status": ("vann", "Vannmangel"),
-    "water_box_carriage_status": ("vann", "Vanntank montert"),
+    "water_shortage_status": ("vann", "Vannmangel i robot"),
+    "water_box_status": ("vann", "Vanntank i robot"),
+    "water_box_carriage_status": ("vann", "Mopp montert"),
+    "water_box_filter_status": ("vann", "Vannfilter"),
     "dust_collection_status": ("dokk", "Støvtømming"),
     "wash_status": ("dokk", "Moppevask"),
     "wash_phase": ("dokk", "Vaskefase"),
@@ -278,13 +280,24 @@ def roborock_telemetry_value_label(field_name: str, value: Any, name: Any = None
         return roborock_dock_error_label(value)
     if field_name == "charge_status":
         return roborock_charge_label(value)
-    if field_name in {"clear_water_status", "dirty_water_status", "dust_bag_status", "clean_fluid_status"}:
+    if field_name in {
+        "clear_water_status",
+        "dirty_water_status",
+        "dust_bag_status",
+        "clean_fluid_status",
+        "water_box_filter_status",
+    }:
         return roborock_resource_status_label(value, name)
     if field_name == "water_shortage_status":
         number = int_value(value)
         if number is None:
             return "Ikke støttet"
         return "OK" if number == 0 else "Vannmangel"
+    if field_name in {"water_box_status", "water_box_carriage_status"}:
+        number = int_value(value)
+        if number is None:
+            return "Ikke støttet"
+        return "Montert" if number != 0 else "Ikke montert"
     if field_name == "rssi":
         return roborock_signal_label(value)
     if field_name in {"is_charging", "in_cleaning", "in_returning", "auto_dust_collection", "wash_ready"}:
@@ -317,6 +330,7 @@ def roborock_telemetry_changes(previous: Dict[str, Any] | None, current: Dict[st
             "dust_bag_status",
             "clean_fluid_status",
             "water_shortage_status",
+            "water_box_filter_status",
         } and new_label not in {"OK", "Ikke støttet", "0"}:
             severity = "warning"
         changes.append(
