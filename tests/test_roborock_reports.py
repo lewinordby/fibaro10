@@ -267,3 +267,38 @@ def test_schedule_check_keeps_an_active_job_running() -> None:
     assert planned["running"] == 1
     assert planned["jobs"][0]["status"] == "running"
     assert planned["jobs"][0]["statusLabel"] == "Pågår"
+
+
+def test_next_night_shows_active_and_paused_plans_without_missing_jobs() -> None:
+    robot = row(duid="robot-plan", name="2.etg", model="Qrevo")
+    schedules = [
+        row(
+            robot_duid="robot-plan", schedule_id="active-0100", cron="0 1 * * *", enabled=True,
+            fan_power=105, water_box_mode=203, mop_mode=303, repeat=1,
+        ),
+        row(
+            robot_duid="robot-plan", schedule_id="paused-0300", cron="0 3 * * *", enabled=False,
+            fan_power=105, water_box_mode=203, mop_mode=303, repeat=2,
+        ),
+    ]
+
+    report = build_night_report(
+        date(2026, 8, 16),
+        [robot],
+        [],
+        [],
+        [],
+        generated_at=datetime(2026, 8, 15, 12, 0),
+        schedules=schedules,
+    )
+
+    planned = report["robots"][0]["scheduleCheck"]
+    assert report["isForecast"] is True
+    assert report["conclusion"]["title"] == "Neste natts renholdsplan"
+    assert report["summary"]["plannedJobs"] == 1
+    assert report["summary"]["plannedPending"] == 1
+    assert report["summary"]["plannedPaused"] == 1
+    assert report["summary"]["plannedMissing"] == 0
+    assert planned["expected"] == 1
+    assert planned["paused"] == 1
+    assert [job["status"] for job in planned["jobs"]] == ["pending", "paused"]

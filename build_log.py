@@ -12,6 +12,37 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1765",
+        "date": "15.08.2026",
+        "headline": "Nattrapporten viser planen for neste natt",
+        "title": "Aktive og pauserte robotjobber kan kontrolleres før natten starter",
+        "description": (
+            "Nattrapporten kan nå bla én natt frem og viser gjeldende renholdsplan før jobbene starter. "
+            "Aktive starter markeres med tydelige blå, stiplede linjer og planer på pause med oransje, "
+            "stiplede linjer som går gjennom mellomrommet mellom robotsporene. En pause behandles som en "
+            "egen planstatus og blir aldri rapportert som en uteblitt jobb."
+        ),
+        "applications": [
+            "Fibaro10 build 1765: utvider nattrapport-API-et med neste natt og pauserte planer.",
+            "Bygg og drift build 75: viser fremtidsplan, tydelige planmarkører og egen pausestatus.",
+        ],
+        "request": (
+            "Gjør det mulig å bla til neste natt og vise planlagte og pauserte jobber tydelig i tidslinjen, "
+            "med de eksisterende stiplede linjene videreført og gjort mer synlige."
+        ),
+        "work_duration": "ca. 35 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Tillater rapportvisning til og med neste natt fra datovelger og fremoverknapp.",
+            "Henter både aktive og pauserte Roborock-planer i fremtidsvisningen.",
+            "Viser aktive planer som blå og pauserte planer som oransje stiplede linjer.",
+            "Forlenger planmarkørene over og under hvert spor for bedre visuell sammenheng.",
+            "Skiller fremtidsplanen fra historisk kontroll av faktisk utførte jobber.",
+            "Legger til regresjonstest som hindrer at pauserte planer telles som uteblitt.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1764",
         "date": "15.08.2026",
         "headline": "Forsinkede robotjobber regnes ikke som uteblitt",

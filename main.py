@@ -40084,12 +40084,13 @@ async def roborock_door_automation_payload(
 @app.get("/api/renhold/night-report")
 async def api_cleaning_night_report(day: Optional[str] = None):
     today = datetime.now(LOCAL_TZ).date()
+    latest_day = today + timedelta(days=1)
     try:
         selected_day = date.fromisoformat(day) if day else today
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Ugyldig dato. Bruk YYYY-MM-DD.") from exc
-    if selected_day > today:
-        raise HTTPException(status_code=400, detail="Rapporten kan ikke vises for en fremtidig dato.")
+    if selected_day > latest_day:
+        raise HTTPException(status_code=400, detail="Rapporten kan bare vise neste planlagte natt.")
 
     window = report_window(selected_day)
     job_start = local_naive_to_utc_naive(window["start"])
@@ -40121,7 +40122,6 @@ async def api_cleaning_night_report(day: Optional[str] = None):
             await session.execute(
                 select(RoborockSchedule)
                 .where(RoborockSchedule.robot_duid.in_(robot_duids or [""]))
-                .where(RoborockSchedule.enabled == True)
                 .where(RoborockSchedule.deleted_at.is_(None))
                 .order_by(RoborockSchedule.robot_duid, RoborockSchedule.cron)
             )

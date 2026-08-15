@@ -340,12 +340,14 @@ def schedule_occurrences(
     schedules: list[Any],
     window: dict[str, datetime],
     provider: str = "roborock",
+    include_paused: bool = False,
 ) -> list[dict[str, Any]]:
     occurrences = []
     current_day = window["start"].date()
     while current_day <= window["end"].date():
         for schedule in schedules:
-            if row_value(schedule, "enabled") is not True:
+            enabled = row_value(schedule, "enabled")
+            if enabled is not True and not (include_paused and enabled is False):
                 continue
             parts = roborock_cron_parts(row_value(schedule, "cron"))
             if not parts:
@@ -389,6 +391,7 @@ def schedule_occurrences(
                     "cleaningType": cleaning_type,
                     "cleaningTypeLabel": cleaning_type_label,
                     "modeLabel": " · ".join(part for part in mode_parts if part and part != "-"),
+                    "paused": enabled is False,
                 }
             )
         current_day += timedelta(days=1)
@@ -402,8 +405,9 @@ def build_schedule_check(
     window: dict[str, datetime],
     generated_at: datetime,
     provider: str = "roborock",
+    include_paused: bool = False,
 ) -> dict[str, Any]:
-    expected = schedule_occurrences(schedules, window, provider)
+    expected = schedule_occurrences(schedules, window, provider, include_paused)
     actual_starts = [
         (
             index,
@@ -420,6 +424,7 @@ def build_schedule_check(
             (abs((actual_at - occurrence["scheduledAtValue"]).total_seconds()), occurrence_index, actual_index, actual_at, record_id, job)
             for occurrence_index, occurrence in enumerate(expected)
             for actual_index, actual_at, record_id, job in actual_starts
+            if not occurrence["paused"]
             if occurrence["scheduledAtValue"] - SCHEDULE_EARLY_MATCH_TOLERANCE
             <= actual_at
             <= occurrence["scheduledAtValue"] + SCHEDULE_LATE_MATCH_TOLERANCE
@@ -436,6 +441,18 @@ def build_schedule_check(
     rows = []
     for index, occurrence in enumerate(expected):
         scheduled_at = occurrence.pop("scheduledAtValue")
+        if occurrence.pop("paused"):
+            rows.append(
+                {
+                    **occurrence,
+                    "status": "paused",
+                    "statusLabel": "Satt på pause",
+                    "actualStartedAt": None,
+                    "actualRecordId": None,
+                    "delayMinutes": None,
+                }
+            )
+            continue
         match = matched_occurrences.get(index)
         if match:
             actual_at, record_id, actual_job = match
@@ -486,10 +503,17 @@ def build_schedule_check(
             }
         )
 
+    paused_count = sum(row["status"] == "paused" for row in rows)
+    provider_label = "Dreamehome" if provider == "dreame" else "Roborock"
     return {
-        "basis": f"Gjeldende aktive {'Dreamehome' if provider == 'dreame' else 'Roborock'}-planer",
+        "basis": (
+            f"Gjeldende {provider_label}-planer, inkludert planer på pause"
+            if include_paused
+            else f"Gjeldende aktive {provider_label}-planer"
+        ),
         "jobs": rows,
-        "expected": len(rows),
+        "expected": len(rows) - paused_count,
+        "paused": paused_count,
         "completed": sum(row["status"] in {"completed", "delayed"} for row in rows),
         "missing": sum(row["status"] == "missing" for row in rows),
         "delayed": sum(row["status"] == "delayed" for row in rows),
@@ -507,6 +531,7 @@ def build_robot_report(
     schedules: list[Any],
     window: dict[str, datetime],
     generated_at: datetime,
+    include_paused_schedules: bool = False,
 ) -> dict[str, Any]:
     ordered_samples = sorted(
         samples,
@@ -542,7 +567,15 @@ def build_robot_report(
         build_job(job, ordered_samples, settings, provider)
         for job in sorted(jobs, key=lambda row: row_value(row, "begin_at") or datetime.min)
     ]
-    schedule_check = build_schedule_check(schedules, jobs, ordered_samples, window, generated_at, provider)
+    schedule_check = build_schedule_check(
+        schedules,
+        jobs,
+        ordered_samples,
+        window,
+        generated_at,
+        provider,
+        include_paused_schedules,
+    )
     last_end = max(
         (utc_naive_to_local_naive(row_value(job, "end_at")) for job in jobs if row_value(job, "end_at")),
         default=None,
@@ -554,7 +587,11 @@ def build_robot_report(
     warning_jobs = sum(row["status"] == "warning" for row in job_rows)
     error_jobs = sum(row["status"] == "error" for row in job_rows)
     running_jobs = sum(row["status"] == "running" for row in job_rows)
-    if error_jobs:
+    if include_paused_schedules and schedule_check["expected"]:
+        status, status_label = "neutral", "Planlagt"
+    elif include_paused_schedules and schedule_check["paused"]:
+        status, status_label = "neutral", "Plan satt på pause"
+    elif error_jobs:
         status, status_label = "error", "Feil i natt"
     elif schedule_check["missing"]:
         status, status_label = "warning", "Planlagt jobb uteble"
@@ -573,7 +610,12 @@ def build_robot_report(
 
     findings = []
     for planned in schedule_check["jobs"]:
-        if planned["status"] == "missing":
+        if planned["status"] == "paused":
+            scheduled_at = local_datetime_value(planned["scheduledAt"])
+            findings.append(
+                f"Planen kl. {scheduled_at.strftime('%H:%M') if scheduled_at else '-'} er satt på pause."
+            )
+        elif planned["status"] == "missing":
             scheduled_at = local_datetime_value(planned["scheduledAt"])
             findings.append(
                 f"Planlagt {planned['cleaningTypeLabel'].lower()} kl. {scheduled_at.strftime('%H:%M') if scheduled_at else '-'} ble ikke registrert."
@@ -641,6 +683,7 @@ def build_night_report(
 ) -> dict[str, Any]:
     window = report_window(report_day)
     report_generated_at = normalize_local_naive(generated_at or datetime.now(LOCAL_TZ)) or datetime.now(LOCAL_TZ).replace(tzinfo=None)
+    is_forecast = report_day > report_generated_at.date()
     jobs_by_robot: dict[str, list[Any]] = {}
     samples_by_robot: dict[str, list[Any]] = {}
     probes_by_robot: dict[str, list[Any]] = {}
@@ -662,6 +705,7 @@ def build_night_report(
             schedules_by_robot.get(str(row_value(robot, "duid") or ""), []),
             window,
             report_generated_at,
+            is_forecast,
         )
         for robot in robots
     ]
@@ -674,9 +718,16 @@ def build_night_report(
     missing_count = sum(row["scheduleCheck"]["missing"] for row in robot_rows)
     delayed_count = sum(row["scheduleCheck"]["delayed"] for row in robot_rows)
     pending_count = sum(row["scheduleCheck"]["pending"] for row in robot_rows)
+    paused_count = sum(row["scheduleCheck"]["paused"] for row in robot_rows)
     ready_count = sum(row["readiness"]["readyBeforeOpening"] and bool(row["jobs"]) for row in robot_rows)
     active_robot_count = sum(bool(row["jobs"] or row["scheduleCheck"]["expected"]) for row in robot_rows)
-    if error_count:
+    if is_forecast:
+        conclusion_status = "warning" if paused_count else "neutral"
+        conclusion_title = "Neste natts renholdsplan"
+        active_text = f"{expected_count} {'aktiv start' if expected_count == 1 else 'aktive starter'}"
+        paused_text = f" {paused_count} {'plan er' if paused_count == 1 else 'planer er'} satt på pause." if paused_count else ""
+        conclusion_detail = f"{active_text}.{paused_text}"
+    elif error_count:
         conclusion_status = "error"
         conclusion_title = "Natten har avvik som må følges opp"
         conclusion_detail = f"{error_count} {'jobb mangler' if error_count == 1 else 'jobber mangler'} fullføring eller har robotfeil."
@@ -714,6 +765,7 @@ def build_night_report(
         "day": report_day.isoformat(),
         "previousDay": (report_day - timedelta(days=1)).isoformat(),
         "nextDay": (report_day + timedelta(days=1)).isoformat(),
+        "isForecast": is_forecast,
         "generatedAt": local_iso(report_generated_at),
         "window": {
             "startAt": local_iso(window["start"]),
@@ -742,6 +794,7 @@ def build_night_report(
             "plannedMissing": missing_count,
             "plannedDelayed": delayed_count,
             "plannedPending": pending_count,
+            "plannedPaused": paused_count,
         },
         "robots": robot_rows,
     }

@@ -162,7 +162,7 @@ export type RoborockNightPlannedJob = {
   cleaningType: "vacuum" | "mop" | "vacuum_mop";
   cleaningTypeLabel: string;
   modeLabel: string;
-  status: "completed" | "delayed" | "running" | "pending" | "missing" | "failed";
+  status: "completed" | "delayed" | "running" | "pending" | "paused" | "missing" | "failed";
   statusLabel: string;
 };
 
@@ -177,6 +177,7 @@ export type RoborockNightRobot = {
     basis: string;
     jobs: RoborockNightPlannedJob[];
     expected: number;
+    paused: number;
     completed: number;
     missing: number;
     delayed: number;
@@ -214,6 +215,7 @@ export type RoborockNightRobot = {
 
 export type RoborockNightReport = {
   day: string;
+  isForecast: boolean;
   previousDay: string;
   nextDay: string;
   generatedAt: string;
@@ -240,6 +242,7 @@ export type RoborockNightReport = {
     plannedMissing: number;
     plannedDelayed: number;
     plannedPending: number;
+    plannedPaused: number;
   };
   robots: RoborockNightRobot[];
 };
