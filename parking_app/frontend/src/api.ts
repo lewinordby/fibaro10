@@ -13,22 +13,7 @@ import type {
   ParkingYearComparisonResponse,
   SettlementDetailResponse,
 } from "./types";
-import { scopeAppPayload, withCurrentAppApiPath } from "@lilletorget/microapp-ui";
-
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(withCurrentAppApiPath(path), {
-    credentials: "same-origin",
-    headers: { Accept: "application/json", ...init?.headers },
-    ...init,
-  });
-  if (response.status === 401) {
-    window.location.assign("/auth/login");
-    throw new Error("Innlogging kreves");
-  }
-  const payload = (await response.json().catch(() => null)) as { detail?: string; message?: string } | null;
-  if (!response.ok) throw new Error(payload?.message || payload?.detail || `${response.status} ${response.statusText}`);
-  return scopeAppPayload(payload as T);
-}
+import { apiRequest } from "@lilletorget/microapp-ui";
 
 function query(path: string, params?: URLSearchParams) {
   const value = params?.toString();
@@ -36,21 +21,21 @@ function query(path: string, params?: URLSearchParams) {
 }
 
 export const api = {
-  config: () => request<AppConfig>("/api/app/config"),
-  user: () => request<AuthUser>("/api/auth/me"),
+  config: () => apiRequest<AppConfig>("/api/app/config"),
+  user: () => apiRequest<AuthUser>("/api/auth/me"),
   module: (view: string, params?: URLSearchParams) => {
     const next = new URLSearchParams(params);
     next.set("view", view);
-    return request<ModuleResponse>(query("/api/modules/parkering", next));
+    return apiRequest<ModuleResponse>(query("/api/modules/parkering", next));
   },
-  year: (year?: string) => request<ParkingYearComparisonResponse>(query("/api/parkering/year-comparison", year ? new URLSearchParams({ year }) : undefined)),
-  timeDistribution: (params: URLSearchParams) => request<ParkingTimeDistributionResponse>(query("/api/parkering/time-distribution", params)),
-  weeklyAverages: (params: URLSearchParams) => request<ParkingWeeklyAveragesResponse>(query("/api/parkering/weekly-averages", params)),
-  weeklyYears: (years?: string) => request<ParkingWeeklyYearComparisonResponse>(query("/api/parkering/weekly-averages/years", years ? new URLSearchParams({ years }) : undefined)),
-  vehicle: (plate: string) => request<ParkingVehicleDetailResponse>(`/api/parking/vehicles/${encodeURIComponent(plate)}`),
-  lookup: (mode: "navn" | "omrade", limit: number, offset: number) => request<ParkingLookupResponse>(query(`/api/parkering/kjoretoy/mangler-${mode}`, new URLSearchParams({ limit: String(limit), offset: String(offset) }))),
-  carsDay: (day: string) => request<CarsDayResponse>(query("/api/cars/day", new URLSearchParams({ day }))),
-  carDetections: (plate: string, day: string) => request<CarsDayDetectionsResponse>(query(`/api/cars/day/${encodeURIComponent(plate)}/detections`, new URLSearchParams({ day }))),
-  settlement: (id: string) => request<SettlementDetailResponse>(`/api/settlements/${encodeURIComponent(id)}`),
-  action: (action: ModuleAction) => request<{ message?: string; status?: string }>(action.path, { method: action.method }),
+  year: (year?: string) => apiRequest<ParkingYearComparisonResponse>(query("/api/parkering/year-comparison", year ? new URLSearchParams({ year }) : undefined)),
+  timeDistribution: (params: URLSearchParams) => apiRequest<ParkingTimeDistributionResponse>(query("/api/parkering/time-distribution", params)),
+  weeklyAverages: (params: URLSearchParams) => apiRequest<ParkingWeeklyAveragesResponse>(query("/api/parkering/weekly-averages", params)),
+  weeklyYears: (years?: string) => apiRequest<ParkingWeeklyYearComparisonResponse>(query("/api/parkering/weekly-averages/years", years ? new URLSearchParams({ years }) : undefined)),
+  vehicle: (plate: string) => apiRequest<ParkingVehicleDetailResponse>(`/api/parking/vehicles/${encodeURIComponent(plate)}`),
+  lookup: (mode: "navn" | "omrade", limit: number, offset: number) => apiRequest<ParkingLookupResponse>(query(`/api/parkering/kjoretoy/mangler-${mode}`, new URLSearchParams({ limit: String(limit), offset: String(offset) }))),
+  carsDay: (day: string) => apiRequest<CarsDayResponse>(query("/api/cars/day", new URLSearchParams({ day }))),
+  carDetections: (plate: string, day: string) => apiRequest<CarsDayDetectionsResponse>(query(`/api/cars/day/${encodeURIComponent(plate)}/detections`, new URLSearchParams({ day }))),
+  settlement: (id: string) => apiRequest<SettlementDetailResponse>(`/api/settlements/${encodeURIComponent(id)}`),
+  action: (action: ModuleAction) => apiRequest<{ message?: string; status?: string }>(action.path, { method: action.method }),
 };

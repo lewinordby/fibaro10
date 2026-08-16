@@ -27,83 +27,20 @@ import type {
 } from "../roborock-types";
 import { MosaicIcon, Panel } from "@lilletorget/microapp-ui";
 import { RefillLog } from "./RefillLog";
-
-const emptyDay: RoborockDailySummary = {
-  job_count: 0,
-  completed_count: 0,
-  running_count: 0,
-  error_count: 0,
-  duration_minutes: 0,
-  cleaned_area_m2: 0,
-};
-
-function parsedDate(value: unknown) {
-  if (!value) return null;
-  const parsed = new Date(String(value));
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function stamp(value: unknown) {
-  const parsed = parsedDate(value);
-  return parsed
-    ? parsed.toLocaleString("nb-NO", { dateStyle: "short", timeStyle: "medium", timeZone: "Europe/Oslo" })
-    : value ? String(value) : "-";
-}
-
-function jobTime(value: unknown) {
-  const parsed = parsedDate(value);
-  return parsed ? parsed.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Oslo" }) : "-";
-}
-
-function relativeStamp(value: unknown) {
-  const parsed = parsedDate(value);
-  if (!parsed) return "Ikke mottatt";
-  const minutes = Math.max(0, Math.round((Date.now() - parsed.getTime()) / 60_000));
-  if (minutes < 1) return "akkurat nå";
-  if (minutes < 60) return `${minutes} min siden`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} t siden`;
-  return stamp(value);
-}
-
-function decimal(value: unknown, digits = 0) {
-  const number = Number(value || 0);
-  return number.toLocaleString("nb-NO", { maximumFractionDigits: digits });
-}
-
-function recordValue(value: unknown): JsonRecord {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as JsonRecord : {};
-}
-
-function durationLabel(value: unknown) {
-  const minutes = Math.max(0, Math.round(Number(value || 0)));
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  if (!hours) return `${remainder} min`;
-  return remainder ? `${hours} t ${remainder} min` : `${hours} t`;
-}
-
-const roborockStateLabels: Record<string, string> = {
-  charging: "Lader",
-  cleaning: "Rengjør",
-  docking: "Dokker",
-  emptying: "Tømmer støvbeholder",
-  emptying_dust_container: "Tømmer støvbeholder",
-  error: "Feil",
-  going_to_target: "Går til målpunkt",
-  idle: "Klar",
-  mapping: "Kartlegger",
-  paused: "Pause",
-  returning: "Returnerer til dokk",
-  returning_home: "Returnerer til dokk",
-  segment_cleaning: "Rengjør rom",
-  sleeping: "Hviler",
-  spot_cleaning: "Flekkrengjøring",
-  updating: "Oppdaterer",
-  washing_mop: "Vasker mopp",
-  washing_the_mop: "Vasker mopp",
-  zone_cleaning: "Sonerengjøring",
-};
+import { DreameOnboarding } from "./roborock/DreameOnboarding";
+import {
+  decimal,
+  durationLabel,
+  emptyDay,
+  jobTime,
+  parsedDate,
+  readinessStyle,
+  recordValue,
+  relativeStamp,
+  robotStateLabel,
+  stamp,
+  telemetryTone,
+} from "./roborock/format";
 
 const compactColumnLabels: Record<string, string> = {
   battery: "Batteri",
@@ -133,29 +70,8 @@ const compactColumnLabels: Record<string, string> = {
   value: "Verdi",
 };
 
-function robotStateLabel(value: unknown) {
-  const text = String(value || "").trim();
-  return roborockStateLabels[text.toLowerCase()] || text || "Ingen status";
-}
-
 function Field({ label, value }: { label: string; value: unknown }) {
   return <div className="flex items-start justify-between gap-4 border-b border-gray-100 py-2.5 text-sm last:border-0 dark:border-gray-700/70"><span className="text-gray-400">{label}</span><strong className="max-w-[65%] text-right font-medium text-gray-700 dark:text-gray-200">{displayCell(label, value)}</strong></div>;
-}
-
-function telemetryTone(value: unknown) {
-  const text = String(value ?? "").toLocaleLowerCase("nb-NO");
-  if (["ikke støttet", "-"].includes(text)) return "text-gray-400";
-  if (["ok", "ingen feil", "nei", "0"].includes(text)) return "text-green-600 dark:text-green-400";
-  if (text.includes("full") || text.includes("tom") || text.includes("feil") || text.includes("mangler")) return "text-red-500";
-  return "text-gray-700 dark:text-gray-200";
-}
-
-function readinessStyle(status: RoborockReadinessSummary["status"] | undefined) {
-  if (status === "attention") return { badge: "bg-red-500/10 text-red-600 dark:text-red-400", dot: "bg-red-500", icon: "bg-red-500/10 text-red-500" };
-  if (status === "pending") return { badge: "bg-amber-500/10 text-amber-700 dark:text-amber-300", dot: "bg-amber-500", icon: "bg-amber-500/10 text-amber-600 dark:text-amber-300" };
-  if (status === "offline") return { badge: "bg-gray-500/10 text-gray-600 dark:text-gray-300", dot: "bg-gray-400", icon: "bg-gray-500/10 text-gray-500" };
-  if (status === "active") return { badge: "bg-sky-500/10 text-sky-700 dark:text-sky-400", dot: "bg-sky-500", icon: "bg-sky-500/10 text-sky-600 dark:text-sky-400" };
-  return { badge: "bg-green-500/10 text-green-700 dark:text-green-400", dot: "bg-green-500", icon: "bg-green-500/10 text-green-600 dark:text-green-400" };
 }
 
 function TelemetryFields({ fields }: { fields: RoborockRobotDetail["telemetryFields"] }) {
@@ -1311,20 +1227,6 @@ function DoorAutomation({ duid, data, reload }: { duid: string; data: RoborockRo
       {message ? <p className="text-sm text-gray-500 dark:text-gray-300">{message}</p> : null}
     </div>
   </Panel>;
-}
-
-function DreameOnboarding({ robot }: { robot?: RoborockRobotSummary }) {
-  return <div className="space-y-5">
-    <AppLink className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-amber-700 dark:text-gray-400 dark:hover:text-amber-300" to="/renhold"><MosaicIcon name="arrow-left" size={14} />Alle robotvaskere</AppLink>
-    <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700/60 dark:bg-gray-800">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 px-5 py-4 dark:border-gray-700/60"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-300"><MosaicIcon name="robot" size={22} /></span><div><div className="flex items-center gap-2"><h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">{robot?.name || "Aqua10"}</h2><span className="rounded bg-gray-100 px-1.5 py-0.5 text-[0.65rem] font-semibold uppercase text-gray-500 dark:bg-gray-700 dark:text-gray-300">Dreame</span></div><p className="text-sm text-gray-400">Separat datainnsamling, felles renholdsoversikt</p></div></div><span className="inline-flex items-center gap-2 rounded-full bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300"><span className="h-2 w-2 rounded-full bg-amber-500" />Venter på konto</span></header>
-      <div className="grid gap-0 lg:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.75fr)]">
-        <div className="px-5 py-5 lg:border-r lg:border-gray-100 dark:lg:border-gray-700/60"><h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Klargjort oppsett</h3><div className="mt-4 grid gap-3 sm:grid-cols-3">{[["01", "Dreamehome", "Legg roboten til og gi den navnet Aqua10."], ["02", "Sikker kobling", "Legg kontoen i dreame_logger/.env på QNAP."], ["03", "Automatisk opprettelse", "Status, jobber og planer dukker opp ved første synk."]].map(([number, title, text]) => <div className="rounded-md bg-gray-50 p-3 dark:bg-gray-900/30" key={number}><span className="text-xs font-semibold tabular-nums text-amber-600 dark:text-amber-300">{number}</span><strong className="mt-1 block text-sm text-gray-700 dark:text-gray-200">{title}</strong><p className="mt-1 text-xs leading-5 text-gray-400">{text}</p></div>)}</div></div>
-        <div className="bg-gray-50/60 px-5 py-5 dark:bg-gray-900/20"><h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Dreame-logger</h3><p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">Tjenesten kjører separat fra Roborock. En feil eller oppgradering hos én leverandør stopper derfor ikke den andre.</p><a className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-amber-700 hover:text-amber-800 dark:text-amber-300" href="http://192.168.20.218:8094/" rel="noreferrer" target="_blank">Åpne intern tjenestestatus <MosaicIcon name="arrow-right" size={14} /></a></div>
-      </div>
-    </section>
-    <Panel title="Datadekning" subtitle="Første versjon prioriterer stabil drift fremfor kartbehandling"><div className="grid gap-px bg-gray-100 sm:grid-cols-2 lg:grid-cols-4 dark:bg-gray-700/60">{[["Tilstand", "Batteri, lading, feil og aktiv jobb"], ["Jobbhistorikk", "Start, slutt, varighet og rengjort areal"], ["Dokk og beholdere", "Tilgjengelige signaler for vann, vask og tømming"], ["Planer", "Aktive tidsplaner og gjennomføring"]].map(([title, text]) => <div className="bg-white px-5 py-4 dark:bg-gray-800" key={title}><strong className="text-sm text-gray-700 dark:text-gray-200">{title}</strong><p className="mt-1 text-xs leading-5 text-gray-400">{text}</p></div>)}</div></Panel>
-  </div>;
 }
 
 function RobotDetail({ duid, summary }: { duid: string; summary?: RoborockRobotSummary }) {

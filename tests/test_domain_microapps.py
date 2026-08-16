@@ -719,9 +719,9 @@ def test_shared_domain_layout_uses_the_header_for_the_active_page_title() -> Non
     repo_root = Path(__file__).resolve().parents[1]
     source = (repo_root / "packages" / "microapp-ui" / "src" / "components" / "Layout.tsx").read_text(encoding="utf-8")
     assert "<Header title={item.title || item.label}" in source
-    assert ">{title}</span>" in source
+    assert ">{title}</h1>" in source
     assert "item.description" not in source
-    assert "<h1" not in source
+    assert "<h1" in source
 
 
 def test_shared_layout_uses_area_navigation_and_horizontal_sibling_pages() -> None:
@@ -747,10 +747,31 @@ def test_revenue_dashboard_is_scoped_and_has_no_nested_horizontal_scroller() -> 
     api_source = (repo_root / "revenue_app" / "frontend" / "src" / "api.ts").read_text(encoding="utf-8")
     dashboard_source = (repo_root / "revenue_app" / "frontend" / "src" / "pages" / "DashboardPage.tsx").read_text(encoding="utf-8")
 
-    assert 'dashboard: () => get<OverviewResponse>("/api/overview?scope=revenue")' in api_source
+    assert 'dashboard: () => apiRequest<OverviewResponse>("/api/overview?scope=revenue")' in api_source
     assert 'grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,.8fr))]' in dashboard_source
     assert 'min-w-[570px]' not in dashboard_source
     assert 'm-4 overflow-x-auto' not in dashboard_source
+
+
+def test_domain_apps_share_the_hardened_api_client() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    shared = (repo_root / "packages" / "microapp-ui" / "src" / "api.ts").read_text(encoding="utf-8")
+    revenue = (repo_root / "revenue_app" / "frontend" / "src" / "api.ts").read_text(encoding="utf-8")
+    parking = (repo_root / "parking_app" / "frontend" / "src" / "api.ts").read_text(encoding="utf-8")
+
+    assert "export async function apiRequest" in shared
+    assert "apiRequest" in revenue and "fetch(" not in revenue
+    assert "apiRequest" in parking and "fetch(" not in parking
+
+
+def test_system_navigation_follows_operational_workflows() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    apps = json.loads((repo_root / "packages" / "microapp-ui" / "src" / "navigation.json").read_text(encoding="utf-8"))["apps"]
+    navigation = {app["id"]: app["groups"] for app in apps}
+
+    assert navigation["energy"][0]["label"] == "Status"
+    assert [group["label"] for group in navigation["system"]] == ["Drift", "Administrasjon", "Dokumentasjon", "Utvikling"]
+    assert "Utprøving: dører" in [group["label"] for group in navigation["operations"]]
 
 
 def test_shared_metric_cards_balance_five_items_on_wide_screens() -> None:

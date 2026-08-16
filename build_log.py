@@ -12,6 +12,42 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1791",
+        "date": "16.08.2026",
+        "headline": "Mikroappene har fått en strammere teknisk grunnmur",
+        "title": "Felles API, raskere biloversikt og en pålitelig kvalitetsport",
+        "description": (
+            "De strukturelle forbedringene fra systemkartleggingen er gjennomført uten å endre "
+            "daglige arbeidsflyter. Revenue og Parking bruker nå samme robuste API-klient, "
+            "observerte biler har bedre databaseindeks og lengre korttidsbuffer, og dør- og "
+            "robotkoden er delt i tydeligere moduler. Menyene skiller drift, administrasjon, "
+            "dokumentasjon, utvikling og utprøvingsflater tydeligere. Kvalitetsporten kan kjøres "
+            "fra en ren maskin og omfatter nå ESLint og komponenttester."
+        ),
+        "applications": [
+            "Fibaro10 build 1791: ytelsesbuffer, Protect-indeks, testoppsett, dokumentasjon og arkitekturvalg.",
+            "Alle mikroapper: semantisk sidetittel, felles kvalitetskontroll og oppdaterte buildnumre.",
+            "Omsetning build 42 og Parkering build 34: felles API-klient med timeout, auth og feilbehandling.",
+            "Bygg og drift build 93: moduldeling av dør- og robotkode samt tydelig utprøvingsgruppe.",
+            "System build 36: meny organisert etter drift, administrasjon, dokumentasjon og utvikling.",
+        ],
+        "request": "Gjør endringene slik du foreslo etter kartleggingen av hele systemet.",
+        "work_duration": "ca. 3 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Samler nettverkslogikken i apiRequest og fjerner dupliserte fetch-klienter.",
+            "Øker korttidsbufferen for dagens observerte biler og legger til en målrettet databaseindeks.",
+            "Deler felles dørkode og Dreame-oppsettet ut av store komponentfiler.",
+            "Merker alternative dørflater tydelig som utprøving uten å skjule dem.",
+            "Samler System-menyen i fire arbeidsflyter med alle eksisterende sider bevart.",
+            "Gjør python -m pytest fra rot stabilt ved å isolere undersystemenes app-pakker.",
+            "Installerer alle frontendavhengigheter deterministisk i CI og legger til ESLint og komponenttester.",
+            "Bruker en semantisk h1 i det delte appskallet uten visuell endring.",
+            "Dokumenterer mikroappene som primær flate, Fibaro10 som kritisk kjerne/reserve og begrunnelsen for delt SSO-cookie.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1790",
         "date": "16.08.2026",
         "headline": "Solromalarmene bekreftes før de varsler",

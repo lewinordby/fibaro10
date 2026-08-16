@@ -290,7 +290,7 @@ SUNBED_POWER_ANALYSIS_CACHE_TTL = timedelta(
     minutes=max(3, int(os.getenv("SUNBED_POWER_ANALYSIS_CACHE_MINUTES", "10")))
 )
 SUNBED_POWER_CACHE_WARM_ENABLED = os.getenv("SUNBED_POWER_CACHE_WARM_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
-CARS_DAY_CACHE_TTL = timedelta(seconds=max(5, int(os.getenv("CARS_DAY_CACHE_SECONDS", "20"))))
+CARS_DAY_CACHE_TTL = timedelta(seconds=max(15, int(os.getenv("CARS_DAY_CACHE_SECONDS", "60"))))
 CARS_HISTORY_CACHE_TTL = timedelta(minutes=max(5, int(os.getenv("CARS_HISTORY_CACHE_MINUTES", "30"))))
 FIBARO10_PROCESS_ROLE = os.getenv("FIBARO10_PROCESS_ROLE", "combined").strip().lower() or "combined"
 FIBARO10_BACKGROUND_TASKS_ENABLED = os.getenv("FIBARO10_BACKGROUND_TASKS_ENABLED", "true").strip().lower() in {

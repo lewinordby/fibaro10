@@ -60,6 +60,8 @@ Run "node" @("--check", "alarm_mobile/app/static/alarm-mobile.js") $repoRoot
 
 Write-Host "Frontend typecheck and build"
 Run $npm @("run", "check") $desktopDir
+Run $npm @("run", "lint:microapps") $desktopDir
+Run $npm @("run", "test:components") $desktopDir
 Run $npm @("run", "audit:security") $desktopDir
 
 Write-Host "OwnTracks frontend typecheck and build"

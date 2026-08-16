@@ -1,7 +1,7 @@
 import type { AppConfig, AuthUser, BusinessComparisonResponse, BusinessOverviewResponse, JsonRecord, ModuleAction, ModuleEditConfig, ModuleResponse, ModuleRow, YearComparisonResponse } from "./types";
 import { scopeAppPayload, withCurrentAppApiPath } from "./navigation";
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const isFormData = init?.body instanceof FormData;
   const method = (init?.method || "GET").toUpperCase();
   const timeoutMs = isFormData ? 120_000 : method === "GET" ? 50_000 : 60_000;
@@ -27,7 +27,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     return scopeAppPayload(payload as T);
   } catch (error) {
     if (controller.signal.aborted && !init?.signal?.aborted) {
-      throw new Error("Forespørselen tok for lang tid. Prøv igjen.");
+      throw new Error("Forespørselen tok for lang tid. Prøv igjen.", { cause: error });
     }
     throw error;
   } finally {
@@ -41,18 +41,18 @@ function endpointFromTemplate(template: string, row: ModuleRow) {
 }
 
 export const domainApi = {
-  config: () => request<AppConfig>("/api/app/config"),
-  user: () => request<AuthUser>("/api/auth/me"),
-  businessOverview: (domain: "parking" | "sun") => request<BusinessOverviewResponse>(`/api/overview?scope=${domain}`),
-  businessComparison: (params: URLSearchParams) => request<BusinessComparisonResponse>(`/api/status/comparison?${params.toString()}`),
-  yearComparison: (domain: "soling" | "parkering", year?: string) => request<YearComparisonResponse>(`/api/${domain}/year-comparison${year ? `?year=${encodeURIComponent(year)}` : ""}`),
-  get: <T = JsonRecord>(path: string) => request<T>(path),
-  mutate: <T = JsonRecord>(path: string, method: "POST" | "PATCH" | "PUT" | "DELETE", values?: JsonRecord) => request<T>(path, {
+  config: () => apiRequest<AppConfig>("/api/app/config"),
+  user: () => apiRequest<AuthUser>("/api/auth/me"),
+  businessOverview: (domain: "parking" | "sun") => apiRequest<BusinessOverviewResponse>(`/api/overview?scope=${domain}`),
+  businessComparison: (params: URLSearchParams) => apiRequest<BusinessComparisonResponse>(`/api/status/comparison?${params.toString()}`),
+  yearComparison: (domain: "soling" | "parkering", year?: string) => apiRequest<YearComparisonResponse>(`/api/${domain}/year-comparison${year ? `?year=${encodeURIComponent(year)}` : ""}`),
+  get: <T = JsonRecord>(path: string) => apiRequest<T>(path),
+  mutate: <T = JsonRecord>(path: string, method: "POST" | "PATCH" | "PUT" | "DELETE", values?: JsonRecord) => apiRequest<T>(path, {
     method,
     headers: values ? { "Content-Type": "application/json" } : undefined,
     body: values ? JSON.stringify(values) : undefined,
   }),
-  saveSettings: (path: string, values: JsonRecord, reason: string) => request<JsonRecord>(path, {
+  saveSettings: (path: string, values: JsonRecord, reason: string) => apiRequest<JsonRecord>(path, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ values, reason }),
@@ -61,13 +61,13 @@ export const domainApi = {
     const next = new URLSearchParams(params);
     next.set("view", view);
     const query = next.toString();
-    return request<ModuleResponse>(`/api/modules/${encodeURIComponent(module)}${query ? `?${query}` : ""}`);
+    return apiRequest<ModuleResponse>(`/api/modules/${encodeURIComponent(module)}${query ? `?${query}` : ""}`);
   },
-  action: (action: ModuleAction) => request<{ message?: string; status?: string }>(action.path, { method: action.method }),
+  action: (action: ModuleAction) => apiRequest<{ message?: string; status?: string }>(action.path, { method: action.method }),
   edit: (edit: ModuleEditConfig, row: ModuleRow, values: JsonRecord, create: boolean) => {
     const endpoint = create && edit.createEndpoint ? edit.createEndpoint : endpointFromTemplate(edit.endpoint, row);
     const method = create && edit.createEndpoint ? "POST" : edit.method ?? "PATCH";
-    return request<{ message?: string }>(endpoint, {
+    return apiRequest<{ message?: string }>(endpoint, {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(values),
@@ -76,6 +76,6 @@ export const domainApi = {
   upload: (endpoint: string, file: File) => {
     const form = new FormData();
     form.set("file", file);
-    return request<{ message?: string }>(endpoint, { method: "POST", body: form });
+    return apiRequest<{ message?: string }>(endpoint, { method: "POST", body: form });
   },
 };

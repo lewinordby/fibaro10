@@ -1,6 +1,6 @@
 # Systemoversikt
 
-Oppdatert 14.08.2026.
+Oppdatert 16.08.2026.
 
 Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene er `docker-compose.qnap.yml`, `Caddyfile`, `system_inventory.py`, `import_jobs.py` og siste QNAP-status.
 
@@ -10,7 +10,7 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 - 28 komponenter er aktive i dagens runtime eller som aktivt verktøy; Dreame er klargjort for aktivering.
 - 26 komponenter har webflate eller lokal statusflate.
 - 24 datakilder/importjobber er definert i Fibaro10.
-- Produksjonsbuild ved siste sjekk: Fibaro10 build `1743`; commit settes ved deploy.
+- Produksjonsbuild ved siste sjekk: Fibaro10 build `1791`; commit settes ved deploy.
 - QNAP-appmappe: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`.
 - Backup/arkivvolum: `/share/CACHEDEV3_DATA/fibaro10_archive`.
 
@@ -27,7 +27,7 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 | Vedlikehold | `https://app.lilletorget.net/vedlikehold/` | Besøk, oppgaver og vedlikeholdshistorikk. |
 | System | `https://app.lilletorget.net/system/` | Datakilder, brukere, build, manual, varslinger og systemstatus. |
 | Koble | `https://app.lilletorget.net/koble/` | Kandidater og kontroll av koblinger mellom biler og Sun2-ID. |
-| Fibaro10 | `https://fibaro10.lilletorget.net/` | Hovedapp med offentlig betrodd HTTPS, kun tilgjengelig internt/VPN. |
+| Fibaro10 reserveflate | `https://fibaro10.lilletorget.net/` | Samlet desktopreserve mot den kritiske Fibaro10-kjernen, kun tilgjengelig internt/VPN. |
 | Fibaro10 HTTP-reserve | `http://192.168.20.218:8110/` | Teknisk reserve, API og helsesjekker. |
 | Online dashboard | `https://online.lilletorget.net/` | Ekstern begrenset mobil/dashboardflate. |
 | Vedlikehold mobil | `https://vedl.lilletorget.net/` | Rask mobilregistrering av vedlikeholdsoppgaver. |
@@ -54,7 +54,7 @@ hver enkelt app.
 
 | Tjeneste | Kritikalitet | Formål |
 | --- | --- | --- |
-| `fibaro10` | Kritisk | FastAPI backend, V2 frontend, database-API, admin og ingest. |
+| `fibaro10` | Kritisk | FastAPI-kjerne, database-API, admin, ingest og samlet desktopreserve. |
 | `shell_app` | Normal | Intern appvelger, live tjenestestatus og felles inngang til mikroappene. |
 | `online_dashboard` | Høy | Ekstern begrenset dashboardflate. |
 | `maintenance_mobile` | Normal | Mobil vedlikeholdsregistrering mot Fibaro10 API. |
@@ -114,6 +114,11 @@ hver enkelt app.
 lagres ikke i nettlesercookien. Utlogging fra én av disse appene tilbakekaller den
 samme databasesesjonen og fjerner den felles cookien.
 
+Den brede cookien er et bevisst arkitekturvalg og skal ikke snevres inn til
+`app.lilletorget.net` så lenge reserveflaten, appvelgeren og de separate
+subdomenene skal dele innlogging. Den inneholder bare en opak, tilbakekallbar
+sesjonsnøkkel og er beskyttet med `Secure`, `HttpOnly` og `SameSite=Lax`.
+
 Direkte lokal utvikling via IP eller `localhost` får ingen domenecookie; der settes
 samme cookien bare for det lokale vertsnavnet. Domenet kan overstyres med
 `AUTH_SESSION_COOKIE_DOMAIN`, eller deaktiveres med en tom verdi.
@@ -129,6 +134,15 @@ filer. Appbytte blir værende i samme standalone-vindu uten ekstra adresselinje.
 Bare appvelgeren skal installeres. Etter manifestendringer må gamle separate
 installasjoner av Fibaro10 eller fagappene avinstalleres før `Lilletorget` installeres
 på nytt fra appvelgeren.
+
+## Roller for brukerflatene
+
+`https://app.lilletorget.net/` er primær inngang for daglig arbeid. Fagappene er
+egne bygg og containere, men presenteres som stier under samme origin. Fibaro10
+på port 8110 er fortsatt produksjonskritisk fordi den eier API, datamodell,
+bakgrunnsjobber og flere administrative funksjoner. `desktop_v2` som leveres fra
+Fibaro10 beholdes som samlet operativ reserve og funksjonsreferanse, men ny
+fagfunksjonalitet skal som hovedregel implementeres i riktig mikroapp.
 
 ## Datakilder
 

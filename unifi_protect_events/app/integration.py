@@ -75,6 +75,11 @@ RECOGNITION_SCHEMA_STATEMENTS = (
     CREATE INDEX IF NOT EXISTS ix_unifi_protect_recognitions_camera
         ON unifi_protect_recognitions (console_key, camera_id, occurred_at DESC)
     """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_unifi_protect_recognitions_license_plate_day
+        ON unifi_protect_recognitions (console_key, occurred_at DESC, normalized_value)
+        WHERE kind = 'license_plate' AND normalized_value IS NOT NULL AND normalized_value <> ''
+    """,
     "ALTER TABLE unifi_protect_recognitions ADD COLUMN IF NOT EXISTS snapshot_status VARCHAR NOT NULL DEFAULT 'not_requested'",
     "ALTER TABLE unifi_protect_recognitions ADD COLUMN IF NOT EXISTS snapshot_path TEXT",
     "ALTER TABLE unifi_protect_recognitions ADD COLUMN IF NOT EXISTS snapshot_content_type VARCHAR",

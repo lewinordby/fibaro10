@@ -1,4 +1,5 @@
 export { DomainApp } from "./DomainApp";
+export { apiRequest, domainApi } from "./api";
 export type { DomainAppExtensions, DomainDetailContext, DomainModuleContext, DomainRouteContext } from "./DomainApp";
 export { CountDashboardSpecial } from "./components/CountDashboardSpecial";
 export { CountComparisonSpecial } from "./components/CountComparisonSpecial";

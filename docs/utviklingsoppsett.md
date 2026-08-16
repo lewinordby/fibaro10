@@ -99,6 +99,14 @@ ufarlige eksempeldata.
 
 Standard deploy sammenligner QNAP-commit med commiten som skal rulles ut og bygger bare tjenestene som faktisk er berort. For smale endringer kjører `check-affected.ps1` og `smoke-affected.ps1`; de bygger, tester og kontrollerer bare de valgte tjenestene. Full systemkontroll brukes ved endringer i felles UI, Compose, ukjente filer eller mer enn fire tjenester. Endringer i `main.py` eller `desktop_v2` rulles ut med to kjernespor: ny versjon bygges og helsesjekkes i det inaktive sporet, den stabile `fibaro10`-gatewayen flytter trafikken, og forrige spor stoppes forst etter et vellykket bytte. Bakgrunnsjobbene kjorer i `fibaro10_worker` og startes pa ny versjon etter at webtrafikken er flyttet. EasyPark, Roborock og Dreame bygges bare nar deres egne filer endres; en endring i hovedstackens Compose-fil starter dem ikke pa nytt. Selve deployplanen kan regresjonstestes med `scripts/test-deploy-plan.ps1`.
 
+Fra repoets rot er `python -m pytest` den raske og stabile testen av
+Fibaro10-kjernen. Undersystemer med egne `app`-pakker kjøres isolert av
+`scripts/check-local.ps1`, som er full kvalitetssjekk med alle Python-tester,
+TypeScript, ESLint, komponenttester, frontendbygg, CSS-kontroll og smoke.
+I en ren CI- eller utviklingsinstallasjon brukes
+`scripts/install-frontend-dependencies.ps1` for å installere låste avhengigheter
+for samtlige frontendprosjekter.
+
 Appspesifikk frontendkode skal ligge i riktig `<app>/frontend`. Fellespakken
 `packages/microapp-ui` er bare for reelt delte primitiver og rammeverk. En endring
 i fellespakken er med vilje bred og bygger alle fagappene; derfor skal nye
@@ -109,7 +117,10 @@ Aktivt kjernespor lagres pa QNAP i `/share/CACHEDEV3_DATA/fibaro10_runtime/activ
 ## V1-referanse
 
 V1 er en valgfri frakoblet referansevisning, ikke en gammel live-app mot produksjonsdatabasen.
-V2 paa port `8110` er daglig drift og skal behandles som produksjon. V1-referansen skal bare brukes for aa sammenligne gamle funksjoner mot V2, og den trenger ikke kjoere til daglig.
+Fibaro10-kjernen og den samlede V2-reserveflaten paa port `8110` er produksjon og
+skal alltid fungere. Den primære daglige brukerflaten er nå
+`https://app.lilletorget.net/`, mens V1-referansen bare brukes for aa sammenligne
+gamle funksjoner og ikke trenger kjoere til daglig.
 
 - Adresse: `http://192.168.20.218:8111`
 - Container: `fibaro10_v1`
@@ -134,7 +145,8 @@ Dette scriptet er isolert: det laster bare opp `v1_reference/` og `docker-compos
 - QNAP: `192.168.20.218`
 - SSH-alias: `qnap-fibaro10`
 - Appmappe: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`
-- Intern app (anbefalt): `https://fibaro10.lilletorget.net`
+- Primær intern app: `https://app.lilletorget.net`
+- Samlet reserveflate: `https://fibaro10.lilletorget.net`
 - Intern HTTP-reserve og API-adresse: `http://192.168.20.218:8110`
 - Online dashboard: `https://online.lilletorget.net`
 - iPad-grensesnitt: `https://ipad.lilletorget.net`

@@ -2,8 +2,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { domainApi } from "../api";
 import { useApi } from "../hooks";
 import { findNavigationGroup, findNavigationItem } from "../navigation";
-import { AppLink } from "../router";
-import { useAppLocation } from "../router";
+import { AppLink, useAppLocation } from "../router";
 import type { Accent, DomainUiConfig, NavigationGroup, NavigationItem } from "../types";
 import { AppDock } from "./AppDock";
 import { MosaicIcon } from "./MosaicIcon";
@@ -126,7 +125,7 @@ function Header({ title, open, setOpen, username, activeApp, shellUrl }: {
         <div className="flex h-16 items-center justify-between border-b border-gray-200 dark:border-gray-700/60">
           <div className="flex min-w-0 items-center gap-3">
             <button className="shrink-0 text-gray-500 lg:hidden" aria-label="Åpne meny" aria-expanded={open} onClick={(event) => { event.stopPropagation(); setOpen(!open); }}><svg className="h-6 w-6 fill-current" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="2" /><rect x="4" y="11" width="16" height="2" /><rect x="4" y="17" width="16" height="2" /></svg></button>
-            <span className="truncate text-sm font-semibold text-gray-700 dark:text-gray-200">{title}</span>
+            <h1 className="truncate text-sm font-semibold text-gray-700 dark:text-gray-200">{title}</h1>
           </div>
           <div className="ml-4 flex shrink-0 items-center gap-3">
             <AppDock activeApp={activeApp} shellUrl={shellUrl} />

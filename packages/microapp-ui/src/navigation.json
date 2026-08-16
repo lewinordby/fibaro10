@@ -236,7 +236,7 @@
           ]
         },
         {
-          "label": "Alternative d\u00f8rvisninger",
+          "label": "Utpr\u00f8ving: d\u00f8rer",
           "icon": "compare",
           "items": [
             { "to": "/dorer/oversikt-kompakt", "label": "Kompakt oversikt", "icon": "door", "title": "Kompakt d\u00f8roversikt", "description": "Det kompakte oversiktsforslaget fra Fibaro10.", "module": "dorer", "view": "oversikt-ny", "corePath": "/dorer/oversikt-ny" },
@@ -354,37 +354,25 @@
       "url": "https://app.lilletorget.net/system/",
       "groups": [
         {
-          "label": "Status",
+          "label": "Drift",
           "icon": "dashboard",
           "items": [
             { "to": "/", "label": "Systemstatus", "icon": "dashboard", "title": "Systemstatus", "description": "Tjenestestatus og sentrale systemkontroller.", "module": "admin", "view": "drift", "corePath": "/admin/drift" },
             { "to": "/datakilder", "label": "Datakilder", "icon": "link", "title": "Datakilder", "description": "Status, kj\u00f8replan, avhengigheter og forklaring per datakilde.", "module": "admin", "view": "datakilder", "corePath": "/admin/datakilder" },
             { "to": "/oppgaver", "label": "Jobber", "icon": "clock", "title": "Systemjobber", "description": "Planlagte og manuelle systemjobber.", "module": "admin", "view": "oppgaver", "corePath": "/admin/oppgaver" },
-            { "to": "/varslinger", "label": "Varslinger", "icon": "bell", "title": "Varslinger og abonnement", "description": "ntfy-emner, forklaringer og abonnementslister.", "module": "varslinger", "view": "oversikt", "corePath": "/varslinger/oversikt" }
-          ]
-        },
-        {
-          "label": "Kvalitet",
-          "icon": "compare",
-          "items": [
+            { "to": "/varslinger", "label": "Varslinger", "icon": "bell", "title": "Varslinger og abonnement", "description": "ntfy-emner, forklaringer og abonnementslister.", "module": "varslinger", "view": "oversikt", "corePath": "/varslinger/oversikt" },
             { "to": "/kontroll", "label": "Kontroller", "icon": "compare", "title": "Systemkontroller", "description": "Samlede kontroller av datagrunnlag og prosesser.", "module": "admin", "view": "kontroll", "corePath": "/admin/kontroll" },
-            { "to": "/datakvalitet", "label": "Datakvalitet", "icon": "warning", "title": "Datakvalitet", "description": "Manglende, utdaterte og avvikende data.", "module": "admin", "view": "datakvalitet", "corePath": "/admin/datakvalitet" },
-            { "to": "/analyse", "label": "Systemanalyse", "icon": "chart", "title": "Systemanalyse", "description": "Systemanalyse og oppf\u00f8lging av avvik.", "module": "admin", "view": "analyse", "corePath": "/admin/analyse" }
-          ]
-        },
-        {
-          "label": "Arkitektur",
-          "icon": "building",
-          "items": [
-            { "to": "/systemkart", "label": "Systemkart", "icon": "apps", "title": "Systemkart", "description": "Komponenter, tjenester og forbindelser i l\u00f8sningen.", "module": "admin", "view": "systemkart", "corePath": "/admin/systemkart" },
-            { "to": "/undersystemer", "label": "Undersystemer", "icon": "external", "title": "Undersystemer", "description": "Klikkbare lenker til alle l\u00f8sninger med webgrensesnitt.", "module": "undersystemer", "view": "oversikt", "corePath": "/undersystemer/oversikt" },
-            { "to": "/teknisk", "label": "Teknisk", "icon": "settings", "title": "Teknisk oversikt", "description": "Tekniske innstillinger og diagnostikk.", "module": "admin", "view": "teknisk", "corePath": "/admin/teknisk" }
+            { "to": "/datakvalitet", "label": "Datakvalitet", "icon": "warning", "title": "Datakvalitet", "description": "Manglende, utdaterte og avvikende data.", "module": "admin", "view": "datakvalitet", "corePath": "/admin/datakvalitet" }
           ]
         },
         {
           "label": "Administrasjon",
           "icon": "users",
           "items": [
+            { "to": "/analyse", "label": "Systemanalyse", "icon": "chart", "title": "Systemanalyse", "description": "Systemanalyse og oppf\u00f8lging av avvik.", "module": "admin", "view": "analyse", "corePath": "/admin/analyse" },
+            { "to": "/systemkart", "label": "Systemkart", "icon": "apps", "title": "Systemkart", "description": "Komponenter, tjenester og forbindelser i l\u00f8sningen.", "module": "admin", "view": "systemkart", "corePath": "/admin/systemkart" },
+            { "to": "/undersystemer", "label": "Undersystemer", "icon": "external", "title": "Undersystemer", "description": "Klikkbare lenker til alle l\u00f8sninger med webgrensesnitt.", "module": "undersystemer", "view": "oversikt", "corePath": "/undersystemer/oversikt" },
+            { "to": "/teknisk", "label": "Teknisk", "icon": "settings", "title": "Teknisk oversikt", "description": "Tekniske innstillinger og diagnostikk.", "module": "admin", "view": "teknisk", "corePath": "/admin/teknisk" },
             { "to": "/brukere", "label": "Brukere", "icon": "users", "title": "Brukeradministrasjon", "description": "Opprett, rediger og kontroller brukere.", "module": "admin", "view": "brukere", "corePath": "/admin/brukere" },
             { "to": "/verktoy", "label": "Verkt\u00f8y", "icon": "tools", "title": "Systemverkt\u00f8y", "description": "Administrative verkt\u00f8y og vedlikeholdsfunksjoner.", "module": "admin", "view": "verktoy", "corePath": "/admin/verktoy" }
           ]
