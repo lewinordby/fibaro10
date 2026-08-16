@@ -12,6 +12,35 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1786",
+        "date": "16.08.2026",
+        "headline": "Dokkopphold vises ton-i-ton med jobben",
+        "title": "Et roligere prikkemønster holder nattens renholdsforløp visuelt samlet",
+        "description": (
+            "Den markante diagonale skraveringen i nattrapporten er erstattet med et diskret "
+            "prikkemønster. Hele jobben beholder den samme grunnfargen, mens tid i dokken får "
+            "prikker i den samme fargefamilien og en svak ton-i-ton-lysning. Dermed oppfattes jobben "
+            "som ett sammenhengende forløp uten at informasjonen om dokkopphold forsvinner."
+        ),
+        "applications": [
+            "Fibaro10 build 1786: dokumenterer den justerte visningen av dokkopphold.",
+            "Bygg og drift build 89: erstatter diagonal skravering med jobbfargede prikker i nattlinjen.",
+        ],
+        "request": (
+            "Kan du finne en annen måte å skravere på. Hva om man bruker en prikkete struktur "
+            "i samme farge som jobben. Skillet blir litt mindre og helheten større?"
+        ),
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fjerner diagonale kontraststriper og kantmarkering fra dokkopphold.",
+            "Beholder jobbens grunnfarge gjennom hele tidsforløpet.",
+            "Bruker små ton-i-ton-prikker for dokktid i både lyst og mørkt tema.",
+            "Beholder klokkeslett og aktivitet i tooltip for presis kontroll.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1785",
         "date": "16.08.2026",
         "headline": "Nattlinjen skiller rengjøring fra tid i dokken",

@@ -343,6 +343,15 @@ function jobBarColor(job: RoborockNightJob) {
   return "bg-sky-500";
 }
 
+function dockDotColor(job: RoborockNightJob) {
+  if (job.origin !== "planned") return "text-gray-600 dark:text-gray-300";
+  if (job.status === "error") return "text-red-700 dark:text-red-300";
+  if (job.status === "warning") return "text-amber-700 dark:text-amber-300";
+  if (job.cleaningType === "mop") return "text-emerald-700 dark:text-emerald-300";
+  if (job.cleaningType === "vacuum_mop") return "text-violet-700 dark:text-violet-300";
+  return "text-sky-700 dark:text-sky-300";
+}
+
 function plannedJobTone(job: RoborockNightPlannedJob) {
   if (job.status === "missing" || job.status === "failed") return { text: "text-red-700 dark:text-red-300", dot: "bg-red-500", line: "border-red-500" };
   if (job.status === "delayed") return { text: "text-amber-800 dark:text-amber-300", dot: "bg-amber-500", line: "border-amber-500" };
@@ -438,7 +447,7 @@ function NightJobTimelineBar({ job, report }: { job: RoborockNightJob; report: R
       const dockLeft = timelinePosition(interval.startedAt, report.window.startAt, report.window.endAt);
       const dockRight = timelinePosition(interval.endedAt, report.window.startAt, report.window.endAt);
       return <span
-        className="roborock-dock-hatch absolute inset-y-1 z-[11] rounded-sm"
+        className={`roborock-dock-dots absolute inset-y-1 z-[11] rounded-sm ${dockDotColor(job)}`}
         key={`${job.recordId}-dock-${index}`}
         style={{ left: `${dockLeft}%`, width: `${Math.max(0.35, dockRight - dockLeft)}%` }}
         title={`${reportTime(interval.startedAt)}–${reportTime(interval.endedAt)} · ${interval.label}`}
@@ -454,7 +463,7 @@ function NightTimeline({ report }: { report: RoborockNightReport }) {
   return <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xs dark:border-gray-700/60 dark:bg-gray-800">
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3 dark:border-gray-700/60">
       <div><h2 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Automatisk nattlig renhold</h2><p className="mt-0.5 text-xs text-gray-400">Etter stenging kl. 23:45 · frist før åpning kl. {reportTime(report.window.readyBy)}</p></div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-300">{!report.isForecast ? <><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-sky-500" />Støvsuging</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />Vask</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-violet-500" />Begge</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-gray-400" />Øvrig/uklassifisert</span><span className="flex items-center gap-1.5"><i className="roborock-dock-hatch h-3 w-4 rounded-sm bg-gray-400" />I dokk under jobb</span></> : null}<span className="flex items-center gap-1.5"><i className="h-5 border-l-2 border-dashed border-amber-500" />Gjeldende plan</span><span className="flex items-center gap-1.5"><i className="h-3 w-4 rounded-sm bg-rose-100/80 dark:bg-rose-500/20" />Åpningstid med sikkerhetsmargin</span></div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-300">{!report.isForecast ? <><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-sky-500" />Støvsuging</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />Vask</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-violet-500" />Begge</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-gray-400" />Øvrig/uklassifisert</span><span className="flex items-center gap-1.5"><i className="roborock-dock-dots h-3 w-4 rounded-sm bg-gray-400 text-gray-600 dark:text-gray-300" />I dokk under jobb</span></> : null}<span className="flex items-center gap-1.5"><i className="h-5 border-l-2 border-dashed border-amber-500" />Gjeldende plan</span><span className="flex items-center gap-1.5"><i className="h-3 w-4 rounded-sm bg-rose-100/80 dark:bg-rose-500/20" />Åpningstid med sikkerhetsmargin</span></div>
     </header>
     <div className="px-5 py-4">
       <div className="mb-1 grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3 text-[0.65rem] font-medium text-gray-400"><span /><div className="flex justify-between">{hourLabels.map((hour) => <span key={hour}>{hour}:00</span>)}</div></div>
