@@ -100,6 +100,7 @@ from cleaning_robot_domain import (
     cleaning_provider,
     cleaning_provider_label,
     cleaning_robot_external_id,
+    cleaning_robot_sort_key,
     cleaning_robot_uid,
     expected_dreame_summary,
 )
@@ -19027,6 +19028,7 @@ async def index(request: Request):
             )
         ).one()
         robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
+        robots.sort(key=cleaning_robot_sort_key)
         schedules = (
             await session.execute(
                 select(RoborockSchedule)
@@ -20709,6 +20711,7 @@ async def api_operations_overview():
             await session.execute(select(VentilationSample).order_by(VentilationSample.bucket_start.desc()).limit(1))
         ).scalars().first()
         robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
+        robots.sort(key=cleaning_robot_sort_key)
         robot_duids = [robot.duid for robot in robots]
         latest_statuses: list[RoborockStatusSample] = []
         latest_telemetry: list[RoborockTelemetrySample] = []
@@ -32934,6 +32937,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
 
         if module == "renhold":
             robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
+            robots.sort(key=cleaning_robot_sort_key)
             robot_duids = [robot.duid for robot in robots]
             today_local = datetime.now(LOCAL_TZ).date()
             yesterday_local = today_local - timedelta(days=1)
@@ -40021,6 +40025,7 @@ async def energy_elvia_json(limit: int = 300):
 async def cleaning_overview(request: Request):
     async with async_session() as session:
         robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
+        robots.sort(key=cleaning_robot_sort_key)
         latest_status = {}
         latest_jobs = {}
         next_schedules = {}
@@ -40295,6 +40300,7 @@ async def api_cleaning_night_report(day: Optional[str] = None):
     telemetry_end = window["end"] + timedelta(minutes=15)
     async with async_session() as session:
         robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
+        robots.sort(key=cleaning_robot_sort_key)
         robot_duids = [robot.duid for robot in robots]
         jobs = (
             await session.execute(
@@ -40398,6 +40404,7 @@ async def api_cleaning_water_report(days: int = Query(default=7, ge=1, le=90)):
     job_end = local_naive_to_utc_naive(now)
     async with async_session() as session:
         robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
+        robots.sort(key=cleaning_robot_sort_key)
         robot_duids = [robot.duid for robot in robots]
         jobs = (
             await session.execute(
@@ -40475,6 +40482,7 @@ async def api_cleaning_refill_log(week: Optional[str] = Query(default=None)):
     query_end = min(period_end + timedelta(days=7), now)
     async with async_session() as session:
         robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
+        robots.sort(key=cleaning_robot_sort_key)
         robot_duids = [robot.duid for robot in robots]
         latest_telemetry_subq = (
             select(func.max(RoborockTelemetrySample.id).label("latest_id"))
@@ -41513,6 +41521,7 @@ async def cleaning_json(limit: int = 100):
     limit = max(1, min(limit, 1000))
     async with async_session() as session:
         robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
+        robots.sort(key=cleaning_robot_sort_key)
         jobs = (await session.execute(select(RoborockCleanJob).order_by(RoborockCleanJob.begin_at.desc()).limit(limit))).scalars().all()
         statuses = (await session.execute(select(RoborockStatusSample).order_by(RoborockStatusSample.timestamp.desc()).limit(limit))).scalars().all()
     job_rows = []

@@ -12,6 +12,35 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1787",
+        "date": "16.08.2026",
+        "headline": "Robotene følger renholdsforløpet",
+        "title": "En felles visningsrekkefølge gjør alle renholdsflater lettere å lese",
+        "description": (
+            "Robotene vises nå i den faste rekkefølgen 1.etg B, 1.etg A, VIP og 2.etg. "
+            "Rekkefølgen er lagt i det delte robotdomenet og brukes derfor likt i oversikten, "
+            "nattrapporten, vannrapporten, påfyllingsloggen og de klassiske renholdsflatene. "
+            "Nye roboter som ikke er eksplisitt plassert, vises alfabetisk etter disse fire."
+        ),
+        "applications": [
+            "Fibaro10 build 1787: innfører felles og testet visningsrekkefølge for robotene.",
+            "Bygg og drift build 90: mottar samme rekkefølge i alle renholdsvisninger.",
+        ],
+        "request": (
+            "Jeg tenker det hadde vært fint å endre rekkefølgen litt på robotene. "
+            "1.etg B øverst, så 1.etg A, så VIP og 2.etg nederst."
+        ),
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Definerer én delt sorteringsregel for alle robotflater.",
+            "Bruker rekkefølgen i oversikt, nattrapport, vannrapport og påfyllingslogg.",
+            "Lar ukjente og nye robotnavn følge alfabetisk etter den faste kjernen.",
+            "Legger til regresjonstest for visningsrekkefølgen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1786",
         "date": "16.08.2026",
         "headline": "Dokkopphold vises ton-i-ton med jobben",

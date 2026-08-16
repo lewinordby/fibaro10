@@ -6,6 +6,12 @@ from typing import Any
 SUPPORTED_CLEANING_PROVIDERS = {"roborock", "dreame"}
 CLEANING_ROBOT_STATUS_STALE_AFTER_MINUTES = 20
 CLEANING_ROBOT_ACTIVE_STATE_CODES = {6, 7, 11, 15, 16, 17, 18, 22, 23, 26, 28}
+CLEANING_ROBOT_DISPLAY_ORDER = {
+    "1.etg b": 0,
+    "1.etg a": 1,
+    "vip": 2,
+    "2.etg": 3,
+}
 
 
 def _cleaning_robot_has_error_code(value: Any) -> bool:
@@ -15,6 +21,18 @@ def _cleaning_robot_has_error_code(value: Any) -> bool:
         return float(value) != 0
     except (TypeError, ValueError):
         return bool(str(value).strip())
+
+
+def cleaning_robot_sort_key(value: Any) -> tuple[int, str]:
+    if isinstance(value, dict):
+        name = value.get("name")
+    else:
+        name = getattr(value, "name", value)
+    normalized_name = str(name or "").strip().casefold()
+    return (
+        CLEANING_ROBOT_DISPLAY_ORDER.get(normalized_name, len(CLEANING_ROBOT_DISPLAY_ORDER)),
+        normalized_name,
+    )
 
 
 def cleaning_robot_is_active(in_cleaning: Any, state_code: Any = None, provider: Any = None) -> bool:

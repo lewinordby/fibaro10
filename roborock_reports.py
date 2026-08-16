@@ -4,6 +4,7 @@ from collections import Counter
 from datetime import date, datetime, time, timedelta
 from typing import Any, Iterable, Optional
 
+from cleaning_robot_domain import cleaning_robot_sort_key
 from roborock_domain import (
     roborock_cron_parts,
     roborock_cron_weekdays,
@@ -999,7 +1000,7 @@ def build_night_report(
             is_forecast,
             require_schedule_history,
         )
-        for robot in robots
+        for robot in sorted(robots, key=cleaning_robot_sort_key)
     ]
     jobs_count = sum(row["totals"]["jobs"] for row in robot_rows)
     error_count = sum(job["status"] == "error" for row in robot_rows for job in row["jobs"])

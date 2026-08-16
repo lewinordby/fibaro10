@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from typing import Any, Iterable, Optional
 
+from cleaning_robot_domain import cleaning_robot_sort_key
 from roborock_domain import (
     roborock_dock_error_label,
     roborock_resource_status_label,
@@ -161,7 +162,7 @@ def build_water_report(
 ) -> dict[str, Any]:
     now = normalize_local_naive(generated_at or datetime.now(LOCAL_TZ)) or datetime.now(LOCAL_TZ).replace(tzinfo=None)
     start_day = now.date() - timedelta(days=days - 1)
-    robot_rows = list(robots)
+    robot_rows = sorted(robots, key=cleaning_robot_sort_key)
     jobs_by_robot: dict[str, list[Any]] = {}
     telemetry_by_robot: dict[str, Any] = {}
     events_by_robot: dict[str, list[dict[str, Any]]] = {}

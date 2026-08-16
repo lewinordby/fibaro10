@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, time, timedelta
 from typing import Any, Iterable, Optional
 
+from cleaning_robot_domain import cleaning_robot_sort_key
 from roborock_domain import roborock_resource_status_label
 from time_formatting import LOCAL_TZ, normalize_local_naive
 
@@ -88,12 +89,15 @@ def build_refill_log(
     period_end = period_start + timedelta(days=7)
     week_end = week_start + timedelta(days=6)
     capable = set(water_capable_duids) if water_capable_duids is not None else None
-    robot_rows = [
-        row
-        for row in robots
-        if str(_row_value(row, "provider") or "roborock") == "roborock"
-        and (capable is None or str(_row_value(row, "duid") or "") in capable)
-    ]
+    robot_rows = sorted(
+        (
+            row
+            for row in robots
+            if str(_row_value(row, "provider") or "roborock") == "roborock"
+            and (capable is None or str(_row_value(row, "duid") or "") in capable)
+        ),
+        key=cleaning_robot_sort_key,
+    )
     robot_names = {
         str(_row_value(robot, "duid") or ""): str(_row_value(robot, "name") or "Robot")
         for robot in robot_rows
@@ -200,7 +204,7 @@ def build_refill_log(
                 "averageEmptyMinutes": round(sum(durations) / len(durations)) if durations else None,
             }
         )
-    robot_summary.sort(key=lambda row: (not row["pending"], row["name"]))
+    robot_summary.sort(key=cleaning_robot_sort_key)
 
     empty_cycles = [cycle for cycle in period_cycles if _in_period(cycle["emptyAtValue"], period_start, period_end)]
     fill_cycles = [cycle for cycle in period_cycles if _in_period(cycle["refilledAtValue"], period_start, period_end)]

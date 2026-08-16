@@ -1,12 +1,19 @@
 from cleaning_robot_domain import (
     cleaning_robot_is_active,
     cleaning_robot_operational_state,
+    cleaning_robot_sort_key,
     cleaning_provider,
     cleaning_provider_label,
     cleaning_robot_external_id,
     cleaning_robot_uid,
     expected_dreame_summary,
 )
+
+
+def test_cleaning_robot_display_order_matches_the_operational_flow():
+    names = ["2.etg", "VIP", "Aqua10", "1.etg A", "1.etg B"]
+
+    assert sorted(names, key=cleaning_robot_sort_key) == ["1.etg B", "1.etg A", "VIP", "2.etg", "Aqua10"]
 
 
 def test_cleaning_provider_is_explicit_and_source_aware():
