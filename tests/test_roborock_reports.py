@@ -15,6 +15,47 @@ def test_report_window_covers_evening_to_morning() -> None:
     assert window["end"] == datetime(2026, 8, 14, 8, 0)
 
 
+def test_night_job_exposes_only_actual_dock_intervals() -> None:
+    robot = row(duid="robot-dock", name="1.etg B", model="Q5")
+    job = row(
+        robot_duid="robot-dock",
+        record_id="job-dock",
+        begin_at=datetime(2026, 8, 13, 23, 0),
+        end_at=datetime(2026, 8, 14, 0, 0),
+        duration_minutes=37.0,
+        duration_seconds=2220,
+        cleaned_area_m2=30.0,
+        area_m2=30.0,
+        complete=True,
+        error_code=0,
+        wash_count=None,
+        clean_times=1,
+    )
+    samples = [
+        row(robot_duid="robot-dock", timestamp=datetime(2026, 8, 14, 1, 0), state_code=23, in_cleaning=True, in_returning=False, is_charging=False, battery=100, fan_power=104, water_box_mode=200, mop_mode=300),
+        row(robot_duid="robot-dock", timestamp=datetime(2026, 8, 14, 1, 3), state_code=18, in_cleaning=True, in_returning=False, is_charging=False, battery=99, fan_power=104, water_box_mode=200, mop_mode=300),
+        row(robot_duid="robot-dock", timestamp=datetime(2026, 8, 14, 1, 20), state_code=6, in_cleaning=True, in_returning=True, is_charging=False, battery=20, fan_power=104, water_box_mode=200, mop_mode=300),
+        row(robot_duid="robot-dock", timestamp=datetime(2026, 8, 14, 1, 22), state_code=8, in_cleaning=True, in_returning=False, is_charging=True, battery=19, fan_power=104, water_box_mode=200, mop_mode=300),
+        row(robot_duid="robot-dock", timestamp=datetime(2026, 8, 14, 1, 50), state_code=18, in_cleaning=True, in_returning=False, is_charging=False, battery=80, fan_power=104, water_box_mode=200, mop_mode=300),
+        row(robot_duid="robot-dock", timestamp=datetime(2026, 8, 14, 2, 0), state_code=6, in_cleaning=False, in_returning=True, is_charging=False, battery=78, fan_power=104, water_box_mode=200, mop_mode=300),
+    ]
+
+    report = build_night_report(date(2026, 8, 14), [robot], [job], samples, [])
+
+    assert report["robots"][0]["jobs"][0]["dockIntervals"] == [
+        {
+            "startedAt": "2026-08-14T01:00:00+02:00",
+            "endedAt": "2026-08-14T01:03:00+02:00",
+            "label": "Vasker mopp",
+        },
+        {
+            "startedAt": "2026-08-14T01:22:00+02:00",
+            "endedAt": "2026-08-14T01:50:00+02:00",
+            "label": "Lader i dokk",
+        },
+    ]
+
+
 def test_night_report_summarizes_modes_battery_and_mop_washes() -> None:
     robot = row(duid="robot-a", name="1.etg A", model="Qrevo")
     job = row(

@@ -62,6 +62,7 @@ def test_roborock_resource_labels_are_readable():
     assert roborock_telemetry_value_label("water_box_status", 0) == "Ikke montert"
     assert roborock_telemetry_value_label("water_box_carriage_status", 1) == "Montert"
     assert roborock_telemetry_value_label("water_box_filter_status", 0) == "OK"
+    assert roborock_telemetry_value_label("water_box_filter_status", 2) == "OK"
 
 
 def test_roborock_readiness_ignores_unsupported_values_and_marks_active_robot():

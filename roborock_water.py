@@ -6,6 +6,7 @@ from typing import Any, Iterable, Optional
 from roborock_domain import (
     roborock_dock_error_label,
     roborock_resource_status_label,
+    roborock_telemetry_value_label,
     roborock_water_label,
 )
 from roborock_reports import integer, number, probe_value, row_value, wash_settings
@@ -60,6 +61,15 @@ def _attached(value: Any) -> dict[str, Any]:
         "supported": True,
         "label": "Montert" if status != 0 else "Ikke montert",
         "attention": status == 0,
+    }
+
+
+def _water_filter(value: Any) -> dict[str, Any]:
+    label = roborock_telemetry_value_label("water_box_filter_status", value)
+    return {
+        "supported": value is not None,
+        "label": label,
+        "attention": _status_problem(label),
     }
 
 
@@ -246,7 +256,7 @@ def build_water_report(
         robot_water = _shortage(row_value(telemetry, "water_shortage_status"))
         water_box = _attached(row_value(telemetry, "water_box_status"))
         mop_attached = _attached(row_value(telemetry, "water_box_carriage_status"))
-        water_filter = _resource(row_value(telemetry, "water_box_filter_status"))
+        water_filter = _water_filter(row_value(telemetry, "water_box_filter_status"))
         interlock = _interlock(telemetry)
         dock_supported = clean_water["supported"] or dirty_water["supported"] or bool(wash["supported"])
         attention = any(

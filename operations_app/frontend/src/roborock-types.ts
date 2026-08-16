@@ -147,6 +147,11 @@ export type RoborockNightJob = {
   rounds: number;
   batteryStart?: number | null;
   batteryEnd?: number | null;
+  dockIntervals: Array<{
+    startedAt: string;
+    endedAt: string;
+    label: string;
+  }>;
   washCount?: number | null;
   expectedWashCount?: number | null;
   waterStatus: "ok" | "warning" | "unknown" | "not_applicable";

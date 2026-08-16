@@ -280,12 +280,17 @@ def roborock_telemetry_value_label(field_name: str, value: Any, name: Any = None
         return roborock_dock_error_label(value)
     if field_name == "charge_status":
         return roborock_charge_label(value)
+    if field_name == "water_box_filter_status":
+        number = int_value(value)
+        if number is None:
+            return "Ikke støttet"
+        # The Qrevo-family reports the normal installed filter state as DSS value 2.
+        return "OK" if number in {0, 2} else f"Statuskode {number}"
     if field_name in {
         "clear_water_status",
         "dirty_water_status",
         "dust_bag_status",
         "clean_fluid_status",
-        "water_box_filter_status",
     }:
         return roborock_resource_status_label(value, name)
     if field_name == "water_shortage_status":

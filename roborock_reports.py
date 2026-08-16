@@ -46,6 +46,18 @@ NIGHT_WATER_EVENT_FIELDS = {
     "water_box_filter_status": "Vannfilter",
 }
 
+DOCK_STATE_LABELS = {
+    8: "Lader i dokk",
+    9: "Ladeproblem i dokk",
+    22: "Tømmer støvbeholder",
+    23: "Vasker mopp",
+    25: "Vasker mopp",
+    33: "Monterer mopp",
+    34: "Tar av mopp",
+    100: "Fulladet i dokk",
+    202: "Tørker mopp",
+}
+
 
 def report_window(report_day: date) -> dict[str, datetime]:
     return {
@@ -261,6 +273,84 @@ def job_cleaning_type(fan_power: Any, water_mode: Any, mop_mode: Any) -> tuple[s
     return "vacuum", "Støvsuging"
 
 
+def dock_state_label(sample: Any, provider: str) -> Optional[str]:
+    state_code = integer(row_value(sample, "state_code"))
+    if provider == "roborock" and state_code in DOCK_STATE_LABELS:
+        return DOCK_STATE_LABELS[state_code]
+    if row_value(sample, "is_charging") is True:
+        return "Lader i dokk"
+    return None
+
+
+def build_dock_intervals(
+    samples: list[Any],
+    started_at: datetime,
+    ended_at: Optional[datetime],
+    provider: str,
+) -> list[dict[str, Any]]:
+    if ended_at is None:
+        ended_at = max(
+            (
+                stamp
+                for row in samples
+                if (stamp := normalize_local_naive(row_value(row, "timestamp"))) is not None
+            ),
+            default=started_at,
+        )
+    if ended_at <= started_at:
+        return []
+
+    points = sorted(
+        (
+            (stamp, dock_state_label(row, provider))
+            for row in samples
+            if (stamp := normalize_local_naive(row_value(row, "timestamp"))) is not None
+            and started_at <= stamp <= ended_at
+        ),
+        key=lambda item: item[0],
+    )
+    intervals: list[dict[str, Any]] = []
+    interval_start: Optional[datetime] = None
+    interval_label: Optional[str] = None
+    for stamp, label in points:
+        if label and interval_start is None:
+            interval_start = stamp
+            interval_label = label
+        elif not label and interval_start is not None:
+            intervals.append(
+                {
+                    "startedAt": local_iso(interval_start),
+                    "endedAt": local_iso(stamp),
+                    "label": interval_label or "I dokk",
+                }
+            )
+            interval_start = None
+            interval_label = None
+        elif label and interval_start is not None and label != interval_label:
+            intervals.append(
+                {
+                    "startedAt": local_iso(interval_start),
+                    "endedAt": local_iso(stamp),
+                    "label": interval_label or "I dokk",
+                }
+            )
+            interval_start = stamp
+            interval_label = label
+    if interval_start is not None:
+        intervals.append(
+            {
+                "startedAt": local_iso(interval_start),
+                "endedAt": local_iso(ended_at),
+                "label": interval_label or "I dokk",
+            }
+        )
+    return [
+        row
+        for row in intervals
+        if local_datetime_value(row["endedAt"]) > local_datetime_value(row["startedAt"])
+    ]
+
+
 def build_job(job: Any, samples: list[Any], settings: dict[str, Any], provider: str = "roborock") -> dict[str, Any]:
     started_at = utc_naive_to_local_naive(row_value(job, "begin_at"))
     ended_at = utc_naive_to_local_naive(row_value(job, "end_at"))
@@ -355,6 +445,12 @@ def build_job(job: Any, samples: list[Any], settings: dict[str, Any], provider: 
         "rounds": rounds,
         "batteryStart": integer(row_value(start_sample, "battery")) if start_sample else None,
         "batteryEnd": integer(row_value(end_sample, "battery")) if end_sample else None,
+        "dockIntervals": build_dock_intervals(
+            interval_samples,
+            started_at,
+            ended_at,
+            provider,
+        ),
         "washCount": wash_count,
         "expectedWashCount": expected_washes,
         "waterStatus": water_status,

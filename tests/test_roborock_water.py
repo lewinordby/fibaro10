@@ -25,7 +25,7 @@ def test_water_report_combines_settings_usage_and_resource_events() -> None:
         water_shortage_status=0,
         water_box_status=1,
         water_box_carriage_status=1,
-        water_box_filter_status=0,
+        water_box_filter_status=2,
         raw={
             "normalized": {
                 "water_interlock": {

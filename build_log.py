@@ -12,6 +12,38 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1785",
+        "date": "16.08.2026",
+        "headline": "Nattlinjen skiller rengjøring fra tid i dokken",
+        "title": "Korrekt vannfilterstatus og presise dokkintervaller gir en sannere renholdslogg",
+        "description": (
+            "Roborock rapporterer normal vannfilterstatus som råkode 2 på de tre vaskerobotene, "
+            "men denne ble tidligere vist som en advarsel. Koden tolkes nå som OK. Nattrapporten "
+            "bruker samtidig den eksisterende tilstandstelemetrien til å skille tiden roboten faktisk "
+            "arbeider ute på gulvet fra moppevask, støvtømming og ladepauser i dokken. Jobbens "
+            "farge beholdes gjennom hele forløpet, mens bare de observerte dokkintervallene skraveres."
+        ),
+        "applications": [
+            "Fibaro10 build 1785: tolker vannfilterkode 2 korrekt og beregner dokkintervaller fra telemetri.",
+            "Bygg og drift build 88: viser dokkintervallene som skravering i nattlinjen med forklarende tooltip.",
+            "Testpakken: dekker normal filterkode, moppevask, returkjøring og ladepause under en jobb.",
+        ],
+        "request": (
+            "Dette må vi endre, samtidig lurer jeg på om vi har nok data til at vi kan skille på når "
+            "robotene er ute og vasker og når de er inne i dokken. Da kunne vi fortsatt hatt samme "
+            "merkingen i tidslinjen for natten som nå, men kanskje bare skravert jobben når roboten er i dokken?"
+        ),
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Tolker vannfilterstatus 0 og 2 som OK på Roborock-vaskerobotene.",
+            "Bygger dokkintervaller fra lading, moppevask, støvtømming og andre sikre dokktilstander.",
+            "Lar retur til dokken stå som bevegelse og starter skravering først når roboten faktisk er i dokken.",
+            "Viser klokkeslett og dokkaktivitet ved musepeker over hvert skravert intervall.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1784",
         "date": "15.08.2026",
         "headline": "Pullertbilder vises med eksakt utsnittsgeometri",
