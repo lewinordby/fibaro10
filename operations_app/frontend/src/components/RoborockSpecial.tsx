@@ -456,6 +456,28 @@ function NightJobTimelineBar({ job, report }: { job: RoborockNightJob; report: R
   </>;
 }
 
+function isDockEmptyEvent(event: RoborockNightRobot["waterEvents"][number]) {
+  return event.fieldName === "clear_water_status" && event.currentLabel.trim().toLocaleLowerCase("nb-NO") === "tom";
+}
+
+function NightWaterEventMarker({ event, report, robotName }: {
+  event: RoborockNightRobot["waterEvents"][number];
+  report: RoborockNightReport;
+  robotName: string;
+}) {
+  const position = timelinePosition(event.timestamp, report.window.startAt, report.window.endAt);
+  const label = `${robotName} · ${event.title} gikk tom kl. ${reportTime(event.timestamp)}`;
+  return <span
+    aria-label={label}
+    className="absolute inset-y-0 z-30 w-0"
+    role="img"
+    style={{ left: `${position}%` }}
+    title={label}
+  >
+    <i className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-red-500 shadow-sm ring-2 ring-white dark:bg-red-400 dark:ring-gray-900" />
+  </span>;
+}
+
 function NightTimeline({ report }: { report: RoborockNightReport }) {
   const hourLabels = ["22", "00", "02", "04", "06", "08"];
   const readyPosition = timelinePosition(report.window.readyBy, report.window.startAt, report.window.endAt);
@@ -463,7 +485,7 @@ function NightTimeline({ report }: { report: RoborockNightReport }) {
   return <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xs dark:border-gray-700/60 dark:bg-gray-800">
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3 dark:border-gray-700/60">
       <div><h2 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Automatisk nattlig renhold</h2><p className="mt-0.5 text-xs text-gray-400">Etter stenging kl. 23:45 · frist før åpning kl. {reportTime(report.window.readyBy)}</p></div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-300">{!report.isForecast ? <><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-sky-500" />Støvsuging</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />Vask</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-violet-500" />Begge</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-gray-400" />Øvrig/uklassifisert</span><span className="flex items-center gap-1.5"><i className="roborock-dock-dots h-3 w-4 rounded-sm bg-gray-400 text-gray-600 dark:text-gray-300" />I dokk under jobb</span></> : null}<span className="flex items-center gap-1.5"><i className="h-5 border-l-2 border-dashed border-amber-500" />Gjeldende plan</span><span className="flex items-center gap-1.5"><i className="h-3 w-4 rounded-sm bg-rose-100/80 dark:bg-rose-500/20" />Åpningstid med sikkerhetsmargin</span></div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-300">{!report.isForecast ? <><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-sky-500" />Støvsuging</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />Vask</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-violet-500" />Begge</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-gray-400" />Øvrig/uklassifisert</span><span className="flex items-center gap-1.5"><i className="roborock-dock-dots h-3 w-4 rounded-sm bg-gray-400 text-gray-600 dark:text-gray-300" />I dokk under jobb</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-red-500 ring-1 ring-white dark:bg-red-400 dark:ring-gray-900" />Rentvann tomt</span></> : null}<span className="flex items-center gap-1.5"><i className="h-5 border-l-2 border-dashed border-amber-500" />Gjeldende plan</span><span className="flex items-center gap-1.5"><i className="h-3 w-4 rounded-sm bg-rose-100/80 dark:bg-rose-500/20" />Åpningstid med sikkerhetsmargin</span></div>
     </header>
     <div className="px-5 py-4">
       <div className="mb-1 grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3 text-[0.65rem] font-medium text-gray-400"><span /><div className="flex justify-between">{hourLabels.map((hour) => <span key={hour}>{hour}:00</span>)}</div></div>
@@ -472,6 +494,7 @@ function NightTimeline({ report }: { report: RoborockNightReport }) {
         <span className="absolute inset-y-0 right-0 z-0 bg-rose-100/70 dark:bg-rose-500/10" style={{ left: `${readyPosition}%` }} title={`Åpningstid fra ${reportTime(report.window.readyBy)}`} />
         {robot.scheduleCheck.jobs.map((planned) => <PlannedTimelineMarker extended uniformPlanTone key={`${planned.scheduleId}-${planned.scheduledAt}`} planned={planned} position={timelinePosition(planned.scheduledAt, report.window.startAt, report.window.endAt)} />)}
         {robot.jobs.map((job) => <NightJobTimelineBar job={job} key={job.recordId} report={report} />)}
+        {robot.waterEvents.filter(isDockEmptyEvent).map((event) => <NightWaterEventMarker event={event} key={`${robot.duid}-dock-empty-${event.timestamp}`} report={report} robotName={robot.name} />)}
       </div></div>)}</div>
     </div>
   </section>;

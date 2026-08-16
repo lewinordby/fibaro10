@@ -12,6 +12,34 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1788",
+        "date": "16.08.2026",
+        "headline": "Nattlinjen viser når rentvannet tar slutt",
+        "title": "Presise vannhendelser er markert direkte i robotenes nattforløp",
+        "description": (
+            "Nattrapporten bruker de lagrede overgangene for Rentvann i dokk og plasserer en liten "
+            "rød prikk på robotens tidslinje når status går til Tom. Markøren vises på det "
+            "faktiske rapporterte tidspunktet, også dersom dokken blir tom rett etter at en jobb er "
+            "avsluttet. Tooltip viser robot, hendelse og klokkeslett."
+        ),
+        "applications": [
+            "Fibaro10 build 1788: dokumenterer vannmarkørene og beholder eksisterende hendelsesgrunnlag.",
+            "Bygg og drift build 91: viser rød markør og tooltip for tom rentvannstank i dokk.",
+        ],
+        "request": (
+            "Kan vi også få inn en rød prikk eller noe med tooltip der dokken går tom for vann?"
+        ),
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Plasserer vannmarkøren etter faktisk lagret OK-til-Tom-overgang.",
+            "Viser markøren uavhengig av om roboten har en aktiv jobb på tidspunktet.",
+            "Legger til forklaring i tegnforklaringen og detaljert tooltip.",
+            "Tilpasser kontrast og ring rundt markøren for lyst og mørkt tema.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1787",
         "date": "16.08.2026",
         "headline": "Robotene følger renholdsforløpet",
