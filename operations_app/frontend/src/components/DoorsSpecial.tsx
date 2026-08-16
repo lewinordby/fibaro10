@@ -124,6 +124,37 @@ function SummaryStrip({ items }: { items: { label: string; value: string | numbe
   );
 }
 
+const FIRST_FLOOR_DOORS = new Set([
+  "door_solrom_01",
+  "door_solrom_02",
+  "door_solrom_03",
+  "door_solrom_09",
+  "door_413",
+  "door_inngang",
+  "door_toalett",
+]);
+const VIP_DOORS = new Set([
+  "door_solrom_10",
+  "door_solrom_11",
+  "door_solrom_12",
+  "door_453",
+  "door_massasjestudio",
+  "door_loftluke_massasje",
+]);
+
+function doorDepartment(door: RecordValue) {
+  const deviceKey = String(door.deviceKey || "");
+  if (FIRST_FLOOR_DOORS.has(deviceKey)) return "1etg";
+  if (VIP_DOORS.has(deviceKey)) return "vip";
+  return "2etg";
+}
+
+function departmentDoorOrder(door: RecordValue) {
+  return door.groupKey === "solrom"
+    ? Number(door.sortOrder || 0)
+    : 1000 + Number(door.sortOrder || 0);
+}
+
 function DoorOverview({ initialFilter }: { initialFilter: "all" | "solrom" | "andre" }) {
   const result = useApi(
     () =>
@@ -136,18 +167,29 @@ function DoorOverview({ initialFilter }: { initialFilter: "all" | "solrom" | "an
   if (result.error || !result.data)
     return <ErrorState error={result.error} onRetry={result.reload} />;
   const data = result.data;
-  const groups = [
-    {
-      key: "solrom",
-      title: "Solrom",
-      rows: data.doors.filter((row) => row.groupKey === "solrom"),
-    },
-    {
-      key: "andre",
-      title: "Andre dører",
-      rows: data.doors.filter((row) => row.groupKey !== "solrom"),
-    },
-  ].filter((group) => initialFilter === "all" || initialFilter === group.key);
+  const groups = initialFilter === "all"
+    ? [
+        { key: "1etg", title: "1.etg" },
+        { key: "2etg", title: "2.etg" },
+        { key: "vip", title: "VIP" },
+      ].map((group) => ({
+        ...group,
+        rows: data.doors
+          .filter((door) => doorDepartment(door) === group.key)
+          .sort((left, right) => departmentDoorOrder(left) - departmentDoorOrder(right)),
+      }))
+    : [
+        {
+          key: "solrom",
+          title: "Solrom",
+          rows: data.doors.filter((row) => row.groupKey === "solrom"),
+        },
+        {
+          key: "andre",
+          title: "Andre dører",
+          rows: data.doors.filter((row) => row.groupKey !== "solrom"),
+        },
+      ].filter((group) => initialFilter === group.key);
   const solrooms = data.doors.filter((door) => door.groupKey === "solrom");
   const otherDoors = data.doors.filter((door) => door.groupKey !== "solrom");
   const friendlyName = new Map(
@@ -218,7 +260,8 @@ function DoorOverview({ initialFilter }: { initialFilter: "all" | "solrom" | "an
             {group.rows.map((door) => (
               <DoorCard
                 door={door}
-                sunroom={group.key === "solrom"}
+                sunroom={door.groupKey === "solrom"}
+                showGroupLabel={initialFilter !== "all"}
                 changes={data.changes
                   .filter(
                     (event) =>
@@ -258,7 +301,17 @@ function DoorOverview({ initialFilter }: { initialFilter: "all" | "solrom" | "an
   );
 }
 
-function DoorCard({ door, sunroom, changes }: { door: RecordValue; sunroom: boolean; changes: RecordValue[] }) {
+function DoorCard({
+  door,
+  sunroom,
+  showGroupLabel,
+  changes,
+}: {
+  door: RecordValue;
+  sunroom: boolean;
+  showGroupLabel: boolean;
+  changes: RecordValue[];
+}) {
   const [open, setOpen] = useState(false);
   const known = door.state !== "unknown";
   const isOpen = door.state === "open";
@@ -293,10 +346,12 @@ function DoorCard({ door, sunroom, changes }: { door: RecordValue; sunroom: bool
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase text-gray-400">
-              {door.sectionTitle || door.groupTitle}
-            </p>
-            <h3 className="mt-1 text-base font-bold text-gray-800 dark:text-gray-100">
+            {showGroupLabel ? (
+              <p className="text-xs font-semibold uppercase text-gray-400">
+                {door.sectionTitle || door.groupTitle}
+              </p>
+            ) : null}
+            <h3 className={`${showGroupLabel ? "mt-1" : ""} text-base font-bold text-gray-800 dark:text-gray-100`}>
               {door.title}
             </h3>
           </div>

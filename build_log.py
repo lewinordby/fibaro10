@@ -12,6 +12,37 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1789",
+        "date": "16.08.2026",
+        "headline": "Dørene er samlet etter fysisk avdeling",
+        "title": "Døroversikten følger nå 1.etg, 2.etg og VIP",
+        "description": (
+            "Den ordinære Dører-oversikten er organisert etter byggets tre avdelinger i stedet "
+            "for å dele solrom og andre dører i hver sin liste. 1.etg samler Solrom 1-3 og 9, "
+            "Arbeidsrom, Inngang og Toalett. VIP samler Solrom 10-12, Bod/kjøkken, "
+            "Massasjestudio og Loftluke massasje. Alle øvrige dører vises under 2.etg. "
+            "Alternative dørvisninger er beholdt uendret mens de fortsatt vurderes."
+        ),
+        "applications": [
+            "Fibaro10 build 1789: dokumenterer den avdelingsbaserte døroversikten.",
+            "Bygg og drift build 92: grupperer den ordinære Dører-oversikten i 1.etg, 2.etg og VIP.",
+        ],
+        "request": (
+            "Grupper Dører-oversikten i avdelingene 1.etg, 2.etg og VIP med angitt "
+            "plassering av solrom og øvrige dører, uten å endre Alternative dørvisninger."
+        ),
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Oppretter en eksplisitt og stabil avdelingstilknytning for hver angitt dør.",
+            "Plasserer alle dører som ikke er angitt for 1.etg eller VIP under 2.etg.",
+            "Beholder korrekt Ledig/I bruk-logikk for solrom i de blandede avdelingsgruppene.",
+            "Fjerner overflødig intern gruppetekst fra kortene i den nye avdelingsoversikten.",
+            "Lar Alternative dørvisninger beholde eksisterende Solrom/Andre dører-inndeling.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1788",
         "date": "16.08.2026",
         "headline": "Nattlinjen viser når rentvannet tar slutt",
