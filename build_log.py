@@ -12,6 +12,42 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1790",
+        "date": "16.08.2026",
+        "headline": "Solromalarmene bekreftes før de varsler",
+        "title": "En trinnvis dørkontroll reduserer feilalarmer uten å skjule reelle avvik",
+        "description": (
+            "Døralarmen skiller nå mellom normal ventetid, observasjon, tvungen Sun2-kontroll, "
+            "ordinært varsel og kritisk eskalering. En avsluttet soltime kan ikke lenger kobles til "
+            "en ny dørlukking, mens en kort åpning og ny lukking under en aktiv soltime fortsatt "
+            "behandles som samme besøk. Før utsending hentes fersk status direkte fra HC3. Varsling "
+            "er knyttet til den konkrete hendelsen og gjentas derfor ikke hvert 15. minutt."
+        ),
+        "applications": [
+            "Fibaro10 build 1790: ny alarmmotor, HC3-bekreftelse, varslingsdeduplisering og dokumentasjon.",
+            "Sun2 session scraper: tvungen dagsynk deler lås med planlagte jobber og kan ikke kjøre parallelt.",
+            "Mobilt dashboard: viser vedvarende, bekreftede alarmhendelser i stedet for en egen lokal alarmberegning.",
+        ],
+        "request": (
+            "Implementer den godkjente, mer konservative logikken for solromdøralarmer og lag et "
+            "flytskjema som PDF med en grafisk fremstilling av hvordan kontrollen fungerer."
+        ),
+        "work_duration": "ca. 2 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bruker 0-8 minutter som normal ventetid og 8-15 minutter som gul observasjon.",
+            "Kjører tvungen Sun2-synk ved 15 minutter og ordinær alarm ved 17 minutter etter vellykket kontroll.",
+            "Utsetter alarm til 20 minutter dersom Sun2-kontrollen feiler og merker varselet med datakildefeilen.",
+            "Sender maksimalt ett ordinært varsel og én kritisk eskalering ved 25 minutter per dørlukking.",
+            "Kontrollerer aktuell dør direkte mot HC3 rett før et varsel legges i ntfy-køen.",
+            "Strammer inn koblingen mellom dørperiode og soltime slik at gamle timer ikke skjuler nye avvik.",
+            "Beholder overtidsgrensene på 5 og 10 minutter, men gir også overtidsvarselet fersk HC3-kontroll.",
+            "Retter lokal tid på lagrede varslingstidspunkter og fjerner tidsbasert gjentakelse av samme alarm.",
+            "Dokumenterer kontrollflyten i webmanualen og i et visuelt, utskriftsvennlig PDF-flytskjema.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1789",
         "date": "16.08.2026",
         "headline": "Dørene er samlet etter fysisk avdeling",

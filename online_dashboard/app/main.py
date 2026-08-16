@@ -76,8 +76,9 @@ MASTER_ACCESS_KEY_HASH = os.getenv("MASTER_ACCESS_KEY_HASH", "").strip()
 NTFY_BASE_URL = os.getenv("NTFY_BASE_URL", "https://ntfy.sh").rstrip("/")
 DEFAULT_NTFY_DOORS_TOPIC = f"sun2-dorer-{MASTER_ACCESS_KEY_HASH[:12]}" if MASTER_ACCESS_KEY_HASH else "sun2-dorer"
 NTFY_DOORS_TOPIC = os.getenv("NTFY_DOORS_TOPIC", DEFAULT_NTFY_DOORS_TOPIC).strip() or DEFAULT_NTFY_DOORS_TOPIC
-SUNROOM_DOOR_SESSION_GRACE_MINUTES = float(os.getenv("SUNROOM_DOOR_SESSION_GRACE_MINUTES", "5"))
-SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES = float(os.getenv("SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES", "8"))
+SUNROOM_DOOR_SESSION_GRACE_MINUTES = float(os.getenv("SUNROOM_DOOR_SESSION_GRACE_MINUTES", "8"))
+SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES = float(os.getenv("SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES", "17"))
+SUNROOM_DOOR_SYNC_FAILURE_ALARM_MINUTES = float(os.getenv("SUNROOM_DOOR_SYNC_FAILURE_ALARM_MINUTES", "20"))
 SUNROOM_DOOR_PAYMENT_DELAY_MINUTES = float(os.getenv("SUNROOM_DOOR_PAYMENT_DELAY_MINUTES", "3"))
 SUNROOM_DOOR_EXIT_GRACE_MINUTES = float(os.getenv("SUNROOM_DOOR_EXIT_GRACE_MINUTES", "3"))
 SUNROOM_DOOR_WARN_AFTER_END_MINUTES = float(os.getenv("SUNROOM_DOOR_WARN_AFTER_END_MINUTES", "5"))
@@ -1489,14 +1490,22 @@ def sun_session_expected_exit_at(row: dict[str, Any]) -> Optional[datetime]:
 
 def solroom_session_matches_closed_status(row: dict[str, Any], closed_since: Optional[datetime], now: datetime) -> bool:
     started_at = row.get("started_at")
-    expected_exit = sun_session_expected_exit_at(row)
     if not isinstance(started_at, datetime) or not isinstance(closed_since, datetime):
         return False
     if started_at > now + timedelta(minutes=SUNROOM_DOOR_SESSION_GRACE_MINUTES):
         return False
-    if expected_exit and expected_exit >= closed_since - timedelta(minutes=SUNROOM_DOOR_PAYMENT_DELAY_MINUTES + 2):
-        return True
-    return closed_since - timedelta(minutes=30) <= started_at <= closed_since + timedelta(hours=2)
+    sun_start_at = started_at + timedelta(minutes=SUNROOM_DOOR_PAYMENT_DELAY_MINUTES)
+    session_end_at = sun_session_end_at(row)
+    paid_near_close = (
+        closed_since - timedelta(minutes=SUNROOM_DOOR_PAYMENT_DELAY_MINUTES + 2)
+        <= started_at
+        <= closed_since + timedelta(minutes=SUNROOM_DOOR_SYNC_FAILURE_ALARM_MINUTES)
+    )
+    active_when_closed = bool(
+        isinstance(session_end_at, datetime)
+        and sun_start_at <= closed_since <= session_end_at
+    )
+    return paid_near_close or active_when_closed
 
 
 async def solroom_door_alarm_statuses(statuses: list[dict[str, Any]]) -> dict[str, Any]:
@@ -1504,6 +1513,7 @@ async def solroom_door_alarm_statuses(statuses: list[dict[str, Any]]) -> dict[st
     room_by_key = {str(config.get("device_key")): solroom_room_id_from_config(config) for config in SOLROOM_DOOR_CONFIG}
     room_ids = sorted({room_id for room_id in room_by_key.values() if room_id})
     sessions_by_room = {room_id: [] for room_id in room_ids}
+    active_alarm_devices: set[str] = set()
     if SOURCE_MODE and room_ids:
         rows = await many_mappings(
             """
@@ -1518,6 +1528,20 @@ async def solroom_door_alarm_statuses(statuses: list[dict[str, Any]]) -> dict[st
             room_id = solroom_session_room_id(row)
             if room_id in sessions_by_room:
                 sessions_by_room[room_id].append(row)
+        alarm_rows = await many_mappings(
+            """
+            select device_key, device_id
+            from alarm_events
+            where domain = 'doors'
+              and status = 'active'
+              and alarm_type = 'closed_without_session'
+            """
+        )
+        for alarm in alarm_rows:
+            if alarm.get("device_key"):
+                active_alarm_devices.add(f"key:{alarm['device_key']}")
+            if alarm.get("device_id") is not None:
+                active_alarm_devices.add(f"id:{alarm['device_id']}")
 
     items: list[dict[str, Any]] = []
     for status in statuses:
@@ -1542,8 +1566,10 @@ async def solroom_door_alarm_statuses(statuses: list[dict[str, Any]]) -> dict[st
         )
         alarm_active = bool(
             missing_session
-            and duration_seconds is not None
-            and duration_seconds >= int(SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES * 60)
+            and (
+                f"key:{status.get('device_key')}" in active_alarm_devices
+                or f"id:{status.get('device_id')}" in active_alarm_devices
+            )
         )
         items.append(
             {

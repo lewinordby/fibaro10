@@ -1,6 +1,6 @@
 # SUN2 enkelttimer
 
-Oppdatert 19.07.2026.
+Oppdatert 16.08.2026.
 
 Dette dokumentet beskriver flyten for å hente enkelt-solinger fra SUN2 Owner og vise dem i Lilletorget drift.
 
@@ -62,10 +62,26 @@ Sun2-seng-ID brukes som stabil identitet dersom en importert rad har en eldre el
 
 ## Døralarm og soltime
 
-Når en solromdør lukkes, leter Fibaro10 etter en betalt time for riktig Sun2-seng. En alarm for lukket dør uten
-soltime kan tidligst bli aktuell etter 8 minutter. Før ntfy-varselet sendes, åpner bakgrunnsjobben en ny
-databaseøkt og kontrollerer rom-ID og seng-ID på nytt. API-kall fra grensesnittet er lesende og kan ikke sende
-alarm.
+Når en solromdør lukkes, leter Fibaro10 etter en betalt time for riktig Sun2-seng. Koblingen godtas når betalingen
+ligger nær den konkrete dørlukkingen, eller når døren lukkes på nytt mens en fysisk soltime allerede pågår. En
+gammel avsluttet soltime kan derfor ikke skjule en ny dørlukking.
+
+Alarmforløpet er:
+
+- 0-8 minutter: normal ventetid. Ingen advarsel eller melding.
+- 8-15 minutter: gul observasjon i grensesnittet. Ingen melding.
+- 15 minutter: Fibaro10 ber `sun2_session_scraper` kjøre en ekstra synkronisering av dagens enkelttimer.
+- 17 minutter: ett ordinært varsel dersom synkroniseringen var vellykket og riktig soltime fortsatt mangler.
+- 20 minutter: ett ordinært varsel dersom Sun2-synkroniseringen feilet. Meldingen sier at datakilden ikke kunne bekreftes.
+- 25 minutter: én kritisk eskalering dersom døren fortsatt er lukket uten soltime.
+
+Rett før en melding legges i ntfy-køen, spør Fibaro10 HC3 direkte om den aktuelle døren. Dersom HC3 viser at
+døren er åpen, korrigeres lokal status og varselet stoppes. Varsler identifiseres med rom, dørlukking, årsak og
+eventuell soltime. Det sendes derfor ikke et nytt varsel hvert 15. minutt for samme hendelse; samme dørlukking kan
+bare gi ett ordinært varsel og eventuelt én kritisk eskalering.
+
+Overtidsalarmen er uendret: gul markering etter 5 minutter over forventet solslutt og ett varsel etter 10 minutter,
+også da med fersk kontroll mot HC3 før utsending. API-kall fra grensesnittet er lesende og kan ikke sende alarm.
 
 ## Samspill med energi
 

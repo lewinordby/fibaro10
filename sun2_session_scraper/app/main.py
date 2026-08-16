@@ -2293,7 +2293,8 @@ async def sync_current_month():
 @app.post("/sync-today")
 async def sync_today():
     try:
-        result = await asyncio.to_thread(scrape_today_sync)
+        async with schedule_lock:
+            result = await asyncio.to_thread(scrape_today_sync)
         return JSONResponse({"status": "ok", "result": result, "state": state})
     except Exception as exc:
         state["last_error"] = f"Dagens live-sync feilet: {exc}"
