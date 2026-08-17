@@ -42,13 +42,12 @@ def menu_structure_module(_request: Request) -> dict[str, Any]:
 
         rows = []
         for group in app["groups"]:
-            placement = "Horisontal fane" if len(group["items"]) > 1 else "Venstremeny"
             for item in group["items"]:
                 route = item["to"]
                 rows.append({
                     "hovedomr\u00e5de": group["label"],
                     "side": item["label"],
-                    "plassering": placement,
+                    "plassering": "Venstremeny",
                     "rute": route,
                     "url_dybde": _url_depth(route),
                     "path": f"{base_url}{route}",
@@ -62,7 +61,7 @@ def menu_structure_module(_request: Request) -> dict[str, Any]:
 
     return {
         "title": "Menystruktur",
-        "subtitle": "Gjeldende Mantis-struktur med arbeidsflater til venstre og beslektede sider som horisontale faner.",
+        "subtitle": "Gjeldende Mantis-struktur med alle appens sider samlet og gruppert i venstremenyen.",
         "cards": [
             {"title": "Origin", "value": 1, "unit": "domene", "detail": "https://ny.lilletorget.net"},
             {"title": "Fagapper", "value": len(APP_MENU_STRUCTURE), "unit": "apper", "detail": "Stier under samme HTTPS-origin"},
@@ -76,8 +75,8 @@ def menu_structure_module(_request: Request) -> dict[str, Any]:
                 "columns": ["niv\u00e5", "element", "plassering", "forklaring"],
                 "rows": [
                     {"niv\u00e5": "Globalt", "element": "App", "plassering": "Appfeltet", "forklaring": f"Bytter mellom de {len(APP_MENU_STRUCTURE)} appene under samme origin."},
-                    {"niv\u00e5": "1", "element": "Arbeidsflate", "plassering": "Venstremeny", "forklaring": "En selvstendig arbeidsflyt eller et tydelig fagomr\u00e5de i valgt app."},
-                    {"niv\u00e5": "2", "element": "Side", "plassering": "Horisontal fanelinje", "forklaring": "Vises bare n\u00e5r arbeidsflaten har minst to beslektede sider. En enkeltside \u00e5pnes direkte fra venstremenyen."},
+                    {"niv\u00e5": "1", "element": "Seksjon", "plassering": "Venstremeny", "forklaring": "En diskret gruppeoverskrift for beslektede sider. Overskriften utelates n\u00e5r seksjonen bare har \u00e9n side."},
+                    {"niv\u00e5": "2", "element": "Side", "plassering": "Venstremeny", "forklaring": "Hver registrerte side vises som ett eget menypunkt. Appniv\u00e5et bruker ikke horisontale faner."},
                     {"niv\u00e5": "Kontekst", "element": "Detaljvisning", "plassering": "Fra innhold", "forklaring": "\u00c5pnes fra tabeller og kort og er ikke et hovedmenyvalg."},
                     {"niv\u00e5": "Lokalt", "element": "Objektfane", "plassering": "Inne i detaljvisning", "forklaring": "For eksempel robotens Status, Styring og Historikk. Dette er ikke et ekstra menyniv\u00e5."},
                 ],

@@ -301,7 +301,8 @@ def test_system_menu_structure_page_is_available_without_core_data() -> None:
             for table in payload["tables"][2:]
             for row in table["rows"]
         }
-        assert {"Venstremeny", "Horisontal fane"} <= placements
+        assert placements == {"Venstremeny"}
+        assert "horisontale faner" not in payload["subtitle"].lower()
 
 
 def test_parity_critical_specialized_views_are_kept_in_microapps() -> None:
