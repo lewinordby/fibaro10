@@ -1,6 +1,6 @@
 # Intern HTTPS
 
-Oppdatert 17.08.2026, build 1795.
+Oppdatert 17.08.2026, build 1798.
 
 Lilletorget bruker offentlig DNS og offentlig betrodde TLS-sertifikater, men
 de interne navnene peker til den private HTTPS-adressen 192.168.20.219 på QNAP.
@@ -13,6 +13,7 @@ nettet eller via VPN.
 | Flate | Adresse | Rolle |
 | --- | --- | --- |
 | Mantis | https://ny.lilletorget.net | Gjeldende brukerflate og PWA. |
+| Kiosk | https://kiosk.lilletorget.net | Fast 1920 x 1080-statusflate for intern drift. |
 | Fibaro10 | https://fibaro10.lilletorget.net | Kjerne/API og samlet reserveflate. |
 | Forrige mikroappserie | https://app.lilletorget.net | Reserve og funksjonsreferanse. |
 
@@ -53,6 +54,8 @@ overstyres med FIBARO10_VPN_ROUTE og FIBARO10_LAN_GATEWAY i QNAPs .env.
 ## Tilgangskontroll
 
 - Caddy avviser trafikk til interne flater som ikke kommer fra privat LAN/VPN.
+- Kiosken er tilgjengelig på kiosk.lilletorget.net og deler den sentrale
+  lilletorget_session-innloggingen med de øvrige appene.
 - Direkte HTTP-porter er tekniske reserveadresser og skal ikke videresendes fra
   internett eller publiseres som primære lenker.
 - Offentlig DNS gir ikke offentlig tilgang når A-posten peker til privat IP og

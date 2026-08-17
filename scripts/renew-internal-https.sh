@@ -27,10 +27,12 @@ before="missing"
 renew_days=30
 if [ -f "$CERT_FILE" ]; then
     before="$(sha256sum "$CERT_FILE" | awk '{print $1}')"
-    if ! openssl x509 -in "$CERT_FILE" -noout -text | grep -q 'DNS:ny.lilletorget.net'; then
-        renew_days=365
-        echo "Sertifikatet mangler ny.lilletorget.net og fornyes derfor nå."
-    fi
+    for required_san in ny.lilletorget.net kiosk.lilletorget.net; do
+        if ! openssl x509 -in "$CERT_FILE" -noout -text | grep -q "DNS:$required_san"; then
+            renew_days=365
+            echo "Sertifikatet mangler $required_san og fornyes derfor nå."
+        fi
+    done
 fi
 
 set -- \
@@ -42,6 +44,7 @@ set -- \
     --domains fibaro10.lilletorget.net \
     --domains app.lilletorget.net \
     --domains ny.lilletorget.net \
+    --domains kiosk.lilletorget.net \
     --domains omsetning.lilletorget.net \
     --domains parkering.lilletorget.net \
     --domains soling.lilletorget.net \

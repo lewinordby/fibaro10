@@ -12,6 +12,43 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1798",
+        "date": "17.08.2026",
+        "headline": "Egen kioskflate gir umiddelbar oversikt over robotdriften",
+        "title": "Fast robotstatus for 1920 x 1080 med intern HTTPS",
+        "description": (
+            "En ny, selvstendig React-kiosk er bygget for en fast 14-tommers skjerm med "
+            "oppløsning 1920 x 1080. Flaten viser samlet renholdsstatus, jobbaktivitet, "
+            "vannsperrer, avvik og egne kort for robotene uten dokumentrulling. Den bruker "
+            "samme autentisering og levende renholds-API som resten av Lilletorget, men kan "
+            "bygges og publiseres uten å bygge om de eksisterende brukerflatene."
+        ),
+        "applications": [
+            "Lilletorget Kiosk: ny separat React-, TypeScript- og Nginx-applikasjon.",
+            "Renhold: eksisterende operations_app leverer robotstatus til kiosken.",
+            "Intern HTTPS: Caddy, Domeneshop DNS-kontroll og sertifikatfornyelse.",
+            "System / Buildlogg: oppsettet og bestillingen er dokumentert.",
+        ],
+        "request": (
+            "Lag en første test på en webapp som skal gå i kioskmodus på en 14-tommers "
+            "skjerm med 1920 x 1080. Bruk gode knapper og god font- og tekststørrelse, "
+            "start med en statusside for robotene, og gjør den tilgjengelig på det lokale "
+            "nettet som kiosk.lilletorget.net."
+        ),
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bygger en skjermfast statusflate med automatisk oppdatering hvert 30. sekund.",
+            "Viser robotpark, dagens jobber, vannsperrer, avvik, batteri, vannstatus og planer.",
+            "Tilpasser rutenettet automatisk for fire eller fem roboter, inkludert Aqua10.",
+            "Legger inn 56 piksler høye handlinger, fullskjermknapp og felles innlogging.",
+            "Verifiserer layouten eksplisitt i 1920 x 1080 uten horisontal eller vertikal rulling.",
+            "Publiserer kiosken som egen container på fibaro10_default-nettverket.",
+            "Legger kiosk-domenet inn i privat Caddy-ruting og fremtidig HTTPS-fornyelse.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1797",
         "date": "17.08.2026",
         "headline": "Lyslogg og renholdsoppfølging viser nå riktig beslutningsgrunnlag",

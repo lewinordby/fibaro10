@@ -99,6 +99,13 @@ https://ny.lilletorget.net {
 	reverse_proxy lilletorget_mantis:80
 }
 
+# Fixed 1920 x 1080 operations display. The application is a separate
+# container, but shares authentication and the private HTTPS boundary.
+https://kiosk.lilletorget.net {
+	import internal_app
+	reverse_proxy lilletorget_kiosk:80
+}
+
 https://omsetning.lilletorget.net {
 	import internal_app
 	handle_path /omsetning/* {

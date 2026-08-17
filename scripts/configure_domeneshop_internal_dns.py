@@ -19,6 +19,7 @@ HOSTS = (
     "fibaro10",
     "app",
     "ny",
+    "kiosk",
     "omsetning",
     "parkering",
     "soling",
