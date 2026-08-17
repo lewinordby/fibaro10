@@ -18,18 +18,12 @@
           ]
         },
         {
-          "label": "Utvikling",
+          "label": "Analyse",
           "icon": "trend",
           "items": [
             { "to": "/oversikt", "label": "Oversikt", "icon": "chart", "title": "Resultatutvikling", "description": "N\u00f8kkeltall, topplister og utvikling over tid.", "module": "omsetning", "view": "oversikt" },
             { "to": "/maned", "label": "M\u00e5ned", "icon": "calendar", "title": "M\u00e5nedsoversikt", "description": "Omsetning dag for dag i valgt m\u00e5ned.", "module": "omsetning", "view": "maned" },
-            { "to": "/ar", "label": "\u00c5r", "icon": "trend", "title": "\u00c5rssammenligning", "description": "Akkumulert omsetning sammenlignet mellom \u00e5r.", "module": "omsetning", "view": "ar" }
-          ]
-        },
-        {
-          "label": "Sammenligning",
-          "icon": "compare",
-          "items": [
+            { "to": "/ar", "label": "\u00c5r", "icon": "trend", "title": "\u00c5rssammenligning", "description": "Akkumulert omsetning sammenlignet mellom \u00e5r.", "module": "omsetning", "view": "ar" },
             { "to": "/sammenligning", "label": "Periodesammenligning", "icon": "compare", "title": "Periodesammenligning", "description": "Akkumulert utvikling for valgte perioder.", "module": "omsetning", "view": "sammenligning" }
           ]
         }
@@ -163,24 +157,18 @@
       "url": "https://ny.lilletorget.net/koble/",
       "groups": [
         {
-          "label": "Kandidater",
+          "label": "Koblinger",
           "icon": "link",
           "items": [
-            { "to": "/", "label": "Kandidater", "icon": "link", "title": "Koble parkering og soling", "description": "Sannsynlige koblinger mellom kj\u00f8ret\u00f8y og Sun2-ID.", "module": "koble", "view": "oversikt", "corePath": "/koble/oversikt" }
-          ]
-        },
-        {
-          "label": "Kontroll",
-          "icon": "compare",
-          "items": [
+            { "to": "/", "label": "Oversikt", "icon": "link", "title": "Koble parkering og soling", "description": "Sannsynlige koblinger mellom kj\u00f8ret\u00f8y og Sun2-ID.", "module": "koble", "view": "oversikt", "corePath": "/koble/oversikt" },
+            { "to": "/kandidater", "label": "Kandidater", "icon": "link", "title": "Kandidater", "description": "Bekreft eller avvis sannsynlige koblinger.", "module": "koble", "view": "kandidater", "corePath": "/koble/kandidater" },
             { "to": "/kontroll", "label": "Sun2-kontroll", "icon": "compare", "title": "Sun2-kontroll", "description": "Visuell kontroll av gjentatte treff og motbevis.", "module": "koble", "view": "sun2", "corePath": "/koble/sun2" },
             { "to": "/biltreff", "label": "Biltreff", "icon": "parking", "title": "Biltreff", "description": "Biler med gjentatte treff mot samme Sun2-ID.", "module": "koble", "view": "biltreff", "corePath": "/koble/biltreff" },
-            { "to": "/kandidater", "label": "Kandidater", "icon": "link", "title": "Kandidater", "description": "Bekreft eller avvis sannsynlige koblinger.", "module": "koble", "view": "kandidater", "corePath": "/koble/kandidater" },
             { "to": "/treffgrunnlag", "label": "Treffgrunnlag", "icon": "chart", "title": "Treffgrunnlag", "description": "Parkeringer og soltimer som ligger bak kandidatene.", "module": "koble", "view": "treffgrunnlag", "corePath": "/koble/treffgrunnlag" }
           ]
         },
         {
-          "label": "Koblingsmotor",
+          "label": "Motor",
           "icon": "settings",
           "items": [
             { "to": "/jobb", "label": "Jobbstatus", "icon": "settings", "title": "Koblingsmotor", "description": "Status, parametere og styring av koblingsmotoren.", "module": "koble", "view": "jobb", "corePath": "/koble/jobb" }
@@ -242,18 +230,12 @@
           "label": "Oversikt",
           "icon": "dashboard",
           "items": [
-            { "to": "/", "label": "Renholdsoversikt", "icon": "dashboard", "title": "Renholdsoversikt", "description": "Status, historikk og oppf\u00f8lging av robotvaskere.", "module": "renhold", "view": "oversikt", "corePath": "/renhold/oversikt" }
-          ]
-        },
-        {
-          "label": "Rapport",
-          "icon": "calendar",
-          "items": [
+            { "to": "/", "label": "Status", "icon": "dashboard", "title": "Renholdsoversikt", "description": "Status, historikk og oppf\u00f8lging av robotvaskere.", "module": "renhold", "view": "oversikt", "corePath": "/renhold/oversikt" },
             { "to": "/rapport", "label": "Nattrapport", "icon": "calendar", "title": "Nattrapport", "description": "Maskinell d\u00f8gnrapport for rengj\u00f8ring, batteri, vann og driftsklar status.", "module": "renhold", "view": "rapport", "corePath": "/renhold/rapport" }
           ]
         },
         {
-          "label": "Vann",
+          "label": "Vann og mopper",
           "icon": "energy",
           "items": [
             { "to": "/vann", "label": "Vann og moppevask", "icon": "energy", "title": "Vann og moppevask", "description": "Vannstatus, moppevaskintervall, faktisk vaskebelastning og hendelser.", "module": "renhold", "view": "vann", "corePath": "/renhold/vann" },
@@ -336,16 +318,10 @@
           ]
         },
         {
-          "label": "Beregninger",
+          "label": "Analyse",
           "icon": "chart",
           "items": [
-            { "to": "/forbruk-per-seng", "label": "Forbruk per seng", "icon": "sun", "title": "Forbruk per solseng", "description": "Beregnet og m\u00e5lt energibruk per solseng.", "module": "energi", "view": "forbruk-per-seng", "corePath": "/energi/forbruk-per-seng" }
-          ]
-        },
-        {
-          "label": "Verkt\u00f8y",
-          "icon": "tools",
-          "items": [
+            { "to": "/forbruk-per-seng", "label": "Forbruk per seng", "icon": "sun", "title": "Forbruk per solseng", "description": "Beregnet og m\u00e5lt energibruk per solseng.", "module": "energi", "view": "forbruk-per-seng", "corePath": "/energi/forbruk-per-seng" },
             { "to": "/verktoy", "label": "Verkt\u00f8y", "icon": "tools", "title": "Energiverkt\u00f8y", "description": "Diagnostikk og vedlikehold av energigrunnlaget.", "module": "energi", "view": "verktoy", "corePath": "/energi/verktoy" }
           ]
         }

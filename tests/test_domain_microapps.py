@@ -296,6 +296,12 @@ def test_system_menu_structure_page_is_available_without_core_data() -> None:
         assert payload["title"] == "Menystruktur"
         assert len(payload["tables"]) == len(APP_MENU_STRUCTURE) + 2
         assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 117
+        placements = {
+            row["plassering"]
+            for table in payload["tables"][2:]
+            for row in table["rows"]
+        }
+        assert {"Venstremeny", "Horisontal fane"} <= placements
 
 
 def test_parity_critical_specialized_views_are_kept_in_microapps() -> None:
