@@ -333,7 +333,7 @@ async def manual_module(request: Request, client: httpx.AsyncClient, headers: di
                 "kapittel": chapter.get("number"),
                 "tittel": chapter.get("title"),
                 "merknad": chapter.get("note", ""),
-                "path": f'/manual/{chapter.get("id")}',
+                "path": f'/system/manual/{chapter.get("id")}',
             }
             for chapter in chapters
             if chapter.get("id")

@@ -6,11 +6,11 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 
 ## Nøkkeltall
 
-- 31 dokumenterte systemkomponenter i `system_inventory.py`.
+- 32 dokumenterte systemkomponenter i `system_inventory.py`.
 - 28 komponenter er aktive i dagens runtime eller som aktivt verktøy; Dreame er klargjort for aktivering.
-- 26 komponenter har webflate eller lokal statusflate.
+- 27 komponenter har webflate eller lokal statusflate.
 - 24 datakilder/importjobber er definert i Fibaro10.
-- Produksjonsbuild ved siste sjekk: Fibaro10 build `1794`.
+- Produksjonsbuild ved siste sjekk: Fibaro10 build `1795`.
 - QNAP-appmappe: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`.
 - Backup/arkivvolum: `/share/CACHEDEV3_DATA/fibaro10_archive`.
 - Mantis-kildekode: privat repo `https://github.com/lewinordby/lilletorget-mantis`.
@@ -79,6 +79,7 @@ hver enkelt app.
 | Tjeneste | Kritikalitet | Formål |
 | --- | --- | --- |
 | `fibaro10` | Kritisk | FastAPI-kjerne, database-API, admin, ingest og samlet desktopreserve. |
+| `lilletorget_mantis` | Høy | Gjeldende brukerflate med elleve appbygg, Nginx og path-basert ruting på port 8170. |
 | `shell_app` | Normal | Intern appvelger, live tjenestestatus og felles inngang til mikroappene. |
 | `online_dashboard` | Høy | Ekstern begrenset dashboardflate. |
 | `maintenance_mobile` | Normal | Mobil vedlikeholdsregistrering mot Fibaro10 API. |
@@ -113,7 +114,8 @@ hver enkelt app.
 
 | Domene | Intern tjeneste | Kommentar |
 | --- | --- | --- |
-| `fibaro10.lilletorget.net:443` | `fibaro10:8110` | Hovedapp med offentlig betrodd sertifikat, kun LAN/VPN. |
+| `ny.lilletorget.net:443` | `lilletorget_mantis:80` | Gjeldende Mantis-flate med elleve apper under én origin. |
+| `fibaro10.lilletorget.net:443` | `fibaro10:8110` | Kjerne/API og samlet reserveflate, kun LAN/VPN. |
 | `app.lilletorget.net:443` | `shell_app:8150` og fagappene `8151-8158` | Felles PWA-origin; Caddy ruter hver fagapp etter sti. |
 | `omsetning.lilletorget.net:443` | `revenue_app:8151` | Intern omsetningsapp. |
 | `parkering.lilletorget.net:443` | `parking_app:8152` | Intern parkeringsapp. |
@@ -132,8 +134,9 @@ hver enkelt app.
 
 ## Felles innlogging i mikroappene
 
-`fibaro10.lilletorget.net`, appvelgeren og mikroappene på portserien 8150-8158 bruker
-én felles, opak sesjonscookie. Cookien heter `lilletorget_session`, gjelder for
+`ny.lilletorget.net`, `fibaro10.lilletorget.net`, appvelgeren og adapterne på
+portserien 8150-8158 bruker én felles, opak sesjonscookie. Cookien heter
+`lilletorget_session`, gjelder for
 `.lilletorget.net` og settes med `Secure`, `HttpOnly` og `SameSite=Lax`. Passordet
 lagres ikke i nettlesercookien. Utlogging fra én av disse appene tilbakekaller den
 samme databasesesjonen og fjerner den felles cookien.
@@ -155,24 +158,23 @@ samme cookien bare for det lokale vertsnavnet. Domenet kan overstyres med
 
 ## Felles installert desktopapp
 
-`app.lilletorget.net` er hovedidentiteten for den installerte PWA-en `Lilletorget`.
-Alle fagappene presenteres som stier under den samme origin-en, mens Caddy fortsatt
-ruter dem til separate containere og buildløp. Dermed ligger hele den installerte
-opplevelsen i vanlig manifest-scope `/`, uten `scope_extensions` eller association-
-filer. Appbytte blir værende i samme standalone-vindu uten ekstra adresselinje.
+`ny.lilletorget.net` er hovedidentiteten for den installerte PWA-en
+`Lilletorget`. Alle elleve Mantis-appene presenteres som stier under samme
+origin og ligger i vanlig manifest-scope. Appbytte blir derfor i samme
+standalone-vindu uten ekstra adresselinje.
 
-Bare appvelgeren skal installeres. Etter manifestendringer må gamle separate
-installasjoner av Fibaro10 eller fagappene avinstalleres før `Lilletorget` installeres
-på nytt fra appvelgeren.
+Bare Mantis-flaten skal installeres for daglig arbeid. Etter manifestendringer
+må eldre installasjoner av Fibaro10, appvelgeren eller separate fagapper
+avinstalleres før `Lilletorget` installeres på nytt fra
+`https://ny.lilletorget.net`.
 
 ## Roller for brukerflatene
 
-`https://app.lilletorget.net/` er primær inngang for daglig arbeid. Fagappene er
-egne bygg og containere, men presenteres som stier under samme origin. Fibaro10
-på port 8110 er fortsatt produksjonskritisk fordi den eier API, datamodell,
-bakgrunnsjobber og flere administrative funksjoner. `desktop_v2` som leveres fra
-Fibaro10 beholdes som samlet operativ reserve og funksjonsreferanse, men ny
-fagfunksjonalitet skal som hovedregel implementeres i riktig mikroapp.
+`https://ny.lilletorget.net/` er primær inngang for daglig arbeid. Mantis har
+elleve appidentiteter og 127 registrerte navigasjonsruter, men leveres samlet fra
+én container på port 8170. Fag-API-ene på 8151-8158 og Fibaro10-kjernen på 8110
+er fortsatt produksjonskritiske. `desktop_v2` og `app.lilletorget.net`
+beholdes som reserve og funksjonsreferanse, ikke som kilde for ny frontend.
 
 ## Datakilder
 
@@ -203,7 +205,8 @@ fagfunksjonalitet skal som hovedregel implementeres i riktig mikroapp.
 | 23 | HC3 dørstatus ved avvik | Bygg og drift | Fibaro10 / HC3 API | ca. 2 min ved behov |
 | 24 | Dreame logger | Renhold | QNAP / Dreamehome | ca. 5 min |
 
-`Admin -> Datakilder` er operativ fasit for status, siste kjøring, alder, feilmelding og forklaring per kilde.
+`System -> Datakilder` er operativ fasit for status, siste kjøring, alder,
+feilmelding og forklaring per kilde.
 
 ## Lagring og backup
 
@@ -240,12 +243,17 @@ rådet bare gjelder RSC-modus mens Fibaro10 bruker ren `BrowserRouter` uten
 React Server Components eller router-actions. Alle øvrige funn på moderat
 eller høyere nivå stopper kontrollen.
 
-Mikroappene har i tillegg egne, raskere løp:
+Reservegenerasjonen har i tillegg egne, raskere løp:
 
 - `scripts/deploy-domain-app-qnap.ps1` for én app.
 - `scripts/deploy-all-domain-apps-qnap.ps1` for alle fagappene.
 - `scripts/smoke-domain-apps.ps1` for alle registrerte fagappruter.
 
 Dette er den normale veien for å holde produksjon og dokumentert systemtilstand synkronisert.
+
+Mantis-serien verifiseres i sitt eget repo med `npm run build`,
+`npm run verify` og `npm run smoke:production`. Deployscriptet bygger et nytt
+image, venter på `healthy` og går automatisk tilbake til forrige image hvis den
+nye releasen ikke blir frisk.
 
 Siste samlede og daterte verifikasjon ligger i `docs/kvalitetsstatus-2026-08-07.md`.

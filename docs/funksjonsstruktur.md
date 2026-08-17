@@ -2,7 +2,14 @@
 
 Oppdatert 10.07.2026.
 
-Dette dokumentet beskriver dagens funksjonsdeling i V2. Målet er å unngå overlapp mellom sider og gjøre videre utvikling mer forutsigbar.
+> Historisk referanse: Dokumentet beskriver funksjonsdelingen i den samlede V2-
+> flaten. Gjeldende apper og menystruktur finnes i Mantis-repoets
+> `packages/platform/src/app-definitions.json` og i
+> `https://ny.lilletorget.net/system/manual/menystruktur`.
+
+Målet med dokumentet var å unngå overlapp mellom V2-sider og gjøre utviklingen
+mer forutsigbar. Prinsippene er fortsatt nyttige, men rutene er ikke dagens
+primære navigasjon.
 
 ## Prinsipp
 

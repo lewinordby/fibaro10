@@ -395,20 +395,12 @@ def architecture_overview() -> Drawing:
     _box(d, 340, 263, 180, 54, ["Felles innlogging", "DB-sesjon · delt sikker cookie"], fill=SOFT_PURPLE, stroke=PURPLE)
     _box(d, 550, 263, 160, 54, ["Tilgangsgrenser", "LAN/VPN eller valgt mobilflate"], fill=SOFT_RED, stroke=RED)
 
-    ui_boxes = [
-        (105, "Appvelger", "8150"),
-        (198, "Omsetning", "8151"),
-        (291, "Parkering", "8152"),
-        (384, "Soling", "8153"),
-        (477, "Energi", "8154"),
-        (570, "Drift", "8155"),
-        (663, "System m.fl.", "8156-58"),
-    ]
-    for x, title, port in ui_boxes:
-        _box(d, x, 184, 82, 54, [title, port], fill=SOFT_PURPLE, stroke=PURPLE, font_size=7.1)
+    _box(d, 105, 184, 250, 54, ["Mantis · 11 apper", "ny.lilletorget.net · Nginx 8170"], fill=SOFT_PURPLE, stroke=PURPLE, font_size=8)
+    _box(d, 375, 184, 150, 54, ["Mobil / iPad", "Egne arbeidsflater"], fill=SOFT_PURPLE, stroke=PURPLE, font_size=7.5)
+    _box(d, 545, 184, 160, 54, ["Reserveflater", "Fibaro10 · app.lilletorget"], fill=PAPER, stroke=LINE, font_size=7.3)
 
-    _box(d, 110, 102, 175, 54, ["Fibaro10 API", "FastAPI · domenelogikk · admin"], fill=SOFT_GOLD, stroke=GOLD)
-    _box(d, 310, 102, 175, 54, ["Blue / green web", "Trygg overgang mellom builds"], fill=SOFT_GOLD, stroke=GOLD)
+    _box(d, 110, 102, 175, 54, ["Fagadaptere", "FastAPI · port 8151-8158"], fill=SOFT_GOLD, stroke=GOLD)
+    _box(d, 310, 102, 175, 54, ["Fibaro10 API", "Domenelogikk · database · admin"], fill=SOFT_GOLD, stroke=GOLD)
     _box(d, 510, 102, 175, 54, ["Worker og sidetjenester", "Import · kontroll · varsling"], fill=SOFT_GREEN, stroke=GREEN)
 
     data_boxes = [
@@ -431,19 +423,19 @@ def architecture_overview() -> Drawing:
     _arrow(d, 520, 290, 550, 290)
     d.add(Line(146, 251, 704, 251, strokeColor=HexColor("#77839A"), strokeWidth=0.9))
     _arrow(d, 430, 263, 430, 251, width=0.9)
-    for x in [146, 239, 332, 425, 518, 611, 704]:
+    for x in [230, 450, 625]:
         _arrow(d, x, 251, x, 238, width=0.7)
     d.add(Line(146, 171, 704, 171, strokeColor=HexColor("#77839A"), strokeWidth=0.9))
-    for x in [146, 239, 332, 425, 518, 611, 704]:
+    for x in [230, 450, 625]:
         d.add(Line(x, 184, x, 171, strokeColor=HexColor("#77839A"), strokeWidth=0.7))
-    _arrow(d, 410, 171, 397, 156, width=0.9)
-    _arrow(d, 310, 129, 285, 129)
+    _arrow(d, 230, 171, 198, 156, width=0.9)
+    _arrow(d, 285, 129, 310, 129)
     _arrow(d, 485, 129, 510, 129)
-    _arrow(d, 510, 118, 285, 118, color=GREEN, width=0.8)
+    _arrow(d, 510, 118, 485, 118, color=GREEN, width=0.8)
 
     # PostgreSQL hører til API-et. De øvrige kildene mater worker/sidetjenester.
-    _arrow(d, 198, 102, 152, 76, color=TEAL, width=0.9)
-    _arrow(d, 152, 76, 198, 102, color=TEAL, dashed=True, width=0.7)
+    _arrow(d, 397, 102, 152, 76, color=TEAL, width=0.9)
+    _arrow(d, 152, 76, 397, 102, color=TEAL, dashed=True, width=0.7)
     d.add(Line(262, 88, 702, 88, strokeColor=HexColor("#77839A"), strokeWidth=0.8))
     for x in [262, 372, 482, 592, 702]:
         d.add(Line(x, 76, x, 88, strokeColor=HexColor("#77839A"), strokeWidth=0.7))
@@ -459,7 +451,7 @@ def request_auth_diagram() -> Drawing:
     d = Drawing(w, h)
     d.add(String(0, 342, "Forespørsel, ruting og felles innlogging", fontName="Segoe-Semibold", fontSize=14, fillColor=NAVY))
     columns = [65, 205, 355, 515, 675]
-    names = ["Nettleser", "Caddy", "Mikroapp", "Fibaro10 API", "PostgreSQL"]
+    names = ["Nettleser", "Caddy", "Mantis-app", "Fibaro10 API", "PostgreSQL"]
     colors_list = [BLUE, GOLD, PURPLE, GOLD, TEAL]
     for x, name, col in zip(columns, names, colors_list):
         _box(d, x - 48, 286, 96, 40, [name], fill=PAPER, stroke=col, font_size=8)
@@ -523,12 +515,12 @@ def data_flow_diagram() -> Drawing:
 def deployment_diagram() -> Drawing:
     w, h = 750, 370
     d = Drawing(w, h)
-    d.add(String(0, 352, "Utvikling, kvalitetssikring og blue/green-utrulling", fontName="Segoe-Semibold", fontSize=14, fillColor=NAVY))
+    d.add(String(0, 352, "Utvikling, kvalitetssikring og kontrollert utrulling", fontName="Segoe-Semibold", fontSize=14, fillColor=NAVY))
     nodes = [
         (20, "Utviklings-PC", "Codex · lokale tester", BLUE),
-        (155, "GitHub", "main · versjonshistorikk", PURPLE),
-        (290, "QNAP deploy", "backup · diff · byggeplan", GOLD),
-        (425, "Inaktiv web", "blue eller green", TEAL),
+        (155, "GitHub", "Fibaro10 + Mantis", PURPLE),
+        (290, "QNAP deploy", "backup · release · image", GOLD),
+        (425, "Ny kandidat", "image eller blue/green", TEAL),
         (560, "Helsesjekk", "API · DB · datakilder", GREEN),
         (650, "Trafikkbytte", "Caddy gateway", NAVY_2),
     ]
@@ -540,7 +532,7 @@ def deployment_diagram() -> Drawing:
             _arrow(d, x1, 288, x2, 288)
     _arrow(d, 678, 288, 650, 288)
 
-    _box(d, 425, 168, 118, 50, ["Aktiv web", "forrige stabile build"], fill=SOFT_BLUE, stroke=BLUE, font_size=7.6)
+    _box(d, 425, 168, 118, 50, ["Aktiv release", "forrige stabile beholdes"], fill=SOFT_BLUE, stroke=BLUE, font_size=7.6)
     _arrow(d, 697, 260, 484, 218, color=GREEN)
     _label(d, 598, 232, "godkjent", color=GREEN)
     _arrow(d, 560, 270, 484, 218, color=RED, dashed=True)
@@ -555,7 +547,7 @@ def deployment_diagram() -> Drawing:
         (175, "Sikkerhet", "npm audit · statisk kontroll"),
         (330, "Runtime", "25 HTTP · alle containere"),
         (485, "Data", "24 datakilder"),
-        (640, "UI", "235 ruter · live smoke"),
+        (640, "UI", "127 Mantis · 228 API-ruter"),
     ]
     for x, title, sub in checks:
         _box(d, x, 65, 112, 52, [title, sub], fill=PAPER, stroke=LINE, font_size=7.3)
@@ -563,7 +555,7 @@ def deployment_diagram() -> Drawing:
         _arrow(d, x, 91, x + 43, 91, color=LINE)
 
     d.add(Rect(20, 18, 732, 27, rx=4, ry=4, fillColor=SOFT_GOLD, strokeColor=GOLD, strokeWidth=0.7))
-    d.add(String(386, 28, "Selektiv rebuild brukes når berørte tjenester kan identifiseres. Ukjente endringer gir full rebuild som sikker fallback.", textAnchor="middle", fontName="Segoe", fontSize=7.4, fillColor=INK))
+    d.add(String(386, 28, "Fibaro10 bruker selektiv/blue-green deploy. Mantis bygger komplett image og går tilbake til forrige release ved feil.", textAnchor="middle", fontName="Segoe", fontSize=7.4, fillColor=INK))
     return d
 
 
@@ -623,19 +615,22 @@ def styles() -> dict[str, ParagraphStyle]:
 
 
 WEB_APPS = [
-    ("Appvelger", "https://app.lilletorget.net/", "8150", "Felles inngang, appstatus og hurtigbytte mellom fagappene."),
-    ("Omsetning", "https://app.lilletorget.net/omsetning/", "8151", "Dashboard, månedsoversikt, akkumulert utvikling og sammenligning."),
-    ("Parkering", "https://app.lilletorget.net/parkering/", "8152", "Parkeringer, kjøretøy, oppgjør, områder, tidsanalyse og prognoser."),
-    ("Soling", "https://app.lilletorget.net/soling/", "8153", "Soltimer, bilder, senger, medlemmer, produkter, oppgjør og analyse."),
-    ("Energi", "https://app.lilletorget.net/energi/", "8154", "Sanntid, Elvia-kontroll, kurs/last og forbruk per solseng."),
-    ("Bygg og drift", "https://app.lilletorget.net/drift/", "8155", "Ventilasjon, lys, dører, solrom, pullerter og renhold."),
-    ("Vedlikehold", "https://app.lilletorget.net/vedlikehold/", "8156", "Besøk, oppgaver, redigering og vedlikeholdshistorikk."),
-    ("System", "https://app.lilletorget.net/system/", "8157", "Datakilder, brukere, varslinger, build, manual og teknisk status."),
-    ("Koble", "https://app.lilletorget.net/koble/", "8158", "Kandidater og kontroll av kobling mellom bil og Sun2-ID."),
-    ("Fibaro10", "https://fibaro10.lilletorget.net/", "8110", "Felles API og eksisterende komplett hovedgrensesnitt."),
+    ("Omsetning", "https://ny.lilletorget.net/omsetning/", "8170", "Dashboard, månedsoversikt, år og sammenligning."),
+    ("Parkering", "https://ny.lilletorget.net/parkering/", "8170", "Parkeringer, kjøretøy, oppgjør, tidsanalyse og prognoser."),
+    ("Soling", "https://ny.lilletorget.net/soling/", "8170", "Soltimer, bilder, senger, medlemmer, produkter og oppgjør."),
+    ("Koble", "https://ny.lilletorget.net/koble/", "8170", "Kontroll av kobling mellom bil og Sun2-ID."),
+    ("Bygg og drift", "https://ny.lilletorget.net/drift/", "8170", "Ventilasjon, lys, dører, solrom, pullerter og renhold."),
+    ("Energi", "https://ny.lilletorget.net/energi/", "8170", "Sanntid, Elvia-kontroll, kurs/last og solsengforbruk."),
+    ("Vedlikehold", "https://ny.lilletorget.net/vedlikehold/", "8170", "Besøk, oppgaver og vedlikeholdshistorikk."),
+    ("Operasjon", "https://ny.lilletorget.net/operasjon/", "8170", "Arbeidskø, kontroller, datakvalitet og søk."),
+    ("Eiendeler", "https://ny.lilletorget.net/eiendeler/", "8170", "Teknisk register, service og garanti."),
+    ("Rapporter", "https://ny.lilletorget.net/rapporter/", "8170", "Samlet rapportkatalog."),
+    ("System", "https://ny.lilletorget.net/system/", "8170", "Datakilder, brukere, build, manual og verktøy."),
 ]
 
 SPECIAL_APPS = [
+    ("Fibaro10 reserve", "https://fibaro10.lilletorget.net/", "8110", "Kjerne/API og samlet V2-reserveflate."),
+    ("Forrige mikroapper", "https://app.lilletorget.net/", "8150-58", "Reserve og funksjonsreferanse."),
     ("Online dashboard", "https://online.lilletorget.net/", "8111", "Begrenset ekstern nøkkeltallflate, med direkte database-lesing."),
     ("Vedlikehold mobil", "https://vedl.lilletorget.net/", "8112", "Rask mobilregistrering mot Fibaro10 API."),
     ("Fibaro10 iPad", "https://ipad.lilletorget.net/", "8113", "iPad-tilpasset dashboard mot Fibaro10 API."),
@@ -647,6 +642,7 @@ COMPONENTS = [
     ("fibaro10 / blue / green", "Kjerne", "Kritisk", "FastAPI API og blue/green web-runtime."),
     ("fibaro10_worker", "Kjerne", "Kritisk", "Planlagte jobber, kontroll, vedlikehold og varsling."),
     ("fibaro10_proxy", "Infrastruktur", "Kritisk", "Caddy reverse proxy, HTTPS og tilgangsgrenser."),
+    ("lilletorget_mantis", "Frontend", "Høy", "Elleve Mantis-apper og Nginx på port 8170."),
     ("shell_app", "Plattform", "Normal", "Appvelger og tjenestestatus."),
     ("revenue_app", "Omsetning", "Normal", "Separat fagapp og build."),
     ("parking_app", "Parkering", "Høy", "Daglig drift, kjøretøy, oppgjør og analyse."),
@@ -706,8 +702,8 @@ DATA_SOURCES = [
 TECH_STACK = [
     ("Backend", "Python 3.12 · FastAPI 0.139 · Uvicorn", "Asynkron API-plattform med god støtte for integrasjoner, validering og bakgrunnsarbeid."),
     ("Data", "PostgreSQL · SQLAlchemy 2 · asyncpg", "Transaksjoner, tidsserier, relasjoner og pålitelig historikk. OwnTracks har separat database."),
-    ("Hovedfrontend", "React 19 · TypeScript · Vite · Ant Design · ECharts", "Modent komponentsett og avanserte grafer for det komplette Fibaro10-grensesnittet."),
-    ("Mikroapper", "React 19 · TypeScript · Vite · Mosaic · Tailwind 4 · Chart.js", "Raskere isolerte builds, felles designsystem og domenevis utvikling."),
+    ("Gjeldende frontend", "React 19 · TypeScript · Vite · MUI 9 · Mantis", "Elleve fagapper, felles designsystem, én origin og 127 registrerte ruter."),
+    ("Reservefrontend", "React 19 · TypeScript · Vite · Ant Design/Mosaic", "Fibaro10 V2 og forrige mikroappserie beholdes som reserve og funksjonsreferanse."),
     ("Mobil", "AppKit Mobile PWA", "Kjøpt mobilgrunnlag med safe-area, toppfelt, bunnnavigasjon og lyst/mørkt tema."),
     ("Proxy", "Caddy 2", "Reverse proxy, komprimering, sikkerhetsheadere og offentlig betrodde sertifikater."),
     ("Kjøring", "Docker Compose på QNAP", "Isolerte tjenester, enkel restart, deklarativ konfigurasjon og reproduksjon."),
@@ -736,6 +732,7 @@ PORTS = [
     ("8140", "visual_anomaly_service", "Kun internt Docker-nett"),
     ("8150", "shell_app", "Appvelger"),
     ("8151-8158", "fagapper", "Omsetning til Koble"),
+    ("8170", "lilletorget_mantis", "Gjeldende Mantis-stack med elleve appbygg"),
     ("8081 / 8443", "fibaro10_proxy", "Tekniske reserveporter for HTTP/HTTPS"),
 ]
 
@@ -769,8 +766,9 @@ SOURCE_REFERENCES = [
     ("system_inventory.py", "Felles komponentregister for systemgrensesnitt og dokumentasjon."),
     ("import_jobs.py", "Datakilderegister, rytmer og operativ statuslogikk."),
     ("microapp_backend/", "Felles innlogging og runtime for fagappene."),
-    ("packages/microapp-ui/", "Felles React-komponenter, navigasjon, format og ruting."),
-    ("packages/mosaic-theme/", "Mosaic designgrunnlag for fagappene."),
+    ("../lilletorget-mantis/packages/platform/", "Gjeldende ruting, API-klient, kontrakter og fagvisninger."),
+    ("../lilletorget-mantis/packages/mantis/", "Mantis-skall, MUI-tema og leverandørkomponenter."),
+    ("packages/microapp-ui/", "Felles rammeverk for reservegenerasjonen."),
     ("packages/mobile-appkit/", "Felles AppKit-design for mobilflatene."),
     ("docs/systemoversikt.md", "Løpende systeminventar, webflater, data og backup."),
     ("docs/utviklingsoppsett.md", "Oppsett, deploy, Gmail-import, backup og restore."),
@@ -830,7 +828,7 @@ def build_document() -> Path:
             font_size=8,
         )
     ]
-    story += [Spacer(1, 8), callout("Fasit og avgrensning", "Dokumentet beskriver den faktiske installasjonen slik den står på QNAP 9. august 2026. Operativ status i System -> Datakilder og /health?details=true er fasit dersom en tidsangivelse senere endres.", s, GOLD)]
+    story += [Spacer(1, 8), callout("Fasit og avgrensning", "Dokumentet beskriver den faktiske installasjonen ved dokumentdatoen. Operativ status i System -> Datakilder og /health?details=true er fasit dersom en tidsangivelse senere endres.", s, GOLD)]
 
     story += [PageBreak(), Paragraph("Innhold", s["TOCHeading"])]
     toc = TableOfContents()
@@ -846,20 +844,20 @@ def build_document() -> Path:
         info_cards(
             [
                 ("Produksjon", f"Build {BUILD}", f"Commit {COMMIT}"),
-                ("Komponenter", "31", "Dokumenterte systemdeler"),
+                ("Brukerapper", "11", "Mantis-appidentiteter"),
                 ("Datakilder", "24", "Separate kilder med friskhetsstatus"),
             ],
             s,
         ),
         Spacer(1, 10),
     ]
-    story += [p("Den nye appstakken består av en appvelger og åtte fagapper på port 8151-8158. De deler Mosaic-basert design, felles React-komponenter og én databasesesjon for innlogging. Fibaro10-kjernen er fortsatt det sentrale API- og datalaget, mens fagappene er tynnere, raskere brukerflater.", s["Body"])]
+    story += [p("Den gjeldende appstakken består av elleve Mantis-apper under ny.lilletorget.net. Alle statiske appbygg leveres fra Nginx på port 8170 og deler MUI/Mantis-design, API-klient og én databasesesjon for innlogging. Fibaro10-kjernen er fortsatt det sentrale API- og datalaget, mens fagadapterne på 8151-8158 oversetter forespørsler til kjernen.", s["Body"])]
     story += [p("Innsamling er flyttet ut i separate tjenester der det gir verdi: EasyPark, Sun2, Axis, UniFi Protect, kjøretøyoppslag, Roborock, Dreame, OwnTracks og koblingsmotoren kjører ved siden av kjernen. Denne oppdelingen reduserer påvirkning mellom integrasjoner og gjør feil enklere å lokalisere.", s["Body"])]
     story += [Paragraph("Viktigste arkitekturvalg", s["Heading2"])]
     for text in [
         "Én sentral PostgreSQL-database for forretningsdata og en separat PostgreSQL-database for OwnTracks.",
         "Felles FastAPI-kjerne og dedikert worker, med blue/green web-utrulling.",
-        "Domeneorienterte mikroapper med egne builds, men delt UI-pakke, tema, navigasjon og innlogging.",
+        "Elleve domeneorienterte Mantis-apper med egne statiske bygg, men felles image, UI-pakke, tema, navigasjon og innlogging.",
         "Caddy med offentlig betrodde sertifikater. Interne domener finnes i offentlig DNS, men peker til privat IP og avvises utenfor privat nett.",
         "Separate innsamlere for ustabile eller tunge integrasjoner, med datakildestatus lagret i kjernen.",
         "Nattlig full backup med separate SQL-dumper, checksums og gjenopprettingstest.",
@@ -882,17 +880,17 @@ def build_document() -> Path:
     story.append(make_table([["Prinsipp", "Praktisk betydning"], *principles], [38 * mm, 116 * mm], s, font_size=8))
 
     story += [PageBreak(), Paragraph("3. Brukerflater og applikasjoner", s["Heading1"])]
-    story += [p("Den daglige arbeidsflaten er delt etter fagområde. Dette gir mindre kode per build og tydeligere ansvar, samtidig som brukeren opplever ett samlet system gjennom appvelger, felles toppmeny, appikoner og delt innlogging.", s["Body"])]
+    story += [p("Den daglige arbeidsflaten er delt etter fagområde. Brukeren opplever ett samlet system gjennom samme origin, appbytte, felles designsystem og delt innlogging, mens hver app beholder egen base path og statisk inngang.", s["Body"])]
     story += [Paragraph("3.1 Interne hovedflater", s["Heading2"])]
     story.append(make_table([["Flate", "Adresse", "Port", "Formål"], *WEB_APPS], [28 * mm, 52 * mm, 15 * mm, 59 * mm], s, font_size=7.2))
     story += [Paragraph("3.2 Mobil- og spesialflater", s["Heading2"])]
     story.append(make_table([["Flate", "Adresse", "Port", "Formål"], *SPECIAL_APPS], [30 * mm, 52 * mm, 15 * mm, 57 * mm], s, font_size=7.2, header_color=NAVY_2))
     story += [Paragraph("3.3 Ansvarsdeling i frontend", s["Heading2"])]
     story += [
-        bullet("<b>Fibaro10 hovedgrensesnitt:</b> komplett funksjonsdekning, React/Ant Design og ECharts. Beholdes som referanse og fullverdig internflate mens fagappene modnes.", s),
-        bullet("<b>Fagappene:</b> React/Mosaic, mindre bundles og egne domener/buildnumre. Felles komponenter ligger i packages/microapp-ui.", s),
+        bullet("<b>Mantis:</b> gjeldende brukerflate med React, TypeScript, MUI og elleve apper under ny.lilletorget.net.", s),
+        bullet("<b>Fibaro10 og forrige mikroapper:</b> produksjonskritisk API/adapterlag og reserver som ikke brukes som kilde for nytt design.", s),
         bullet("<b>Mobilappene:</b> AppKit Mobile PWA med mobilspesifikke arbeidsflyter, safe-area og bunnnavigasjon.", s),
-        bullet("<b>Serverrendret innlogging:</b> lett felles side som lastes før React-bundlene. Den følger Lilletorget-uttrykket, men er teknisk uavhengig av Mosaic-runtime.", s),
+        bullet("<b>Serverrendret innlogging:</b> lett felles side som lastes før React-bundlene og gir samme sesjon i alle appene.", s),
     ]
 
     story += [PageBreak(), Paragraph("4. Tjenestelandskap", s["Heading1"])]
@@ -901,7 +899,7 @@ def build_document() -> Path:
 
     story += [NextPageTemplate("landscape"), PageBreak(), Paragraph("5. Innlogging, nettverk og forespørselsflyt", s["Heading1"]), request_auth_diagram(), NextPageTemplate("body"), PageBreak()]
     story += [Paragraph("5.1 Felles innlogging", s["Heading2"])]
-    story += [p("Fibaro10, appvelgeren og fagappene bruker én opak sesjonscookie med navnet lilletorget_session. Cookien gjelder for .lilletorget.net og har Secure, HttpOnly og SameSite=Lax. Nettleseren får ikke passordet eller komplette brukerdata i cookien; den inneholder bare en tilfeldig sesjonsreferanse som slås opp i hoveddatabasen.", s["Body"])]
+    story += [p("Mantis, Fibaro10 og fagadapterne bruker én opak sesjonscookie med navnet lilletorget_session. Cookien gjelder for .lilletorget.net og har Secure, HttpOnly og SameSite=Lax. Nettleseren får ikke passordet eller komplette brukerdata i cookien; den inneholder bare en tilfeldig sesjonsreferanse som slås opp i hoveddatabasen.", s["Body"])]
     story += [p("Utlogging fra én av appene tilbakekaller databasesesjonen og fjerner den delte cookien. Direkte utvikling via localhost eller IP bruker vertsspesifikk cookie fordi domenecookie ikke passer utenfor lilletorget.net.", s["Body"])]
     story += [Paragraph("5.2 DNS, TLS og intern tilgang", s["Heading2"])]
     for text in [
@@ -954,8 +952,8 @@ def build_document() -> Path:
     story += [
         bullet("Det brukes ikke Kubernetes. Docker Compose er tilstrekkelig på én vert og er enklere å forstå og gjenopprette.", s),
         bullet("Det brukes ikke Redis/Celery som sentral kø. Jobber ligger i dedikert worker eller separate tjenester. Det reduserer komponentantallet, men krever idempotente jobber og databasebasert status.", s),
-        bullet("Mikroappene eier ikke hver sin forretningsdatabase ennå. De er domenefronter over felles API, noe som gir raskere migrering fra Fibaro10 uten distribuert datakonsistens.", s),
-        bullet("Mosaic er designsystem for fagappene, mens den serverrendrerte innloggingen etterligner uttrykket uten å laste React-bundle før autentisering.", s),
+        bullet("Mantis-appene eier ikke hver sin forretningsdatabase. De er domenefronter over felles API, noe som unngår distribuert datakonsistens på én QNAP.", s),
+        bullet("Mantis/MUI er gjeldende designsystem. Mobilflatene har et separat, mobiltilpasset AppKit-grunnlag.", s),
     ]
     story += [callout("Nåværende vurdering", "Teknologistacken passer installasjonens størrelse. Den viktigste videre arkitekturjobben er å fortsette å trekke avgrenset domenelogikk ut av main.py, uten å splitte data og drift raskere enn det gir reell gevinst.", s, GREEN)]
 
@@ -968,11 +966,11 @@ def build_document() -> Path:
         ("4", "Byggeplan", "Git-diff avgjør hvilke tjenester som bygges. Ukjent påvirkning gir full rebuild."),
         ("5", "Blue/green", "Ny Fibaro10 web bygges i inaktivt spor og testes før Caddy-gatewayen peker om."),
         ("6", "Worker", "Ny worker startes etter godkjent trafikkbytte slik at jobber ikke dobbelkjøres."),
-        ("7", "Verifikasjon", "25 HTTP-kontroller, containere, datakilder, smoke og 235 fagappruter."),
+        ("7", "Verifikasjon", "Containere, datakilder, 127 Mantis-ruter, 228 reserveruter og produksjonssmoke."),
     ]
     story.append(make_table([["Trinn", "Kontroll", "Innhold"], *deploy_steps], [13 * mm, 38 * mm, 103 * mm], s, font_size=7.6))
     story += [Paragraph("9.2 Build- og endringsspor", s["Heading2"])]
-    story += [p("Fibaro10 har et globalt buildnummer, mens hver fagapp har eget buildnummer. Buildloggen registrerer bestilling, overskrift, berørte applikasjoner og teknisk beskrivelse. Commit-ID i health gjør det mulig å kontrollere at GitHub, QNAP og brukerflaten viser samme kode.", s["Body"])]
+    story += [p("Fibaro10 har et globalt buildnummer. Mantis ligger i eget Git-repo og deployes som tidsstemplet, uforanderlig release. Buildloggen registrerer bestilling, overskrift, berørte applikasjoner og teknisk beskrivelse. Commit-ID og image i health gjør det mulig å kontrollere at GitHub, QNAP og brukerflaten viser samme kode.", s["Body"])]
 
     story += [NextPageTemplate("landscape"), PageBreak(), Paragraph("10. Lagring, backup og gjenoppretting", s["Heading1"]), storage_backup_diagram(), NextPageTemplate("body"), PageBreak()]
     story += [Paragraph("10.1 Lagringsmodell", s["Heading2"])]
@@ -1003,7 +1001,7 @@ def build_document() -> Path:
         ("4", "Opprett PostgreSQL og importer Fibaro10-dumpen. Start OwnTracks PostgreSQL og importer egen dump."),
         ("5", "Gjenopprett AI-, Protect-, Roborock-, Dreame- og importerdata til dokumenterte mount-punkter."),
         ("6", "Start compose-stackene og verifiser database, proxy, core, worker og datainnsamlere i den rekkefølgen."),
-        ("7", "Kontroller DNS/privat IP, TLS, 24 datakilder, smoke-ruter og innlogging på tvers av mikroappene."),
+        ("7", "Kontroller DNS/privat IP, TLS, 24 datakilder, Mantis-smoke og innlogging på tvers av appene."),
     ]
     story.append(make_table([["Trinn", "Handling"], *restore_steps], [14 * mm, 140 * mm], s, font_size=7.8))
 
@@ -1066,7 +1064,7 @@ def build_document() -> Path:
     story += [PageBreak(), Paragraph("14. Videreutvikling og endringsregler", s["Heading1"])]
     story += [Paragraph("14.1 Hvor ny funksjonalitet skal ligge", s["Heading2"])]
     placement = [
-        ("Ny visning i ett fagområde", "Riktig mikroapp", "Bruk felles microapp-ui og eksisterende API før ny backend."),
+        ("Ny visning i ett fagområde", "Riktig Mantis-app", "Bruk packages/platform og eksisterende API før ny backend."),
         ("Ny forretningsregel", "Fibaro10 API eller avgrenset domenemodul", "Regelen skal kunne testes uten frontend."),
         ("Ny ustabil integrasjon", "Egen innsamlertjeneste", "Egen health, timeout, retry og importstatus."),
         ("Ny bakgrunnsjobb", "Worker hvis tett på kjernen, ellers egen tjeneste", "Jobben skal være idempotent og rapportere kjøring."),
@@ -1104,14 +1102,15 @@ def build_document() -> Path:
     story += [PageBreak(), Paragraph("17. Kildedokumenter", s["Heading1"])]
     story += [p("Denne håndboken sammenfatter informasjon fra følgende versjonerte kilder. De er også naturlige inngangspunkter ved feilsøking eller endring.", s["Body"])]
     story.append(make_table([["Kilde", "Ansvar"], *SOURCE_REFERENCES], [57 * mm, 97 * mm], s, font_size=7.4))
-    story += [Paragraph("17.1 Operativ verifikasjon ved dokumentuttak", s["Heading2"])]
+    story += [Paragraph("17.1 Verifikasjonskrav ved dokumentuttak", s["Heading2"])]
     verification = [
         ("Fibaro10", f"Build {BUILD}, commit {COMMIT}"),
-        ("Database", "SELECT 1 OK"),
-        ("Datakilder", "23 OK, 0 varsel, 0 feil, 0 ukjent"),
-        ("Varslingskø", "Ingen pending, sending eller retrying ved uttaket"),
-        ("Deploykontroll", "25 HTTP-kontroller og full containerkontroll uten feil"),
-        ("UI-kontroll", "235 readiness- og rutekontroller uten feil"),
+        ("Database", "SELECT 1 og migreringskontroll skal være OK"),
+        ("Datakilder", "Aktuell status leses i System -> Datakilder"),
+        ("Varslingskø", "Aktuell status leses i Operasjonssentral/System"),
+        ("Backend", "Full pytest og berørte tjenestetester skal være grønne"),
+        ("Mantis", "Build, verify og produksjonssmoke skal være grønne"),
+        ("Ruter", "127 Mantis-ruter og 228 adapterruter inngår i kontrollgrunnlaget"),
     ]
     story.append(make_table([["Kontroll", "Resultat"], *verification], [55 * mm, 99 * mm], s, font_size=8))
 
@@ -1119,9 +1118,9 @@ def build_document() -> Path:
     glossary = [
         ("Blue/green", "To web-spor der ett er aktivt og ett kan bygges/testes før trafikkbytte."),
         ("Datakilde", "Navngitt og nummerert import- eller ingestjobb med status og forventet rytme."),
-        ("Fagapp / mikroapp", "Separat brukerflate for ett domene som normalt bruker Fibaro10 API."),
+        ("Fagapp / mikroapp", "Separat appidentitet for ett domene som normalt bruker Fibaro10 API."),
         ("Ingest", "Kontrollert mottak og validering av data fra en annen tjeneste eller fysisk enhet."),
-        ("Mosaic", "Kjøpt designgrunnlag brukt av fagappene sammen med felles Lilletorget-komponenter."),
+        ("Mantis", "Kjøpt React/MUI-designgrunnlag for den gjeldende brukerflaten."),
         ("Outbox", "Databasetabell som holder varslinger til de er sendt eller retryet."),
         ("PatchCore", "Lokal modell for å oppdage visuelle avvik i faste kamerautsnitt."),
         ("PWA", "Webapp med manifest og mobiltilpasset installasjon/opplevelse."),

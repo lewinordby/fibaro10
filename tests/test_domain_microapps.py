@@ -252,12 +252,26 @@ def test_every_microapp_header_uses_the_shared_app_dock() -> None:
         assert not (repo_root / app_name / "frontend" / "src" / "components" / "Layout.tsx").exists()
 
 
-def test_documented_menu_structure_matches_every_microapp_navigation() -> None:
+def test_documented_menu_structure_matches_current_mantis_navigation() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    navigation = json.loads((repo_root / "packages" / "microapp-ui" / "src" / "navigation.json").read_text(encoding="utf-8"))["apps"]
-    assert tuple(navigation) == APP_MENU_STRUCTURE
-    assert [app["id"] for app in navigation] == ["revenue", "parking", "sun", "link", "operations", "energy", "maintenance", "system"]
+    navigation = list(APP_MENU_STRUCTURE)
+    assert [app["id"] for app in navigation] == [
+        "revenue",
+        "parking",
+        "sun",
+        "link",
+        "operations",
+        "energy",
+        "maintenance",
+        "operation-center",
+        "assets",
+        "reports",
+        "system",
+    ]
+    assert all(app["url"].startswith("https://ny.lilletorget.net/") for app in navigation)
+    assert sum(len(group["items"]) for app in navigation for group in app["groups"]) == 127
 
+    legacy_navigation = json.loads((repo_root / "packages" / "microapp-ui" / "src" / "navigation.json").read_text(encoding="utf-8"))["apps"]
     generic_apps = ("sun", "energy", "operations", "maintenance", "system", "link")
     for app_id in generic_apps:
         main_source = (repo_root / f"{app_id}_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
@@ -266,7 +280,7 @@ def test_documented_menu_structure_matches_every_microapp_navigation() -> None:
         app_source = (repo_root / f"{app_id}_app" / "frontend" / "src" / "App.tsx").read_text(encoding="utf-8")
         assert f'getDomainConfig("{app_id}")' in app_source
 
-    for app in navigation:
+    for app in legacy_navigation:
         routes = [item["to"] for group in app["groups"] for item in group["items"]]
         assert len(routes) == len(set(routes)), f"Dupliserte ruter i {app['shortName']}"
         assert all(group["items"] for group in app["groups"])
@@ -279,7 +293,7 @@ def test_system_menu_structure_page_is_available_without_core_data() -> None:
         payload = response.json()
         assert payload["title"] == "Menystruktur"
         assert len(payload["tables"]) == len(APP_MENU_STRUCTURE) + 2
-        assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 110
+        assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 127
 
 
 def test_parity_critical_specialized_views_are_kept_in_microapps() -> None:
@@ -379,7 +393,7 @@ def test_system_pages_load_only_their_data_and_keep_status_operational() -> None
     assert 'api_table("Datakilder",' not in status_source
     assert "fallback={<Loading />}" in entry
     assert "Utsending avslått" in special
-    assert '"path": f\'/manual/{chapter.get("id")}\'' in adapter
+    assert '"path": f\'/system/manual/{chapter.get("id")}\'' in adapter
 
 
 def test_shared_tables_keep_search_sorting_and_local_pagination() -> None:

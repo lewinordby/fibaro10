@@ -1,6 +1,6 @@
 # Utviklingsoppsett
 
-Oppdatert 10.07.2026.
+Oppdatert 17.08.2026, build 1795.
 
 Dette repoet er satt opp for rask lokal utvikling paa Windows og direkte idriftsetting paa QNAP.
 
@@ -21,6 +21,31 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-qnap.ps1
 ```
 
 Deploy-scriptet pusher `main` til GitHub, logger inn paa QNAP via SSH, henter `origin/main`, tar backup av runtimefiler, bygger/restarter relevante containere og kjorer health/smoke checks.
+
+## Gjeldende Mantis-brukerflate
+
+Den gjeldende frontendserien ligger i et separat privat repo:
+
+- Lokal mappe:
+  `C:\Users\lewi\Documents\codex-flyttepakke-SENSITIV-20260605-090007\workspace\lilletorget-mantis`
+- GitHub: `https://github.com/lewinordby/lilletorget-mantis`
+- Produksjon: `https://ny.lilletorget.net`
+- QNAP-port: `8170`
+- Releaser: `/share/CACHEDEV3_DATA/lilletorget-mantis/releases`
+
+Normal kontroll og deploy kjøres fra Mantis-repoet:
+
+```powershell
+npm ci
+npm run build
+npm run verify
+npm run smoke:production
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-qnap.ps1
+```
+
+Fibaro10- og Mantis-repoene skal committes og pushes hver for seg. Endringer i
+API/manualdata deployes fra Fibaro10-repoet; endringer i Mantis-komponenter,
+ruting eller appdefinisjoner deployes fra Mantis-repoet.
 
 Per 10.07.2026 bygges/restartes blant annet:
 
@@ -119,7 +144,7 @@ Aktivt kjernespor lagres pa QNAP i `/share/CACHEDEV3_DATA/fibaro10_runtime/activ
 V1 er en valgfri frakoblet referansevisning, ikke en gammel live-app mot produksjonsdatabasen.
 Fibaro10-kjernen og den samlede V2-reserveflaten paa port `8110` er produksjon og
 skal alltid fungere. Den primære daglige brukerflaten er nå
-`https://app.lilletorget.net/`, mens V1-referansen bare brukes for aa sammenligne
+`https://ny.lilletorget.net/`, mens V1-referansen bare brukes for aa sammenligne
 gamle funksjoner og ikke trenger kjoere til daglig.
 
 - Adresse: `http://192.168.20.218:8111`
@@ -145,7 +170,8 @@ Dette scriptet er isolert: det laster bare opp `v1_reference/` og `docker-compos
 - QNAP: `192.168.20.218`
 - SSH-alias: `qnap-fibaro10`
 - Appmappe: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`
-- Primær intern app: `https://app.lilletorget.net`
+- Primær intern app: `https://ny.lilletorget.net`
+- Forrige mikroappserie/reserve: `https://app.lilletorget.net`
 - Samlet reserveflate: `https://fibaro10.lilletorget.net`
 - Intern HTTP-reserve og API-adresse: `http://192.168.20.218:8110`
 - Online dashboard: `https://online.lilletorget.net`
@@ -153,8 +179,9 @@ Dette scriptet er isolert: det laster bare opp `v1_reference/` og `docker-compos
 - Vedlikehold mobil: `https://vedl.lilletorget.net`
 - Alarm mobil: `https://alarm.lilletorget.net` eller lokalt `http://192.168.20.218:8114`
 - OwnTracks: `https://owntracks.lilletorget.net`
-- Systemkart i appen: `https://fibaro10.lilletorget.net/admin/systemkart`
-- Datakilder i appen: `https://fibaro10.lilletorget.net/admin/datakilder`
+- Systemkart i appen: `https://ny.lilletorget.net/system/systemkart`
+- Datakilder i appen: `https://ny.lilletorget.net/system/datakilder`
+- Manual i appen: `https://ny.lilletorget.net/system/manual`
 - Docker: `/share/CACHEDEV1_DATA/.qpkg/container-station/usr/bin/.libs/docker`
 - Git paa QNAP leveres via Entware i `/opt/bin/git`.
 

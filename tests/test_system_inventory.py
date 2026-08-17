@@ -12,6 +12,7 @@ def test_system_inventory_contains_core_components():
 
     assert "fibaro10" in names
     assert "desktop_v2" in names
+    assert "lilletorget_mantis" in names
     assert "shell_app" in names
     assert "revenue_app" in names
     assert "parking_app" in names

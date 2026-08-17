@@ -1,7 +1,11 @@
-# Funksjonsparitet mellom Fibaro10 og mikroappene
+# Funksjonsparitet mellom Fibaro10 og Mantis
 
-Dette dokumentet er kontrollisten for flyttingen fra Fibaro10-grensesnittet til mikroappene på port 8151-8158.
-En funksjon regnes ikke som flyttet bare fordi en rute finnes. Data, handlinger, detaljvisning, filtrering og
+Oppdatert 17.08.2026, build 1795.
+
+Dette dokumentet er kontrollisten for flyttingen fra Fibaro10-grensesnittet til
+Mantis-appene på `ny.lilletorget.net`. Adapterne på port 8151-8158 er fortsatt
+dataveien mellom Mantis og kjernen. En funksjon regnes ikke som flyttet bare
+fordi en rute finnes. Data, handlinger, detaljvisning, filtrering og
 direktelenker skal også virke.
 
 ## Statusforklaring
@@ -96,6 +100,16 @@ egne vurderingsflater inntil brukeren har valgt hvilke visninger som skal være 
 | Besøk fra OwnTracks | Vedlikehold / Besøk | Komplett |
 | Besøksnotat, rå OwnTracks-data og tilknyttede oppgaver | Besøksdetalj | Komplett |
 
+## Operasjonssentral, eiendeler og rapporter
+
+| Arbeidsflyt | Mantis-app | Status |
+| --- | --- | --- |
+| Prioritert arbeidskø og kritiske hendelser | Operasjonssentral | Komplett |
+| Operative kontroller og behandlet historikk | Operasjonssentral | Komplett |
+| Datakvalitet, automatiseringsverksted og universalsøk | Operasjonssentral | Komplett |
+| Teknisk eiendelsregister og synkronisering | Eiendeler | Komplett |
+| Samlet katalog over økonomi-, drift- og kontrollrapporter | Rapporter | Komplett |
+
 ## System
 
 | Arbeidsflyt | Mikroapp | Status |
@@ -120,10 +134,10 @@ valg mellom 25, 50 og 100 rader. Serverpaginering og serverfiltre skal beholdes 
 
 Før utrulling skal minst følgende være grønt:
 
-1. Alle frontend-bygg.
-2. tests/test_domain_microapps.py.
-3. Domenetester for berørte apper.
-4. Direkte lasting av alle nye ruter etter innlogging.
+1. Mantis `npm run build` og `npm run verify`.
+2. Backendens `tests/test_domain_microapps.py` og dokumentasjonstester.
+3. Domenetester for berørte API-er.
+4. Direkte lasting av alle 127 Mantis-ruter og berørte detaljruter.
 5. API-respons uten 401, 403, 404 eller 5xx på spesialvisningene.
-6. Visuell kontroll i lys modus på desktop.
+6. Visuell kontroll i lyst og mørkt tema på desktop.
 7. Direkte handlinger som abonnement, opplasting, redigering og detaljåpning skal prøves uten å endre produksjonsdata.

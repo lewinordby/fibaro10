@@ -2,7 +2,14 @@
 
 Oppdatert 16.07.2026.
 
-`desktop_v2` er primært desktop-grensesnitt for Fibaro10. React-appen ligger på rene hovedruter uten separat URL-prefix, for eksempel `/status/omsetning`, `/parkering/parkeringer`, `/soling/dagslinje` og `/admin/datakilder`.
+> Historisk referanse: Dette dokumentet beskriver den samlede Fibaro10 Desktop
+> V2-flaten på port 8110. Gjeldende brukerflate er Mantis på
+> `https://ny.lilletorget.net`, og gjeldende manual ligger under
+> `/system/manual`. V2 beholdes som reserve og for funksjonssammenligning.
+
+`desktop_v2` er reservegrensesnittet for Fibaro10. React-appen ligger på rene
+hovedruter uten separat URL-prefix, for eksempel `/status/omsetning`,
+`/parkering/parkeringer`, `/soling/dagslinje` og `/admin/datakilder`.
 
 ## Mål
 

@@ -36,13 +36,13 @@ def menu_structure_module(_request: Request) -> dict[str, Any]:
             "adresse": base_url.removeprefix("https://"),
             "hovedomr\u00e5der": areas,
             "sider": pages,
-            "menyvariant": "Felles navigasjon",
+            "menyvariant": "Mantis-fagmeny",
             "path": f"{base_url}/",
         })
 
         rows = []
         for group in app["groups"]:
-            placement = "Horisontal meny" if len(group["items"]) > 1 else "Direkte fra venstremeny"
+            placement = "Side i fagområde" if len(group["items"]) > 1 else "Direkte fagvalg"
             for item in group["items"]:
                 route = item["to"]
                 rows.append({
@@ -62,12 +62,12 @@ def menu_structure_module(_request: Request) -> dict[str, Any]:
 
     return {
         "title": "Menystruktur",
-        "subtitle": "Felles navigasjonsmodell generert fra samme kilde som appmenyene.",
+        "subtitle": "Gjeldende Mantis-struktur, versjonert fra samme definisjon som appmenyene.",
         "cards": [
-            {"title": "Appvelger", "value": 1, "unit": "startside", "detail": "https://app.lilletorget.net"},
-            {"title": "Fagapper", "value": len(APP_MENU_STRUCTURE), "unit": "apper", "detail": "Egne interne HTTPS-adresser"},
-            {"title": "Hovedomr\u00e5der", "value": area_count, "unit": "valg", "detail": "Vises i venstremenyen"},
-            {"title": "Menysider", "value": page_count, "unit": "sider", "detail": "Direkte eller horisontalt"},
+            {"title": "Origin", "value": 1, "unit": "domene", "detail": "https://ny.lilletorget.net"},
+            {"title": "Fagapper", "value": len(APP_MENU_STRUCTURE), "unit": "apper", "detail": "Stier under samme HTTPS-origin"},
+            {"title": "Hovedomr\u00e5der", "value": area_count, "unit": "valg", "detail": "Grupper i appmenyen"},
+            {"title": "Menysider", "value": page_count, "unit": "sider", "detail": "Registrerte navigasjonsruter"},
             {"title": "Niv\u00e5er i app", "value": 2, "unit": "maks", "detail": "Hovedomr\u00e5de og side"},
         ],
         "tables": [
@@ -75,9 +75,9 @@ def menu_structure_module(_request: Request) -> dict[str, Any]:
                 "title": "Slik er navigasjonen bygget",
                 "columns": ["niv\u00e5", "element", "plassering", "forklaring"],
                 "rows": [
-                    {"niv\u00e5": "Globalt", "element": "App", "plassering": "Appfeltet", "forklaring": "Bytter mellom de \u00e5tte selvstendige fagappene."},
-                    {"niv\u00e5": "1", "element": "Hovedomr\u00e5de", "plassering": "Venstremeny", "forklaring": "En arbeidsflyt eller et tydelig fagomr\u00e5de i valgt app."},
-                    {"niv\u00e5": "2", "element": "Side", "plassering": "Horisontal meny", "forklaring": "Beslektede sider innenfor aktivt hovedomr\u00e5de."},
+                    {"niv\u00e5": "Globalt", "element": "App", "plassering": "Appfeltet", "forklaring": "Bytter mellom de elleve appene under samme origin."},
+                    {"niv\u00e5": "1", "element": "Hovedomr\u00e5de", "plassering": "Appmeny", "forklaring": "En arbeidsflyt eller et tydelig fagomr\u00e5de i valgt app."},
+                    {"niv\u00e5": "2", "element": "Side", "plassering": "Fagområde", "forklaring": "Beslektede sider innenfor aktivt hovedomr\u00e5de."},
                     {"niv\u00e5": "Kontekst", "element": "Detaljvisning", "plassering": "Fra innhold", "forklaring": "\u00c5pnes fra tabeller og kort og er ikke et hovedmenyvalg."},
                 ],
                 "meta": {"disablePagination": True},

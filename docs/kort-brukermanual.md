@@ -1,76 +1,92 @@
-# Kort brukermanual for Lilletorget drift
+# Kort brukermanual for Lilletorget
 
-Oppdatert 12.07.2026, build 1546.
+Oppdatert 17.08.2026, build 1795.
 
-Dette er tekstversjonen av den korte oversiktsmanualen. Den levende manualen ligger nå som eget hovedmenyvalg `Manual`, med egne undersider for oversikt, daglig bruk, menyvalg, datagrunnlag, rutiner og feilsøking.
+Den levende og klikkbare manualen ligger under
+`https://ny.lilletorget.net/system/manual`. Dette dokumentet er en kort
+tekstversjon for Git, backup og gjenoppretting.
 
 ## Start her
 
 | Behov | Gå til | Bruk |
 | --- | --- | --- |
-| Se dagens drift | `/status/omsetning` | Dashboard for omsetning, parkering, soling og drift akkurat nå. |
-| Sjekke om data er ferske | `/admin/datakilder` | Importjobber, HC3, SUN2, EasyPark, Yr og underapper. |
-| Finne en tjeneste | `/admin/systemkart` | Apper, underapper, porter, URL-er og health-lenker. |
-| Se hva som sist ble endret | `/admin/build` | Buildlogg med bestilling, endringer, tester og berørte apper. |
-| Brukere og tilgang | `/admin/brukere` | Roller, master-funksjoner, passord og tilgangslogg. |
+| Se økonomisk status | `/omsetning/` | Omsetning fra parkering og soling med relevante sammenligninger. |
+| Se saker som må følges opp | `/operasjon/` | Prioritert arbeidskø, kritiske hendelser og kontroller. |
+| Sjekke om data er ferske | `/system/datakilder` | Sist OK, alder, neste kjøring, avhengigheter og feil. |
+| Finne en tjeneste | `/system/undersystemer` | Klikkbare webflater og health-lenker. |
+| Forstå arkitekturen | `/system/systemkart` | Komponenter, forbindelser og teknisk rolle. |
+| Se hva som er endret | `/system/build` | Bestilling, endringer, apper, tester og deploy. |
+| Brukere og tilgang | `/system/brukere` | Brukere, roller, passord og tilgang. |
 
-## Hovedområder
+Alle stier over ligger under `https://ny.lilletorget.net`.
 
-| Område | Gå til | Hva du kan se/gjøre |
+## De elleve appene
+
+| App | Start | Hovedformål |
 | --- | --- | --- |
-| Omsetning | `/omsetning/oversikt` | År, måned, dag, toppdager, toppmåneder og samlet kontroll mot oppgjør. |
-| Parkering | `/parkering/parkeringer` | Dagens parkeringer, kjøretøy, eier, bilinfo, områder, ukesnitt med årssammenligning, kamera og oppgjør. |
-| Soling | `/soling/dagslinje` | Soltimer, rom, senger, medlemmer, produkter, bilder, prognoser og oppgjør. |
-| Koble | `/koble/oversikt` | Sannsynlige koblinger mellom bilnummer og SUN2-ID basert på tidstreff. |
-| Energi | `/energi/status` | Realtime HC3-forbruk, kurser, laster, Elvia-kontroll og forbruk per seng. |
-| Ventilasjon | `/ventilasjon/dagslogg` | Temperatur, fuktighet, Yr, viftehendelser og ventilasjonsinnstillinger. |
-| Lys | `/lys/dagslogg` | Lux, skydekke, solhøyde, lysstatus, hendelser og styringsregler. |
-| Solrom | `/solrom/oversikt` | Nåstatus, forventet ut, varsler, romdetaljer og dagskontroll for solrom 1-12. |
-| Solrom-2 | `/solrom-2/oversikt` | Ny arbeidsflate for solrom med nåstatus, dagsmatrise, avvikskontroll og romdetalj. |
-| Dører2 | `/dorer2/oversikt` | Ny operativ situasjonsflate for solrom og byggdører med avvik først, romkart og detaljvisning. |
-| Dører | `/dorer/oversikt` | Byggdører, åpne/lukke-historikk, alarmhistorikk og daglig avvikstabell mot Sun2-timer. |
-| Vedlikehold | `/vedlikehold/besok` | Besøk på Lilletorget og oppgaver utført under hvert besøk. |
-| Renhold | `/renhold/oversikt` | Samlet Roborock- og Dreame-status, døgnforløp, siste jobber, planer og robotdetaljer. |
-| Mobil og iPad | `/mobil/oversikt` | Kontroll av hva de lette mobil- og iPad-flatene viser. |
-| Ideer | `/ideer/oversikt` | Forslag, analyseideer og mulige forbedringer før de flyttes inn i fagområder. |
+| Omsetning | `/omsetning/` | Samlet økonomi, måned, år og periodesammenligning. |
+| Parkering | `/parkering/` | Parkeringer, kjøretøy, oppgjør, prognose og analyse. |
+| Soling | `/soling/` | Soltimer, bilder, dagslinje, produkter, medlemmer og oppgjør. |
+| Koble | `/koble/` | Kontroll av sannsynlige koblinger mellom bil og SUN2-ID. |
+| Bygg og drift | `/drift/` | Ventilasjon, lys, dører, solrom, pullerter og renhold. |
+| Energi | `/energi/` | Sanntidsforbruk, Elvia, kurs/last og forbruk per seng. |
+| Vedlikehold | `/vedlikehold/` | Oppgaver, besøk, notater og historikk. |
+| Operasjonssentral | `/operasjon/` | Arbeidskø, kritiske avvik, datakvalitet og søk. |
+| Eiendeler | `/eiendeler/` | Teknisk register, plassering, service og garanti. |
+| Rapporter | `/rapporter/` | Samlet inngang til økonomiske og operative rapporter. |
+| System | `/system/` | Datakilder, jobber, brukere, manual, build og verktøy. |
+
+## Daglig kontroll
+
+1. Åpne Omsetning og kontroller total, parkering, soling og kildetidspunkt.
+2. Åpne Operasjonssentral og se om noe står i arbeidskø eller som kritisk.
+3. Bruk Parkering -> Parkeringer for dagens aktive og avsluttede parkeringer.
+4. Bruk Soling -> Dagslinje eller Soltimer for dagens rom og timer.
+5. Bruk Bygg og drift for dører, klima, lys, pullerter og renhold.
+6. Gå til System -> Datakilder før du konkluderer med at en graf eller sum er feil.
 
 ## Når noe ser feil ut
 
-| Problem | Sjekk først | Tiltak |
+| Problem | Sjekk først | Deretter |
 | --- | --- | --- |
-| Tall mangler eller virker gamle | `Admin -> Datakilder` | Sjekk sist OK, alder, melding og neste planlagte jobb før du vurderer grafen. |
-| Parkering stemmer ikke | `Parkering -> Parkeringer` | Sjekk EasyPark-import, dagens liste og kilde EasyPark/flowbird-parknordic. |
-| Soling stemmer ikke | `Soling -> Enkeltimer` | Sjekk enkelttimer, dagslinje, produkter, bildearkiv og SUN2-scraper. |
-| Strøm eller forbruk avviker | `Energi -> Elvia-kontroll` | Bruk Elvia som kontroll og HC3 som løpende datagrunnlag. |
-| Lys eller ventilasjon virker feil | `Lys -> Dagslogg` og `Ventilasjon -> Dagslogg` | Sjekk lux, skydekke, solhøyde, temperatur, fukt og hendelser samme dag. |
-| En underapp svarer ikke | `Admin -> Systemkart` | Bruk health-lenke, lokal URL og compose-service for å finne riktig tjeneste. |
+| Tall mangler eller virker gamle | `/system/datakilder` | Kontroller sist OK, alder, neste kjøring og feilmelding. |
+| Parkering stemmer ikke | `/parkering/parkeringer` | Sjekk EasyPark-import, kilde og oppgjør. |
+| Soling stemmer ikke | `/soling/enkeltimer` | Sjekk timer, dagslinje, produkter, bilder og SUN2-jobber. |
+| Strøm avviker | `/energi/elvia-kontroll` | Kontroller målebrudd, nullstillinger og manglende laster. |
+| Lys eller ventilasjon virker feil | `/drift/lys` eller `/drift/ventilasjon` | Se måleverdier, hendelser og innstillinger samme dag. |
+| Robotjobb mangler | `/drift/renhold/rapport` | Sammenlign gjeldende plan, faktisk jobb, batteri og vannstatus. |
+| En app svarer ikke | `/system/systemkart` | Finn riktig tjeneste, health-lenke og avhengighet. |
 
-## Underapper og datakilder
+## Viktige datakilder
 
-Løsningen består av hovedappen `fibaro10` og flere sideapper. De viktigste er:
+- HC3: energi, lys, ventilasjon, dører og styringsstatus.
+- EasyPark og Flowbird/ParkNordic: parkering, betaling og oppgjør.
+- SUN2: soltimer, produkter, medlemmer, senger og finansgrunnlag.
+- Axis og UniFi Protect: bilder, tidslenker og fysisk kontroll.
+- Yr: temperatur, fukt, vind, skydekke og nedbør.
+- Elvia: manuelt importert kontrollgrunnlag for strøm.
+- Roborock og Dreame: robotstatus, planer, telemetri, vann og jobber.
+- OwnTracks: waypoints, sonebesøk og vedlikeholdsbesøk.
+- SVV, Biluppgifter og Tjekbil: norske, svenske og danske kjøretøydata.
 
-| App | Bruk |
+## Roller og ansvar
+
+- Mantis på `ny.lilletorget.net` er gjeldende brukerflate.
+- Fibaro10 er produksjonskritisk kjerne/API og intern reserveflate.
+- Fag-API-ene på port 8151-8158 oversetter mellom Mantis og Fibaro10.
+- Innsamlere kjører separat slik at EasyPark, SUN2, kamera og roboter kan
+  feilsøkes uten å stoppe resten av løsningen.
+- Datakilder er fasit for friskhet. Buildloggen er fasit for endringer.
+- Originaldata og kildereferanser skal beholdes når det er mulig.
+
+## Mobil- og spesialflater
+
+| Flate | Adresse |
 | --- | --- |
-| `online_dashboard` | Begrenset ekstern mobilvisning på `online.lilletorget.net`. |
-| `maintenance_mobile` | Mobil vedlikeholdsregistrering på `vedl.lilletorget.net`. |
-| `alarm_mobile` | Mobil alarmstatus for dører, solrom, pullerter og trapp på `alarm.lilletorget.net`. |
-| `fibaro10ipad` | Egen iPad-flate på `ipad.lilletorget.net`. |
-| `owntracks_service` | Egen OwnTracks HTTP-server, waypoints og sonebesøk på `owntracks.lilletorget.net`. |
-| `axis_camera_snapshots` | Henter og rydder Axis-bilder som kobles til soltimer. |
-| `sun2_session_scraper` | Henter SUN2 enkelttimer, senger, medlemmer og produktsalg. |
-| `easypark_downloader` | Henter EasyPark-data og holder parkeringsgrunnlaget oppdatert. |
-| `car_info_lookup` | Svenske og danske kjøretøyoppslag etter SVV. |
-| `parking_sun_linker` | Bakgrunnsmotor for kobling mellom parkering og SUN2-ID. |
-| `roborock_logger` | Logger robotvaskere og vaskehistorikk. |
-| `dreame_logger` | Egen logger og kontrolltjeneste for Aqua10 via Dreamehome. |
+| Online dashboard | `https://online.lilletorget.net` |
+| Vedlikehold mobil | `https://vedl.lilletorget.net` |
+| Alarm mobil | `https://alarm.lilletorget.net` |
+| iPad | `https://ipad.lilletorget.net` |
+| OwnTracks | `https://owntracks.lilletorget.net` |
 
-Bruk `Admin -> Systemkart` for klikkbare lenker, porter og health-status. Bruk `Admin -> Datakilder` for å se om datagrunnlaget faktisk er ferskt.
-
-## Viktige prinsipper
-
-- Hovedappen viser data fra egen database, ikke direkte fra tredjepartsflater i sanntid.
-- HC3 poster energi, lys, ventilasjon og dørhendelser inn i Fibaro10.
-- SUN2, EasyPark, Axis, OwnTracks, Roborock, Dreame og kjøretøyoppslag kjører som egne tjenester ved siden av hovedappen.
-- Datakilder er fasit for om en import eller logger er frisk.
-- Buildlogg er fasit for hva som er endret og hvilke tester som ble kjørt.
-- Systemkart er fasit for hvilke underapper og webflater som finnes.
+Bruk `/system/undersystemer` for oppdatert katalog over alle webflater.

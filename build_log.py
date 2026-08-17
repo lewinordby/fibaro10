@@ -12,6 +12,42 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1795",
+        "date": "17.08.2026",
+        "headline": "Gjeldende manualer og arkitektur er samlet og kontrollert",
+        "title": "Mantis-først dokumentasjon med validerte ruter, porter og gjenoppretting",
+        "description": (
+            "All aktiv dokumentasjon er gjennomgått mot Mantis-definisjonene, Caddy, "
+            "fagadapterne og Fibaro10-kjernen. Den levende manualen bruker nå de elleve "
+            "Mantis-appene på ny.lilletorget.net, mens Fibaro10 og forrige mikroappserie "
+            "er tydelig definert som kjerne/API og reserve. Menystrukturen genereres fra "
+            "den samme versjonerte definisjonen som Mantis, og tester stopper nye avvik i "
+            "vertsnavn, ruter, appantall og dokumentert funksjonsparitet."
+        ),
+        "applications": [
+            "System/Manual: alle kapitler, lenker, datakilder, rutiner og feilsøking.",
+            "System/Menystruktur: 11 Mantis-apper og 127 gjeldende ruter.",
+            "Fibaro10: systeminventar, dokumentasjonskontrakter og statisk manualredirect.",
+            "Mantis: arkitektur, funksjonsparitet, deploymanual og automatisk dokumentaudit.",
+            "Teknisk dokumentasjon: systemoversikt, HTTPS, porter, utviklingsoppsett og PDF-grunnlag.",
+        ],
+        "request": "Sørg for at all dokumentasjon og manualer er som de skal.",
+        "work_duration": "ca. 2 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Gjør Mantis på ny.lilletorget.net til entydig primær brukerflate i aktive manualer.",
+            "Oppdaterer nettmanualens kapitler og lenker til gjeldende fagapper og System-ruter.",
+            "Synkroniserer Menystruktur med Mantis app-definitions og retter 8/110 til 11/127.",
+            "Dokumenterer port 8170 som aktiv frontend og 8151-8158 som fagadaptere/reserveflater.",
+            "Oppdaterer intern HTTPS, PWA, utviklingsoppsett, backup- og gjenopprettingsinnganger.",
+            "Merker Desktop V2, gammel funksjonsstruktur og statisk SUN2-manual som historiske referanser.",
+            "Legger Mantis inn i systeminventaret og gjør reserveflatenes roller eksplisitte.",
+            "Legger til regresjonstester og Mantis-audit for manualruter, domene, appantall og ruteantall.",
+            "Oppdaterer og regenererer den tekniske PDF-dokumentasjonen med gjeldende arkitektur.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1794",
         "date": "17.08.2026",
         "headline": "Kvalitetsløft med tett sesjonsisolasjon og sikrere levering",

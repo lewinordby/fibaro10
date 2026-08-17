@@ -1,84 +1,92 @@
 # Dokumentasjonsoversikt
 
-Oppdatert 07.08.2026.
+Oppdatert 17.08.2026, build 1795.
 
-Dette repoet dokumenterer hovedappen `Fibaro10 / Lilletorget drift`, underappene som kjører ved siden av den, HC3-scriptene og importjobbene som fyller databasen.
+Dette er inngangen til dokumentasjonen for Lilletorget-plattformen. Gjeldende
+brukerflate er Mantis-serien på `https://ny.lilletorget.net`. Fibaro10-repoet
+eier fortsatt API, database, forretningsregler, bakgrunnsjobber, integrasjoner
+og flere separate mobil- og datatjenester.
 
-## Levende dokumentasjon i appen
+## Fasit og prioritet
 
-| Side | Bruk |
-| --- | --- |
-| `Manual` | Sluttbruker- og driftsinnganger for daglig bruk, med egne undersider. |
-| `Admin -> Systemkart` | Klikkbar oversikt over apper, underapper, webflater, lokale URL-er og health-lenker. |
-| `Admin -> Datakilder` | Operativ status for alle importjobber og eksterne datakilder. |
-| `Admin -> Buildlogg` | Leveransehistorikk med bestilling, endringer, berørte applikasjoner og måledata per build. |
-| `Admin -> Teknisk` | Teknisk driftsflate og verktøykoblinger. |
+Når dokumenter sier forskjellige ting, brukes denne rekkefølgen:
 
-`/konto/manual` finnes fortsatt som redirect til `/manual/oversikt`.
+1. `System -> Datakilder` for operativ status og siste kjøring.
+2. `System -> Systemkart` for tjenester, avhengigheter og webflater.
+3. `System -> Manual` for gjeldende bruk av løsningen.
+4. `packages/platform/src/app-definitions.json` i Mantis-repoet for aktive
+   apper, ruter og menystruktur.
+5. Compose, Caddy og tjenestekode for tekniske detaljer.
 
-## Viktige dokumenter i repoet
+## Levende dokumentasjon
+
+| Side | Adresse | Bruk |
+| --- | --- | --- |
+| Manual | `https://ny.lilletorget.net/system/manual` | Gjeldende bruker- og driftsmanual med kapitler. |
+| Menystruktur | `https://ny.lilletorget.net/system/manual/menystruktur` | Alle elleve apper og aktive sider. |
+| Datakilder | `https://ny.lilletorget.net/system/datakilder` | Status, rytme, avhengigheter og siste feil per datakilde. |
+| Systemkart | `https://ny.lilletorget.net/system/systemkart` | Komponenter, tjenester og forbindelser. |
+| Undersystemer | `https://ny.lilletorget.net/system/undersystemer` | Klikkbare lenker til webflater og health-endepunkter. |
+| Buildlogg | `https://ny.lilletorget.net/system/build` | Bestilling, endringer, apper, tester og deploy per build. |
+
+## Gjeldende dokumenter
 
 | Fil | Innhold |
 | --- | --- |
-| `docs/kort-brukermanual.md` | Kort operativ manual: hva du kan se/gjøre, hvor du starter, og hvordan du feilsøker vanlige avvik. |
-| `docs/systemoversikt.md` | Dagens systemkart: komponenter, webflater, porter, proxy, datakilder og backup. |
-| `docs/kvalitetsstatus-2026-08-07.md` | Verifisert kvalitetsstatus etter stabilitets-, drifts-, design- og deployloftet i build 1652-1661. |
-| `docs/arbeidsflater-2026-08-17.md` | Operasjonssentral, eiendelsregister, rapportsenter og nye analyseinnganger fra build 1793. |
-| `docs/utviklingsoppsett.md` | Lokal utvikling på Windows, ny PC, deploy til QNAP, smoke, backup og restore-test. |
-| `docs/desktop-v2.md` | Faktisk V2-meny, ruter, frontendstruktur og API-flater. |
-| `docs/funksjonsstruktur.md` | Prinsipper og gjeldende funksjonsdeling for hovedmenyene. |
-| `docs/api-kontrakter.md` | Backend/frontend-kontrakter, typed payloads og kvalitetssjekk. |
-| `docs/owntracks-http.md` | Separat OwnTracks HTTP-tjeneste, token, waypoints, PostgreSQL og Fibaro10-integrasjon. |
-| `docs/axis-camera-snapshots.md` | Axis snapshot-arkiv, åpningstidsvindu og kobling av bilder til soltimer. |
-| `docs/car-info-oppslag.md` | Svenske og danske kjøretøyoppslag etter SVV. |
-| `docs/hc3-dorer.md` | HC3 magnetfølere, dørlogger-scener og klargjorte solrom/byggdører. |
-| `docs/hc3-energi-oppsamlinger.md` | HC3 energigrupper, komplett enhetsinventar og undermålere. |
-| `docs/hc3-energy-inventory-current.json` | Siste versjonerte snapshot fra HC3 `/api/devices` og energi-QuickApps. |
-| `scripts/generate-system-documentation-pdf.py` | Genererer komplett PDF-håndbok med arkitektur, teknologi, datakilder, drift, backup og restore til `output/pdf/`. |
-| `docs/sun2-enkeltimer.md` | SUN2 enkelttimer, romidentitet og kobling mot energi/bilder. |
-| `docs/roborock-logger.md` | Drift av lokal Roborock-logger på QNAP/Docker. |
-| `docs/dreame-logger.md` | Oppsett, dataflyt og drift for Aqua10/Dreame-loggeren. |
-| `docs/roborock-datakilder.md` | Hvilke Roborock-data som kan hentes fra cloud og lokal LAN. |
-| `docs/roborock-telemetri.md` | Intervaller, komplett feltkatalog, modellstøtte og bruk av Roborock-telemetri. |
-| `docs/render-online-dashboard.md` | Notater om ekstern online dashboard-flate. |
+| `docs/kort-brukermanual.md` | Kort operativ manual med gjeldende Mantis-stier. |
+| `docs/systemoversikt.md` | Komponenter, webflater, porter, proxy, datakilder og backup. |
+| `docs/mikroapp-porter.md` | Skillet mellom Mantis på 8170 og fag-API-ene på 8151-8158. |
+| `docs/intern-https.md` | DNS, TLS, intern tilgang og PWA på `ny.lilletorget.net`. |
+| `docs/utviklingsoppsett.md` | Lokal utvikling, test, deploy til QNAP, backup og restore. |
+| `docs/api-kontrakter.md` | Backend/frontend-kontrakter og typed payloads. |
+| `docs/MICROAPP_PARITY.md` | Funksjonskontroll mellom reserveflaten og fagappene. |
+| `docs/arbeidsflater-2026-08-17.md` | Operasjonssentral, eiendeler, rapporter og analyseinnganger. |
 
-## Underapper med egen README
+Den tekniske PDF-en genereres fra
+`scripts/generate-system-documentation-pdf.py` til
+`output/pdf/lilletorget-systemarkitektur-og-teknisk-dokumentasjon.pdf`.
 
-| Mappe | Innhold |
+## Fagdokumentasjon
+
+| Fil | Område |
 | --- | --- |
-| `maintenance_mobile/README.md` | Mobil vedlikeholdsapp på `vedl.lilletorget.net`. |
-| `alarm_mobile/README.md` | Mobil alarmapp på `alarm.lilletorget.net`. |
-| `car_info_lookup/README.md` | Nordiske kjøretøyoppslag. |
-| `easypark_downloader/README.md` | EasyPark-nedlasting og påloggingsflyt. |
-| `roborock_logger/README.md` | Lokal Roborock-logger og webflate på port 8095. |
-| `dreame_logger/README.md` | Lokal Dreame-logger og webflate på port 8094. |
-| `sun2_session_scraper/README.md` | Løpende skraping/import av SUN2 enkelttimer, produkter og finansgrunnlag. |
-| `sun2_importer/README.md` | Import av SUN2 romsummer fra nedlastede dagsfiler. |
-| `sun2_backfill_downloader/README.md` | Nattlig og historisk nedlasting av SUN2 romstatistikk. |
-| `hc3_vedlikehold/README.md` | Lokal HC3-verktøyapp for energigrupper og loggerkontroll. |
-| `axis_camera_snapshots/` | Snapshot-service. Hoveddokumentasjon ligger i `docs/axis-camera-snapshots.md`. |
-| `parking_sun_linker/README.md` | Koblingsmotor mellom parkeringer og SUN2-brukere. |
-| `browser_extensions/parking_name_lookup/README.md` | Manuelt områdeoppslag via Vegvesen-side. |
-| `browser_extensions/parking_manual_name/README.md` | Manuelt navneoppslag for kjøretøy. |
-| `migrations/README.md` | Regler for database-migrasjoner. |
+| `docs/owntracks-http.md` | OwnTracks HTTP, waypoints, PostgreSQL og besøk. |
+| `docs/axis-camera-snapshots.md` | Axis-arkiv, tidsvinduer og bilder på soltimer. |
+| `docs/car-info-oppslag.md` | Norske, svenske og danske kjøretøyoppslag. |
+| `docs/hc3-dorer.md` | Dørsensorer, logger-scener, statuskontroll og alarmer. |
+| `docs/hc3-energi-oppsamlinger.md` | HC3-energigrupper, enheter, medlemmer og hull. |
+| `docs/sun2-enkeltimer.md` | SUN2-timer, romidentitet, energi og bilder. |
+| `docs/roborock-logger.md` | Lokal Roborock-tjeneste og drift. |
+| `docs/roborock-datakilder.md` | Tilgjengelige Roborock-kilder og felt. |
+| `docs/roborock-telemetri.md` | Telemetrifelt, intervaller og modellstøtte. |
+| `docs/dreame-logger.md` | Aqua10/Dreame-tjeneste, dataflyt og drift. |
+| `docs/render-online-dashboard.md` | Ekstern, begrenset dashboardflate. |
 
-## HC3-scener i repoet
+## Tjenester med egen README
 
-| Fil | Bruk |
+`maintenance_mobile`, `alarm_mobile`, `car_info_lookup`,
+`easypark_downloader`, `roborock_logger`, `dreame_logger`,
+`sun2_session_scraper`, `sun2_importer`, `sun2_backfill_downloader`,
+`hc3_vedlikehold`, `parking_sun_linker` og nettlesertilleggene har egne
+README-filer ved kildekoden.
+
+## Historiske referanser
+
+Følgende dokumenter beskriver tidligere brukerflater. De beholdes for
+funksjonskontroll og historikk, men skal ikke brukes som dagens navigasjonsmanual:
+
+| Fil | Historisk rolle |
 | --- | --- |
-| `scripts/hc3_energy_logger.lua` | Logger HC3 effekt og akkumulert kWh til `/api/energi/fibaro`, inkludert avfukter fra device 449. |
-| `scripts/hc3_ventilation_runner_scene_363.lua` | Aktiv ventilasjonsrunner for HC3 scene 363. Logger temperatur/fukt, Yr-fukt og viftestatus. |
-| `scripts/hc3_basement_dehumidifier.lua` | Styrer avfukter 449 fra kjellertemperatur 444 og kjellerfukt 445. |
-| `scripts/hc3_door_event_logger.lua` | Felles/manuell dørlogger til `/api/hc3/door-events`. |
-| `scripts/upsert_hc3_single_door_logger_scenes.py` | Oppretter tynne Lua-logger-scener og block-trigger-scener per dør. |
+| `docs/desktop-v2.md` | Samlet Fibaro10 Desktop V2 på port 8110. |
+| `docs/funksjonsstruktur.md` | Meny- og sideprinsipper fra V2-generasjonen. |
+| `docs/kvalitetsstatus-2026-08-07.md` | Daterte testresultater for den daværende løsningen. |
+| `static/manualer/sun2_driftsmanual.pdf` | Eldre statisk driftsmanual; nettmanualen er gjeldende. |
 
-## Driftsprinsipper
+Historiske URL-er under `app.lilletorget.net`, `fibaro10.lilletorget.net` og
+rene V2-ruter kan fortsatt finnes i disse dokumentene med vilje.
 
-- Fibaro10-grensesnittet viser data fra egen database, ikke direkte fra tredjeparts-API-er.
-- HC3 poster lys, ventilasjon, energi og dørhendelser direkte til Fibaro10.
-- QNAP/Docker kjører lokale tjenester for SUN2, EasyPark, Axis, kjøretøyoppslag, OwnTracks, iPad, vedlikehold mobil og koblingsmotor.
-- `Admin -> Datakilder` er fasit for om en datakilde faktisk går.
-- `Admin -> Systemkart` er fasit for hvilke underapper og webflater som inngår.
-- Deploy til QNAP skal gå via `scripts/deploy-qnap.ps1`, som kjører lokal sjekk, push, backup, rebuild, health og live-smoke.
-- Elvia er manuell månedlig import fordi eksporten krever BankID.
-- SUN2/Elvia-tidspunkter behandles som kildens lokale tid, mens Yr/HC3 vises i Europe/Oslo.
+## Dokumentasjonsregel
+
+En endring i apper, ruter, porter, datakilder, deploy eller backup er ikke ferdig
+før nettmanualen og relevante repo-dokumenter er oppdatert i samme build.
+Dokumentasjonskontrollene kjøres som del av ordinær test og Mantis `npm run verify`.
