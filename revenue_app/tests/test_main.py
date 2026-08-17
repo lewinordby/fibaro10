@@ -59,8 +59,12 @@ class RevenueAppTest(unittest.TestCase):
             },
             request=httpx.Request("POST", "http://fibaro10:8110/auth/login"),
         )
+        auth_client = AsyncMock()
+        auth_client.post.return_value = core_response
+        auth_client.__aenter__.return_value = auth_client
+        auth_client.__aexit__.return_value = None
         with TestClient(app, follow_redirects=False) as client:
-            with patch.object(client.app.state.core_client, "post", new=AsyncMock(return_value=core_response)) as core_post:
+            with patch("microapp_backend.runtime.httpx.AsyncClient", return_value=auth_client):
                 response = client.post(
                     "/auth/login",
                     data={"username": "master", "password": "secret"},
@@ -69,7 +73,7 @@ class RevenueAppTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 303)
         self.assertIn("domain=.lilletorget.net", response.headers["set-cookie"].lower())
-        _, kwargs = core_post.call_args
+        _, kwargs = auth_client.post.call_args
         self.assertEqual(kwargs["headers"]["X-Forwarded-Host"], "omsetning.lilletorget.net")
         self.assertEqual(kwargs["headers"]["X-Forwarded-Proto"], "https")
         self.assertEqual(kwargs["headers"]["X-Lilletorget-Public-Host"], "omsetning.lilletorget.net")

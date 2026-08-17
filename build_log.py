@@ -44,6 +44,7 @@ BUILD_LOG = [
             "Legger Mantis inn i systeminventaret og gjør reserveflatenes roller eksplisitte.",
             "Legger til regresjonstester og Mantis-audit for manualruter, domene, appantall og ruteantall.",
             "Oppdaterer og regenererer den tekniske PDF-dokumentasjonen med gjeldende arkitektur.",
+            "Retter reserveappens innloggingstest slik at den validerer den isolerte sikkerhetsklienten fra build 1794.",
         ],
     },
     {
