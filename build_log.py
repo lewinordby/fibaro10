@@ -12,6 +12,41 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1796",
+        "date": "17.08.2026",
+        "headline": "Mantis-rammeverket og CSS-grensene er revidert og låst",
+        "title": "Dokumentert leverandørbaseline med automatisk vern mot frontenddrift",
+        "description": (
+            "Den aktive Mantis-serien er sammenlignet direkte med den kjøpte TypeScript-pakken "
+            "i versjon 4.2.0. Leverandørlaget, temaet, typografien, komponentene, lyst og mørkt "
+            "tema samt alle appbygg er kontrollert. Det er nå lagt inn en fast kvalitetsport som "
+            "stopper egne CSS-filer, fremmede UI-rammeverk, uventede endringer i Mantis-kjernen "
+            "og avvik i de sentrale MUI-avhengighetene. Ingen funksjonell eller visuell regresjon "
+            "ble funnet i produksjonsgrensesnittet."
+        ),
+        "applications": [
+            "Alle 11 Mantis-apper: tema, skall, navigasjon, typografi og komponentgrunnlag.",
+            "Lyst og mørkt tema: kontrast, diagramfarger, akser, tabeller og kort.",
+            "Frontendbygg: 127 ruter, PWA-manifester, ressurser og avhengighetsversjoner.",
+            "Utviklingsoppsett: ny automatisk rammeverks- og CSS-revisjon i npm run verify.",
+            "Dokumentasjon: nytt kapittel om leverandørgrunnlag, tilpasninger og oppgraderingsrutine.",
+        ],
+        "request": "Ta en grundig gjennomgang av CSS og rammeverk, og kontroller at det fortsatt følger det vi har kjøpt.",
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Sammenligner 594 aktive Mantis-filer direkte med originalpakken og dokumenterer 561 identiske filer.",
+            "Klassifiserer de 33 bevisste avvikene som integrasjon, appskall, profil og tilgjengelighet.",
+            "Låser hele Mantis-leverandørlaget med en kontrollsum som kontrolleres ved hver verify-kjøring.",
+            "Avviser egne CSS-filer, className-styling, important-regler, gammel frontendkode og andre UI-rammeverk.",
+            "Kontrollerer MUI, Emotion, Public Sans, Simplebar, ThemeProvider, CssBaseline og Vite-aliaser.",
+            "Låser MUI-datovelgeren til den kjøpte versjonen 9.2.0 i stedet for et flytende versjonsintervall.",
+            "Tester alle appbygg i tillegg til 1440 og 1280 piksler i lyst og mørkt tema uten horisontal rulling.",
+            "Bekrefter at appkoden har null egne CSS-filer, null important-regler og null gamle rammeverkskoblinger.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1795",
         "date": "17.08.2026",
         "headline": "Gjeldende manualer og arkitektur er samlet og kontrollert",
