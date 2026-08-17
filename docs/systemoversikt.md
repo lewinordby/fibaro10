@@ -10,22 +10,35 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 - 28 komponenter er aktive i dagens runtime eller som aktivt verktøy; Dreame er klargjort for aktivering.
 - 26 komponenter har webflate eller lokal statusflate.
 - 24 datakilder/importjobber er definert i Fibaro10.
-- Produksjonsbuild ved siste sjekk: Fibaro10 build `1793`; commit settes ved deploy.
+- Produksjonsbuild ved siste sjekk: Fibaro10 build `1794`.
 - QNAP-appmappe: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`.
 - Backup/arkivvolum: `/share/CACHEDEV3_DATA/fibaro10_archive`.
+- Mantis-kildekode: privat repo `https://github.com/lewinordby/lilletorget-mantis`.
+- Mantis-releaser: `/share/CACHEDEV3_DATA/lilletorget-mantis/releases`.
 
 ## Webflater
 
 Den nye Mantis-serien bruker ett internt domene og omfatter elleve selvstendige
-applikasjoner: Omsetning, Parkering, Soling, Koble, Bygg og drift, Energi,
-Vedlikehold, Operasjonssentral, Eiendeler, Rapporter og System. De tre nyeste
-inngangene er:
+applikasjoner. Alle bruker felles innlogging og presenteres som stier under
+`ny.lilletorget.net`:
 
 | Flate | URL | Formål |
 | --- | --- | --- |
+| Omsetning | `https://ny.lilletorget.net/omsetning/` | Dashboard, måneds- og årsoversikt og sammenligning. |
+| Parkering | `https://ny.lilletorget.net/parkering/` | Parkeringer, kjøretøy, oppgjør, tidsbruk og analyser. |
+| Soling | `https://ny.lilletorget.net/soling/` | Soltimer, bilder, produkter, medlemmer, oppgjør og analyser. |
+| Koble | `https://ny.lilletorget.net/koble/` | Kandidater og kontroll av koblinger mellom biler og Sun2-ID. |
+| Bygg og drift | `https://ny.lilletorget.net/drift/` | Ventilasjon, lys, dører, solrom, pullerter og renhold. |
+| Energi | `https://ny.lilletorget.net/energi/` | Sanntidsforbruk, Elvia, kurs/last og solsengforbruk. |
+| Vedlikehold | `https://ny.lilletorget.net/vedlikehold/` | Besøk, oppgaver og vedlikeholdshistorikk. |
 | Operasjonssentral | `https://ny.lilletorget.net/operasjon/` | Arbeidskø, datakvalitet, automatisering og universalsøk. |
 | Eiendeler | `https://ny.lilletorget.net/eiendeler/` | Teknisk register med garanti, service og HC3-kobling. |
 | Rapporter | `https://ny.lilletorget.net/rapporter/` | Samlet inngang til økonomi-, drift- og kontrollrapporter. |
+| System | `https://ny.lilletorget.net/system/` | Datakilder, brukere, build, manual, varslinger og systemstatus. |
+
+Den forrige mikroappserien på `app.lilletorget.net` kjører parallelt som
+reserve mens Mantis-serien ferdigstilles. Den skal ikke brukes som kilde for ny
+frontendutvikling.
 
 | Flate | URL | Formål |
 | --- | --- | --- |
