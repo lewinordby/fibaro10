@@ -61,3 +61,6 @@ sun2_session_scraper/data
 sun2_session_scraper/data/
 sun2_backfill_downloader/backfill_raw/
 sun2_backfill_downloader/backfill_errors/
+
+# Local release bundles are reproducible and must never enter Git.
+/*.tar.gz
