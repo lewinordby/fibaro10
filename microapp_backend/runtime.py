@@ -5,6 +5,7 @@ import secrets
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from functools import lru_cache
+from http.cookiejar import CookieJar, DefaultCookiePolicy
 from pathlib import Path
 from typing import Any, AsyncIterator, Awaitable, Callable, Pattern
 from urllib.parse import urlsplit
@@ -28,6 +29,13 @@ from .pwa import PWA_ICON_PATH, PwaConfig, inject_pwa_head, register_pwa
 
 PROXY_METHODS = ("GET", "POST", "PATCH", "PUT", "DELETE")
 ProxyAdapter = Callable[[Request, httpx.AsyncClient, dict[str, str]], Awaitable[dict[str, Any]]]
+
+
+class _RejectAllCookiesPolicy(DefaultCookiePolicy):
+    """Keep user session cookies out of the process-wide connection pool."""
+
+    def set_ok(self, cookie: Any, request: Any) -> bool:
+        return False
 
 
 @dataclass(frozen=True)
@@ -78,6 +86,7 @@ def create_domain_app(config: DomainAppConfig) -> FastAPI:
             timeout=httpx.Timeout(45.0, connect=8.0),
             follow_redirects=False,
             limits=httpx.Limits(max_connections=30, max_keepalive_connections=10),
+            cookies=CookieJar(policy=_RejectAllCookiesPolicy()),
         )
         yield
         await application.state.core_client.aclose()
@@ -229,13 +238,20 @@ def create_domain_app(config: DomainAppConfig) -> FastAPI:
 
     @app.post("/auth/login")
     async def login_submit(request: Request) -> Response:
-        client: httpx.AsyncClient = request.app.state.core_client
         try:
-            core_response = await client.post(
-                "/auth/login",
-                content=await request.body(),
-                headers=forwarded_headers(request, accept="text/html"),
-            )
+            # Login is the only flow that intentionally receives a session
+            # cookie. Isolate it from the shared connection pool so one user's
+            # cookie can never be reused by another request.
+            async with httpx.AsyncClient(
+                base_url=core_base_url,
+                timeout=httpx.Timeout(45.0, connect=8.0),
+                follow_redirects=False,
+            ) as auth_client:
+                core_response = await auth_client.post(
+                    "/auth/login",
+                    content=await request.body(),
+                    headers=forwarded_headers(request, accept="text/html"),
+                )
         except httpx.RequestError:
             return HTMLResponse(login_html(request, "Fibaro10 er ikke tilgjengelig akkurat nå."), status_code=502)
         if core_response.status_code not in {302, 303, 307, 308}:

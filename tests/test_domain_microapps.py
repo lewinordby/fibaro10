@@ -3,14 +3,17 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+from http.cookiejar import CookieJar
 from pathlib import Path
 
+import httpx
 from fastapi import Request
 from fastapi.testclient import TestClient
 
 from energy_app.app.main import app as energy_app
 from link_app.app.main import app as link_app
 from maintenance_app.app.main import app as maintenance_app
+from microapp_backend.runtime import _RejectAllCookiesPolicy
 import operations_app.app.main as operations_main
 from operations_app.app.main import app as operations_app
 from parking_app.app.main import app as parking_app
@@ -115,6 +118,34 @@ def test_domain_apps_use_the_shared_branded_login_page() -> None:
         assert "Alt samlet." in response.text
         assert "Én innlogging gjelder i alle Lilletorget-appene." in response.text
         assert name.removeprefix("Lilletorget ") in response.text
+
+
+def test_shared_proxy_client_cannot_retain_user_session_cookies() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    runtime_source = (repo_root / "microapp_backend" / "runtime.py").read_text(encoding="utf-8")
+
+    assert "cookies=CookieJar(policy=_RejectAllCookiesPolicy())" in runtime_source
+    login_handler = runtime_source.split('@app.post("/auth/login")', 1)[1].split('@app.post("/konto/logg-ut")', 1)[0]
+    assert "async with httpx.AsyncClient(" in login_handler
+    assert "request.app.state.core_client" not in login_handler
+
+    sent_cookies: list[str | None] = []
+
+    async def exercise_client() -> None:
+        async def handler(request: httpx.Request) -> httpx.Response:
+            sent_cookies.append(request.headers.get("cookie"))
+            return httpx.Response(200, headers={"set-cookie": "fibaro10_session=secret; Path=/"})
+
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(handler),
+            cookies=CookieJar(policy=_RejectAllCookiesPolicy()),
+        ) as client:
+            await client.get("https://core.local/first")
+            await client.get("https://core.local/second")
+            assert list(client.cookies.jar) == []
+
+    asyncio.run(exercise_client())
+    assert sent_cookies == [None, None]
 
 
 def test_all_microapps_bundle_the_shared_inter_font() -> None:

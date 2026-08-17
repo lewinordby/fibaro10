@@ -957,6 +957,50 @@ class OperationalIncidentReview(Base):
     updated_at = Column(DateTime, index=True, nullable=False, default=local_now_naive)
 
 
+class AssetRegistryItem(Base):
+    __tablename__ = "asset_registry_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True, nullable=False)
+    category = Column(String, index=True, nullable=False, default="Annet")
+    location = Column(String, index=True, nullable=True)
+    manufacturer = Column(String, nullable=True)
+    model = Column(String, nullable=True)
+    serial_no = Column(String, index=True, nullable=True)
+    hc3_device_id = Column(Integer, index=True, nullable=True)
+    owner_app = Column(String, index=True, nullable=True)
+    status = Column(String, index=True, nullable=False, default="I drift")
+    installed_at = Column(Date, nullable=True)
+    warranty_until = Column(Date, index=True, nullable=True)
+    service_interval_days = Column(Integer, nullable=True)
+    last_service_at = Column(Date, nullable=True)
+    notes = Column(Text, nullable=True)
+    extra = Column(JSON, nullable=True)
+    created_at = Column(DateTime, index=True, nullable=False, default=local_now_naive)
+    updated_at = Column(DateTime, index=True, nullable=False, default=local_now_naive)
+
+
+class AutomationWorkbenchRule(Base):
+    __tablename__ = "automation_workbench_rules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True, nullable=False)
+    domain = Column(String, index=True, nullable=False, default="Drift")
+    description = Column(Text, nullable=True)
+    trigger_type = Column(String, index=True, nullable=False, default="Hendelse")
+    trigger_config = Column(JSON, nullable=True)
+    conditions = Column(JSON, nullable=True)
+    actions = Column(JSON, nullable=True)
+    mode = Column(String, index=True, nullable=False, default="Utkast")
+    enabled = Column(Boolean, index=True, nullable=False, default=False)
+    cooldown_minutes = Column(Integer, nullable=False, default=0)
+    last_evaluated_at = Column(DateTime, nullable=True)
+    last_triggered_at = Column(DateTime, nullable=True)
+    last_result = Column(Text, nullable=True)
+    created_at = Column(DateTime, index=True, nullable=False, default=local_now_naive)
+    updated_at = Column(DateTime, index=True, nullable=False, default=local_now_naive)
+
+
 class ImportJobStatus(Base):
     __tablename__ = "import_job_status"
 
@@ -2319,6 +2363,36 @@ class RoborockDoorAutomationIn(BaseModel):
     minimum_interval_minutes: int = Field(default=60, ge=1, le=1440)
     zone_numbers: list[int] = Field(min_length=1, max_length=12)
     profile_id: int = Field(ge=1)
+
+
+class AssetRegistryInput(BaseModel):
+    name: str = Field(min_length=2, max_length=160)
+    category: str = Field(default="Annet", min_length=2, max_length=80)
+    location: Optional[str] = Field(default=None, max_length=160)
+    manufacturer: Optional[str] = Field(default=None, max_length=120)
+    model: Optional[str] = Field(default=None, max_length=160)
+    serial_no: Optional[str] = Field(default=None, max_length=160)
+    hc3_device_id: Optional[int] = Field(default=None, ge=1)
+    owner_app: Optional[str] = Field(default=None, max_length=80)
+    status: str = Field(default="I drift", min_length=2, max_length=60)
+    installed_at: Optional[date] = None
+    warranty_until: Optional[date] = None
+    service_interval_days: Optional[int] = Field(default=None, ge=1, le=3650)
+    last_service_at: Optional[date] = None
+    notes: Optional[str] = Field(default=None, max_length=4000)
+
+
+class AutomationWorkbenchInput(BaseModel):
+    name: str = Field(min_length=2, max_length=160)
+    domain: str = Field(default="Drift", min_length=2, max_length=80)
+    description: Optional[str] = Field(default=None, max_length=4000)
+    trigger_type: str = Field(default="Hendelse", min_length=2, max_length=80)
+    trigger: Optional[str] = Field(default=None, max_length=2000)
+    conditions: Optional[str] = Field(default=None, max_length=4000)
+    actions: Optional[str] = Field(default=None, max_length=4000)
+    mode: str = Field(default="Utkast", min_length=2, max_length=40)
+    enabled: bool = False
+    cooldown_minutes: int = Field(default=0, ge=0, le=10080)
 
 
 class Sun2RoomStatIn(BaseModel):
@@ -18221,6 +18295,359 @@ async def api_system_incident_review(request: Request, incident_key: str):
     }
 
 
+def asset_registry_payload(row: AssetRegistryItem) -> Dict[str, Any]:
+    next_service_at = None
+    if row.last_service_at and row.service_interval_days:
+        next_service_at = row.last_service_at + timedelta(days=row.service_interval_days)
+    return {
+        "id": row.id,
+        "navn": row.name,
+        "kategori": row.category,
+        "plassering": row.location or "",
+        "produsent": row.manufacturer or "",
+        "modell": row.model or "",
+        "serienummer": row.serial_no or "",
+        "HC3-ID": row.hc3_device_id,
+        "eierapp": row.owner_app or "",
+        "status": row.status,
+        "installert": row.installed_at,
+        "garanti til": row.warranty_until,
+        "serviceintervall dager": row.service_interval_days,
+        "sist vedlikehold": row.last_service_at,
+        "neste vedlikehold": next_service_at,
+        "notat": row.notes or "",
+        "oppdatert": api_local_iso(normalize_local_naive(row.updated_at)),
+    }
+
+
+def apply_asset_registry_input(row: AssetRegistryItem, payload: AssetRegistryInput, now_dt: datetime) -> None:
+    row.name = payload.name.strip()
+    row.category = payload.category.strip()
+    row.location = (payload.location or "").strip() or None
+    row.manufacturer = (payload.manufacturer or "").strip() or None
+    row.model = (payload.model or "").strip() or None
+    row.serial_no = (payload.serial_no or "").strip() or None
+    row.hc3_device_id = payload.hc3_device_id
+    row.owner_app = (payload.owner_app or "").strip() or None
+    row.status = payload.status.strip()
+    row.installed_at = payload.installed_at
+    row.warranty_until = payload.warranty_until
+    row.service_interval_days = payload.service_interval_days
+    row.last_service_at = payload.last_service_at
+    row.notes = (payload.notes or "").strip() or None
+    row.updated_at = now_dt
+
+
+@app.get("/api/system/assets")
+async def api_system_assets(
+    q: Optional[str] = None,
+    category: Optional[str] = None,
+    status: Optional[str] = None,
+):
+    query = select(AssetRegistryItem)
+    needle = (q or "").strip()
+    if needle:
+        pattern = f"%{needle}%"
+        query = query.where(
+            or_(
+                AssetRegistryItem.name.ilike(pattern),
+                AssetRegistryItem.location.ilike(pattern),
+                AssetRegistryItem.manufacturer.ilike(pattern),
+                AssetRegistryItem.model.ilike(pattern),
+                AssetRegistryItem.serial_no.ilike(pattern),
+                AssetRegistryItem.notes.ilike(pattern),
+            )
+        )
+    if category:
+        query = query.where(AssetRegistryItem.category == category)
+    if status:
+        query = query.where(AssetRegistryItem.status == status)
+    query = query.order_by(AssetRegistryItem.category, AssetRegistryItem.location, AssetRegistryItem.name)
+    async with async_session() as session:
+        rows = (await session.execute(query)).scalars().all()
+    return {"generatedAt": api_local_iso(local_now_naive()), "assets": [asset_registry_payload(row) for row in rows]}
+
+
+@app.post("/api/system/assets")
+async def api_system_asset_create(request: Request, payload: AssetRegistryInput):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    now_dt = local_now_naive()
+    row = AssetRegistryItem(created_at=now_dt, updated_at=now_dt)
+    apply_asset_registry_input(row, payload, now_dt)
+    async with async_session() as session:
+        session.add(row)
+        await session.commit()
+        await session.refresh(row)
+    return {"status": "ok", "message": "Eiendelen er opprettet.", "asset": asset_registry_payload(row)}
+
+
+@app.patch("/api/system/assets/{asset_id}")
+async def api_system_asset_update(request: Request, asset_id: int, payload: AssetRegistryInput):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    async with async_session() as session:
+        row = await session.get(AssetRegistryItem, asset_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Eiendelen finnes ikke")
+        apply_asset_registry_input(row, payload, local_now_naive())
+        await session.commit()
+        await session.refresh(row)
+    return {"status": "ok", "message": "Eiendelen er oppdatert.", "asset": asset_registry_payload(row)}
+
+
+@app.post("/api/system/assets/discover")
+async def api_system_assets_discover(request: Request):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    now_dt = local_now_naive()
+    created = 0
+    async with async_session() as session:
+        existing = {
+            (str(category).casefold(), str(name).casefold())
+            for category, name in (await session.execute(select(AssetRegistryItem.category, AssetRegistryItem.name))).all()
+        }
+        beds = (await session.execute(select(Sun2Bed).order_by(Sun2Bed.name))).scalars().all()
+        robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
+        energy_nodes = (await session.execute(select(EnergyNode).where(EnergyNode.active.is_(True)).order_by(EnergyNode.name))).scalars().all()
+        candidates = [
+            AssetRegistryItem(
+                name=bed.name,
+                category="Solseng",
+                location=f"Solrom {bed.display_room_number or bed.physical_room_number}" if (bed.display_room_number or bed.physical_room_number) else bed.room_id,
+                manufacturer="",
+                model=bed.bed_model,
+                owner_app="Soling",
+                status="I drift",
+                extra={"sun2BedId": bed.sun2_bed_id},
+                created_at=now_dt,
+                updated_at=now_dt,
+            )
+            for bed in beds
+            if (bed.name or "").strip() not in {"", "."}
+        ] + [
+            AssetRegistryItem(
+                name=robot.name,
+                category="Robotvasker",
+                manufacturer=cleaning_provider_label(robot.provider),
+                model=robot.model or robot.product,
+                serial_no=robot.serial_number,
+                owner_app="Bygg og drift",
+                status="I drift" if robot.integration_status == "active" else robot.integration_status,
+                extra={"robotUid": robot.duid},
+                created_at=now_dt,
+                updated_at=now_dt,
+            )
+            for robot in robots
+        ] + [
+            AssetRegistryItem(
+                name=node.name,
+                category="Z-Wave-enhet",
+                location=node.area,
+                manufacturer=node.manufacturer,
+                model=node.model,
+                hc3_device_id=node.hc3_device_id or node.hc3_power_device_id,
+                owner_app="Energi",
+                status="I drift",
+                extra={"energyNodeId": node.id, "nodeType": node.node_type},
+                created_at=now_dt,
+                updated_at=now_dt,
+            )
+            for node in energy_nodes
+        ]
+        for candidate in candidates:
+            key = (candidate.category.casefold(), candidate.name.casefold())
+            if key in existing:
+                continue
+            session.add(candidate)
+            existing.add(key)
+            created += 1
+        await session.commit()
+    return {"status": "ok", "message": f"{created} nye eiendeler ble funnet og lagt til.", "created": created}
+
+
+def workbench_json_text(value: Any) -> str:
+    if not value:
+        return ""
+    if isinstance(value, str):
+        return value
+    return json.dumps(value, ensure_ascii=False, indent=2)
+
+
+def automation_workbench_payload(row: AutomationWorkbenchRule) -> Dict[str, Any]:
+    return {
+        "id": row.id,
+        "navn": row.name,
+        "område": row.domain,
+        "beskrivelse": row.description or "",
+        "utløser": row.trigger_type,
+        "trigger": workbench_json_text(row.trigger_config),
+        "betingelser": workbench_json_text(row.conditions),
+        "handlinger": workbench_json_text(row.actions),
+        "modus": row.mode,
+        "aktiv": bool(row.enabled),
+        "ventetid min": row.cooldown_minutes,
+        "sist evaluert": api_local_iso(normalize_local_naive(row.last_evaluated_at)),
+        "sist utløst": api_local_iso(normalize_local_naive(row.last_triggered_at)),
+        "siste resultat": row.last_result or "",
+        "oppdatert": api_local_iso(normalize_local_naive(row.updated_at)),
+    }
+
+
+def workbench_config(value: Optional[str]) -> Dict[str, Any]:
+    text_value = (value or "").strip()
+    if not text_value:
+        return {}
+    try:
+        parsed = json.loads(text_value)
+        return parsed if isinstance(parsed, dict) else {"verdi": parsed}
+    except json.JSONDecodeError:
+        return {"beskrivelse": text_value}
+
+
+def apply_automation_workbench_input(row: AutomationWorkbenchRule, payload: AutomationWorkbenchInput, now_dt: datetime) -> None:
+    row.name = payload.name.strip()
+    row.domain = payload.domain.strip()
+    row.description = (payload.description or "").strip() or None
+    row.trigger_type = payload.trigger_type.strip()
+    row.trigger_config = workbench_config(payload.trigger)
+    row.conditions = workbench_config(payload.conditions)
+    row.actions = workbench_config(payload.actions)
+    row.mode = payload.mode.strip()
+    row.enabled = payload.enabled
+    row.cooldown_minutes = payload.cooldown_minutes
+    row.updated_at = now_dt
+
+
+@app.get("/api/system/automations")
+async def api_system_automations():
+    async with async_session() as session:
+        rows = (
+            await session.execute(
+                select(AutomationWorkbenchRule).order_by(
+                    AutomationWorkbenchRule.enabled.desc(),
+                    AutomationWorkbenchRule.domain,
+                    AutomationWorkbenchRule.name,
+                )
+            )
+        ).scalars().all()
+    return {"generatedAt": api_local_iso(local_now_naive()), "automations": [automation_workbench_payload(row) for row in rows]}
+
+
+@app.post("/api/system/automations")
+async def api_system_automation_create(request: Request, payload: AutomationWorkbenchInput):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    now_dt = local_now_naive()
+    row = AutomationWorkbenchRule(created_at=now_dt, updated_at=now_dt)
+    apply_automation_workbench_input(row, payload, now_dt)
+    async with async_session() as session:
+        session.add(row)
+        await session.commit()
+        await session.refresh(row)
+    return {"status": "ok", "message": "Automatiseringen er opprettet.", "automation": automation_workbench_payload(row)}
+
+
+@app.patch("/api/system/automations/{automation_id}")
+async def api_system_automation_update(request: Request, automation_id: int, payload: AutomationWorkbenchInput):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    async with async_session() as session:
+        row = await session.get(AutomationWorkbenchRule, automation_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Automatiseringen finnes ikke")
+        apply_automation_workbench_input(row, payload, local_now_naive())
+        await session.commit()
+        await session.refresh(row)
+    return {"status": "ok", "message": "Automatiseringen er oppdatert.", "automation": automation_workbench_payload(row)}
+
+
+@app.get("/api/system/search")
+async def api_system_search(q: str = Query(min_length=2, max_length=120)):
+    needle = q.strip()
+    if len(needle) < 2:
+        raise HTTPException(status_code=400, detail="Søket må inneholde minst to tegn")
+    pattern = f"%{needle}%"
+    results: list[Dict[str, Any]] = []
+    async with async_session() as session:
+        vehicles = (
+            await session.execute(
+                select(ParkingVehicle)
+                .where(or_(ParkingVehicle.plate.ilike(pattern), ParkingVehicle.navn.ilike(pattern), ParkingVehicle.omrade.ilike(pattern)))
+                .order_by(ParkingVehicle.last_seen.desc())
+                .limit(20)
+            )
+        ).scalars().all()
+        sessions = (
+            await session.execute(
+                select(Sun2TanningSession)
+                .where(
+                    or_(
+                        Sun2TanningSession.user_name.ilike(pattern),
+                        Sun2TanningSession.user_identifier.ilike(pattern),
+                        Sun2TanningSession.sun2_user_id.ilike(pattern),
+                        Sun2TanningSession.room.ilike(pattern),
+                    )
+                )
+                .order_by(Sun2TanningSession.started_at.desc())
+                .limit(20)
+            )
+        ).scalars().all()
+        maintenance = (
+            await session.execute(
+                select(MaintenanceLogEntry)
+                .where(
+                    or_(
+                        MaintenanceLogEntry.summary.ilike(pattern),
+                        MaintenanceLogEntry.target_name.ilike(pattern),
+                        MaintenanceLogEntry.follow_up_text.ilike(pattern),
+                    )
+                )
+                .order_by(MaintenanceLogEntry.performed_at.desc())
+                .limit(20)
+            )
+        ).scalars().all()
+        assets = (
+            await session.execute(
+                select(AssetRegistryItem)
+                .where(
+                    or_(
+                        AssetRegistryItem.name.ilike(pattern),
+                        AssetRegistryItem.location.ilike(pattern),
+                        AssetRegistryItem.manufacturer.ilike(pattern),
+                        AssetRegistryItem.model.ilike(pattern),
+                        AssetRegistryItem.serial_no.ilike(pattern),
+                    )
+                )
+                .order_by(AssetRegistryItem.updated_at.desc())
+                .limit(20)
+            )
+        ).scalars().all()
+    results.extend(
+        {"type": "Kjøretøy", "tittel": row.plate, "detalj": " · ".join(filter(None, [row.navn, row.omrade])), "oppdatert": api_local_iso(row.last_seen), "path": f"/parkering/kjoretoy/{quote(row.plate)}"}
+        for row in vehicles
+    )
+    results.extend(
+        {"type": "Soltime", "tittel": row.user_name or row.user_identifier or row.sun2_user_id or "Ukjent bruker", "detalj": f"{row.room or 'Ukjent rom'} · {row.started_at:%d.%m.%Y %H:%M}", "oppdatert": api_local_iso(row.started_at), "path": "/soling/enkeltimer"}
+        for row in sessions
+    )
+    results.extend(
+        {"type": "Vedlikehold", "tittel": row.summary, "detalj": row.target_name or row.action_type or "", "oppdatert": api_local_iso(row.performed_at), "path": f"/vedlikehold/besok/{row.site_visit_id}" if row.site_visit_id else "/vedlikehold/"}
+        for row in maintenance
+    )
+    results.extend(
+        {"type": "Eiendel", "tittel": row.name, "detalj": " · ".join(filter(None, [row.category, row.location, row.model])), "oppdatert": api_local_iso(row.updated_at), "path": "/eiendeler/"}
+        for row in assets
+    )
+    results.sort(key=lambda row: str(row.get("oppdatert") or ""), reverse=True)
+    return {"generatedAt": api_local_iso(local_now_naive()), "query": needle, "count": len(results), "results": results[:60]}
+
+
 @app.get("/api/system/subsystems")
 async def api_system_subsystems():
     rows = system_subsystem_rows()
@@ -26102,7 +26529,10 @@ def api_card(title: str, value: Any, unit: str = "", detail: str = "", tone: str
 
 
 def api_pick(row: Any, columns: list[str]) -> Dict[str, Any]:
-    return row_to_dict(row, columns)
+    payload = row_to_dict(row, columns)
+    if "extra" not in columns:
+        payload.pop("extra", None)
+    return payload
 
 
 def api_iso_value(value: Any) -> Any:

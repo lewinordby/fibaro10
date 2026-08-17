@@ -16,6 +16,7 @@ som standardrute for svar til VPN-klienter. Standardene er `192.168.0.0/16` via
 | --- | --- |
 | Fibaro10 | `https://fibaro10.lilletorget.net` |
 | Appvelger | `https://app.lilletorget.net` |
+| Ny Mantis-stack | `https://ny.lilletorget.net/omsetning/` |
 | Omsetning | `https://app.lilletorget.net/omsetning/` |
 | Parkering | `https://app.lilletorget.net/parkering/` |
 | Soling | `https://app.lilletorget.net/soling/` |
@@ -43,8 +44,9 @@ Scriptet oppretter bare de dokumenterte A-postene og stopper ved konfliktende
 CNAME- eller ANAME-poster.
 
 Utstedelse og fornyelse kjøres med `scripts/renew-internal-https.sh`. QNAP cron
-kjører scriptet hver natt. Etter en faktisk fornyelse sender scriptet Caddy et
-grasiøst reload-signal, slik at det nye sertifikatet tas i bruk uten nedetid.
+kjører scriptet hver natt. Etter en faktisk fornyelse restartes bare
+Caddy-proxyen kontrollert, slik at det nye sertifikatet tas i bruk. Tjenestene
+bak proxyen restartes ikke.
 
 ## Sikkerhet
 

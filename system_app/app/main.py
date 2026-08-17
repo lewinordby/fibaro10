@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +18,8 @@ SHELL_BASE_URL = os.getenv("SHELL_BASE_URL", "http://shell_app:8150").rstrip("/"
 SHELL_APP_URL = os.getenv("SHELL_APP_URL", "https://app.lilletorget.net").rstrip("/")
 MODULES = {
     "auth/me", "modules/admin", "modules/varslinger", "modules/undersystemer", "modules/ideer",
-    "modules/mobil", "modules/manual",
+    "modules/mobil", "modules/manual", "modules/operasjon", "modules/eiendeler",
+    "modules/automatisering", "modules/rapporter", "modules/sok", "modules/datakvalitet",
 }
 DOMAIN_PATTERN = re.compile(r"(?:actions/(?:admin|system)|admin|system|builds?|data-sources?|import-status|mobile-preview|notifications?|subsystems?|manual|users?)(?:/.*)?")
 
@@ -26,8 +28,8 @@ def card(title: str, value: Any, unit: str = "", detail: str = "", tone: str = "
     return {"title": title, "value": value, "unit": unit, "detail": detail, "tone": tone}
 
 
-async def core_json(client: httpx.AsyncClient, headers: dict[str, str], path: str) -> dict[str, Any]:
-    response = await client.get(path, headers=headers)
+async def core_json(client: httpx.AsyncClient, headers: dict[str, str], path: str, params: Any = None) -> dict[str, Any]:
+    response = await client.get(path, headers=headers, params=params)
     response.raise_for_status()
     return response.json()
 
@@ -140,6 +142,174 @@ async def notifications_module(request: Request, client: httpx.AsyncClient, head
         "tables": [{"title": "Kanaler", "columns": ["kanal", "omr\u00e5de", "forklaring", "utl\u00f8ses av", "prioritet", "konfigurert", "publiserer", "abonner", "historikk"], "rows": rows}, {"title": "Slik abonnerer du", "columns": ["trinn", "forklaring"], "rows": setup_rows}],
         "systemNotifications": data,
     }
+
+
+async def operations_center_module(request: Request, client: httpx.AsyncClient, headers: dict[str, str]) -> dict[str, Any]:
+    payload = await notifications_module(request, client, headers)
+    view = request.query_params.get("view", "arbeidsko")
+    titles = {
+        "arbeidsko": "Arbeidskø",
+        "kritisk": "Kritiske hendelser",
+        "kontroller": "Operative kontroller",
+        "historikk": "Behandlet historikk",
+    }
+    payload["title"] = titles.get(view, "Operasjonssentral")
+    payload["subtitle"] = "Én prioritert arbeidsflate for avvik, alarmer, datakilder, backup og varsling"
+    payload["operationView"] = view
+    return payload
+
+
+ASSET_EDIT_FIELDS = [
+    {"key": "name", "label": "Navn", "type": "text", "required": True},
+    {"key": "category", "label": "Kategori", "type": "select", "required": True, "defaultValue": "Annet", "options": [
+        {"label": value, "value": value} for value in ("Solseng", "Robotvasker", "Z-Wave-enhet", "Kamera", "Ventilasjon", "Lys", "Bygg", "IT", "Annet")
+    ]},
+    {"key": "location", "label": "Plassering", "type": "text"},
+    {"key": "status", "label": "Status", "type": "select", "required": True, "defaultValue": "I drift", "options": [
+        {"label": value, "value": value} for value in ("I drift", "Til kontroll", "Ute av drift", "Lager", "Utfaset")
+    ]},
+    {"key": "manufacturer", "label": "Produsent", "type": "text"},
+    {"key": "model", "label": "Modell", "type": "text"},
+    {"key": "serial_no", "label": "Serienummer", "type": "text"},
+    {"key": "hc3_device_id", "label": "HC3-ID", "type": "number"},
+    {"key": "owner_app", "label": "Ansvarlig app", "type": "text"},
+    {"key": "installed_at", "label": "Installert", "type": "date"},
+    {"key": "warranty_until", "label": "Garanti til", "type": "date"},
+    {"key": "service_interval_days", "label": "Serviceintervall i dager", "type": "number"},
+    {"key": "last_service_at", "label": "Sist vedlikehold", "type": "date"},
+    {"key": "notes", "label": "Notat", "type": "textarea", "rows": 4},
+]
+
+
+async def assets_module(request: Request, client: httpx.AsyncClient, headers: dict[str, str]) -> dict[str, Any]:
+    params = {key: value for key in ("q", "category", "status") if (value := request.query_params.get(key))}
+    data = await core_json(client, headers, "/api/system/assets", params)
+    rows = []
+    for row in data.get("assets", []):
+        rows.append({
+            **row,
+            "name": row.get("navn"),
+            "category": row.get("kategori"),
+            "location": row.get("plassering"),
+            "manufacturer": row.get("produsent"),
+            "model": row.get("modell"),
+            "serial_no": row.get("serienummer"),
+            "hc3_device_id": row.get("HC3-ID"),
+            "owner_app": row.get("eierapp"),
+            "installed_at": row.get("installert"),
+            "warranty_until": row.get("garanti til"),
+            "service_interval_days": row.get("serviceintervall dager"),
+            "last_service_at": row.get("sist vedlikehold"),
+            "notes": row.get("notat"),
+        })
+    now = date.today()
+    overdue = sum(1 for row in rows if row.get("neste vedlikehold") and str(row["neste vedlikehold"]) < now.isoformat())
+    warranty = sum(1 for row in rows if row.get("garanti til") and now.isoformat() <= str(row["garanti til"]) <= (now + timedelta(days=90)).isoformat())
+    categories = sorted({str(row.get("kategori")) for row in rows if row.get("kategori")})
+    return {
+        "title": "Eiendelsregister",
+        "subtitle": "Utstyr, plassering, teknisk identitet, garanti og vedlikeholdsbehov",
+        "cards": [
+            card("Eiendeler", len(rows), "stk", "Registrert i felles register"),
+            card("Kategorier", len(categories), "stk", "Faglig gruppering"),
+            card("Forfalt service", overdue, "stk", "Bør følges opp", "warning" if overdue else "success"),
+            card("Garanti 90 dager", warranty, "stk", "Utløper snart", "warning" if warranty else "status"),
+        ],
+        "filters": [
+            {"key": "q", "label": "Søk", "type": "text", "value": request.query_params.get("q", "")},
+            {"key": "category", "label": "Kategori", "type": "select", "value": request.query_params.get("category", ""), "options": [{"label": value, "value": value} for value in categories]},
+            {"key": "status", "label": "Status", "type": "select", "value": request.query_params.get("status", ""), "options": [{"label": value, "value": value} for value in ("I drift", "Til kontroll", "Ute av drift", "Lager", "Utfaset")]},
+        ],
+        "actions": [{"key": "discover", "label": "Synkroniser kjente enheter", "method": "POST", "path": "api/system/assets/discover", "confirm": "Legg til nye solsenger, robotvaskere og energi-/Z-Wave-enheter i registeret?"}],
+        "tables": [{
+            "title": "Alle eiendeler",
+            "columns": ["navn", "kategori", "plassering", "produsent", "modell", "HC3-ID", "status", "neste vedlikehold", "garanti til", "oppdatert"],
+            "rows": rows,
+            "edit": {"kind": "asset", "title": "eiendel", "endpoint": "api/system/assets/{id}", "method": "PATCH", "createEndpoint": "api/system/assets", "layout": "split", "fields": ASSET_EDIT_FIELDS},
+        }],
+    }
+
+
+AUTOMATION_EDIT_FIELDS = [
+    {"key": "name", "label": "Navn", "type": "text", "required": True},
+    {"key": "domain", "label": "Område", "type": "select", "required": True, "defaultValue": "Drift", "options": [{"label": value, "value": value} for value in ("Drift", "Parkering", "Soling", "Energi", "Dører", "Renhold", "Ventilasjon", "Lys", "System")]},
+    {"key": "mode", "label": "Modus", "type": "select", "required": True, "defaultValue": "Utkast", "options": [{"label": value, "value": value} for value in ("Utkast", "Observer", "Aktiv", "Pauset")]},
+    {"key": "enabled", "label": "Aktivert", "type": "boolean"},
+    {"key": "trigger_type", "label": "Type utløser", "type": "select", "required": True, "defaultValue": "Hendelse", "options": [{"label": value, "value": value} for value in ("Hendelse", "Tidsplan", "Terskel", "Datakilde", "Manuell")]},
+    {"key": "cooldown_minutes", "label": "Minste intervall i minutter", "type": "number", "defaultValue": 0},
+    {"key": "description", "label": "Formål", "type": "textarea", "rows": 3},
+    {"key": "trigger", "label": "Utløser", "type": "textarea", "rows": 3},
+    {"key": "conditions", "label": "Betingelser", "type": "textarea", "rows": 4},
+    {"key": "actions", "label": "Handlinger", "type": "textarea", "rows": 4},
+]
+
+
+async def automations_module(request: Request, client: httpx.AsyncClient, headers: dict[str, str]) -> dict[str, Any]:
+    data = await core_json(client, headers, "/api/system/automations")
+    rows = []
+    for row in data.get("automations", []):
+        rows.append({
+            **row,
+            "name": row.get("navn"),
+            "domain": row.get("område"),
+            "description": row.get("beskrivelse"),
+            "trigger_type": row.get("utløser"),
+            "conditions": row.get("betingelser"),
+            "actions": row.get("handlinger"),
+            "mode": row.get("modus"),
+            "enabled": row.get("aktiv"),
+            "cooldown_minutes": row.get("ventetid min"),
+        })
+    enabled = sum(bool(row.get("aktiv")) for row in rows)
+    observe = sum(str(row.get("modus")) == "Observer" for row in rows)
+    return {
+        "title": "Automatiseringsverksted",
+        "subtitle": "Beskriv, kvalitetssikre og forvalt regler før de eventuelt får styre fysisk utstyr",
+        "cards": [card("Regler", len(rows), "stk"), card("Aktive", enabled, "stk", "Eksplisitt aktivert"), card("Observerer", observe, "stk", "Logger uten å styre"), card("Utkast", sum(str(row.get("modus")) == "Utkast" for row in rows), "stk")],
+        "tables": [{
+            "title": "Regler og forslag",
+            "columns": ["navn", "område", "utløser", "modus", "aktiv", "ventetid min", "beskrivelse", "sist evaluert", "siste resultat"],
+            "rows": rows,
+            "edit": {"kind": "automation", "title": "automatisering", "endpoint": "api/system/automations/{id}", "method": "PATCH", "createEndpoint": "api/system/automations", "layout": "split", "fields": AUTOMATION_EDIT_FIELDS},
+        }],
+    }
+
+
+async def reports_module(request: Request, client: httpx.AsyncClient, headers: dict[str, str]) -> dict[str, Any]:
+    rows = [
+        {"rapport": "Driftsstatus", "område": "Operasjon", "periode": "Akkurat nå", "formål": "Avvik, datakilder, backup og varsler", "path": "/operasjon/"},
+        {"rapport": "Nattrapport renhold", "område": "Bygg og drift", "periode": "Natt", "formål": "Planlagte og utførte robotjobber, batteri og vann", "path": "/drift/renhold/rapport"},
+        {"rapport": "Parkeringsoppgjør", "område": "Parkering", "periode": "Måned", "formål": "Oppgjør mot EasyPark og Flowbird/ParkNordic", "path": "/parkering/oppgjor"},
+        {"rapport": "Soloppgjør", "område": "Soling", "periode": "Måned", "formål": "Soling og produkter mot kreditnota", "path": "/soling/oppgjor"},
+        {"rapport": "Energiavvik", "område": "Energi", "periode": "Valgt periode", "formål": "Elvia mot lokale målinger og manglende last", "path": "/energi/avvik"},
+        {"rapport": "Besøksanalyse", "område": "Parkering", "periode": "Valgt periode", "formål": "Tidspunkt, ukedag, varighet og omsetning", "path": "/parkering/besoksanalyse"},
+        {"rapport": "Pris- og tiltaksanalyse", "område": "Parkering", "periode": "Flere år", "formål": "Utvikling før og etter prisendringer", "path": "/parkering/pris-analyse"},
+        {"rapport": "Datakvalitet", "område": "System", "periode": "Akkurat nå", "formål": "Manglende, gamle og inkonsistente data", "path": "/operasjon/datakvalitet"},
+    ]
+    return {
+        "title": "Rapportsenter",
+        "subtitle": "Én inngang til operative rapporter og kontroller, alltid basert på samme fagdata",
+        "cards": [card("Rapporter", len(rows), "stk"), card("Daglig drift", 3, "stk"), card("Økonomi", 2, "stk"), card("Analyse", 3, "stk")],
+        "tables": [{"title": "Tilgjengelige rapporter", "columns": ["rapport", "område", "periode", "formål", "path"], "rows": rows}],
+    }
+
+
+async def search_module(request: Request, client: httpx.AsyncClient, headers: dict[str, str]) -> dict[str, Any]:
+    query = request.query_params.get("q", "").strip()
+    data = {"results": [], "count": 0}
+    if len(query) >= 2:
+        data = await core_json(client, headers, "/api/system/search", {"q": query})
+    return {
+        "title": "Universalsøk",
+        "subtitle": "Søk samlet i kjøretøy, soltimer, vedlikehold og eiendeler",
+        "cards": [card("Treff", data.get("count", 0), "stk", f'Søk: {query}' if query else "Skriv minst to tegn")],
+        "filters": [{"key": "q", "label": "Søk i hele løsningen", "type": "text", "value": query, "placeholder": "Reg.nr., navn, Sun2-ID, rom, utstyr eller oppgave"}],
+        "tables": [{"title": "Søkeresultater", "columns": ["type", "tittel", "detalj", "oppdatert", "path"], "rows": data.get("results", [])}],
+    }
+
+
+async def data_quality_module(request: Request, client: httpx.AsyncClient, headers: dict[str, str]) -> dict[str, Any]:
+    return await core_json(client, headers, "/api/modules/admin?view=datakvalitet")
 
 
 def scalar_row(row: dict[str, Any]) -> dict[str, Any]:
@@ -263,6 +433,12 @@ app = create_domain_app(
             "modules/manual": manual_module,
             "modules/mobil": mobile_module,
             "modules/ideer": ideas_module,
+            "modules/operasjon": operations_center_module,
+            "modules/eiendeler": assets_module,
+            "modules/automatisering": automations_module,
+            "modules/rapporter": reports_module,
+            "modules/sok": search_module,
+            "modules/datakvalitet": data_quality_module,
         },
     )
 )

@@ -92,6 +92,13 @@ https://app.lilletorget.net {
 	}
 }
 
+# Parallel Mantis application stack. One origin provides shared sign-in while
+# each application is still built and deployed as an independent path artifact.
+https://ny.lilletorget.net {
+	import internal_app
+	reverse_proxy lilletorget_mantis:80
+}
+
 https://omsetning.lilletorget.net {
 	import internal_app
 	handle_path /omsetning/* {
@@ -254,8 +261,32 @@ ipad.lilletorget.net {
 		-Server
 	}
 
-	reverse_proxy fibaro10ipad:8113 {
-		header_up Host {host}
-		header_up X-Real-IP {remote_host}
+	@outside_lan not remote_ip private_ranges
+	respond @outside_lan "Not found" 404
+
+	handle /drift {
+		redir /drift/ 308
+	}
+	handle_path /drift/* {
+		reverse_proxy 192.168.20.218:8161 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+	handle /drift-ionic {
+		redir /drift-ionic/ 308
+	}
+	handle_path /drift-ionic/* {
+		reverse_proxy 192.168.20.218:8162 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	handle {
+		reverse_proxy 192.168.20.218:8160 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+		}
 	}
 }

@@ -12,6 +12,122 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1794",
+        "date": "17.08.2026",
+        "headline": "Kvalitetsløft med tett sesjonsisolasjon og sikrere levering",
+        "title": "Sikkerhet, robust datalasting, responsivitet og ryddige omstarter",
+        "description": (
+            "Hele den aktive appstakken er kontrollert fra datakilde og API til bygget frontend og "
+            "produksjonsproxy. En alvorlig feil i de eldre domeneproxyene er rettet: en delt HTTP-klient "
+            "kunne beholde en innloggingscookie og gjenbruke den i en senere forespørsel. Delte klienter "
+            "avviser nå alle cookies, mens selve innloggingen kjøres isolert. Mantis-appene har samtidig "
+            "fått bedre feiltekster, avbrutte utdaterte kall, responsiv systemvisning, sikkerhetsheadere, "
+            "forutsigbar caching og en vesentlig strengere produksjonstest."
+        ),
+        "applications": [
+            "Alle domeneapper: prosessisolert sesjonshåndtering uten delt cookie-lager.",
+            "Alle elleve Mantis-apper: bedre API-feil, innlogging, oppdateringslogikk og levering.",
+            "System, Operasjonssentral, Eiendeler og Rapporter: mer robuste rutenett på mellomstore skjermer.",
+            "Axis, OwnTracks, koblingsmotor og mobildashboard: moderne FastAPI-livssyklus og kontrollert stopp.",
+            "Produksjonsproxy og kvalitetsport: sikkerhetsheadere, cache-regler og anonyme auth-kontroller.",
+        ],
+        "request": "Se over alt med et kritisk kvalitetshevende blikk og rett alt du kan rette.",
+        "work_duration": "ca. 3 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Isolerer innlogging fra den delte HTTP-poolen og avviser all cookie-lagring i felles proxyklient.",
+            "Legger inn regresjonstest som beviser at en mottatt sesjonscookie aldri sendes videre.",
+            "Viser forståelige API-feil og oppdager feil innlogging før brukerprofilen hentes.",
+            "Avbryter utdaterte datakall og slår sammen samtidige fokus- og synlighetsoppdateringer.",
+            "Fjerner dobbeltpolling på datakildedetaljer og gjør nye systemflater responsive.",
+            "Legger til CSP og øvrige sikkerhetsheadere samt riktige cache-regler for appskall og assets.",
+            "Utvider produksjonssmoke med anonym auth, sikkerhetsheadere og statisk cache for alle elleve apper.",
+            "Fjerner shell fra frontendbygget og gjør byggeskriptet portabelt mellom Windows og Linux.",
+            "Flytter fire tjenester fra foreldet on_event til lifespan med kontrollert avslutning av bakgrunnsjobber.",
+            "Kjører komplett frontendbygg, avhengighetskontroll og hele backendens regresjonspakke.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1793",
+        "date": "17.08.2026",
+        "headline": "Nye arbeidsflater for kontroll, analyse og oppfølging",
+        "title": "Operasjonssentral, eiendeler, rapporter og nye beslutningsstøtter",
+        "description": (
+            "Den nye Mantis-serien er utvidet med tre egne apper og fem nye faglige "
+            "innganger. Operasjonssentralen samler avvik, datakvalitet, automatisering og "
+            "universalsøk. Eiendelsregisteret oppdager kjente senger, roboter og HC3-enheter, "
+            "mens rapportsenteret gir én inngang til drifts- og økonomirapporter. Parkering, "
+            "energi og renhold har fått tydeligere analyse- og lederflater basert på eksisterende "
+            "produksjonsdata."
+        ),
+        "applications": [
+            "Operasjonssentral: prioritert arbeidskø, kritiske saker, kontroller, historikk, datakvalitet, automatisering og søk.",
+            "Eiendeler: register for teknisk utstyr med service, garanti, plassering og automatisk oppdagelse.",
+            "Rapporter: samlet katalog for natt, uke, økonomi, oppgjør, energi og systemkontroll.",
+            "Parkering: besøksanalyse, kapasitet/kø og pris-/tiltaksanalyse.",
+            "Energi: egen inngang for avvik mellom HC3, Elvia og beregnede målinger.",
+            "Bygg og drift: lederinngang til robotstatus, jobber, forbruksdeler og planer.",
+            "Fibaro10 API og system_app: persistente eiendeler, automatiseringsregler og universalsøk.",
+        ],
+        "request": (
+            "Gjennomfør alle foreslåtte forbedringer: operasjonssentral, besøksanalyse, "
+            "energiavvik, renholdsleder, eiendelsregister, automatiseringsverksted, kapasitet, "
+            "pris-/tiltaksanalyse, rapportsenter, datakvalitet og universalsøk."
+        ),
+        "work_duration": "ca. 3 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger til datamodell, migrering og CRUD-API for eiendeler og automatiseringsregler.",
+            "Legger til sikker oppdagelse av Sun2-senger, Roborock-roboter og aktive HC3-/energienheter.",
+            "Legger til universalsøk på kjøretøy, soltimer, vedlikehold og eiendeler med direkte lenker.",
+            "Bygger tre nye Mantis-apper under /operasjon, /eiendeler og /rapporter.",
+            "Gjenbruker verifiserte fagberegninger i nye, tydelig navngitte beslutningsflater.",
+            "Gjør bygg- og produksjonssmoke dynamisk, slik at nye apper automatisk inngår i kvalitetsporten.",
+            "Dokumenterer arkitektur, sikkerhetsgrenser og videre bruk av de nye arbeidsflatene.",
+        ],
+    },
+    {
+        "version": "1",
+        "build": "1792",
+        "date": "17.08.2026",
+        "headline": "Den nye appserien er funksjonelt komplett og produksjonsklar",
+        "title": "Funksjonsparitet, avstemming og raskere arbeidsflater",
+        "description": (
+            "Den nye Mantis-serien er gjennomgått app for app mot Fibaro10 og de tidligere "
+            "mikroappene. Felles navigasjon, tabeller, grafer, polling og søk er strammet opp, "
+            "mens manglende arbeidsflater for oppgjør, avstemming, romkontroll, vedlikeholdsbesøk "
+            "og Elvia-import er bygget ferdig. Store driftssider lastes nå ved behov, og energidata "
+            "sendes uten gjentatt HC3-metadata når den ikke er etterspurt."
+        ),
+        "applications": [
+            "Alle nye mikroapper: felles oppdateringslogikk, tydeligere navigasjon, søk, tabeller og grafer.",
+            "Omsetning, Parkering og Soling: komplett periode-, detalj- og oppgjørsflyt med kontroller.",
+            "Bygg og drift: forbedret ventilasjonslogg, dører, romkontroll og pullertkontroll.",
+            "Energi: komplett Elvia-import, kurs/last og behovslastede tunge sider.",
+            "Vedlikehold: ny effektiv besøksflate med oppgaver, notater og redigering.",
+            "System: samlet avstemmingsside med direkte lenker til avvik og manglende datagrunnlag.",
+            "Fibaro10 API: mindre energiresponser ved å utelate ubrukt metadata.",
+        ],
+        "request": "Gjennomfør forbedringslisten grundig i hele den nye appserien.",
+        "work_duration": "ca. 6 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Innfører synlighetsstyrt polling og beskyttelse mot utdaterte API-svar.",
+            "Gjør interne detaljlenker, eksakt søk, filopplasting og periodekontroller konsistente.",
+            "Bygger egne oppgjørssider for parkering og soling med kildekontroll og prosentavvik.",
+            "Bygger en samlet avstemmingsflate for økonomi, drift og manglende datagrunnlag.",
+            "Bygger romkontroll med dagslinje, soltimer, dørhendelser og effektendringer.",
+            "Rydder ventilasjonsgrafen med korrekt døgnakse, fuktmodus og viftestatus.",
+            "Bygger vedlikeholdsbesøk som master-/detaljflate med redigerbare oppgaver og notater.",
+            "Gjør Elvia-importen tydelig og følger aktive importer uten å blokkere grensesnittet.",
+            "Deler tunge drift-, energi- og systemsider slik at de lastes først når de åpnes.",
+            "Reduserer energipayload ved å utelate gjentatt HC3-ekstrainformasjon.",
+            "Kjører komplett frontendbygg, kvalitetsport og hele backendens testpakke.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1791",
         "date": "16.08.2026",
         "headline": "Mikroappene har fått en strammere teknisk grunnmur",

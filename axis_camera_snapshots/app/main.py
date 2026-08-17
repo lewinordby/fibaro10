@@ -5,6 +5,7 @@ import html
 import json
 import logging
 import os
+from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -31,10 +32,29 @@ CONFIG_FILE = Path(os.getenv("AXIS_CONFIG_FILE", str(DATA_DIR / "config.json")))
 STATE_FILE = Path(os.getenv("AXIS_STATE_FILE", str(DATA_DIR / "state.json")))
 CLEANUP_INTERVAL_SECONDS = max(300, int(os.getenv("AXIS_CLEANUP_INTERVAL_SECONDS", "3600")))
 
-app = FastAPI(title="Axis camera snapshots")
 capture_task: asyncio.Task | None = None
 capture_lock = asyncio.Lock()
 last_cleanup_monotonic = 0.0
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    global capture_task
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    SNAPSHOT_ROOT.mkdir(parents=True, exist_ok=True)
+    if not CONFIG_FILE.exists():
+        save_config(default_config())
+    capture_task = asyncio.create_task(capture_loop(), name="axis-snapshot-capture")
+    try:
+        yield
+    finally:
+        if capture_task:
+            capture_task.cancel()
+            await asyncio.gather(capture_task, return_exceptions=True)
+            capture_task = None
+
+
+app = FastAPI(title="Axis camera snapshots", lifespan=lifespan)
 
 
 @dataclass
@@ -302,16 +322,6 @@ button,.button{{display:inline-flex;border:1px solid #acd8e1;background:#e7f5f8;
 code{{overflow-wrap:anywhere}}
 </style></head><body><main><h1>Axis snapshots</h1>{content}</main></body></html>"""
     )
-
-
-@app.on_event("startup")
-async def startup() -> None:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    SNAPSHOT_ROOT.mkdir(parents=True, exist_ok=True)
-    if not CONFIG_FILE.exists():
-        save_config(default_config())
-    global capture_task
-    capture_task = asyncio.create_task(capture_loop())
 
 
 @app.get("/health")

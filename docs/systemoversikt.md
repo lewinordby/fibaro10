@@ -1,6 +1,6 @@
 # Systemoversikt
 
-Oppdatert 16.08.2026.
+Oppdatert 17.08.2026.
 
 Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene er `docker-compose.qnap.yml`, `Caddyfile`, `system_inventory.py`, `import_jobs.py` og siste QNAP-status.
 
@@ -10,11 +10,22 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 - 28 komponenter er aktive i dagens runtime eller som aktivt verktøy; Dreame er klargjort for aktivering.
 - 26 komponenter har webflate eller lokal statusflate.
 - 24 datakilder/importjobber er definert i Fibaro10.
-- Produksjonsbuild ved siste sjekk: Fibaro10 build `1791`; commit settes ved deploy.
+- Produksjonsbuild ved siste sjekk: Fibaro10 build `1793`; commit settes ved deploy.
 - QNAP-appmappe: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`.
 - Backup/arkivvolum: `/share/CACHEDEV3_DATA/fibaro10_archive`.
 
 ## Webflater
+
+Den nye Mantis-serien bruker ett internt domene og omfatter elleve selvstendige
+applikasjoner: Omsetning, Parkering, Soling, Koble, Bygg og drift, Energi,
+Vedlikehold, Operasjonssentral, Eiendeler, Rapporter og System. De tre nyeste
+inngangene er:
+
+| Flate | URL | Formål |
+| --- | --- | --- |
+| Operasjonssentral | `https://ny.lilletorget.net/operasjon/` | Arbeidskø, datakvalitet, automatisering og universalsøk. |
+| Eiendeler | `https://ny.lilletorget.net/eiendeler/` | Teknisk register med garanti, service og HC3-kobling. |
+| Rapporter | `https://ny.lilletorget.net/rapporter/` | Samlet inngang til økonomi-, drift- og kontrollrapporter. |
 
 | Flate | URL | Formål |
 | --- | --- | --- |
@@ -119,6 +130,12 @@ Den brede cookien er et bevisst arkitekturvalg og skal ikke snevres inn til
 subdomenene skal dele innlogging. Den inneholder bare en opak, tilbakekallbar
 sesjonsnøkkel og er beskyttet med `Secure`, `HttpOnly` og `SameSite=Lax`.
 
+Domeneappene videresender bare cookien som følger den enkelte innkommende
+forespørselen. Den delte HTTP-forbindelsespoolen avviser all cookie-lagring, og
+innloggingskallet bruker en egen kortlivet klient. Dermed kan en brukers sesjon
+ikke bli liggende i app-prosessen og arves av en annen forespørsel. Produksjonssmoke
+kontrollerer anonym `401` på alle appenes `/api/auth/me` etter hver utrulling.
+
 Direkte lokal utvikling via IP eller `localhost` får ingen domenecookie; der settes
 samme cookien bare for det lokale vertsnavnet. Domenet kan overstyres med
 `AUTH_SESSION_COOKIE_DOMAIN`, eller deaktiveres med en tom verdi.
@@ -202,6 +219,7 @@ Standard deploy går gjennom:
 5. Health-check av alle dokumenterte HTTP-endepunkter, 24 datakilder og forventede containere
 6. Smoke-check av interne flater, importører og eksterne proxyadresser
 7. Innlogget live-smoke gjennom desktop- og fagapprutene, med p50/p95-måling
+8. Anonym sesjonskontroll, sikkerhetsheadere og cache-regler for alle Mantis-appene
 
 Den lokale kontrollen kompilerer all sporet Python-kode og kjører også testene for vedlikeholdsmobil, Protect/pullerter og faste AI-profiler. Frontendkontrollen kjører `npm audit` for alle aktive flater. Hovedflaten
 har et eksplisitt avvik for React Router-rådet `GHSA-qwww-vcr4-c8h2`, fordi

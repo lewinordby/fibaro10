@@ -2,6 +2,7 @@ import ast
 import importlib.util
 import os
 from pathlib import Path
+from types import SimpleNamespace
 import unittest
 
 import api_contracts
@@ -29,6 +30,20 @@ class AdminBuildApiContractTests(unittest.TestCase):
         self.assertIn("headline", payload)
         self.assertIn("changes", payload)
         self.assertIsInstance(payload["changes"], list)
+
+
+class ApiPayloadContractTests(unittest.TestCase):
+    def test_api_pick_only_includes_extra_when_requested(self) -> None:
+        os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://example:example@127.0.0.1:5432/example")
+        import main
+
+        row = SimpleNamespace(value=42, extra={"device": "HC3", "metadata": "repeated"})
+
+        self.assertEqual(main.api_pick(row, ["value"]), {"value": 42})
+        self.assertEqual(
+            main.api_pick(row, ["value", "extra"]),
+            {"value": 42, "extra": {"device": "HC3", "metadata": "repeated"}},
+        )
 
 
 class OverviewApiContractTests(unittest.TestCase):

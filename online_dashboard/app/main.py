@@ -8,6 +8,7 @@ import os
 import re
 import secrets
 import time
+from contextlib import asynccontextmanager
 from typing import Any, Optional
 from urllib.parse import quote, quote_plus, urlencode, urlparse
 import urllib.request
@@ -156,7 +157,26 @@ OTHER_DOOR_DEVICE_IDS = [int(item["device_id"]) for item in OTHER_DOOR_CONFIG if
 OTHER_DOOR_KEYS = [str(item["device_key"]) for item in OTHER_DOOR_CONFIG if item.get("device_key")]
 OTHER_DOOR_BY_KEY = {str(item["device_key"]): item for item in OTHER_DOOR_CONFIG}
 
-app = FastAPI(title="Lilletorget online", docs_url=None, redoc_url=None)
+public_dashboard_sync_task: Optional[asyncio.Task] = None
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    global public_dashboard_sync_task
+    if SNAPSHOT_MODE:
+        await ensure_snapshot_table()
+    elif PUBLIC_DASHBOARD_SYNC_ENABLED and PUBLIC_DASHBOARD_SYNC_TOKEN and public_dashboard_ingest_url():
+        public_dashboard_sync_task = asyncio.create_task(public_dashboard_sync_worker(), name="public-dashboard-sync")
+    try:
+        yield
+    finally:
+        if public_dashboard_sync_task:
+            public_dashboard_sync_task.cancel()
+            await asyncio.gather(public_dashboard_sync_task, return_exceptions=True)
+            public_dashboard_sync_task = None
+
+
+app = FastAPI(title="Lilletorget online", docs_url=None, redoc_url=None, lifespan=lifespan)
 ONLINE_PWA = PwaConfig(
     name="Lilletorget Mobil",
     short_name="Lilletorget",
@@ -173,7 +193,6 @@ engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 parking_refresh_lock = asyncio.Lock()
 parking_refresh_last_started_monotonic: Optional[float] = None
-public_dashboard_sync_task: Optional[asyncio.Task] = None
 
 SNAPSHOT_TABLE_SQL = """
 create table if not exists online_dashboard_snapshots (
@@ -2842,15 +2861,6 @@ def render_login(error: str = "") -> HTMLResponse:
         inject_pwa_head(LOGIN_HTML.replace("{{ error }}", error), ONLINE_PWA),
         status_code=401 if error else 200,
     )
-
-
-@app.on_event("startup")
-async def startup():
-    global public_dashboard_sync_task
-    if SNAPSHOT_MODE:
-        await ensure_snapshot_table()
-    elif PUBLIC_DASHBOARD_SYNC_ENABLED and PUBLIC_DASHBOARD_SYNC_TOKEN and public_dashboard_ingest_url():
-        public_dashboard_sync_task = asyncio.create_task(public_dashboard_sync_worker())
 
 
 @app.get("/health")

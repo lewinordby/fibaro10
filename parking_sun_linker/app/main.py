@@ -4,6 +4,7 @@ import asyncio
 import os
 import re
 import time
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -26,10 +27,26 @@ BATCH_SIZE = max(1, min(100, int(os.getenv("KOBLE_BATCH_SIZE", "25"))))
 ERROR_GRACE_SECONDS = max(15, int(os.getenv("KOBLE_ERROR_GRACE_SECONDS", "90")))
 
 Base = declarative_base()
-app = FastAPI(title="Fibaro10 parking sun linker")
 engine = create_async_engine(DATABASE_URL, pool_pre_ping=True) if DATABASE_URL else None
 async_session = async_sessionmaker(engine, expire_on_commit=False) if engine else None
 worker_task: asyncio.Task | None = None
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    global worker_task
+    if RUN_ON_START:
+        worker_task = asyncio.create_task(worker_loop(), name="parking-sun-linker")
+    try:
+        yield
+    finally:
+        if worker_task:
+            worker_task.cancel()
+            await asyncio.gather(worker_task, return_exceptions=True)
+            worker_task = None
+
+
+app = FastAPI(title="Fibaro10 parking sun linker", lifespan=lifespan)
 
 state: dict[str, Any] = {
     "started_at": datetime.now(timezone.utc).isoformat(),
@@ -317,23 +334,6 @@ async def worker_loop() -> None:
             if config:
                 await post_status(config, "feil", f"Koblingsworker feilet: {exc}", str(exc))
             await asyncio.sleep(min(30, 2 ** min(consecutive_errors, 5)))
-
-
-@app.on_event("startup")
-async def startup() -> None:
-    global worker_task
-    if RUN_ON_START:
-        worker_task = asyncio.create_task(worker_loop())
-
-
-@app.on_event("shutdown")
-async def shutdown() -> None:
-    if worker_task:
-        worker_task.cancel()
-        try:
-            await worker_task
-        except asyncio.CancelledError:
-            pass
 
 
 @app.get("/health")

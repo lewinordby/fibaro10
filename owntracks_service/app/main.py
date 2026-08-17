@@ -14,6 +14,7 @@ import threading
 import time
 import urllib.parse
 import urllib.request
+from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -2392,7 +2393,15 @@ OWNTRACKS_ADMIN_HTML = """
 """
 
 
-app = FastAPI(title="OwnTracks service")
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    Base.metadata.create_all(engine)
+    ensure_owntracks_schema()
+    normalize_existing_owntracks_data()
+    yield
+
+
+app = FastAPI(title="OwnTracks service", lifespan=lifespan)
 OWNTRACKS_PWA_MANIFEST = {
     "id": "/",
     "name": "Lilletorget OwnTracks",
@@ -2429,13 +2438,6 @@ OWNTRACKS_PWA_DIR = Path(__file__).resolve().parent
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 if (FRONTEND_DIST / "assets").exists():
     app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="owntracks_assets")
-
-
-@app.on_event("startup")
-def on_startup() -> None:
-    Base.metadata.create_all(engine)
-    ensure_owntracks_schema()
-    normalize_existing_owntracks_data()
 
 
 def owntracks_admin_response() -> Response:

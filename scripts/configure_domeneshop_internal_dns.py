@@ -18,6 +18,7 @@ PRIVATE_IP = "192.168.20.219"
 HOSTS = (
     "fibaro10",
     "app",
+    "ny",
     "omsetning",
     "parkering",
     "soling",
