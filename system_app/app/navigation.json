@@ -189,20 +189,20 @@
       ]
     },
     {
-      "id": "operations",
-      "name": "Lilletorget Bygg og drift",
-      "shortName": "Bygg og drift",
-      "basePath": "/drift",
+      "id": "building",
+      "name": "Lilletorget Bygg",
+      "shortName": "Bygg",
+      "basePath": "/bygg",
       "icon": "building",
       "accent": "violet",
       "port": 8155,
-      "url": "https://ny.lilletorget.net/drift/",
+      "url": "https://ny.lilletorget.net/bygg/",
       "groups": [
         {
-          "label": "Driftsoversikt",
+          "label": "Oversikt",
           "icon": "dashboard",
           "items": [
-            { "to": "/", "label": "Driftsoversikt", "icon": "dashboard", "title": "Driftsoversikt", "description": "Samlet status for tekniske funksjoner i bygget.", "module": "status", "view": "drift", "corePath": "/status/drift" }
+            { "to": "/", "label": "Byggoversikt", "icon": "dashboard", "title": "Byggoversikt", "description": "Samlet status for ventilasjon, klima og lys.", "module": "status", "view": "drift", "corePath": "/status/drift" }
           ]
         },
         {
@@ -225,6 +225,59 @@
             { "to": "/lys/hendelser", "label": "Hendelser", "icon": "clock", "title": "Lyshendelser", "description": "Registrerte endringer i lysstyringen.", "module": "lys", "view": "hendelser", "corePath": "/lys/hendelser" },
             { "to": "/lys/innstillinger", "label": "Innstillinger", "icon": "settings", "title": "Lysinnstillinger", "description": "Regler og terskler for automatisk lysstyring.", "module": "lys", "view": "innstillinger", "corePath": "/lys/innstillinger" }
           ]
+        }
+      ]
+    },
+    {
+      "id": "cleaning",
+      "name": "Lilletorget Renhold",
+      "shortName": "Renhold",
+      "basePath": "/renhold",
+      "icon": "robot",
+      "accent": "cyan",
+      "port": 8155,
+      "url": "https://ny.lilletorget.net/renhold/",
+      "groups": [
+        {
+          "label": "Oversikt",
+          "icon": "dashboard",
+          "items": [
+            { "to": "/", "label": "Renholdsoversikt", "icon": "dashboard", "title": "Renholdsoversikt", "description": "Status, historikk og oppf\u00f8lging av robotvaskere.", "module": "renhold", "view": "oversikt", "corePath": "/renhold/oversikt" }
+          ]
+        },
+        {
+          "label": "Rapport",
+          "icon": "calendar",
+          "items": [
+            { "to": "/rapport", "label": "Nattrapport", "icon": "calendar", "title": "Nattrapport", "description": "Maskinell d\u00f8gnrapport for rengj\u00f8ring, batteri, vann og driftsklar status.", "module": "renhold", "view": "rapport", "corePath": "/renhold/rapport" }
+          ]
+        },
+        {
+          "label": "Vann",
+          "icon": "energy",
+          "items": [
+            { "to": "/vann", "label": "Vann og moppevask", "icon": "energy", "title": "Vann og moppevask", "description": "Vannstatus, moppevaskintervall, faktisk vaskebelastning og hendelser.", "module": "renhold", "view": "vann", "corePath": "/renhold/vann" },
+            { "to": "/pafylling", "label": "P\u00e5fylling", "icon": "refresh", "title": "P\u00e5fyllingslogg", "description": "N\u00e5r dokkene g\u00e5r tomme og n\u00e5r de fylles igjen.", "module": "renhold", "view": "pafylling", "corePath": "/renhold/pafylling" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "control",
+      "name": "Lilletorget Kontroll",
+      "shortName": "Kontroll",
+      "basePath": "/kontroll",
+      "icon": "warning",
+      "accent": "red",
+      "port": 8155,
+      "url": "https://ny.lilletorget.net/kontroll/",
+      "groups": [
+        {
+          "label": "Oversikt",
+          "icon": "dashboard",
+          "items": [
+            { "to": "/", "label": "Kontrolloversikt", "icon": "dashboard", "title": "Kontrolloversikt", "description": "Samlet status for d\u00f8rer, solrom og pullerter.", "module": "status", "view": "kontroll", "corePath": "/status/drift" }
+          ]
         },
         {
           "label": "D\u00f8rer",
@@ -239,37 +292,10 @@
           ]
         },
         {
-          "label": "Utpr\u00f8ving: d\u00f8rer",
-          "icon": "compare",
-          "items": [
-            { "to": "/dorer/oversikt-kompakt", "label": "Kompakt oversikt", "icon": "door", "title": "Kompakt d\u00f8roversikt", "description": "Det kompakte oversiktsforslaget fra Fibaro10.", "module": "dorer", "view": "oversikt-ny", "corePath": "/dorer/oversikt-ny" },
-            { "to": "/dorer/romkontroll-original", "label": "Romkontroll original", "icon": "compare", "title": "Romkontroll original", "description": "Den opprinnelige romkontrollen med ett valgt rom.", "module": "dorer", "view": "romkontroll", "corePath": "/dorer/romkontroll" },
-            { "to": "/dorer/dagsmatrise", "label": "Dagsmatrise", "icon": "calendar", "title": "Dagsmatrise solrom", "description": "Alle solrom samlet for valgt dag.", "module": "dorer", "view": "romkontroll-ny", "corePath": "/dorer/romkontroll-ny" },
-            { "to": "/dorer/solrom-kompakt", "label": "Solrom kompakt", "icon": "sun", "title": "Kompakt solromstatus", "description": "Alternativ kompakt visning av solrommene.", "module": "dorer", "view": "solrom-ny", "corePath": "/dorer/solrom-ny" },
-            { "to": "/solrom/dagskontroll", "label": "Solrom dagskontroll", "icon": "calendar", "title": "Solrom dagskontroll", "description": "Dagskontroll fra den egne Solrom-flaten.", "module": "dorer", "view": "solrom-dagskontroll", "corePath": "/solrom/dagskontroll" },
-            { "to": "/solrom2/oversikt", "label": "Solrom-2", "icon": "sun", "title": "Solrom-2 oversikt", "description": "Alternativ solromflate med tydelig avviksfokus.", "module": "dorer", "view": "solrom2-oversikt", "corePath": "/solrom-2/oversikt" },
-            { "to": "/solrom2/dagskontroll", "label": "Solrom-2 dagskontroll", "icon": "calendar", "title": "Solrom-2 dagskontroll", "description": "Dagsmatrise fra Solrom-2.", "module": "dorer", "view": "solrom2-dagskontroll", "corePath": "/solrom-2/dagskontroll" },
-            { "to": "/solrom2/avvik", "label": "Solrom-2 avvik", "icon": "warning", "title": "Solrom-2 avvik", "description": "Rom med varsler, alarmer eller manglende kobling.", "module": "dorer", "view": "solrom2-avvik", "corePath": "/solrom-2/avvik" },
-            { "to": "/dorer2/situasjon", "label": "D\u00f8rer2 situasjon", "icon": "door", "title": "D\u00f8rer2 situasjon", "description": "Situasjonsflaten for solrom og byggd\u00f8rer.", "module": "dorer", "view": "dorer2-oversikt", "corePath": "/dorer2/oversikt" },
-            { "to": "/dorer2/bygg", "label": "D\u00f8rer2 byggd\u00f8rer", "icon": "building", "title": "D\u00f8rer2 byggd\u00f8rer", "description": "Byggd\u00f8rer vurdert mot normalstilling.", "module": "dorer", "view": "dorer2-bygg", "corePath": "/dorer2/bygg" }
-          ]
-        },
-        {
           "label": "Pullerter",
           "icon": "building",
           "items": [
             { "to": "/pullerter", "label": "Pullerter", "icon": "building", "title": "Pullerter og fasade", "description": "Visuell og AI-basert kontroll av pullerter, fasade og trapp.", "module": "pullerter", "view": "oversikt", "corePath": "/pullerter/oversikt" }
-          ]
-        },
-        {
-          "label": "Renhold",
-          "icon": "robot",
-          "items": [
-            { "to": "/renhold", "label": "Oversikt", "icon": "robot", "title": "Renhold", "description": "Status, historikk og oppf\u00f8lging av robotvaskere.", "module": "renhold", "view": "oversikt", "corePath": "/renhold/oversikt" },
-            { "to": "/renhold/rapport", "label": "Nattrapport", "icon": "calendar", "title": "Nattrapport", "description": "Maskinell d\u00f8gnrapport for rengj\u00f8ring, batteri, vann og driftsklar status.", "module": "renhold", "view": "rapport", "corePath": "/renhold/rapport" },
-            { "to": "/renhold/vann", "label": "Vann", "icon": "energy", "title": "Vann og moppevask", "description": "Vannstatus, moppevaskintervall, faktisk vaskebelastning og hendelser.", "module": "renhold", "view": "vann", "corePath": "/renhold/vann" },
-            { "to": "/renhold/pafylling", "label": "P\u00e5fylling", "icon": "refresh", "title": "P\u00e5fyllingslogg", "description": "N\u00e5r dokkene g\u00e5r tomme og n\u00e5r de fylles igjen.", "module": "renhold", "view": "pafylling", "corePath": "/renhold/pafylling" },
-            { "to": "/renhold/leder", "label": "Renholdsleder", "icon": "dashboard", "title": "Renholdsleder", "description": "Samlet arbeidsflate for driftsklarhet, nattjobber, vann, forbruksdeler og avvik.", "module": "renhold", "view": "leder", "corePath": "/renhold/oversikt" }
           ]
         }
       ]
@@ -462,7 +488,7 @@
             { "to": "/manual/daglig-bruk", "label": "Daglig bruk", "icon": "book", "title": "Daglig bruk", "description": "De viktigste arbeidsflytene i hverdagen.", "module": "manual", "view": "daglig-bruk", "corePath": "/manual/daglig-bruk" },
             { "to": "/manual/menyvalg", "label": "Menyvalg", "icon": "apps", "title": "Menyvalg", "description": "Forklaring av hvert fagområde og hver arbeidsflate.", "module": "manual", "view": "menyvalg", "corePath": "/manual/menyvalg" },
             { "to": "/manual/okonomi", "label": "Økonomi", "icon": "chart", "title": "Økonomi", "description": "Omsetning, parkering, soling og oppgjør.", "module": "manual", "view": "okonomi", "corePath": "/manual/okonomi" },
-            { "to": "/manual/bygg-drift", "label": "Bygg og drift", "icon": "building", "title": "Bygg og drift", "description": "Energi, ventilasjon, lys, dører og vedlikehold.", "module": "manual", "view": "bygg-drift", "corePath": "/manual/bygg-drift" },
+            { "to": "/manual/bygg-drift", "label": "Bygg og kontroll", "icon": "building", "title": "Bygg, renhold og kontroll", "description": "Energi, ventilasjon, lys, renhold, dører og fysisk kontroll.", "module": "manual", "view": "bygg-drift", "corePath": "/manual/bygg-drift" },
             { "to": "/manual/system-underapper", "label": "System og apper", "icon": "settings", "title": "System og underapper", "description": "Tjenester, sideapper og ansvarsområder.", "module": "manual", "view": "system-underapper", "corePath": "/manual/system-underapper" },
             { "to": "/manual/datagrunnlag", "label": "Datagrunnlag", "icon": "book", "title": "Datagrunnlag", "description": "Hvor data kommer fra og hvordan de behandles.", "module": "manual", "view": "datagrunnlag", "corePath": "/manual/datagrunnlag" },
             { "to": "/manual/hc3-energi", "label": "HC3 energi", "icon": "energy", "title": "HC3 energioppsamlinger", "description": "Alle QuickApps, medlemmer og målere som ikke er med.", "module": "manual", "view": "hc3-energi", "corePath": "/manual/hc3-energi" },

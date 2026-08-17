@@ -260,7 +260,9 @@ def test_documented_menu_structure_matches_current_mantis_navigation() -> None:
         "parking",
         "sun",
         "link",
-        "operations",
+        "building",
+        "cleaning",
+        "control",
         "energy",
         "maintenance",
         "operation-center",
@@ -269,7 +271,7 @@ def test_documented_menu_structure_matches_current_mantis_navigation() -> None:
         "system",
     ]
     assert all(app["url"].startswith("https://ny.lilletorget.net/") for app in navigation)
-    assert sum(len(group["items"]) for app in navigation for group in app["groups"]) == 127
+    assert sum(len(group["items"]) for app in navigation for group in app["groups"]) == 117
 
     legacy_navigation = json.loads((repo_root / "packages" / "microapp-ui" / "src" / "navigation.json").read_text(encoding="utf-8"))["apps"]
     generic_apps = ("sun", "energy", "operations", "maintenance", "system", "link")
@@ -293,7 +295,7 @@ def test_system_menu_structure_page_is_available_without_core_data() -> None:
         payload = response.json()
         assert payload["title"] == "Menystruktur"
         assert len(payload["tables"]) == len(APP_MENU_STRUCTURE) + 2
-        assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 127
+        assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 117
 
 
 def test_parity_critical_specialized_views_are_kept_in_microapps() -> None:

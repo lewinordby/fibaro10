@@ -28,7 +28,9 @@ Alle stier over ligger under `https://ny.lilletorget.net`.
 | Parkering | `/parkering/` | Parkeringer, kjøretøy, oppgjør, prognose og analyse. |
 | Soling | `/soling/` | Soltimer, bilder, dagslinje, produkter, medlemmer og oppgjør. |
 | Koble | `/koble/` | Kontroll av sannsynlige koblinger mellom bil og SUN2-ID. |
-| Bygg og drift | `/drift/` | Ventilasjon, lys, dører, solrom, pullerter og renhold. |
+| Bygg | `/bygg/` | Ventilasjon, klima og lys. |
+| Renhold | `/renhold/` | Robotstatus, planer, vann og nattrapporter. |
+| Kontroll | `/kontroll/` | Dører, solrom, alarmer, pullerter og fasadekontroll. |
 | Energi | `/energi/` | Sanntidsforbruk, Elvia, kurs/last og forbruk per seng. |
 | Vedlikehold | `/vedlikehold/` | Oppgaver, besøk, notater og historikk. |
 | Operasjonssentral | `/operasjon/` | Arbeidskø, kritiske avvik, datakvalitet og søk. |
@@ -53,8 +55,8 @@ Alle stier over ligger under `https://ny.lilletorget.net`.
 | Parkering stemmer ikke | `/parkering/parkeringer` | Sjekk EasyPark-import, kilde og oppgjør. |
 | Soling stemmer ikke | `/soling/enkeltimer` | Sjekk timer, dagslinje, produkter, bilder og SUN2-jobber. |
 | Strøm avviker | `/energi/elvia-kontroll` | Kontroller målebrudd, nullstillinger og manglende laster. |
-| Lys eller ventilasjon virker feil | `/drift/lys` eller `/drift/ventilasjon` | Se måleverdier, hendelser og innstillinger samme dag. |
-| Robotjobb mangler | `/drift/renhold/rapport` | Sammenlign gjeldende plan, faktisk jobb, batteri og vannstatus. |
+| Lys eller ventilasjon virker feil | `/bygg/lys` eller `/bygg/ventilasjon` | Se måleverdier, hendelser og innstillinger samme dag. |
+| Robotjobb mangler | `/renhold/rapport` | Sammenlign gjeldende plan, faktisk jobb, batteri og vannstatus. |
 | En app svarer ikke | `/system/systemkart` | Finn riktig tjeneste, health-lenke og avhengighet. |
 
 ## Viktige datakilder

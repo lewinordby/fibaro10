@@ -33885,11 +33885,33 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "signal_label": roborock_signal_label(telemetry.rssi) if telemetry else "-",
                 }
 
-            def overview_schedules(robot_duid: str) -> Dict[str, Any]:
-                active = schedules_by_robot.get(robot_duid, [])
+            def overview_schedules(
+                robot_duid: str,
+                water_interlock: Optional[Dict[str, Any]] = None,
+            ) -> Dict[str, Any]:
+                configured = schedules_by_robot.get(robot_duid, [])
+                paused_rows = (
+                    water_interlock.get("paused_schedules")
+                    if isinstance(water_interlock, dict)
+                    and isinstance(water_interlock.get("paused_schedules"), list)
+                    else []
+                )
+                paused_ids = {
+                    str(row.get("schedule_id"))
+                    for row in paused_rows
+                    if isinstance(row, dict) and row.get("schedule_id") is not None
+                }
+                active = [
+                    schedule
+                    for schedule in configured
+                    if str(schedule.schedule_id) not in paused_ids
+                ]
                 next_schedule = min(active, key=roborock_next_schedule_score) if active else None
                 return {
                     "active_count": len(active),
+                    "configured_count": len(configured),
+                    "paused_count": len(paused_rows),
+                    "paused_schedules": paused_rows,
                     "next_label": roborock_next_schedule_text(next_schedule) if next_schedule else None,
                     "schedule_label": roborock_schedule_text(next_schedule) if next_schedule else None,
                     "rounds_label": roborock_rounds_label(next_schedule.repeat) if next_schedule else None,
@@ -33903,6 +33925,18 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 if telemetry and telemetry.in_cleaning is not None:
                     cycle_history.append(telemetry)
                 active_cycle = roborock_active_cycle_summary(cycle_history)
+                overview_readiness_data = overview_readiness(robot, status, telemetry, active_cycle)
+                water_interlock = overview_readiness_data.get("water_interlock") or {}
+                overview_schedules_data = overview_schedules(robot.duid, water_interlock)
+                paused_schedules = (
+                    water_interlock.get("paused_schedules")
+                    if isinstance(water_interlock.get("paused_schedules"), list)
+                    else []
+                )
+                overview_schedules_data["paused_count"] = max(
+                    int_or_zero(water_interlock.get("paused_count")),
+                    len(paused_schedules),
+                )
                 robot_summaries.append(
                     {
                         "duid": robot.duid,
@@ -33925,9 +33959,9 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "today": overview_day(robot.duid, today_local, active_cycle),
                         "yesterday": overview_day(robot.duid, yesterday_local, active_cycle),
                         "active_cycle": api_roborock_active_cycle(cycle_history),
-                        "readiness": overview_readiness(robot, status, telemetry, active_cycle),
+                        "readiness": overview_readiness_data,
                         "consumables": overview_consumables(robot.duid),
-                        "schedules": overview_schedules(robot.duid),
+                        "schedules": overview_schedules_data,
                     }
                 )
             if not any(cleaning_provider(robot.provider) == "dreame" for robot in robots):
@@ -34044,6 +34078,18 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "jobs_today": sum(int(row["today"]["job_count"]) for row in robot_summaries),
                 "duration_today": round(sum(float(row["today"]["duration_minutes"]) for row in robot_summaries), 1),
                 "area_today": round(sum(float(row["today"]["cleaned_area_m2"]) for row in robot_summaries), 1),
+                "paused_plan_count": sum(
+                    int_or_zero((row.get("schedules") or {}).get("paused_count"))
+                    for row in robot_summaries
+                ),
+                "water_blocked_count": sum(
+                    ((row.get("readiness") or {}).get("water_interlock") or {}).get("status") == "blocked"
+                    for row in robot_summaries
+                ),
+                "water_interlock_error_count": sum(
+                    ((row.get("readiness") or {}).get("water_interlock") or {}).get("status") == "error"
+                    for row in robot_summaries
+                ),
                 "updated_at": max(overview_updates, default=None),
             }
             robot_table_columns = ["name", "model", "cloud_online", "local_ip", "battery", "last_seen_at", "last_error"]

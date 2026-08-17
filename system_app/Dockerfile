@@ -20,7 +20,6 @@ COPY system_app/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 COPY microapp_backend ./microapp_backend
 COPY system_app ./system_app
-COPY packages/microapp-ui/src/navigation.json ./system_app/app/navigation.json
 COPY --from=frontend_builder /workspace/system_app/frontend/dist ./system_app/app/static/dist
 EXPOSE 8157
 CMD ["uvicorn", "system_app.app.main:app", "--host", "0.0.0.0", "--port", "8157"]

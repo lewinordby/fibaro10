@@ -75,7 +75,7 @@ def menu_structure_module(_request: Request) -> dict[str, Any]:
                 "title": "Slik er navigasjonen bygget",
                 "columns": ["niv\u00e5", "element", "plassering", "forklaring"],
                 "rows": [
-                    {"niv\u00e5": "Globalt", "element": "App", "plassering": "Appfeltet", "forklaring": "Bytter mellom de elleve appene under samme origin."},
+                    {"niv\u00e5": "Globalt", "element": "App", "plassering": "Appfeltet", "forklaring": f"Bytter mellom de {len(APP_MENU_STRUCTURE)} appene under samme origin."},
                     {"niv\u00e5": "1", "element": "Hovedomr\u00e5de", "plassering": "Appmeny", "forklaring": "En arbeidsflyt eller et tydelig fagomr\u00e5de i valgt app."},
                     {"niv\u00e5": "2", "element": "Side", "plassering": "Fagområde", "forklaring": "Beslektede sider innenfor aktivt hovedomr\u00e5de."},
                     {"niv\u00e5": "Kontekst", "element": "Detaljvisning", "plassering": "Fra innhold", "forklaring": "\u00c5pnes fra tabeller og kort og er ikke et hovedmenyvalg."},

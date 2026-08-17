@@ -12,6 +12,45 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1797",
+        "date": "17.08.2026",
+        "headline": "Lyslogg og renholdsoppfølging viser nå riktig beslutningsgrunnlag",
+        "title": "Korrekte tidsserier, synlige vannpauser og ryddigere dørhendelser",
+        "description": (
+            "En målrettet funksjonskontroll av Bygg, Renhold og Kontroll avdekket at tidsserier "
+            "med ulik rapporteringsfrekvens kunne forskyves i lysdiagrammet, og at vaskeplaner "
+            "pauset av den automatiske vannsperren ikke ble synlige i renholdsoversikten. "
+            "Diagramdata samordnes nå på faktiske tidspunkter, mens renhold viser robot, årsak, "
+            "antall og klokkeslett for hver vannpausede plan. Dørloggen oversetter samtidig rå "
+            "HC3-identiteter til de konfigurerte dørnavnene."
+        ),
+        "applications": [
+            "Bygg / Lys dagslogg: tidsakse, serier, enheter og tabelltekster.",
+            "Renhold / Oversikt: vanninterlock, pauset plan, aktiv plan og oppfølgingsbehov.",
+            "Renhold / Vann og nattrapport: sperrestatus og pauset plan tydeliggjort.",
+            "Kontroll / Dører: konfigurerte navn i hendelsesliste og korrekt hendelsesfiltrering.",
+            "System / Manual: lenker oppdatert til Bygg, Renhold og Kontroll.",
+        ],
+        "request": (
+            "Vi har en del feil i applikasjonene, blant annet dagslogg lys og oversikt renhold "
+            "der oversikt over jobber som er satt på pause grunnet vannmangel mangler. "
+            "Gå grundigere til verks og rett feilene."
+        ),
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Samler alle faktiske tidsstempler før tidsseriene tegnes og justerer hver serie med eksplisitte nullpunkter.",
+            "Bevarer sammenhengende linjer for målinger som rapporteres med ulik frekvens uten å forskyve datapunktene.",
+            "Skiller konfigurerte, kjørbare og vannpausede robotplaner i API-et.",
+            "Viser fem aktuelle vannpausede vaskeplaner med robot, planlagt klokkeslett og sperret siden.",
+            "Viser automatisk vannsperre både på renholdsoversikten, robotsammendraget og vannsiden.",
+            "Bruker konfigurerte dørnavn i stedet for rå sensorbetegnelser i siste statusendringer.",
+            "Retter manualens foreldede /drift-lenker etter oppdelingen i tre fagapper.",
+            "Verifiserer Mantis-rammeverket, alle 13 frontendbygg og hele backendpakken med 455 tester.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1796",
         "date": "17.08.2026",
         "headline": "Mantis-rammeverket og CSS-grensene er revidert og låst",
