@@ -75,7 +75,7 @@ const buildEntry = {
 
 const manualPayload = {
   build: "smoke",
-  title: "Lilletorget drift",
+  title: "Lilletorget manual",
   description: "Smoke-manual for rutesjekk.",
   chapters: [
     { id: "hva-losningen-er", number: "01", title: "Hva løsningen er", paragraphs: ["Smoke-oversikt over løsningen."] },
@@ -1480,7 +1480,7 @@ function systemSubsystemsPayload() {
     generatedAt: "2026-06-10T12:00:00",
     summary: { components: 4, active: 4, critical: 2, web_interfaces: 3, areas: 3 },
     subsystems: [
-      subsystem("desktop_v2", "Fibaro10 hovedgrensesnitt", "Frontend", "local", [
+      subsystem("desktop_v2", "Fibaro10 reservegrensesnitt", "Frontend", "local", [
         { kind: "local", label: "Lokalt grensesnitt", url: "http://127.0.0.1:8110/" },
       ]),
       subsystem("maintenance_mobile", "Vedlikehold mobil", "Vedlikehold", "external", [
