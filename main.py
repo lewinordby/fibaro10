@@ -175,6 +175,7 @@ from parking_vehicle_helpers import (
     svv_detail_values,
 )
 from roborock_domain import (
+    cleaning_water_mode_label,
     format_seconds_as_hours,
     roborock_active_cycle_summary,
     roborock_bool_label,
@@ -3073,15 +3074,15 @@ ROBOROCK_TELEMETRY_DISPLAY_FIELDS = [
     ("Dokk", "wash_ready", "Klar for vask", None),
     ("Dokk", "dry_status", "Tørking", None),
     ("Dokk", "dock_cool_fan_status", "Dokkens kjølevifte", None),
-    ("Vann og beholdere", "clear_water_status", "Rentvann", "clear_water_status_name"),
-    ("Vann og beholdere", "dirty_water_status", "Skittent vann", "dirty_water_status_name"),
+    ("Vann og beholdere", "clear_water_status", "Rentvann i dokk", "clear_water_status_name"),
+    ("Vann og beholdere", "dirty_water_status", "Skittentvann i dokk", "dirty_water_status_name"),
     ("Vann og beholdere", "dust_bag_status", "Støvpose", "dust_bag_status_name"),
     ("Vann og beholdere", "clean_fluid_status", "Rengjøringsmiddel", "clean_fluid_status_name"),
-    ("Vann og beholdere", "water_shortage_status", "Vannmangel i robot", None),
+    ("Vann og beholdere", "water_shortage_status", "Vannvarsel", None),
     ("Vann og beholdere", "water_box_status", "Vanntank i robot", None),
     ("Vann og beholdere", "water_box_carriage_status", "Mopp montert", None),
     ("Vann og beholdere", "water_box_filter_status", "Vannfilter", None),
-    ("Vann og beholdere", "water_box_mode", "Vannmengde", None),
+    ("Vann og beholdere", "water_box_mode", "Vannmengde ved vask", None),
     ("Nettverk", "rssi", "WiFi-signal", None),
     ("Nettverk", "local_ip", "Lokal IP", None),
     ("Teknisk", "dss", "DSS-statusord", None),
@@ -15429,7 +15430,7 @@ async def ingest_roborock_telemetry_robot(
         robot.last_status_at = batch_time
         robot.local_ip = values.get("local_ip") or robot.local_ip
 
-        for change in roborock_telemetry_changes(previous_values, values):
+        for change in roborock_telemetry_changes(previous_values, values, robot.provider):
             session.add(
                 RoborockTelemetryEvent(
                     robot_duid=duid,
@@ -33825,7 +33826,9 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "dust_bag_status", telemetry.dust_bag_status, telemetry.dust_bag_status_name
                 ) if telemetry else "Ikke støttet"
                 robot_water = roborock_telemetry_value_label(
-                    "water_shortage_status", telemetry.water_shortage_status
+                    "water_shortage_status",
+                    telemetry.water_shortage_status,
+                    provider=robot.provider,
                 ) if telemetry else "Ikke støttet"
                 water_box = roborock_telemetry_value_label(
                     "water_box_status", telemetry.water_box_status
@@ -33859,6 +33862,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     active=active,
                     data_age_minutes=telemetry_age_minutes,
                     robot_water=robot_water,
+                    robot_water_title="Vannvarsel" if cleaning_provider(robot.provider) == "dreame" else "Vann i robot",
                     stale_after_minutes=CLEANING_ROBOT_STATUS_STALE_AFTER_MINUTES,
                 )
                 if readiness["status"] == "active" and active_cycle and active_cycle.get("phase") == "charging_pause":
@@ -41412,12 +41416,13 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
     )
     latest_raw = latest_status.raw if latest_status and isinstance(latest_status.raw, dict) else {}
     network = latest_raw.get("network") if isinstance(latest_raw.get("network"), dict) else {}
+    provider = cleaning_provider(robot.provider)
     status_rows = []
     for row in statuses:
         item = row_to_dict(row, [column for column in ROBOROCK_STATUS_COLUMNS if column != "raw"])
         item.update(
             {
-                "state_label": row.state_name if cleaning_provider(robot.provider) == "dreame" and row.state_name else roborock_state_label(row.state_code),
+                "state_label": row.state_name if provider == "dreame" and row.state_name else roborock_state_label(row.state_code),
                 "error_label": roborock_error_label(row.error_code),
                 "fan_label": roborock_fan_label(row.fan_power),
                 "mop_label": roborock_mop_label(row.mop_mode),
@@ -41458,7 +41463,7 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
                 "rounds_label": roborock_rounds_label(row.repeat),
                 "fan_label": roborock_fan_label(row.fan_power),
                 "mop_label": roborock_mop_label(row.mop_mode),
-                "water_label": roborock_water_label(row.water_box_mode),
+                "water_label": cleaning_water_mode_label(row.water_box_mode, provider),
             }
         )
         schedule_rows.append(item)
@@ -41513,7 +41518,7 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
                     "dust_bag_status", row.dust_bag_status, row.dust_bag_status_name
                 ),
                 "robot_water_label": roborock_telemetry_value_label(
-                    "water_shortage_status", row.water_shortage_status
+                    "water_shortage_status", row.water_shortage_status, provider=provider
                 ),
                 "water_box_label": roborock_telemetry_value_label(
                     "water_box_status", row.water_box_status
@@ -41543,7 +41548,7 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
                     "field": field_name,
                     "label": label,
                     "value": value,
-                    "valueLabel": roborock_telemetry_value_label(field_name, value, name),
+                    "valueLabel": roborock_telemetry_value_label(field_name, value, name, provider),
                     "supported": value is not None or name is not None,
                 }
             )
@@ -41590,7 +41595,6 @@ async def api_cleaning_robot_detail(request: Request, duid: str):
             }
         )
     robot_data = row_to_dict(robot, [column for column in ROBOROCK_ROBOT_COLUMNS if column not in {"extra", "capabilities"}])
-    provider = cleaning_provider(robot.provider)
     robot_data.update(
         {
             "provider": provider,

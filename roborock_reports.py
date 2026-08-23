@@ -6,6 +6,7 @@ from typing import Any, Iterable, Optional
 
 from cleaning_robot_domain import cleaning_robot_sort_key
 from roborock_domain import (
+    cleaning_water_warning_blocks,
     roborock_cron_parts,
     roborock_cron_weekdays,
     roborock_error_label,
@@ -42,7 +43,7 @@ DUST_COLLECTION_MODE_LABELS = {
 NIGHT_WATER_EVENT_FIELDS = {
     "clear_water_status": "Rentvann i dokk",
     "dirty_water_status": "Skittentvann i dokk",
-    "water_shortage_status": "Vann i robot",
+    "water_shortage_status": "Vannvarsel",
     "clean_fluid_status": "Rengjøringsmiddel",
     "water_box_filter_status": "Vannfilter",
 }
@@ -224,12 +225,11 @@ def robot_settings(probes: list[Any]) -> dict[str, Any]:
 
 def resource_problem(row: Any, provider: str = "roborock") -> bool:
     shortage = integer(row_value(row, "water_shortage_status"))
-    if shortage not in {None, 0}:
+    if cleaning_water_warning_blocks(shortage, provider):
         return True
     if provider == "dreame":
-        clear_name = str(row_value(row, "clear_water_status_name") or "").strip().lower()
-        if clear_name:
-            return clear_name not in {"okay", "ok", "normal", "installed", "present"}
+        # Dock water may become low or empty after a completed wash. Only the
+        # dedicated Dreame warning proves that the robot lacked water mid-job.
         return False
     # For Roborock, clear_water_status describes the dock. A dock that becomes
     # empty after a completed job must block future washes, not downgrade the
@@ -251,7 +251,7 @@ def build_night_water_events(events: list[Any], window: dict[str, datetime]) -> 
             {
                 "timestamp": local_iso(timestamp),
                 "fieldName": field_name,
-                "title": NIGHT_WATER_EVENT_FIELDS[field_name],
+                "title": row_value(event, "title") or NIGHT_WATER_EVENT_FIELDS[field_name],
                 "previousLabel": row_value(event, "previous_label"),
                 "currentLabel": row_value(event, "current_label") or row_value(event, "current_value") or "Ukjent",
                 "severity": "warning" if severity in {"warning", "critical", "error"} else "ok",

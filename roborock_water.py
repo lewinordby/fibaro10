@@ -5,10 +5,11 @@ from typing import Any, Iterable, Optional
 
 from cleaning_robot_domain import cleaning_robot_sort_key
 from roborock_domain import (
+    cleaning_water_mode_label,
+    cleaning_water_warning_label,
     roborock_dock_error_label,
     roborock_resource_status_label,
     roborock_telemetry_value_label,
-    roborock_water_label,
 )
 from roborock_reports import integer, number, probe_value, row_value, wash_settings
 from time_formatting import LOCAL_TZ, normalize_local_naive, utc_naive_to_local_naive
@@ -31,7 +32,7 @@ def local_iso(value: Optional[datetime]) -> Optional[str]:
 
 
 def _status_problem(label: str) -> bool:
-    return label not in {"OK", "Ikke støttet", "0", "Nei"}
+    return label not in {"OK", "Ikke støttet", "Deaktivert", "0", "Nei"}
 
 
 def _resource(value: Any, name: Any = None) -> dict[str, Any]:
@@ -43,13 +44,13 @@ def _resource(value: Any, name: Any = None) -> dict[str, Any]:
     }
 
 
-def _shortage(value: Any) -> dict[str, Any]:
+def _shortage(value: Any, provider: str) -> dict[str, Any]:
     status = integer(value)
     if status is None:
         return {"supported": False, "label": "Ikke støttet", "attention": False}
     return {
         "supported": True,
-        "label": "OK" if status == 0 else "Vannmangel",
+        "label": cleaning_water_warning_label(status, provider),
         "attention": status != 0,
     }
 
@@ -112,15 +113,19 @@ def _interlock(telemetry: Any) -> dict[str, Any]:
     }
 
 
-def _event_kind(row: Any) -> str:
+def _event_kind(row: Any, provider: str = "roborock") -> str:
     field = str(row_value(row, "field_name") or "")
     current_label = str(row_value(row, "current_label") or "")
     current_value = integer(row_value(row, "current_value"))
     if field == "clear_water_status":
+        if current_label == "Lite":
+            return "clean_low"
         return "clean_empty" if _status_problem(current_label) else "clean_restored"
     if field == "dirty_water_status":
         return "dirty_full" if _status_problem(current_label) else "dirty_cleared"
     if field == "water_shortage_status":
+        if provider == "dreame" and current_value == 5:
+            return "robot_low"
         return "robot_empty" if current_value not in {None, 0} else "robot_restored"
     if field == "water_box_status":
         return "tank_removed" if current_value == 0 else "tank_mounted"
@@ -137,10 +142,10 @@ def _latest_event(events: list[dict[str, Any]], kinds: set[str]) -> Optional[str
     return next((row["timestamp"] for row in events if row["kind"] in kinds), None)
 
 
-def _event_value_label(field: str, value: Any, stored_label: Any) -> str:
+def _event_value_label(field: str, value: Any, stored_label: Any, provider: str) -> str:
     parsed = integer(value)
     if field == "water_shortage_status":
-        return "OK" if parsed == 0 else "Vannmangel" if parsed is not None else "Ikke støttet"
+        return str(stored_label) if stored_label else cleaning_water_warning_label(parsed, provider)
     if field in {"water_box_status", "water_box_carriage_status"}:
         return "Montert" if parsed not in {None, 0} else "Ikke montert"
     return str(stored_label or "-") or "-"
@@ -182,6 +187,10 @@ def build_water_report(
 
     public_events: list[dict[str, Any]] = []
     robot_names = {str(row_value(robot, "duid") or ""): str(row_value(robot, "name") or "Robot") for robot in robot_rows}
+    robot_providers = {
+        str(row_value(robot, "duid") or ""): str(row_value(robot, "provider") or "roborock")
+        for robot in robot_rows
+    }
     for row in events:
         field = str(row_value(row, "field_name") or "")
         if field not in WATER_EVENT_FIELDS:
@@ -199,14 +208,16 @@ def build_water_report(
                 field,
                 row_value(row, "previous_value"),
                 row_value(row, "previous_label"),
+                robot_providers.get(duid, "roborock"),
             ),
             "currentLabel": _event_value_label(
                 field,
                 row_value(row, "current_value"),
                 row_value(row, "current_label"),
+                robot_providers.get(duid, "roborock"),
             ),
             "severity": str(row_value(row, "severity") or "info"),
-            "kind": _event_kind(row),
+            "kind": _event_kind(row, robot_providers.get(duid, "roborock")),
         }
         public_events.append(item)
         events_by_robot.setdefault(duid, []).append(item)
@@ -254,7 +265,7 @@ def build_water_report(
             row_value(telemetry, "clean_fluid_status_name"),
         )
         dock_status = _dock_status(row_value(telemetry, "dock_error_status"))
-        robot_water = _shortage(row_value(telemetry, "water_shortage_status"))
+        robot_water = _shortage(row_value(telemetry, "water_shortage_status"), provider)
         water_box = _attached(row_value(telemetry, "water_box_status"))
         mop_attached = _attached(row_value(telemetry, "water_box_carriage_status"))
         water_filter = _water_filter(row_value(telemetry, "water_box_filter_status"))
@@ -296,9 +307,7 @@ def build_water_report(
                 if event_day in daily:
                     daily[event_day]["waterWarnings"] += 1
 
-        if provider != "roborock":
-            status, status_label = "unsupported", "Venter på vanndata"
-        elif attention:
+        if attention:
             status, status_label = "attention", "Krever kontroll"
         elif dock_supported:
             status, status_label = "ready", "Vannsystem OK"
@@ -333,7 +342,7 @@ def build_water_report(
                     "washModeLabel": wash["modeLabel"],
                     "automatic": bool(wash["automatic"]),
                     "waterMode": water_mode,
-                    "waterModeLabel": roborock_water_label(water_mode) if water_mode is not None else None,
+                    "waterModeLabel": cleaning_water_mode_label(water_mode, provider) if water_mode is not None else None,
                 },
                 "usage": {
                     "jobs": len(robot_jobs),
@@ -385,7 +394,7 @@ def build_water_report(
         "daily": daily_rows,
         "events": public_events[:250],
         "measurementNote": (
-            "Roborock rapporterer status, innstillinger og moppevasker, men ikke liter. "
+            "Robotleverandørene rapporterer status, innstillinger og moppevasker, men ikke liter. "
             "Areal per moppevask brukes derfor som en sammenlignbar belastningsindikator."
         ),
     }

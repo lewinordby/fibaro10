@@ -63,6 +63,12 @@ def test_roborock_resource_labels_are_readable():
     assert roborock_telemetry_value_label("water_box_carriage_status", 1) == "Montert"
     assert roborock_telemetry_value_label("water_box_filter_status", 0) == "OK"
     assert roborock_telemetry_value_label("water_box_filter_status", 2) == "OK"
+    assert roborock_telemetry_value_label("clear_water_status", 2, "low_water", "dreame") == "Lite"
+    assert roborock_telemetry_value_label("dirty_water_status", 0, "installed", "dreame") == "OK"
+    assert roborock_telemetry_value_label("clean_fluid_status", 2, "low_detergent", "dreame") == "Lite"
+    assert roborock_telemetry_value_label("water_shortage_status", 2, provider="dreame") == "Tomt"
+    assert roborock_telemetry_value_label("water_shortage_status", 5, provider="dreame") == "Lite vann"
+    assert roborock_telemetry_value_label("water_box_mode", 2, provider="dreame") == "Medium"
 
 
 def test_roborock_readiness_ignores_unsupported_values_and_marks_active_robot():
@@ -186,3 +192,23 @@ def test_roborock_telemetry_changes_only_emits_changed_operational_values():
 
 def test_initial_roborock_telemetry_sample_does_not_create_fake_events():
     assert roborock_telemetry_changes(None, {"state_code": 8, "is_charging": True}) == []
+
+
+def test_dreame_water_warning_event_keeps_provider_specific_meaning():
+    previous = {"water_shortage_status": 0}
+    current = {"water_shortage_status": 4}
+
+    changes = roborock_telemetry_changes(previous, current, "dreame")
+
+    assert changes == [
+        {
+            "category": "vann",
+            "field_name": "water_shortage_status",
+            "title": "Vannvarsel",
+            "previous_value": "0",
+            "current_value": "4",
+            "previous_label": "OK",
+            "current_label": "Ikke nok vann til rengjøring",
+            "severity": "warning",
+        }
+    ]

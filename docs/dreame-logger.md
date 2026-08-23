@@ -23,6 +23,23 @@ Tjenesten henter og normaliserer:
 - hovedbørste, sidebørste, filter, sensor, mopp og rengjøringsmiddel i prosent der det finnes
 - relevante innstillinger som sugekraft, vannmengde, rengjøringsmodus og moppevask
 
+## Vann- og beholdermapping
+
+Fibaro10 viser leverandøruavhengige navn, men beholder Dreames originale kode i telemetrien:
+
+| Dreame-signal | Visning i Fibaro10 | Betydning |
+|---|---|---|
+| `CLEAN_WATER_TANK_STATUS` | Rentvann i dokk | OK, lite, tomt, ikke montert eller kontrollerer |
+| `LOW_WATER_WARNING` | Vannvarsel | Skiller lite vann, tomt, manglende tank og utilstrekkelig vann til vask |
+| `DIRTY_WATER_TANK_STATUS` | Skittentvann i dokk | OK eller full/ikke montert |
+| `DETERGENT_STATUS` | Rengjøringsmiddel | OK, lite eller deaktivert |
+| `WATER_TANK` | Vanntank i robot | Om robotens tank er montert; ikke nivå i liter eller prosent |
+| `WATER_VOLUME` | Vannmengde ved vask | Valgt dosering ved vask, ikke innholdet i en tank |
+
+Fibaro10 mottar ikke et nøyaktig vann- eller såpenivå i prosent eller liter fra Aqua10. Et varsel
+om lite vann markeres for oppfølging, men gjør ikke alene en ferdig jobb mislykket. Varslene tomt,
+ikke nok vann til rengjøring og tank ikke montert regnes som blokkerende vannmangel.
+
 Kartbehandling er bevisst deaktivert i første fase. Det holder minnebruken lav og reduserer risikoen i den løpende status- og historikkinnlesingen. Kart kan vurderes separat etter at Aqua10 er aktiv og stabil.
 
 ## Første oppsett

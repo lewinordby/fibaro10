@@ -142,15 +142,44 @@ ROBOROCK_DOCK_ERROR_LABELS = {
 
 ROBOROCK_RESOURCE_STATUS_LABELS = {
     "okay": "OK",
+    "ok": "OK",
+    "normal": "OK",
+    "installed": "OK",
+    "present": "OK",
     "out_of_water": "Tom",
     "out_of_water_2": "Tom",
+    "low_water": "Lite",
+    "checking": "Kontrollerer",
     "refill_error": "Påfyllingsfeil",
     "full_not_installed": "Full eller ikke montert",
     "full_not_installed_2": "Full eller ikke montert",
+    "not_installed_or_full": "Full eller ikke montert",
     "drain_error": "Tømmefeil",
     "not_installed": "Ikke montert",
     "full": "Full",
     "empty_not_installed": "Tom eller ikke montert",
+    "low_detergent": "Lite",
+    "disabled": "Deaktivert",
+}
+
+DREAME_WATER_WARNING_LABELS = {
+    -1: "Ikke støttet",
+    0: "OK",
+    1: "Tomt - varsel kvittert",
+    2: "Tomt",
+    3: "Tomt etter rengjøring",
+    4: "Ikke nok vann til rengjøring",
+    5: "Lite vann",
+    6: "Rentvannstank ikke montert",
+}
+
+DREAME_BLOCKING_WATER_WARNING_CODES = {1, 2, 3, 4, 6}
+
+DREAME_WATER_MODE_LABELS = {
+    0: "Av",
+    1: "Lav",
+    2: "Medium",
+    3: "Høy",
 }
 
 ROBOROCK_TELEMETRY_EVENT_FIELDS = {
@@ -158,8 +187,8 @@ ROBOROCK_TELEMETRY_EVENT_FIELDS = {
     "is_charging": ("lading", "Lading"),
     "error_code": ("robot", "Robotfeil"),
     "dock_error_status": ("dokk", "Dokkfeil"),
-    "clear_water_status": ("vann", "Rentvann"),
-    "dirty_water_status": ("vann", "Skittent vann"),
+    "clear_water_status": ("vann", "Rentvann i dokk"),
+    "dirty_water_status": ("vann", "Skittentvann i dokk"),
     "dust_bag_status": ("dokk", "Støvpose"),
     "clean_fluid_status": ("vann", "Rengjøringsmiddel"),
     "water_shortage_status": ("vann", "Vannmangel i robot"),
@@ -267,7 +296,39 @@ def roborock_resource_status_label(value: Any, name: Any = None) -> str:
     return "OK" if number == 0 else f"Statuskode {number}"
 
 
-def roborock_telemetry_value_label(field_name: str, value: Any, name: Any = None) -> str:
+def cleaning_water_warning_label(value: Any, provider: Any = None) -> str:
+    number = int_value(value)
+    if number is None:
+        return "Ikke støttet"
+    if str(provider or "").strip().lower() == "dreame":
+        return DREAME_WATER_WARNING_LABELS.get(number, f"Vannvarsel {number}")
+    return "OK" if number == 0 else "Vannmangel"
+
+
+def cleaning_water_warning_blocks(value: Any, provider: Any = None) -> bool:
+    number = int_value(value)
+    if number is None or number == 0:
+        return False
+    if str(provider or "").strip().lower() == "dreame":
+        return number in DREAME_BLOCKING_WATER_WARNING_CODES
+    return True
+
+
+def cleaning_water_mode_label(value: Any, provider: Any = None) -> str:
+    number = int_value(value)
+    if number is None:
+        return "Ikke støttet"
+    if str(provider or "").strip().lower() == "dreame":
+        return DREAME_WATER_MODE_LABELS.get(number, f"Nivå {number}")
+    return roborock_water_label(number)
+
+
+def roborock_telemetry_value_label(
+    field_name: str,
+    value: Any,
+    name: Any = None,
+    provider: Any = None,
+) -> str:
     if value is None and not name:
         return "Ikke støttet"
     if field_name == "state_code":
@@ -294,10 +355,9 @@ def roborock_telemetry_value_label(field_name: str, value: Any, name: Any = None
     }:
         return roborock_resource_status_label(value, name)
     if field_name == "water_shortage_status":
-        number = int_value(value)
-        if number is None:
-            return "Ikke støttet"
-        return "OK" if number == 0 else "Vannmangel"
+        return cleaning_water_warning_label(value, provider)
+    if field_name == "water_box_mode":
+        return cleaning_water_mode_label(value, provider)
     if field_name in {"water_box_status", "water_box_carriage_status"}:
         number = int_value(value)
         if number is None:
@@ -312,7 +372,11 @@ def roborock_telemetry_value_label(field_name: str, value: Any, name: Any = None
     return str(value) if value is not None else "Ikke støttet"
 
 
-def roborock_telemetry_changes(previous: Dict[str, Any] | None, current: Dict[str, Any]) -> list[Dict[str, Any]]:
+def roborock_telemetry_changes(
+    previous: Dict[str, Any] | None,
+    current: Dict[str, Any],
+    provider: Any = None,
+) -> list[Dict[str, Any]]:
     if not previous:
         return []
     changes = []
@@ -324,8 +388,8 @@ def roborock_telemetry_changes(previous: Dict[str, Any] | None, current: Dict[st
         name_key = field_name.replace("_status", "_status_name")
         old_name = previous.get(name_key)
         new_name = current.get(name_key)
-        old_label = roborock_telemetry_value_label(field_name, old_value, old_name)
-        new_label = roborock_telemetry_value_label(field_name, new_value, new_name)
+        old_label = roborock_telemetry_value_label(field_name, old_value, old_name, provider)
+        new_label = roborock_telemetry_value_label(field_name, new_value, new_name, provider)
         severity = "info"
         if field_name in {"error_code", "dock_error_status"} and int_value(new_value) not in {None, 0}:
             severity = "critical"
@@ -342,7 +406,12 @@ def roborock_telemetry_changes(previous: Dict[str, Any] | None, current: Dict[st
             {
                 "category": category,
                 "field_name": field_name,
-                "title": title,
+                "title": (
+                    "Vannvarsel"
+                    if field_name == "water_shortage_status"
+                    and str(provider or "").strip().lower() == "dreame"
+                    else title
+                ),
                 "previous_value": None if old_value is None else str(old_value),
                 "current_value": None if new_value is None else str(new_value),
                 "previous_label": old_label,
@@ -488,6 +557,7 @@ def roborock_operational_readiness(
     active: bool,
     data_age_minutes: Optional[int],
     robot_water: str = "Ikke støttet",
+    robot_water_title: str = "Vann i robot",
     stale_after_minutes: int = 10,
 ) -> Dict[str, Any]:
     issues = []
@@ -501,7 +571,16 @@ def roborock_operational_readiness(
         issues.append("Ingen telemetri mottatt")
     elif data_age_minutes > stale_after_minutes:
         issues.append(f"Telemetri er {data_age_minutes} min gammel")
-    issues.extend(roborock_resource_issues(dock_error, clear_water, dirty_water, dust_bag, robot_water))
+    issues.extend(
+        roborock_resource_issues(
+            dock_error,
+            clear_water,
+            dirty_water,
+            dust_bag,
+            robot_water,
+            robot_water_title,
+        )
+    )
     if cloud_online is False:
         status, label = "offline", "Ikke tilkoblet"
     elif issues:
@@ -519,6 +598,7 @@ def roborock_resource_issues(
     dirty_water: str,
     dust_bag: str,
     robot_water: str = "Ikke støttet",
+    robot_water_title: str = "Vann i robot",
 ) -> list[str]:
     """Return resource problems without connection or freshness concerns."""
     issues = []
@@ -533,7 +613,7 @@ def roborock_resource_issues(
         if value not in {"OK", "Ikke støttet", "-"} and dock_marker not in dock_error_lower:
             issues.append(f"{label}: {value}")
     if robot_water not in {"OK", "Ikke støttet", "-"}:
-        issues.append(f"Vann i robot: {robot_water}")
+        issues.append(f"{robot_water_title}: {robot_water}")
     return list(dict.fromkeys(issues))
 
 

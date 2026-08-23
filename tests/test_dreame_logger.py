@@ -24,6 +24,10 @@ class FakeStatus:
     dirty_water_tank_status_name = "OK"
     dust_bag_status = Value.READY
     dust_bag_status_name = "OK"
+    detergent_status = Value.READY
+    detergent_status_name = "OK"
+    low_water_warning = Value.UNKNOWN
+    water_tank = Value.READY
     started = False
     returning = False
     battery_level = 87
@@ -72,6 +76,9 @@ def test_dreame_snapshot_uses_shared_contract_and_provider_namespace():
     assert row["name"] == "Aqua10"
     assert row["status"]["battery"] == 87
     assert row["telemetry"]["clear_water_status_name"] == "OK"
+    assert row["telemetry"]["water_shortage_status"] == 0
+    assert row["telemetry"]["water_box_status"] == 1
+    assert row["telemetry"]["clean_fluid_status_name"] == "OK"
     assert row["consumables"]["main_brush_percent"] == 92
     assert row["schedules"][0]["id"] == "night"
     assert row["schedules"][0]["cron"] == "30 0 * * 1,3,5"
@@ -118,6 +125,47 @@ def test_dreame_ok_water_name_is_not_interpreted_as_roborock_error_code():
     }
 
     assert resource_problem(sample, "dreame") is False
+
+
+def test_dreame_snapshot_preserves_aqua10_water_and_detergent_states():
+    class AquaStatus(FakeStatus):
+        clean_water_tank_status = 2
+        clean_water_tank_status_name = "low_water"
+        dirty_water_tank_status = 0
+        dirty_water_tank_status_name = "installed"
+        low_water_warning = 2
+        water_tank = 1
+        detergent_status = 2
+        detergent_status_name = "low_detergent"
+        water_volume = 2
+
+    class AquaDevice(FakeDevice):
+        status = AquaStatus()
+
+    row = normalize_device_snapshot(
+        AquaDevice(),
+        {"did": "aqua10", "name": "Aqua10", "model": "dreame.vacuum.r9535h"},
+        "Europe/Oslo",
+    )
+
+    assert row["telemetry"]["clear_water_status_name"] == "low_water"
+    assert row["telemetry"]["dirty_water_status_name"] == "installed"
+    assert row["telemetry"]["water_shortage_status"] == 2
+    assert row["telemetry"]["water_box_status"] == 1
+    assert row["telemetry"]["clean_fluid_status_name"] == "low_detergent"
+    assert row["telemetry"]["water_box_mode"] == 2
+
+
+def test_dreame_job_quality_only_fails_for_blocking_water_warnings():
+    low = {
+        "water_shortage_status": 5,
+        "clear_water_status": 2,
+        "clear_water_status_name": "low_water",
+    }
+    empty = {**low, "water_shortage_status": 2}
+
+    assert resource_problem(low, "dreame") is False
+    assert resource_problem(empty, "dreame") is True
 
 
 def test_dreame_schedule_keeps_standard_cron_unchanged():

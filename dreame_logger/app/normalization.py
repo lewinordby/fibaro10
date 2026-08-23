@@ -151,6 +151,17 @@ def normalize_device_snapshot(device: Any, descriptor: dict[str, Any], timezone_
     clean_water_status = safe_attr(status, "clean_water_tank_status")
     dirty_water_status = safe_attr(status, "dirty_water_tank_status")
     dust_bag_status = safe_attr(status, "dust_bag_status")
+    detergent_status = safe_attr(status, "detergent_status")
+    water_warning_status = safe_attr(status, "low_water_warning")
+    if water_warning_status is None:
+        low_water = safe_attr(status, "low_water")
+        water_warning_status = 5 if low_water is True else 0 if low_water is False else None
+    water_tank_status = safe_attr(status, "water_tank")
+    if water_tank_status is None:
+        water_tank_status = safe_attr(status, "water_tank_status")
+    dock_error_status = safe_attr(status, "dock_error")
+    if dock_error_status is None:
+        dock_error_status = safe_attr(status, "base_error")
     raw_properties = {
         str(getattr(key, "name", key)): jsonable(value)
         for key, value in (getattr(device, "data", {}) or {}).items()
@@ -192,18 +203,23 @@ def normalize_device_snapshot(device: Any, descriptor: dict[str, Any], timezone_
         "charge_status": enum_value(charging_status),
         "is_charging": bool(safe_attr(status, "charging", False)),
         "dock_type": status_payload["dock_type"],
-        "dock_error_status": 1 if bool(safe_attr(status, "has_error", False)) else 0,
+        "dock_error_status": enum_value(dock_error_status),
         "dust_collection_status": enum_value(safe_attr(status, "dust_collection")),
         "wash_status": enum_value(safe_attr(status, "self_wash_base_status")),
         "wash_ready": bool(safe_attr(status, "washing_available", False)),
         "dry_status": 1 if bool(safe_attr(status, "drying", False)) else 0,
-        "water_shortage_status": 1 if bool(safe_attr(status, "low_water", False)) else 0,
+        # Preserve Dreame's complete warning code. It distinguishes low water,
+        # empty water, missing tank and insufficient water for cleaning.
+        "water_shortage_status": enum_value(water_warning_status),
+        "water_box_status": enum_value(water_tank_status),
         "clear_water_status": enum_value(clean_water_status),
         "clear_water_status_name": safe_attr(status, "clean_water_tank_status_name") or enum_name(clean_water_status),
         "dirty_water_status": enum_value(dirty_water_status),
         "dirty_water_status_name": safe_attr(status, "dirty_water_tank_status_name") or enum_name(dirty_water_status),
         "dust_bag_status": enum_value(dust_bag_status),
         "dust_bag_status_name": safe_attr(status, "dust_bag_status_name") or enum_name(dust_bag_status),
+        "clean_fluid_status": enum_value(detergent_status),
+        "clean_fluid_status_name": safe_attr(status, "detergent_status_name") or enum_name(detergent_status),
         "status_raw": raw_properties,
     }
     raw_schedule_values = safe_attr(status, "schedule", []) or []

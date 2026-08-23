@@ -110,3 +110,47 @@ def test_water_report_marks_a_robot_without_water_dock_as_unsupported() -> None:
     assert report["robots"][0]["status"] == "unsupported"
     assert report["robots"][0]["statusLabel"] == "Ingen vanndokk"
     assert report["summary"]["waterCapable"] == 0
+
+
+def test_water_report_treats_dreame_as_water_capable_and_translates_states() -> None:
+    robot = row(duid="dreame:aqua10", name="Aqua10", provider="dreame", model="Aqua10")
+    telemetry = row(
+        robot_duid="dreame:aqua10",
+        timestamp=datetime(2026, 8, 23, 12),
+        clear_water_status=2,
+        clear_water_status_name="low_water",
+        dirty_water_status=0,
+        dirty_water_status_name="installed",
+        dust_bag_status=0,
+        dust_bag_status_name="installed",
+        clean_fluid_status=2,
+        clean_fluid_status_name="low_detergent",
+        dock_error_status=0,
+        water_shortage_status=2,
+        water_box_status=1,
+        water_box_carriage_status=None,
+        water_box_filter_status=None,
+        raw={},
+    )
+
+    report = build_water_report(
+        1,
+        [robot],
+        [],
+        [telemetry],
+        [],
+        [],
+        generated_at=datetime(2026, 8, 23, 12),
+    )
+
+    result = report["robots"][0]
+    assert result["status"] == "attention"
+    assert result["statusLabel"] == "Krever kontroll"
+    assert result["current"]["dockSupported"] is True
+    assert result["current"]["cleanWater"]["label"] == "Lite"
+    assert result["current"]["dirtyWater"]["label"] == "OK"
+    assert result["current"]["detergent"]["label"] == "Lite"
+    assert result["current"]["robotWater"]["label"] == "Tomt"
+    assert result["current"]["waterBox"]["label"] == "Montert"
+    assert report["summary"]["waterCapable"] == 1
+    assert report["summary"]["dockAttention"] == 1

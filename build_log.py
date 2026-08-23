@@ -12,6 +12,40 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1801",
+        "date": "23.08.2026",
+        "headline": "Aqua10 viser nå riktig vann- og beholderstatus",
+        "title": "Leverandørnøytral vannstatus for Dreame og Roborock",
+        "description": (
+            "Dreame-adapteren bevarer nå Aqua10s egne statuskoder for rentvann, vannvarsel, "
+            "robotens vanntank og rengjøringsmiddel. API-et oversetter dem til entydige norske "
+            "tilstander uten å tolke vaskeinnstillingen som tanknivå eller en normal montert tank "
+            "som feil. Roborock-tolkningen er beholdt uendret."
+        ),
+        "applications": [
+            "Dreame logger: komplett normalisering av Aqua10s vann- og beholderdata.",
+            "Fibaro10 API: leverandørbevisste etiketter, hendelser, jobbkontroll og vannrapport.",
+            "Renhold: riktige betegnelser for vannvarsel, dokktanker og vannmengde ved vask.",
+            "System / Buildlogg og dokumentasjon: mapping og beslutningsregler dokumentert.",
+        ],
+        "request": (
+            "Kontroller hvordan mappingen av Aqua10-data stemmer mot visningen i Fibaro10, "
+            "og gjennomfør de nødvendige endringene."
+        ),
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bevarer Dreames komplette vannvarselkode i stedet for å redusere den til ja eller nei.",
+            "Mapper rengjøringsmiddel og robotens interne vanntank til eksisterende telemetrifelt.",
+            "Oversetter normalstatusene installed og present til OK, og low_water og low_detergent til Lite.",
+            "Skiller Vannmengde ved vask fra faktisk tanknivå og viser Dreame-nivå 2 som Medium.",
+            "Regner Aqua10 som vannkompatibel i vannrapporten og fjerner Roborock-låst visningslogikk.",
+            "Lar bare alvorlige Dreame-vannvarsler påvirke kvalitetsvurderingen av en utført jobb.",
+            "Utvider regresjonstestene med et representativt Aqua10-statusbilde.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1800",
         "date": "23.08.2026",
         "headline": "Jobbvarighet følger nå hele forløpet fra start til stopp",
