@@ -13,3 +13,41 @@
 .dark .roborock-dock-dots {
   background-color: rgb(15 23 42 / 14%);
 }
+
+.timeline-tooltip {
+  cursor: help;
+  outline: none;
+}
+
+.timeline-tooltip::after {
+  position: absolute;
+  bottom: calc(100% + 0.45rem);
+  left: 50%;
+  z-index: 80;
+  max-width: min(26rem, 70vw);
+  padding: 0.45rem 0.6rem;
+  border: 1px solid rgb(55 65 81 / 65%);
+  border-radius: 0.4rem;
+  background: rgb(17 24 39 / 96%);
+  box-shadow: 0 8px 24px rgb(15 23 42 / 24%);
+  color: white;
+  content: attr(data-tooltip);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.35;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 0.2rem);
+  transition: opacity 100ms ease, transform 100ms ease;
+  white-space: pre-line;
+}
+
+.timeline-tooltip:hover::after,
+.timeline-tooltip:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.timeline-tooltip:focus-visible {
+  box-shadow: 0 0 0 2px rgb(59 130 246 / 55%);
+}

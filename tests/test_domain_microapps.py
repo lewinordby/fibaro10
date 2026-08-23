@@ -592,6 +592,9 @@ def test_roborock_night_report_is_available_in_operations() -> None:
     assert 'to: "/renhold/rapport"' in operations
     assert "function NightReport()" in detail
     assert "Automatisk nattlig renhold" in detail
+    assert 'className={`timeline-tooltip absolute inset-y-1' in detail
+    assert "data-tooltip={title}" in detail
+    assert "I dokk ${reportTime(interval.startedAt)}" in detail
 
 
 def test_roborock_water_report_is_available_in_operations() -> None:

@@ -280,7 +280,7 @@ function plannedJobTone(job: RoborockNightPlannedJob) {
 function PlannedTimelineMarker({ planned, position, extended = false, uniformPlanTone = false }: { planned: RoborockNightPlannedJob; position: number; extended?: boolean; uniformPlanTone?: boolean }) {
   const tone = plannedJobTone(planned);
   const title = `Planlagt ${reportTime(planned.scheduledAt)} · ${planned.cleaningTypeLabel} · ${planned.statusLabel}`;
-  return <span className={`absolute z-20 border-l-2 border-dashed ${extended ? "-inset-y-2" : "inset-y-0"} ${uniformPlanTone ? "border-amber-500" : tone.line}`} style={{ left: `${position}%` }} title={title} />;
+  return <span aria-label={title} className={`timeline-tooltip absolute z-20 border-l-2 border-dashed ${extended ? "-inset-y-2" : "inset-y-0"} ${uniformPlanTone ? "border-amber-500" : tone.line}`} data-tooltip={title} style={{ left: `${position}%` }} tabIndex={0} title={title} />;
 }
 
 function dayJobBarColor(job: RoborockDayTimelineJob) {
@@ -352,21 +352,29 @@ function timelinePosition(value: string | null | undefined, startAt: string, end
 function NightJobTimelineBar({ job, report }: { job: RoborockNightJob; report: RoborockNightReport }) {
   const left = timelinePosition(job.startedAt, report.window.startAt, report.window.endAt);
   const right = timelinePosition(job.endedAt || job.startedAt, report.window.startAt, report.window.endAt);
-  const title = `${reportTime(job.startedAt)}–${reportTime(job.endedAt)} · ${job.cleaningTypeLabel} · ${job.originLabel} · ${decimal(job.areaM2, 1)} m²`;
+  const timeLabel = `${reportTime(job.startedAt)}–${reportTime(job.endedAt)}`;
+  const title = `${timeLabel} · ${job.cleaningTypeLabel} · ${job.originLabel} · ${decimal(job.areaM2, 1)} m²`;
   return <>
     <span
-      className={`absolute inset-y-1 z-10 rounded-sm ${jobBarColor(job)} ${job.origin === "other" ? "opacity-70 ring-1 ring-gray-500/60" : ""}`}
+      aria-label={title}
+      className={`timeline-tooltip absolute inset-y-1 z-10 rounded-sm ${jobBarColor(job)} ${job.origin === "other" ? "opacity-70 ring-1 ring-gray-500/60" : ""}`}
+      data-tooltip={title}
       style={{ left: `${left}%`, width: `${Math.max(0.7, right - left)}%` }}
+      tabIndex={0}
       title={title}
     />
     {(job.dockIntervals || []).map((interval, index) => {
       const dockLeft = timelinePosition(interval.startedAt, report.window.startAt, report.window.endAt);
       const dockRight = timelinePosition(interval.endedAt, report.window.startAt, report.window.endAt);
+      const dockTitle = `${timeLabel} · ${job.cleaningTypeLabel}\nI dokk ${reportTime(interval.startedAt)}–${reportTime(interval.endedAt)} · ${interval.label}`;
       return <span
-        className={`roborock-dock-dots absolute inset-y-1 z-[11] rounded-sm ${dockDotColor(job)}`}
+        aria-label={dockTitle}
+        className={`roborock-dock-dots timeline-tooltip absolute inset-y-1 z-[11] rounded-sm ${dockDotColor(job)}`}
+        data-tooltip={dockTitle}
         key={`${job.recordId}-dock-${index}`}
         style={{ left: `${dockLeft}%`, width: `${Math.max(0.35, dockRight - dockLeft)}%` }}
-        title={`${reportTime(interval.startedAt)}–${reportTime(interval.endedAt)} · ${interval.label}`}
+        tabIndex={0}
+        title={dockTitle}
       />;
     })}
   </>;
