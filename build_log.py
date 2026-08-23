@@ -12,6 +12,41 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1799",
+        "date": "23.08.2026",
+        "headline": "Ukesloggen samler alle fullførte robotjobber i én rolig tabell",
+        "title": "Ukevis historikk for gjennomført renhold",
+        "description": (
+            "Renhold har fått en egen side som viser fullførte jobber for inneværende uke og lar "
+            "brukeren bla ukevis bakover. Tabellen er bevisst begrenset til dag, robot, start, "
+            "stopp, type, varighet og areal. Opplysningene kommer direkte fra den felles jobb- og "
+            "telemetriloggen for Roborock og Dreame, med konsekvent Oslo-tid."
+        ),
+        "applications": [
+            "Fibaro10 API: nytt uke-API for fullførte robotjobber.",
+            "Renhold: nytt Mantis-menyvalg og kompakt ukestabell.",
+            "Bygg og drift API: proxytilgang til det nye renholdsendepunktet.",
+            "System / Manual og buildlogg: nytt menyvalg, bestilling, datavalg og verifikasjon dokumentert.",
+        ],
+        "request": (
+            "Lag en egen side som lister alle fullførte jobber per uke, med denne uken som "
+            "standard og mulighet for å bla tilbake. Sorter på starttid og vis stopp, jobbtype, "
+            "varighet og bare annen informasjon som faktisk er nyttig i en ryddig tabell."
+        ),
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger til ukevelger med forrige og neste uke, låst mot fremtidige perioder.",
+            "Viser bare jobber som er avsluttet, fullført og uten registrert feilkode.",
+            "Sorterer nyeste starttid først og konverterer alle tidspunkt til Europe/Oslo.",
+            "Viser dag, robot, start, stopp, renholdstype, varighet og rengjort areal.",
+            "Summerer antall jobber, samlet tid, areal og aktive roboter i én kompakt linje.",
+            "Bruker aktiv telemetri til å skille støvsuging, vask og kombinasjonsjobb.",
+            "Legger til tester for filtrering, sortering, tidssone, summer og proxytilgang.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1798",
         "date": "17.08.2026",
         "headline": "Egen kioskflate gir umiddelbar oversikt over robotdriften",

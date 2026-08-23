@@ -84,6 +84,7 @@ from roborock_profiles import (
     validate_cleaning_profile,
 )
 from roborock_reports import build_night_report, build_schedule_check, report_window
+from roborock_weekly import build_weekly_job_log
 from roborock_water import build_water_report
 from roborock_refills import build_refill_log, iso_week_start as refill_iso_week_start
 from roborock_door_automation import (
@@ -41110,6 +41111,58 @@ async def api_cleaning_night_report(day: Optional[str] = None):
         schedules=list(schedules),
         schedule_snapshots=list(schedule_snapshots),
         water_events=list(water_events),
+    )
+
+
+@app.get("/api/renhold/weekly-jobs")
+async def api_cleaning_weekly_jobs(week: Optional[str] = Query(default=None)):
+    now = local_now_naive()
+    try:
+        selected_week = refill_iso_week_start(week, today=now.date())
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    current_week = refill_iso_week_start(None, today=now.date())
+    if selected_week > current_week:
+        raise HTTPException(status_code=422, detail="Ukesloggen kan ikke vise en fremtidig uke.")
+
+    period_start = datetime.combine(selected_week, time.min)
+    period_end = period_start + timedelta(days=7)
+    job_start = local_naive_to_utc_naive(period_start)
+    job_end = local_naive_to_utc_naive(period_end)
+    telemetry_start = period_start - timedelta(minutes=3)
+    telemetry_end = period_end + timedelta(minutes=12)
+    async with async_session() as session:
+        robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
+        robots.sort(key=cleaning_robot_sort_key)
+        robot_duids = [robot.duid for robot in robots]
+        jobs = (
+            await session.execute(
+                select(RoborockCleanJob)
+                .where(RoborockCleanJob.robot_duid.in_(robot_duids or [""]))
+                .where(RoborockCleanJob.begin_at >= job_start)
+                .where(RoborockCleanJob.begin_at < job_end)
+                .where(RoborockCleanJob.end_at.is_not(None))
+                .where(RoborockCleanJob.complete.is_(True))
+                .where(or_(RoborockCleanJob.error_code.is_(None), RoborockCleanJob.error_code == 0))
+                .order_by(RoborockCleanJob.begin_at.desc(), RoborockCleanJob.id.desc())
+            )
+        ).scalars().all()
+        telemetry_samples = (
+            await session.execute(
+                select(RoborockTelemetrySample)
+                .where(RoborockTelemetrySample.robot_duid.in_(robot_duids or [""]))
+                .where(RoborockTelemetrySample.timestamp >= telemetry_start)
+                .where(RoborockTelemetrySample.timestamp < telemetry_end)
+                .where(RoborockTelemetrySample.in_cleaning.is_(True))
+                .order_by(RoborockTelemetrySample.robot_duid, RoborockTelemetrySample.timestamp)
+            )
+        ).scalars().all()
+    return build_weekly_job_log(
+        selected_week,
+        list(robots),
+        list(jobs),
+        list(telemetry_samples),
+        generated_at=now,
     )
 
 

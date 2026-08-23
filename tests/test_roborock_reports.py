@@ -2,6 +2,7 @@ from datetime import date, datetime
 from types import SimpleNamespace
 
 from roborock_reports import build_night_report, report_window
+from roborock_weekly import build_weekly_job_log
 
 
 def row(**values):
@@ -555,3 +556,52 @@ def test_schedule_change_during_night_only_affects_later_occurrences() -> None:
     assert result["scheduleCheck"]["missing"] == 0
     assert result["readiness"]["evaluated"] is False
     assert report["summary"]["activeRobots"] == 0
+
+
+def test_weekly_job_log_only_lists_completed_jobs_newest_first() -> None:
+    robot = row(duid="robot-week", name="1.etg A", model="Qrevo", provider="roborock")
+    completed = row(
+        robot_duid="robot-week", record_id="completed",
+        begin_at=datetime(2026, 8, 19, 23, 0), end_at=datetime(2026, 8, 20, 0, 30),
+        duration_minutes=90.0, duration_seconds=5400, cleaned_area_m2=45.5, area_m2=45.5,
+        complete=True, error_code=0, wash_count=6, clean_times=2, start_type=1,
+    )
+    older = row(
+        robot_duid="robot-week", record_id="older",
+        begin_at=datetime(2026, 8, 17, 22, 0), end_at=datetime(2026, 8, 17, 22, 35),
+        duration_minutes=35.0, duration_seconds=2100, cleaned_area_m2=20.0, area_m2=20.0,
+        complete=True, error_code=0, wash_count=None, clean_times=1, start_type=1,
+    )
+    failed = row(
+        robot_duid="robot-week", record_id="failed",
+        begin_at=datetime(2026, 8, 18, 22, 0), end_at=datetime(2026, 8, 18, 22, 5),
+        duration_minutes=5.0, duration_seconds=300, cleaned_area_m2=1.0, area_m2=1.0,
+        complete=False, error_code=5, wash_count=None, clean_times=1, start_type=1,
+    )
+    samples = [
+        row(
+            robot_duid="robot-week", timestamp=datetime(2026, 8, 20, 1, 5),
+            in_cleaning=True, battery=90, fan_power=104, water_box_mode=203, mop_mode=303,
+            water_shortage_status=0, clear_water_status=0, clear_water_status_name="okay",
+            dock_error_status=0, is_charging=False,
+        )
+    ]
+
+    result = build_weekly_job_log(
+        date(2026, 8, 17), [robot], [older, failed, completed], samples,
+        generated_at=datetime(2026, 8, 23, 12, 0),
+    )
+
+    assert result["period"]["week"] == "2026-W34"
+    assert result["period"]["previousWeek"] == "2026-W33"
+    assert result["period"]["canNext"] is False
+    assert result["summary"] == {
+        "jobs": 2,
+        "durationMinutes": 125.0,
+        "areaM2": 65.5,
+        "robots": 1,
+    }
+    assert [job["recordId"] for job in result["jobs"]] == ["completed", "older"]
+    assert result["jobs"][0]["startedAt"] == "2026-08-20T01:00:00+02:00"
+    assert result["jobs"][0]["endedAt"] == "2026-08-20T02:30:00+02:00"
+    assert result["jobs"][0]["cleaningTypeLabel"] == "Støvsuging og vask"

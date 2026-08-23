@@ -271,7 +271,7 @@ def test_documented_menu_structure_matches_current_mantis_navigation() -> None:
         "system",
     ]
     assert all(app["url"].startswith("https://ny.lilletorget.net/") for app in navigation)
-    assert sum(len(group["items"]) for app in navigation for group in app["groups"]) == 117
+    assert sum(len(group["items"]) for app in navigation for group in app["groups"]) == 118
 
     legacy_navigation = json.loads((repo_root / "packages" / "microapp-ui" / "src" / "navigation.json").read_text(encoding="utf-8"))["apps"]
     generic_apps = ("sun", "energy", "operations", "maintenance", "system", "link")
@@ -295,7 +295,7 @@ def test_system_menu_structure_page_is_available_without_core_data() -> None:
         payload = response.json()
         assert payload["title"] == "Menystruktur"
         assert len(payload["tables"]) == len(APP_MENU_STRUCTURE) + 2
-        assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 117
+        assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 118
         placements = {
             row["plassering"]
             for table in payload["tables"][2:]
@@ -736,6 +736,10 @@ def test_operations_proxy_allows_roborock_water_report_endpoint() -> None:
 
 def test_operations_proxy_allows_roborock_refill_log_endpoint() -> None:
     assert operations_main.DOMAIN_PATTERN.fullmatch("renhold/refill-log")
+
+
+def test_operations_proxy_allows_roborock_weekly_jobs_endpoint() -> None:
+    assert operations_main.DOMAIN_PATTERN.fullmatch("renhold/weekly-jobs")
 
 
 def test_shared_proxy_preserves_case_sensitive_dynamic_ids() -> None:

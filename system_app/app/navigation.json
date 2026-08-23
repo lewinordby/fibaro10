@@ -231,7 +231,8 @@
           "icon": "dashboard",
           "items": [
             { "to": "/", "label": "Status", "icon": "dashboard", "title": "Renholdsoversikt", "description": "Status, historikk og oppf\u00f8lging av robotvaskere.", "module": "renhold", "view": "oversikt", "corePath": "/renhold/oversikt" },
-            { "to": "/rapport", "label": "Nattrapport", "icon": "calendar", "title": "Nattrapport", "description": "Maskinell d\u00f8gnrapport for rengj\u00f8ring, batteri, vann og driftsklar status.", "module": "renhold", "view": "rapport", "corePath": "/renhold/rapport" }
+            { "to": "/rapport", "label": "Nattrapport", "icon": "calendar", "title": "Nattrapport", "description": "Maskinell d\u00f8gnrapport for rengj\u00f8ring, batteri, vann og driftsklar status.", "module": "renhold", "view": "rapport", "corePath": "/renhold/rapport" },
+            { "to": "/jobber", "label": "Jobblogg", "icon": "clock", "title": "Fullf\u00f8rte jobber", "description": "Ukevis oversikt over fullf\u00f8rte robotjobber, type, tid og areal.", "module": "renhold", "view": "jobber", "corePath": "/renhold/jobber" }
           ]
         },
         {
