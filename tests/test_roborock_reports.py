@@ -563,7 +563,7 @@ def test_weekly_job_log_only_lists_completed_jobs_newest_first() -> None:
     completed = row(
         robot_duid="robot-week", record_id="completed",
         begin_at=datetime(2026, 8, 19, 23, 0), end_at=datetime(2026, 8, 20, 0, 30),
-        duration_minutes=90.0, duration_seconds=5400, cleaned_area_m2=45.5, area_m2=45.5,
+        duration_minutes=72.0, duration_seconds=4320, cleaned_area_m2=45.5, area_m2=45.5,
         complete=True, error_code=0, wash_count=6, clean_times=2, start_type=1,
     )
     older = row(
@@ -597,11 +597,13 @@ def test_weekly_job_log_only_lists_completed_jobs_newest_first() -> None:
     assert result["period"]["canNext"] is False
     assert result["summary"] == {
         "jobs": 2,
-        "durationMinutes": 125.0,
+        "elapsedMinutes": 125.0,
         "areaM2": 65.5,
         "robots": 1,
     }
     assert [job["recordId"] for job in result["jobs"]] == ["completed", "older"]
     assert result["jobs"][0]["startedAt"] == "2026-08-20T01:00:00+02:00"
     assert result["jobs"][0]["endedAt"] == "2026-08-20T02:30:00+02:00"
+    assert result["jobs"][0]["durationMinutes"] == 72.0
+    assert result["jobs"][0]["elapsedMinutes"] == 90.0
     assert result["jobs"][0]["cleaningTypeLabel"] == "Støvsuging og vask"

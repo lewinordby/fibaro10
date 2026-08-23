@@ -46,6 +46,12 @@ def build_weekly_job_log(
         details = build_job(job, robot_samples, {}, provider)
         started_at = utc_naive_to_local_naive(row_value(job, "begin_at"))
         ended_at = utc_naive_to_local_naive(row_value(job, "end_at"))
+        elapsed_minutes = (
+            round(max(0, (ended_at - started_at).total_seconds()) / 60, 1)
+            if started_at and ended_at
+            else details.get("durationMinutes")
+        )
+        details["elapsedMinutes"] = elapsed_minutes
         has_job_telemetry = any(
             started_at
             and ended_at
@@ -69,7 +75,7 @@ def build_weekly_job_log(
         )
 
     rows.sort(key=lambda row: row.get("startedAt") or "", reverse=True)
-    duration_minutes = sum(float(row.get("durationMinutes") or 0) for row in rows)
+    elapsed_minutes = sum(float(row.get("elapsedMinutes") or 0) for row in rows)
     area_m2 = sum(float(row.get("areaM2") or 0) for row in rows)
     active_robots = {str(row.get("robotDuid") or "") for row in rows}
     next_week = min(week_start + timedelta(days=7), current_week)
@@ -89,7 +95,7 @@ def build_weekly_job_log(
         },
         "summary": {
             "jobs": len(rows),
-            "durationMinutes": round(duration_minutes, 1),
+            "elapsedMinutes": round(elapsed_minutes, 1),
             "areaM2": round(area_m2, 1),
             "robots": len(active_robots),
         },

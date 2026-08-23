@@ -12,6 +12,32 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1800",
+        "date": "23.08.2026",
+        "headline": "Jobbvarighet følger nå hele forløpet fra start til stopp",
+        "title": "Presis varighet i renholdets ukeslogg",
+        "description": (
+            "Kontroll mot levende robotdata viste at leverandørens varighetsfelt bare teller aktiv "
+            "rengjøring og utelater tid i dokk. Ukesloggen beregner derfor forløpt tid direkte fra "
+            "start- og stopptidspunktet, slik at varighetskolonnen og ukessummen er entydige."
+        ),
+        "applications": [
+            "Fibaro10 API: beregning av faktisk forløpt jobbvarighet.",
+            "Renhold: tabell og ukessum bruker samme varighetsdefinisjon.",
+            "System / Buildlogg: presiseringen og live-kontrollen er dokumentert.",
+        ],
+        "request": "Kvalitetssikre den nye ukeoversikten over fullførte robotjobber mot levende data.",
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Beregner varighet som differansen mellom jobbens start og stopp.",
+            "Beholder aktiv rengjøringstid i API-et for senere analyse, men viser den ikke som total varighet.",
+            "Summerer faktisk forløpt tid konsekvent i ukeoppsummeringen.",
+            "Utvider testen med en jobb der aktiv tid og forløpt tid bevisst er forskjellige.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1799",
         "date": "23.08.2026",
         "headline": "Ukesloggen samler alle fullførte robotjobber i én rolig tabell",
