@@ -12,6 +12,45 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1802",
+        "date": "23.08.2026",
+        "headline": "Omsetning gjør nå topplistene til reelle innganger",
+        "title": "Rangering, periodedetaljer og et mer isolert Mantis-bygg",
+        "description": (
+            "Den aktive Omsetning-appen er gjennomgått side for side. Topp 20 for dager, "
+            "uker og måneder er samlet i en kompakt rangering der alle plassene er nummerert "
+            "og hver rad åpner riktig periode. Måneds- og årsvisningen gir videre kontekst, "
+            "feilaktige krysslenker til Soling og Parkering er rettet, og Omsetning bygger nå "
+            "bare sine fem egne ruter."
+        ),
+        "applications": [
+            "Mantis Omsetning / Oversikt: rangerte topplister, faner, balanserte nøkkelkort og periodelenker.",
+            "Mantis Omsetning / Måned: valgt dag, dagsplassering og tastaturvennlig detaljvalg.",
+            "Mantis Omsetning / År: plassering mot historiske år ved samme dag i året.",
+            "Mantis bygg: egen ruteinngang for Omsetning uten sider fra andre fagapper.",
+            "System / Buildlogg og Mantis-dokumentasjon: funksjoner, bestilling og verifikasjon dokumentert.",
+        ],
+        "request": (
+            "Ta en skikkelig gjennomgang av mikroappen Omsetning, vurder flere innganger og "
+            "forbedringer, og legg blant annet til rangering for hver dag, uke og måned i "
+            "topp 20-listene under Oversikt. Gjør en grundig jobb."
+        ),
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Samler tre lange topplister i én faneinndelt Topp 20-visning.",
+            "Nummererer alle dager, uker og måneder og markerer de tre øverste diskret.",
+            "Lar hver topprad åpne riktig dag, ISO-uke eller måned.",
+            "Viser valgt dag med fordeling og plassering i månedsvisningen.",
+            "Rangerer valgt år mot historiske år ved samme kalenderpunkt.",
+            "Retter kortene Soling i år og Parkering i år til de riktige fagappene.",
+            "Balanserer de sju nøkkelkortene i en konsekvent fire-pluss-tre-struktur.",
+            "Skiller ut Omsetnings fem ruter i en egen bygginngang og fjerner unødvendige fagchunks.",
+            "Verifiserer TypeScript, ESLint, Mantis-baseline, alle 13 appbygg og dokumentasjonskontrakter.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1801",
         "date": "23.08.2026",
         "headline": "Aqua10 viser nå riktig vann- og beholderstatus",
