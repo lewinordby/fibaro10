@@ -95,6 +95,30 @@ def normalize_history(external_id: str, history: Any, timezone_name: str) -> lis
     return rows
 
 
+def normalize_schedule_cron(raw: dict[str, Any]) -> str | None:
+    value = raw.get("cron") or raw.get("time") or raw.get("start_time")
+    if value is None:
+        return None
+    schedule_time = str(value).strip()
+    if len(schedule_time.split()) >= 5:
+        return schedule_time
+
+    match = re.fullmatch(r"(\d{1,2}):(\d{2})", schedule_time)
+    if not match:
+        return schedule_time
+    hour, minute = (int(part) for part in match.groups())
+    if not 0 <= hour <= 23 or not 0 <= minute <= 59:
+        return schedule_time
+
+    # Dreame encodes weekdays from Sunday through Saturday as a seven-bit string.
+    repeats = str(raw.get("repeats") or "").zfill(7)
+    if re.fullmatch(r"[01]{7}", repeats) and "1" in repeats:
+        day_field = ",".join(str(index) for index, enabled in enumerate(repeats) if enabled == "1")
+    else:
+        day_field = "*"
+    return f"{minute} {hour} * * {day_field}"
+
+
 def normalize_schedule(item: Any, index: int) -> dict[str, Any] | None:
     raw = jsonable(item)
     if not isinstance(raw, dict):
@@ -102,12 +126,14 @@ def normalize_schedule(item: Any, index: int) -> dict[str, Any] | None:
     schedule_id = raw.get("id") or raw.get("schedule_id") or raw.get("did")
     if not schedule_id:
         schedule_id = hashlib.sha256(repr(sorted(raw.items())).encode("utf-8")).hexdigest()[:24]
-    cron = raw.get("cron") or raw.get("time") or raw.get("start_time")
+    cron = normalize_schedule_cron(raw)
+    invalid = bool(raw.get("invalid", False))
+    once = bool(raw.get("once", False))
     return {
         "id": str(schedule_id),
-        "cron": str(cron) if cron is not None else None,
-        "enabled": raw.get("enabled", raw.get("active", True)),
-        "repeated": raw.get("repeated", True),
+        "cron": cron,
+        "enabled": bool(raw.get("enabled", raw.get("active", True))) and not invalid,
+        "repeated": bool(raw.get("repeated", not once)),
         "segments": raw.get("segments") or raw.get("rooms"),
         "raw": raw,
     }

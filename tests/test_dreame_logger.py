@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from enum import IntEnum
 
-from dreame_logger.app.normalization import normalize_device_snapshot, normalize_history
+from dreame_logger.app.normalization import normalize_device_snapshot, normalize_history, normalize_schedule
 from roborock_reports import resource_problem
 
 
@@ -42,7 +42,7 @@ class FakeStatus:
     mop_life = 68
     detergent_life = 55
     serial_number = "AQUA-SERIAL"
-    schedule = [{"id": "night", "time": "00:30", "enabled": True}]
+    schedule = [{"id": "night", "time": "00:30", "repeats": "0101010", "enabled": True}]
     cleaning_history = {
         "latest": {
             "timestamp": 1786491000,
@@ -74,6 +74,7 @@ def test_dreame_snapshot_uses_shared_contract_and_provider_namespace():
     assert row["telemetry"]["clear_water_status_name"] == "OK"
     assert row["consumables"]["main_brush_percent"] == 92
     assert row["schedules"][0]["id"] == "night"
+    assert row["schedules"][0]["cron"] == "30 0 * * 1,3,5"
     assert row["clean_jobs"][0]["duration_minutes"] == 25
 
 
@@ -117,3 +118,25 @@ def test_dreame_ok_water_name_is_not_interpreted_as_roborock_error_code():
     }
 
     assert resource_problem(sample, "dreame") is False
+
+
+def test_dreame_schedule_keeps_standard_cron_unchanged():
+    row = normalize_schedule({"id": 1, "cron": "30 3 * * 1-5", "enabled": True}, 0)
+
+    assert row is not None
+    assert row["cron"] == "30 3 * * 1-5"
+
+
+def test_dreame_schedule_without_weekdays_is_treated_as_daily():
+    row = normalize_schedule({"id": 1, "time": "03:30", "enabled": True}, 0)
+
+    assert row is not None
+    assert row["cron"] == "30 3 * * *"
+
+
+def test_dreame_invalid_schedule_is_disabled_and_malformed_time_is_preserved():
+    row = normalize_schedule({"id": 1, "time": "25:75", "enabled": True, "invalid": True}, 0)
+
+    assert row is not None
+    assert row["cron"] == "25:75"
+    assert row["enabled"] is False
