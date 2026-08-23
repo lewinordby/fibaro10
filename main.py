@@ -3605,6 +3605,19 @@ def add_fast_sun2_summary(target: Dict[str, Any], source: Dict[str, Any]) -> Non
     target["rooms_count"] = max(int_or_zero(target.get("rooms_count")), int_or_zero(source.get("rooms_count")))
 
 
+def sun2_weekly_items(daily_items: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
+    weekly: Dict[str, Dict[str, Any]] = {}
+    for item in daily_items:
+        try:
+            stat_day = date.fromisoformat(str(item.get("period") or ""))
+        except ValueError:
+            continue
+        period, period_label = iso_week_period(stat_day)
+        target = weekly.setdefault(period, empty_fast_sun2_summary(period, period_label))
+        add_fast_sun2_summary(target, item)
+    return [weekly[key] for key in sorted(weekly, reverse=True)]
+
+
 def empty_fast_energy_summary(period: str, period_label: Optional[str] = None) -> Dict[str, Any]:
     return {
         "period": period,
@@ -3642,7 +3655,6 @@ async def build_sun2_summaries_fast(session) -> Dict[str, Any]:
     daily_items = []
     monthly: Dict[str, Dict[str, Any]] = {}
     yearly: Dict[str, Dict[str, Any]] = {}
-    weekly: Dict[str, Dict[int, Dict[str, Any]]] = {}
     total = empty_fast_sun2_summary("Totalt")
     first_date = None
     last_date = None
@@ -3666,13 +3678,6 @@ async def build_sun2_summaries_fast(session) -> Dict[str, Any]:
         add_fast_sun2_summary(monthly[month_key], item)
         add_fast_sun2_summary(yearly[year_key], item)
         add_fast_sun2_summary(total, item)
-
-        iso_year, iso_week, _ = stat_date.isocalendar()
-        iso_year_key = str(iso_year)
-        weekly.setdefault(iso_year_key, {})
-        weekly[iso_year_key].setdefault(iso_week, {"revenue": 0.0, "count": 0})
-        weekly[iso_year_key][iso_week]["revenue"] += float_or_zero(item.get("totalt_inntjent_kr"))
-        weekly[iso_year_key][iso_week]["count"] += int_or_zero(item.get("totalt_antall_solinger"))
 
     daily_dates_subquery = select(Sun2RoomDailyStat.stat_date).distinct()
     session_filters = [Sun2TanningSession.stat_date.not_in(daily_dates_subquery)]
@@ -3717,26 +3722,25 @@ async def build_sun2_summaries_fast(session) -> Dict[str, Any]:
         add_fast_sun2_summary(yearly[year_key], item)
         add_fast_sun2_summary(total, item)
 
-        iso_year, iso_week, _ = stat_date.isocalendar()
-        iso_year_key = str(iso_year)
-        weekly.setdefault(iso_year_key, {})
-        weekly[iso_year_key].setdefault(iso_week, {"revenue": 0.0, "count": 0})
-        weekly[iso_year_key][iso_week]["revenue"] += float_or_zero(item.get("totalt_inntjent_kr"))
-        weekly[iso_year_key][iso_week]["count"] += int_or_zero(item.get("totalt_antall_solinger"))
-
     daily_items = sorted(daily_items, key=lambda item: item["period"], reverse=True)
     monthly_items = [monthly[key] for key in sorted(monthly, reverse=True)]
     yearly_items = [yearly[key] for key in sorted(yearly, reverse=True)]
+    weekly_items = sun2_weekly_items(daily_items)
     palette = ["#3f7fbd", "#df705d", "#52a464", "#726189", "#f2b84b", "#2f8fa3", "#8b5cf6", "#ef4444"]
     weekly_chart = []
-    for index, year in enumerate(sorted(weekly.keys())):
-        weeks = weekly[year]
+    weekly_by_year: Dict[str, Dict[int, Dict[str, Any]]] = {}
+    for item in weekly_items:
+        match = re.fullmatch(r"(\d{4})-W(\d{2})", str(item.get("period") or ""))
+        if match:
+            weekly_by_year.setdefault(match.group(1), {})[int(match.group(2))] = item
+    for index, year in enumerate(sorted(weekly_by_year.keys())):
+        weeks = weekly_by_year[year]
         weekly_chart.append(
             {
                 "year": year,
                 "color": palette[index % len(palette)],
-                "revenue": [round(weeks[week]["revenue"], 2) if week in weeks else None for week in range(1, 54)],
-                "count": [weeks[week]["count"] if week in weeks else None for week in range(1, 54)],
+                "revenue": [round(float_or_zero(weeks[week].get("totalt_inntjent_kr")), 2) if week in weeks else None for week in range(1, 54)],
+                "count": [int_or_zero(weeks[week].get("totalt_antall_solinger")) if week in weeks else None for week in range(1, 54)],
             }
         )
 
@@ -3756,8 +3760,10 @@ async def build_sun2_summaries_fast(session) -> Dict[str, Any]:
         "yearly": yearly_items,
         "weekly_chart": weekly_chart,
         "top_days": sorted(daily_items, key=top_sort, reverse=True)[:20],
+        "top_weeks": sorted(weekly_items, key=top_sort, reverse=True)[:20],
         "top_months": sorted(monthly_items, key=top_sort, reverse=True)[:20],
         "top_days_by_count": sorted(daily_items, key=count_sort, reverse=True)[:20],
+        "top_weeks_by_count": sorted(weekly_items, key=count_sort, reverse=True)[:20],
         "top_months_by_count": sorted(monthly_items, key=count_sort, reverse=True)[:20],
         "total": total,
         "first_date": first_date,
@@ -4028,6 +4034,34 @@ def empty_parking_summary(period: str, period_label: Optional[str] = None) -> Di
     }
 
 
+def iso_week_period(stat_day: date) -> tuple[str, str]:
+    iso_year, iso_week, _ = stat_day.isocalendar()
+    week_start = date.fromisocalendar(iso_year, iso_week, 1)
+    week_end = date.fromisocalendar(iso_year, iso_week, 7)
+    if week_start.year == week_end.year:
+        date_range = f"{week_start:%d.%m}-{week_end:%d.%m.%Y}"
+    else:
+        date_range = f"{week_start:%d.%m.%Y}-{week_end:%d.%m.%Y}"
+    return f"{iso_year}-W{iso_week:02d}", f"Uke {iso_week}, {iso_year} ({date_range})"
+
+
+def parking_weekly_items(daily_items: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
+    weekly: Dict[str, Dict[str, Any]] = {}
+    for item in daily_items:
+        try:
+            stat_day = date.fromisoformat(str(item.get("period") or ""))
+        except ValueError:
+            continue
+        period, period_label = iso_week_period(stat_day)
+        target = weekly.setdefault(period, empty_parking_summary(period, period_label))
+        target["sessions"] += int_or_zero(item.get("sessions"))
+        target["paid"] += float_or_zero(item.get("paid"))
+        target["minutes"] += float_or_zero(item.get("minutes"))
+        target["vehicles"] = max(target["vehicles"], int_or_zero(item.get("vehicles")))
+        target["days_count"] += 1
+    return [weekly[key] for key in sorted(weekly, reverse=True)]
+
+
 async def build_parking_summaries_fast(session) -> Dict[str, Any]:
     stat_date_expr = func.date(ParkingSession.start_time).label("stat_date")
     daily_rows = (
@@ -4047,7 +4081,6 @@ async def build_parking_summaries_fast(session) -> Dict[str, Any]:
     daily_items = []
     monthly: Dict[str, Dict[str, Any]] = {}
     yearly: Dict[str, Dict[str, Any]] = {}
-    weekly: Dict[str, Dict[int, Dict[str, Any]]] = {}
     total = empty_parking_summary("Totalt")
     first_date = None
     last_date = None
@@ -4070,14 +4103,8 @@ async def build_parking_summaries_fast(session) -> Dict[str, Any]:
 
         month_key = stat_day.strftime("%Y-%m")
         year_key = str(stat_day.year)
-        iso_year, iso_week, _ = stat_day.isocalendar()
-        iso_year_key = str(iso_year)
         monthly.setdefault(month_key, empty_parking_summary(month_key))
         yearly.setdefault(year_key, empty_parking_summary(year_key))
-        weekly.setdefault(iso_year_key, {})
-        weekly[iso_year_key].setdefault(iso_week, {"revenue": 0.0, "count": 0})
-        weekly[iso_year_key][iso_week]["revenue"] += item["paid"]
-        weekly[iso_year_key][iso_week]["count"] += item["sessions"]
         for target in (monthly[month_key], yearly[year_key], total):
             target["sessions"] += item["sessions"]
             target["paid"] += item["paid"]
@@ -4087,16 +4114,22 @@ async def build_parking_summaries_fast(session) -> Dict[str, Any]:
 
     monthly_items = [monthly[key] for key in sorted(monthly, reverse=True)]
     yearly_items = [yearly[key] for key in sorted(yearly, reverse=True)]
+    weekly_items = parking_weekly_items(daily_items)
     palette = ["#4e8793", "#d59a18", "#071943", "#52a464", "#df705d", "#726189", "#2f8fa3", "#8b5cf6"]
     weekly_chart = []
-    for index, year in enumerate(sorted(weekly.keys())):
-        weeks = weekly[year]
+    weekly_by_year: Dict[str, Dict[int, Dict[str, Any]]] = {}
+    for item in weekly_items:
+        match = re.fullmatch(r"(\d{4})-W(\d{2})", str(item.get("period") or ""))
+        if match:
+            weekly_by_year.setdefault(match.group(1), {})[int(match.group(2))] = item
+    for index, year in enumerate(sorted(weekly_by_year.keys())):
+        weeks = weekly_by_year[year]
         weekly_chart.append(
             {
                 "year": year,
                 "color": palette[index % len(palette)],
-                "revenue": [round(weeks[week]["revenue"], 2) if week in weeks else None for week in range(1, 54)],
-                "count": [weeks[week]["count"] if week in weeks else None for week in range(1, 54)],
+                "revenue": [round(float_or_zero(weeks[week].get("paid")), 2) if week in weeks else None for week in range(1, 54)],
+                "count": [int_or_zero(weeks[week].get("sessions")) if week in weeks else None for week in range(1, 54)],
             }
         )
     top_sort = lambda item: (item["paid"], item["sessions"], item["minutes"])
@@ -4107,8 +4140,10 @@ async def build_parking_summaries_fast(session) -> Dict[str, Any]:
         "yearly": yearly_items,
         "weekly_chart": weekly_chart,
         "top_days": sorted(daily_items, key=top_sort, reverse=True)[:20],
+        "top_weeks": sorted(weekly_items, key=top_sort, reverse=True)[:20],
         "top_months": sorted(monthly_items, key=top_sort, reverse=True)[:20],
         "top_days_by_count": sorted(daily_items, key=count_sort, reverse=True)[:20],
+        "top_weeks_by_count": sorted(weekly_items, key=count_sort, reverse=True)[:20],
         "top_months_by_count": sorted(monthly_items, key=count_sort, reverse=True)[:20],
         "total": total,
         "first_date": first_date,
@@ -23858,6 +23893,11 @@ def api_parking_overview_tables(summaries: Dict[str, Any], latest_rows: list[Dic
             [api_parking_summary_row(row) for row in summaries.get("top_days", [])],
         ),
         api_table(
+            "Topp uker omsetning",
+            ["period_label", "paid", "sessions", "minutes", "days_count"],
+            [api_parking_summary_row(row) for row in summaries.get("top_weeks", [])],
+        ),
+        api_table(
             "Topp m\u00e5neder omsetning",
             ["period", "paid", "sessions", "vehicles", "minutes", "days_count"],
             [api_parking_summary_row(row) for row in summaries.get("top_months", [])],
@@ -23866,6 +23906,11 @@ def api_parking_overview_tables(summaries: Dict[str, Any], latest_rows: list[Dic
             "Topp dager antall",
             ["period_label", "sessions", "paid", "vehicles", "minutes"],
             [api_parking_summary_row(row) for row in summaries.get("top_days_by_count", [])],
+        ),
+        api_table(
+            "Topp uker antall",
+            ["period_label", "sessions", "paid", "minutes", "days_count"],
+            [api_parking_summary_row(row) for row in summaries.get("top_weeks_by_count", [])],
         ),
         api_table(
             "Topp m\u00e5neder antall",
@@ -23888,6 +23933,11 @@ def api_sun2_overview_tables(summaries: Dict[str, Any], latest_sessions: list[Di
             [api_sun2_summary_row(row) for row in summaries.get("top_days", [])],
         ),
         api_table(
+            "Topp uker omsetning",
+            ["period_label", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "days_count"],
+            [api_sun2_summary_row(row) for row in summaries.get("top_weeks", [])],
+        ),
+        api_table(
             "Topp m\u00e5neder omsetning",
             ["period", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "days_count"],
             [api_sun2_summary_row(row) for row in summaries.get("top_months", [])],
@@ -23896,6 +23946,11 @@ def api_sun2_overview_tables(summaries: Dict[str, Any], latest_sessions: list[Di
             "Topp dager antall",
             ["period_label", "totalt_antall_solinger", "totalt_inntjent_kr", "total_soletid_timer", "rooms_count"],
             [api_sun2_summary_row(row) for row in summaries.get("top_days_by_count", [])],
+        ),
+        api_table(
+            "Topp uker antall",
+            ["period_label", "totalt_antall_solinger", "totalt_inntjent_kr", "total_soletid_timer", "days_count"],
+            [api_sun2_summary_row(row) for row in summaries.get("top_weeks_by_count", [])],
         ),
         api_table(
             "Topp m\u00e5neder antall",
@@ -25238,8 +25293,12 @@ async def api_v2_soling_module(
     ).scalars().all()
 
     if view == "oversikt":
-        total_sessions = int_or_zero(database_total.get("sessions_count"))
-        total_paid = float_or_zero(database_total.get("paid_amount_kr"))
+        current_year_summary = next(
+            (item for item in sun2_summaries.get("yearly", []) if str(item.get("period")) == str(today.year)),
+            {},
+        )
+        year_sessions = int_or_zero(current_year_summary.get("totalt_antall_solinger"))
+        year_paid = float_or_zero(current_year_summary.get("totalt_inntjent_kr"))
         daily_rows = list(reversed(sun2_summaries.get("daily", [])[:120]))
         daily_count_chart = api_chart(
             "Solinger per dag",
@@ -25254,9 +25313,16 @@ async def api_v2_soling_module(
             "subtitle": "SUN2 soling samlet i egne visninger for oversikt, detaljer, enkeltimer, senger, medlemmer og prognose.",
             "cards": [
                 api_card("Solinger i dag", today_sun.sessions, "stk", f"{format_short_number(today_sun.paid)} kr", "sun2", href="/soling/dagslinje"),
-                api_card("I går", yesterday_sun.sessions, "stk", f"{format_short_number(yesterday_sun.paid)} kr", "sun2", href="/soling/enkeltimer"),
-                api_card("Måned", month_sun.sessions, "stk", f"{format_short_number(month_sun.paid)} kr", "revenue", href="/omsetning/manedsoversikt"),
-                api_card("Totalt", format_short_number(total_paid), "kr", f"{format_short_number(total_sessions)} solinger", "revenue", href="/soling/statistikk"),
+                api_card(
+                    "I går",
+                    yesterday_sun.sessions,
+                    "stk",
+                    f"{format_short_number(yesterday_sun.paid)} kr",
+                    "sun2",
+                    href=f"/soling/enkeltimer?date_from={yesterday.isoformat()}&date_to={yesterday.isoformat()}",
+                ),
+                api_card("Måned", month_sun.sessions, "stk", f"{format_short_number(month_sun.paid)} kr", "revenue", href="/soling/periode?period=month"),
+                api_card("I år", year_sessions, "stk", f"{format_short_number(year_paid)} kr", "sun2", href="/soling/sammenligning"),
             ],
             "charts": [api_sun2_weekly_chart(sun2_summaries, "revenue"), daily_count_chart],
             "tables": api_sun2_overview_tables(
@@ -32588,7 +32654,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 ),
                 api_card("Parkeringer i dag", today_summary["count"], "stk", f"{format_short_number(today_summary['paid'])} kr", "parking", href="/parkering/dagslinje"),
                 api_card("Pågående", active, "stk", import_job_updated_ago(parking_import_status), "parking", href="/parkering/dagslinje"),
-                api_card("Måned", month_summary["count"], "stk", f"{format_short_number(month_summary['paid'])} kr", "revenue", href="/omsetning/manedsoversikt"),
+                api_card("Måned", month_summary["count"], "stk", f"{format_short_number(month_summary['paid'])} kr", "revenue", href="/parkering/periode?period=month"),
                 api_card("Kjøretøy", vehicle_count, "stk", "Registrert i kjøretøytabellen", "status", href="/parkering/kjoretoy"),
                 api_card(
                     "Nye kj\u00f8ret\u00f8y",

@@ -12,6 +12,47 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1803",
+        "date": "23.08.2026",
+        "headline": "Parkering og Soling får komplette, klikkbare topplister",
+        "title": "Rangering, ukesgrunnlag og ryddigere faglige innganger",
+        "description": (
+            "Parkering og Soling er gjennomgått etter samme prinsipp som Omsetning. Begge "
+            "oversiktene samler nå Topp 20 for dag, ISO-uke og måned i én kompakt arbeidsflate "
+            "med valg mellom omsetning og antall. Radene viser plassering, snitt og tidsbruk og "
+            "åpner riktig dagsliste eller periodesammenligning. Samtidig er feilaktige kortlenker "
+            "rettet, Soling viser inneværende år fremfor et historisk totaltall, og begge appene "
+            "har fått egne, lettere ruteinnganger i Mantis-bygget."
+        ),
+        "applications": [
+            "Parkering / Oversikt: seks rangerte topplister samlet i én klikkbar visning.",
+            "Soling / Oversikt: seks rangerte topplister samlet med soltid og snitt per soling.",
+            "Fibaro10 API: komplette ukeaggregater for beløp, antall og tidsbruk.",
+            "Mantis Parkering og Soling: egne ruteinnganger og norske tabellbetegnelser.",
+            "System / Buildlogg og Mantis-dokumentasjon: funksjoner og verifikasjon dokumentert.",
+        ],
+        "request": (
+            "Ta en tilsvarende grundig gjennomgang av mikroappene Parkering og Soling som av "
+            "Omsetning. Vurder og gjennomfør flere innganger og nyttige forbedringer, inkludert "
+            "rangering for de enkelte dagene, ukene og månedene i topp 20-listene."
+        ),
+        "work_duration": "ca. 1,5 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger til komplette Topp 20-uker for både omsetning og antall i begge fagområder.",
+            "Samler seks lange tabeller i én visning med metricvalg og faner for dag, uke og måned.",
+            "Nummererer plass 1-20 og markerer de tre beste med fagområdets etablerte farge.",
+            "Viser omsetning, antall, snittbeløp, samlet tidsbruk og snittid på hver topprad.",
+            "Lar dager åpne parkeringslisten eller enkeltimene og lar uker og måneder åpne sammenligning.",
+            "Retter månedsflisene og lar Soling-flisen I går åpne eksakt gårsdag.",
+            "Erstatter Solings historiske totaltall med inneværende års antall og omsetning.",
+            "Balanserer seks parkeringskort i tre kolonner på brede arbeidsflater.",
+            "Skiller ut Parkering og Soling i egne bygginnganger uten ruter fra uvedkommende fagapper.",
+            "Utvider automatiske tester for ukeaggregering, tabellkontrakter og hele backend-regresjonen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1802",
         "date": "23.08.2026",
         "headline": "Omsetning gjør nå topplistene til reelle innganger",
