@@ -12,6 +12,38 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1804",
+        "date": "24.08.2026",
+        "headline": "Registreringsnummer åpner nå kjøretøyhistorikken",
+        "title": "Direkte inngang fra dagslisten til bilen og alle parkeringene",
+        "description": (
+            "I Parkering / Parkeringer er lenken til kjøretøyoppføringen flyttet fra "
+            "starttidspunktet til registreringsnummeret. Et trykk på registreringsnummeret "
+            "åpner dermed bilens detaljside med kjøretøyopplysninger og komplett "
+            "parkeringshistorikk. Lenkekolonnen styres nå eksplisitt fra API-et, slik at "
+            "tabellens betydning er tydelig og kan gjenbrukes korrekt i senere visninger."
+        ),
+        "applications": [
+            "Parkering / Parkeringer: registreringsnummeret er klikkbart.",
+            "Parkering / Kjøretøy: eksisterende detaljside og full parkeringshistorikk brukes som mål.",
+            "Mantis tabeller: støtter eksplisitt valg av kolonnen som skal bære radlenken.",
+            "Fibaro10 API og tester: tabellkontrakten beskriver lenkekolonnen.",
+        ],
+        "request": (
+            "I Parkering / Parkeringer / Liste skal registreringsnummeret være klikkbart, "
+            "slik at man går rett til oppføringen av bilen med alle parkeringene."
+        ),
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Flytter kjøretøylenken fra starttidspunkt til registreringsnummer i dagslisten.",
+            "Beholder sortering, søk, dagsvalg og øvrige tabellkolonner uendret.",
+            "Utvider tabellmetadata med rowLinkColumn fremfor sidespesifikk frontendlogikk.",
+            "Legger til kontrakttest og verifiserer klikk, detaljside og tilbakeflyt.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1803",
         "date": "23.08.2026",
         "headline": "Parkering og Soling får komplette, klikkbare topplister",

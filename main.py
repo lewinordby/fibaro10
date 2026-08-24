@@ -32428,7 +32428,11 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                                 parking_row_api(row, vehicle, details, previous_stats=previous_stats.get(row.id), unifi_before_seconds=60)
                                 for row, vehicle, details in parking_rows
                             ],
-                            meta={"disablePagination": True, "totalRows": len(parking_rows)},
+                            meta={
+                                "disablePagination": True,
+                                "totalRows": len(parking_rows),
+                                "rowLinkColumn": "car_license_number",
+                            },
                         )
                     ],
                     "actions": api_parking_default_actions(),

@@ -67,6 +67,16 @@ class DomainTopWeeksTests(unittest.TestCase):
         self.assertIn("Topp uker omsetning", [table["title"] for table in sun_tables])
         self.assertIn("Topp uker antall", [table["title"] for table in sun_tables])
 
+    def test_table_meta_can_select_the_link_column(self) -> None:
+        table = main.api_table(
+            "Parkeringer",
+            ["start_time", "car_license_number"],
+            [{"start_time": "2026-08-24T10:00:00", "car_license_number": "AB12345"}],
+            meta={"rowLinkColumn": "car_license_number"},
+        )
+
+        self.assertEqual(table["meta"]["rowLinkColumn"], "car_license_number")
+
 
 if __name__ == "__main__":
     unittest.main()
