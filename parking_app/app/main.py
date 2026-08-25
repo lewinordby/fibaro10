@@ -48,6 +48,7 @@ app = create_domain_app(
                 "parkering/weekly-averages",
                 "parkering/weekly-averages/years",
                 "cars/day",
+                "cars/parking-control-report",
             },
             "POST": {
                 "actions/parkering/fetch-settlements",

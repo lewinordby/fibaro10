@@ -2126,6 +2126,31 @@ async def api_v1_daily_license_plates(
     )
 
 
+@app.get("/api/v1/known-vehicles/report")
+async def api_v1_known_vehicle_report(
+    request: Request,
+    identity: str,
+    from_at: datetime = Query(alias="from"),
+    to_at: datetime = Query(alias="to"),
+    gap_minutes: int = Query(default=45, ge=5, le=180),
+    timezone_name: str = Query(default="Europe/Oslo", alias="timezone"),
+) -> dict[str, Any]:
+    current = active_collector()
+    require_read_api(request, current)
+    try:
+        return await integration.known_vehicle_report(
+            current.pool,
+            current.settings.console_key,
+            identity=identity,
+            from_at=from_at,
+            to_at=to_at,
+            gap_minutes=gap_minutes,
+            timezone_name=timezone_name,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
 @app.get("/api/v1/license-plates/validation/status")
 async def api_v1_plate_validation_status(request: Request) -> dict[str, Any]:
     current = active_collector()

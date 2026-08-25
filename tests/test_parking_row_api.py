@@ -272,6 +272,52 @@ class ParkingRowApiTests(unittest.TestCase):
 
 
 class CarsDayApiTests(unittest.IsolatedAsyncioTestCase):
+    async def test_parking_control_report_maps_month_and_visits(self):
+        ledger = AsyncMock(
+            return_value={
+                "generated_at": "2026-08-25T09:00:00Z",
+                "identity": "PARKNORDIC",
+                "display_name": "Park Nordic",
+                "policy": {"gap_minutes": 45, "label": "Maks 45 min", "detail": "Estimert."},
+                "summary": {
+                    "visit_count": 1,
+                    "active_days": 1,
+                    "observation_count": 2,
+                    "observed_minutes": 12,
+                    "average_visit_minutes": 12,
+                },
+                "days": [
+                    {
+                        "date": "2026-08-25",
+                        "visit_count": 1,
+                        "observation_count": 2,
+                        "observed_minutes": 12,
+                        "visits": [
+                            {
+                                "id": "visit-1",
+                                "start_at": "2026-08-25T07:00:00Z",
+                                "end_at": "2026-08-25T07:12:00Z",
+                                "duration_minutes": 12,
+                                "observation_count": 2,
+                                "camera_names": ["Butikk front"],
+                                "is_single_observation": False,
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+        with patch.object(main, "protect_ledger_json", new=ledger):
+            payload = await main.api_parking_control_report(
+                response=main.Response(), month="2026-08", gap_minutes=45
+            )
+
+        self.assertEqual(payload["month"], "2026-08")
+        self.assertEqual(payload["summary"]["visitCount"], 1)
+        self.assertEqual(payload["days"][0]["visits"][0]["durationMinutes"], 12.0)
+        self.assertEqual(ledger.await_args.args[0], "known_vehicle_report")
+        self.assertEqual(ledger.await_args.kwargs["identity"], "PARKNORDIC")
+
     async def test_cars_day_uses_light_ledger_payload_and_server_cache(self):
         main.clear_summary_cache("cars_day")
         ledger = AsyncMock(return_value={"items": []})

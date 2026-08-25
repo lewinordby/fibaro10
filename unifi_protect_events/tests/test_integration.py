@@ -11,6 +11,7 @@ from unifi_protect_events.app.integration import (
     parse_alarm_recognitions,
     payload_digest,
     list_recognitions,
+    known_vehicle_report,
     require_webhook,
     recognition_kind,
 )
@@ -26,6 +27,18 @@ class _SearchPool:
         self.query = query
         self.arguments = arguments
         return []
+
+
+class _RowsPool:
+    def __init__(self, rows):
+        self.rows = rows
+        self.arguments = ()
+        self.query = ""
+
+    async def fetch(self, query, *arguments):
+        self.query = query
+        self.arguments = arguments
+        return self.rows
 
 
 class RecognitionParserTests(unittest.TestCase):
@@ -184,6 +197,75 @@ class RecognitionQueryTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(pool.arguments, ("console", from_at, to_at, "AB12345"))
         self.assertIn("r.normalized_value = $4", pool.query)
+
+    async def test_known_vehicle_report_deduplicates_and_groups_visits(self):
+        rows = [
+            {
+                "recognition_id": 1,
+                "value": "Park Nordic",
+                "normalized_value": "PARKNORDIC",
+                "camera_id": "north",
+                "camera_name": "Butikk nord",
+                "source_event_id": "event-1",
+                "occurred_at": datetime(2026, 8, 4, 7, 0, tzinfo=timezone.utc),
+            },
+            {
+                "recognition_id": 2,
+                "value": "Park Nordic",
+                "normalized_value": "PARKNORDIC",
+                "camera_id": "north",
+                "camera_name": "Butikk nord",
+                "source_event_id": "event-1",
+                "occurred_at": datetime(2026, 8, 4, 7, 0, tzinfo=timezone.utc),
+            },
+            {
+                "recognition_id": 3,
+                "value": "Park Nordic",
+                "normalized_value": "PARKNORDIC",
+                "camera_id": "front",
+                "camera_name": "Butikk front",
+                "source_event_id": "event-2",
+                "occurred_at": datetime(2026, 8, 4, 7, 30, tzinfo=timezone.utc),
+            },
+            {
+                "recognition_id": 4,
+                "value": "Park Nordic",
+                "normalized_value": "PARKNORDIC",
+                "camera_id": "front",
+                "camera_name": "Butikk front",
+                "source_event_id": "event-3",
+                "occurred_at": datetime(2026, 8, 4, 9, 0, tzinfo=timezone.utc),
+            },
+            {
+                "recognition_id": 5,
+                "value": "Park Nordic",
+                "normalized_value": "PARKNORDIC",
+                "camera_id": "front",
+                "camera_name": "Butikk front",
+                "source_event_id": "event-4",
+                "occurred_at": datetime(2026, 8, 5, 8, 0, tzinfo=timezone.utc),
+            },
+        ]
+        pool = _RowsPool(rows)
+
+        report = await known_vehicle_report(
+            pool,
+            "console",
+            identity="Park Nordic",
+            from_at=datetime(2026, 7, 31, 22, 0, tzinfo=timezone.utc),
+            to_at=datetime(2026, 8, 31, 22, 0, tzinfo=timezone.utc),
+            gap_minutes=45,
+        )
+
+        self.assertEqual(pool.arguments[1], "PARKNORDIC")
+        self.assertEqual(report["summary"]["observation_count"], 4)
+        self.assertEqual(report["summary"]["visit_count"], 3)
+        self.assertEqual(report["summary"]["active_days"], 2)
+        august_fourth = next(day for day in report["days"] if day["date"] == "2026-08-04")
+        self.assertEqual(august_fourth["visit_count"], 2)
+        self.assertEqual(august_fourth["visits"][0]["duration_minutes"], 30.0)
+        self.assertEqual(august_fourth["visits"][0]["observation_count"], 2)
+        self.assertIn("Butikk nord", august_fourth["visits"][0]["camera_names"])
 
 
 class PlateQualityTests(unittest.TestCase):

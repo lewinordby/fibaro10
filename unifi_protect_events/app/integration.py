@@ -8,8 +8,9 @@ import hmac
 import json
 import re
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncIterator, Mapping, Optional, Sequence
+from zoneinfo import ZoneInfo
 
 import asyncpg
 from fastapi import HTTPException, Request
@@ -621,6 +622,161 @@ async def list_recognitions(
         last = selected[-1]
         next_cursor = encode_cursor(last["occurred_at"], last["recognition_id"])
     return {"items": [dict(row) for row in selected], "next_cursor": next_cursor, "has_more": has_more}
+
+
+async def known_vehicle_report(
+    pool: asyncpg.Pool,
+    console_key: str,
+    *,
+    identity: str,
+    from_at: datetime,
+    to_at: datetime,
+    gap_minutes: int = 45,
+    timezone_name: str = "Europe/Oslo",
+) -> dict[str, Any]:
+    """Group sightings of one known Protect identity into estimated visits."""
+    if to_at <= from_at:
+        raise ValueError("to must be after from")
+    if to_at - from_at > timedelta(days=370):
+        raise ValueError("Known vehicle report window cannot exceed 370 days")
+    if not 5 <= gap_minutes <= 180:
+        raise ValueError("gap_minutes must be between 5 and 180")
+    identity_value = plate_validation.compact_plate(identity)
+    if not identity_value:
+        raise ValueError("identity is required")
+    try:
+        local_tz = ZoneInfo(timezone_name)
+    except Exception as error:
+        raise ValueError("Invalid timezone") from error
+
+    rows = await pool.fetch(
+        """
+        SELECT r.recognition_id, r.value, r.normalized_value, r.camera_id,
+               r.camera_name, r.source_event_id, r.occurred_at
+        FROM unifi_protect_recognitions r
+        WHERE r.console_key = $1
+          AND r.kind = 'license_plate'
+          AND upper(COALESCE(r.normalized_value, '')) = $2
+          AND r.is_known IS TRUE
+          AND COALESCE(r.source_device, '') <> 'FAKE_MAC'
+          AND r.occurred_at >= $3
+          AND r.occurred_at < $4
+        ORDER BY r.occurred_at ASC, r.recognition_id ASC
+        """,
+        console_key,
+        identity_value,
+        from_at,
+        to_at,
+    )
+
+    observations: list[dict[str, Any]] = []
+    seen: set[tuple[Any, ...]] = set()
+    for source_row in rows:
+        row = dict(source_row)
+        occurred_at = parse_timestamp(row.get("occurred_at"))
+        if occurred_at is None:
+            continue
+        source_event_id = str(row.get("source_event_id") or "").strip()
+        dedupe_key = (
+            source_event_id or row.get("recognition_id"),
+            occurred_at,
+            row.get("camera_id"),
+        )
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        observations.append({**row, "occurred_at": occurred_at})
+
+    clusters: list[list[dict[str, Any]]] = []
+    for observation in observations:
+        if not clusters:
+            clusters.append([observation])
+            continue
+        previous = clusters[-1][-1]["occurred_at"]
+        current = observation["occurred_at"]
+        same_local_day = previous.astimezone(local_tz).date() == current.astimezone(local_tz).date()
+        if same_local_day and current - previous <= timedelta(minutes=gap_minutes):
+            clusters[-1].append(observation)
+        else:
+            clusters.append([observation])
+
+    visits_by_date: dict[str, list[dict[str, Any]]] = {}
+    all_visits: list[dict[str, Any]] = []
+    for sequence, cluster in enumerate(clusters, start=1):
+        start_at = cluster[0]["occurred_at"]
+        end_at = cluster[-1]["occurred_at"]
+        start_local = start_at.astimezone(local_tz)
+        end_local = end_at.astimezone(local_tz)
+        duration_minutes = round(max(0.0, (end_at - start_at).total_seconds() / 60), 1)
+        camera_names = sorted(
+            {
+                str(row.get("camera_name") or row.get("camera_id") or "Ukjent kamera")
+                for row in cluster
+            }
+        )
+        visit = {
+            "id": f"{identity_value.lower()}-{start_local.date().isoformat()}-{sequence}",
+            "start_at": start_at,
+            "end_at": end_at,
+            "duration_minutes": duration_minutes,
+            "observation_count": len(cluster),
+            "camera_names": camera_names,
+            "is_single_observation": len(cluster) == 1,
+        }
+        date_key = start_local.date().isoformat()
+        visits_by_date.setdefault(date_key, []).append(visit)
+        all_visits.append(visit)
+
+    days: list[dict[str, Any]] = []
+    cursor = from_at.astimezone(local_tz).date()
+    last_day = (to_at - timedelta(microseconds=1)).astimezone(local_tz).date()
+    while cursor <= last_day:
+        date_key = cursor.isoformat()
+        day_visits = visits_by_date.get(date_key, [])
+        days.append(
+            {
+                "date": date_key,
+                "weekday": cursor.weekday(),
+                "visits": day_visits,
+                "visit_count": len(day_visits),
+                "observation_count": sum(item["observation_count"] for item in day_visits),
+                "observed_minutes": round(sum(item["duration_minutes"] for item in day_visits), 1),
+            }
+        )
+        cursor += timedelta(days=1)
+
+    active_days = [day for day in days if day["visit_count"]]
+    total_minutes = round(sum(item["duration_minutes"] for item in all_visits), 1)
+    return {
+        "generated_at": utc_now(),
+        "identity": identity_value,
+        "display_name": next(
+            (str(row.get("value")) for row in reversed(observations) if row.get("value")),
+            identity_value,
+        ),
+        "from_at": from_at,
+        "to_at": to_at,
+        "timezone": timezone_name,
+        "policy": {
+            "gap_minutes": gap_minutes,
+            "label": f"Maks {gap_minutes} min mellom observasjoner",
+            "detail": (
+                "Kameraobservasjoner på samme kalenderdag samles til ett kontrollbesøk når "
+                f"det er høyst {gap_minutes} minutter mellom dem. Varighet er estimert fra "
+                "første til siste observasjon."
+            ),
+        },
+        "summary": {
+            "visit_count": len(all_visits),
+            "active_days": len(active_days),
+            "observation_count": len(observations),
+            "observed_minutes": total_minutes,
+            "average_visit_minutes": round(total_minutes / len(all_visits), 1) if all_visits else 0,
+            "first_observed_at": observations[0]["occurred_at"] if observations else None,
+            "last_observed_at": observations[-1]["occurred_at"] if observations else None,
+        },
+        "days": days,
+    }
 
 
 def plate_edit_distance(left: str, right: str) -> int:

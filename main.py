@@ -16661,6 +16661,90 @@ async def api_unifi_protect_daily_license_plates(
     )
 
 
+@app.get("/api/cars/parking-control-report")
+async def api_parking_control_report(
+    response: Response,
+    month: Optional[str] = None,
+    gap_minutes: int = Query(default=45, ge=5, le=180),
+) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    today = datetime.now(LOCAL_TZ).date()
+    month_start = normalize_month(month, today)
+    month_end = add_months(month_start, 1)
+    from_at = datetime.combine(month_start, time.min).replace(tzinfo=LOCAL_TZ)
+    to_at = datetime.combine(month_end, time.min).replace(tzinfo=LOCAL_TZ)
+    ledger = await protect_ledger_json(
+        "known_vehicle_report",
+        identity="PARKNORDIC",
+        **{
+            "from": from_at.isoformat(),
+            "to": to_at.isoformat(),
+            "gap_minutes": gap_minutes,
+            "timezone": "Europe/Oslo",
+        },
+    )
+
+    def visit_payload(item: Mapping[str, Any]) -> dict[str, Any]:
+        return {
+            "id": item.get("id"),
+            "startAt": item.get("start_at"),
+            "endAt": item.get("end_at"),
+            "durationMinutes": float_or_zero(item.get("duration_minutes")),
+            "observationCount": int_or_zero(item.get("observation_count")),
+            "cameraNames": list(item.get("camera_names") or []),
+            "isSingleObservation": bool(item.get("is_single_observation")),
+        }
+
+    source_summary = ledger.get("summary") if isinstance(ledger.get("summary"), Mapping) else {}
+    source_policy = ledger.get("policy") if isinstance(ledger.get("policy"), Mapping) else {}
+    days = []
+    for source_day in ledger.get("days") or []:
+        if not isinstance(source_day, Mapping):
+            continue
+        day_value = date.fromisoformat(str(source_day.get("date")))
+        days.append(
+            {
+                "date": day_value.isoformat(),
+                "label": day_value.strftime("%d.%m"),
+                "weekdayLabel": ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"][day_value.weekday()],
+                "isWeekend": day_value.weekday() >= 5,
+                "visitCount": int_or_zero(source_day.get("visit_count")),
+                "observationCount": int_or_zero(source_day.get("observation_count")),
+                "observedMinutes": float_or_zero(source_day.get("observed_minutes")),
+                "visits": [
+                    visit_payload(item)
+                    for item in source_day.get("visits") or []
+                    if isinstance(item, Mapping)
+                ],
+            }
+        )
+    return {
+        "generatedAt": ledger.get("generated_at"),
+        "identity": ledger.get("identity") or "PARKNORDIC",
+        "displayName": ledger.get("display_name") or "Park Nordic",
+        "month": month_start.strftime("%Y-%m"),
+        "monthLabel": month_label(month_start),
+        "prevMonth": add_months(month_start, -1).strftime("%Y-%m"),
+        "nextMonth": month_end.strftime("%Y-%m"),
+        "isCurrentMonth": month_start == today.replace(day=1),
+        "policy": {
+            "gapMinutes": int_or_zero(source_policy.get("gap_minutes")) or gap_minutes,
+            "label": source_policy.get("label") or f"Maks {gap_minutes} min mellom observasjoner",
+            "detail": source_policy.get("detail") or "Varighet er estimert fra kameraobservasjonene.",
+        },
+        "summary": {
+            "visitCount": int_or_zero(source_summary.get("visit_count")),
+            "activeDays": int_or_zero(source_summary.get("active_days")),
+            "observationCount": int_or_zero(source_summary.get("observation_count")),
+            "observedMinutes": float_or_zero(source_summary.get("observed_minutes")),
+            "averageVisitMinutes": float_or_zero(source_summary.get("average_visit_minutes")),
+            "firstObservedAt": source_summary.get("first_observed_at"),
+            "lastObservedAt": source_summary.get("last_observed_at"),
+        },
+        "days": days,
+    }
+
+
 @app.get("/api/unifi-protect/bollards")
 async def api_unifi_protect_bollards() -> dict[str, Any]:
     payload = await protect_ledger_json("bollards")

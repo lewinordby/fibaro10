@@ -12,6 +12,39 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1809",
+        "date": "25.08.2026",
+        "headline": "Park Nordic får egen månedsrapport for parkeringskontroll",
+        "title": "Kameraobservasjoner blir forståelige kontrollbesøk",
+        "description": (
+            "UniFi-identiteten Park Nordic kan nå filtreres direkte i Observerte biler. "
+            "En egen månedsrapport viser dager, klokkeslett, antall observasjoner og estimert "
+            "tidsrom for hvert kontrollbesøk. Gjentatte kameraobservasjoner samles med en "
+            "tydelig dokumentert 45-minuttersregel, og duplikate UniFi-hendelser telles bare én gang."
+        ),
+        "applications": [
+            "UniFi Protect-hendelser: aggregert rapport for én kjent kjøretøyidentitet.",
+            "Fibaro10 API: månedskontrakt for parkeringskontroll i Oslo-tid.",
+            "Parkering / Observerte: eget filter for Park Nordic.",
+            "Parkering / Park Nordic: månedsvelger, dagslinjer, nøkkeltall og besøksliste.",
+        ],
+        "request": (
+            "Vi har en bil som gjenkjennes og er parkeringsvakt. Jeg ønsker et eget filter, "
+            "en månedsrapport og en grafisk oversikt over hvilke dager og tidspunkter den er "
+            "på kontroll. Den rapporteres som kjent i UniFi som Park Nordic."
+        ),
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bekrefter og bruker UniFi-identiteten PARKNORDIC som stabilt datagrunnlag.",
+            "Fjerner duplikate kamerahendelser før opptelling.",
+            "Samler observasjoner på samme dag til besøk når avstanden er høyst 45 minutter.",
+            "Viser tomme og aktive dager på en fast tidsakse fra 06:00 til 24:00.",
+            "Forklarer at varighet er estimert fra første til siste kameraobservasjon.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1808",
         "date": "25.08.2026",
         "headline": "Observerte biler viser hele observasjonsvinduet og mulig manglende betaling",

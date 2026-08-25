@@ -271,7 +271,7 @@ def test_documented_menu_structure_matches_current_mantis_navigation() -> None:
         "system",
     ]
     assert all(app["url"].startswith("https://ny.lilletorget.net/") for app in navigation)
-    assert sum(len(group["items"]) for app in navigation for group in app["groups"]) == 115
+    assert sum(len(group["items"]) for app in navigation for group in app["groups"]) == 116
 
     legacy_navigation = json.loads((repo_root / "packages" / "microapp-ui" / "src" / "navigation.json").read_text(encoding="utf-8"))["apps"]
     generic_apps = ("sun", "energy", "operations", "maintenance", "system", "link")
@@ -295,7 +295,7 @@ def test_system_menu_structure_page_is_available_without_core_data() -> None:
         payload = response.json()
         assert payload["title"] == "Menystruktur"
         assert len(payload["tables"]) == len(APP_MENU_STRUCTURE) + 2
-        assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 115
+        assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 116
         placements = {
             row["plassering"]
             for table in payload["tables"][2:]

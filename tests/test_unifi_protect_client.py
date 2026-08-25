@@ -80,6 +80,18 @@ class ProtectLedgerClientTests(unittest.TestCase):
         self.assertIn("from=2026-07-21T00%3A00%3A00%2B02%3A00", request.full_url)
 
     @patch("unifi_protect_client.urlopen")
+    def test_known_vehicle_report_uses_versioned_endpoint(self, urlopen):
+        urlopen.return_value = _Response({"days": []})
+        client = ProtectLedgerClient("http://ledger:8130", "secret")
+
+        client.known_vehicle_report(identity="PARKNORDIC", gap_minutes=45)
+
+        request = urlopen.call_args.args[0]
+        self.assertIn("/api/v1/known-vehicles/report?", request.full_url)
+        self.assertIn("identity=PARKNORDIC", request.full_url)
+        self.assertIn("gap_minutes=45", request.full_url)
+
+    @patch("unifi_protect_client.urlopen")
     def test_bollards_and_evidence_use_versioned_api(self, urlopen):
         urlopen.return_value = _Response({"regions": [], "incidents": []})
         client = ProtectLedgerClient("http://ledger:8130", "secret")
