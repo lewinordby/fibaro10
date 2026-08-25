@@ -12,6 +12,34 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1808",
+        "date": "25.08.2026",
+        "headline": "Observerte biler viser hele observasjonsvinduet og mulig manglende betaling",
+        "title": "Første og siste observasjon kan kontrolleres samlet",
+        "description": (
+            "Observerte biler viser nå både første og siste kameraregistrering i dagslisten. "
+            "Et nytt filter finner biler som er observert med minst ti minutters mellomrom "
+            "uten at det finnes en betalt parkeringsøkt samme dag. Tidsrommet beregnes direkte "
+            "fra de registrerte observasjonstidspunktene."
+        ),
+        "applications": [
+            "Parkering / Observerte: ny kolonne for siste observasjon og tidsrom.",
+            "Parkering / Observerte: eget kontrollfilter for minst ti minutter uten betaling.",
+        ],
+        "request": (
+            "På observerte, kan vi legge inn sist observert også i tabellen, og vise bare de "
+            "som er observert første og siste med minst ti minutter mellom og ikke har betalt."
+        ),
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser siste observasjon ved siden av første observasjon for hver bil.",
+            "Viser antall minutter mellom første og siste observasjon.",
+            "Legger til filteret Minst 10 min observert uten betaling.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1807",
         "date": "25.08.2026",
         "headline": "Komplette oppslagskøer er tilgjengelige for alle innloggede brukere",
