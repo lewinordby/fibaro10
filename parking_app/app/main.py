@@ -15,30 +15,13 @@ APP_DIR = Path(__file__).resolve().parents[1]
 
 async def lookup_worklist(request: Request, client: httpx.AsyncClient, headers: dict[str, str]) -> dict[str, Any]:
     mode = "omrade" if request.url.path.casefold().endswith("mangler-omrade") else "navn"
-    params = {"view": "oppslag"}
-    if mode == "omrade":
-        params["filter"] = "mangler-omrade"
-    response = await client.get("/api/modules/parkering", params=params, headers=headers)
-    response.raise_for_status()
-    payload = response.json()
-    expected_titles = {"mangler område", "kjøretøy uten område"} if mode == "omrade" else {"mangler navn"}
-    table = next(
-        (row for row in payload.get("tables", []) if str(row.get("title", "")).casefold() in expected_titles),
-        {"rows": []},
+    response = await client.get(
+        f"/api/parkering/kjoretoy/mangler-{mode}",
+        params=request.query_params,
+        headers=headers,
     )
-    rows = list(table.get("rows") or [])
-    try:
-        requested_limit = int(request.query_params.get("limit", "100"))
-    except ValueError:
-        requested_limit = 100
-    try:
-        requested_offset = int(request.query_params.get("offset", "0"))
-    except ValueError:
-        requested_offset = 0
-    requested_limit = max(1, min(requested_limit, 1000))
-    requested_offset = max(0, requested_offset)
-    selected = rows[requested_offset:requested_offset + requested_limit]
-    return {"count": len(rows), "limit": requested_limit, "offset": requested_offset, "rows": selected}
+    response.raise_for_status()
+    return response.json()
 
 app = create_domain_app(
     DomainAppConfig(

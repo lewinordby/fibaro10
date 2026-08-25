@@ -12,6 +12,36 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1806",
+        "date": "25.08.2026",
+        "headline": "Oppslagsarbeidslistene leser nå direkte fra kjøretøyregisteret",
+        "title": "Navn- og områdekøene er uavhengige av presentasjonen på Oppslag",
+        "description": (
+            "Produksjonskontrollen etter parkeringsoppryddingen avdekket at de skjulte "
+            "arbeidslistene tidligere hentet data ved å tolke tabellene på Oppslag-siden. "
+            "De er nå koblet direkte til de dedikerte endepunktene for manglende navn og "
+            "område. Dermed beholder arbeidslistene korrekt antall, paginering og innhold "
+            "selv om Oppslag-siden forenkles videre."
+        ),
+        "applications": [
+            "Parkering / Navnoppslag: direkte datakilde med full arbeidskø.",
+            "Parkering / Områdeoppslag: direkte datakilde med korrekt paginering.",
+            "Parking-app API: fjerner avhengigheten til visuelle tabeller i Fibaro10.",
+        ],
+        "request": (
+            "Kan du ta en total gjennomgang av parkering, det er veldig omfattende og mye "
+            "som kanskje er dobbelt og unødvendig."
+        ),
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Videresender arbeidslisteforespørsler direkte til de native kjøretøyendepunktene.",
+            "Bevarer limit og offset uten å laste hele køen gjennom Oppslag-visningen.",
+            "Oppdaterer adaptertestene til den nye, stabile API-kontrakten.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1805",
         "date": "25.08.2026",
         "headline": "Parkering er ryddet fra 20 til 15 primære menyvalg",
