@@ -12,6 +12,38 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1813",
+        "date": "25.08.2026",
+        "headline": "Registerfunne biler uten betaling blir synlige i kontrollrapporten",
+        "title": "Kameraobservasjoner kontrolleres mot nordiske kjøretøyregistre og EasyPark",
+        "description": (
+            "Park Nordic-siden viser nå kjøretøy som er bekreftet i kjøretøyregisteret for Norge, "
+            "Sverige eller Danmark, er observert i mer enn ti minutter samme dag og mangler en "
+            "positiv parkeringsbetaling. Resultatene vises direkte med reg.nr., kjøretøy, land, "
+            "tidsrom, varighet og kameragrunnlag."
+        ),
+        "applications": [
+            "Protect Ledger build 23: effektiv perioderapport over registerbekreftede kjøretøyopphold.",
+            "Fibaro10 API: avstemming mot EasyPark-betaling og lokale kjøretøydata per kalenderdag.",
+            "Parkering / Park Nordic: tydelig tabell over registerfunne kjøretøy uten betaling.",
+            "System / dokumentasjon: kontrollregler og datakilder er dokumentert.",
+        ],
+        "request": (
+            "Vis på samme Park Nordic-oversikt biler som er observert, funnet i kjøretøyregisteret "
+            "for Norge, Sverige eller Danmark, har mer enn ti minutter mellom første og siste "
+            "observasjon og ikke har betalt for parkering."
+        ),
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Krever et bekreftet kjøretøyregistertreff med landkode NO, SE eller DK.",
+            "Bruker en streng grense på mer enn ti minutter samme kalenderdag.",
+            "Fjerner kjøretøydager med positiv parkeringsbetaling som overlapper dagen.",
+            "Viser kontrollgrunnlaget direkte og skiller dette fra UniFi-kjente identiteter.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1812",
         "date": "25.08.2026",
         "headline": "Kjente kjøretøy får egen dagsvisning i kontrollrapporten",

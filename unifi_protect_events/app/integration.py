@@ -929,6 +929,165 @@ async def known_vehicle_stays_report(
     }
 
 
+async def registered_vehicle_stays_report(
+    pool: asyncpg.Pool,
+    console_key: str,
+    *,
+    from_at: datetime,
+    to_at: datetime,
+    min_duration_minutes: int = 10,
+    timezone_name: str = "Europe/Oslo",
+    country_codes: tuple[str, ...] = ("NO", "SE", "DK"),
+) -> dict[str, Any]:
+    """Summarize daily stays for license plates confirmed by Nordic registries."""
+    if to_at <= from_at:
+        raise ValueError("to must be after from")
+    if to_at - from_at > timedelta(days=370):
+        raise ValueError("Registered vehicle stay window cannot exceed 370 days")
+    if not 1 <= min_duration_minutes <= 240:
+        raise ValueError("min_duration_minutes must be between 1 and 240")
+    try:
+        ZoneInfo(timezone_name)
+    except Exception as error:
+        raise ValueError("Invalid timezone") from error
+    normalized_countries = sorted({str(value).strip().upper() for value in country_codes if str(value).strip()})
+    if not normalized_countries:
+        raise ValueError("At least one country code is required")
+
+    rows = await pool.fetch(
+        """
+        WITH source_rows AS (
+            SELECT r.recognition_id, r.value, r.normalized_value, r.camera_id,
+                   r.camera_name, r.source_event_id, r.occurred_at,
+                   upper(v.country_code) AS country_code,
+                   v.source AS registry_source,
+                   v.vehicle_label
+            FROM unifi_protect_recognitions r
+            JOIN unifi_protect_plate_validations v
+              ON v.console_key = r.console_key AND v.plate = r.normalized_value
+            WHERE r.console_key = $1
+              AND r.kind = 'license_plate'
+              AND r.normalized_value IS NOT NULL
+              AND r.normalized_value <> ''
+              AND upper(r.normalized_value) <> 'PARKNORDIC'
+              AND COALESCE(r.source_device, '') <> 'FAKE_MAC'
+              AND r.occurred_at >= $2
+              AND r.occurred_at < $3
+              AND v.is_valid IS TRUE
+              AND upper(COALESCE(v.country_code, '')) = ANY($6::text[])
+        ), deduplicated AS (
+            SELECT DISTINCT ON (
+                       normalized_value,
+                       COALESCE(NULLIF(source_event_id, ''), recognition_id::text),
+                       occurred_at,
+                       COALESCE(camera_id, '')
+                   )
+                   recognition_id, value, normalized_value, camera_id,
+                   camera_name, source_event_id, occurred_at, country_code,
+                   registry_source, vehicle_label
+            FROM source_rows
+            ORDER BY normalized_value,
+                     COALESCE(NULLIF(source_event_id, ''), recognition_id::text),
+                     occurred_at, COALESCE(camera_id, ''), recognition_id
+        )
+        SELECT (occurred_at AT TIME ZONE $4)::date AS local_date,
+               normalized_value AS plate,
+               (array_agg(value ORDER BY occurred_at DESC, recognition_id DESC))[1]
+                   AS display_name,
+               max(country_code) AS country_code,
+               max(registry_source) AS registry_source,
+               max(vehicle_label) AS vehicle_label,
+               min(occurred_at) AS first_observed_at,
+               max(occurred_at) AS last_observed_at,
+               round(
+                   extract(epoch FROM (max(occurred_at) - min(occurred_at)))::numeric / 60,
+                   1
+               )::double precision AS duration_minutes,
+               count(*)::integer AS observation_count,
+               array_agg(DISTINCT COALESCE(camera_name, camera_id))
+                   FILTER (WHERE COALESCE(camera_name, camera_id) IS NOT NULL) AS camera_names
+        FROM deduplicated
+        GROUP BY (occurred_at AT TIME ZONE $4)::date, normalized_value
+        HAVING max(occurred_at) - min(occurred_at) > $5 * interval '1 minute'
+        ORDER BY local_date DESC, first_observed_at ASC, normalized_value ASC
+        """,
+        console_key,
+        from_at,
+        to_at,
+        timezone_name,
+        min_duration_minutes,
+        normalized_countries,
+    )
+
+    days_by_date: dict[str, list[dict[str, Any]]] = {}
+    unique_plates: set[str] = set()
+    total_observations = 0
+    total_minutes = 0.0
+    for source_row in rows:
+        row = dict(source_row)
+        day = row.get("local_date")
+        plate = str(row.get("plate") or "").strip()
+        first_at = parse_timestamp(row.get("first_observed_at"))
+        last_at = parse_timestamp(row.get("last_observed_at"))
+        if not day or not plate or first_at is None or last_at is None:
+            continue
+        date_key = day.isoformat()
+        duration_minutes = round(float(row.get("duration_minutes") or 0), 1)
+        observation_count = int(row.get("observation_count") or 0)
+        unique_plates.add(plate)
+        total_observations += observation_count
+        total_minutes += duration_minutes
+        days_by_date.setdefault(date_key, []).append(
+            {
+                "id": f"{plate.lower()}-{date_key}",
+                "plate": plate,
+                "display_name": str(row.get("display_name") or plate),
+                "country_code": str(row.get("country_code") or "").upper() or None,
+                "registry_source": row.get("registry_source"),
+                "vehicle_label": row.get("vehicle_label"),
+                "first_observed_at": first_at,
+                "last_observed_at": last_at,
+                "duration_minutes": duration_minutes,
+                "observation_count": observation_count,
+                "camera_names": sorted(str(value) for value in row.get("camera_names") or []),
+            }
+        )
+
+    days = [
+        {
+            "date": date_key,
+            "vehicle_count": len(vehicles),
+            "observation_count": sum(item["observation_count"] for item in vehicles),
+            "vehicles": vehicles,
+        }
+        for date_key, vehicles in sorted(days_by_date.items(), reverse=True)
+    ]
+    return {
+        "generated_at": utc_now(),
+        "from_at": from_at,
+        "to_at": to_at,
+        "timezone": timezone_name,
+        "policy": {
+            "min_duration_minutes": min_duration_minutes,
+            "country_codes": normalized_countries,
+            "label": f"Registerfunnet og mer enn {min_duration_minutes} minutter",
+            "detail": (
+                "Kjøretøy bekreftet av kjøretøyregister i Norge, Sverige eller Danmark tas med når "
+                "tidsrommet fra første til siste kameraobservasjon samme dag er lengre enn "
+                f"{min_duration_minutes} minutter."
+            ),
+        },
+        "summary": {
+            "vehicle_day_count": sum(day["vehicle_count"] for day in days),
+            "active_days": len(days),
+            "unique_vehicle_count": len(unique_plates),
+            "observation_count": total_observations,
+            "observed_minutes": round(total_minutes, 1),
+        },
+        "days": days,
+    }
+
+
 def plate_edit_distance(left: str, right: str) -> int:
     left_value = plate_validation.compact_plate(left)
     right_value = plate_validation.compact_plate(right)

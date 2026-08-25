@@ -348,10 +348,27 @@ class CarsDayApiTests(unittest.IsolatedAsyncioTestCase):
                 }
             ],
         }
+        registered_stays_payload = {
+            "policy": {"min_duration_minutes": 10, "country_codes": ["NO", "SE", "DK"]},
+            "summary": {"vehicle_day_count": 1},
+            "days": [],
+        }
+        unpaid_registered_payload = {
+            "policy": {"label": "Registerfunnet uten betaling"},
+            "summary": {"vehicleDayCount": 1},
+            "days": [],
+        }
         ledger.side_effect = lambda method, **_kwargs: (
-            known_stays_payload if method == "known_vehicle_stays_report" else parking_payload
+            known_stays_payload
+            if method == "known_vehicle_stays_report"
+            else registered_stays_payload
+            if method == "registered_vehicle_stays_report"
+            else parking_payload
         )
-        with patch.object(main, "protect_ledger_json", new=ledger):
+        unpaid_builder = AsyncMock(return_value=unpaid_registered_payload)
+        with patch.object(main, "protect_ledger_json", new=ledger), patch.object(
+            main, "unpaid_registered_vehicle_stays_payload", new=unpaid_builder
+        ):
             payload = await main.api_parking_control_report(
                 response=main.Response(), period="month", month="2026-08", week=None, gap_minutes=60
             )
@@ -364,10 +381,95 @@ class CarsDayApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload["days"][0]["visits"][0]["observations"][0]["recognitionId"], 123)
         self.assertEqual(payload["knownVehicles"]["summary"]["vehicleDayCount"], 1)
         self.assertEqual(payload["knownVehicles"]["days"][0]["vehicles"][0]["displayName"], "Firmabil")
+        self.assertEqual(payload["unpaidRegisteredVehicles"]["summary"]["vehicleDayCount"], 1)
         report_call = next(call for call in ledger.await_args_list if call.args[0] == "known_vehicle_report")
         stays_call = next(call for call in ledger.await_args_list if call.args[0] == "known_vehicle_stays_report")
+        registered_call = next(call for call in ledger.await_args_list if call.args[0] == "registered_vehicle_stays_report")
         self.assertEqual(report_call.kwargs["identity"], "PARKNORDIC")
         self.assertEqual(stays_call.kwargs["min_duration_minutes"], 10)
+        self.assertEqual(registered_call.kwargs["min_duration_minutes"], 10)
+        unpaid_builder.assert_awaited_once_with(registered_stays_payload, date(2026, 8, 1), date(2026, 9, 1))
+
+    async def test_unpaid_registered_vehicle_stays_excludes_paid_vehicle_days(self):
+        class ScalarRows:
+            def __init__(self, rows):
+                self.rows = rows
+
+            def scalars(self):
+                return self
+
+            def all(self):
+                return self.rows
+
+        class PairRows:
+            def all(self):
+                return []
+
+        class Session:
+            def __init__(self):
+                self.calls = 0
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_args):
+                return None
+
+            async def execute(self, _query):
+                self.calls += 1
+                if self.calls == 1:
+                    return ScalarRows(
+                        [
+                            main.ParkingSession(
+                                id=1,
+                                parking_area="Lilletorget",
+                                source_system="easypark",
+                                area_number=1,
+                                parking_id=1,
+                                start_time=datetime(2026, 8, 25, 9, 0),
+                                end_time=datetime(2026, 8, 25, 10, 0),
+                                fee_inc_vat=50,
+                                car_license_number="AB12345",
+                                status="completed",
+                            )
+                        ]
+                    )
+                return PairRows()
+
+        source = {
+            "policy": {"min_duration_minutes": 10, "country_codes": ["NO", "SE", "DK"]},
+            "summary": {"vehicle_day_count": 2},
+            "days": [
+                {
+                    "date": "2026-08-25",
+                    "vehicles": [
+                        {
+                            "plate": "AB12345",
+                            "country_code": "NO",
+                            "first_observed_at": "2026-08-25T07:00:00Z",
+                            "last_observed_at": "2026-08-25T07:20:00Z",
+                            "duration_minutes": 20,
+                            "observation_count": 3,
+                        },
+                        {
+                            "plate": "CD67890",
+                            "country_code": "NO",
+                            "first_observed_at": "2026-08-25T08:00:00Z",
+                            "last_observed_at": "2026-08-25T08:15:00Z",
+                            "duration_minutes": 15,
+                            "observation_count": 2,
+                        },
+                    ],
+                }
+            ],
+        }
+
+        with patch.object(main, "async_session", new=lambda: Session()):
+            payload = await main.unpaid_registered_vehicle_stays_payload(source, date(2026, 8, 1), date(2026, 9, 1))
+
+        self.assertEqual(payload["summary"]["vehicleDayCount"], 1)
+        self.assertEqual(payload["summary"]["excludedPaidVehicleDays"], 1)
+        self.assertEqual(payload["days"][0]["vehicles"][0]["plate"], "CD67890")
 
     async def test_parking_control_report_can_select_iso_week(self):
         ledger = AsyncMock(

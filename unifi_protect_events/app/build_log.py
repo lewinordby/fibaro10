@@ -5,11 +5,36 @@ from typing import Any
 
 
 PROTECT_LEDGER_VERSION = os.getenv("PROTECT_LEDGER_VERSION", "1")
-PROTECT_LEDGER_BUILD = os.getenv("PROTECT_LEDGER_BUILD", "20")
+PROTECT_LEDGER_BUILD = os.getenv("PROTECT_LEDGER_BUILD", "23")
 PROTECT_LEDGER_COMMIT = os.getenv("PROTECT_LEDGER_COMMIT", "unknown")
 
 
 PROTECT_LEDGER_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "23",
+        "date": "25.08.2026",
+        "headline": "Nordiske registertreff får effektiv perioderapport",
+        "title": "Bekreftede registreringsnumre grupperes til daglige kjøretøyopphold",
+        "description": (
+            "Protect Ledger kan nå hente registerbekreftede kjøretøy fra Norge, Sverige og Danmark "
+            "for en hel uke eller måned i ett databasekall. Bare opphold med mer enn ti minutter "
+            "mellom første og siste dedupliserte kameraobservasjon tas med."
+        ),
+        "request": (
+            "Finn biler som er observert i mer enn ti minutter og er bekreftet i kjøretøyregister "
+            "for Norge, Sverige eller Danmark, slik at Fibaro10 kan kontrollere manglende betaling."
+        ),
+        "changes": [
+            "Legger til /api/v1/registered-vehicles/stays.",
+            "Krever is_valid=true og landkode NO, SE eller DK.",
+            "Dedupliserer kamerahendelser og grupperer per registreringsnummer og lokal kalenderdag.",
+        ],
+        "applications": [
+            "Protect Ledger: nytt internt lese-API og SQL-aggregat.",
+            "Fibaro10 build 1813: avstemming mot parkeringsbetaling.",
+        ],
+    },
     {
         "version": "1",
         "build": "20",

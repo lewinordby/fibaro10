@@ -27,6 +27,12 @@ Fibaro10-serveren videresender følgende kall til Protect Ledger med tjenestetok
 - `GET /api/unifi-protect/bollards/regions/{region_id}/baseline`
 - `GET /api/unifi-protect/bollards/incidents/{incident_id}/images/{camera_id}/{kind}`
 
+Protect Ledger har i tillegg interne perioderapporter for kontrollarbeid:
+
+- `GET /api/v1/known-vehicles/report` grupperer Park Nordic-observasjoner i besøk.
+- `GET /api/v1/known-vehicles/stays` grupperer UniFi-kjente kjøretøy per dag.
+- `GET /api/v1/registered-vehicles/stays` grupperer registerbekreftede kjøretøy fra Norge, Sverige og Danmark per dag. Fibaro10 bruker denne som grunnlag og fjerner kjøretøydager med positiv parkeringsbetaling.
+
 Disse rutene bruker Fibaro10s eksisterende innlogging. Frontend-kode skal derfor
 bruke proxyen og aldri få tilgang til `UNIFI_PROTECT_READ_API_TOKEN`.
 Ruten uten `/crop` leverer det urørte helbildet for kompatibilitet. Ruten med

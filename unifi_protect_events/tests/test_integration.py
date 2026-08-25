@@ -13,6 +13,7 @@ from unifi_protect_events.app.integration import (
     list_recognitions,
     known_vehicle_report,
     known_vehicle_stays_report,
+    registered_vehicle_stays_report,
     require_webhook,
     recognition_kind,
 )
@@ -325,6 +326,41 @@ class RecognitionQueryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(report["summary"]["observation_count"], 6)
         self.assertEqual(report["days"][0]["date"], "2026-08-25")
         self.assertEqual(report["days"][0]["vehicles"][0]["duration_minutes"], 25.0)
+
+    async def test_registered_vehicle_stays_report_requires_nordic_registry_match(self):
+        pool = _RowsPool(
+            [
+                {
+                    "local_date": date(2026, 8, 25),
+                    "plate": "AB12345",
+                    "display_name": "AB12345",
+                    "country_code": "NO",
+                    "registry_source": "norway",
+                    "vehicle_label": "Volvo XC60",
+                    "first_observed_at": datetime(2026, 8, 25, 8, 0, tzinfo=timezone.utc),
+                    "last_observed_at": datetime(2026, 8, 25, 8, 18, tzinfo=timezone.utc),
+                    "duration_minutes": 18.0,
+                    "observation_count": 3,
+                    "camera_names": ["Butikk front"],
+                }
+            ]
+        )
+
+        report = await registered_vehicle_stays_report(
+            pool,
+            "console",
+            from_at=datetime(2026, 8, 1, tzinfo=timezone.utc),
+            to_at=datetime(2026, 9, 1, tzinfo=timezone.utc),
+            min_duration_minutes=10,
+        )
+
+        self.assertIn("JOIN unifi_protect_plate_validations", pool.query)
+        self.assertIn("v.is_valid IS TRUE", pool.query)
+        self.assertIn("ANY($6::text[])", pool.query)
+        self.assertIn("HAVING max(occurred_at) - min(occurred_at) >", pool.query)
+        self.assertEqual(pool.arguments[5], ["DK", "NO", "SE"])
+        self.assertEqual(report["summary"]["vehicle_day_count"], 1)
+        self.assertEqual(report["days"][0]["vehicles"][0]["vehicle_label"], "Volvo XC60")
 
 
 class PlateQualityTests(unittest.TestCase):

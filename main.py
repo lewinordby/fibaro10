@@ -16661,6 +16661,158 @@ async def api_unifi_protect_daily_license_plates(
     )
 
 
+async def unpaid_registered_vehicle_stays_payload(
+    source_report: Mapping[str, Any],
+    period_start: date,
+    period_end: date,
+) -> dict[str, Any]:
+    source_days = [item for item in source_report.get("days") or [] if isinstance(item, Mapping)]
+    plate_values = sorted(
+        {
+            compact_plate(vehicle.get("plate"))
+            for source_day in source_days
+            for vehicle in source_day.get("vehicles") or []
+            if isinstance(vehicle, Mapping) and compact_plate(vehicle.get("plate"))
+        }
+    )
+    parking_by_plate: Dict[str, list[ParkingSession]] = defaultdict(list)
+    vehicle_by_plate: Dict[str, Dict[str, Any]] = {}
+    if plate_values:
+        query_start = datetime.combine(period_start - timedelta(days=7), time.min)
+        query_end = datetime.combine(period_end, time.min)
+        normalized_session_plate = compact_plate_sql(ParkingSession.car_license_number)
+        async with async_session() as session:
+            parking_rows = (
+                await session.execute(
+                    select(ParkingSession)
+                    .where(normalized_session_plate.in_(plate_values))
+                    .where(ParkingSession.start_time < query_end)
+                    .where(
+                        or_(
+                            ParkingSession.end_time.is_(None),
+                            ParkingSession.end_time >= query_start,
+                        )
+                    )
+                    .order_by(ParkingSession.start_time.asc(), ParkingSession.id.asc())
+                )
+            ).scalars().all()
+            vehicle_rows = (
+                await session.execute(
+                    select(ParkingVehicle, ParkingVehicleDetails)
+                    .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
+                    .where(compact_plate_sql(ParkingVehicle.plate).in_(plate_values))
+                )
+            ).all()
+        for parking in parking_rows:
+            plate = compact_plate(parking.car_license_number)
+            if plate:
+                parking_by_plate[plate].append(parking)
+        for vehicle, details in vehicle_rows:
+            plate = compact_plate(vehicle.plate)
+            if plate:
+                vehicle_by_plate[plate] = {
+                    "name": vehicle.navn,
+                    "area": vehicle.omrade,
+                    "title": parking_vehicle_summary(details, vehicle.car_info_data),
+                    "path": f"/parkering/kjoretoy/{quote(vehicle.plate or plate, safe='')}",
+                }
+
+    days: list[dict[str, Any]] = []
+    unique_plates: set[str] = set()
+    observation_count = 0
+    observed_minutes = 0.0
+    excluded_paid_vehicle_days = 0
+    for source_day in source_days:
+        try:
+            day_value = date.fromisoformat(str(source_day.get("date")))
+        except (TypeError, ValueError):
+            continue
+        day_start = datetime.combine(day_value, time.min)
+        day_end = day_start + timedelta(days=1)
+        vehicles: list[dict[str, Any]] = []
+        for source_vehicle in source_day.get("vehicles") or []:
+            if not isinstance(source_vehicle, Mapping):
+                continue
+            plate = compact_plate(source_vehicle.get("plate"))
+            if not plate:
+                continue
+            paid_same_day = any(
+                float_or_zero(parking.fee_inc_vat) > 0
+                and (start_at := normalize_local_naive(parking.start_time)) is not None
+                and start_at < day_end
+                and (
+                    (end_at := normalize_local_naive(parking.end_time)) is None
+                    or end_at >= day_start
+                )
+                for parking in parking_by_plate.get(plate, [])
+            )
+            if paid_same_day:
+                excluded_paid_vehicle_days += 1
+                continue
+            local_vehicle = vehicle_by_plate.get(plate) or {}
+            duration_minutes = float_or_zero(source_vehicle.get("duration_minutes"))
+            observations = int_or_zero(source_vehicle.get("observation_count"))
+            unique_plates.add(plate)
+            observation_count += observations
+            observed_minutes += duration_minutes
+            vehicles.append(
+                {
+                    "id": source_vehicle.get("id") or f"{plate.lower()}-{day_value.isoformat()}",
+                    "plate": plate,
+                    "displayName": source_vehicle.get("display_name") or plate,
+                    "vehicleLabel": local_vehicle.get("title") or source_vehicle.get("vehicle_label") or "Kjøretøy funnet i register",
+                    "ownerName": local_vehicle.get("name"),
+                    "area": local_vehicle.get("area"),
+                    "vehiclePath": local_vehicle.get("path"),
+                    "countryCode": source_vehicle.get("country_code"),
+                    "registrySource": source_vehicle.get("registry_source"),
+                    "firstObservedAt": source_vehicle.get("first_observed_at"),
+                    "lastObservedAt": source_vehicle.get("last_observed_at"),
+                    "durationMinutes": duration_minutes,
+                    "observationCount": observations,
+                    "cameraNames": list(source_vehicle.get("camera_names") or []),
+                }
+            )
+        if vehicles:
+            days.append(
+                {
+                    "date": day_value.isoformat(),
+                    "label": day_value.strftime("%d.%m"),
+                    "weekdayLabel": ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"][day_value.weekday()],
+                    "isWeekend": day_value.weekday() >= 5,
+                    "vehicleCount": len(vehicles),
+                    "observationCount": sum(item["observationCount"] for item in vehicles),
+                    "vehicles": vehicles,
+                }
+            )
+
+    source_policy = source_report.get("policy") if isinstance(source_report.get("policy"), Mapping) else {}
+    source_summary = source_report.get("summary") if isinstance(source_report.get("summary"), Mapping) else {}
+    return {
+        "policy": {
+            "minDurationMinutes": int_or_zero(source_policy.get("min_duration_minutes")) or 10,
+            "countryCodes": list(source_policy.get("country_codes") or ["NO", "SE", "DK"]),
+            "paymentMatch": "same_calendar_day",
+            "label": "Registerfunnet uten betaling",
+            "detail": (
+                "Kjøretøyet er bekreftet i kjøretøyregister for Norge, Sverige eller Danmark, "
+                "er observert i mer enn 10 minutter samme dag og har ingen positiv "
+                "parkeringsbetaling som overlapper kalenderdagen."
+            ),
+        },
+        "summary": {
+            "vehicleDayCount": sum(day["vehicleCount"] for day in days),
+            "activeDays": len(days),
+            "uniqueVehicleCount": len(unique_plates),
+            "observationCount": observation_count,
+            "observedMinutes": round(observed_minutes, 1),
+            "sourceVehicleDayCount": int_or_zero(source_summary.get("vehicle_day_count")),
+            "excludedPaidVehicleDays": excluded_paid_vehicle_days,
+        },
+        "days": days,
+    }
+
+
 @app.get("/api/cars/parking-control-report")
 async def api_parking_control_report(
     response: Response,
@@ -16700,7 +16852,7 @@ async def api_parking_control_report(
         period_label_value = month_label(period_start)
     from_at = datetime.combine(period_start, time.min).replace(tzinfo=LOCAL_TZ)
     to_at = datetime.combine(period_end, time.min).replace(tzinfo=LOCAL_TZ)
-    ledger, known_stays = await asyncio.gather(
+    ledger, known_stays, registered_stays = await asyncio.gather(
         protect_ledger_json(
             "known_vehicle_report",
             identity="PARKNORDIC",
@@ -16720,6 +16872,20 @@ async def api_parking_control_report(
                 "timezone": "Europe/Oslo",
             },
         ),
+        protect_ledger_json(
+            "registered_vehicle_stays_report",
+            **{
+                "from": from_at.isoformat(),
+                "to": to_at.isoformat(),
+                "min_duration_minutes": 10,
+                "timezone": "Europe/Oslo",
+            },
+        ),
+    )
+    unpaid_registered_vehicles = await unpaid_registered_vehicle_stays_payload(
+        registered_stays,
+        period_start,
+        period_end,
     )
 
     def visit_payload(item: Mapping[str, Any]) -> dict[str, Any]:
@@ -16848,6 +17014,7 @@ async def api_parking_control_report(
             },
             "days": known_vehicle_days,
         },
+        "unpaidRegisteredVehicles": unpaid_registered_vehicles,
     }
 
 
