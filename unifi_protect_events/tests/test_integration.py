@@ -245,6 +245,15 @@ class RecognitionQueryTests(unittest.IsolatedAsyncioTestCase):
                 "source_event_id": "event-4",
                 "occurred_at": datetime(2026, 8, 5, 8, 0, tzinfo=timezone.utc),
             },
+            {
+                "recognition_id": 6,
+                "value": "Park Nordic",
+                "normalized_value": "PARKNORDIC",
+                "camera_id": "north",
+                "camera_name": "Butikk nord",
+                "source_event_id": "event-5",
+                "occurred_at": datetime(2026, 8, 5, 8, 0, tzinfo=timezone.utc),
+            },
         ]
         pool = _RowsPool(rows)
 
@@ -258,7 +267,7 @@ class RecognitionQueryTests(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertEqual(pool.arguments[1], "PARKNORDIC")
-        self.assertEqual(report["summary"]["observation_count"], 4)
+        self.assertEqual(report["summary"]["observation_count"], 5)
         self.assertEqual(report["summary"]["visit_count"], 3)
         self.assertEqual(report["summary"]["active_days"], 2)
         august_fourth = next(day for day in report["days"] if day["date"] == "2026-08-04")
@@ -266,6 +275,9 @@ class RecognitionQueryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(august_fourth["visits"][0]["duration_minutes"], 30.0)
         self.assertEqual(august_fourth["visits"][0]["observation_count"], 2)
         self.assertIn("Butikk nord", august_fourth["visits"][0]["camera_names"])
+        august_fifth = next(day for day in report["days"] if day["date"] == "2026-08-05")
+        self.assertEqual(august_fifth["visits"][0]["observation_count"], 2)
+        self.assertTrue(august_fifth["visits"][0]["is_single_observation"])
 
 
 class PlateQualityTests(unittest.TestCase):

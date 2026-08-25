@@ -721,7 +721,7 @@ async def known_vehicle_report(
             "duration_minutes": duration_minutes,
             "observation_count": len(cluster),
             "camera_names": camera_names,
-            "is_single_observation": len(cluster) == 1,
+            "is_single_observation": len(cluster) == 1 or duration_minutes <= 0,
         }
         date_key = start_local.date().isoformat()
         visits_by_date.setdefault(date_key, []).append(visit)

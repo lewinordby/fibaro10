@@ -12,6 +12,33 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1810",
+        "date": "25.08.2026",
+        "headline": "Park Nordic-rapporten skiller korte treff fra målbar kontrolltid",
+        "title": "Identiske kameratidspunkt vises uten misvisende null minutter",
+        "description": (
+            "Den nye månedsrapporten er kvalitetssikret mot produksjonsdata. Flere kameratreff "
+            "med samme tidspunkt vises nå som en kort observasjon, siden datagrunnlaget ikke kan "
+            "dokumentere en målbar varighet mellom første og siste treff."
+        ),
+        "applications": [
+            "UniFi Protect-hendelser: presis klassifisering av besøk uten målbar varighet.",
+            "Parkering / Park Nordic: tydelig entalls- og flertallstekst i tidslinjen.",
+        ],
+        "request": (
+            "Lag eget Park Nordic-filter og en forståelig månedsrapport over dager og tidspunkt "
+            "der parkeringsvakten er på kontroll."
+        ),
+        "work_duration": "ca. 5 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser korte observasjoner uten å oppgi 0 minutter som kontrolltid.",
+            "Tester flere kameratreff registrert på nøyaktig samme tidspunkt.",
+            "Kontrollerer Park Nordic-filteret med produksjonsdata.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1809",
         "date": "25.08.2026",
         "headline": "Park Nordic får egen månedsrapport for parkeringskontroll",
