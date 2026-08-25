@@ -16664,15 +16664,42 @@ async def api_unifi_protect_daily_license_plates(
 @app.get("/api/cars/parking-control-report")
 async def api_parking_control_report(
     response: Response,
+    period: str = Query(default="month", pattern="^(week|month)$"),
     month: Optional[str] = None,
-    gap_minutes: int = Query(default=45, ge=5, le=180),
+    week: Optional[str] = None,
+    gap_minutes: int = Query(default=60, ge=5, le=180),
 ) -> dict[str, Any]:
     response.headers["Cache-Control"] = "no-store, max-age=0"
     today = datetime.now(LOCAL_TZ).date()
-    month_start = normalize_month(month, today)
-    month_end = add_months(month_start, 1)
-    from_at = datetime.combine(month_start, time.min).replace(tzinfo=LOCAL_TZ)
-    to_at = datetime.combine(month_end, time.min).replace(tzinfo=LOCAL_TZ)
+    current_week_start = today - timedelta(days=today.weekday())
+    if period == "week":
+        period_start = current_week_start
+        if week:
+            try:
+                parsed_week = datetime.strptime(f"{week}-1", "%G-W%V-%u").date()
+                if parsed_week.strftime("%G-W%V") == week:
+                    period_start = parsed_week
+            except (TypeError, ValueError):
+                pass
+        period_end = period_start + timedelta(days=7)
+        period_value = period_start.strftime("%G-W%V")
+        previous_period = (period_start - timedelta(days=7)).strftime("%G-W%V")
+        next_period = period_end.strftime("%G-W%V")
+        current_period = current_week_start.strftime("%G-W%V")
+        period_label_value = (
+            f"Uke {period_start.isocalendar().week} · "
+            f"{period_start.strftime('%d.%m')}-{(period_end - timedelta(days=1)).strftime('%d.%m.%Y')}"
+        )
+    else:
+        period_start = normalize_month(month, today)
+        period_end = add_months(period_start, 1)
+        period_value = period_start.strftime("%Y-%m")
+        previous_period = add_months(period_start, -1).strftime("%Y-%m")
+        next_period = period_end.strftime("%Y-%m")
+        current_period = today.strftime("%Y-%m")
+        period_label_value = month_label(period_start)
+    from_at = datetime.combine(period_start, time.min).replace(tzinfo=LOCAL_TZ)
+    to_at = datetime.combine(period_end, time.min).replace(tzinfo=LOCAL_TZ)
     ledger = await protect_ledger_json(
         "known_vehicle_report",
         identity="PARKNORDIC",
@@ -16693,6 +16720,16 @@ async def api_parking_control_report(
             "observationCount": int_or_zero(item.get("observation_count")),
             "cameraNames": list(item.get("camera_names") or []),
             "isSingleObservation": bool(item.get("is_single_observation")),
+            "observations": [
+                {
+                    "recognitionId": observation.get("recognition_id"),
+                    "occurredAt": observation.get("occurred_at"),
+                    "cameraId": observation.get("camera_id"),
+                    "cameraName": observation.get("camera_name") or observation.get("camera_id") or "Ukjent kamera",
+                }
+                for observation in item.get("observations") or []
+                if isinstance(observation, Mapping)
+            ],
         }
 
     source_summary = ledger.get("summary") if isinstance(ledger.get("summary"), Mapping) else {}
@@ -16722,14 +16759,23 @@ async def api_parking_control_report(
         "generatedAt": ledger.get("generated_at"),
         "identity": ledger.get("identity") or "PARKNORDIC",
         "displayName": ledger.get("display_name") or "Park Nordic",
-        "month": month_start.strftime("%Y-%m"),
-        "monthLabel": month_label(month_start),
-        "prevMonth": add_months(month_start, -1).strftime("%Y-%m"),
-        "nextMonth": month_end.strftime("%Y-%m"),
-        "isCurrentMonth": month_start == today.replace(day=1),
+        "periodType": period,
+        "periodValue": period_value,
+        "periodLabel": period_label_value,
+        "previousPeriod": previous_period,
+        "nextPeriod": next_period,
+        "currentPeriod": current_period,
+        "isCurrentPeriod": period_value == current_period,
+        "rangeStart": period_start.isoformat(),
+        "rangeEnd": (period_end - timedelta(days=1)).isoformat(),
+        "month": period_start.strftime("%Y-%m"),
+        "monthLabel": month_label(period_start),
+        "prevMonth": add_months(period_start.replace(day=1), -1).strftime("%Y-%m"),
+        "nextMonth": add_months(period_start.replace(day=1), 1).strftime("%Y-%m"),
+        "isCurrentMonth": period_start.replace(day=1) == today.replace(day=1),
         "policy": {
             "gapMinutes": int_or_zero(source_policy.get("gap_minutes")) or gap_minutes,
-            "label": source_policy.get("label") or f"Maks {gap_minutes} min mellom observasjoner",
+            "label": source_policy.get("label") or f"Under {gap_minutes} min mellom observasjoner",
             "detail": source_policy.get("detail") or "Varighet er estimert fra kameraobservasjonene.",
         },
         "summary": {

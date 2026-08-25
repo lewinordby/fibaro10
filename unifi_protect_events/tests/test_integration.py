@@ -234,7 +234,7 @@ class RecognitionQueryTests(unittest.IsolatedAsyncioTestCase):
                 "camera_id": "front",
                 "camera_name": "Butikk front",
                 "source_event_id": "event-3",
-                "occurred_at": datetime(2026, 8, 4, 9, 0, tzinfo=timezone.utc),
+                "occurred_at": datetime(2026, 8, 4, 8, 30, tzinfo=timezone.utc),
             },
             {
                 "recognition_id": 5,
@@ -263,7 +263,7 @@ class RecognitionQueryTests(unittest.IsolatedAsyncioTestCase):
             identity="Park Nordic",
             from_at=datetime(2026, 7, 31, 22, 0, tzinfo=timezone.utc),
             to_at=datetime(2026, 8, 31, 22, 0, tzinfo=timezone.utc),
-            gap_minutes=45,
+            gap_minutes=60,
         )
 
         self.assertEqual(pool.arguments[1], "PARKNORDIC")
@@ -275,6 +275,8 @@ class RecognitionQueryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(august_fourth["visits"][0]["duration_minutes"], 30.0)
         self.assertEqual(august_fourth["visits"][0]["observation_count"], 2)
         self.assertIn("Butikk nord", august_fourth["visits"][0]["camera_names"])
+        self.assertEqual(len(august_fourth["visits"][0]["observations"]), 2)
+        self.assertEqual(august_fourth["visits"][0]["observations"][0]["recognition_id"], 1)
         august_fifth = next(day for day in report["days"] if day["date"] == "2026-08-05")
         self.assertEqual(august_fifth["visits"][0]["observation_count"], 2)
         self.assertTrue(august_fifth["visits"][0]["is_single_observation"])

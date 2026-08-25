@@ -2132,7 +2132,7 @@ async def api_v1_known_vehicle_report(
     identity: str,
     from_at: datetime = Query(alias="from"),
     to_at: datetime = Query(alias="to"),
-    gap_minutes: int = Query(default=45, ge=5, le=180),
+    gap_minutes: int = Query(default=60, ge=5, le=180),
     timezone_name: str = Query(default="Europe/Oslo", alias="timezone"),
 ) -> dict[str, Any]:
     current = active_collector()

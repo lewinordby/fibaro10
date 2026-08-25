@@ -12,6 +12,39 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1811",
+        "date": "25.08.2026",
+        "headline": "Park Nordic får komplett uke- og månedsrapport",
+        "title": "Alle kameratreff samles i ekspanderbare kontrollbesøk",
+        "description": (
+            "Park Nordic-siden er bygget om til en komplett kontrollrapport. Besøk skilles når "
+            "det har gått minst én time siden forrige kameraregistrering. Rapporten kan vises per "
+            "uke eller måned, viser når på døgnet besøkene starter og lar hvert besøk ekspanderes "
+            "til samtlige underliggende kameraregistreringer."
+        ),
+        "applications": [
+            "UniFi Protect-hendelser: besøksgrupper med én-timesregel og komplette observasjonslister.",
+            "Fibaro10 API: valgbare ISO-uker og måneder med felles periodekontrakt.",
+            "Parkering / Park Nordic: døgnfordeling, tidslinje og ekspanderbare besøk.",
+            "System / navigasjon: oppdatert beskrivelse av kontrollrapporten.",
+        ],
+        "request": (
+            "Lag en egen side med alle Park Nordic-oppføringer gruppert i besøk. Det skal gå minst "
+            "én time til neste besøk, hvert besøk skal kunne ekspanderes, og siden skal ha uke- og "
+            "månedsvelger, antall besøk og oversikt over når på døgnet kontrollene skjer."
+        ),
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Starter nytt besøk ved minst 60 minutter uten observasjon.",
+            "Bevarer alle dedupliserte kameraregistreringer i hvert besøk.",
+            "Innfører uke- og månedsnavigasjon med forrige, neste og inneværende periode.",
+            "Viser fordeling av besøksstarter gjennom dagen.",
+            "Gjør besøkene ekspanderbare med klokkeslett, kamera og registrerings-ID.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1810",
         "date": "25.08.2026",
         "headline": "Park Nordic-rapporten skiller korte treff fra målbar kontrolltid",

@@ -278,7 +278,7 @@ class CarsDayApiTests(unittest.IsolatedAsyncioTestCase):
                 "generated_at": "2026-08-25T09:00:00Z",
                 "identity": "PARKNORDIC",
                 "display_name": "Park Nordic",
-                "policy": {"gap_minutes": 45, "label": "Maks 45 min", "detail": "Estimert."},
+                "policy": {"gap_minutes": 60, "label": "Under 60 min", "detail": "Estimert."},
                 "summary": {
                     "visit_count": 1,
                     "active_days": 1,
@@ -301,6 +301,14 @@ class CarsDayApiTests(unittest.IsolatedAsyncioTestCase):
                                 "observation_count": 2,
                                 "camera_names": ["Butikk front"],
                                 "is_single_observation": False,
+                                "observations": [
+                                    {
+                                        "recognition_id": 123,
+                                        "occurred_at": "2026-08-25T07:00:00Z",
+                                        "camera_id": "front",
+                                        "camera_name": "Butikk front",
+                                    }
+                                ],
                             }
                         ],
                     }
@@ -309,14 +317,37 @@ class CarsDayApiTests(unittest.IsolatedAsyncioTestCase):
         )
         with patch.object(main, "protect_ledger_json", new=ledger):
             payload = await main.api_parking_control_report(
-                response=main.Response(), month="2026-08", gap_minutes=45
+                response=main.Response(), period="month", month="2026-08", week=None, gap_minutes=60
             )
 
         self.assertEqual(payload["month"], "2026-08")
+        self.assertEqual(payload["periodType"], "month")
+        self.assertEqual(payload["periodValue"], "2026-08")
         self.assertEqual(payload["summary"]["visitCount"], 1)
         self.assertEqual(payload["days"][0]["visits"][0]["durationMinutes"], 12.0)
+        self.assertEqual(payload["days"][0]["visits"][0]["observations"][0]["recognitionId"], 123)
         self.assertEqual(ledger.await_args.args[0], "known_vehicle_report")
         self.assertEqual(ledger.await_args.kwargs["identity"], "PARKNORDIC")
+
+    async def test_parking_control_report_can_select_iso_week(self):
+        ledger = AsyncMock(
+            return_value={
+                "policy": {},
+                "summary": {},
+                "days": [],
+            }
+        )
+        with patch.object(main, "protect_ledger_json", new=ledger):
+            payload = await main.api_parking_control_report(
+                response=main.Response(), period="week", month=None, week="2026-W35", gap_minutes=60
+            )
+
+        self.assertEqual(payload["periodType"], "week")
+        self.assertEqual(payload["periodValue"], "2026-W35")
+        self.assertEqual(payload["rangeStart"], "2026-08-24")
+        self.assertEqual(payload["rangeEnd"], "2026-08-30")
+        self.assertIn("Uke 35", payload["periodLabel"])
+        self.assertEqual(ledger.await_args.kwargs["gap_minutes"], 60)
 
     async def test_cars_day_uses_light_ledger_payload_and_server_cache(self):
         main.clear_summary_cache("cars_day")

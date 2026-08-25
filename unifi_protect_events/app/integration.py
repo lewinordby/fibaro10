@@ -631,7 +631,7 @@ async def known_vehicle_report(
     identity: str,
     from_at: datetime,
     to_at: datetime,
-    gap_minutes: int = 45,
+    gap_minutes: int = 60,
     timezone_name: str = "Europe/Oslo",
 ) -> dict[str, Any]:
     """Group sightings of one known Protect identity into estimated visits."""
@@ -695,7 +695,7 @@ async def known_vehicle_report(
         previous = clusters[-1][-1]["occurred_at"]
         current = observation["occurred_at"]
         same_local_day = previous.astimezone(local_tz).date() == current.astimezone(local_tz).date()
-        if same_local_day and current - previous <= timedelta(minutes=gap_minutes):
+        if same_local_day and current - previous < timedelta(minutes=gap_minutes):
             clusters[-1].append(observation)
         else:
             clusters.append([observation])
@@ -722,6 +722,15 @@ async def known_vehicle_report(
             "observation_count": len(cluster),
             "camera_names": camera_names,
             "is_single_observation": len(cluster) == 1 or duration_minutes <= 0,
+            "observations": [
+                {
+                    "recognition_id": row.get("recognition_id"),
+                    "occurred_at": row["occurred_at"],
+                    "camera_id": row.get("camera_id"),
+                    "camera_name": row.get("camera_name") or row.get("camera_id") or "Ukjent kamera",
+                }
+                for row in cluster
+            ],
         }
         date_key = start_local.date().isoformat()
         visits_by_date.setdefault(date_key, []).append(visit)
@@ -759,10 +768,11 @@ async def known_vehicle_report(
         "timezone": timezone_name,
         "policy": {
             "gap_minutes": gap_minutes,
-            "label": f"Maks {gap_minutes} min mellom observasjoner",
+            "label": f"Under {gap_minutes} min mellom observasjoner",
             "detail": (
                 "Kameraobservasjoner på samme kalenderdag samles til ett kontrollbesøk når "
-                f"det er høyst {gap_minutes} minutter mellom dem. Varighet er estimert fra "
+                f"det er under {gap_minutes} minutter mellom dem. Et opphold på minst "
+                f"{gap_minutes} minutter starter et nytt besøk. Varighet er estimert fra "
                 "første til siste observasjon."
             ),
         },
