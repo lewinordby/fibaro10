@@ -12,6 +12,35 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1807",
+        "date": "25.08.2026",
+        "headline": "Komplette oppslagskøer er tilgjengelige for alle innloggede brukere",
+        "title": "Blank og ikke funnet vises samlet uten å endre automatiske oppslag",
+        "description": (
+            "Navn- og områdearbeidslistene er nå rene lesevisninger for alle innloggede "
+            "brukere. De ber eksplisitt om både blanke kjøretøy og kjøretøy som tidligere "
+            "ikke ble funnet. Standardoppførselen til endepunktene er fortsatt bare blanke "
+            "kandidater, slik at automatiske integrasjoner ikke får et endret arbeidsgrunnlag."
+        ),
+        "applications": [
+            "Parkering / Navnoppslag: komplett kø med blanke og ikke funnet.",
+            "Parkering / Områdeoppslag: komplett kø med blanke og ikke funnet.",
+            "Fibaro10 API: lesetilgang følger ordinær innlogging; skrivehandlinger er fortsatt beskyttet.",
+        ],
+        "request": (
+            "Kan du ta en total gjennomgang av parkering, det er veldig omfattende og mye "
+            "som kanskje er dobbelt og unødvendig."
+        ),
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger til eksplisitt include_not_found-parameter på begge arbeidslisteendepunktene.",
+            "Lar lesekall bruke ordinær innlogging uten å svekke rettighetene på endringskall.",
+            "Bevarer standardvalget for automatiske oppslagsintegrasjoner.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1806",
         "date": "25.08.2026",
         "headline": "Oppslagsarbeidslistene leser nå direkte fra kjøretøyregisteret",

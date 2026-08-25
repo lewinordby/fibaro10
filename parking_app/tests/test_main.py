@@ -102,7 +102,10 @@ class ParkingAppTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["rows"][0]["plate"], "AB12345")
         self.assertEqual(core_get.call_args.args, ("/api/parkering/kjoretoy/mangler-navn",))
-        self.assertEqual(str(core_get.call_args.kwargs["params"]), "limit=100&offset=0")
+        self.assertEqual(
+            core_get.call_args.kwargs["params"],
+            {"limit": "100", "offset": "0", "include_not_found": "true"},
+        )
 
     def test_area_lookup_adapter_uses_the_filtered_core_worklist(self) -> None:
         core_response = httpx.Response(
@@ -116,7 +119,10 @@ class ParkingAppTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"count": 3, "limit": 1, "offset": 1, "rows": [{"plate": "XY98765"}]})
         self.assertEqual(core_get.call_args.args, ("/api/parkering/kjoretoy/mangler-omrade",))
-        self.assertEqual(str(core_get.call_args.kwargs["params"]), "limit=1&offset=1")
+        self.assertEqual(
+            core_get.call_args.kwargs["params"],
+            {"limit": "1", "offset": "1", "include_not_found": "true"},
+        )
 
     def test_allowed_action_is_forwarded_as_post(self) -> None:
         core_response = httpx.Response(202, json={"message": "Startet"}, request=httpx.Request("POST", "http://fibaro10/api/actions/parkering/refresh"))

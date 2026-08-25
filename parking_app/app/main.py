@@ -15,9 +15,11 @@ APP_DIR = Path(__file__).resolve().parents[1]
 
 async def lookup_worklist(request: Request, client: httpx.AsyncClient, headers: dict[str, str]) -> dict[str, Any]:
     mode = "omrade" if request.url.path.casefold().endswith("mangler-omrade") else "navn"
+    params = dict(request.query_params)
+    params["include_not_found"] = "true"
     response = await client.get(
         f"/api/parkering/kjoretoy/mangler-{mode}",
-        params=request.query_params,
+        params=params,
         headers=headers,
     )
     response.raise_for_status()

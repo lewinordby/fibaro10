@@ -38531,16 +38531,15 @@ async def parking_missing_names_api(
     request: Request,
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    include_not_found: bool = False,
     format: str = "json",
 ):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
+    condition = vehicle_missing_name_condition() if include_not_found else vehicle_blank_name_condition()
     async with async_session() as session:
-        rows = await parking_missing_name_rows(session, limit, offset, include_not_found=False)
+        rows = await parking_missing_name_rows(session, limit, offset, include_not_found=include_not_found)
         count = (
             await session.execute(
-                select(func.count(ParkingVehicle.plate)).where(vehicle_blank_name_condition())
+                select(func.count(ParkingVehicle.plate)).where(condition)
             )
         ).scalar_one()
     payload = [parking_vehicle_lookup_payload(vehicle, details) for vehicle, details in rows]
@@ -38555,16 +38554,15 @@ async def parking_missing_areas_api(
     request: Request,
     limit: int = Query(1000, ge=1, le=1000),
     offset: int = Query(0, ge=0),
+    include_not_found: bool = False,
     format: str = "json",
 ):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
+    condition = vehicle_missing_area_condition() if include_not_found else vehicle_blank_area_condition()
     async with async_session() as session:
-        rows = await parking_missing_area_rows(session, limit, offset, include_not_found=False)
+        rows = await parking_missing_area_rows(session, limit, offset, include_not_found=include_not_found)
         count = (
             await session.execute(
-                select(func.count(ParkingVehicle.plate)).where(vehicle_blank_area_condition())
+                select(func.count(ParkingVehicle.plate)).where(condition)
             )
         ).scalar_one()
     payload = [parking_vehicle_lookup_payload(vehicle, details) for vehicle, details in rows]
