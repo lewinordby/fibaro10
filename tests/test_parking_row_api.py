@@ -315,6 +315,42 @@ class CarsDayApiTests(unittest.IsolatedAsyncioTestCase):
                 ],
             }
         )
+        parking_payload = ledger.return_value
+        known_stays_payload = {
+            "policy": {
+                "min_duration_minutes": 10,
+                "label": "Mer enn 10 minutter",
+                "detail": "Fra første til siste observasjon.",
+            },
+            "summary": {
+                "vehicle_day_count": 1,
+                "active_days": 1,
+                "unique_vehicle_count": 1,
+                "observation_count": 3,
+                "observed_minutes": 18,
+            },
+            "days": [
+                {
+                    "date": "2026-08-25",
+                    "observation_count": 3,
+                    "vehicles": [
+                        {
+                            "id": "firmabil-2026-08-25",
+                            "identity": "FIRMABIL",
+                            "display_name": "Firmabil",
+                            "first_observed_at": "2026-08-25T08:00:00Z",
+                            "last_observed_at": "2026-08-25T08:18:00Z",
+                            "duration_minutes": 18,
+                            "observation_count": 3,
+                            "camera_names": ["Butikk front"],
+                        }
+                    ],
+                }
+            ],
+        }
+        ledger.side_effect = lambda method, **_kwargs: (
+            known_stays_payload if method == "known_vehicle_stays_report" else parking_payload
+        )
         with patch.object(main, "protect_ledger_json", new=ledger):
             payload = await main.api_parking_control_report(
                 response=main.Response(), period="month", month="2026-08", week=None, gap_minutes=60
@@ -326,8 +362,12 @@ class CarsDayApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload["summary"]["visitCount"], 1)
         self.assertEqual(payload["days"][0]["visits"][0]["durationMinutes"], 12.0)
         self.assertEqual(payload["days"][0]["visits"][0]["observations"][0]["recognitionId"], 123)
-        self.assertEqual(ledger.await_args.args[0], "known_vehicle_report")
-        self.assertEqual(ledger.await_args.kwargs["identity"], "PARKNORDIC")
+        self.assertEqual(payload["knownVehicles"]["summary"]["vehicleDayCount"], 1)
+        self.assertEqual(payload["knownVehicles"]["days"][0]["vehicles"][0]["displayName"], "Firmabil")
+        report_call = next(call for call in ledger.await_args_list if call.args[0] == "known_vehicle_report")
+        stays_call = next(call for call in ledger.await_args_list if call.args[0] == "known_vehicle_stays_report")
+        self.assertEqual(report_call.kwargs["identity"], "PARKNORDIC")
+        self.assertEqual(stays_call.kwargs["min_duration_minutes"], 10)
 
     async def test_parking_control_report_can_select_iso_week(self):
         ledger = AsyncMock(
@@ -347,7 +387,8 @@ class CarsDayApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload["rangeStart"], "2026-08-24")
         self.assertEqual(payload["rangeEnd"], "2026-08-30")
         self.assertIn("Uke 35", payload["periodLabel"])
-        self.assertEqual(ledger.await_args.kwargs["gap_minutes"], 60)
+        report_call = next(call for call in ledger.await_args_list if call.args[0] == "known_vehicle_report")
+        self.assertEqual(report_call.kwargs["gap_minutes"], 60)
 
     async def test_cars_day_uses_light_ledger_payload_and_server_cache(self):
         main.clear_summary_cache("cars_day")

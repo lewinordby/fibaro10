@@ -11,7 +11,7 @@ autentiserings-API.
 - visuell dagslinje med 23 plasser og fast beleggsakse
 - kjøretøysøk, kjøretøydetaljer, områder og datakvalitet
 - parkeringsprognose og Park Nordic-oppgjør
-- Park Nordic-kontrollrapport per uke eller måned med besøksgrupper og kameraregistreringer
+- Park Nordic-kontrollrapport per uke eller måned med besøksgrupper, kameraregistreringer og daglig oversikt over øvrige kjente kjøretøy observert i mer enn ti minutter
 - akkumulert årssammenligning med valgbare år
 - tidspunktfordeling og ukesnitt per parkering
 

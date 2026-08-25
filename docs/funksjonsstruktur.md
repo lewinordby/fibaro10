@@ -61,7 +61,7 @@ Oppgjør ligger under Parkering og Soling fordi kontrollen eies av hvert fagdome
 - `Dagslinje`: visuell kapasitets-/beleggsflate.
 - `Ukesnitt`: ukevis utvikling i gjennomsnittlig beløp og parkeringstid per parkering, med sammenligning mellom valgte år.
 - `Kjøretøy`: søk, eier/kjøretøydata og historikk per bil.
-- `Park Nordic`: uke- og månedsrapport over parkeringskontroll, gruppert i ekspanderbare besøk med alle kameraregistreringer.
+- `Park Nordic`: uke- og månedsrapport over parkeringskontroll, gruppert i ekspanderbare besøk med alle kameraregistreringer. Samme side viser øvrige kjente kjøretøy som er observert i mer enn ti minutter, gruppert per dag med tidslinje fra første til siste observasjon.
 - `Områder`: områdeanalyse med dato/tidsrom.
 - `Prognose`: parkeringsprognoser etter import.
 - `Årssammenligning`: akkumulert årssammenligning for parkering.

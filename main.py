@@ -16700,15 +16700,26 @@ async def api_parking_control_report(
         period_label_value = month_label(period_start)
     from_at = datetime.combine(period_start, time.min).replace(tzinfo=LOCAL_TZ)
     to_at = datetime.combine(period_end, time.min).replace(tzinfo=LOCAL_TZ)
-    ledger = await protect_ledger_json(
-        "known_vehicle_report",
-        identity="PARKNORDIC",
-        **{
-            "from": from_at.isoformat(),
-            "to": to_at.isoformat(),
-            "gap_minutes": gap_minutes,
-            "timezone": "Europe/Oslo",
-        },
+    ledger, known_stays = await asyncio.gather(
+        protect_ledger_json(
+            "known_vehicle_report",
+            identity="PARKNORDIC",
+            **{
+                "from": from_at.isoformat(),
+                "to": to_at.isoformat(),
+                "gap_minutes": gap_minutes,
+                "timezone": "Europe/Oslo",
+            },
+        ),
+        protect_ledger_json(
+            "known_vehicle_stays_report",
+            **{
+                "from": from_at.isoformat(),
+                "to": to_at.isoformat(),
+                "min_duration_minutes": 10,
+                "timezone": "Europe/Oslo",
+            },
+        ),
     )
 
     def visit_payload(item: Mapping[str, Any]) -> dict[str, Any]:
@@ -16734,6 +16745,8 @@ async def api_parking_control_report(
 
     source_summary = ledger.get("summary") if isinstance(ledger.get("summary"), Mapping) else {}
     source_policy = ledger.get("policy") if isinstance(ledger.get("policy"), Mapping) else {}
+    known_summary = known_stays.get("summary") if isinstance(known_stays.get("summary"), Mapping) else {}
+    known_policy = known_stays.get("policy") if isinstance(known_stays.get("policy"), Mapping) else {}
     days = []
     for source_day in ledger.get("days") or []:
         if not isinstance(source_day, Mapping):
@@ -16753,6 +16766,38 @@ async def api_parking_control_report(
                     for item in source_day.get("visits") or []
                     if isinstance(item, Mapping)
                 ],
+            }
+        )
+    known_vehicle_days = []
+    for source_day in known_stays.get("days") or []:
+        if not isinstance(source_day, Mapping):
+            continue
+        day_value = date.fromisoformat(str(source_day.get("date")))
+        vehicles = []
+        for source_vehicle in source_day.get("vehicles") or []:
+            if not isinstance(source_vehicle, Mapping):
+                continue
+            vehicles.append(
+                {
+                    "id": source_vehicle.get("id"),
+                    "identity": source_vehicle.get("identity"),
+                    "displayName": source_vehicle.get("display_name") or source_vehicle.get("identity") or "Kjent kjøretøy",
+                    "firstObservedAt": source_vehicle.get("first_observed_at"),
+                    "lastObservedAt": source_vehicle.get("last_observed_at"),
+                    "durationMinutes": float_or_zero(source_vehicle.get("duration_minutes")),
+                    "observationCount": int_or_zero(source_vehicle.get("observation_count")),
+                    "cameraNames": list(source_vehicle.get("camera_names") or []),
+                }
+            )
+        known_vehicle_days.append(
+            {
+                "date": day_value.isoformat(),
+                "label": day_value.strftime("%d.%m"),
+                "weekdayLabel": ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"][day_value.weekday()],
+                "isWeekend": day_value.weekday() >= 5,
+                "vehicleCount": len(vehicles),
+                "observationCount": int_or_zero(source_day.get("observation_count")),
+                "vehicles": vehicles,
             }
         )
     return {
@@ -16788,6 +16833,21 @@ async def api_parking_control_report(
             "lastObservedAt": source_summary.get("last_observed_at"),
         },
         "days": days,
+        "knownVehicles": {
+            "policy": {
+                "minDurationMinutes": int_or_zero(known_policy.get("min_duration_minutes")) or 10,
+                "label": known_policy.get("label") or "Mer enn 10 minutter",
+                "detail": known_policy.get("detail") or "Tidsrommet beregnes fra første til siste kameraobservasjon samme dag.",
+            },
+            "summary": {
+                "vehicleDayCount": int_or_zero(known_summary.get("vehicle_day_count")),
+                "activeDays": int_or_zero(known_summary.get("active_days")),
+                "uniqueVehicleCount": int_or_zero(known_summary.get("unique_vehicle_count")),
+                "observationCount": int_or_zero(known_summary.get("observation_count")),
+                "observedMinutes": float_or_zero(known_summary.get("observed_minutes")),
+            },
+            "days": known_vehicle_days,
+        },
     }
 
 

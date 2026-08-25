@@ -1,5 +1,5 @@
 import unittest
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from starlette.requests import Request
 
 from unifi_protect_events.app.integration import (
@@ -12,6 +12,7 @@ from unifi_protect_events.app.integration import (
     payload_digest,
     list_recognitions,
     known_vehicle_report,
+    known_vehicle_stays_report,
     require_webhook,
     recognition_kind,
 )
@@ -280,6 +281,50 @@ class RecognitionQueryTests(unittest.IsolatedAsyncioTestCase):
         august_fifth = next(day for day in report["days"] if day["date"] == "2026-08-05")
         self.assertEqual(august_fifth["visits"][0]["observation_count"], 2)
         self.assertTrue(august_fifth["visits"][0]["is_single_observation"])
+
+    async def test_known_vehicle_stays_report_groups_daily_known_vehicles(self):
+        pool = _RowsPool(
+            [
+                {
+                    "local_date": date(2026, 8, 25),
+                    "identity": "LEWIBIL",
+                    "display_name": "Lewi bil",
+                    "first_observed_at": datetime(2026, 8, 25, 8, 0, tzinfo=timezone.utc),
+                    "last_observed_at": datetime(2026, 8, 25, 8, 25, tzinfo=timezone.utc),
+                    "duration_minutes": 25.0,
+                    "observation_count": 4,
+                    "camera_names": ["Butikk front", "Butikk nord"],
+                },
+                {
+                    "local_date": date(2026, 8, 24),
+                    "identity": "LEWIBIL",
+                    "display_name": "Lewi bil",
+                    "first_observed_at": datetime(2026, 8, 24, 10, 0, tzinfo=timezone.utc),
+                    "last_observed_at": datetime(2026, 8, 24, 10, 15, tzinfo=timezone.utc),
+                    "duration_minutes": 15.0,
+                    "observation_count": 2,
+                    "camera_names": ["Butikk front"],
+                },
+            ]
+        )
+
+        report = await known_vehicle_stays_report(
+            pool,
+            "console",
+            from_at=datetime(2026, 8, 1, tzinfo=timezone.utc),
+            to_at=datetime(2026, 9, 1, tzinfo=timezone.utc),
+            min_duration_minutes=10,
+        )
+
+        self.assertIn("r.is_known IS TRUE", pool.query)
+        self.assertIn("upper(r.normalized_value) <> 'PARKNORDIC'", pool.query)
+        self.assertIn("HAVING max(occurred_at) - min(occurred_at) >", pool.query)
+        self.assertEqual(pool.arguments[4], 10)
+        self.assertEqual(report["summary"]["vehicle_day_count"], 2)
+        self.assertEqual(report["summary"]["unique_vehicle_count"], 1)
+        self.assertEqual(report["summary"]["observation_count"], 6)
+        self.assertEqual(report["days"][0]["date"], "2026-08-25")
+        self.assertEqual(report["days"][0]["vehicles"][0]["duration_minutes"], 25.0)
 
 
 class PlateQualityTests(unittest.TestCase):

@@ -83,6 +83,9 @@ class ProtectLedgerClient:
     def known_vehicle_report(self, **params: Any) -> dict[str, Any]:
         return self.get_json("/api/v1/known-vehicles/report", params)
 
+    def known_vehicle_stays_report(self, **params: Any) -> dict[str, Any]:
+        return self.get_json("/api/v1/known-vehicles/stays", params)
+
     def bollards(self) -> dict[str, Any]:
         return self.get_json("/api/v1/bollards")
 

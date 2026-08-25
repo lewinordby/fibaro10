@@ -12,6 +12,39 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1812",
+        "date": "25.08.2026",
+        "headline": "Kjente kjøretøy får egen dagsvisning i kontrollrapporten",
+        "title": "Første og siste kameraobservasjon blir et forståelig opphold",
+        "description": (
+            "Park Nordic-siden viser nå også øvrige kjøretøy som UniFi kjenner igjen og som "
+            "er observert i mer enn ti minutter samme dag. Dagene er kompakte som standard og "
+            "kan åpnes for å vise hvert kjøretøy med nøyaktig tidsrom, varighet, antall "
+            "observasjoner og kameraer."
+        ),
+        "applications": [
+            "UniFi Protect-hendelser: effektiv databaseberegning av daglige opphold for kjente kjøretøy.",
+            "Fibaro10 API: samlet periodekontrakt for Park Nordic og øvrige kjente kjøretøy.",
+            "Parkering / Park Nordic: ekspanderbar dagsliste og tidslinjer per kjøretøy.",
+            "System / dokumentasjon: oppdatert navigasjonsbeskrivelse og funksjonsoversikt.",
+        ],
+        "request": (
+            "Legg inn kjente kjøretøy som er observert i mer enn ti minutter på samme oversikt. "
+            "Første og siste observasjon skal markere start og slutt, dagene skal kunne "
+            "ekspanderes hver for seg, og standardlisten skal være kompakt."
+        ),
+        "work_duration": "ca. 35 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Tar bare med UniFi-kjente kjøretøy utenom Park Nordic.",
+            "Bruker en streng grense på mer enn ti minutter fra første til siste observasjon samme dag.",
+            "Dedupliserer kamerahendelser før varighet og antall beregnes.",
+            "Viser kompakte dagslinjer som kan åpnes til én tidslinje per kjøretøy.",
+            "Viser klokkeslett, beregnet varighet, observasjonsantall og involverte kameraer.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1811",
         "date": "25.08.2026",
         "headline": "Park Nordic får komplett uke- og månedsrapport",
