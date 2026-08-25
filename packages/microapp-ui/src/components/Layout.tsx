@@ -143,11 +143,12 @@ function Header({ title, open, setOpen, username, activeApp, shellUrl }: {
 }
 
 function ContextNavigation({ group, item, accent }: { group: NavigationGroup; item: NavigationItem; accent: Accent }) {
-  if (group.items.length < 2) return null;
+  const visibleItems = group.items.filter((candidate) => !candidate.hidden);
+  if (visibleItems.length < 2) return null;
   return (
     <nav className="sticky top-16 z-20 border-b border-gray-200 bg-gray-100/95 backdrop-blur-md dark:border-gray-700/60 dark:bg-gray-900/95" aria-label={`${group.label} undersider`}>
       <div className="mx-auto flex h-12 max-w-[96rem] items-end gap-6 overflow-x-auto px-4 sm:px-6 lg:px-8">
-        {group.items.map((candidate) => {
+        {visibleItems.map((candidate) => {
           const active = candidate === item;
           return <AppLink className={`flex h-12 shrink-0 items-center border-b-2 px-0.5 text-sm font-medium transition-colors ${active ? tabClasses[accent] : "border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100"}`} to={candidate.to} key={candidate.to}>{candidate.label}</AppLink>;
         })}

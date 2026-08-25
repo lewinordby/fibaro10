@@ -268,6 +268,7 @@ export type AppDockId = "revenue" | "parking" | "sun" | "energy" | "operations" 
 
 export type NavigationItem = {
   to: string;
+  hidden?: boolean;
   label: string;
   icon: import("./components/MosaicIcon").IconName;
   title: string;

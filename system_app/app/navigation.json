@@ -44,42 +44,39 @@
           "icon": "dashboard",
           "items": [
             { "to": "/", "label": "Dashboard", "icon": "dashboard", "title": "Parkeringsdashboard", "description": "Dagens, ukens, m\u00e5nedens og \u00e5rets aktivitet sammenlignet med relevante perioder.", "module": "status", "view": "parkering", "corePath": "/status/parkering" },
-            { "to": "/oversikt", "label": "Oversikt", "icon": "chart", "title": "Parkeringsoversikt", "description": "N\u00f8kkeltall, ukesutvikling og siste parkeringer.", "module": "parkering", "view": "oversikt", "corePath": "/parkering/oversikt" }
+            { "to": "/oversikt", "label": "Utvikling", "icon": "chart", "title": "Utvikling og topplister", "description": "Ukesutvikling, topplister og siste parkeringer.", "module": "parkering", "view": "oversikt", "corePath": "/parkering/oversikt" }
           ]
         },
         {
           "label": "Parkeringer",
           "icon": "parking",
           "items": [
-            { "to": "/parkeringer", "label": "Liste", "icon": "parking", "title": "Parkeringer", "description": "Alle parkeringer p\u00e5 valgt dag.", "module": "parkering", "view": "parkeringer", "corePath": "/parkering/parkeringer" },
-            { "to": "/dagslinje", "label": "Dagslinje", "icon": "clock", "title": "Parkeringsdagslinje", "description": "Belegg og aktivitet gjennom valgt dag.", "module": "parkering", "view": "dagslinje", "corePath": "/parkering/dagslinje" }
+            { "to": "/parkeringer", "label": "Dagsliste", "icon": "parking", "title": "Dagens parkeringer", "description": "Alle parkeringer p\u00e5 valgt dag.", "module": "parkering", "view": "parkeringer", "corePath": "/parkering/parkeringer" },
+            { "to": "/dagslinje", "label": "Belegg", "icon": "clock", "title": "Belegg gjennom dagen", "description": "Kapasitet, toppbelegg og parkeringsforl\u00f8p gjennom valgt dag.", "module": "parkering", "view": "dagslinje", "corePath": "/parkering/dagslinje" }
           ]
         },
         {
           "label": "Kj\u00f8ret\u00f8y",
           "icon": "apps",
           "items": [
-            { "to": "/kjoretoy", "label": "Register", "icon": "apps", "title": "Kj\u00f8ret\u00f8yregister", "description": "S\u00f8k, eiere og parkeringshistorikk per bil.", "module": "parkering", "view": "kjoretoy", "corePath": "/parkering/kjoretoy" },
-            { "to": "/observerte-biler", "label": "Observerte biler", "icon": "camera", "title": "Observerte biler", "description": "Kameraobservasjoner koblet mot kj\u00f8ret\u00f8yregister og betaling.", "module": "biler", "view": "oversikt", "corePath": "/biler/oversikt" },
+            { "to": "/kjoretoy", "label": "Kj\u00f8ret\u00f8y", "icon": "apps", "title": "Kj\u00f8ret\u00f8yregister", "description": "S\u00f8k, eiere og parkeringshistorikk per bil.", "module": "parkering", "view": "kjoretoy", "corePath": "/parkering/kjoretoy" },
+            { "to": "/observerte-biler", "label": "Observerte", "icon": "camera", "title": "Observerte biler", "description": "Kameraobservasjoner koblet mot kj\u00f8ret\u00f8yregister og betaling.", "module": "biler", "view": "oversikt", "corePath": "/biler/oversikt" },
             { "to": "/omrade", "label": "Omr\u00e5der", "icon": "compare", "title": "Parkeringsomr\u00e5der", "description": "Geografisk fordeling av kj\u00f8ret\u00f8y og parkeringer.", "module": "parkering", "view": "omrade", "corePath": "/parkering/omrade" },
             { "to": "/oppslag", "label": "Oppslag", "icon": "apps", "title": "Kj\u00f8ret\u00f8yoppslag", "description": "Status og kontroll av eksterne kj\u00f8ret\u00f8yoppslag.", "module": "parkering", "view": "oppslag", "corePath": "/parkering/oppslag" },
-            { "to": "/oppslag/navn", "label": "Navnoppslag", "icon": "users", "title": "Manglende navn", "description": "Arbeidsliste for kj\u00f8ret\u00f8y som mangler eiernavn.", "module": "parkering", "view": "navn-oppslag", "corePath": "/parkering/navn-oppslag" },
-            { "to": "/oppslag/omrade", "label": "Omr\u00e5deoppslag", "icon": "building", "title": "Manglende omr\u00e5de", "description": "Arbeidsliste for kj\u00f8ret\u00f8y som mangler omr\u00e5de.", "module": "parkering", "view": "omrade-oppslag", "corePath": "/parkering/omrade-oppslag" }
+            { "to": "/bilstatistikk", "label": "Bilstatistikk", "icon": "chart", "title": "Bilstatistikk", "description": "Kj\u00f8ret\u00f8y rangert etter parkeringsomsetning og antall bes\u00f8k.", "module": "parkering", "view": "bilstatistikk", "corePath": "/parkering/bilstatistikk" },
+            { "to": "/oppslag/navn", "label": "Navnoppslag", "icon": "users", "title": "Manglende navn", "description": "Arbeidsliste for kj\u00f8ret\u00f8y som mangler eiernavn.", "module": "parkering", "view": "navn-oppslag", "corePath": "/parkering/navn-oppslag", "hidden": true },
+            { "to": "/oppslag/omrade", "label": "Omr\u00e5deoppslag", "icon": "building", "title": "Manglende omr\u00e5de", "description": "Arbeidsliste for kj\u00f8ret\u00f8y som mangler omr\u00e5de.", "module": "parkering", "view": "omrade-oppslag", "corePath": "/parkering/omrade-oppslag", "hidden": true }
           ]
         },
         {
           "label": "Analyse",
           "icon": "chart",
           "items": [
-            { "to": "/periode", "label": "Periode", "icon": "compare", "title": "Periodesammenligning", "description": "Akkumulert antall og bel\u00f8p mot relevante referanseperioder.", "module": "status", "view": "parkering-comparison", "corePath": "/status/sammenligning" },
-            { "to": "/prognose", "label": "Prognose", "icon": "trend", "title": "Parkeringsprognose", "description": "Forventet utvikling mot faktisk parkering.", "module": "parkering", "view": "prognose", "corePath": "/parkering/prognose" },
-            { "to": "/arsutvikling", "label": "\u00c5r", "icon": "chart", "title": "\u00c5rssammenligning", "description": "Akkumulert parkering sammenlignet mellom \u00e5r.", "module": "parkering", "view": "arsutvikling", "corePath": "/parkering/arsutvikling" },
-            { "to": "/tidspunkt", "label": "D\u00f8gn og ukedag", "icon": "clock", "title": "D\u00f8gn og ukedag", "description": "Parkeringstid og omsetning fordelt p\u00e5 tidspunkt.", "module": "parkering", "view": "tidspunkt", "corePath": "/parkering/tidspunkt" },
-            { "to": "/ukesnitt", "label": "Snitt per uke", "icon": "trend", "title": "Snitt per uke", "description": "Utvikling i bel\u00f8p og tid per parkering.", "module": "parkering", "view": "ukesnitt", "corePath": "/parkering/ukesnitt" },
-            { "to": "/besoksanalyse", "label": "Bes\u00f8ksanalyse", "icon": "clock", "title": "Bes\u00f8ksanalyse", "description": "N\u00e5r kundene kommer, hvor lenge de blir og hvordan bes\u00f8kene fordeler seg.", "module": "parkering", "view": "besoksanalyse", "corePath": "/parkering/tidspunkt" },
-            { "to": "/kapasitet", "label": "Kapasitet og k\u00f8", "icon": "parking", "title": "Kapasitet og k\u00f8", "description": "Belegg, topper og perioder med press p\u00e5 parkeringskapasiteten.", "module": "parkering", "view": "kapasitet", "corePath": "/parkering/dagslinje" },
-            { "to": "/pris-analyse", "label": "Pris og tiltak", "icon": "compare", "title": "Pris- og tiltaksanalyse", "description": "Utvikling i bel\u00f8p, tid og antall f\u00f8r og etter prisendringer.", "module": "parkering", "view": "pris-analyse", "corePath": "/parkering/ukesnitt" },
-            { "to": "/bilstatistikk", "label": "Bilstatistikk", "icon": "chart", "title": "Bilstatistikk", "description": "Topplister og statistikk for kj\u00f8ret\u00f8y.", "module": "parkering", "view": "bilstatistikk", "corePath": "/parkering/bilstatistikk" }
+            { "to": "/periode", "label": "Sammenligning", "icon": "compare", "title": "Periodesammenligning", "description": "Akkumulert antall og bel\u00f8p mot relevante referanseperioder.", "module": "status", "view": "parkering-comparison", "corePath": "/status/sammenligning" },
+            { "to": "/arsutvikling", "label": "\u00c5rssammenligning", "icon": "chart", "title": "\u00c5rssammenligning", "description": "Akkumulert parkering sammenlignet mellom \u00e5r.", "module": "parkering", "view": "arsutvikling", "corePath": "/parkering/arsutvikling" },
+            { "to": "/tidspunkt", "label": "D\u00f8gnm\u00f8nster", "icon": "clock", "title": "D\u00f8gn og ukedag", "description": "Parkeringstid og omsetning fordelt p\u00e5 tidspunkt og ukedag.", "module": "parkering", "view": "tidspunkt", "corePath": "/parkering/tidspunkt" },
+            { "to": "/ukesnitt", "label": "Ukesutvikling", "icon": "trend", "title": "Ukesutvikling", "description": "Utvikling i gjennomsnittlig bel\u00f8p og tid per parkering.", "module": "parkering", "view": "ukesnitt", "corePath": "/parkering/ukesnitt" },
+            { "to": "/prognose", "label": "Prognose", "icon": "trend", "title": "Parkeringsprognose", "description": "Forventet utvikling mot faktisk parkering.", "module": "parkering", "view": "prognose", "corePath": "/parkering/prognose" }
           ]
         },
         {

@@ -23921,6 +23921,7 @@ def api_parking_overview_tables(summaries: Dict[str, Any], latest_rows: list[Dic
             "Siste parkeringer",
             ["status", "start_time", "end_time", "car_license_number", "vehicle_make", "vehicle_type", "vehicle_color", "vehicle_owner", "fee_inc_vat", "parking_time_min"],
             latest_rows,
+            meta={"rowLinkColumn": "car_license_number"},
         ),
     ]
 
@@ -26650,6 +26651,11 @@ def parking_row_api(
         "subtype": row.subtype,
         "status": row.status,
         "vehicle_title": vehicle_title,
+        "path": (
+            f"/parkering/kjoretoy/{quote(compact_plate(row.car_license_number), safe='')}"
+            if compact_plate(row.car_license_number)
+            else ""
+        ),
         "unifi_start_url": unifi_protect_parking_timelapse_url(row.start_time, unifi_before_seconds),
         "unifi_end_url": unifi_protect_parking_timelapse_url(row.end_time, unifi_before_seconds),
     }
@@ -32435,7 +32441,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             },
                         )
                     ],
-                    "actions": api_parking_default_actions(),
+                    "actions": api_parking_default_actions()[:1],
                     "filters": [
                         api_filter("plate", "Reg.nr", "text", plate_value, "Hele eller del av reg.nr"),
                         api_filter("status", "Status", "select", status_value, options=status_options),
@@ -32465,7 +32471,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 else:
                     vehicle_filtered_count = vehicle_stats["vehicle_count"]
                 vehicle_detail_rows = (await session.execute(vehicle_stmt)).all()
-                actions = api_parking_default_actions()
+                actions = api_parking_default_actions()[1:]
                 if int_or_zero(vehicle_stats["vehicle_area_not_found_count"]) > 0:
                     actions.append(api_parking_clear_area_not_found_action(vehicle_stats["vehicle_area_not_found_count"]))
                 return {
@@ -32511,7 +32517,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "dayNavigation": None,
                     "parkingTimeline": None,
                 }
-            overview_context = view in ("", "oversikt", "bilstatistikk")
+            overview_context = view in ("", "oversikt")
             parking_summaries = await get_parking_summaries(session) if overview_context else {}
             latest_rows = []
             if overview_context:
@@ -32578,7 +32584,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "vehicle_area_not_found_count": 0,
                 "vehicle_missing_area_count": 0,
             }
-            if overview_context or view in {"omrade", "oppslag"}:
+            if overview_context or view in {"omrade", "oppslag", "bilstatistikk"}:
                 vehicle_stats = await parking_vehicle_count_stats(session)
             vehicle_count = vehicle_stats["vehicle_count"]
             new_vehicle_counts = {"month": 0, "previous_month": 0, "year": 0}
@@ -32635,14 +32641,31 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             vehicle_area_not_found_count = vehicle_stats["vehicle_area_not_found_count"]
             vehicle_missing_area_count = vehicle_stats["vehicle_missing_area_count"]
             vehicle_rows = []
+            most_used_vehicle = None
             if view == "bilstatistikk":
                 vehicle_rows = (
                     await session.execute(
-                        select(ParkingVehicle)
-                        .order_by(ParkingVehicle.last_seen.desc().nullslast(), ParkingVehicle.plate.asc())
+                        select(ParkingVehicle, ParkingVehicleDetails)
+                        .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
+                        .order_by(
+                            ParkingVehicle.paid_total.desc().nullslast(),
+                            ParkingVehicle.parkering_count.desc().nullslast(),
+                            ParkingVehicle.plate.asc(),
+                        )
                         .limit(250)
                     )
-                ).scalars().all()
+                ).all()
+                most_used_vehicle = (
+                    await session.execute(
+                        select(ParkingVehicle)
+                        .order_by(
+                            ParkingVehicle.parkering_count.desc().nullslast(),
+                            ParkingVehicle.paid_total.desc().nullslast(),
+                            ParkingVehicle.plate.asc(),
+                        )
+                        .limit(1)
+                    )
+                ).scalars().first()
             tables = api_parking_overview_tables(
                 parking_summaries,
                 [parking_row_api(row, vehicle, details, unifi_before_seconds=15) for row, vehicle, details in latest_rows],
@@ -32669,29 +32692,13 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     href="/parkering/kjoretoy",
                 ),
             ]
-            actions = [
-                {
-                    "key": "easypark-refresh",
-                    "label": "Oppdater EasyPark",
-                    "method": "POST",
-                    "path": "/api/actions/parkering/refresh",
-                    "confirm": "Starte EasyPark-oppdatering for siste periode?",
-                    "tone": "primary",
-                },
-                {
-                    "key": "svv-sync",
-                    "label": "Kjør SVV-sync",
-                    "method": "POST",
-                    "path": "/api/actions/parkering/svv-sync",
-                    "confirm": "Starte SVV-synk for kjøretøy?",
-                    "tone": "default",
-                },
-            ]
+            actions = api_parking_default_actions()
             filters = []
             charts = [api_parking_weekly_chart(parking_summaries)] if view in ("", "oversikt") else []
             parking_timeline = None
             day_navigation = None
             if view == "dagslinje":
+                actions = api_parking_default_actions()[:1]
                 selected_parking_day = parse_day(day)
                 parking_timeline = await api_parking_day_timeline(session, selected_parking_day, now_dt)
                 summary = parking_timeline["summary"]
@@ -32753,128 +32760,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         timeline_rows,
                     )
                 ]
-            elif view == "parkeringer":
-                selected_parking_day = parse_day(api_filter_value(params, "day"))
-                selected_parking_start = datetime.combine(selected_parking_day, time.min)
-                selected_parking_end = selected_parking_start + timedelta(days=1)
-                day_navigation = api_day_navigation(selected_parking_day, today)
-                if parking_import_status and parking_import_status.last_success_at:
-                    day_navigation["context"] = {
-                        "label": "Sist oppdatert",
-                        "value": format_source_datetime(parking_import_status.last_success_at),
-                        "detail": import_job_age(parking_import_status),
-                    }
-                plate_value = compact_plate(api_filter_value(params, "plate"))
-                status_value = api_filter_value(params, "status")
-                session_conditions = [
-                    ParkingSession.start_time >= selected_parking_start,
-                    ParkingSession.start_time < selected_parking_end,
-                ]
-                if plate_value:
-                    session_conditions.append(func.upper(func.replace(ParkingSession.car_license_number, " ", "")).like(f"%{plate_value.upper()}%"))
-                if status_value:
-                    session_conditions.append(ParkingSession.status == status_value)
-                session_stmt = (
-                    select(ParkingSession, ParkingVehicle, ParkingVehicleDetails)
-                    .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
-                    .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == normalized_session_plate)
-                    .order_by(ParkingSession.start_time.desc())
-                    .where(*session_conditions)
-                )
-                parking_rows = (await session.execute(session_stmt)).all()
-                previous_stats = await parking_previous_stats_for_rows(session, [row for row, _, _ in parking_rows])
-                status_options = api_filter_options(
-                    (await session.execute(select(ParkingSession.status).distinct().order_by(ParkingSession.status.asc()))).scalars().all()
-                )
-                filters = [
-                    api_filter("plate", "Reg.nr", "text", plate_value, "Hele eller del av reg.nr"),
-                    api_filter("status", "Status", "select", status_value, options=status_options),
-                ]
-                cards = []
-                tables = [
-                    api_table(
-                        "Parkeringer",
-                        [
-                            "status",
-                            "start_time",
-                            "end_time",
-                            "end_delta_min",
-                            "car_license_number",
-                            "vehicle_title",
-                            "navn",
-                            "fee_inc_vat",
-                            "parking_time_min",
-                            "previous_parking_count",
-                            "previous_paid_total",
-                        ],
-                        [
-                            parking_row_api(row, vehicle, details, previous_stats=previous_stats.get(row.id), unifi_before_seconds=60)
-                            for row, vehicle, details in parking_rows
-                        ],
-                        meta={"disablePagination": True, "totalRows": len(parking_rows)},
-                    )
-                ]
-            elif view == "kjoretoy":
-                q_value = q or api_filter_value(params, "q")
-                limit_value = api_filter_int(params, "limit", 250, 25, 1000)
-                page_value = api_filter_int(params, "page", 1, 1, 100000)
-                offset_value = (page_value - 1) * limit_value
-                vehicle_search = parking_vehicle_search_condition(q_value)
-                vehicle_stmt = (
-                    select(ParkingVehicle, ParkingVehicleDetails)
-                    .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-                    .order_by(ParkingVehicle.last_seen.desc().nullslast(), ParkingVehicle.plate.asc())
-                    .offset(offset_value)
-                    .limit(limit_value)
-                )
-                vehicle_count_stmt = select(func.count(ParkingVehicle.plate)).outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-                if vehicle_search is not None:
-                    vehicle_stmt = vehicle_stmt.where(vehicle_search)
-                    vehicle_count_stmt = vehicle_count_stmt.where(vehicle_search)
-                vehicle_detail_rows = (await session.execute(vehicle_stmt)).all()
-                vehicle_filtered_count = (await session.execute(vehicle_count_stmt)).scalar_one()
-                filters = [
-                    api_filter("q", "Søk", "text", q_value, "Reg.nr, bil, eier eller område"),
-                    api_filter("page", "Side", "number", page_value),
-                    api_filter("limit", "Antall", "number", limit_value),
-                ]
-                cards = [
-                    api_card("Treff", vehicle_filtered_count, "stk", f"Viser {offset_value + 1 if vehicle_detail_rows else 0}-{min(offset_value + len(vehicle_detail_rows), vehicle_filtered_count)}", "parking", href="/parkering/kjoretoy"),
-                    api_card("Kjøretøy totalt", vehicle_count, "stk", "Registrert i kjøretøytabellen", "status", href="/parkering/kjoretoy"),
-                    api_card(
-                        "Mangler navn",
-                        vehicle_missing_name_count,
-                        "stk",
-                        f"{format_short_number(vehicle_blank_name_count)} blanke / {format_short_number(vehicle_name_not_found_count)} ikke funnet",
-                        "status",
-                        href="/parkering/oppslag",
-                    ),
-                    api_card("Ikke funnet navn", vehicle_name_not_found_count, "stk", "Inngår i mangler navn", "status", href="/parkering/oppslag"),
-                    api_card(
-                        "Mangler område",
-                        vehicle_missing_area_count,
-                        "stk",
-                        f"{format_short_number(vehicle_blank_area_count)} blanke / {format_short_number(vehicle_area_not_found_count)} ikke funnet",
-                        "status",
-                        href="/parkering/oppslag?filter=mangler-omrade",
-                    ),
-                    api_card("Ikke funnet område", vehicle_area_not_found_count, "stk", "Inngår i mangler område", "status", href="/parkering/oppslag?filter=mangler-omrade"),
-                ]
-                tables = [
-                    api_table(
-                        "Kjøretøy",
-                        [
-                            "plate",
-                            "vehicle_title",
-                            "navn",
-                            "omrade",
-                            "parkering_count",
-                        ],
-                        [parking_vehicle_row_api(vehicle, details) for vehicle, details in vehicle_detail_rows],
-                        meta=api_table_meta(vehicle_filtered_count, page_value, limit_value, len(vehicle_detail_rows)),
-                    )
-                ]
             elif view == "omrade":
+                actions = api_parking_default_actions()[1:]
                 date_from_value = api_filter_value(params, "date_from")
                 date_to_value = api_filter_value(params, "date_to")
                 area_context = await parking_area_overview_data(session, date_from_value, date_to_value)
@@ -32932,11 +32819,34 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     ),
                 ]
             elif view == "bilstatistikk":
+                actions = []
+                revenue_leader = vehicle_rows[0][0] if vehicle_rows else None
+                cards = [
+                    api_card("Kjøretøy", vehicle_count, "stk", "Registrert i kjøretøyregisteret", "status", href="/parkering/kjoretoy"),
+                    api_card(
+                        "Høyest omsetning",
+                        format_short_number(revenue_leader.paid_total if revenue_leader else 0),
+                        "kr",
+                        f"{revenue_leader.plate} · {format_short_number(revenue_leader.parkering_count)} parkeringer" if revenue_leader else "Ingen data",
+                        "revenue",
+                        href=f"/parkering/kjoretoy/{quote(revenue_leader.plate or '', safe='')}" if revenue_leader else "/parkering/kjoretoy",
+                    ),
+                    api_card(
+                        "Flest parkeringer",
+                        most_used_vehicle.parkering_count if most_used_vehicle else 0,
+                        "stk",
+                        f"{most_used_vehicle.plate} · {format_short_number(most_used_vehicle.paid_total)} kr" if most_used_vehicle else "Ingen data",
+                        "parking",
+                        href=f"/parkering/kjoretoy/{quote(most_used_vehicle.plate or '', safe='')}" if most_used_vehicle else "/parkering/kjoretoy",
+                    ),
+                    api_card("Toppliste", len(vehicle_rows), "biler", "Sortert etter samlet parkeringsomsetning", "parking", href="/parkering/bilstatistikk"),
+                ]
                 tables = [
                     api_table(
-                        "Mest brukte kjøretøy",
-                        ["plate", "navn", "omrade", "parkering_count", "paid_total", "first_seen", "last_seen"],
-                        [row_to_dict(row, ["plate", "navn", "omrade", "parkering_count", "paid_total", "first_seen", "last_seen"]) for row in sorted(vehicle_rows, key=lambda item: float_or_zero(item.paid_total), reverse=True)],
+                        "Kjøretøy etter omsetning",
+                        ["plate", "vehicle_title", "navn", "omrade", "parkering_count", "paid_total", "first_seen", "last_seen"],
+                        [parking_vehicle_row_api(vehicle, details) for vehicle, details in vehicle_rows],
+                        meta={"rowLinkColumn": "plate", "totalRows": len(vehicle_rows)},
                     )
                 ]
             elif view == "prognose":
@@ -32998,33 +32908,68 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     },
                 ]
             elif view == "oppslag":
+                actions = api_parking_default_actions()[1:]
                 oppslag_filter = api_filter_value(params, "filter").lower()
                 area_only = oppslag_filter in {"mangler-omrade", "mangler-område", "missing-area"}
-                vehicles_missing_name = [] if area_only else await parking_missing_name_rows(session, 100)
-                vehicles_missing_area = await parking_missing_area_rows(session, 1000 if area_only else 100)
-                missing_area_table = api_table(
-                    "Kjøretøy uten område" if area_only else "Mangler område",
-                    ["plate", "navn", "omrade", "parkering_count", "paid_total", "last_seen", "path"],
-                    [
-                        {
-                            **row_to_dict(row, ["plate", "navn", "omrade", "parkering_count", "paid_total", "last_seen"]),
-                            "path": f"/parkering/kjoretoy/{quote(row.plate or '', safe='')}",
-                        }
-                        for row, _ in vehicles_missing_area
-                    ],
-                )
                 if area_only:
+                    vehicles_missing_area = await parking_missing_area_rows(session, 1000)
                     cards = [
                         api_card("Mangler område", vehicle_missing_area_count, "stk", "Blanke og ikke funnet", "status", href="/parkering/oppslag?filter=mangler-omrade"),
                         api_card("Blanke", vehicle_blank_area_count, "stk", "Kan fylles via områdeoppslag", "status", href="/parkering/oppslag?filter=mangler-omrade"),
                         api_card("Ikke funnet", vehicle_area_not_found_count, "stk", "Kan nullstilles og slås opp på nytt", "status", href="/parkering/oppslag?filter=mangler-omrade"),
                         api_card("Viser", len(vehicles_missing_area), "stk", "Maks 1000 i listen", "parking", href="/parkering/oppslag?filter=mangler-omrade"),
                     ]
-                    tables = [missing_area_table]
-                else:
                     tables = [
                         api_table(
-                            "Parkeringsverktøy",
+                            "Kjøretøy uten område",
+                            ["plate", "navn", "omrade", "parkering_count", "paid_total", "last_seen", "path"],
+                            [
+                                {
+                                    **row_to_dict(row, ["plate", "navn", "omrade", "parkering_count", "paid_total", "last_seen"]),
+                                    "path": f"/parkering/kjoretoy/{quote(row.plate or '', safe='')}",
+                                }
+                                for row, _ in vehicles_missing_area
+                            ],
+                        )
+                    ]
+                else:
+                    cards = [
+                        api_card(
+                            "Mangler navn",
+                            vehicle_missing_name_count,
+                            "biler",
+                            f"{format_short_number(vehicle_blank_name_count)} blanke · {format_short_number(vehicle_name_not_found_count)} ikke funnet",
+                            "status",
+                            href="/parkering/navn-oppslag",
+                        ),
+                        api_card(
+                            "Mangler område",
+                            vehicle_missing_area_count,
+                            "biler",
+                            f"{format_short_number(vehicle_blank_area_count)} blanke · {format_short_number(vehicle_area_not_found_count)} ikke funnet",
+                            "status",
+                            href="/parkering/omrade-oppslag",
+                        ),
+                        api_card(
+                            "Navn ikke funnet",
+                            vehicle_name_not_found_count,
+                            "biler",
+                            "Kan kontrolleres i navnearbeidslisten",
+                            "status",
+                            href="/parkering/navn-oppslag",
+                        ),
+                        api_card(
+                            "Område ikke funnet",
+                            vehicle_area_not_found_count,
+                            "biler",
+                            "Kan nullstilles og slås opp på nytt",
+                            "status",
+                            href="/parkering/omrade-oppslag",
+                        ),
+                    ]
+                    tables = [
+                        api_table(
+                            "Arbeidslister",
                             ["tool", "path", "description", "count"],
                             [
                                 api_tool_row(
@@ -33042,18 +32987,6 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                                 api_tool_row("Kjøretøyoversikt", "/parkering/kjoretoy", "Kjøretøyregister med redigering og detaljer.", vehicle_count),
                             ],
                         ),
-                        api_table(
-                            "Mangler navn",
-                            ["plate", "omrade", "parkering_count", "paid_total", "last_seen", "path"],
-                            [
-                                {
-                                    **row_to_dict(row, ["plate", "omrade", "parkering_count", "paid_total", "last_seen"]),
-                                    "path": f"/parkering/kjoretoy/{quote(row.plate or '', safe='')}",
-                                }
-                                for row, _ in vehicles_missing_name
-                            ],
-                        ),
-                        missing_area_table,
                     ]
             if int_or_zero(vehicle_area_not_found_count) > 0 and view in ("", "oversikt", "kjoretoy", "omrade", "oppslag"):
                 actions.append(
@@ -33071,7 +33004,13 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 )
             return {
                 "title": v2_module_title("parkering", view),
-                "subtitle": "EasyPark, aktive parkeringer og kjøretøygrunnlag.",
+                "subtitle": {
+                    "dagslinje": "Kapasitet, toppbelegg og parkeringsforløp gjennom valgt dag.",
+                    "omrade": "Geografisk fordeling av kjøretøy og parkeringer i valgt periode.",
+                    "bilstatistikk": "Kjøretøy rangert etter samlet parkeringsomsetning og antall besøk.",
+                    "prognose": "Forventet parkeringsutvikling sammenlignet med faktisk resultat.",
+                    "oppslag": "Samlet status og arbeidslister for manglende kjøretøyopplysninger.",
+                }.get(view, "EasyPark, aktive parkeringer og kjøretøygrunnlag."),
                 "cards": cards,
                 "charts": charts,
                 "tables": tables,

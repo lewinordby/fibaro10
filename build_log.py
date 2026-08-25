@@ -12,6 +12,47 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1805",
+        "date": "25.08.2026",
+        "headline": "Parkering er ryddet fra 20 til 15 primære menyvalg",
+        "title": "Tydeligere arbeidsflyt, riktige oppslag og raskere kjøretøysider",
+        "description": (
+            "Parkering er gjennomgått side for side med vekt på overlapp, faglig formål og "
+            "arbeidsflyt. Tre parallelle analyser som viste nøyaktig samme innhold som "
+            "eksisterende sider er fjernet. Navn- og områdeoppslag er beholdt som komplette "
+            "arbeidslister, men åpnes nå fra Oppslag i stedet for å fylle hovedmenyen. "
+            "Oppslag viser relevante datakvalitetstall fremfor misvisende parkeringskort, "
+            "bilstatistikken rangerer nå hele kjøretøygrunnlaget korrekt, og duplisert død "
+            "backendkode er fjernet. Registreringsnummeret er dessuten konsekvent lenke til "
+            "bilens historikk i både dagslisten og siste parkeringer."
+        ),
+        "applications": [
+            "Parkering / meny: 15 primære valg fordelt på fem tydelige områder.",
+            "Parkering / Oppslag: fokuserte statuskort og innganger til to skjulte arbeidslister.",
+            "Parkering / Bilstatistikk: korrekt global rangering og direkte kjøretøylenker.",
+            "Parkering / Dagsliste og Utvikling: registreringsnummeret bærer kjøretøylenken.",
+            "Fibaro10 API: mindre duplisert kode, færre unødvendige spørringer og mer målrettede handlinger.",
+            "Mantis, manual og appportal: synkron menystruktur og riktig antall synlige sider.",
+        ],
+        "request": (
+            "Kan du ta en total gjennomgang av parkering, det er veldig omfattende og mye "
+            "som kanskje er dobbelt og unødvendig."
+        ),
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fjerner Besøksanalyse, Kapasitet og kø og Pris og tiltak som parallelle kopier av eksisterende sider.",
+            "Skjuler Navnoppslag og Områdeoppslag fra hovedmenyen uten å fjerne arbeidsflytene.",
+            "Endrer menytekster til Utvikling, Dagsliste, Belegg, Døgnmønster og Ukesutvikling.",
+            "Flytter Bilstatistikk til Kjøretøy og retter rangeringen til hele kjøretøyregisteret.",
+            "Erstatter irrelevante nullkort på Oppslag med fire konkrete datakvalitetstall.",
+            "Begrenser EasyPark- og SVV-handlinger til sidene der de hører faglig hjemme.",
+            "Fjerner to store, utilgjengelige kopier av dagsliste- og kjøretøylogikken i API-et.",
+            "Oppdaterer Mantis-dokumentasjon fra 118 til 115 funksjonelle ruter.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1804",
         "date": "24.08.2026",
         "headline": "Registreringsnummer åpner nå kjøretøyhistorikken",

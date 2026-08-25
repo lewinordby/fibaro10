@@ -77,6 +77,12 @@ class DomainTopWeeksTests(unittest.TestCase):
 
         self.assertEqual(table["meta"]["rowLinkColumn"], "car_license_number")
 
+    def test_parking_overview_links_the_registration_number(self) -> None:
+        tables = main.api_parking_overview_tables({}, [])
+        latest = next(table for table in tables if table["title"] == "Siste parkeringer")
+
+        self.assertEqual(latest["meta"]["rowLinkColumn"], "car_license_number")
+
 
 if __name__ == "__main__":
     unittest.main()

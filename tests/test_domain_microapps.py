@@ -271,7 +271,7 @@ def test_documented_menu_structure_matches_current_mantis_navigation() -> None:
         "system",
     ]
     assert all(app["url"].startswith("https://ny.lilletorget.net/") for app in navigation)
-    assert sum(len(group["items"]) for app in navigation for group in app["groups"]) == 118
+    assert sum(len(group["items"]) for app in navigation for group in app["groups"]) == 115
 
     legacy_navigation = json.loads((repo_root / "packages" / "microapp-ui" / "src" / "navigation.json").read_text(encoding="utf-8"))["apps"]
     generic_apps = ("sun", "energy", "operations", "maintenance", "system", "link")
@@ -295,7 +295,7 @@ def test_system_menu_structure_page_is_available_without_core_data() -> None:
         payload = response.json()
         assert payload["title"] == "Menystruktur"
         assert len(payload["tables"]) == len(APP_MENU_STRUCTURE) + 2
-        assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 118
+        assert sum(len(group["items"]) for app in APP_MENU_STRUCTURE for group in app["groups"]) == 115
         placements = {
             row["plassering"]
             for table in payload["tables"][2:]
@@ -791,7 +791,8 @@ def test_shared_layout_uses_area_navigation_and_horizontal_sibling_pages() -> No
     assert "config.navigation.map((group)" in source
     assert "to={group.items[0].to}" in source
     assert "<ContextNavigation group={group}" in source
-    assert "group.items.length < 2" in source
+    assert "visibleItems.length < 2" in source
+    assert "group.items.filter((candidate) => !candidate.hidden)" in source
 
 
 def test_revenue_dashboard_names_both_driver_references() -> None:

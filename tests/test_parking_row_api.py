@@ -93,6 +93,19 @@ class ParkingRowApiTests(unittest.TestCase):
         self.assertEqual(payload["vehicle_make"], "Toyota")
         self.assertEqual(payload["vehicle_type"], "Corolla")
         self.assertEqual(payload["vehicle_color"], "Svart")
+        self.assertEqual(payload["path"], "/parkering/kjoretoy/AB12345")
+
+    def test_parking_row_api_links_plate_without_vehicle_record(self):
+        row = main.ParkingSession(
+            id=11,
+            start_time=datetime(2026, 8, 25, 8, 0),
+            car_license_number=" ab 12345 ",
+            status="Ongoing",
+        )
+
+        payload = main.parking_row_api(row)
+
+        self.assertEqual(payload["path"], "/parkering/kjoretoy/AB12345")
 
     def test_parking_row_api_uses_foreign_lookup_fallback(self):
         row = main.ParkingSession(
