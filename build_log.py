@@ -12,6 +12,30 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1826",
+        "date": "29.08.2026",
+        "headline": "Hele buildloggen er klikkbar der det forventes",
+        "title": "Dato, buildnummer og overskrift åpner samme leveransedetalj",
+        "description": (
+            "Sluttkontrollen etter mikroappgjennomgangen avdekket at bare datokolonnen åpnet en build. "
+            "Tabellkontrakten støtter nå flere eksplisitte lenkekolonner, og buildloggen bruker dette for "
+            "dato, buildnummer og overskrift uten å gjøre hele raden til en utydelig klikkflate."
+        ),
+        "applications": [
+            "System: buildloggen har tre tydelige innganger til samme detaljside.",
+            "Mantis-plattform: generisk støtte for flere lenkekolonner i en modultabell.",
+        ],
+        "request": "Kvalitetssikre alle mikroappene og rydde opp i inkonsekvent eller dobbel funksjonalitet.",
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Utvidet tabellmetadata med rowLinkColumns.",
+            "Gjort dato, buildnummer og overskrift klikkbare i Buildlogg.",
+            "Verifisert detaljruten i produksjonsnær nettleserkontroll.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1825",
         "date": "29.08.2026",
         "headline": "Mikroappene er kvalitetssikret og teknisk isolert",

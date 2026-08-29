@@ -35555,7 +35555,12 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     api_card("Berørte apper", len(current_build_row.get("applications") or []), "stk", "I aktiv build", "status", href="/admin/build"),
                 ]
                 tables = [
-                    api_table("Buildlogg", build_log_columns, [api_build_log_row(row) for row in BUILD_LOG[:80]]),
+                    api_table(
+                        "Buildlogg",
+                        build_log_columns,
+                        [api_build_log_row(row) for row in BUILD_LOG[:80]],
+                        meta={"rowLinkColumns": ["date", "build", "headline"]},
+                    ),
                     api_table("Buildverktøy", ["tool", "path", "description", "count"], [admin_tools[0], admin_tools[1], admin_tools[5]]),
                 ]
             elif view == "datakilder":
