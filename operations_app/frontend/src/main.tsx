@@ -24,7 +24,7 @@ const ControlSettingsSpecial = lazy(() => import("./components/OperationsSpecial
 const OperationsDashboard = lazy(() => import("./components/OperationsDashboard").then((module) => ({ default: module.OperationsDashboard })));
 
 const doorViews = new Set([
-  "oversikt", "andre", "solrom", "soltimer", "romkontroll-ny2",
+  "oversikt", "andre", "solrom", "hendelseslogikk", "soltimer", "romkontroll-ny2",
   "oversikt-ny", "romkontroll", "romkontroll-ny", "solrom-ny",
   "solrom-dagskontroll", "solrom2-oversikt", "solrom2-dagskontroll",
   "solrom2-avvik", "dorer2-oversikt", "dorer2-bygg", "alarm", "avvik",

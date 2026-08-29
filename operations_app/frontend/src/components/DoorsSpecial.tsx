@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppLink, ErrorState, Loading, MetricCard, Panel, useApi, useAppSearchParams } from "@lilletorget/microapp-ui";
 import { domainApi } from "@lilletorget/microapp-ui/api";
 import {
@@ -15,11 +15,13 @@ import {
   type DoorStatus,
   type RecordValue,
   type RoomOverview,
+  type SunroomLogic,
   type Sunrooms,
 } from "./doors/shared";
 
 export function DoorsSpecial({ view }: { view: string }) {
   if (["solrom", "solrom-ny", "solrom2-oversikt"].includes(view)) return <SunroomStatus compact={view === "solrom-ny"} />;
+  if (view === "hendelseslogikk") return <SunroomLogicOverview />;
   if (["alarm", "avvik"].includes(view)) return <DoorAlerts />;
   if (view === "radata") return <DoorRawData />;
   if (["romkontroll-ny2", "soltimer", "romkontroll"].includes(view)) return <RoomControl />;
@@ -412,6 +414,179 @@ function SunroomCard({ room, compact = false }: { room: RecordValue; compact?: b
         </div>
       ) : null}
     </article>
+  );
+}
+
+const logicToneClasses: Record<string, string> = {
+  alert: "border-red-300 bg-red-50/50 dark:border-red-900 dark:bg-red-950/10",
+  warning: "border-yellow-300 bg-yellow-50/50 dark:border-yellow-900 dark:bg-yellow-950/10",
+  waiting: "border-yellow-200 bg-white dark:border-yellow-900/70 dark:bg-gray-800",
+  active: "border-sky-300 bg-sky-50/40 dark:border-sky-900 dark:bg-sky-950/10",
+  free: "border-green-200 bg-white dark:border-green-900/70 dark:bg-gray-800",
+  unknown: "border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-800",
+};
+
+function SunroomLogicOverview() {
+  const [hours, setHours] = useState(12);
+  const [roomId, setRoomId] = useState("all");
+  const result = useApi(
+    () => domainApi.get<SunroomLogic>(`/api/hc3/doors/sunroom-logic?hours=${hours}&limit=240`),
+    `sunroom-logic-${hours}`,
+  );
+
+  useEffect(() => {
+    const refresh = window.setInterval(result.reload, 10_000);
+    return () => window.clearInterval(refresh);
+  }, [result.reload]);
+
+  const visibleRooms = useMemo(
+    () => (result.data?.rooms || []).filter((room) => roomId === "all" || String(room.roomId) === roomId),
+    [result.data?.rooms, roomId],
+  );
+  const visibleEvents = useMemo(
+    () => (result.data?.events || []).filter((event) => roomId === "all" || !event.roomId || String(event.roomId) === roomId),
+    [result.data?.events, roomId],
+  );
+
+  if (result.loading) return <Loading />;
+  if (result.error || !result.data) return <ErrorState error={result.error} onRetry={result.reload} />;
+  const data = result.data;
+  const attention = Number(data.summary.warning || 0) + Number(data.summary.alert || 0);
+  const lastReason = data.scraper.lastReasonLabel || "Ingen kontroll registrert";
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-60" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500" />
+            </span>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Hendelser og logikk</h2>
+          </div>
+          <p className="mt-1 text-xs text-gray-500">
+            Oppdatert {stamp(data.generatedAt)} · automatisk hvert 10. sekund
+          </p>
+        </div>
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="text-xs font-semibold text-gray-500">
+            <span className="mb-1 block">Rom</span>
+            <select className="form-select min-w-36" value={roomId} onChange={(event) => setRoomId(event.target.value)}>
+              <option value="all">Alle solrom</option>
+              {data.rooms.map((room) => <option value={String(room.roomId)} key={room.roomId}>{room.title}</option>)}
+            </select>
+          </label>
+          <label className="text-xs font-semibold text-gray-500">
+            <span className="mb-1 block">Tidsrom</span>
+            <select className="form-select" value={hours} onChange={(event) => setHours(Number(event.target.value))}>
+              <option value={6}>Siste 6 timer</option>
+              <option value={12}>Siste 12 timer</option>
+              <option value={24}>Siste døgn</option>
+              <option value={48}>Siste 2 døgn</option>
+            </select>
+          </label>
+          <button className="btn border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" onClick={result.reload}>
+            Oppdater
+          </button>
+        </div>
+      </div>
+
+      <SummaryStrip items={[
+        { label: "Rom i bruk", value: data.summary.active || 0, detail: `${data.summary.rooms || data.rooms.length} rom totalt`, color: "sky" },
+        { label: "Avventer SUN2", value: data.summary.waiting || 0, detail: "innen normalt kontrollvindu", color: "yellow" },
+        { label: "Krever oppfølging", value: attention, detail: `${data.summary.alert || 0} aktive alarmer`, color: attention ? "red" : "green" },
+        { label: "Siste SUN2-kontroll", value: timeStamp(data.summary.latestSun2At), detail: lastReason, color: data.scraper.available ? "green" : "red" },
+      ]} />
+
+      <Panel
+        title="Beslutning akkurat nå"
+        subtitle="Hvert kort viser signalet systemet har, vurderingen og neste automatiske steg"
+      >
+        <div className="grid gap-3 p-4 lg:grid-cols-2 xl:grid-cols-3">
+          {visibleRooms.map((room) => (
+            <article className={`rounded-lg border p-4 ${logicToneClasses[String(room.severity)] || logicToneClasses.unknown}`} key={room.roomId}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="text-xs font-semibold uppercase text-gray-400">{room.sectionTitle}</span>
+                  <h3 className="mt-0.5 text-base font-semibold text-gray-900 dark:text-gray-100">{room.title}</h3>
+                </div>
+                {badge(room.phase || "Ukjent", tone(room.severity))}
+              </div>
+              <dl className="mt-4 grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-2 text-sm">
+                <dt className="text-gray-500">Signal</dt>
+                <dd className="font-semibold text-gray-800 dark:text-gray-100">Dør {String(room.doorStateLabel || "ukjent").toLowerCase()} · {room.doorAgeLabel || "-"}</dd>
+                <dt className="text-gray-500">Vurdering</dt>
+                <dd className="text-gray-700 dark:text-gray-200">{room.decision}</dd>
+                <dt className="text-gray-500">Utløser</dt>
+                <dd className="text-gray-700 dark:text-gray-200">{room.trigger}</dd>
+              </dl>
+              <div className="mt-4 border-t border-gray-200/80 pt-3 dark:border-gray-700">
+                <span className="block text-xs font-semibold uppercase text-gray-400">Neste steg</span>
+                <p className="mt-1 text-sm font-medium text-gray-800 dark:text-gray-100">{room.nextAction}</p>
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                  {room.lastVerificationAt ? <span>Sist kontroll {timeStamp(room.lastVerificationAt)}</span> : <span>Ingen romutløst kontroll ennå</span>}
+                  {room.attemptCount ? <span>Forsøk {room.attemptCount}/{room.maxAttempts}</span> : null}
+                  {room.nextAt ? <span>Neste tidspunkt {timeStamp(room.nextAt)}</span> : null}
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel
+        title="Løpende hendelsesforløp"
+        subtitle={`${visibleEvents.length} hendelser i valgt periode · nyeste først`}
+      >
+        <div className="overflow-x-auto">
+          <table className="min-w-[1040px] table-auto text-left text-sm">
+            <thead className="border-b border-gray-200 bg-gray-50 text-xs uppercase text-gray-500 dark:border-gray-700 dark:bg-gray-900/40">
+              <tr>
+                <th className="px-4 py-3">Tid</th>
+                <th className="px-4 py-3">Rom</th>
+                <th className="px-4 py-3">Hendelse</th>
+                <th className="px-4 py-3">Logisk vurdering</th>
+                <th className="px-4 py-3">Utløst handling</th>
+                <th className="px-4 py-3">Resultat</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+              {visibleEvents.map((event) => (
+                <tr className="align-top hover:bg-gray-50/70 dark:hover:bg-gray-700/20" key={event.id}>
+                  <td className="whitespace-nowrap px-4 py-3 font-semibold tabular-nums text-gray-800 dark:text-gray-100">{stamp(event.timestamp)}</td>
+                  <td className="px-4 py-3">
+                    <span className="block font-semibold text-gray-800 dark:text-gray-100">{event.roomLabel}</span>
+                    <span className="mt-1 inline-block">{badge(event.kindLabel, event.tone || "gray")}</span>
+                  </td>
+                  <td className="px-4 py-3 font-semibold text-gray-800 dark:text-gray-100">{event.event}</td>
+                  <td className="max-w-xs px-4 py-3 text-gray-600 dark:text-gray-300">{event.logic}</td>
+                  <td className="max-w-xs px-4 py-3 text-gray-600 dark:text-gray-300">{event.action}</td>
+                  <td className="max-w-xs px-4 py-3 text-gray-600 dark:text-gray-300">{event.result}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!visibleEvents.length ? <div className="p-8 text-center text-sm text-gray-500">Ingen hendelser i valgt periode.</div> : null}
+        </div>
+      </Panel>
+
+      <Panel title="Aktive regler" subtitle="Reglene siden bruker når neste handling forklares">
+        <div className="grid gap-px overflow-hidden bg-gray-100 sm:grid-cols-2 xl:grid-cols-4 dark:bg-gray-700/60">
+          {[
+            ["Første kontroll", `${data.rules.forcedSyncMinutes || 1} min etter lukking`],
+            ["Minste intervall", `${Number(data.rules.syncMinIntervalSeconds || 300) / 60} min globalt`],
+            ["Nye forsøk", `Inntil ${data.rules.syncMaxAttempts || 4} per dørperiode`],
+            ["Sikkerhetsnett", `${Number(data.scraper.fallbackIntervalSeconds || 1800) / 60} min i aktiv periode`],
+          ].map(([label, value]) => (
+            <div className="bg-white px-4 py-3 dark:bg-gray-800" key={label}>
+              <span className="block text-xs font-semibold text-gray-500">{label}</span>
+              <strong className="mt-1 block text-sm text-gray-900 dark:text-gray-100">{value}</strong>
+            </div>
+          ))}
+        </div>
+      </Panel>
+    </div>
   );
 }
 

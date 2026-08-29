@@ -12,6 +12,37 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1815",
+        "date": "29.08.2026",
+        "headline": "Solrommenes hendelser og beslutninger vises løpende",
+        "title": "Ny operatørside forklarer hva hver hendelse utløser",
+        "description": (
+            "Dører har fått en egen løpende oversikt som samler dørendringer, SUN2-innlesinger, "
+            "registrerte soltimer og alarmer i ett forståelig hendelsesforløp. For hvert solrom "
+            "vises signalet systemet har, gjeldende vurdering, utløseren og neste automatiske steg."
+        ),
+        "applications": [
+            "Fibaro10 API: samlet kontrakt for romlogikk, hendelser, SUN2-kontroller og alarmer.",
+            "Bygg og drift build 96: ny Mantis-side under Dører / Hendelseslogikk.",
+            "Sun2 session scraper: kontrollårsaken lagres med fremtidige innlesinger.",
+            "Felles navigasjon: nytt direkte menyvalg til den løpende operatørvisningen.",
+        ],
+        "request": (
+            "Lag en ny oversiktsside med hendelser og logikk løpende for solrommene, "
+            "og vis hva som trigges av hendelsene."
+        ),
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Viser aktuell beslutning og neste automatiske handling for alle tolv solrom.",
+            "Samler dør, SUN2, kontroll og alarm i en nyeste-først-hendelseslogg.",
+            "Har romfilter, tidsfilter og automatisk oppdatering hvert tiende sekund.",
+            "Viser aktive terskler, kontrollforsøk og status på SUN2-skraperen.",
+            "Bevarer årsaken til nye SUN2-kontroller slik at hendelsesforløpet kan etterprøves.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1814",
         "date": "29.08.2026",
         "headline": "Dørlukking utløser trygg og ratebegrenset SUN2-kontroll",

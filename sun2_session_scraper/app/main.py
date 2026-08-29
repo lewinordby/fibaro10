@@ -1886,7 +1886,12 @@ def scrape_finance_settlement_sync(start: date, end: date, source_filename: str 
     return {"ok": True, "file": filename, "rows": 1, "posted": bool(response), "fibaro10_response": response}
 
 
-def scrape_month_sync(start: date, end: date, source_filename: str | None = None) -> dict[str, Any]:
+def scrape_month_sync(
+    start: date,
+    end: date,
+    source_filename: str | None = None,
+    trigger_reason: str | None = None,
+) -> dict[str, Any]:
     username = env_required("SUN2_USERNAME")
     password = env_required("SUN2_PASSWORD")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -1973,6 +1978,7 @@ def scrape_month_sync(start: date, end: date, source_filename: str | None = None
             "extra": {
                 "period_start": start.isoformat(),
                 "period_end": end.isoformat(),
+                "trigger_reason": trigger_reason,
                 "headers": headers,
                 "raw_rows": len(table_rows),
                 "list_url": page.url,
@@ -2000,14 +2006,26 @@ def scrape_month_sync(start: date, end: date, source_filename: str | None = None
         message=f"Skrapet {filename} med {len(sessions)} enkelttimer",
         records_imported=len(sessions),
         records_total=expected_count if expected_count is not None else len(sessions),
-        raw={"source_file": filename, "posted": bool(response), "response": response},
+        raw={
+            "source_file": filename,
+            "posted": bool(response),
+            "response": response,
+            "trigger_reason": trigger_reason,
+        },
     )
-    return {"ok": True, "file": filename, "rows": len(sessions), "posted": bool(response), "fibaro10_response": response}
+    return {
+        "ok": True,
+        "file": filename,
+        "rows": len(sessions),
+        "posted": bool(response),
+        "trigger_reason": trigger_reason,
+        "fibaro10_response": response,
+    }
 
 
-def scrape_today_sync() -> dict[str, Any]:
+def scrape_today_sync(trigger_reason: str | None = None) -> dict[str, Any]:
     today = local_today()
-    return scrape_month_sync(today, today, daily_filename_for(today))
+    return scrape_month_sync(today, today, daily_filename_for(today), trigger_reason)
 
 
 async def run_today_sync_rate_limited(reason: str) -> dict[str, Any]:
@@ -2028,7 +2046,7 @@ async def run_today_sync_rate_limited(reason: str) -> dict[str, Any]:
 
         attempted_at = mark_today_sync_attempt(reason, now)
         try:
-            result = await asyncio.to_thread(scrape_today_sync)
+            result = await asyncio.to_thread(scrape_today_sync, reason)
         except Exception:
             state["live_last_action"] = f"feil {reason} {local_now():%Y-%m-%d %H:%M:%S}"
             raise

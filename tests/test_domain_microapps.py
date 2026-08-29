@@ -720,6 +720,21 @@ def test_operations_special_views_are_readable_while_loading_and_in_daily_logs()
     assert "display_action(event_row.get(\"action\"))" in core
 
 
+def test_operations_has_live_sunroom_logic_navigation_and_view() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    apps = json.loads((repo_root / "packages" / "microapp-ui" / "src" / "navigation.json").read_text(encoding="utf-8"))["apps"]
+    operations = next(app for app in apps if app["id"] == "operations")
+    door_group = next(group for group in operations["groups"] if group["label"] == "Dører")
+    entry = (repo_root / "operations_app" / "frontend" / "src" / "main.tsx").read_text(encoding="utf-8")
+    doors = (repo_root / "operations_app" / "frontend" / "src" / "components" / "DoorsSpecial.tsx").read_text(encoding="utf-8")
+
+    assert any(item["to"] == "/dorer/hendelseslogikk" for item in door_group["items"])
+    assert '"hendelseslogikk"' in entry
+    assert "SunroomLogicOverview" in doors
+    assert "setInterval(result.reload, 10_000)" in doors
+    assert "Logisk vurdering" in doors
+
+
 def test_operations_proxy_allows_roborock_detail_endpoint() -> None:
     assert operations_main.DOMAIN_PATTERN.fullmatch("renhold/robots/abc-123")
     assert operations_main.DOMAIN_PATTERN.fullmatch("renhold/robots")

@@ -14733,6 +14733,389 @@ async def sunroom_door_alarm_payload(
     return payload
 
 
+def fetch_sun2_scraper_runtime() -> Dict[str, Any]:
+    request = urllib.request.Request(
+        f"{SUN2_SESSION_SCRAPER_URL}/json",
+        method="GET",
+        headers={"Accept": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=4) as response:
+            payload = json.loads(response.read().decode("utf-8", errors="replace") or "{}")
+        if not isinstance(payload, dict):
+            raise ValueError("Ugyldig statusformat")
+        return {"available": True, **payload}
+    except Exception as exc:
+        return {"available": False, "error": str(exc)[:500]}
+
+
+def sunroom_sync_reason_label(reason: Any) -> str:
+    value = str(reason or "").strip()
+    if not value:
+        return "Planlagt eller manuell kontroll"
+    if value == "fallback":
+        return "30-minutters sikkerhetsnett"
+    if value.startswith("door_closed"):
+        rooms = value.partition("rooms=")[2].strip()
+        return f"Lukket dør, rom {rooms}" if rooms else "Lukket solromdør"
+    labels = {
+        "external": "Ekstern eller manuell kontroll",
+        "manual": "Manuell kontroll",
+        "production_rate_check": "Produksjonskontroll",
+        "nightly_current_month": "Nattlig kontroll av måneden",
+    }
+    return labels.get(value, value.replace("_", " ").strip().capitalize())
+
+
+def sunroom_logic_for_room(item: Dict[str, Any], now: datetime) -> Dict[str, Any]:
+    door_changed_at = sunroom_parse_time_value(item.get("doorChangedAt"))
+    verification_at = sunroom_parse_time_value(item.get("sun2VerificationAt"))
+    attempt_count = int(item.get("sun2VerificationAttemptCount") or 0)
+    max_attempts = SUNROOM_DOOR_SYNC_MAX_ATTEMPTS
+    next_at: Optional[datetime] = None
+    phase = str(item.get("status") or "Ukjent")
+    decision = str(item.get("detail") or "Ingen vurdering tilgjengelig.")
+    trigger = "Venter på gyldig sensorstatus"
+    next_action = "Kontroller sensortilkoblingen."
+
+    if item.get("doorState") == "open":
+        phase = "Ledig"
+        decision = "Døren er åpen, og det finnes ingen aktiv dørperiode."
+        trigger = "Neste lukking av døren"
+        next_action = "Starter et nytt kontrollvindu når døren lukkes."
+    elif item.get("doorState") == "unknown":
+        phase = "Ukjent status"
+        decision = "Systemet mangler en sikker dørstatus."
+        trigger = "Ny dørhendelse eller HC3-kontroll"
+        next_action = "Avventer status fra HC3."
+    elif item.get("severity") == "alert":
+        phase = "Alarm"
+        trigger = "Bekreftet alarmregel"
+        next_action = "Varsling er aktiv; alarmen avsluttes når situasjonen normaliseres."
+    elif item.get("newSessionCheckActive"):
+        phase = "Kontrollerer ny time"
+        trigger = "Forrige soltime er avsluttet, men døren er fortsatt lukket"
+        next_action = "Henter SUN2 på nytt før overtid kan varsles."
+    elif item.get("session"):
+        phase = "Soltime verifisert"
+        trigger = "Soltime matchet mot rom og dørperiode"
+        next_action = (
+            f"Følger forventet ut-tid {item.get('expectedExitLabel') or '-'}; "
+            "varsler først ved reell overtid."
+        )
+        next_at = sunroom_parse_time_value(item.get("expectedExitAt"))
+    elif item.get("isOccupied"):
+        elapsed_seconds = int(item.get("occupiedDurationSeconds") or 0)
+        forced_after_seconds = int(SUNROOM_DOOR_FORCED_SYNC_MINUTES * 60)
+        phase = "Klargjøring" if elapsed_seconds < forced_after_seconds else "Kontrollerer betaling"
+        decision = (
+            "Døren er lukket uten en matchet soltime. Betalingen kan fortsatt mangle i siste "
+            "nedlasting."
+        )
+        trigger = f"Dør lukket i minst {SUNROOM_DOOR_FORCED_SYNC_MINUTES:g} min"
+        if attempt_count >= max_attempts:
+            next_action = "Maksimalt antall automatiske SUN2-kontroller er brukt for denne dørperioden."
+        else:
+            next_at = (
+                verification_at + timedelta(seconds=SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS)
+                if verification_at
+                else door_changed_at + timedelta(seconds=forced_after_seconds)
+                if door_changed_at
+                else now
+            )
+            if next_at < now:
+                next_at = now
+            next_action = (
+                f"SUN2-kontroll {attempt_count + 1} av {max_attempts} kan kjøres "
+                f"{format_source_time(next_at)}."
+            )
+
+    verification_ok = item.get("sun2VerificationOk") if verification_at else None
+    return {
+        "roomId": item.get("roomId"),
+        "title": item.get("title") or item.get("roomLabel"),
+        "sectionTitle": item.get("sectionTitle"),
+        "sortOrder": item.get("sortOrder"),
+        "doorState": item.get("doorState"),
+        "doorStateLabel": item.get("doorStateLabel"),
+        "doorAgeLabel": item.get("doorAgeLabel"),
+        "doorChangedAt": api_local_iso(door_changed_at),
+        "severity": item.get("severity"),
+        "phase": phase,
+        "decision": decision,
+        "trigger": trigger,
+        "nextAction": next_action,
+        "nextAt": api_local_iso(next_at),
+        "attemptCount": attempt_count,
+        "maxAttempts": max_attempts,
+        "lastVerificationAt": api_local_iso(verification_at),
+        "lastVerificationOk": verification_ok,
+        "lastVerificationError": item.get("sun2VerificationError"),
+        "verificationReason": sunroom_sync_reason_label(item.get("sun2VerificationReason")),
+        "session": item.get("session"),
+        "expectedExitAt": item.get("expectedExitAt"),
+        "expectedExitLabel": item.get("expectedExitLabel"),
+    }
+
+
+def sunroom_logic_event(
+    event_id: str,
+    timestamp: Optional[datetime],
+    *,
+    kind: str,
+    kind_label: str,
+    room_id: Optional[str],
+    room_label: str,
+    event: str,
+    logic: str,
+    action: str,
+    result: str,
+    tone: str,
+) -> Dict[str, Any]:
+    normalized = normalize_local_naive(timestamp)
+    return {
+        "id": event_id,
+        "timestamp": api_local_iso(normalized),
+        "timeLabel": format_source_datetime(normalized),
+        "kind": kind,
+        "kindLabel": kind_label,
+        "roomId": room_id,
+        "roomLabel": room_label,
+        "event": event,
+        "logic": logic,
+        "action": action,
+        "result": result,
+        "tone": tone,
+        "_sortAt": normalized or datetime.min,
+    }
+
+
+async def sunroom_logic_payload(session, hours: int = 12, limit: int = 180) -> Dict[str, Any]:
+    now = local_now_naive()
+    hours = max(1, min(int(hours or 12), 72))
+    limit = max(20, min(int(limit or 180), 500))
+    start_at = now - timedelta(hours=hours)
+    status = await sunroom_door_session_payload(session, notify=False)
+    rooms = list(status.get("rooms") or [])
+    room_logic = [sunroom_logic_for_room(item, now) for item in rooms]
+    config_by_device = {
+        int(config["device_id"]): config
+        for config in DOOR_SENSOR_CONFIG
+        if config.get("group_key") == "solrom" and config.get("device_id") is not None
+    }
+    device_ids = list(config_by_device)
+    timeline: list[Dict[str, Any]] = []
+
+    door_rows: list[DoorEvent] = []
+    if device_ids:
+        raw_door_rows = (
+            await session.execute(
+                select(DoorEvent)
+                .where(DoorEvent.device_id.in_(device_ids))
+                .where(DoorEvent.timestamp >= start_at)
+                .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
+                .limit(max(limit * 4, 800))
+            )
+        ).scalars().all()
+        door_rows = list(reversed(door_change_rows(list(reversed(raw_door_rows)))))
+
+    current_by_device = {int(item["deviceId"]): item for item in rooms if item.get("deviceId") is not None}
+    for row in door_rows:
+        config = config_by_device.get(int(row.device_id or 0))
+        if not config:
+            continue
+        room_id = sunroom_room_id_for_config(config)
+        room_label = str(config.get("title") or row.device_name or room_id or "Solrom")
+        is_open = door_event_state_bool(row) is True
+        current = current_by_device.get(int(row.device_id or 0))
+        row_at = normalize_local_naive(row.timestamp)
+        is_current_period = bool(
+            current
+            and row_at
+            and (current_at := sunroom_parse_time_value(current.get("doorChangedAt")))
+            and abs((current_at - row_at).total_seconds()) <= 2
+        )
+        timeline.append(
+            sunroom_logic_event(
+                f"door-{row.id}",
+                row_at,
+                kind="door",
+                kind_label="Dør",
+                room_id=room_id,
+                room_label=room_label,
+                event="Dør åpnet" if is_open else "Dør lukket",
+                logic=(
+                    "Aktiv dørperiode avsluttes."
+                    if is_open
+                    else "Ny dørperiode opprettes; normal klargjøringstid starter."
+                ),
+                action=(
+                    "Stopper videre betalingskontroll for denne dørperioden."
+                    if is_open
+                    else f"SUN2 kan kontrolleres etter {SUNROOM_DOOR_FORCED_SYNC_MINUTES:g} min."
+                ),
+                result=(
+                    str(current.get("status"))
+                    if is_current_period and current
+                    else "Dørperioden avsluttet" if is_open else "Kontrollvindu opprettet"
+                ),
+                tone="green" if is_open else "sky",
+            )
+        )
+
+    room_ids = [item.get("roomId") for item in rooms if item.get("roomId")]
+    bed_ids = [item.get("sun2BedId") for item in rooms if item.get("sun2BedId")]
+    session_conditions = []
+    if room_ids:
+        session_conditions.append(Sun2TanningSession.room_id.in_(room_ids))
+    if bed_ids:
+        session_conditions.append(Sun2TanningSession.sun2_bed_id.in_(bed_ids))
+    if session_conditions:
+        session_rows = (
+            await session.execute(
+                select(Sun2TanningSession)
+                .where(or_(*session_conditions))
+                .where(Sun2TanningSession.started_at >= start_at)
+                .order_by(Sun2TanningSession.started_at.desc(), Sun2TanningSession.id.desc())
+                .limit(limit)
+            )
+        ).scalars().all()
+        for row in session_rows:
+            room_id = sunroom_canonical_room_id(row)
+            config = sunroom_config_for_room_id(room_id or "")
+            payload = sunroom_session_payload(row)
+            duration = f"{float(row.duration_minutes):g} min" if row.duration_minutes is not None else "ukjent tid"
+            amount = sunroom_money_label(row.paid_amount_kr)
+            timeline.append(
+                sunroom_logic_event(
+                    f"session-{row.id}",
+                    normalize_local_naive(row.started_at),
+                    kind="session",
+                    kind_label="SUN2",
+                    room_id=room_id,
+                    room_label=str(config.get("title") if config else payload.get("roomLabel") or room_id or "Solrom"),
+                    event="Soltime registrert",
+                    logic="Betaling matches mot nærmeste dørperiode for samme rom.",
+                    action="Beregner forventet solstart, slutt og tidspunkt ut av rommet.",
+                    result=f"{duration} · {amount} · forventet ut {format_source_time(sunroom_parse_time_value(payload.get('expectedExitAt')))}",
+                    tone="green",
+                )
+            )
+
+    import_start_utc = local_naive_to_utc_naive(start_at)
+    import_rows = (
+        await session.execute(
+            select(Sun2SessionImportRun)
+            .where(Sun2SessionImportRun.timestamp >= import_start_utc)
+            .order_by(Sun2SessionImportRun.timestamp.desc(), Sun2SessionImportRun.id.desc())
+            .limit(min(limit, 120))
+        )
+    ).scalars().all()
+    for row in import_rows:
+        raw = row.raw if isinstance(row.raw, dict) else {}
+        extra = raw.get("extra") if isinstance(raw.get("extra"), dict) else {}
+        reason = extra.get("trigger_reason")
+        result_parts = [f"{int(row.rows_count or 0)} timer lest"]
+        changed = int(row.inserted_count or 0) + int(row.updated_count or 0)
+        if changed:
+            result_parts.append(f"{changed} nye eller oppdaterte")
+        timeline.append(
+            sunroom_logic_event(
+                f"sync-{row.id}",
+                utc_naive_to_local_naive(row.timestamp),
+                kind="sync",
+                kind_label="Kontroll",
+                room_id=None,
+                room_label="Alle rom",
+                event="SUN2-data oppdatert" if row.ok is not False else "SUN2-kontroll feilet",
+                logic=sunroom_sync_reason_label(reason),
+                action="Vurderer alle aktive dørperioder på nytt mot ferske enkelttimer.",
+                result=" · ".join(result_parts) if row.ok is not False else str(row.message or "Ukjent feil"),
+                tone="sky" if row.ok is not False else "red",
+            )
+        )
+
+    alarm_rows = (
+        await session.execute(
+            select(AlarmEvent)
+            .where(AlarmEvent.domain == "doors")
+            .where(or_(AlarmEvent.detected_at >= start_at, AlarmEvent.resolved_at >= start_at))
+            .order_by(AlarmEvent.detected_at.desc(), AlarmEvent.id.desc())
+            .limit(min(limit, 120))
+        )
+    ).scalars().all()
+    for row in alarm_rows:
+        alarm_logic = (
+            "Døren er fortsatt lukket etter kontroll uten en passende soltime."
+            if row.alarm_type == "closed_without_session"
+            else "Døren er fortsatt lukket etter beregnet ut-tid."
+        )
+        timeline.append(
+            sunroom_logic_event(
+                f"alarm-{row.id}",
+                normalize_local_naive(row.detected_at),
+                kind="alarm",
+                kind_label="Alarm",
+                room_id=row.room_id,
+                room_label=row.title or f"Solrom {row.display_room_number or '-'}",
+                event="Alarm utløst",
+                logic=alarm_logic,
+                action="Varsling sendes og hendelsen lagres for etterkontroll.",
+                result=f"{row.status} · {row.notification_status}",
+                tone="red",
+            )
+        )
+        if row.resolved_at and normalize_local_naive(row.resolved_at) >= start_at:
+            timeline.append(
+                sunroom_logic_event(
+                    f"alarm-resolved-{row.id}",
+                    normalize_local_naive(row.resolved_at),
+                    kind="alarm",
+                    kind_label="Alarm",
+                    room_id=row.room_id,
+                    room_label=row.title or f"Solrom {row.display_room_number or '-'}",
+                    event="Alarm avsluttet",
+                    logic="Dør- eller soltimedata viser at alarmsituasjonen ikke lenger er aktiv.",
+                    action="Stopper videre varsling for hendelsen.",
+                    result=row.resolution_reason or "Normalisert",
+                    tone="green",
+                )
+            )
+
+    timeline.sort(key=lambda item: item["_sortAt"], reverse=True)
+    for item in timeline:
+        item.pop("_sortAt", None)
+    timeline = timeline[:limit]
+    scraper = await asyncio.to_thread(fetch_sun2_scraper_runtime)
+    latest_import = import_rows[0] if import_rows else None
+    latest_import_at = utc_naive_to_local_naive(latest_import.timestamp) if latest_import else None
+    return {
+        "generatedAt": api_local_iso(now),
+        "windowHours": hours,
+        "summary": {
+            **dict(status.get("summary") or {}),
+            "events": len(timeline),
+            "latestSun2At": api_local_iso(latest_import_at),
+            "latestSun2Label": format_source_datetime(latest_import_at),
+            "scraperAvailable": bool(scraper.get("available")),
+        },
+        "rules": status.get("rules") or {},
+        "scraper": {
+            "available": bool(scraper.get("available")),
+            "error": scraper.get("error"),
+            "lastAttemptAt": scraper.get("today_sync_last_attempt_at"),
+            "lastReason": scraper.get("today_sync_last_reason"),
+            "lastReasonLabel": sunroom_sync_reason_label(scraper.get("today_sync_last_reason")),
+            "lastAction": scraper.get("live_last_action"),
+            "lastDeferredAt": scraper.get("today_sync_last_deferred_at"),
+            "minIntervalSeconds": scraper.get("live_sync_min_interval_seconds", SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS),
+            "fallbackIntervalSeconds": scraper.get("live_sync_fallback_interval_seconds", 1800),
+        },
+        "rooms": room_logic,
+        "events": timeline,
+    }
+
+
 async def sunroom_room_detail_payload(session, room_id: str, days: int = 14, limit: int = 120) -> Dict[str, Any]:
     now = local_now_naive()
     normalized_room_id = normalize_room_id(room_id)
@@ -43070,6 +43453,15 @@ async def api_hc3_doors_status(
 async def api_hc3_doors_sunroom_sessions():
     async with async_session() as session:
         return await sunroom_door_session_payload(session, notify=False)
+
+
+@app.get("/api/hc3/doors/sunroom-logic")
+async def api_hc3_doors_sunroom_logic(
+    hours: int = Query(12, ge=1, le=72),
+    limit: int = Query(180, ge=20, le=500),
+):
+    async with async_session() as session:
+        return await sunroom_logic_payload(session, hours=hours, limit=limit)
 
 
 @app.get("/api/hc3/doors/alarm")

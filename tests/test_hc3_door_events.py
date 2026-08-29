@@ -27,6 +27,7 @@ def test_door_event_api_route_is_registered():
     assert "/api/hc3/doors/status" in routes
     assert "/api/hc3/doors/poll-sync" in routes
     assert "/api/hc3/doors/alarm" in routes
+    assert "/api/hc3/doors/sunroom-logic" in routes
 
 
 def test_door_event_datakilde_and_storage_are_registered():
@@ -73,6 +74,13 @@ def test_manual_sun2_sync_is_serialized_with_scheduled_jobs():
     assert "run_today_sync_rate_limited" in sync_today_source
     assert "async with schedule_lock" in rate_limited_source
     assert "scrape_today_sync" in rate_limited_source
+
+
+def test_sun2_live_sync_persists_the_trigger_reason():
+    source = Path("sun2_session_scraper/app/main.py").read_text(encoding="utf-8")
+
+    assert '"trigger_reason": trigger_reason' in source
+    assert "scrape_today_sync, reason" in source
 
 
 def test_hc3_door_lua_contains_expected_devices_and_endpoint():
@@ -682,3 +690,36 @@ class SunroomDoorTimingTests(unittest.TestCase):
 
         self.assertIn("notify=False", endpoint)
         self.assertNotIn("notify=True", endpoint)
+
+    def test_sunroom_logic_explains_the_first_door_trigger(self):
+        now = datetime(2026, 8, 29, 12, 0)
+        room = {
+            "roomId": "rom-4",
+            "title": "Solrom 4",
+            "sectionTitle": "2.etg",
+            "sortOrder": 4,
+            "doorState": "closed",
+            "doorStateLabel": "Lukket",
+            "doorAgeLabel": "30 sek siden",
+            "doorChangedAt": (now - timedelta(seconds=30)).isoformat(),
+            "isOccupied": True,
+            "occupiedDurationSeconds": 30,
+            "severity": "waiting",
+            "status": "Venter på soltime",
+            "detail": "Avventer SUN2-data.",
+            "session": None,
+        }
+
+        logic = self.main.sunroom_logic_for_room(room, now)
+
+        self.assertEqual(logic["phase"], "Klargjøring")
+        self.assertIn("SUN2-kontroll", logic["nextAction"])
+        self.assertEqual(logic["attemptCount"], 0)
+        self.assertIsNotNone(logic["nextAt"])
+
+    def test_sunroom_logic_explains_sync_reasons_in_plain_language(self):
+        self.assertEqual(self.main.sunroom_sync_reason_label("fallback"), "30-minutters sikkerhetsnett")
+        self.assertEqual(
+            self.main.sunroom_sync_reason_label("door_closed rooms=4,7"),
+            "Lukket dør, rom 4,7",
+        )

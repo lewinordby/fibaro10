@@ -35,6 +35,16 @@ export type DoorAlarms = Sunrooms & {
   history: RecordValue[];
 };
 
+export type SunroomLogic = {
+  generatedAt: string;
+  windowHours: number;
+  summary: RecordValue;
+  rules: RecordValue;
+  scraper: RecordValue;
+  rooms: RecordValue[];
+  events: RecordValue[];
+};
+
 export function localDay() {
   return new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Oslo" });
 }
