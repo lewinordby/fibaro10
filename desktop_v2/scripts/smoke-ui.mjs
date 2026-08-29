@@ -215,7 +215,12 @@ function statusPeriodsPayload() {
       parking,
       parkingCount: 62 * scale,
       total: sol + parking,
-      rank: key === "today" ? { rank: 5, label: "5. beste", basis: "Historiske dager", totalDays: 200 } : null,
+      rank: {
+        rank: index + 2,
+        label: `${index + 2}. beste`,
+        basis: `Historiske ${key === "today" ? "dager" : key === "week" ? "uker" : key === "month" ? "måneder" : "år"}`,
+        totalPeriods: 200,
+      },
       previousSol,
       previousSolCount: 9 * scale,
       previousParking,
@@ -1620,6 +1625,10 @@ async function waitForShellClass(page, className, expected) {
 async function smokeShellControls(page) {
   await page.goto(`${baseUrl}/status/omsetning`, { waitUntil: "load" });
   await page.locator(".app-shell").waitFor({ timeout: 8000 });
+  await page.locator(".revenue-period-rank-inline").first().waitFor({ timeout: 8000 });
+  if (await page.locator(".revenue-period-rank-inline").count() !== 4) {
+    throw new Error("Omsetningsdashboardet viser ikke rangering på alle fire periodekortene");
+  }
 
   if (await shellHasClass(page, "main-menu-hidden")) {
     await page.getByRole("button", { name: /vis hovedmeny/i }).click();

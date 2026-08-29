@@ -51,6 +51,7 @@ export type StatusPeriodRank = {
   label: string;
   basis?: string;
   totalDays?: number;
+  totalPeriods?: number;
   bestTotal?: number;
   currentTotal?: number;
 };

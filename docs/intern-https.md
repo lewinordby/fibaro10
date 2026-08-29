@@ -1,6 +1,6 @@
 # Intern HTTPS
 
-Oppdatert 29.08.2026, build 1819.
+Oppdatert 29.08.2026, build 1820.
 
 Lilletorget bruker offentlig DNS og offentlig betrodde TLS-sertifikater, men
 de interne navnene peker til den private HTTPS-adressen 192.168.20.219 på QNAP.

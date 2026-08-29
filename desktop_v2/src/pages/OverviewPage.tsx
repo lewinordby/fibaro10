@@ -475,8 +475,9 @@ function periodDataBasisText(period: StatusPeriod, nextParkingImportText = "") {
 
 function periodRankTitle(period: StatusPeriod) {
   if (!period.rank) return "";
-  const totalDays = period.rank.totalDays ? ` av ${period.rank.totalDays} dager` : "";
-  return `${period.rank.basis || "Rangert mot historiske dager"}${totalDays}`;
+  const total = period.rank.totalDays || period.rank.totalPeriods;
+  const totalLabel = total ? ` av ${total} perioder` : "";
+  return `${period.rank.basis || "Rangert mot historiske perioder"}${totalLabel}`;
 }
 
 function boundedPercent(part: number, total: number, fallback = 0) {
@@ -651,7 +652,7 @@ function RevenuePeriodCard({ period, nextParkingImportText }: { period: StatusPe
   const comparisons = buildComparisonViews(period);
   const shownComparisons = comparisons.slice(0, 2);
   const lines = revenuePeriodLines(period);
-  const rankLabel = period.key === "today" ? period.rank?.label : "";
+  const rankLabel = period.rank?.label || "";
   const rankTitle = rankLabel ? periodRankTitle(period) : "";
   const cardStyle = periodShareStyle(boundedPercent(period.sol, period.total, 50));
 

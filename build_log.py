@@ -12,6 +12,34 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1820",
+        "date": "29.08.2026",
+        "headline": "Hoveddashboardet viser alle omsetningsrangeringer",
+        "title": "Uke, måned og år er synlige også i Fibaro10-visningen",
+        "description": (
+            "Fibaro10-hoveddashboardet skjulte tidligere rangeringene for alle andre perioder enn dagen, "
+            "selv om API-et leverte dem. Sperren er fjernet, slik at uke, måned og år vises på samme sted "
+            "og med samme utforming som dagsrangeringen."
+        ),
+        "applications": [
+            "Fibaro10 desktop: viser historisk plassering på alle fire omsetningskort.",
+            "Fibaro10 API-typer: støtter antall rangerte perioder i forklaringen.",
+            "UI-smoketest: har rangeringsdata for dag, uke, måned og år.",
+        ],
+        "request": (
+            "Rangeringen var ikke synlig i omsetningsdashboardet som faktisk brukes. "
+            "Vis uke, måned og år på samme måte som dag."
+        ),
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fjernet visningsbegrensningen som bare tillot rangering på dagskortet.",
+            "Rangeringsforklaringen støtter både dager og generelle perioder.",
+            "Oppdatert testdata slik at alle periodene kontrolleres visuelt.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1819",
         "date": "29.08.2026",
         "headline": "Alle omsetningsperioder viser historisk plassering",
