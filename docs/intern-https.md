@@ -1,6 +1,6 @@
 # Intern HTTPS
 
-Oppdatert 17.08.2026, build 1798.
+Oppdatert 29.08.2026, build 1816.
 
 Lilletorget bruker offentlig DNS og offentlig betrodde TLS-sertifikater, men
 de interne navnene peker til den private HTTPS-adressen 192.168.20.219 på QNAP.
@@ -23,7 +23,9 @@ Mantis-appene bruker stier under samme origin:
 - /parkering/
 - /soling/
 - /koble/
-- /drift/
+- /bygg/
+- /renhold/
+- /kontroll/
 - /energi/
 - /vedlikehold/
 - /operasjon/
@@ -66,7 +68,7 @@ overstyres med FIBARO10_VPN_ROUTE og FIBARO10_LAN_GATEWAY i QNAPs .env.
 
 ## Installert PWA
 
-Installer bare https://ny.lilletorget.net som desktop-PWA. Alle elleve apper
+Installer bare https://ny.lilletorget.net som desktop-PWA. Alle tretten apper
 ligger under samme origin og vanlig scope. Dette gir én innlogging og hindrer
 out-of-scope-adresselinje ved appbytte.
 

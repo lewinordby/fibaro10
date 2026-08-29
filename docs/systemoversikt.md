@@ -1,6 +1,6 @@
 # Systemoversikt
 
-Oppdatert 17.08.2026.
+Oppdatert 29.08.2026.
 
 Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene er `docker-compose.qnap.yml`, `Caddyfile`, `system_inventory.py`, `import_jobs.py` og siste QNAP-status.
 
@@ -10,7 +10,7 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 - 28 komponenter er aktive i dagens runtime eller som aktivt verktøy; Dreame er klargjort for aktivering.
 - 27 komponenter har webflate eller lokal statusflate.
 - 24 datakilder/importjobber er definert i Fibaro10.
-- Produksjonsbuild ved siste sjekk: Fibaro10 build `1795`.
+- Produksjonsbuild ved siste sjekk: Fibaro10 build `1816`.
 - QNAP-appmappe: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`.
 - Backup/arkivvolum: `/share/CACHEDEV3_DATA/fibaro10_archive`.
 - Mantis-kildekode: privat repo `https://github.com/lewinordby/lilletorget-mantis`.
@@ -18,7 +18,7 @@ Dette dokumentet beskriver hva Fibaro10-installasjonen består av nå. Kildene e
 
 ## Webflater
 
-Den nye Mantis-serien bruker ett internt domene og omfatter elleve selvstendige
+Den nye Mantis-serien bruker ett internt domene og omfatter tretten selvstendige
 applikasjoner. Alle bruker felles innlogging og presenteres som stier under
 `ny.lilletorget.net`:
 
@@ -28,7 +28,9 @@ applikasjoner. Alle bruker felles innlogging og presenteres som stier under
 | Parkering | `https://ny.lilletorget.net/parkering/` | Parkeringer, kjøretøy, oppgjør, tidsbruk og analyser. |
 | Soling | `https://ny.lilletorget.net/soling/` | Soltimer, bilder, produkter, medlemmer, oppgjør og analyser. |
 | Koble | `https://ny.lilletorget.net/koble/` | Kandidater og kontroll av koblinger mellom biler og Sun2-ID. |
-| Bygg og drift | `https://ny.lilletorget.net/drift/` | Ventilasjon, lys, dører, solrom, pullerter og renhold. |
+| Bygg | `https://ny.lilletorget.net/bygg/` | Ventilasjon, klima, lys og styringshendelser. |
+| Renhold | `https://ny.lilletorget.net/renhold/` | Robotstatus, planer, vann og nattrapporter. |
+| Kontroll | `https://ny.lilletorget.net/kontroll/` | Dører, solrom, alarmer, pullerter og fasadekontroll. |
 | Energi | `https://ny.lilletorget.net/energi/` | Sanntidsforbruk, Elvia, kurs/last og solsengforbruk. |
 | Vedlikehold | `https://ny.lilletorget.net/vedlikehold/` | Besøk, oppgaver og vedlikeholdshistorikk. |
 | Operasjonssentral | `https://ny.lilletorget.net/operasjon/` | Arbeidskø, datakvalitet, automatisering og universalsøk. |
@@ -79,7 +81,7 @@ hver enkelt app.
 | Tjeneste | Kritikalitet | Formål |
 | --- | --- | --- |
 | `fibaro10` | Kritisk | FastAPI-kjerne, database-API, admin, ingest og samlet desktopreserve. |
-| `lilletorget_mantis` | Høy | Gjeldende brukerflate med elleve appbygg, Nginx og path-basert ruting på port 8170. |
+| `lilletorget_mantis` | Høy | Gjeldende brukerflate med tretten appbygg, Nginx og path-basert ruting på port 8170. |
 | `shell_app` | Normal | Intern appvelger, live tjenestestatus og felles inngang til mikroappene. |
 | `online_dashboard` | Høy | Ekstern begrenset dashboardflate. |
 | `maintenance_mobile` | Normal | Mobil vedlikeholdsregistrering mot Fibaro10 API. |
@@ -114,7 +116,7 @@ hver enkelt app.
 
 | Domene | Intern tjeneste | Kommentar |
 | --- | --- | --- |
-| `ny.lilletorget.net:443` | `lilletorget_mantis:80` | Gjeldende Mantis-flate med elleve apper under én origin. |
+| `ny.lilletorget.net:443` | `lilletorget_mantis:80` | Gjeldende Mantis-flate med tretten apper under én origin. |
 | `fibaro10.lilletorget.net:443` | `fibaro10:8110` | Kjerne/API og samlet reserveflate, kun LAN/VPN. |
 | `app.lilletorget.net:443` | `shell_app:8150` og fagappene `8151-8158` | Felles PWA-origin; Caddy ruter hver fagapp etter sti. |
 | `omsetning.lilletorget.net:443` | `revenue_app:8151` | Intern omsetningsapp. |
@@ -159,7 +161,7 @@ samme cookien bare for det lokale vertsnavnet. Domenet kan overstyres med
 ## Felles installert desktopapp
 
 `ny.lilletorget.net` er hovedidentiteten for den installerte PWA-en
-`Lilletorget`. Alle elleve Mantis-appene presenteres som stier under samme
+`Lilletorget`. Alle tretten Mantis-appene presenteres som stier under samme
 origin og ligger i vanlig manifest-scope. Appbytte blir derfor i samme
 standalone-vindu uten ekstra adresselinje.
 
@@ -171,7 +173,7 @@ avinstalleres før `Lilletorget` installeres på nytt fra
 ## Roller for brukerflatene
 
 `https://ny.lilletorget.net/` er primær inngang for daglig arbeid. Mantis har
-elleve appidentiteter og 127 registrerte navigasjonsruter, men leveres samlet fra
+tretten appidentiteter og 117 registrerte navigasjonsruter, men leveres samlet fra
 én container på port 8170. Fag-API-ene på 8151-8158 og Fibaro10-kjernen på 8110
 er fortsatt produksjonskritiske. `desktop_v2` og `app.lilletorget.net`
 beholdes som reserve og funksjonsreferanse, ikke som kilde for ny frontend.

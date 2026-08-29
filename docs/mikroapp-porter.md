@@ -1,6 +1,6 @@
 # Porter og applikasjonslag
 
-Oppdatert 17.08.2026, build 1795.
+Oppdatert 29.08.2026, build 1816.
 
 Løsningen har to brukergrensesnittgenerasjoner som må skilles tydelig fra
 API-laget. Gjeldende brukerflate er Mantis på port 8170. Port 8151-8158 er
@@ -10,12 +10,12 @@ fortsatt operative fag-API-er og reserveflater, ikke kilde for nytt design.
 
 | Vertsport | Tjeneste | Rolle |
 | ---: | --- | --- |
-| 8170 | lilletorget_mantis | Nginx som leverer alle elleve Mantis-bygg og ruter API-kall til fag-API-ene. |
+| 8170 | lilletorget_mantis | Nginx som leverer alle tretten Mantis-bygg og ruter API-kall til fag-API-ene. |
 
 Caddy eksponerer containeren som ett internt HTTPS-domene på formen
 https://ny.lilletorget.net/<app>/<side>.
 
-Appene er Omsetning, Parkering, Soling, Koble, Bygg og drift, Energi,
+Appene er Omsetning, Parkering, Soling, Koble, Bygg, Renhold, Kontroll, Energi,
 Vedlikehold, Operasjonssentral, Eiendeler, Rapporter og System. Hver app har
 eget statisk bygg under dist/<app>, men hele serien leveres fra samme image.
 

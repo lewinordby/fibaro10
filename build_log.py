@@ -12,6 +12,40 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1816",
+        "date": "29.08.2026",
+        "headline": "Datakildene får klikkbar oppdateringshistorikk",
+        "title": "System-appen er gjennomgått og tekniske flater virker samlet",
+        "description": (
+            "System har fått en egen datakildeoversikt der hele raden åpner en detaljside med "
+            "kjøreplan, avhengigheter, ferskhet og de 50 siste oppdateringene. Alle menyvalg og API-er "
+            "er kontrollert, dynamiske detaljruter er rettet og tekniske logger og eksporter går nå "
+            "gjennom System-appens egen proxy."
+        ),
+        "applications": [
+            "System Mantis: ny datakildeoversikt, oppdateringslogg og ryddigere detaljer.",
+            "System-adapter build 41: proxy for hendelser, AI-logger og måleeksporter.",
+            "Fibaro10 API build 1816: rettede interne ruter og oppdatert systemmanual.",
+            "Dokumentasjon og tester: gjeldende 13 apper og 117 navigasjonsruter.",
+        ],
+        "request": (
+            "Under System og Datakilder skal hver datakilde kunne åpnes for å vise loggen over når "
+            "data ble oppdatert. Gå gjennom hele System-appen, rett menyvalg som ikke virker og gjør "
+            "en full gjennomgang."
+        ),
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Hele datakilderaden er klikkbar og kan åpnes med mus eller tastatur.",
+            "Detaljsiden viser inntil 50 kjøringer med tidspunkt, resultat, rader, varighet og melding.",
+            "Søk utføres først med Søk-knappen eller Enter, og listen kan filtreres på område og avvik.",
+            "Detaljnavigasjon for datakilder og buildlogg laster nå riktig side med én gang.",
+            "Tekniske verktøy, rålogger og CSV-eksporter er samlet og rutet gjennom System-appen.",
+            "Alle 31 System-menyvalg og tilhørende API-kontrakter er kontrollert.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1815",
         "date": "29.08.2026",
         "headline": "Solrommenes hendelser og beslutninger vises løpende",

@@ -21,7 +21,11 @@ MODULES = {
     "modules/mobil", "modules/manual", "modules/operasjon", "modules/eiendeler",
     "modules/automatisering", "modules/rapporter", "modules/sok", "modules/datakvalitet",
 }
-DOMAIN_PATTERN = re.compile(r"(?:actions/(?:admin|system)|admin|system|builds?|data-sources?|import-status|mobile-preview|notifications?|subsystems?|manual|users?)(?:/.*)?")
+DOMAIN_PATTERN = re.compile(
+    r"(?:actions/(?:admin|system)|admin|system|builds?|data-sources?|import-status|mobile-preview|"
+    r"notifications?|subsystems?|manual|users?|ai/(?:datasets/json|logs/json)|events/(?:json|download)|"
+    r"(?:lights|ventilation|yr)/samples/download)(?:/.*)?"
+)
 
 
 def card(title: str, value: Any, unit: str = "", detail: str = "", tone: str = "status") -> dict[str, Any]:
@@ -278,7 +282,7 @@ async def automations_module(request: Request, client: httpx.AsyncClient, header
 async def reports_module(request: Request, client: httpx.AsyncClient, headers: dict[str, str]) -> dict[str, Any]:
     rows = [
         {"rapport": "Driftsstatus", "område": "Operasjon", "periode": "Akkurat nå", "formål": "Avvik, datakilder, backup og varsler", "path": "/operasjon/"},
-        {"rapport": "Nattrapport renhold", "område": "Bygg og drift", "periode": "Natt", "formål": "Planlagte og utførte robotjobber, batteri og vann", "path": "/drift/renhold/rapport"},
+        {"rapport": "Nattrapport renhold", "område": "Renhold", "periode": "Natt", "formål": "Planlagte og utførte robotjobber, batteri og vann", "path": "/renhold/rapport"},
         {"rapport": "Parkeringsoppgjør", "område": "Parkering", "periode": "Måned", "formål": "Oppgjør mot EasyPark og Flowbird/ParkNordic", "path": "/parkering/oppgjor"},
         {"rapport": "Soloppgjør", "område": "Soling", "periode": "Måned", "formål": "Soling og produkter mot kreditnota", "path": "/soling/oppgjor"},
         {"rapport": "Energiavvik", "område": "Energi", "periode": "Valgt periode", "formål": "Elvia mot lokale målinger og manglende last", "path": "/energi/avvik"},

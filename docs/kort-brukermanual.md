@@ -1,6 +1,6 @@
 # Kort brukermanual for Lilletorget
 
-Oppdatert 17.08.2026, build 1795.
+Oppdatert 29.08.2026, build 1816.
 
 Den levende og klikkbare manualen ligger under
 `https://ny.lilletorget.net/system/manual`. Dette dokumentet er en kort
@@ -20,7 +20,7 @@ tekstversjon for Git, backup og gjenoppretting.
 
 Alle stier over ligger under `https://ny.lilletorget.net`.
 
-## De elleve appene
+## De tretten appene
 
 | App | Start | Hovedformål |
 | --- | --- | --- |
@@ -44,7 +44,7 @@ Alle stier over ligger under `https://ny.lilletorget.net`.
 2. Åpne Operasjonssentral og se om noe står i arbeidskø eller som kritisk.
 3. Bruk Parkering -> Parkeringer for dagens aktive og avsluttede parkeringer.
 4. Bruk Soling -> Dagslinje eller Soltimer for dagens rom og timer.
-5. Bruk Bygg og drift for dører, klima, lys, pullerter og renhold.
+5. Bruk Bygg for klima og lys, Renhold for roboter og Kontroll for dører, solrom og pullerter.
 6. Gå til System -> Datakilder før du konkluderer med at en graf eller sum er feil.
 
 ## Når noe ser feil ut
