@@ -245,6 +245,8 @@ fi
 if [ "$restartProxyValue" = "1" ]; then
     echo "Issuing/renewing the active internal certificate before reloading Caddy"
     DOCKER_BIN="$Docker" sh scripts/renew-internal-https.sh
+    echo "Refreshing the HTTPS proxy address in the LAN neighbor table"
+    "$Docker" exec fibaro10_proxy arping -I eth1 -c 3 "`${FIBARO10_LAN_GATEWAY:-192.168.20.1}" >/dev/null 2>&1 || true
 fi
 ready=0
 while [ "`$ready" -lt 60 ]; do
