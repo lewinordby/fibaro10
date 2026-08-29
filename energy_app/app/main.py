@@ -18,9 +18,6 @@ app = create_domain_app(
         commit_env="ENERGY_APP_COMMIT",
         app_dir=APP_DIR,
         port=8154,
-        pwa_description="Energi, effekt, kurser og forbrukskontroll for Lilletorget.",
-        pwa_theme_color="#16a34a",
-        pwa_categories=("business", "utilities", "productivity"),
         allowed_paths={"GET": {"auth/me", "modules/energi"}},
         allowed_patterns={method: (DOMAIN_PATTERN,) for method in ("GET", "POST", "PATCH", "PUT", "DELETE")},
     )

@@ -7,10 +7,6 @@ __pycache__
 venv
 node_modules
 packages/**/node_modules
-desktop_v2/node_modules
-desktop_v2/dist
-desktop_v2/*.tsbuildinfo
-desktop_v2/.vite
 owntracks_service/frontend/node_modules
 owntracks_service/frontend/dist
 owntracks_service/frontend/*.tsbuildinfo
@@ -41,10 +37,6 @@ system_app/frontend/*.tsbuildinfo
 link_app/frontend/node_modules
 link_app/frontend/dist
 link_app/frontend/*.tsbuildinfo
-shell_app/frontend/node_modules
-shell_app/frontend/dist
-shell_app/frontend/*.tsbuildinfo
-shell_app/frontend/.vite
 *.log
 _*.html
 _*.css

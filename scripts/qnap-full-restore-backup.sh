@@ -2,6 +2,8 @@
 set -eu
 
 REMOTE_DIR="${REMOTE_DIR:-/share/CACHEDEV1_DATA/Public/containerdata/fibaro10}"
+MANTIS_DIR="${MANTIS_DIR:-/share/CACHEDEV3_DATA/lilletorget-mantis}"
+KIOSK_DIR="${KIOSK_DIR:-/share/CACHEDEV3_DATA/lilletorget-kiosk}"
 BACKUP_ROOT="${BACKUP_ROOT:-/share/CACHEDEV3_DATA/fibaro10_archive/full_restore_backup}"
 BACKUP_DIR="${BACKUP_DIR:-$BACKUP_ROOT/latest}"
 ARCHIVE_ROOT="${ARCHIVE_ROOT:-/share/CACHEDEV3_DATA/fibaro10_archive}"
@@ -209,9 +211,10 @@ fi
 rsync -a --delete \
     --exclude '.git' \
     --exclude '__pycache__' \
-    --exclude 'desktop_v2/node_modules' \
     --exclude 'owntracks_service/frontend/node_modules' \
     "$REMOTE_DIR/" "$BACKUP_DIR/repo/working-tree/"
+sync_dir_if_exists "$MANTIS_DIR" "$BACKUP_DIR/repo/lilletorget-mantis/"
+sync_dir_if_exists "$KIOSK_DIR" "$BACKUP_DIR/repo/lilletorget-kiosk/"
 
 log "Dumping PostgreSQL"
 if "$DOCKER" inspect "$POSTGRES_CONTAINER" >/dev/null 2>&1; then
@@ -260,7 +263,7 @@ write_section "Docker images" "$DOCKER" images
 write_section "Docker networks" "$DOCKER" network ls
 write_section "Docker system df" "$DOCKER" system df
 
-for container in postgres-1 easypark_downloader fibaro10 shell_app revenue_app parking_app sun_app energy_app operations_app maintenance_app system_app link_app owntracks_service axis_camera_snapshots car_info_lookup sun2_backfill_downloader sun2_importer sun2_session_scraper parking_sun_linker fibaro10_proxy online_dashboard maintenance_mobile alarm_mobile fibaro10ipad unifi_protect_events visual_anomaly_service; do
+for container in postgres-1 easypark_downloader fibaro10 fibaro10_worker revenue_app parking_app sun_app energy_app operations_app maintenance_app system_app link_app owntracks_service axis_camera_snapshots car_info_lookup sun2_backfill_downloader sun2_importer sun2_session_scraper parking_sun_linker fibaro10_proxy lilletorget_mantis lilletorget_kiosk online_dashboard maintenance_mobile alarm_mobile unifi_protect_events visual_anomaly_service roborock_logger dreame_logger; do
     "$DOCKER" inspect "$container" > "$BACKUP_DIR/system/docker-inspect-$container.json" 2>/dev/null || true
 done
 ("$DOCKER" network inspect fibaro10_default > "$BACKUP_DIR/system/docker-network-fibaro10_default.json" 2>/dev/null) || true
@@ -459,15 +462,15 @@ curl http://127.0.0.1:8110/health
 curl http://127.0.0.1:8125/health
 curl http://127.0.0.1:8128/health
 curl http://127.0.0.1:8114/health
-for port in 8150 8151 8152 8153 8154 8155 8156 8157 8158; do curl -fsS "http://127.0.0.1:$port/ready"; done
+curl http://127.0.0.1:8170/ready
+curl http://127.0.0.1:8163/health
+for port in 8151 8152 8153 8154 8155 8156 8157 8158; do curl -fsS "http://127.0.0.1:$port/ready"; done
 ```
 
 Fra utviklings-PC kan du ogsaa kjoere:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\health-check.ps1
-cd desktop_v2
-npm.cmd run smoke:live
 ```
 EOF
 
@@ -475,7 +478,7 @@ cat > "$BACKUP_DIR/CODEX-RESTORE-PROMPT.txt" <<'EOF'
 Du jobber paa en ny QNAP/ny installasjon og skal gjenopprette Fibaro10 fra denne full restore backup-katalogen.
 
 Maal:
-- Sett opp Fibaro10, Lilletorget-skallet og alle fagappene paa port 8150-8158, online dashboard, vedlikeholdsapp, alarmapp, OwnTracks, EasyPark downloader, Axis snapshot-service, nordisk biloppslag, SUN2 scraper og koblingsmotor.
+- Sett opp Fibaro10 API, Mantis-appene, API-adapterne paa port 8151-8158, kiosken, mobilappene, OwnTracks, EasyPark downloader, Axis snapshot-service, nordisk biloppslag, SUN2-tjenestene og koblingsmotoren.
 - Bruk alle hemmeligheter, passord, tokens, .env-filer, Caddy-data, runtime-data og database-dump fra backupen. Axis-bilder som er knyttet til soltimer ligger i database-dumpen.
 - Ikke utelat noe. Ikke regenerer hemmeligheter hvis de finnes i backupen.
 - Ikke skriv hemmeligheter i chatten; bruk filene direkte.
@@ -486,6 +489,8 @@ Backupkatalogens innhold:
 - secrets/: alle .env-filer og konfigfiler med hemmeligheter.
 - repo/fibaro10.bundle: Git bundle med repo/historikk.
 - repo/working-tree/: arbeidskopi av repoet.
+- repo/lilletorget-mantis/: aktiv desktopfrontend.
+- repo/lilletorget-kiosk/: aktiv kioskfrontend.
 - postgres/: PostgreSQL SQL-dump, custom dump og globals.
 - runtime/: runtime-data for EasyPark, OwnTracks, Axis metadata/konfig, biloppslag, SUN2 dagsfiler, SUN2 scraper og Caddy.
 - runtime/host-paths/: automatisk oppdagede Docker host mounts for nye tjenester.
@@ -508,9 +513,9 @@ Arbeidsrekkefolge:
 8. Kopier runtime/ til SSD runtime-root.
 9. Kopier archive/ til arkivroot. Ikke forvent historisk Axis snapshot-buffer; soltimebilder kommer fra PostgreSQL.
 10. Opprett/start postgres-1 og restore postgres/fibaro10_local.sql eller postgres/fibaro10_local.dump.
-11. Start alle Docker Compose-tjenester, inkludert shell_app, revenue_app, parking_app, sun_app, energy_app, operations_app, maintenance_app, system_app og link_app.
+11. Start Fibaro10, alle bakgrunnstjenester og API-adapterne revenue_app til link_app. Bygg og start deretter lilletorget_mantis og lilletorget_kiosk fra de separate kildekatalogene.
 12. Legg tilbake cron-jobber for qnap-backup.sh og qnap-full-restore-backup.sh.
-13. Kjor health-check, scripts/smoke-domain-apps.ps1 og live smoke-test.
+13. Kjor health-check, scripts/smoke-domain-apps.ps1 og Mantis sin komplette verify-kommando.
 14. Bekreft at alle containere er oppe og at domenene peker riktig via Caddy.
 
 Viktige prinsipper:

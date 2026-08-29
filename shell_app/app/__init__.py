@@ -1,1 +1,0 @@
-"""Lilletorget application shell."""

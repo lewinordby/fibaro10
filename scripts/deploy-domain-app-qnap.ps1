@@ -22,25 +22,12 @@ $settings = @{
 }
 $selected = $settings[$App]
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$frontendDir = Join-Path $repoRoot "$App\frontend"
 $archive = Join-Path $repoRoot "tmp\$App-deploy.tgz"
 $remoteArchiveDir = "$RemoteDir/.deploy"
 $remoteArchive = "$remoteArchiveDir/$App-deploy.tgz"
-$npm = if ($env:OS -eq "Windows_NT") { "npm.cmd" } else { "npm" }
 $build = (Get-Content -LiteralPath (Join-Path $repoRoot "$App\BUILD") -Raw).Trim()
 
 if (-not (Test-Path -LiteralPath $IdentityFile)) { throw "Mangler SSH-nøkkel: $IdentityFile" }
-
-if (-not $SkipLocalChecks) {
-    Push-Location $frontendDir
-    try {
-        & $npm run build
-        if ($LASTEXITCODE -ne 0) { throw "$App frontend build feilet" }
-        & $npm audit --audit-level=moderate
-        if ($LASTEXITCODE -ne 0) { throw "$App dependency audit feilet" }
-    }
-    finally { Pop-Location }
-}
 
 Push-Location $repoRoot
 try {
@@ -51,11 +38,8 @@ try {
 
     New-Item -ItemType Directory -Force -Path (Split-Path $archive) | Out-Null
     tar -czf $archive `
-        --exclude="$App/frontend/node_modules" `
-        --exclude="$App/frontend/dist" `
-        --exclude="$App/frontend/*.tsbuildinfo" `
         --exclude="$App/**/__pycache__" `
-        $App microapp_backend packages/mosaic-theme packages/microapp-ui docker-compose.qnap.yml .dockerignore
+        $App microapp_backend docker-compose.qnap.yml .dockerignore
     if ($LASTEXITCODE -ne 0) { throw "Kunne ikke lage deployarkiv" }
 
     ssh -i $IdentityFile -o BatchMode=yes $QnapHost "mkdir -p '$remoteArchiveDir'"
@@ -83,4 +67,4 @@ exit 1
 }
 finally { Pop-Location }
 
-Write-Host "$App build $build er oppdatert uten å restarte Fibaro10 eller andre fagapper."
+Write-Host "$App API-adapter build $build er oppdatert uten å restarte Fibaro10 eller andre adaptere."

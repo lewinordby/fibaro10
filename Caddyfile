@@ -12,7 +12,7 @@
 (internal_app) {
 	encode zstd gzip
 	import asset_cache
-	tls /certs/certificates/fibaro10.lilletorget.net.crt /certs/certificates/fibaro10.lilletorget.net.key
+	tls /certs/certificates/ny.lilletorget.net.crt /certs/certificates/ny.lilletorget.net.key
 
 	header {
 		Strict-Transport-Security "max-age=31536000"
@@ -25,75 +25,8 @@
 	respond @outside_lan "Not found" 404
 }
 
-# These names exist in public DNS, but resolve to the private QNAP address.
-# DNS-01 gives them publicly trusted certificates without exposing an app.
-https://fibaro10.lilletorget.net {
-	import internal_app
-
-	reverse_proxy fibaro10:8110 {
-		header_up Host {host}
-		header_up X-Real-IP {remote_host}
-	}
-}
-
-https://app.lilletorget.net {
-	import internal_app
-
-	handle /omsetning {
-		redir /omsetning/ 308
-	}
-	handle_path /omsetning/* {
-		reverse_proxy revenue_app:8151
-	}
-	handle /parkering {
-		redir /parkering/ 308
-	}
-	handle_path /parkering/* {
-		reverse_proxy parking_app:8152
-	}
-	handle /soling {
-		redir /soling/ 308
-	}
-	handle_path /soling/* {
-		reverse_proxy sun_app:8153
-	}
-	handle /koble {
-		redir /koble/ 308
-	}
-	handle_path /koble/* {
-		reverse_proxy link_app:8158
-	}
-	handle /drift {
-		redir /drift/ 308
-	}
-	handle_path /drift/* {
-		reverse_proxy operations_app:8155
-	}
-	handle /energi {
-		redir /energi/ 308
-	}
-	handle_path /energi/* {
-		reverse_proxy energy_app:8154
-	}
-	handle /vedlikehold {
-		redir /vedlikehold/ 308
-	}
-	handle_path /vedlikehold/* {
-		reverse_proxy maintenance_app:8156
-	}
-	handle /system {
-		redir /system/ 308
-	}
-	handle_path /system/* {
-		reverse_proxy system_app:8157
-	}
-	handle {
-		reverse_proxy shell_app:8150
-	}
-}
-
-# Parallel Mantis application stack. One origin provides shared sign-in while
-# each application is still built and deployed as an independent path artifact.
+# One origin provides shared sign-in while each Mantis application remains an
+# independently built path artifact.
 https://ny.lilletorget.net {
 	import internal_app
 	reverse_proxy lilletorget_mantis:80
@@ -104,86 +37,6 @@ https://ny.lilletorget.net {
 https://kiosk.lilletorget.net {
 	import internal_app
 	reverse_proxy lilletorget_kiosk:80
-}
-
-https://omsetning.lilletorget.net {
-	import internal_app
-	handle_path /omsetning/* {
-		reverse_proxy revenue_app:8151
-	}
-	handle {
-		reverse_proxy revenue_app:8151
-	}
-}
-
-https://parkering.lilletorget.net {
-	import internal_app
-	handle_path /parkering/* {
-		reverse_proxy parking_app:8152
-	}
-	handle {
-		reverse_proxy parking_app:8152
-	}
-}
-
-https://soling.lilletorget.net {
-	import internal_app
-	handle_path /soling/* {
-		reverse_proxy sun_app:8153
-	}
-	handle {
-		reverse_proxy sun_app:8153
-	}
-}
-
-https://energi.lilletorget.net {
-	import internal_app
-	handle_path /energi/* {
-		reverse_proxy energy_app:8154
-	}
-	handle {
-		reverse_proxy energy_app:8154
-	}
-}
-
-https://drift.lilletorget.net {
-	import internal_app
-	handle_path /drift/* {
-		reverse_proxy operations_app:8155
-	}
-	handle {
-		reverse_proxy operations_app:8155
-	}
-}
-
-https://vedlikehold.lilletorget.net {
-	import internal_app
-	handle_path /vedlikehold/* {
-		reverse_proxy maintenance_app:8156
-	}
-	handle {
-		reverse_proxy maintenance_app:8156
-	}
-}
-
-https://system.lilletorget.net {
-	import internal_app
-	handle_path /system/* {
-		reverse_proxy system_app:8157
-	}
-	handle {
-		reverse_proxy system_app:8157
-	}
-}
-
-https://koble.lilletorget.net {
-	import internal_app
-	handle_path /koble/* {
-		reverse_proxy link_app:8158
-	}
-	handle {
-		reverse_proxy link_app:8158
-	}
 }
 
 online.lilletorget.net {
@@ -254,46 +107,5 @@ alarm.lilletorget.net {
 	reverse_proxy alarm_mobile:8114 {
 		header_up Host {host}
 		header_up X-Real-IP {remote_host}
-	}
-}
-
-ipad.lilletorget.net {
-	encode zstd gzip
-	import asset_cache
-
-	header {
-		Strict-Transport-Security "max-age=31536000; includeSubDomains"
-		X-Content-Type-Options "nosniff"
-		Referrer-Policy "strict-origin-when-cross-origin"
-		-Server
-	}
-
-	@outside_lan not remote_ip private_ranges
-	respond @outside_lan "Not found" 404
-
-	handle /drift {
-		redir /drift/ 308
-	}
-	handle_path /drift/* {
-		reverse_proxy 192.168.20.218:8161 {
-			header_up Host {host}
-			header_up X-Real-IP {remote_host}
-		}
-	}
-	handle /drift-ionic {
-		redir /drift-ionic/ 308
-	}
-	handle_path /drift-ionic/* {
-		reverse_proxy 192.168.20.218:8162 {
-			header_up Host {host}
-			header_up X-Real-IP {remote_host}
-		}
-	}
-
-	handle {
-		reverse_proxy 192.168.20.218:8160 {
-			header_up Host {host}
-			header_up X-Real-IP {remote_host}
-		}
 	}
 }

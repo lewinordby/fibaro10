@@ -16,7 +16,6 @@ EXCLUDED_PARTS = {
     "node_modules",
     "output",
     "tmp",
-    "v1_reference",
 }
 
 

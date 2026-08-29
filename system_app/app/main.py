@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import re
 from datetime import date, timedelta
 from pathlib import Path
@@ -14,8 +13,6 @@ from system_app.app.menu_structure import menu_structure_module
 
 
 APP_DIR = Path(__file__).resolve().parents[1]
-SHELL_BASE_URL = os.getenv("SHELL_BASE_URL", "http://shell_app:8150").rstrip("/")
-SHELL_APP_URL = os.getenv("SHELL_APP_URL", "https://app.lilletorget.net").rstrip("/")
 MODULES = {
     "auth/me", "modules/admin", "modules/varslinger", "modules/undersystemer", "modules/ideer",
     "modules/mobil", "modules/manual", "modules/operasjon", "modules/eiendeler",
@@ -41,43 +38,6 @@ async def core_json(client: httpx.AsyncClient, headers: dict[str, str], path: st
 async def subsystems_module(request: Request, client: httpx.AsyncClient, headers: dict[str, str]) -> dict[str, Any]:
     data = await core_json(client, headers, "/api/system/subsystems")
     subsystem_rows = list(data.get("subsystems", []))
-    known_components = {str(row.get("component") or "") for row in subsystem_rows}
-    if "shell_app" not in known_components:
-        subsystem_rows.append({
-            "component": "shell_app",
-            "area": "Plattform",
-            "role": "Intern appvelger og samlet helsestatus for fagappene",
-            "runtime": "Docker",
-            "compose_service": "shell_app",
-            "status": "Aktiv",
-            "criticality": "Normal",
-            "primary_url": SHELL_APP_URL,
-            "local_url": SHELL_APP_URL,
-            "health_url": f"{SHELL_APP_URL}/health",
-        })
-        known_components.add("shell_app")
-    try:
-        app_catalog = await core_json(client, headers, f"{SHELL_BASE_URL}/api/apps")
-    except (httpx.RequestError, httpx.HTTPStatusError):
-        app_catalog = {"apps": []}
-    for app_row in app_catalog.get("apps", []):
-        component = f'{app_row.get("id")}_app'
-        if component in known_components:
-            continue
-        app_url = str(app_row.get("url") or "").rstrip("/")
-        subsystem_rows.append({
-            "component": component,
-            "area": app_row.get("category"),
-            "role": app_row.get("description"),
-            "runtime": "Docker",
-            "compose_service": component,
-            "status": f'Aktiv · build {app_row.get("build") or "-"}' if app_row.get("status") == "ok" else app_row.get("statusText"),
-            "criticality": "Høy" if app_row.get("id") in {"parking", "sun", "energy", "operations"} else "Normal",
-            "primary_url": app_url,
-            "local_url": app_url,
-            "health_url": f"{app_url}/health" if app_url else "",
-        })
-        known_components.add(component)
     for row in subsystem_rows:
         component = str(row.get("component") or "ukjent")
         primary_url = str(row.get("primary_url") or row.get("web_url") or row.get("local_url") or "")
@@ -426,9 +386,6 @@ app = create_domain_app(
         commit_env="SYSTEM_APP_COMMIT",
         app_dir=APP_DIR,
         port=8157,
-        pwa_description="Systemstatus, datakilder, brukere, varslinger og dokumentasjon for Lilletorget.",
-        pwa_theme_color="#334155",
-        pwa_categories=("business", "utilities", "productivity"),
         allowed_paths={"GET": MODULES},
         allowed_patterns={method: (DOMAIN_PATTERN,) for method in ("GET", "POST", "PATCH", "PUT", "DELETE")},
         resource_patterns=(RESOURCE_PATTERN,),

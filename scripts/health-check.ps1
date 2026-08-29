@@ -12,7 +12,8 @@ $ErrorActionPreference = "Stop"
 
 $checks = @(
     @{ Name = "fibaro10"; Url = "http://${HostAddress}:8110/health?details=true"; Kind = "core" },
-    @{ Name = "shell_app"; Url = "http://${HostAddress}:8150/health"; Kind = "ok" },
+    @{ Name = "lilletorget_mantis"; Url = "http://${HostAddress}:8170/ready"; Kind = "ok" },
+    @{ Name = "lilletorget_kiosk"; Url = "http://${HostAddress}:8163/health"; Kind = "ok" },
     @{ Name = "revenue_app"; Url = "http://${HostAddress}:8151/health"; Kind = "ok" },
     @{ Name = "parking_app"; Url = "http://${HostAddress}:8152/health"; Kind = "ok" },
     @{ Name = "sun_app"; Url = "http://${HostAddress}:8153/health"; Kind = "ok" },
@@ -35,8 +36,7 @@ $checks = @(
     @{ Name = "online_dashboard"; Url = "https://online.lilletorget.net/health"; Kind = "ok" },
     @{ Name = "owntracks_proxy"; Url = "https://owntracks.lilletorget.net/health"; Kind = "ok" },
     @{ Name = "maintenance_mobile"; Url = "https://vedl.lilletorget.net/health"; Kind = "ok" },
-    @{ Name = "alarm_mobile"; Url = "http://${HostAddress}:8114/health"; Kind = "ok" },
-    @{ Name = "fibaro10ipad"; Url = "https://ipad.lilletorget.net/health"; Kind = "ok" }
+    @{ Name = "alarm_mobile"; Url = "http://${HostAddress}:8114/health"; Kind = "ok" }
 )
 
 function Test-Payload($Payload, [string]$Kind) {
@@ -115,10 +115,10 @@ if (-not $SkipContainerCheck) {
         throw "Mangler SSH-nokkel for containerkontroll: $IdentityFile"
     }
     $expectedContainers = @(
-        "postgres-1", "owntracks_postgres", "owntracks_service", "fibaro10", "fibaro10_worker", "shell_app",
+        "postgres-1", "owntracks_postgres", "owntracks_service", "fibaro10", "fibaro10_worker", "lilletorget_mantis", "lilletorget_kiosk",
         "revenue_app", "parking_app", "sun_app", "energy_app", "operations_app",
         "maintenance_app", "system_app", "link_app", "online_dashboard", "maintenance_mobile", "alarm_mobile",
-        "fibaro10ipad", "axis_camera_snapshots", "car_info_lookup", "sun2_backfill_downloader",
+        "axis_camera_snapshots", "car_info_lookup", "sun2_backfill_downloader",
         "sun2_importer", "sun2_session_scraper", "parking_sun_linker", "unifi_protect_events",
         "visual_anomaly_service", "easypark_downloader", "roborock_logger", "dreame_logger", "fibaro10_proxy"
     )

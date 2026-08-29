@@ -1,75 +1,47 @@
 # API-kontrakter
 
-Oppdatert 16.07.2026.
+Oppdatert 29.08.2026.
 
-Dette prosjektet har to tydelige kontraktflater mellom backend og desktop-frontend:
+Løsningen har tre kontraktlag:
 
-- `api_types.py` eier Python-typene for backendpayloads som brukes på tvers av moduler.
-- `desktop_v2/src/api.ts` eier TypeScript-typene som frontenden bruker når den kaller backend.
+1. Fibaro10-kjernen eier data, regler og hoved-API.
+2. Adapterne på port 8151-8158 avgrenser hvilke endepunkter hver Mantis-app kan bruke.
+3. `lilletorget-mantis/packages/platform` eier TypeScript-typer, API-klient og fagvisninger.
 
-Når et API-endepunkt endrer struktur, skal begge filene oppdateres i samme build.
+Når en payload endres, skal backendtype, adapterens tillatelsesliste og Mantis-typen
+kontrolleres i samme build.
 
-## Typefestede kontrakter
+## Viktige kontrakter
 
-| Endpoint | Backendtype | Frontendtype | Kommentar |
+| Endpoint | Backend | Mantis | Formål |
 | --- | --- | --- | --- |
-| `GET /health` | `HealthPayload` | `HealthResponse`/healthtyper i `api.ts` | Brukes av QNAP health, smoke og admin. |
-| `GET /api/admin/builds` | `BuildLogResponsePayload` med `BuildLogListRowPayload[]` | `BuildLogResponse` med `BuildLogListEntry[]` | Lett liste: build, dato, overskrift, path og aktiv-markering. |
-| `GET /api/admin/builds/{build}` | `BuildLogEntryPayload` | `BuildLogEntry` | Full detalj med prompt/bestilling, endringer, applikasjoner og måledata. |
-| `GET /api/modules/{module}` | `ModulePayload` | `ModulePayload` | Felles modulkontrakt for kort, grafer, tabeller, handlinger og filtre. |
-| `GET /api/overview` | dynamisk dashboardpayload | `OverviewResponse` | Dashboard for omsetning, parkering, soling og drift. |
-| `GET /api/import-status/{jobName}` | importstatuspayload | `ImportStatusDetail` | Detaljside for datakilde. |
-| `GET /api/status/comparison` | sammenligningspayload | `StatusComparisonResponse` | Akkumulert dag/uke/måned-sammenligning. |
-| `GET /api/*/year-comparison` | årssammenligning | egne year comparison-typer | Omsetning, parkering og soling. |
-| `GET /api/energy/hc3-devices` | HC3-enhetsliste | `Hc3EnergyDevicesResponse` | Live HC3-inventar med fallback til siste snapshot. |
-| `GET /api/energy/nodes/live` | liveverdier per energipunkt | `EnergyNodesLiveResponse` | Effekt og bryterstatus for registrerte HC3-ID-er. |
-| `POST/PATCH /api/energy/nodes` | `V2EnergyNodeIn` | `EnergyNodeInput` | Oppretter og redigerer enhet, utgang eller underenhet. HC3-ID-er, egenskaper og unik kobling valideres før lagring. Ved kursflytting følger hele grenen og lastene med. |
-| `POST/PATCH /api/energy/loads` | `V2EnergyLoadIn` | `EnergyLoadCreateInput` | Oppretter og redigerer last direkte på kurs eller under energipunkt. Støtter normaliserte profiler for ukjent, fast og variabel effekt. |
+| `GET /health` | `HealthPayload` | health-kontrakt | Container- og deploykontroll. |
+| `GET /api/admin/builds` | `BuildLogResponsePayload` | buildliste | Lett liste uten fulle bestillinger. |
+| `GET /api/admin/builds/{build}` | `BuildLogEntryPayload` | builddetalj | Full bestilling, endringer og tester. |
+| `GET /api/modules/{module}` | `ModulePayload` | modulkontrakt | Kort, grafer, tabeller, handlinger og filtre. |
+| `GET /api/overview` | dashboardpayload | oversiktskontrakt | Omsetning, parkering, soling og drift. |
+| `GET /api/import-status/{jobName}` | importstatus | datakildedetalj | Historikk, feil og neste kjøring. |
+| `GET /api/status/comparison` | sammenligning | sammenligningskontrakt | Akkumulert dag, uke og måned. |
+| `GET /api/*/year-comparison` | årssammenligning | fagspesifikke typer | Omsetning, parkering og soling. |
+| `GET /api/energy/hc3-devices` | HC3-inventar | energi-kontrakt | Enheter og siste kjente verdier. |
+| `GET /api/energy/nodes/live` | liveverdier | energi-kontrakt | Effekt og bryterstatus. |
+| `POST/PATCH /api/energy/nodes` | `V2EnergyNodeIn` | `EnergyNodeInput` | Energitopologi. |
+| `POST/PATCH /api/energy/loads` | `V2EnergyLoadIn` | last-input | Laster og teoretisk effekt. |
 
-## Buildlogg
+## Adapterregler
 
-Buildlogg har bevisst delt kontrakt:
-
-- Listen `/api/admin/builds` skal være liten og rask.
-- Detaljen `/api/admin/builds/{build}` skal inneholde hele endringsgrunnlaget.
-
-Dette hindrer at Admin/Buildlogg laster hundrevis av gamle prompts og endringslister bare for å vise tabellen.
-
-## Modulpayload
-
-`ModulePayload` er fleksibel, men skal holdes strukturert:
-
-- `cards`: små nøkkeltall med `title`, `value`, `unit`, `detail`, `tone` og valgfri `href`.
-- `charts`: chart-definisjoner som frontend rendrer med ECharts.
-- `tables`: tabeller med `title`, `columns`, `rows`, valgfri `edit` og `meta`.
-- `actions`: POST/PATCH-handlinger som frontend viser som knapper.
-- `filters`: serverstyrte filterfelter.
-
-Store datasett skal ikke sendes på oversiktssider uten eksplisitt behov. Bruk `limit`, dato/range eller egen detaljside.
+- Adapterne har ingen HTML-frontend eller statiske frontendfiler.
+- Ukjente ruter skal gi `404` og ukjente API-ruter skal ikke videresendes.
+- Innlogging valideres i Fibaro10 og bruker den felles opake sesjonscookien.
+- Delte HTTP-klienter skal ikke lagre cookies mellom forespørsler.
+- Skrivekall krever gyldig origin og brukerrettighet.
+- Ressursstier som bilder og vedlegg beholder store og små bokstaver.
 
 ## Kvalitetssjekk
-
-Standard lokal sjekk:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-local.ps1
 ```
 
-Denne kjører:
-
-- Python syntax check
-- Python unit tests
-- desktop V2 TypeScript typecheck og Vite build
-- OwnTracks frontend typecheck og build
-- CSS parse
-- CSS audit
-- bundle audit
-- route audit
-- UI smoke
-- Git whitespace check
-
-Innlogget live-smoke kjøres automatisk av `scripts/deploy-qnap.ps1` når `.env.live-smoke` finnes.
-
-## Praktisk regel
-
-Hvis en frontendtype endres i `desktop_v2/src/api.ts`, skal tilsvarende backendkontrakt eller payloadbygger gjennomgås samtidig. Hvis payloaden er stor, mål størrelse og vurder om listen kan deles fra detaljvisningen.
+Mantis kontrolleres i eget repo med `npm run verify`. Endringer som berører begge
+repoer skal bestå begge kvalitetsportene før deploy.

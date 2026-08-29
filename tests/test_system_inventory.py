@@ -11,9 +11,8 @@ def test_system_inventory_contains_core_components():
     names = {row["component"] for row in rows}
 
     assert "fibaro10" in names
-    assert "desktop_v2" in names
     assert "lilletorget_mantis" in names
-    assert "shell_app" in names
+    assert "lilletorget_kiosk" in names
     assert "revenue_app" in names
     assert "parking_app" in names
     assert "sun_app" in names
@@ -31,6 +30,9 @@ def test_system_inventory_contains_core_components():
     assert "visual_anomaly_service" in names
     assert "fibaro10_proxy" in names
     assert "owntracks_postgres" in names
+    assert "desktop_v2" not in names
+    assert "shell_app" not in names
+    assert "fibaro10ipad" not in names
 
 
 def test_system_inventory_summary_counts_rows():
@@ -50,11 +52,15 @@ def test_system_inventory_web_interfaces_are_clickable():
     names = {row["component"] for row in rows}
 
     assert "online_dashboard" in names
+    assert "lilletorget_mantis" in names
+    assert "lilletorget_kiosk" in names
     assert "owntracks_service" in names
     assert "maintenance_mobile" in names
     assert "axis_camera_snapshots" in names
     assert "sun2_session_scraper" in names
     assert "unifi_protect_events" in names
+    assert "revenue_app" not in names
+    assert "operations_app" not in names
 
     for row in rows:
         assert row["web_url"] or row["local_url"]

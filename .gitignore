@@ -11,9 +11,6 @@ tmp/
 .env.*
 roborock_output/
 outputs/
-desktop_v2/dist/
-desktop_v2/node_modules/
-desktop_v2/*.tsbuildinfo
 roborock_logger/.env
 roborock_logger/data
 roborock_logger/data/

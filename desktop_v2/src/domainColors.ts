@@ -1,1 +1,0 @@
-export { domainColors } from "./designTokens";

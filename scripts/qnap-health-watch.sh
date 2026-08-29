@@ -41,8 +41,8 @@ file_is_fresh() {
 }
 
 check fibaro10 curl -fsS --max-time 15 http://192.168.20.218:8110/health
-check fibaro10_https curl -fsS --max-time 15 https://fibaro10.lilletorget.net/health
-check shell_app curl -fsS --max-time 15 http://192.168.20.218:8150/ready
+check lilletorget_mantis curl -fsS --max-time 15 https://ny.lilletorget.net/ready
+check lilletorget_kiosk curl -fsS --max-time 15 https://kiosk.lilletorget.net/health
 check revenue_app curl -fsS --max-time 15 http://192.168.20.218:8151/ready
 check parking_app curl -fsS --max-time 15 http://192.168.20.218:8152/ready
 check sun_app curl -fsS --max-time 15 http://192.168.20.218:8153/ready
@@ -53,7 +53,6 @@ check system_app curl -fsS --max-time 15 http://192.168.20.218:8157/ready
 check link_app curl -fsS --max-time 15 http://192.168.20.218:8158/ready
 check online_dashboard curl -fsS --max-time 15 -H "Host: online.lilletorget.net" http://127.0.0.1:8081/health
 check maintenance_mobile curl -fsS --max-time 15 -H "Host: vedl.lilletorget.net" http://127.0.0.1:8081/health
-check fibaro10ipad curl -fsS --max-time 15 -H "Host: ipad.lilletorget.net" http://127.0.0.1:8081/health
 check owntracks_service curl -fsS --max-time 15 -H "Host: owntracks.lilletorget.net" http://127.0.0.1:8081/health
 check alarm_mobile curl -fsS --max-time 15 http://192.168.20.218:8114/health
 check axis_camera_snapshots curl -fsS --max-time 15 http://192.168.20.218:8125/health

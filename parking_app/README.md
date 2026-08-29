@@ -1,49 +1,24 @@
-# Lilletorget Parkering
+# Parkering API-adapter
 
-Selvstendig fagapplikasjon for parkering. Appen kjører ved siden av Fibaro10
-på `https://app.lilletorget.net/parkering/` og bruker Fibaro10 som avgrenset data- og
-autentiserings-API.
+Intern, avgrenset adapter mellom Mantis-appen Parkering og Fibaro10-kjernen.
+Tjenesten leverer ikke et eget brukergrensesnitt. Gjeldende flate er
+`https://ny.lilletorget.net/parkering/`.
 
-## Funksjoner
-
-- oversikt, ukesutvikling og topplister
-- alle parkeringer per dag med kjøretøy, historikk og UniFi-lenker
-- visuell dagslinje med 23 plasser og fast beleggsakse
-- kjøretøysøk, kjøretøydetaljer, områder og datakvalitet
-- parkeringsprognose og Park Nordic-oppgjør
-- Park Nordic-kontrollrapport per uke eller måned med besøksgrupper, kameraregistreringer og daglig oversikt over øvrige kjente kjøretøy observert i mer enn ti minutter
-- akkumulert årssammenligning med valgbare år
-- tidspunktfordeling og ukesnitt per parkering
-
-Backend-proxyen tillater bare parkeringsrelaterte Fibaro10-kall. Innlogging
-valideres av Fibaro10 og bruker samme brukerkontoer.
-
-## Frontend
-
-- React 19, TypeScript, Vite 6 og Tailwind CSS 4
-- kjøpt og lisensiert Mosaic React-mal fra Cruip
-- Mosaic lyst og mørkt tema samt Chart.js-grafer
-- parkeringsfargen er Mosaics godkjente `sky`-farge
-
-Mosaic-grunnlaget ligger i den felles pakken `packages/mosaic-theme`. Appen har
-bare en minimal Tailwind-inngang som genererer klassene den selv bruker. Inter
-leveres lokalt som en hash-navngitt WOFF2-fil og krever ingen ekstern fonttjeneste.
+Adapteren håndterer felles innlogging og videresender bare godkjente
+parkeringsendepunkter. Den eksponerer `/health`, `/ready` og
+`/api/app/config` for drift og overvåking.
 
 ## Lokal kontroll
 
 ```powershell
-cd parking_app/frontend
-npm ci
-npm run build
-npm audit --audit-level=moderate
-cd ../..
-python -m unittest parking_app.tests.test_main
+python -m pytest tests/test_domain_microapps.py -q
 ```
 
 ## Isolert deploy
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/deploy-parking-app-qnap.ps1
+powershell -ExecutionPolicy Bypass -File scripts/deploy-domain-app-qnap.ps1 -App parking
 ```
 
-Deployskriptet bygger og erstatter bare `parking_app`.
+Deploy bygger bare `parking_app`. Mantis-frontenden bygges i det separate
+`lilletorget-mantis`-repoet.

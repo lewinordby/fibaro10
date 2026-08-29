@@ -129,7 +129,7 @@ if ($LASTEXITCODE -ne 0) {
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $target = if ([System.IO.Path]::IsPathRooted($EnvFile)) { $EnvFile } else { Join-Path $repoRoot $EnvFile }
 $content = @(
-    "# Local credentials for desktop_v2/scripts/smoke-live.mjs. Do not commit.",
+    "# Local credentials for authenticated production smoke tests. Do not commit.",
     "FIBARO10_LIVE_BASE_URL=$BaseUrl",
     "FIBARO10_LIVE_USERNAME=$Username",
     "FIBARO10_LIVE_PASSWORD=$Password"

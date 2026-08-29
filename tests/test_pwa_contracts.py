@@ -52,36 +52,34 @@ def test_manifest_serializes_unique_scope_extensions_in_order() -> None:
         short_name="Lilletorget",
         description="Felles app.",
         scope_extensions=(
-            "https://parkering.lilletorget.net",
-            "https://omsetning.lilletorget.net",
-            "https://parkering.lilletorget.net",
+            "https://online.lilletorget.net",
+            "https://vedl.lilletorget.net",
+            "https://online.lilletorget.net",
         ),
     ).manifest()
 
     assert manifest["scope_extensions"] == [
-        {"type": "origin", "origin": "https://parkering.lilletorget.net"},
-        {"type": "origin", "origin": "https://omsetning.lilletorget.net"},
+        {"type": "origin", "origin": "https://online.lilletorget.net"},
+        {"type": "origin", "origin": "https://vedl.lilletorget.net"},
     ]
 
 
-def test_main_pwa_proxies_every_microapp_under_its_own_scope() -> None:
+def test_caddy_exposes_only_the_current_desktop_origin() -> None:
     caddyfile = (Path(__file__).resolve().parents[1] / "Caddyfile").read_text(encoding="utf-8")
 
-    expected = {
-        "/omsetning/*": "revenue_app:8151",
-        "/parkering/*": "parking_app:8152",
-        "/soling/*": "sun_app:8153",
-        "/koble/*": "link_app:8158",
-        "/drift/*": "operations_app:8155",
-        "/energi/*": "energy_app:8154",
-        "/vedlikehold/*": "maintenance_app:8156",
-        "/system/*": "system_app:8157",
-    }
-    main_site = caddyfile.split("https://app.lilletorget.net {", 1)[1].split("https://omsetning.lilletorget.net {", 1)[0]
-    for path, upstream in expected.items():
-        assert f"handle_path {path}" in main_site
-        assert f"reverse_proxy {upstream}" in main_site
-    assert "web-app-origin-association" not in caddyfile
+    assert "https://ny.lilletorget.net {" in caddyfile
+    assert "reverse_proxy lilletorget_mantis:80" in caddyfile
+    assert "reverse_proxy shell_app:8150" not in caddyfile
+    assert "reverse_proxy revenue_app:8151" not in caddyfile
+    assert "reverse_proxy 192.168.20.218:8160" not in caddyfile
+    for retired_host in (
+        "fibaro10.lilletorget.net",
+        "app.lilletorget.net",
+        "omsetning.lilletorget.net",
+        "parkering.lilletorget.net",
+        "ipad.lilletorget.net",
+    ):
+        assert retired_host not in caddyfile
 
 
 def test_https_proxy_returns_private_vpn_traffic_through_lan_interface() -> None:
@@ -162,20 +160,15 @@ def test_pwa_import_does_not_load_domain_runtime_dependencies() -> None:
 
 
 def test_login_surfaces_advertise_pwa_before_authentication() -> None:
-    root = Path(__file__).resolve().parents[1]
-    sources = (
-        render_login_page(
-            app_name="Fibaro10",
-            build="test",
-            pwa=PwaConfig(name="Lilletorget Fibaro10", short_name="Fibaro10", description="Test"),
-        ),
-        (root / "fibaro10ipad" / "app" / "main.py").read_text(encoding="utf-8"),
+    source = render_login_page(
+        app_name="Fibaro10",
+        build="test",
+        pwa=PwaConfig(name="Lilletorget Fibaro10", short_name="Fibaro10", description="Test"),
     )
 
-    for source in sources:
-        assert 'rel="manifest" href="/manifest.webmanifest"' in source
-        assert 'name="apple-mobile-web-app-capable" content="yes"' in source
-        assert 'rel="apple-touch-icon"' in source
+    assert 'rel="manifest" href="/manifest.webmanifest"' in source
+    assert 'name="apple-mobile-web-app-capable" content="yes"' in source
+    assert 'rel="apple-touch-icon"' in source
 
 
 def test_shared_login_page_has_branding_accessibility_and_safe_errors() -> None:

@@ -19,11 +19,10 @@ class RevenueAppTest(unittest.TestCase):
         self.assertEqual(config.status_code, 200)
         self.assertEqual(config.json()["name"], "Lilletorget Omsetning")
 
-    def test_frontend_redirects_to_login_without_cookies(self) -> None:
+    def test_adapter_does_not_serve_a_frontend(self) -> None:
         with TestClient(app, follow_redirects=False) as client:
             response = client.get("/oversikt")
-        self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.headers["location"], "/auth/login")
+        self.assertEqual(response.status_code, 404)
 
     def test_proxy_rejects_non_revenue_endpoints(self) -> None:
         with TestClient(app) as client:
@@ -68,15 +67,15 @@ class RevenueAppTest(unittest.TestCase):
                 response = client.post(
                     "/auth/login",
                     data={"username": "master", "password": "secret"},
-                    headers={"host": "omsetning.lilletorget.net", "x-forwarded-proto": "https"},
+                    headers={"host": "ny.lilletorget.net", "x-forwarded-proto": "https"},
                 )
 
-        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.status_code, 204)
         self.assertIn("domain=.lilletorget.net", response.headers["set-cookie"].lower())
         _, kwargs = auth_client.post.call_args
-        self.assertEqual(kwargs["headers"]["X-Forwarded-Host"], "omsetning.lilletorget.net")
+        self.assertEqual(kwargs["headers"]["X-Forwarded-Host"], "ny.lilletorget.net")
         self.assertEqual(kwargs["headers"]["X-Forwarded-Proto"], "https")
-        self.assertEqual(kwargs["headers"]["X-Lilletorget-Public-Host"], "omsetning.lilletorget.net")
+        self.assertEqual(kwargs["headers"]["X-Lilletorget-Public-Host"], "ny.lilletorget.net")
         self.assertEqual(kwargs["headers"]["X-Lilletorget-Public-Proto"], "https")
 
 

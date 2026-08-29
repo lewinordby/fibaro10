@@ -119,7 +119,7 @@ class BrowserSessionTests(unittest.IsolatedAsyncioTestCase):
             host="fibaro10",
             forwarded_host="fibaro10:8110",
             forwarded_proto="http",
-            public_host="omsetning.lilletorget.net",
+            public_host="ny.lilletorget.net",
         )
         with (
             patch("main.find_access_key", new=AsyncMock(return_value=access_key)),

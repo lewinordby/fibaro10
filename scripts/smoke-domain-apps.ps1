@@ -27,7 +27,7 @@ if (-not $username -or -not $password) {
     throw "Credential-filen mangler FIBARO10_LIVE_USERNAME eller FIBARO10_LIVE_PASSWORD."
 }
 
-$navigationPath = Join-Path $repoRoot "packages/microapp-ui/src/navigation.json"
+$navigationPath = Join-Path $repoRoot "system_app/app/navigation.json"
 $navigation = (Get-Content -LiteralPath $navigationPath -Raw -Encoding UTF8 | ConvertFrom-Json).apps
 if ($AppIds.Count -gt 0) {
     $navigation = @($navigation | Where-Object { $_.id -in $AppIds })
@@ -67,7 +67,7 @@ $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
 Invoke-WebRequest -UseBasicParsing -Uri "http://${HostAddress}:8151/auth/login" -Method Post -Body @{
     username = $username
     password = $password
-} -WebSession $session -MaximumRedirection 5 -TimeoutSec 30 | Out-Null
+} -WebSession $session -TimeoutSec 30 | Out-Null
 
 $results = [System.Collections.Generic.List[object]]::new()
 
@@ -93,21 +93,6 @@ function Invoke-DomainCheck([string]$App, [int]$Port, [string]$Route, [string]$E
     }
 }
 
-function Invoke-FrontendRouteCheck([string]$App, [int]$Port, [string]$Route) {
-    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-    try {
-        $response = Invoke-WebRequest -UseBasicParsing -Uri "http://${HostAddress}:$Port$Route" -WebSession $session -TimeoutSec 30
-        $stopwatch.Stop()
-        if ($response.StatusCode -ne 200 -or $response.Content -notmatch '<div id="root">') {
-            throw "Frontend returnerte ikke app-skallet"
-        }
-        $results.Add([pscustomobject]@{ App = $App; Route = "$Route [side]"; Status = "OK"; Ytelse = if ($stopwatch.ElapsedMilliseconds -gt $WarnAfterMs) { "TREG" } else { "BRA" }; Ms = $stopwatch.ElapsedMilliseconds })
-    } catch {
-        $stopwatch.Stop()
-        $results.Add([pscustomobject]@{ App = $App; Route = "$Route [side]"; Status = "FEIL: $($_.Exception.Message)"; Ytelse = "-"; Ms = $stopwatch.ElapsedMilliseconds })
-    }
-}
-
 foreach ($port in @($navigation | ForEach-Object { [int]$_.port } | Sort-Object -Unique)) {
     Invoke-DomainCheck -App "Tjeneste $port" -Port $port -Route "/ready" -Endpoint "/ready" -Kind "json"
 }
@@ -116,7 +101,6 @@ foreach ($app in $navigation) {
     foreach ($group in $app.groups) {
         foreach ($item in $group.items) {
             $check = Resolve-RouteCheck $app $item
-            Invoke-FrontendRouteCheck -App $app.shortName -Port $app.port -Route $item.to
             Invoke-DomainCheck -App $app.shortName -Port $app.port -Route $item.to -Endpoint $check.Endpoint -Kind $check.Kind
         }
     }

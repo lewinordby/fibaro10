@@ -10,7 +10,6 @@ $ErrorActionPreference = "Stop"
 $hostAddress = "192.168.20.218"
 $healthUrls = @{
     fibaro10 = "http://${hostAddress}:8110/health"
-    shell_app = "http://${hostAddress}:8150/ready"
     revenue_app = "http://${hostAddress}:8151/ready"
     parking_app = "http://${hostAddress}:8152/ready"
     sun_app = "http://${hostAddress}:8153/ready"
@@ -27,7 +26,6 @@ $healthUrls = @{
     online_dashboard = "https://online.lilletorget.net/health"
     maintenance_mobile = "https://vedl.lilletorget.net/health"
     alarm_mobile = "http://${hostAddress}:8114/health"
-    fibaro10ipad = "https://ipad.lilletorget.net/health"
 }
 
 foreach ($service in $Services) {
@@ -52,8 +50,9 @@ if ($Dreame -or "operations_app" -in $Services) {
 }
 
 $appIds = @{
-    revenue_app = "revenue"; parking_app = "parking"; sun_app = "sun"; energy_app = "energy";
-    operations_app = "operations"; maintenance_app = "maintenance"; system_app = "system"; link_app = "link"
+    revenue_app = @("revenue"); parking_app = @("parking"); sun_app = @("sun"); energy_app = @("energy");
+    operations_app = @("building", "cleaning", "control"); maintenance_app = @("maintenance");
+    system_app = @("operation-center", "assets", "reports", "system"); link_app = @("link")
 }
 $affectedApps = @($Services | ForEach-Object { $appIds[$_] } | Where-Object { $_ })
 if (-not $SkipRoutes -and $affectedApps.Count -gt 0) {

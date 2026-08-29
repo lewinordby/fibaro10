@@ -1,31 +1,18 @@
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "deploy-plan.ps1")
 
-$core = Get-DeployPlan -ChangedFiles @("main.py", "desktop_v2/src/App.tsx", "BUILD", "scripts/readme.ps1")
+$core = Get-DeployPlan -ChangedFiles @("main.py", "BUILD", "scripts/readme.ps1")
 if ($core.All -or ($core.Services -join ",") -ne "fibaro10" -or $core.EasyPark -or $core.Roborock -or $core.Dreame) {
     throw "Core deploy plan is wrong: $($core | ConvertTo-Json -Compress)"
 }
 
-$shared = Get-DeployPlan -ChangedFiles @("packages/microapp-ui/src/index.ts")
-if ($shared.All -or $shared.Services.Count -ne 9 -or "shell_app" -notin $shared.Services) {
-    throw "Shared UI deploy plan is wrong: $($shared | ConvertTo-Json -Compress)"
-}
-
-$operationsUi = Get-DeployPlan -ChangedFiles @("operations_app/frontend/src/components/RoborockSpecial.tsx")
-if ($operationsUi.All -or ($operationsUi.Services -join ",") -ne "operations_app") {
-    throw "Operations-owned UI deploy plan is wrong: $($operationsUi | ConvertTo-Json -Compress)"
-}
-
-foreach ($ownedUi in @(
-    @{ Path = "energy_app/frontend/src/components/EnergyCircuitLoads.tsx"; Service = "energy_app" },
-    @{ Path = "sun_app/frontend/src/components/SunSessionsSpecial.tsx"; Service = "sun_app" },
-    @{ Path = "link_app/frontend/src/components/LinkReviewSpecial.tsx"; Service = "link_app" },
-    @{ Path = "maintenance_app/frontend/src/components/MaintenanceVisitDetailPage.tsx"; Service = "maintenance_app" },
-    @{ Path = "system_app/frontend/src/components/SystemSpecial.tsx"; Service = "system_app" }
+foreach ($adapter in @(
+    "revenue_app", "parking_app", "sun_app", "energy_app",
+    "operations_app", "maintenance_app", "system_app", "link_app"
 )) {
-    $plan = Get-DeployPlan -ChangedFiles @($ownedUi.Path)
-    if ($plan.All -or ($plan.Services -join ",") -ne $ownedUi.Service) {
-        throw "App-owned UI deploy plan is wrong for $($ownedUi.Path): $($plan | ConvertTo-Json -Compress)"
+    $plan = Get-DeployPlan -ChangedFiles @("$adapter/app/main.py")
+    if ($plan.All -or ($plan.Services -join ",") -ne $adapter) {
+        throw "Adapter deploy plan is wrong for ${adapter}: $($plan | ConvertTo-Json -Compress)"
     }
 }
 
@@ -39,14 +26,9 @@ if ($cleaningRobotDomain.All -or ($cleaningRobotDomain.Services -join ",") -ne "
     throw "Cleaning robot domain deploy plan is wrong: $($cleaningRobotDomain | ConvertTo-Json -Compress)"
 }
 
-$roborockDomain = Get-DeployPlan -ChangedFiles @("roborock_domain.py")
-if ($roborockDomain.All -or ($roborockDomain.Services -join ",") -ne "fibaro10,online_dashboard") {
-    throw "Roborock domain deploy plan is wrong: $($roborockDomain | ConvertTo-Json -Compress)"
-}
-
-$sharedBackend = Get-DeployPlan -ChangedFiles @("microapp_backend/pwa.py")
-foreach ($requiredService in @("fibaro10", "shell_app", "online_dashboard")) {
-    if ($sharedBackend.All -or $sharedBackend.Services.Count -ne 11 -or $requiredService -notin $sharedBackend.Services) {
+$sharedBackend = Get-DeployPlan -ChangedFiles @("microapp_backend/runtime.py")
+foreach ($requiredService in @("fibaro10", "revenue_app", "parking_app", "sun_app", "energy_app", "operations_app", "maintenance_app", "system_app", "link_app", "online_dashboard")) {
+    if ($sharedBackend.All -or $sharedBackend.Services.Count -ne 10 -or $requiredService -notin $sharedBackend.Services) {
         throw "Shared backend deploy plan is wrong: $($sharedBackend | ConvertTo-Json -Compress)"
     }
 }
@@ -67,13 +49,13 @@ if ($multiple.All -or ($multiple.Services -join ",") -ne "fibaro10,unifi_protect
 }
 
 $deployScript = Get-Content -LiteralPath (Join-Path $PSScriptRoot "deploy-qnap.ps1") -Raw
-if ($deployScript -notmatch '\$coreDeployValue' -or $deployScript -notmatch 'deploy-core-qnap\.sh' -or $deployScript -match 'elif \[ -n "\$composeServices" \]') {
-    throw "Deploy script must use the boolean service flag for multi-service plans."
-}
-foreach ($required in @("check-affected.ps1", "smoke-affected.ps1", '$broadValidation')) {
+foreach ($required in @("deploy-core-qnap.sh", "check-affected.ps1", "smoke-affected.ps1", '$broadValidation')) {
     if ($deployScript -notmatch [regex]::Escape($required)) {
-        throw "Deploy script is missing scoped validation marker $required."
+        throw "Deploy script is missing $required."
     }
+}
+if ($deployScript -notmatch 'DOCKER_BIN="\$Docker" sh scripts/renew-internal-https\.sh') {
+    throw "Deploy script must issue the active internal certificate before reloading Caddy."
 }
 
 $coreGateway = Get-DeployPlan -ChangedFiles @("Caddyfile.core")
@@ -82,7 +64,7 @@ if ($coreGateway.All -or ($coreGateway.Services -join ",") -ne "fibaro10") {
 }
 
 $full = Get-DeployPlan -ChangedFiles @("docker-compose.qnap.yml")
-if (-not $full.All -or $full.EasyPark -or $full.Roborock -or $full.Dreame -or $full.Services.Count -lt 20) {
+if (-not $full.All -or $full.EasyPark -or $full.Roborock -or $full.Dreame -or $full.Services.Count -lt 18) {
     throw "Full deploy plan is wrong: $($full | ConvertTo-Json -Compress)"
 }
 
@@ -90,6 +72,11 @@ $coreCompose = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\docker-comp
 foreach ($required in @("fibaro10_blue", "fibaro10_green", "fibaro10_worker", "Caddyfile.core")) {
     if ($coreCompose -notmatch [regex]::Escape($required)) {
         throw "Core Compose architecture is missing $required."
+    }
+}
+foreach ($retired in @("shell_app:", "fibaro10ipad:")) {
+    if ($coreCompose -match [regex]::Escape($retired)) {
+        throw "Retired service is still present in Compose: $retired"
     }
 }
 

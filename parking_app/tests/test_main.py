@@ -20,25 +20,19 @@ class ParkingAppTest(unittest.TestCase):
         self.assertEqual(health.json()["service"], "parking_app")
         self.assertEqual(config.status_code, 200)
         self.assertEqual(config.json()["name"], "Lilletorget Parkering")
-        self.assertEqual(manifest.status_code, 200)
-        self.assertEqual(manifest.json()["name"], "Lilletorget Parkering")
-        self.assertEqual(manifest.json()["theme_color"], "#0284c7")
-        self.assertTrue(manifest.headers["content-type"].startswith("application/manifest+json"))
-        self.assertEqual(icon.status_code, 200)
+        self.assertEqual(config.json()["mode"], "api-adapter")
+        self.assertEqual(manifest.status_code, 404)
+        self.assertEqual(icon.status_code, 404)
 
-    def test_frontend_redirects_to_login_without_cookies(self) -> None:
+    def test_adapter_does_not_serve_a_frontend(self) -> None:
         with TestClient(app, follow_redirects=False) as client:
             response = client.get("/parkeringer")
-        self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.headers["location"], "/auth/login")
+        self.assertEqual(response.status_code, 404)
 
-    def test_frontend_exposes_manifest_and_apple_metadata(self) -> None:
+    def test_adapter_does_not_serve_frontend_metadata(self) -> None:
         with TestClient(app) as client:
             response = client.get("/observerte-biler", cookies={"lilletorget_session": "test"})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.text.count('rel="manifest"'), 1)
-        self.assertIn('rel="apple-touch-icon"', response.text)
-        self.assertIn('name="theme-color"', response.text)
+        self.assertEqual(response.status_code, 404)
 
     def test_proxy_rejects_unrelated_endpoints(self) -> None:
         with TestClient(app) as client:

@@ -388,16 +388,16 @@ def architecture_overview() -> Drawing:
         d.add(Rect(0, y, 92, 54, rx=4, ry=4, fillColor=NAVY, strokeColor=NAVY))
         d.add(String(46, y + 24, title, textAnchor="middle", fontName="Segoe-Semibold", fontSize=6.8, fillColor=WHITE))
 
-    for x, title in [(110, "PC / Mac"), (250, "iPad"), (390, "Mobil / PWA"), (530, "OwnTracks Android")]:
+    for x, title in [(110, "PC / Mac"), (250, "Nettbrett"), (390, "Mobil / PWA"), (530, "OwnTracks Android")]:
         _box(d, x, 336, 120, 54, [title, "Nettleser eller klient"], fill=SOFT_BLUE, stroke=BLUE)
 
     _box(d, 130, 263, 180, 54, ["Caddy reverse proxy", "DNS · TLS · sikkerhetsheadere"], fill=SOFT_GOLD, stroke=GOLD)
     _box(d, 340, 263, 180, 54, ["Felles innlogging", "DB-sesjon · delt sikker cookie"], fill=SOFT_PURPLE, stroke=PURPLE)
     _box(d, 550, 263, 160, 54, ["Tilgangsgrenser", "LAN/VPN eller valgt mobilflate"], fill=SOFT_RED, stroke=RED)
 
-    _box(d, 105, 184, 250, 54, ["Mantis · 11 apper", "ny.lilletorget.net · Nginx 8170"], fill=SOFT_PURPLE, stroke=PURPLE, font_size=8)
-    _box(d, 375, 184, 150, 54, ["Mobil / iPad", "Egne arbeidsflater"], fill=SOFT_PURPLE, stroke=PURPLE, font_size=7.5)
-    _box(d, 545, 184, 160, 54, ["Reserveflater", "Fibaro10 · app.lilletorget"], fill=PAPER, stroke=LINE, font_size=7.3)
+    _box(d, 105, 184, 250, 54, ["Mantis · 13 apper", "ny.lilletorget.net · Nginx 8170"], fill=SOFT_PURPLE, stroke=PURPLE, font_size=8)
+    _box(d, 375, 184, 150, 54, ["Mobil og kiosk", "Egne arbeidsflater"], fill=SOFT_PURPLE, stroke=PURPLE, font_size=7.5)
+    _box(d, 545, 184, 160, 54, ["OwnTracks-web", "Egen lokasjonsflate"], fill=PAPER, stroke=LINE, font_size=7.3)
 
     _box(d, 110, 102, 175, 54, ["Fagadaptere", "FastAPI · port 8151-8158"], fill=SOFT_GOLD, stroke=GOLD)
     _box(d, 310, 102, 175, 54, ["Fibaro10 API", "Domenelogikk · database · admin"], fill=SOFT_GOLD, stroke=GOLD)
@@ -619,7 +619,9 @@ WEB_APPS = [
     ("Parkering", "https://ny.lilletorget.net/parkering/", "8170", "Parkeringer, kjøretøy, oppgjør, tidsanalyse og prognoser."),
     ("Soling", "https://ny.lilletorget.net/soling/", "8170", "Soltimer, bilder, senger, medlemmer, produkter og oppgjør."),
     ("Koble", "https://ny.lilletorget.net/koble/", "8170", "Kontroll av kobling mellom bil og Sun2-ID."),
-    ("Bygg og drift", "https://ny.lilletorget.net/drift/", "8170", "Ventilasjon, lys, dører, solrom, pullerter og renhold."),
+    ("Bygg", "https://ny.lilletorget.net/bygg/", "8170", "Ventilasjon, klima, lys og styring."),
+    ("Renhold", "https://ny.lilletorget.net/renhold/", "8170", "Roboter, planer, vann og rapporter."),
+    ("Kontroll", "https://ny.lilletorget.net/kontroll/", "8170", "Dører, solrom, alarm og pullerter."),
     ("Energi", "https://ny.lilletorget.net/energi/", "8170", "Sanntid, Elvia-kontroll, kurs/last og solsengforbruk."),
     ("Vedlikehold", "https://ny.lilletorget.net/vedlikehold/", "8170", "Besøk, oppgaver og vedlikeholdshistorikk."),
     ("Operasjon", "https://ny.lilletorget.net/operasjon/", "8170", "Arbeidskø, kontroller, datakvalitet og søk."),
@@ -629,11 +631,9 @@ WEB_APPS = [
 ]
 
 SPECIAL_APPS = [
-    ("Fibaro10 reserve", "https://fibaro10.lilletorget.net/", "8110", "Kjerne/API og samlet V2-reserveflate."),
-    ("Forrige mikroapper", "https://app.lilletorget.net/", "8150-58", "Reserve og funksjonsreferanse."),
+    ("Robotkiosk", "https://kiosk.lilletorget.net/", "8163", "Fast 1920 x 1080 robotstatus."),
     ("Online dashboard", "https://online.lilletorget.net/", "8111", "Begrenset ekstern nøkkeltallflate, med direkte database-lesing."),
     ("Vedlikehold mobil", "https://vedl.lilletorget.net/", "8112", "Rask mobilregistrering mot Fibaro10 API."),
-    ("Fibaro10 iPad", "https://ipad.lilletorget.net/", "8113", "iPad-tilpasset dashboard mot Fibaro10 API."),
     ("Alarm mobil", "https://alarm.lilletorget.net/", "8114", "Dør-, solrom-, pullert- og trappealarmer med ntfy-dyplenker."),
     ("OwnTracks", "https://owntracks.lilletorget.net/", "8128", "HTTP-mottak, waypoints, opphold, sonebesøk og kart."),
 ]
@@ -642,20 +642,19 @@ COMPONENTS = [
     ("fibaro10 / blue / green", "Kjerne", "Kritisk", "FastAPI API og blue/green web-runtime."),
     ("fibaro10_worker", "Kjerne", "Kritisk", "Planlagte jobber, kontroll, vedlikehold og varsling."),
     ("fibaro10_proxy", "Infrastruktur", "Kritisk", "Caddy reverse proxy, HTTPS og tilgangsgrenser."),
-    ("lilletorget_mantis", "Frontend", "Høy", "Elleve Mantis-apper og Nginx på port 8170."),
-    ("shell_app", "Plattform", "Normal", "Appvelger og tjenestestatus."),
-    ("revenue_app", "Omsetning", "Normal", "Separat fagapp og build."),
-    ("parking_app", "Parkering", "Høy", "Daglig drift, kjøretøy, oppgjør og analyse."),
-    ("sun_app", "Soling", "Høy", "Soltimer, bilder, produkter og oppgjør."),
-    ("energy_app", "Energi", "Høy", "Energi, Elvia, kurs/last og solsengforbruk."),
-    ("operations_app", "Bygg og drift", "Høy", "Ventilasjon, lys, dører, pullerter og renhold."),
-    ("maintenance_app", "Vedlikehold", "Normal", "Besøk og oppgaver."),
-    ("system_app", "System", "Normal", "Datakilder, brukere, manual og build."),
-    ("link_app", "Koble", "Normal", "Kontrollflate for koblingsmotoren."),
+    ("lilletorget_mantis", "Frontend", "Høy", "Tretten Mantis-apper og Nginx på port 8170."),
+    ("revenue_app", "Omsetning", "Normal", "Avgrenset API-adapter uten frontend."),
+    ("parking_app", "Parkering", "Høy", "Avgrenset API-adapter uten frontend."),
+    ("sun_app", "Soling", "Høy", "Avgrenset API-adapter uten frontend."),
+    ("energy_app", "Energi", "Høy", "Avgrenset API-adapter uten frontend."),
+    ("operations_app", "Bygg/Renhold/Kontroll", "Høy", "Avgrenset API-adapter uten frontend."),
+    ("maintenance_app", "Vedlikehold", "Normal", "Avgrenset API-adapter uten frontend."),
+    ("system_app", "System", "Normal", "Avgrenset API-adapter uten frontend."),
+    ("link_app", "Koble", "Normal", "Avgrenset API-adapter uten frontend."),
     ("online_dashboard", "Mobil/ekstern", "Høy", "Begrenset dashboardflate."),
     ("maintenance_mobile", "Vedlikehold", "Normal", "Mobil vedlikeholdsregistrering."),
     ("alarm_mobile", "Alarm", "Høy", "Mobil alarm- og kontrollflate."),
-    ("fibaro10ipad", "Frontend", "Normal", "iPad-tilpasset dashboard."),
+    ("lilletorget_kiosk", "Renhold", "Normal", "Fast robotstatus i eget repo."),
     ("owntracks_service", "Lokasjon", "Normal", "HTTP-mottak, kart, waypoints og sonebesøk."),
     ("owntracks_postgres", "Lokasjon", "Høy", "Separat PostgreSQL 17 for OwnTracks."),
     ("axis_camera_snapshots", "Bilder", "Høy", "Tar snapshots hvert 5. sekund i åpningstiden."),
@@ -702,8 +701,7 @@ DATA_SOURCES = [
 TECH_STACK = [
     ("Backend", "Python 3.12 · FastAPI 0.139 · Uvicorn", "Asynkron API-plattform med god støtte for integrasjoner, validering og bakgrunnsarbeid."),
     ("Data", "PostgreSQL · SQLAlchemy 2 · asyncpg", "Transaksjoner, tidsserier, relasjoner og pålitelig historikk. OwnTracks har separat database."),
-    ("Gjeldende frontend", "React 19 · TypeScript · Vite · MUI 9 · Mantis", "Elleve fagapper, felles designsystem, én origin og 127 registrerte ruter."),
-    ("Reservefrontend", "React 19 · TypeScript · Vite · Ant Design/Mosaic", "Fibaro10 V2 og forrige mikroappserie beholdes som reserve og funksjonsreferanse."),
+    ("Gjeldende frontend", "React 19 · TypeScript · Vite · MUI 9 · Mantis", "Tretten fagapper, felles designsystem og én origin."),
     ("Mobil", "AppKit Mobile PWA", "Kjøpt mobilgrunnlag med safe-area, toppfelt, bunnnavigasjon og lyst/mørkt tema."),
     ("Proxy", "Caddy 2", "Reverse proxy, komprimering, sikkerhetsheadere og offentlig betrodde sertifikater."),
     ("Kjøring", "Docker Compose på QNAP", "Isolerte tjenester, enkel restart, deklarativ konfigurasjon og reproduksjon."),
@@ -722,7 +720,6 @@ PORTS = [
     ("8110", "fibaro10", "Fast gateway til aktiv blue/green web"),
     ("8111", "online_dashboard", "Begrenset dashboard"),
     ("8112", "maintenance_mobile", "Vedlikehold mobil"),
-    ("8113", "fibaro10ipad", "iPad-flate"),
     ("8114", "alarm_mobile", "Alarm mobil og lokal reserve"),
     ("8125", "axis_camera_snapshots", "Axis status og API"),
     ("8126", "car_info_lookup", "Nordiske kjøretøyoppslag"),
@@ -730,9 +727,9 @@ PORTS = [
     ("8128", "owntracks_service", "OwnTracks HTTP og web"),
     ("8130", "unifi_protect_events", "Protect Ledger og administrasjon"),
     ("8140", "visual_anomaly_service", "Kun internt Docker-nett"),
-    ("8150", "shell_app", "Appvelger"),
-    ("8151-8158", "fagapper", "Omsetning til Koble"),
-    ("8170", "lilletorget_mantis", "Gjeldende Mantis-stack med elleve appbygg"),
+    ("8151-8158", "API-adaptere", "Omsetning til Koble, uten frontend"),
+    ("8163", "lilletorget_kiosk", "Fast robotkiosk"),
+    ("8170", "lilletorget_mantis", "Gjeldende Mantis-stack med tretten appbygg"),
     ("8081 / 8443", "fibaro10_proxy", "Tekniske reserveporter for HTTP/HTTPS"),
 ]
 
@@ -851,7 +848,7 @@ def build_document() -> Path:
         ),
         Spacer(1, 10),
     ]
-    story += [p("Den gjeldende appstakken består av elleve Mantis-apper under ny.lilletorget.net. Alle statiske appbygg leveres fra Nginx på port 8170 og deler MUI/Mantis-design, API-klient og én databasesesjon for innlogging. Fibaro10-kjernen er fortsatt det sentrale API- og datalaget, mens fagadapterne på 8151-8158 oversetter forespørsler til kjernen.", s["Body"])]
+    story += [p("Den gjeldende appstakken består av tretten Mantis-apper under ny.lilletorget.net. Alle statiske appbygg leveres fra Nginx på port 8170 og deler MUI/Mantis-design, API-klient og én databasesesjon for innlogging. Fibaro10-kjernen er fortsatt det sentrale API- og datalaget, mens fagadapterne på 8151-8158 oversetter forespørsler til kjernen.", s["Body"])]
     story += [p("Innsamling er flyttet ut i separate tjenester der det gir verdi: EasyPark, Sun2, Axis, UniFi Protect, kjøretøyoppslag, Roborock, Dreame, OwnTracks og koblingsmotoren kjører ved siden av kjernen. Denne oppdelingen reduserer påvirkning mellom integrasjoner og gjør feil enklere å lokalisere.", s["Body"])]
     story += [Paragraph("Viktigste arkitekturvalg", s["Heading2"])]
     for text in [
@@ -887,8 +884,8 @@ def build_document() -> Path:
     story.append(make_table([["Flate", "Adresse", "Port", "Formål"], *SPECIAL_APPS], [30 * mm, 52 * mm, 15 * mm, 57 * mm], s, font_size=7.2, header_color=NAVY_2))
     story += [Paragraph("3.3 Ansvarsdeling i frontend", s["Heading2"])]
     story += [
-        bullet("<b>Mantis:</b> gjeldende brukerflate med React, TypeScript, MUI og elleve apper under ny.lilletorget.net.", s),
-        bullet("<b>Fibaro10 og forrige mikroapper:</b> produksjonskritisk API/adapterlag og reserver som ikke brukes som kilde for nytt design.", s),
+        bullet("<b>Mantis:</b> gjeldende brukerflate med React, TypeScript, MUI og tretten apper under ny.lilletorget.net.", s),
+        bullet("<b>Fibaro10 og adapterne:</b> produksjonskritisk API-lag uten egne desktopflater.", s),
         bullet("<b>Mobilappene:</b> AppKit Mobile PWA med mobilspesifikke arbeidsflyter, safe-area og bunnnavigasjon.", s),
         bullet("<b>Serverrendret innlogging:</b> lett felles side som lastes før React-bundlene og gir samme sesjon i alle appene.", s),
     ]

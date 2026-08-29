@@ -16,10 +16,12 @@ API_BASE = "https://api.domeneshop.no/v0"
 DOMAIN = "lilletorget.net"
 PRIVATE_IP = "192.168.20.219"
 HOSTS = (
-    "fibaro10",
-    "app",
     "ny",
     "kiosk",
+)
+RETIRED_HOSTS = (
+    "fibaro10",
+    "app",
     "omsetning",
     "parkering",
     "soling",
@@ -119,6 +121,19 @@ def configure(*, apply: bool) -> list[str]:
                 client.request(
                     "DELETE", f"/domains/{domain_id}/dns/{extra['id']}"
                 )
+
+    for host in RETIRED_HOSTS:
+        matching = [
+            record
+            for record in records
+            if record.get("host") == host
+            and record.get("type") == "A"
+            and record.get("data") == PRIVATE_IP
+        ]
+        for record in matching:
+            actions.append(f"FJERN    utfaset {host}.{DOMAIN} -> {PRIVATE_IP}")
+            if apply:
+                client.request("DELETE", f"/domains/{domain_id}/dns/{record['id']}")
 
     return actions
 

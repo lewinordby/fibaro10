@@ -1,78 +1,54 @@
 # Porter og applikasjonslag
 
-Oppdatert 29.08.2026, build 1820.
+Oppdatert 29.08.2026.
 
-Løsningen har to brukergrensesnittgenerasjoner som må skilles tydelig fra
-API-laget. Gjeldende brukerflate er Mantis på port 8170. Port 8151-8158 er
-fortsatt operative fag-API-er og reserveflater, ikke kilde for nytt design.
+## Brukerflater
 
-## Gjeldende Mantis-stack
-
-| Vertsport | Tjeneste | Rolle |
+| Port | Tjeneste | Rolle |
 | ---: | --- | --- |
-| 8170 | lilletorget_mantis | Nginx som leverer alle tretten Mantis-bygg og ruter API-kall til fag-API-ene. |
+| 8170 | `lilletorget_mantis` | Alle tretten PC-mikroapper under `ny.lilletorget.net`. |
+| 8163 | `lilletorget_kiosk` | Intern robotkiosk. |
+| 8111 | `online_dashboard` | Mobil dashboard. |
+| 8112 | `maintenance_mobile` | Mobil vedlikeholdsapp. |
+| 8114 | `alarm_mobile` | Mobil alarm- og kontrollapp. |
+| 8128 | `owntracks_service` | OwnTracks web/API. |
 
-Caddy eksponerer containeren som ett internt HTTPS-domene på formen
-https://ny.lilletorget.net/<app>/<side>.
+Mantis-appene er Omsetning, Parkering, Soling, Koble, Bygg, Renhold,
+Kontroll, Energi, Vedlikehold, Operasjonssentral, Eiendeler, Rapporter og
+System. De bygges i repoet `lilletorget-mantis` og leveres av én Nginx-container.
 
-Appene er Omsetning, Parkering, Soling, Koble, Bygg, Renhold, Kontroll, Energi,
-Vedlikehold, Operasjonssentral, Eiendeler, Rapporter og System. Hver app har
-eget statisk bygg under dist/<app>, men hele serien leveres fra samme image.
+## API-lag
 
-## Fag-API-er og forrige brukerflate
-
-| Port | Tjeneste | Gjeldende rolle |
+| Port | Tjeneste | Mantis-områder |
 | ---: | --- | --- |
-| 8150 | shell_app | Forrige appvelger/reserve, ikke primær brukerinngang. |
-| 8151 | revenue_app | Omsetningsadapter og tidligere fagfrontend. |
-| 8152 | parking_app | Parkeringsadapter og tidligere fagfrontend. |
-| 8153 | sun_app | Solingsadapter og tidligere fagfrontend. |
-| 8154 | energy_app | Energiadapter og tidligere fagfrontend. |
-| 8155 | operations_app | Adapter for bygg og drift. |
-| 8156 | maintenance_app | Vedlikeholdsadapter. |
-| 8157 | system_app | Systemadapter, også for operasjon, eiendeler og rapporter. |
-| 8158 | link_app | Adapter for koblingsmotoren. |
+| 8110 | `fibaro10` | Kjerne-API for hele plattformen. |
+| 8151 | `revenue_app` | Omsetning. |
+| 8152 | `parking_app` | Parkering. |
+| 8153 | `sun_app` | Soling. |
+| 8154 | `energy_app` | Energi. |
+| 8155 | `operations_app` | Bygg, Renhold og Kontroll. |
+| 8156 | `maintenance_app` | Vedlikehold. |
+| 8157 | `system_app` | System, Operasjonssentral, Eiendeler og Rapporter. |
+| 8158 | `link_app` | Koble. |
 
-Mantis bruker disse tjenestene for autentisering og fagdata. De skal derfor ikke
-stoppes selv om brukergrensesnittet på app.lilletorget.net er reserve.
+Port 8151-8158 er API-adaptere uten egne HTML-fronter. De må være i drift fordi
+Mantis bruker dem til autentisering, tilgangsavgrensning og fagdata. Port 8110
+er API og teknisk health-endepunkt, ikke en reserve-desktop.
 
 ## Ansvarsdeling
 
-| Kodeområde | Ansvar | Normal påvirkning |
-| --- | --- | --- |
-| lilletorget-mantis/apps/* | Ett inngangspunkt per Mantis-app. | Den aktuelle appens inngang. |
-| lilletorget-mantis/packages/mantis | Mantis-skall, tema og leverandørkomponenter. | Alle Mantis-appene. |
-| lilletorget-mantis/packages/platform | Ruting, API-klient, kontrakter og fagvisninger. | Berørte Mantis-apper. |
-| packages/microapp-ui | Delt rammeverk for forrige mikroappgenerasjon. | Bare reservegenerasjonen. |
-| revenue_app til link_app | Backendadaptere og eldre frontend. | Det aktuelle fag-API-et. |
-| main.py og domenemoduler | Fibaro10 API, regler, database og jobber. | Kjerne og berørte adaptere. |
-
-Autoritativ Mantis-meny ligger i
-lilletorget-mantis/packages/platform/src/app-definitions.json. En side skal
-ikke dokumenteres som aktiv før den finnes der og består produksjonssmoke.
-
-## Utvikling og utrulling
-
-Mantis-repo:
-
-    npm ci
-    npm run build
-    npm run verify
-    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-qnap.ps1
-
-Fibaro10/fag-API-er:
-
-    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-local.ps1
-    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-qnap.ps1
-
-En gammel fagapp kan fortsatt rulles isolert med
-scripts/deploy-domain-app-qnap.ps1, men det bygger ikke Mantis-flaten.
+| Kodeområde | Ansvar |
+| --- | --- |
+| `lilletorget-mantis/apps` | Inngang per Mantis-app. |
+| `lilletorget-mantis/packages/mantis` | Kjøpt Mantis-skall og tema. |
+| `lilletorget-mantis/packages/platform` | Ruting, typer, API-klient og fagvisninger. |
+| `revenue_app` til `link_app` | Smale API-adaptere. |
+| `main.py` og domenemoduler | Data, regler, database og jobber. |
+| `packages/mobile-appkit` | Felles designsystem for mobilflatene. |
 
 ## Praktisk regel
 
-- Brukere åpner https://ny.lilletorget.net.
-- Mantis leveres på 8170.
-- Fag-API-ene på 8151-8158 må være friske.
-- Fibaro10-kjernen på 8110 må være frisk.
-- app.lilletorget.net og fibaro10.lilletorget.net er reserver og
-  funksjonsreferanser, ikke primær navigasjon.
+- Brukere åpner `https://ny.lilletorget.net`.
+- Mantis bygges og deployes fra sitt eget repo.
+- Backend og adaptere bygges og deployes fra Fibaro10-repoet.
+- Gamle porter 8150, 8113, 8160-8162 og 8171 er avviklet.

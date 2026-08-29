@@ -8,7 +8,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$npm = if ($env:OS -eq "Windows_NT") { "npm.cmd" } else { "npm" }
 
 function Run($exe, [string[]]$arguments, [string]$workingDirectory = $repoRoot) {
     Push-Location $workingDirectory
@@ -34,15 +33,8 @@ if ("fibaro10" -in $Services) {
     Run "python" @("-m", "pytest", "tests", "-q")
 }
 
-$frontendServices = @(
-    "revenue_app", "parking_app", "sun_app", "energy_app", "operations_app",
-    "maintenance_app", "system_app", "link_app", "shell_app"
-)
-foreach ($service in $frontendServices | Where-Object { $_ -in $Services }) {
-    $frontendDir = Join-Path $repoRoot "$service/frontend"
-    Write-Host "$service frontend"
-    Run $npm @("run", "build") $frontendDir
-    Run $npm @("audit", "--audit-level=moderate") $frontendDir
+if (@("revenue_app", "parking_app", "sun_app", "energy_app", "operations_app", "maintenance_app", "system_app", "link_app") | Where-Object { $_ -in $Services }) {
+    Run "python" @("-m", "pytest", "tests/test_domain_microapps.py", "-q")
 }
 
 if ("operations_app" -in $Services) {

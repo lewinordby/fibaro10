@@ -7,10 +7,10 @@ from typing import Any
 from fastapi import Request
 
 
-PACKAGED_NAVIGATION_FILE = Path(__file__).with_name("navigation.json")
-SOURCE_NAVIGATION_FILE = Path(__file__).resolve().parents[2] / "packages" / "microapp-ui" / "src" / "navigation.json"
-NAVIGATION_FILE = PACKAGED_NAVIGATION_FILE if PACKAGED_NAVIGATION_FILE.exists() else SOURCE_NAVIGATION_FILE
-APP_MENU_STRUCTURE: tuple[dict[str, Any], ...] = tuple(json.loads(NAVIGATION_FILE.read_text(encoding="utf-8"))["apps"])
+MANTIS_NAVIGATION_FILE = Path(__file__).with_name("navigation.json")
+APP_MENU_STRUCTURE: tuple[dict[str, Any], ...] = tuple(
+    json.loads(MANTIS_NAVIGATION_FILE.read_text(encoding="utf-8"))["apps"]
+)
 
 
 def _page_count(app: dict[str, Any]) -> int:

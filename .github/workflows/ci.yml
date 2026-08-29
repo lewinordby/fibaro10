@@ -27,18 +27,7 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-          cache-dependency-path: |
-            desktop_v2/package-lock.json
-            owntracks_service/frontend/package-lock.json
-            shell_app/frontend/package-lock.json
-            revenue_app/frontend/package-lock.json
-            parking_app/frontend/package-lock.json
-            sun_app/frontend/package-lock.json
-            energy_app/frontend/package-lock.json
-            operations_app/frontend/package-lock.json
-            maintenance_app/frontend/package-lock.json
-            system_app/frontend/package-lock.json
-            link_app/frontend/package-lock.json
+          cache-dependency-path: owntracks_service/frontend/package-lock.json
 
       - name: Install Python dependencies
         run: |
@@ -48,10 +37,6 @@ jobs:
       - name: Install frontend dependencies
         shell: pwsh
         run: ./scripts/install-frontend-dependencies.ps1
-
-      - name: Install Playwright browser
-        working-directory: desktop_v2
-        run: npx playwright install --with-deps chromium
 
       - name: Run quality gate
         shell: pwsh

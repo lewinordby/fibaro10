@@ -12,6 +12,45 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1821",
+        "date": "29.08.2026",
+        "headline": "Gamle grensesnitt er fjernet og aktiv arkitektur er ryddet",
+        "title": "Mantis, mobil, kiosk og nødvendige datatjenester står igjen",
+        "description": (
+            "Løsningen er ryddet ned til dagens Mantis-mikroapper, mobilappene, kiosken, "
+            "Fibaro10 API og nødvendige innsamlings- og bakgrunnstjenester. Gamle desktop-, "
+            "mikroapp-, iPad- og V1-grensesnitt er fjernet fra kode, bygg, Compose, Caddy, "
+            "CI, backup og dokumentasjon. Adapterne på port 8151-8158 er beholdt som rene "
+            "API-tjenester fordi Mantis fortsatt bruker dem."
+        ),
+        "applications": [
+            "Fibaro10 build 1821: API-kjerne uten eksponert gammel desktopflate.",
+            "Omsetning-adapter 43, Parkering 35, Soling 35 og Energi 32: API-only.",
+            "Bygg/Renhold/Kontroll-adapter 97, Vedlikehold 31, System 43 og Koble 29: API-only.",
+            "Mantis: eneste PC-flate, kontrollert med 13 apper og 117 ruter.",
+            "Mobil og kiosk: beholdt som aktive, separate arbeidsflater.",
+            "Drift, CI, HTTPS, backup og dokumentasjon: samsvarer med aktiv arkitektur.",
+        ],
+        "request": (
+            "Kan du ta en komplett gjennomgang og fjerne alt gammelt, jeg tror at det kun er "
+            "mikro appene og mobil appen jeg trenger, ipad appen kan også fjernes tror jeg. "
+            "Rydd opp og ta en grundig gjennomgang av det vi skal ha."
+        ),
+        "work_duration": "ca. 2 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fjernet Desktop V2, tidligere mikroappfronter og delt Mosaic-UI-pakke fra Fibaro10-repoet.",
+            "Fjernet shell_app, fibaro10ipad, V1-referansen og lokale iPad/mal-eksperimenter.",
+            "Bygget om åtte fagapper til små Python-baserte API-adaptercontainere uten Node eller statiske fronter.",
+            "Fjernet gamle tjenester, porter og avhengigheter fra Compose, deployplan, health og smoke.",
+            "Begrenset intern HTTPS til Mantis og kiosk og ryddet utfasete private DNS-navn.",
+            "Oppdatert systemkart, manual, portoversikt, API-kontrakter, restore-pakke og PDF-generator.",
+            "Beholdt alle databaser, originaldata, bilder knyttet til soltimer, importer- og loggertjenester.",
+            "Verifisert backend, adaptere, mobil, OwnTracks, UniFi/AI, deployplan og Mantis-rammeverk.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1820",
         "date": "29.08.2026",
         "headline": "Hoveddashboardet viser alle omsetningsrangeringer",

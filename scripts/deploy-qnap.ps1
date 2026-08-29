@@ -81,8 +81,8 @@ $deployPlan = Get-DeployPlan -ChangedFiles $changedFiles -ForceAll $forceFullDep
 $validForceServices = @(
     "owntracks_service", "fibaro10", "revenue_app", "parking_app", "sun_app",
     "energy_app", "operations_app", "maintenance_app", "system_app", "link_app",
-    "shell_app", "unifi_protect_events", "visual_anomaly_service", "online_dashboard",
-    "maintenance_mobile", "alarm_mobile", "fibaro10ipad", "axis_camera_snapshots",
+    "unifi_protect_events", "visual_anomaly_service", "online_dashboard",
+    "maintenance_mobile", "alarm_mobile", "axis_camera_snapshots",
     "car_info_lookup", "sun2_backfill_downloader", "sun2_importer",
     "sun2_session_scraper", "parking_sun_linker", "fibaro10_proxy"
 )
@@ -221,7 +221,6 @@ export APP_COMMIT=`$(git rev-parse --short HEAD)
 export APP_BUILD=`$(cat BUILD)
 export PROTECT_LEDGER_BUILD=`$(cat unifi_protect_events/BUILD)
 export OWNTRACKS_APP_BUILD=`$(cat owntracks_service/BUILD)
-export SHELL_APP_BUILD=`$(cat shell_app/BUILD)
 export REVENUE_APP_BUILD=`$(cat revenue_app/BUILD)
 export PARKING_APP_BUILD=`$(cat parking_app/BUILD)
 export SUN_APP_BUILD=`$(cat sun_app/BUILD)
@@ -244,8 +243,8 @@ else
     echo "No additional Compose services are affected by this revision."
 fi
 if [ "$restartProxyValue" = "1" ]; then
-    echo "Restarting fibaro10_proxy to activate the mounted Caddyfile"
-    "$Docker" compose -f docker-compose.qnap.yml restart fibaro10_proxy
+    echo "Issuing/renewing the active internal certificate before reloading Caddy"
+    DOCKER_BIN="$Docker" sh scripts/renew-internal-https.sh
 fi
 ready=0
 while [ "`$ready" -lt 60 ]; do
@@ -282,6 +281,9 @@ if [ "$deployDreameValue" = "1" ]; then
 fi
 "$Docker" exec fibaro10_proxy caddy validate --config /etc/caddy/Caddyfile || { "$Docker" logs --tail=80 fibaro10_proxy; exit 1; }
 "$Docker" exec fibaro10 caddy validate --config /etc/caddy/Caddyfile || { "$Docker" logs --tail=80 fibaro10; exit 1; }
+for retired in shell_app fibaro10ipad fibaro10_v1 lilletorget_mantis_revenue lilletorget_ipad_home lilletorget_drift_ipad lilletorget_drift_ipad_ionic; do
+    "$Docker" rm -f "`$retired" >/dev/null 2>&1 || true
+done
 "$Docker" compose -f docker-compose.qnap.yml ps
 (cd easypark_downloader && "$Docker" compose ps)
 [ ! -f dreame_logger/.env ] || (cd dreame_logger && "$Docker" compose -f docker-compose.qnap.yml ps)
@@ -294,16 +296,6 @@ if ($broadValidation) {
     Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "health-check.ps1"))
     if (-not $SkipSmoke) {
         Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "smoke-check.ps1"))
-        $desktopDir = Join-Path $repoRoot "desktop_v2"
-        $npm = if ($env:OS -eq "Windows_NT") { "npm.cmd" } else { "npm" }
-        $originalDir = (Get-Location).Path
-        try {
-            Set-Location $desktopDir
-            Run $npm @("run", "smoke:live")
-        }
-        finally {
-            Set-Location $originalDir
-        }
         Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "smoke-domain-apps.ps1"))
     }
 } else {

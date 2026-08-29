@@ -1,5 +1,5 @@
 x-fibaro10-core-environment: &fibaro10-core-environment
-  APP_BUILD: ${APP_BUILD:-1669}
+  APP_BUILD: ${APP_BUILD:-1821}
   SUN2_AXIS_SNAPSHOT_ROOT: /axis_snapshots
   SUN2_AXIS_SNAPSHOT_LINK_DAYS: ${SUN2_AXIS_SNAPSHOT_LINK_DAYS:-35}
   CAR_INFO_LOOKUP_URL: http://car_info_lookup:8126
@@ -130,9 +130,7 @@ services:
       - "192.168.20.218:8151:8151"
     environment:
       FIBARO10_BASE_URL: http://fibaro10:8110
-      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net}
-      SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net}
-      REVENUE_APP_BUILD: ${REVENUE_APP_BUILD:-33}
+      REVENUE_APP_BUILD: ${REVENUE_APP_BUILD:-43}
       REVENUE_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8151/health', timeout=5).read()\""]
@@ -156,9 +154,7 @@ services:
       - "192.168.20.218:8152:8152"
     environment:
       FIBARO10_BASE_URL: http://fibaro10:8110
-      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net}
-      SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net}
-      PARKING_APP_BUILD: ${PARKING_APP_BUILD:-25}
+      PARKING_APP_BUILD: ${PARKING_APP_BUILD:-35}
       PARKING_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8152/health', timeout=5).read()\""]
@@ -182,9 +178,7 @@ services:
       - "192.168.20.218:8153:8153"
     environment:
       FIBARO10_BASE_URL: http://fibaro10:8110
-      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net}
-      SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net}
-      SUN_APP_BUILD: ${SUN_APP_BUILD:-25}
+      SUN_APP_BUILD: ${SUN_APP_BUILD:-35}
       SUN_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8153/health', timeout=5).read()\""]
@@ -208,9 +202,7 @@ services:
       - "192.168.20.218:8154:8154"
     environment:
       FIBARO10_BASE_URL: http://fibaro10:8110
-      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net}
-      SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net}
-      ENERGY_APP_BUILD: ${ENERGY_APP_BUILD:-22}
+      ENERGY_APP_BUILD: ${ENERGY_APP_BUILD:-32}
       ENERGY_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8154/health', timeout=5).read()\""]
@@ -234,9 +226,7 @@ services:
       - "192.168.20.218:8155:8155"
     environment:
       FIBARO10_BASE_URL: http://fibaro10:8110
-      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net}
-      SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net}
-      OPERATIONS_APP_BUILD: ${OPERATIONS_APP_BUILD:-28}
+      OPERATIONS_APP_BUILD: ${OPERATIONS_APP_BUILD:-97}
       OPERATIONS_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8155/health', timeout=5).read()\""]
@@ -260,9 +250,7 @@ services:
       - "192.168.20.218:8156:8156"
     environment:
       FIBARO10_BASE_URL: http://fibaro10:8110
-      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net}
-      SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net}
-      MAINTENANCE_APP_BUILD: ${MAINTENANCE_APP_BUILD:-21}
+      MAINTENANCE_APP_BUILD: ${MAINTENANCE_APP_BUILD:-31}
       MAINTENANCE_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8156/health', timeout=5).read()\""]
@@ -286,9 +274,7 @@ services:
       - "192.168.20.218:8157:8157"
     environment:
       FIBARO10_BASE_URL: http://fibaro10:8110
-      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net}
-      SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net}
-      SYSTEM_APP_BUILD: ${SYSTEM_APP_BUILD:-27}
+      SYSTEM_APP_BUILD: ${SYSTEM_APP_BUILD:-43}
       SYSTEM_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8157/health', timeout=5).read()\""]
@@ -312,50 +298,10 @@ services:
       - "192.168.20.218:8158:8158"
     environment:
       FIBARO10_BASE_URL: http://fibaro10:8110
-      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net}
-      SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net}
-      LINK_APP_BUILD: ${LINK_APP_BUILD:-20}
+      LINK_APP_BUILD: ${LINK_APP_BUILD:-29}
       LINK_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8158/health', timeout=5).read()\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-
-  shell_app:
-    build:
-      context: .
-      dockerfile: shell_app/Dockerfile
-    container_name: shell_app
-    restart: unless-stopped
-    env_file:
-      - .env
-    ports:
-      - "192.168.20.218:8150:8150"
-    environment:
-      FIBARO10_BASE_URL: http://fibaro10:8110
-      REVENUE_BASE_URL: http://revenue_app:8151
-      REVENUE_APP_URL: ${REVENUE_APP_URL:-https://omsetning.lilletorget.net}
-      PARKING_BASE_URL: http://parking_app:8152
-      PARKING_APP_URL: ${PARKING_APP_URL:-https://parkering.lilletorget.net}
-      SUN_BASE_URL: http://sun_app:8153
-      SUN_APP_URL: ${SUN_APP_URL:-https://soling.lilletorget.net}
-      ENERGY_BASE_URL: http://energy_app:8154
-      ENERGY_APP_URL: ${ENERGY_APP_URL:-https://energi.lilletorget.net}
-      OPERATIONS_BASE_URL: http://operations_app:8155
-      OPERATIONS_APP_URL: ${OPERATIONS_APP_URL:-https://drift.lilletorget.net}
-      MAINTENANCE_BASE_URL: http://maintenance_app:8156
-      MAINTENANCE_APP_URL: ${MAINTENANCE_APP_URL:-https://vedlikehold.lilletorget.net}
-      SYSTEM_BASE_URL: http://system_app:8157
-      SYSTEM_APP_URL: ${SYSTEM_APP_URL:-https://system.lilletorget.net}
-      LINK_BASE_URL: http://link_app:8158
-      LINK_APP_URL: ${LINK_APP_URL:-https://koble.lilletorget.net}
-      SHELL_APP_URL: ${SHELL_APP_URL:-https://app.lilletorget.net}
-      SHELL_APP_BUILD: ${SHELL_APP_BUILD:-31}
-      SHELL_APP_COMMIT: ${APP_COMMIT:-unknown}
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8150/health', timeout=5).read()\""]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -495,28 +441,6 @@ services:
       ALARM_MOBILE_BUILD: ${ALARM_MOBILE_BUILD:-4}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8114/health', timeout=5).read()\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-  fibaro10ipad:
-    build:
-      context: .
-      dockerfile: fibaro10ipad/Dockerfile
-    container_name: fibaro10ipad
-    restart: unless-stopped
-    env_file:
-      - .env
-    depends_on:
-      - fibaro10
-    environment:
-      FIBARO10_BASE_URL: http://fibaro10:8110
-      FIBARO10_APP_URL: ${FIBARO10_APP_URL:-https://fibaro10.lilletorget.net}
-      FIBARO10_IPAD_APP_BUILD: ${FIBARO10_IPAD_APP_BUILD:-1477}
-      FIBARO10_IPAD_APP_COMMIT: ${APP_COMMIT:-unknown}
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8113/health', timeout=5).read()\""]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -686,9 +610,7 @@ services:
       - owntracks_service
       - maintenance_mobile
       - alarm_mobile
-      - fibaro10ipad
       - fibaro10
-      - shell_app
       - revenue_app
       - parking_app
       - sun_app

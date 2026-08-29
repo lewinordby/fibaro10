@@ -564,9 +564,6 @@ FIBARO10_PWA = PwaConfig(
 register_pwa(app, FIBARO10_PWA)
 app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
 app.mount("/static", StaticFiles(directory="static"), name="static")
-DESKTOP_V2_DIST = Path(__file__).parent / "desktop_v2" / "dist"
-if (DESKTOP_V2_DIST / "assets").exists():
-    app.mount("/assets", StaticFiles(directory=str(DESKTOP_V2_DIST / "assets")), name="desktop_assets")
 templates = Jinja2Templates(directory="templates")
 templates.env.globals.update(app_version=APP_VERSION, app_build=APP_BUILD, build_log=BUILD_LOG)
 
@@ -18108,7 +18105,7 @@ async def login_submit(request: Request):
             ),
             status_code=401,
         )
-    response = RedirectResponse("/status/omsetning", status_code=303)
+    response = RedirectResponse("/", status_code=303)
     session_token = await create_auth_session(access_key, request)
     set_auth_session_cookie(response, request, session_token, max_age=AUTH_SESSION_MAX_AGE_SECONDS)
     await log_access_attempt(request, True, "login", access_key)
@@ -18642,7 +18639,7 @@ def admin_manual_payload() -> Dict[str, Any]:
     return {
         "build": APP_BUILD,
         "title": "Lilletorget manual",
-        "description": "Gjeldende bruker- og driftsmanual for Mantis-appene på ny.lilletorget.net. Fibaro10 er kjerne/API og reserveflate.",
+        "description": "Gjeldende bruker- og driftsmanual for Mantis-appene på ny.lilletorget.net. Fibaro10 er kjerne/API.",
         "chapters": [
             {
                 "id": "hva-losningen-er",
@@ -18650,7 +18647,7 @@ def admin_manual_payload() -> Dict[str, Any]:
                 "title": "Hva løsningen er",
                 "paragraphs": [
                     "Den gjeldende brukerflaten er tretten Mantis-apper under https://ny.lilletorget.net. Appene deler innlogging, design og navigasjonsprinsipper, men er delt etter fagområde.",
-                    "Fibaro10-kjernen eier API, forretningsregler, database, jobber og integrasjoner. Den eldre samlede desktopflaten beholdes som intern reserve og funksjonsreferanse, ikke som primær arbeidsflate.",
+                    "Fibaro10-kjernen eier API, forretningsregler, database, jobber og integrasjoner. API-adapterne avgrenser tilgangen for hver Mantis-app og har ingen egne desktopflater.",
                 ],
                 "principles": [
                     {"marker": "DB", "title": "Database først", "text": "Appen viser normalt data fra egen database, ikke direkte fra tredjepart i øyeblikket."},
@@ -18708,11 +18705,11 @@ def admin_manual_payload() -> Dict[str, Any]:
                     {"title": "Varslinger", "text": "Alle ntfy-abonnementer finnes samlet under System -> Varslinger.", "path": "/system/varslinger"},
                     {"title": "Undersystemer", "text": "Alle klikkbare systemflater og interne tjenester finnes under System -> Undersystemer.", "path": "/system/undersystemer"},
                     {"title": "Mantis", "text": "Gjeldende brukerflate med tretten fagapper på ny.lilletorget.net."},
-                    {"title": "Fibaro10", "text": "FastAPI-kjerne, database, forretningsregler, bakgrunnsjobber og intern reserveflate."},
+                    {"title": "Fibaro10", "text": "FastAPI-kjerne, database, autentisering, forretningsregler og bakgrunnsjobber."},
+                    {"title": "lilletorget_kiosk", "text": "Fast statusflate for robotrenhold på kiosk.lilletorget.net."},
                     {"title": "online_dashboard", "text": "Ekstern mobilvisning på online.lilletorget.net."},
                     {"title": "maintenance_mobile", "text": "Mobil vedlikeholdsapp på vedl.lilletorget.net."},
                     {"title": "alarm_mobile", "text": "Mobil alarm- og kontrollflate på alarm.lilletorget.net."},
-                    {"title": "fibaro10ipad", "text": "Egen iPad-flate på ipad.lilletorget.net."},
                     {"title": "owntracks_service", "text": "Lokasjon, waypoints og sonebesøk på owntracks.lilletorget.net."},
                     {"title": "axis_camera_snapshots", "text": "Henter og rydder Axis-bilder til soltimer."},
                     {"title": "sun2_session_scraper", "text": "Henter SUN2 enkelttimer, produkter, senger og medlemmer."},
@@ -19955,78 +19952,14 @@ async def api_control_config_update(request: Request, config_key: str):
     return {"status": "ok", "message": "Innstillinger lagret.", "config": config_payload(row)}
 
 
-@app.get("/lys/innstillinger", response_class=HTMLResponse)
-async def light_settings_view(request: Request):
-    return desktop_app_response()
-
-
-@app.post("/lys/innstillinger", response_class=HTMLResponse)
-async def light_settings_update(request: Request):
-    return await update_settings(request, "lights")
-
-
-@app.get("/ventilasjon/innstillinger", response_class=HTMLResponse)
-async def ventilation_settings_view(request: Request):
-    return desktop_app_response()
-
-
-@app.post("/ventilasjon/innstillinger", response_class=HTMLResponse)
-async def ventilation_settings_update(request: Request):
-    return await update_settings(request, "ventilation")
-
-
-async def update_settings(request: Request, config_key: str):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    form = await parse_form_body(request)
-    values = config_values_from_form(config_key, form)
-    errors = validate_config_values(config_key, values)
-    if errors:
-        context = await config_context(config_key)
-        context["values"] = values
-        context["rules"] = config_rules(config_key, values)
-        context["summary_rows"] = config_summary_rows(config_key, values)
-        context["stat_cards"] = config_stat_cards(config_key, values, context["config"].version)
-        context["operational_notes"] = config_operational_notes(config_key, values)
-        context["errors"] = errors
-        return templates.TemplateResponse(request, "control_settings.html", context, status_code=400)
-    reason = (form.get("reason") or "Endret i grensesnittet").strip()
-    changed_by = getattr(request.state, "access_key_name", "") or "master"
-    async with async_session() as session:
-        row = await get_or_create_config(session, config_key)
-        row.values = values
-        row.version = (row.version or 1) + 1
-        row.updated_at = datetime.utcnow()
-        row.updated_by = changed_by
-        session.add(
-            ControlConfigHistory(
-                config_key=config_key,
-                version=row.version,
-                values=deepcopy(values),
-                changed_by=changed_by,
-                reason=reason,
-            )
-        )
-        await session.commit()
-    context = await config_context(config_key)
-    context["saved"] = True
-    return templates.TemplateResponse(request, "control_settings.html", context)
-
-
 @app.get("/")
-async def root_redirect(request: Request):
-    return redirect_keep_query(request, "/status/omsetning", status_code=303)
-
-
-def desktop_app_response() -> FileResponse:
-    index_path = DESKTOP_V2_DIST / "index.html"
-    if not index_path.exists():
-        raise HTTPException(status_code=404, detail="Desktop-appen er ikke bygget")
-    return FileResponse(
-        index_path,
-        headers={"Cache-Control": "no-store, max-age=0, must-revalidate"},
-    )
+async def root_service_info():
+    return {
+        "service": "fibaro10",
+        "role": "backend-api",
+        "ui": "https://ny.lilletorget.net/",
+        "health": "/health",
+    }
 
 
 def mobile_preview_screen_payload(screen: Dict[str, Any]) -> Dict[str, Any]:
@@ -20282,52 +20215,6 @@ async def api_sun2_session_set_primary_image(
         "message": "Hovedbildet er oppdatert.",
         "browser": payload,
     }
-
-
-@app.get("/status", response_class=HTMLResponse)
-@app.get("/status/{path:path}", response_class=HTMLResponse)
-@app.get("/omsetning", response_class=HTMLResponse)
-@app.get("/omsetning/{path:path}", response_class=HTMLResponse)
-@app.get("/parkering", response_class=HTMLResponse)
-@app.get("/parkering/{path:path}", response_class=HTMLResponse)
-@app.get("/biler", response_class=HTMLResponse)
-@app.get("/biler/{path:path}", response_class=HTMLResponse)
-@app.get("/soling", response_class=HTMLResponse)
-@app.get("/soling/{path:path}", response_class=HTMLResponse)
-@app.get("/solrom", response_class=HTMLResponse)
-@app.get("/solrom/{path:path}", response_class=HTMLResponse)
-@app.get("/solrom-2", response_class=HTMLResponse)
-@app.get("/solrom-2/{path:path}", response_class=HTMLResponse)
-@app.get("/koble", response_class=HTMLResponse)
-@app.get("/koble/{path:path}", response_class=HTMLResponse)
-@app.get("/energi", response_class=HTMLResponse)
-@app.get("/energi/{path:path}", response_class=HTMLResponse)
-@app.get("/ventilasjon/{path:path}", response_class=HTMLResponse)
-@app.get("/lys/{path:path}", response_class=HTMLResponse)
-@app.get("/pullerter", response_class=HTMLResponse)
-@app.get("/pullerter/{path:path}", response_class=HTMLResponse)
-@app.get("/dorer2", response_class=HTMLResponse)
-@app.get("/dorer2/{path:path}", response_class=HTMLResponse)
-@app.get("/dorer", response_class=HTMLResponse)
-@app.get("/dorer/{path:path}", response_class=HTMLResponse)
-@app.get("/vedlikehold", response_class=HTMLResponse)
-@app.get("/vedlikehold/{path:path}", response_class=HTMLResponse)
-@app.get("/ideer", response_class=HTMLResponse)
-@app.get("/ideer/{path:path}", response_class=HTMLResponse)
-@app.get("/mobil", response_class=HTMLResponse)
-@app.get("/mobil/{path:path}", response_class=HTMLResponse)
-@app.get("/varslinger", response_class=HTMLResponse)
-@app.get("/varslinger/{path:path}", response_class=HTMLResponse)
-@app.get("/undersystemer", response_class=HTMLResponse)
-@app.get("/undersystemer/{path:path}", response_class=HTMLResponse)
-@app.get("/manual", response_class=HTMLResponse)
-@app.get("/manual/{path:path}", response_class=HTMLResponse)
-@app.get("/renhold", response_class=HTMLResponse)
-@app.get("/renhold/{path:path}", response_class=HTMLResponse)
-@app.get("/admin", response_class=HTMLResponse)
-@app.get("/admin/{path:path}", response_class=HTMLResponse)
-async def desktop_app(path: str = ""):
-    return desktop_app_response()
 
 
 @app.get("/status/dashboard", response_class=HTMLResponse)

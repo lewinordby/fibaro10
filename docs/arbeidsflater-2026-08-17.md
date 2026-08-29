@@ -53,7 +53,7 @@ systemdokumentasjon. Rapportberegningene eies fortsatt av de respektive fagappen
 | Kapasitet og kø | `/parkering/kapasitet` | Belegg, toppbelastning og bruk av parkeringsplassene. |
 | Pris og tiltak | `/parkering/pris-analyse` | Betaling og parkeringstid på tvers av uker og år. |
 | Energiavvik | `/energi/avvik` | Sammenligning mellom HC3, Elvia og beregnet forbruk. |
-| Renholdsleder | `/drift/renhold/leder` | Robotstatus, siste jobber, forbruksdeler og planer. |
+| Renholdsleder | `/renhold/` | Robotstatus, siste jobber, forbruksdeler og planer. |
 
 ## Data og avhengigheter
 

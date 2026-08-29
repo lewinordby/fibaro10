@@ -74,7 +74,7 @@ Alle stier over ligger under `https://ny.lilletorget.net`.
 ## Roller og ansvar
 
 - Mantis på `ny.lilletorget.net` er gjeldende brukerflate.
-- Fibaro10 er produksjonskritisk kjerne/API og intern reserveflate.
+- Fibaro10 er produksjonskritisk kjerne/API uten egen ordinær brukerflate.
 - Fag-API-ene på port 8151-8158 oversetter mellom Mantis og Fibaro10.
 - Innsamlere kjører separat slik at EasyPark, SUN2, kamera og roboter kan
   feilsøkes uten å stoppe resten av løsningen.
@@ -88,7 +88,7 @@ Alle stier over ligger under `https://ny.lilletorget.net`.
 | Online dashboard | `https://online.lilletorget.net` |
 | Vedlikehold mobil | `https://vedl.lilletorget.net` |
 | Alarm mobil | `https://alarm.lilletorget.net` |
-| iPad | `https://ipad.lilletorget.net` |
+| Robotkiosk | `https://kiosk.lilletorget.net` |
 | OwnTracks | `https://owntracks.lilletorget.net` |
 
 Bruk `/system/undersystemer` for oppdatert katalog over alle webflater.

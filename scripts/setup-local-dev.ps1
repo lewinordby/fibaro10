@@ -51,20 +51,9 @@ Run "git" @("config", "user.email", "codex@openai.com")
 Run "python" @("-m", "pip", "install", "-r", (Join-Path $repoRoot "requirements-dev.txt"))
 
 $frontendDirs = @(
-    "desktop_v2",
-    "owntracks_service/frontend",
-    "shell_app/frontend",
-    "revenue_app/frontend",
-    "parking_app/frontend",
-    "sun_app/frontend",
-    "energy_app/frontend",
-    "operations_app/frontend",
-    "maintenance_app/frontend",
-    "system_app/frontend",
-    "link_app/frontend"
+    "owntracks_service/frontend"
 )
 $npm = if ($env:OS -eq "Windows_NT") { "npm.cmd" } else { "npm" }
-$npx = if ($env:OS -eq "Windows_NT") { "npx.cmd" } else { "npx" }
 foreach ($frontend in $frontendDirs) {
     $frontendDir = Join-Path $repoRoot $frontend
     if (-not (Test-Path -LiteralPath (Join-Path $frontendDir "package.json"))) {
@@ -78,14 +67,6 @@ foreach ($frontend in $frontendDirs) {
     finally {
         Pop-Location
     }
-}
-
-Push-Location (Join-Path $repoRoot "desktop_v2")
-try {
-    Run $npx @("playwright", "install", "chromium")
-}
-finally {
-    Pop-Location
 }
 
 if ($InstallQnapKey) {

@@ -8,7 +8,7 @@ CERT_DIR="${FIBARO10_TLS_CERT_DIR:-/share/CACHEDEV2_DATA/fibaro10_runtime/caddy/
 LEGO_IMAGE="${FIBARO10_LEGO_IMAGE:-goacme/lego:v4.26.0}"
 PROXY_LAN_IP="${FIBARO10_PROXY_LAN_IP:-192.168.20.219}"
 PROXY_LAN_INTERFACE="${FIBARO10_PROXY_LAN_INTERFACE:-eth1}"
-PRIMARY_DOMAIN="fibaro10.lilletorget.net"
+PRIMARY_DOMAIN="ny.lilletorget.net"
 CERT_FILE="$CERT_DIR/certificates/$PRIMARY_DOMAIN.crt"
 
 if [ ! -f "$ENV_FILE" ]; then
@@ -43,18 +43,8 @@ set -- \
     --accept-tos \
     --dns domeneshop \
     --dns.resolvers 1.1.1.1:53 \
-    --domains fibaro10.lilletorget.net \
-    --domains app.lilletorget.net \
     --domains ny.lilletorget.net \
-    --domains kiosk.lilletorget.net \
-    --domains omsetning.lilletorget.net \
-    --domains parkering.lilletorget.net \
-    --domains soling.lilletorget.net \
-    --domains energi.lilletorget.net \
-    --domains drift.lilletorget.net \
-    --domains vedlikehold.lilletorget.net \
-    --domains system.lilletorget.net \
-    --domains koble.lilletorget.net
+    --domains kiosk.lilletorget.net
 
 if [ -f "$CERT_FILE" ]; then
     action="renew"
