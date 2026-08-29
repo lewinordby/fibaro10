@@ -49,12 +49,14 @@ function Resolve-RouteCheck($app, $item) {
         "parking:/tidspunkt" = @{ Endpoint = "/api/parkering/time-distribution"; Kind = "json" }
         "parking:/ukesnitt" = @{ Endpoint = "/api/parkering/weekly-averages"; Kind = "json" }
         "parking:/observerte-biler" = @{ Endpoint = "/api/cars/day"; Kind = "json" }
+        "parking:/parknordic" = @{ Endpoint = "/api/cars/parking-control-report"; Kind = "json" }
         "parking:/oppslag/navn" = @{ Endpoint = "/api/parkering/kjoretoy/mangler-navn?limit=1&offset=0"; Kind = "json" }
         "parking:/oppslag/omrade" = @{ Endpoint = "/api/parkering/kjoretoy/mangler-omrade?limit=1&offset=0"; Kind = "json" }
         "sun:/" = @{ Endpoint = "/api/overview"; Kind = "json" }
         "sun:/periode" = @{ Endpoint = "/api/status/comparison"; Kind = "json" }
         "sun:/sammenligning" = @{ Endpoint = "/api/soling/year-comparison"; Kind = "json" }
-        "operations:/" = @{ Endpoint = "/api/overview"; Kind = "operations" }
+        "building:/" = @{ Endpoint = "/api/operations/overview"; Kind = "operations" }
+        "control:/" = @{ Endpoint = "/api/operations/overview"; Kind = "operations" }
     }
     if ($special.ContainsKey($key)) { return $special[$key] }
     return @{
@@ -81,7 +83,7 @@ function Invoke-DomainCheck([string]$App, [int]$Port, [string]$Route, [string]$E
         if ($Kind -eq "module") {
             $valid = $null -ne $payload.title -and $null -ne $payload.tables
         } elseif ($Kind -eq "operations") {
-            $valid = $null -ne $payload.generatedAt -and $null -ne $payload.services
+            $valid = $null -ne $payload.generatedAt -and $null -ne $payload.summary -and $null -ne $payload.areas
         }
         if (-not $valid) { throw "Svaret mangler obligatoriske felt" }
         $status = if ($stopwatch.ElapsedMilliseconds -gt $FailAfterMs) { "FEIL: over ${FailAfterMs} ms" } else { "OK" }
