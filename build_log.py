@@ -12,6 +12,37 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1827",
+        "date": "29.08.2026",
+        "headline": "Originalt Mantis-tema er gjeninnfort og CSS-laget er ryddet",
+        "title": "Alle mikroappene bruker na Mantis-palett, temavariabler og komponentstiler uten et parallelt CSS-lag",
+        "description": (
+            "En komplett CSS- og temarevisjon har fjernet egne globale Lilletorget-variabler og den lokale "
+            "morke bakgrunnsvarianten. De sentrale tema- og palettfilene er tilbakefort byte for byte til "
+            "Mantis 4.2.0, mens domenefargene for omsetning, parkering, soling og energi na peker direkte "
+            "til Mantis/MUI sine innebygde temavariabler."
+        ),
+        "applications": [
+            "Alle Mantis-mikroapper: original lys og mork Mantis-palett og felles Public Sans-typografi.",
+            "Omsetning, Parkering, Soling og Energi: diagramfarger folger Mantis-temaet automatisk.",
+            "Bygg og Ventilasjon: valg og kontrastfarger bruker temaverdier fremfor hardkodet CSS.",
+            "System og dokumentasjon: rammeverksrevisjon og temadokumentasjon er oppdatert.",
+        ],
+        "request": "Ta en CSS-gjennomgang av alt og sorg for at original Mantis brukes der det er mulig.",
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Tilbakefort GlobalStyles, palett og standardtema byte for byte til kjopt Mantis 4.2.0.",
+            "Fjernet den lokale soft-varianten og alle globale --lt-diagramvariabler.",
+            "Flyttet domenefargene over pa Mantis/MUI sine semantiske temavariabler.",
+            "Fjernet siste hardkodede kontrastfarge fra ventilasjonsgrafens serievelger.",
+            "Lagt inn SHA-256-kontroll av de originale temafilene og stopp for nye globale produktvariabler.",
+            "Oppdatert rammeverks- og morktemadokumentasjon med aktiv, verifiserbar losning.",
+            "Kjort lint, TypeScript, rammeverksrevisjon, bygg og visuell kontroll i lyst og morkt tema.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1826",
         "date": "29.08.2026",
         "headline": "Hele buildloggen er klikkbar der det forventes",
