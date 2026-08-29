@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from import_jobs import IMPORT_JOB_DEFINITIONS, IMPORT_JOB_NUMBER_BY_NAME
 
 
@@ -17,3 +19,10 @@ def test_core_import_jobs_are_defined():
         assert definition["title"]
         assert definition["category"]
         assert "description" in definition
+
+
+def test_hc3_energy_watchdog_runs_in_the_python_worker():
+    script = (Path(__file__).parents[1] / "scripts" / "hc3-energy-watchdog.sh").read_text(encoding="utf-8")
+
+    assert 'CONTAINER="${FIBARO10_CONTAINER:-fibaro10_worker}"' in script
+    assert 'CONTAINER="${FIBARO10_CONTAINER:-fibaro10}"' not in script

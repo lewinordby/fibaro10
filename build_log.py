@@ -12,6 +12,31 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1818",
+        "date": "29.08.2026",
+        "headline": "HC3-inntaket leverer energimålinger igjen",
+        "title": "Energiwatchdogen følger den stabile worker-containeren",
+        "description": (
+            "Inntaksmålingene stoppet etter at blue/green-oppsettet gjorde containeren fibaro10 "
+            "til Caddy-proxy. Watchdogen forsøkte fortsatt å kjøre Python i proxyen og kunne derfor "
+            "ikke starte HC3-scenen igjen. Den bruker nå den stabile worker-containeren."
+        ),
+        "applications": [
+            "Fibaro10 build 1818: rettet watchdog for HC3-energi.",
+            "HC3 scene 365: startet igjen og verifisert med nye 30-sekunders målinger.",
+            "Dokumentasjon og test: worker-eierskapet er beskrevet og låst.",
+        ],
+        "request": "Undersøk hvorfor Inntak under Energi har sluttet å levere målinger, og rett feilen.",
+        "work_duration": "ca. 20 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Watchdogen bruker fibaro10_worker i stedet for Caddy-proxyen fibaro10.",
+            "HC3-scene 365 er startet på nytt og datakilden er tilbake i OK-status.",
+            "En regresjonstest hindrer at watchdogens standardcontainer igjen settes til proxyen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1817",
         "date": "29.08.2026",
         "headline": "Systemets logger og dataeksporter åpnes riktig",

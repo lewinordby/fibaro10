@@ -4,7 +4,9 @@ set -eu
 PROJECT_DIR="${FIBARO10_PROJECT_DIR:-/share/CACHEDEV1_DATA/Public/containerdata/fibaro10}"
 ENV_FILE="${HC3_WATCHDOG_ENV_FILE:-$PROJECT_DIR/.env.hc3-watchdog}"
 DOCKER="${DOCKER:-/share/CACHEDEV1_DATA/.qpkg/container-station/usr/bin/.libs/docker}"
-CONTAINER="${FIBARO10_CONTAINER:-fibaro10}"
+# The stable worker owns background tasks and always contains Python. The
+# `fibaro10` container is the Caddy proxy in the blue/green deployment.
+CONTAINER="${FIBARO10_CONTAINER:-fibaro10_worker}"
 LOG_FILE="${HC3_ENERGY_WATCHDOG_LOG:-/share/CACHEDEV3_DATA/fibaro10_archive/logs/hc3-energy-watchdog.log}"
 
 if [ -f "$ENV_FILE" ]; then

@@ -111,7 +111,11 @@ Scenen sender hvert 30. sekund og Fibaro10 registrerer dette som datakilde `hc3_
 scripts/hc3-energy-watchdog.sh
 ```
 
-Watchdogen kjøres hvert minutt fra QNAP cron. Den leser `http://127.0.0.1:8110/health?details=true` inne i Fibaro10-containeren og starter HC3 scene `365` via HC3 API hvis `hc3_energy_1min` er eldre enn 5 minutter. HC3-tilgang ligger lokalt på QNAP i:
+Watchdogen kjøres hvert minutt fra QNAP cron. Den kjører kontrollkoden i den stabile
+`fibaro10_worker`-containeren, leser `http://127.0.0.1:8110/health?details=true` der og starter
+HC3 scene `365` via HC3 API hvis `hc3_energy_1min` er eldre enn 5 minutter. Proxycontaineren
+`fibaro10` inneholder ikke Python og skal ikke brukes til denne jobben. HC3-tilgang ligger lokalt
+på QNAP i:
 
 ```text
 /share/CACHEDEV1_DATA/Public/containerdata/fibaro10/.env.hc3-watchdog
