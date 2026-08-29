@@ -12,6 +12,39 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1822",
+        "date": "29.08.2026",
+        "headline": "Dashboardene er tettere og mer konsekvente",
+        "title": "Omsetning, parkering og soling bruker mindre høyde uten å miste informasjon",
+        "description": (
+            "En ny visuell kvalitetsrunde har redusert unødvendig vertikal luft i dashboardkort, "
+            "sammenligningsfelt og felles nøkkeltall. Tall, referanser og datagrunnlag er beholdt, "
+            "mens tabellrader og avstander nå følger en strammere og mer konsekvent rytme."
+        ),
+        "applications": [
+            "Omsetning Mantis: lavere periodekort og mer stabile differansekolonner.",
+            "Parkering og Soling Mantis: samme kompakte kortmål og tettere rutenett.",
+            "Felles Mantis-plattform: lavere KPI-kort og strammere sideoverskrifter.",
+            "Mantis 4.2.0: leverandørens tema, CSS og rammeverksbaseline er urørt.",
+        ],
+        "request": (
+            "Ta en ny gjennomgang og kvalitetssikre hele applikasjonen. Se også på utforming og "
+            "design; omsetningsdashboardet har litt mye luft, og boksene kan være lavere. "
+            "Kontroller det samme ellers i appene."
+        ),
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Redusert innvendig luft i toppfelt, fordelingslinje, sammenligninger og bunnreferanser.",
+            "Komprimert inntektskildene uten å fjerne beløp, antall, snitt eller referanser.",
+            "Hindret at differansetall brytes over flere linjer i smale kolonner.",
+            "Gjort felles KPI-kort lavere og like høye innen samme rutenettrad.",
+            "Strammet inn sideoverskriften og avstanden mellom dashboardkort.",
+            "Verifisert lint, TypeScript, alle appbygg og Mantis-rammeverksrevisjon.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1821",
         "date": "29.08.2026",
         "headline": "Gamle grensesnitt er fjernet og aktiv arkitektur er ryddet",
