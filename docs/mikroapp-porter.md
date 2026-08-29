@@ -1,6 +1,6 @@
 # Porter og applikasjonslag
 
-Oppdatert 29.08.2026, build 1816.
+Oppdatert 29.08.2026, build 1817.
 
 Løsningen har to brukergrensesnittgenerasjoner som må skilles tydelig fra
 API-laget. Gjeldende brukerflate er Mantis på port 8170. Port 8151-8158 er

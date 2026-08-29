@@ -19,6 +19,7 @@ from operations_app.app.main import app as operations_app
 from parking_app.app.main import app as parking_app
 from revenue_app.app.main import app as revenue_app
 from sun_app.app.main import app as sun_app
+import system_app.app.main as system_main
 from system_app.app.main import app as system_app
 from system_app.app.menu_structure import APP_MENU_STRUCTURE
 
@@ -646,6 +647,17 @@ def test_specialized_views_have_narrow_proxy_access() -> None:
     assert "unifi-protect/recognitions" in parking_backend
     assert "import-status" in system_backend
     assert "mobile-preview" in system_backend
+
+
+def test_system_proxy_separates_api_and_file_resources() -> None:
+    assert system_main.DOMAIN_PATTERN.fullmatch("ai/datasets/json")
+    assert system_main.DOMAIN_PATTERN.fullmatch("ai/logs/json")
+    assert not system_main.DOMAIN_PATTERN.fullmatch("events/json")
+    assert system_main.RESOURCE_PATTERN.fullmatch("events/json")
+    assert system_main.RESOURCE_PATTERN.fullmatch("events/download")
+    assert system_main.RESOURCE_PATTERN.fullmatch("yr/samples/download")
+    assert system_main.RESOURCE_PATTERN.fullmatch("lights/samples/download")
+    assert system_main.RESOURCE_PATTERN.fullmatch("ventilation/samples/download")
 
 
 def test_core_links_are_resolved_to_the_owning_microapp() -> None:

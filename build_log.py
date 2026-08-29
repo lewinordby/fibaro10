@@ -12,6 +12,31 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1817",
+        "date": "29.08.2026",
+        "headline": "Systemets logger og dataeksporter åpnes riktig",
+        "title": "Produksjonskontrollen skiller API-data fra filressurser",
+        "description": (
+            "Den avsluttende produksjonskontrollen avdekket at hendelseslogger og CSV-eksporter var "
+            "lenket som API-kall, mens Fibaro10 leverer dem som egne filressurser. System-adapteren "
+            "og verktøysiden bruker nå riktig rutetype for hver ressurs."
+        ),
+        "applications": [
+            "System Mantis: korrigerte lenker for hendelseslogger og måleeksporter.",
+            "System-adapter build 42: separat, avgrenset proxy for filressurser.",
+            "Fibaro10 build 1817: regresjonstest for API- og ressursruting.",
+        ],
+        "request": "Fullfør den grundige gjennomgangen av System-appen og rett alle menyvalg som ikke fungerer.",
+        "work_duration": "ca. 15 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "AI-datasett og AI-logg beholdes på sine faktiske API-ruter.",
+            "Hendelseslogg og CSV-eksporter går via de faktiske filrutene i Fibaro10.",
+            "En automatisert kontrakttest hindrer at API-ruter og filressurser blandes igjen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1816",
         "date": "29.08.2026",
         "headline": "Datakildene får klikkbar oppdateringshistorikk",

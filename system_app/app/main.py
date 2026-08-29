@@ -23,9 +23,9 @@ MODULES = {
 }
 DOMAIN_PATTERN = re.compile(
     r"(?:actions/(?:admin|system)|admin|system|builds?|data-sources?|import-status|mobile-preview|"
-    r"notifications?|subsystems?|manual|users?|ai/(?:datasets/json|logs/json)|events/(?:json|download)|"
-    r"(?:lights|ventilation|yr)/samples/download)(?:/.*)?"
+    r"notifications?|subsystems?|manual|users?|ai/(?:datasets/json|logs/json))(?:/.*)?"
 )
+RESOURCE_PATTERN = re.compile(r"(?:events/(?:json|download)|(?:lights|ventilation|yr)/samples/download)")
 
 
 def card(title: str, value: Any, unit: str = "", detail: str = "", tone: str = "status") -> dict[str, Any]:
@@ -431,6 +431,7 @@ app = create_domain_app(
         pwa_categories=("business", "utilities", "productivity"),
         allowed_paths={"GET": MODULES},
         allowed_patterns={method: (DOMAIN_PATTERN,) for method in ("GET", "POST", "PATCH", "PUT", "DELETE")},
+        resource_patterns=(RESOURCE_PATTERN,),
         adapters={
             "modules/undersystemer": subsystems_module,
             "modules/varslinger": notifications_module,
