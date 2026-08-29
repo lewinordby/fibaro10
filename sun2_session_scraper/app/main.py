@@ -87,7 +87,23 @@ SCHEDULE_PRODUCT_SALES_MONTHLY_DAY = max(1, min(28, int(env_value("SCHEDULE_PROD
 SCHEDULE_FINANCE_SETTLEMENT_MONTHLY_TIME = env_value("SCHEDULE_FINANCE_SETTLEMENT_MONTHLY_TIME", "04:10") or "04:10"
 SCHEDULE_FINANCE_SETTLEMENT_MONTHLY_DAY = max(1, min(28, int(env_value("SCHEDULE_FINANCE_SETTLEMENT_MONTHLY_DAY", "2") or "2")))
 LIVE_SYNC_ENABLED = (env_value("LIVE_SYNC_ENABLED", "1") or "1") == "1"
-LIVE_SYNC_INTERVAL_SECONDS = int(env_value("LIVE_SYNC_INTERVAL_SECONDS", "300") or "300")
+LIVE_SYNC_MIN_INTERVAL_SECONDS = max(
+    60,
+    int(
+        env_value(
+            "LIVE_SYNC_MIN_INTERVAL_SECONDS",
+            env_value("LIVE_SYNC_INTERVAL_SECONDS", "300"),
+        )
+        or "300"
+    ),
+)
+LIVE_SYNC_FALLBACK_INTERVAL_SECONDS = max(
+    LIVE_SYNC_MIN_INTERVAL_SECONDS,
+    int(env_value("LIVE_SYNC_FALLBACK_INTERVAL_SECONDS", "1800") or "1800"),
+)
+# Beholdes i status/API for bakoverkompatibilitet. Verdien er nå minsteavstanden
+# mellom SUN2-oppslag, ikke et fast femminutters henteintervall.
+LIVE_SYNC_INTERVAL_SECONDS = LIVE_SYNC_MIN_INTERVAL_SECONDS
 LIVE_SYNC_QUIET_START_HOUR = int(env_value("LIVE_SYNC_QUIET_START_HOUR", "0") or "0")
 LIVE_SYNC_QUIET_END_HOUR = int(env_value("LIVE_SYNC_QUIET_END_HOUR", "7") or "7")
 SCRAPE_VALIDATE_RETRIES = max(1, int(env_value("SCRAPE_VALIDATE_RETRIES", "3") or "3"))
@@ -143,9 +159,15 @@ state: dict[str, Any] = {
     "scheduled_last_runs": {},
     "live_sync_enabled": LIVE_SYNC_ENABLED,
     "live_sync_interval_seconds": LIVE_SYNC_INTERVAL_SECONDS,
+    "live_sync_strategy": "event_with_fallback",
+    "live_sync_min_interval_seconds": LIVE_SYNC_MIN_INTERVAL_SECONDS,
+    "live_sync_fallback_interval_seconds": LIVE_SYNC_FALLBACK_INTERVAL_SECONDS,
     "live_last_check": None,
     "live_last_action": None,
     "live_last_result": None,
+    "today_sync_last_attempt_at": None,
+    "today_sync_last_reason": None,
+    "today_sync_last_deferred_at": None,
     "current_file": None,
     "range": {},
 }
@@ -193,6 +215,39 @@ def live_sync_is_quiet(now: datetime) -> bool:
     if start < end:
         return start <= now.hour < end
     return now.hour >= start or now.hour < end
+
+
+def state_datetime(value: Any, now: datetime | None = None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    reference = now or local_now()
+    if parsed.tzinfo is None and reference.tzinfo is not None:
+        parsed = parsed.replace(tzinfo=reference.tzinfo)
+    elif parsed.tzinfo is not None and reference.tzinfo is None:
+        parsed = parsed.replace(tzinfo=None)
+    return parsed
+
+
+def today_sync_retry_after_seconds(now: datetime | None = None) -> int:
+    current = now or local_now()
+    last_attempt = state_datetime(state.get("today_sync_last_attempt_at"), current)
+    if not last_attempt:
+        return 0
+    elapsed = max(0.0, (current - last_attempt).total_seconds())
+    return max(0, int(LIVE_SYNC_MIN_INTERVAL_SECONDS - elapsed + 0.999))
+
+
+def mark_today_sync_attempt(reason: str, now: datetime | None = None) -> datetime:
+    attempted_at = now or local_now()
+    state["today_sync_last_attempt_at"] = attempted_at.isoformat()
+    state["today_sync_last_reason"] = reason
+    state["live_last_check"] = attempted_at.isoformat()
+    save_progress({"last_action": f"today_sync_{reason}_started"})
+    return attempted_at
 
 
 def parse_date(value: str | None, default: date) -> date:
@@ -1955,6 +2010,42 @@ def scrape_today_sync() -> dict[str, Any]:
     return scrape_month_sync(today, today, daily_filename_for(today))
 
 
+async def run_today_sync_rate_limited(reason: str) -> dict[str, Any]:
+    async with schedule_lock:
+        now = local_now()
+        retry_after = today_sync_retry_after_seconds(now)
+        if retry_after > 0:
+            state["today_sync_last_deferred_at"] = now.isoformat()
+            state["live_last_action"] = f"utsatt {reason}, tidligst om {retry_after}s"
+            save_progress({"last_action": "today_sync_deferred"})
+            return {
+                "status": "deferred",
+                "ran": False,
+                "reason": reason,
+                "retry_after_seconds": retry_after,
+                "next_allowed_at": (now + timedelta(seconds=retry_after)).isoformat(),
+            }
+
+        attempted_at = mark_today_sync_attempt(reason, now)
+        try:
+            result = await asyncio.to_thread(scrape_today_sync)
+        except Exception:
+            state["live_last_action"] = f"feil {reason} {local_now():%Y-%m-%d %H:%M:%S}"
+            raise
+        finished_at = local_now()
+        state["live_last_action"] = f"ok {reason} {finished_at:%Y-%m-%d %H:%M:%S}"
+        state["live_last_result"] = result
+        save_progress({"last_action": "today_sync_finished", "live_result": result})
+        return {
+            "status": "ok",
+            "ran": True,
+            "reason": reason,
+            "attempted_at": attempted_at.isoformat(),
+            "finished_at": finished_at.isoformat(),
+            "result": result,
+        }
+
+
 def scrape_product_sales_yesterday_sync() -> dict[str, Any]:
     day = local_today() - timedelta(days=1)
     return scrape_product_sales_sync(day, day, product_sales_daily_filename_for(day), "daily")
@@ -2052,6 +2143,12 @@ async def run_scheduled_job(job_key: str, job_name: str, runner) -> None:
         return
     async with schedule_lock:
         now = local_now()
+        if job_key == "sessions":
+            retry_after = today_sync_retry_after_seconds(now)
+            if retry_after > 0:
+                state["scheduler_last_action"] = f"sessions utsatt {retry_after}s av rategrense"
+                return
+            mark_today_sync_attempt("daily_month_refresh", now)
         mark_scheduled_attempt(job_key, now)
         save_progress({"last_action": f"scheduled_{job_key}_started"})
         try:
@@ -2155,18 +2252,14 @@ async def live_sync_loop() -> None:
                 elif schedule_lock.locked():
                     state["live_last_action"] = "venter paa annen scraper-jobb"
                 else:
-                    async with schedule_lock:
-                        result = await asyncio.to_thread(scrape_today_sync)
-                        state["live_last_action"] = f"ok {local_now():%Y-%m-%d %H:%M:%S}"
-                        state["live_last_result"] = result
-                        save_progress({"last_action": "live_sync_finished", "live_result": result})
+                    await run_today_sync_rate_limited("fallback")
             save_progress({"last_action": "live_sync_check"})
         except Exception as exc:
             state["last_error"] = f"Live-sync feilet: {exc}"
             state["live_last_action"] = "feil"
             save_progress({"last_action": "live_sync_failed"})
             post_import_status("sun2_sessions_import", ok=False, message=state["last_error"], raw={"job_key": "live_today"})
-        await asyncio.sleep(max(60, LIVE_SYNC_INTERVAL_SECONDS))
+        await asyncio.sleep(max(60, LIVE_SYNC_FALLBACK_INTERVAL_SECONDS))
 
 
 @app.on_event("startup")
@@ -2175,6 +2268,15 @@ async def startup() -> None:
     progress = load_progress()
     if progress:
         state.update({key: value for key, value in progress.items() if key in state})
+    state.update(
+        {
+            "live_sync_enabled": LIVE_SYNC_ENABLED,
+            "live_sync_interval_seconds": LIVE_SYNC_MIN_INTERVAL_SECONDS,
+            "live_sync_strategy": "event_with_fallback",
+            "live_sync_min_interval_seconds": LIVE_SYNC_MIN_INTERVAL_SECONDS,
+            "live_sync_fallback_interval_seconds": LIVE_SYNC_FALLBACK_INTERVAL_SECONDS,
+        }
+    )
     if AUTO_START:
         await ensure_task_started()
     if SCHEDULE_ENABLED and (scheduler_task is None or scheduler_task.done()):
@@ -2225,7 +2327,8 @@ input{{border:1px solid #ccd6e0;border-radius:8px;padding:.55rem .65rem;margin-r
 <div class="metric"><span>Finans mnd</span><strong>Dag {SCHEDULE_FINANCE_SETTLEMENT_MONTHLY_DAY} kl {SCHEDULE_FINANCE_SETTLEMENT_MONTHLY_TIME}</strong></div>
 <div class="metric"><span>Siste sjekk</span><strong>{state.get('scheduler_last_check') or '-'}</strong></div>
 <div class="metric"><span>Siste nattjobb</span><strong>{state.get('scheduler_last_action') or '-'}</strong></div>
-<div class="metric"><span>Live-sync</span><strong>{'På' if LIVE_SYNC_ENABLED else 'Av'} / {LIVE_SYNC_INTERVAL_SECONDS}s</strong></div>
+<div class="metric"><span>Betalingskontroll</span><strong>Hendelse / min {LIVE_SYNC_MIN_INTERVAL_SECONDS // 60} min</strong></div>
+<div class="metric"><span>Sikkerhetsnett</span><strong>{'På' if LIVE_SYNC_ENABLED else 'Av'} / {LIVE_SYNC_FALLBACK_INTERVAL_SECONDS // 60} min</strong></div>
 <div class="metric"><span>Siste live</span><strong>{state.get('live_last_action') or '-'}</strong></div>
 </section>
 <section class="card">
@@ -2291,15 +2394,19 @@ async def sync_current_month():
 
 
 @app.post("/sync-today")
-async def sync_today():
+async def sync_today(reason: str = Query("external", min_length=1, max_length=120)):
     try:
-        async with schedule_lock:
-            result = await asyncio.to_thread(scrape_today_sync)
-        return JSONResponse({"status": "ok", "result": result, "state": state})
+        outcome = await run_today_sync_rate_limited(reason.strip() or "external")
+        return JSONResponse({**outcome, "state": state})
     except Exception as exc:
         state["last_error"] = f"Dagens live-sync feilet: {exc}"
         save_progress({"last_action": "manual_today_failed"})
-        post_import_status("sun2_sessions_import", ok=False, message=state["last_error"], raw={"job_key": "manual_today"})
+        post_import_status(
+            "sun2_sessions_import",
+            ok=False,
+            message=state["last_error"],
+            raw={"job_key": "manual_today", "reason": reason},
+        )
         return JSONResponse({"status": "error", "error": str(exc), "state": state}, status_code=500)
 
 

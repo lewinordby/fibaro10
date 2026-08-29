@@ -61,9 +61,9 @@ IMPORT_JOB_DEFINITIONS = {
         "title": "Sun2 enkelttimer",
         "category": "Soling",
         "source": "QNAP",
-        "expected_interval_minutes": 7,
-        "warning_after_minutes": 20,
-        "description": "Import av enkeltsolinger fra Sun2.",
+        "expected_interval_minutes": 35,
+        "warning_after_minutes": 60,
+        "description": "Hendelsesstyrt import av enkeltsolinger fra Sun2 med periodisk sikkerhetsnett.",
     },
     "sun2_beds_import": {
         "title": "Sun2 senger",
@@ -239,7 +239,7 @@ IMPORT_JOB_DETAILS = {
         "dependencies": ["sun2_importer", "Sun2 dagsfil", "Fibaro10 API", "PostgreSQL"],
     },
     "sun2_sessions_import": {
-        "data_flow": "Sun2 session scraper henter enkeltsolinger fra Sun2 og poster nye eller endrede timer til Fibaro10. Fibaro10 kobler i tillegg relevante Axis-bilder til soltimene.",
+        "data_flow": "Når en solromdør lukkes, ber Fibaro10 om en tidlig kontroll av dagens enkeltsolinger. Sun2 session scraper håndhever minst fem minutter mellom oppslag og kjører i tillegg et sikkerhetsnett hvert 30. minutt. Nye eller endrede timer postes idempotent til Fibaro10, som også kobler relevante Axis-bilder til soltimene.",
         "dependencies": ["sun2_session_scraper", "Sun2", "Axis snapshot-arkiv", "Fibaro10 API", "PostgreSQL"],
     },
     "sun2_beds_import": {

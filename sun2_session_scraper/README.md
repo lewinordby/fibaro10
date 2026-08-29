@@ -63,9 +63,11 @@ SCHEDULE_PRODUCT_SALES_MONTHLY_TIME=03:55
 SCHEDULE_PRODUCT_SALES_MONTHLY_DAY=2
 SCHEDULE_POLL_SECONDS=60
 
-# Live-sync henter dagens enkelttimer hvert 5. minutt.
+# Dørhendelser kan be om kontroll, men skraperen tillater høyst ett oppslag per 5 minutt.
+# Et 30-minutters sikkerhetsnett henter dagens enkelttimer i åpningstiden.
 LIVE_SYNC_ENABLED=1
-LIVE_SYNC_INTERVAL_SECONDS=300
+LIVE_SYNC_MIN_INTERVAL_SECONDS=300
+LIVE_SYNC_FALLBACK_INTERVAL_SECONDS=1800
 
 POST_TO_FIBARO10=1
 FIBARO10_API_BASE_URL=http://fibaro10:8110
@@ -104,7 +106,7 @@ Denne appen har ikke en egen import-app ved siden av seg. Den skraper data og po
 - `03:30`: produktsalg for gårsdagen
 - `03:55` dag 2 i måneden: produktsalg for hele forrige måned til avstemming
 
-I tillegg hentes dagens enkelttimer hvert 5. minutt når `LIVE_SYNC_ENABLED=1`. Den jobben skriver en egen dagsfil, for eksempel `Sun2_sessions_2026-05-24.json`, og bruker samme idempotente API-import som månedsjobben.
+Når en solromdør lukkes, kan Fibaro10 kalle `POST /sync-today`. Skraperen samler behovet i én global kontroll og tillater aldri oftere oppslag enn hvert femte minutt, også når flere rom lukkes tett. En 30-minutters fallback kjører i åpningstiden når `LIVE_SYNC_ENABLED=1`. Jobbene skriver en egen dagsfil, for eksempel `Sun2_sessions_2026-05-24.json`, og bruker samme idempotente API-import som månedsjobben.
 
 Alle jobbene rapporterer status til Fibaro10, slik at Datakilder viser om nattjobbene faktisk har gått.
 

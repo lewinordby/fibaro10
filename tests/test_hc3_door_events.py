@@ -65,9 +65,14 @@ def test_hc3_door_poll_worker_is_configured():
 def test_manual_sun2_sync_is_serialized_with_scheduled_jobs():
     source = Path("sun2_session_scraper/app/main.py").read_text(encoding="utf-8")
     sync_today_source = source[source.index('@app.post("/sync-today")'):source.index('@app.post("/sync-beds")')]
+    rate_limited_source = source[
+        source.index("async def run_today_sync_rate_limited"):
+        source.index("def scrape_product_sales_yesterday_sync")
+    ]
 
-    assert "async with schedule_lock" in sync_today_source
-    assert "scrape_today_sync" in sync_today_source
+    assert "run_today_sync_rate_limited" in sync_today_source
+    assert "async with schedule_lock" in rate_limited_source
+    assert "scrape_today_sync" in rate_limited_source
 
 
 def test_hc3_door_lua_contains_expected_devices_and_endpoint():
@@ -439,6 +444,45 @@ class SunroomDoorTimingTests(unittest.TestCase):
         self.assertEqual(verified["severity"], "alert")
         self.assertTrue(verified["noSessionAlarmActive"])
 
+    def test_door_sync_retries_every_five_minutes_and_stops_after_limit(self):
+        now = datetime(2026, 7, 13, 12, 0)
+        item = {
+            "deviceKey": "door_solrom_04",
+            "doorChangedAt": (now - timedelta(minutes=2)).isoformat(),
+            "isOccupied": True,
+            "occupiedDurationSeconds": 120,
+            "session": None,
+        }
+        key = self.main.sunroom_door_period_key(item)
+        self.main.sunroom_door_verifications.pop(key, None)
+
+        self.assertTrue(self.main.sunroom_sync_candidate_is_due(item, now))
+        self.main.sunroom_door_verifications[key] = {
+            "attemptedAt": now - timedelta(minutes=4),
+            "attemptCount": 1,
+            "ok": True,
+        }
+        self.assertFalse(self.main.sunroom_sync_candidate_is_due(item, now))
+        self.main.sunroom_door_verifications[key]["attemptedAt"] = now - timedelta(minutes=5)
+        self.assertTrue(self.main.sunroom_sync_candidate_is_due(item, now))
+        self.main.sunroom_door_verifications[key]["attemptCount"] = self.main.SUNROOM_DOOR_SYNC_MAX_ATTEMPTS
+        self.assertFalse(self.main.sunroom_sync_candidate_is_due(item, now))
+        self.main.sunroom_door_verifications.pop(key, None)
+
+    def test_door_sync_checks_for_new_payment_when_matched_session_predates_reclose(self):
+        now = datetime(2026, 7, 13, 12, 0)
+        item = {
+            "deviceKey": "door_solrom_04",
+            "doorChangedAt": (now - timedelta(minutes=2)).isoformat(),
+            "isOccupied": True,
+            "occupiedDurationSeconds": 120,
+            "session": {"startedAt": (now - timedelta(minutes=20)).isoformat()},
+            "alarmReason": None,
+        }
+
+        self.assertTrue(self.main.sunroom_item_may_have_new_session(item))
+        self.assertEqual(self.main.sunroom_force_sync_candidates([item]), [item])
+
     def test_persisted_alarm_keeps_web_process_status_consistent(self):
         config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_solrom_04")
         now = datetime(2026, 7, 13, 12, 0)
@@ -518,6 +562,79 @@ class SunroomDoorTimingTests(unittest.TestCase):
             self.main.sunroom_alarm_detected_at(item, now),
             self.main.sunroom_session_end_at(tanning) + timedelta(minutes=self.main.SUNROOM_DOOR_ALERT_AFTER_END_MINUTES),
         )
+
+    def test_old_session_overstay_waits_for_sync_after_new_session_window(self):
+        config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_solrom_04")
+        room_id = self.main.sunroom_room_id_for_config(config)
+        now = datetime(2026, 7, 13, 12, 0)
+        door_closed_at = now - timedelta(minutes=20)
+        door = self.main.DoorEvent(
+            device_id=config["device_id"],
+            device_key=config["device_key"],
+            timestamp=door_closed_at,
+            action="CLOSED",
+            state=False,
+        )
+        old_session = self.main.Sun2TanningSession(
+            id=123,
+            source_session_id="old-session",
+            room_id=room_id,
+            sun2_bed_id=self.main.sunroom_bed_id_for_config(config),
+            started_at=now - timedelta(minutes=27),
+            duration_minutes=12,
+        )
+        raw_item = self.main.sunroom_status_item(config, door, {room_id: [old_session]}, now)
+        key = self.main.sunroom_door_period_key(raw_item)
+        self.main.sunroom_door_verifications[key] = {
+            "attemptedAt": door_closed_at + timedelta(minutes=6),
+            "attemptCount": 2,
+            "ok": True,
+            "reason": "new_session_check",
+        }
+
+        waiting = self.main.apply_sunroom_alarm_verification([raw_item], now)[0]
+        self.main.sunroom_door_verifications[key]["attemptedAt"] = door_closed_at + timedelta(minutes=11)
+        verified = self.main.apply_sunroom_alarm_verification([raw_item], now)[0]
+        self.main.sunroom_door_verifications.pop(key, None)
+
+        self.assertEqual(raw_item["alarmReason"], "overstay")
+        self.assertEqual(waiting["status"], "Kontrollerer ny time")
+        self.assertTrue(waiting["newSessionCheckActive"])
+        self.assertIsNone(waiting["alarmReason"])
+        self.assertEqual(verified["severity"], "alert")
+        self.assertFalse(verified["newSessionCheckActive"])
+
+    def test_new_session_on_same_room_replaces_old_session_before_alarm(self):
+        config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_solrom_04")
+        room_id = self.main.sunroom_room_id_for_config(config)
+        now = datetime(2026, 7, 13, 12, 0)
+        door = self.main.DoorEvent(
+            device_id=config["device_id"],
+            device_key=config["device_key"],
+            timestamp=now - timedelta(minutes=12),
+            action="CLOSED",
+            state=False,
+        )
+        old_session = self.main.Sun2TanningSession(
+            id=123,
+            source_session_id="old-session",
+            room_id=room_id,
+            started_at=now - timedelta(minutes=33),
+            duration_minutes=12,
+        )
+        new_session = self.main.Sun2TanningSession(
+            id=124,
+            source_session_id="new-session",
+            room_id=room_id,
+            started_at=now - timedelta(minutes=10),
+            duration_minutes=30,
+        )
+
+        item = self.main.sunroom_status_item(config, door, {room_id: [new_session, old_session]}, now)
+
+        self.assertEqual(item["session"]["sourceSessionId"], "new-session")
+        self.assertEqual(item["severity"], "active")
+        self.assertIsNone(item["alarmReason"])
 
     def test_display_room_12_uses_physical_room_13_and_bed_681(self):
         config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_solrom_12")

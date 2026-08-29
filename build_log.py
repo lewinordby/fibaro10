@@ -12,6 +12,38 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1814",
+        "date": "29.08.2026",
+        "headline": "Dørlukking utløser trygg og ratebegrenset SUN2-kontroll",
+        "title": "Ny time på samme solrom kontrolleres før døralarm kan sendes",
+        "description": (
+            "SUN2-enkelttimer hentes nå primært når en solromdør lukkes, med en absolutt grense på ett "
+            "oppslag per fem minutter og et 30-minutters sikkerhetsnett. Alarmmotoren gjennomfører flere "
+            "kontroller for samme dørperiode og holder igjen overtid fra en eldre time mens den undersøker "
+            "om en ny kunde har startet på samme rom."
+        ),
+        "applications": [
+            "Fibaro10 dørmonitor: hendelsesstyrte og sammenslåtte betalingskontroller per dørperiode.",
+            "Sun2 session scraper: global femminutters rategrense og 30-minutters fallback.",
+            "Dører / solrom: synlig status når systemet kontrollerer en mulig ny time.",
+            "Admin / datakilder og manual: oppdatert rytme, avhengigheter og alarmforløp.",
+        ],
+        "request": (
+            "Gjør om til hendelsesstyrt betalingskontroll når et solrom stenges, forbedre løsningen allerede "
+            "før de nye sengesignalene er installert, og ta høyde for at en ny time kan være startet på samme rom."
+        ),
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Første kontroll forespørres omtrent ett minutt etter dørlukking.",
+            "Samme dørperiode kan kontrolleres fire ganger med minst fem minutters mellomrom.",
+            "Skraperen håndhever rategrensen på tvers av alle rom, manuelle kall og fallback.",
+            "En eldre time kan ikke gi overtid før en vellykket kontroll etter vinduet for mulig ny betaling.",
+            "Nyere time på samme rom velges automatisk når den blir importert.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1813",
         "date": "25.08.2026",
         "headline": "Registerfunne biler uten betaling blir synlige i kontrollrapporten",

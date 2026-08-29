@@ -1,6 +1,6 @@
 # SUN2 enkelttimer
 
-Oppdatert 16.08.2026.
+Oppdatert 29.08.2026.
 
 Dette dokumentet beskriver flyten for å hente enkelt-solinger fra SUN2 Owner og vise dem i Lilletorget drift.
 
@@ -28,7 +28,7 @@ SUN2 Owner
 
 ## Drift
 
-Skraperen kjøres løpende, omtrent hvert 5. minutt. Den henter nyere enkelttimer og poster dem til Fibaro10. Importen er idempotent: samme soling kan sendes på nytt uten at den skal telles dobbelt.
+Fibaro10 ber om en tidlig betalingskontroll når en solromdør har vært lukket i ett minutt. Flere dører samles i samme kontroll, og skraperen tillater aldri mer enn ett SUN2-oppslag per fem minutter. Dersom ingen dørhendelser utløser kontroll, kjøres et 30-minutters sikkerhetsnett i åpningstiden. Importen er idempotent: samme soling kan sendes på nytt uten at den skal telles dobbelt.
 
 Datakildestatus vises i:
 
@@ -36,10 +36,11 @@ Datakildestatus vises i:
 Admin -> Datakilder -> Sun2 enkelttimer
 ```
 
-Forventet rytme i Fibaro10 er nå:
+Datakildens beredskap overvåkes slik:
 
-- OK: siste vellykkede import innen ca. 7 minutter
-- Varsel: eldre enn ca. 20 minutter
+- OK: siste vellykkede import innen ca. 35 minutter i aktiv tid
+- Varsel: eldre enn ca. 60 minutter i aktiv tid
+- Døralarmen bruker i tillegg resultatet fra hver konkrete, vellykkede betalingskontroll
 
 ## Rom-identitet
 
@@ -66,11 +67,18 @@ Når en solromdør lukkes, leter Fibaro10 etter en betalt time for riktig Sun2-s
 ligger nær den konkrete dørlukkingen, eller når døren lukkes på nytt mens en fysisk soltime allerede pågår. En
 gammel avsluttet soltime kan derfor ikke skjule en ny dørlukking.
 
-Alarmforløpet er:
+Betalingskontrollen er hendelsesstyrt:
+
+- Etter omtrent 1 minutt med lukket dør ber Fibaro10 om dagens SUN2-data.
+- Ved behov prøver samme dørperiode igjen med minst 5 minutters mellomrom, maksimalt fire ganger.
+- En global sperre i skraperen sørger for at flere rom aldri gir tettere SUN2-oppslag enn hvert 5. minutt.
+- Hvis en eldre, fortsatt pågående time er koblet til døren, kontrolleres det likevel om en ny kunde har betalt på samme rom.
+- Når en nyere time dukker opp, blir den automatisk valgt foran den gamle.
+
+Alarmforløpet uten funnet time er:
 
 - 0-8 minutter: normal ventetid. Ingen advarsel eller melding.
-- 8-15 minutter: gul observasjon i grensesnittet. Ingen melding.
-- 15 minutter: Fibaro10 ber `sun2_session_scraper` kjøre en ekstra synkronisering av dagens enkelttimer.
+- 8-17 minutter: gul observasjon i grensesnittet. Ingen melding.
 - 17 minutter: ett ordinært varsel dersom synkroniseringen var vellykket og riktig soltime fortsatt mangler.
 - 20 minutter: ett ordinært varsel dersom Sun2-synkroniseringen feilet. Meldingen sier at datakilden ikke kunne bekreftes.
 - 25 minutter: én kritisk eskalering dersom døren fortsatt er lukket uten soltime.
@@ -80,8 +88,7 @@ døren er åpen, korrigeres lokal status og varselet stoppes. Varsler identifise
 eventuell soltime. Det sendes derfor ikke et nytt varsel hvert 15. minutt for samme hendelse; samme dørlukking kan
 bare gi ett ordinært varsel og eventuelt én kritisk eskalering.
 
-Overtidsalarmen er uendret: gul markering etter 5 minutter over forventet solslutt og ett varsel etter 10 minutter,
-også da med fersk kontroll mot HC3 før utsending. API-kall fra grensesnittet er lesende og kan ikke sende alarm.
+Hvis en gammel time ser ut til å være på overtid etter en ny dørlukking, vises først `Kontrollerer ny time`. Overtid kan ikke varsles før en vellykket SUN2-kontroll er gjennomført etter det åtte minutter lange vinduet for den nye dørperioden. Dette hindrer at forrige kunde utløser alarm mens neste kundes betaling ennå ikke er hentet. Deretter gjelder vanlig overtidsregel: gul markering etter 5 minutter over forventet solslutt og ett varsel etter 10 minutter, også da med fersk kontroll mot HC3 før utsending. API-kall fra grensesnittet er lesende og kan ikke sende alarm.
 
 ## Samspill med energi
 

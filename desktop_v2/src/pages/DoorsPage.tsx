@@ -2058,8 +2058,8 @@ function DoorSunroomSessionsBoard({
             {description ?? (
               <>
                 Lukket solrom kobles mot siste Sun2-time i samme rom. Forventet ut er betaling + oppstart + soltid
-                + normal utgangstid. Oransje etter {data.rules.warnAfterEndMinutes} min, rødt etter{" "}
-                {data.rules.alertAfterEndMinutes} min fra solslutt.
+                + normal utgangstid. Dørlukking utløser tidlig betalingskontroll, også når en ny time kan ha startet
+                etter forrige kunde.
               </>
             )}
           </span>
@@ -2103,6 +2103,8 @@ function DoorSunroomSessionsBoard({
         <span>Forventet ut +{data.rules.exitGraceMinutes} min</span>
         <span>Vifte +{data.rules.fanAfterRunMinutes} min</span>
         <span>Sun2-frist {data.rules.sessionGraceMinutes} min</span>
+        <span>Første kontroll +{data.rules.forcedSyncMinutes ?? 1} min</span>
+        <span>Minst {Math.round((data.rules.syncMinIntervalSeconds ?? 300) / 60)} min mellom oppslag</span>
         <span>Monitor hvert {Math.round(data.rules.monitorIntervalSeconds / 60)} min</span>
       </div>
 

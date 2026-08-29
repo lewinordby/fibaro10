@@ -375,11 +375,16 @@ SUNROOM_DOOR_MONITOR_ENABLED = os.getenv("SUNROOM_DOOR_MONITOR_ENABLED", "true")
 SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS = max(30, int(os.getenv("SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS", "60")))
 SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS = max(0, int(os.getenv("SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS", "20")))
 SUNROOM_DOOR_SESSION_GRACE_MINUTES = env_float("SUNROOM_DOOR_SESSION_GRACE_MINUTES", "8")
-SUNROOM_DOOR_FORCED_SYNC_MINUTES = env_float("SUNROOM_DOOR_FORCED_SYNC_MINUTES", "15")
+SUNROOM_DOOR_FORCED_SYNC_MINUTES = env_float("SUNROOM_DOOR_FORCED_SYNC_MINUTES", "1")
+SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS = max(
+    60,
+    int(os.getenv("SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS", "300")),
+)
+SUNROOM_DOOR_SYNC_MAX_ATTEMPTS = max(1, int(os.getenv("SUNROOM_DOOR_SYNC_MAX_ATTEMPTS", "4")))
+SUNROOM_DOOR_NEW_SESSION_GRACE_MINUTES = env_float("SUNROOM_DOOR_NEW_SESSION_GRACE_MINUTES", "8")
 SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES = env_float("SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES", "17")
 SUNROOM_DOOR_SYNC_FAILURE_ALARM_MINUTES = env_float("SUNROOM_DOOR_SYNC_FAILURE_ALARM_MINUTES", "20")
 SUNROOM_DOOR_CRITICAL_MINUTES = env_float("SUNROOM_DOOR_CRITICAL_MINUTES", "25")
-SUNROOM_DOOR_SYNC_RETRY_SECONDS = max(30, int(os.getenv("SUNROOM_DOOR_SYNC_RETRY_SECONDS", "120")))
 SUNROOM_DOOR_SYNC_TIMEOUT_SECONDS = max(10, int(os.getenv("SUNROOM_DOOR_SYNC_TIMEOUT_SECONDS", "120")))
 SUNROOM_DOOR_PAYMENT_DELAY_MINUTES = env_float("SUNROOM_DOOR_PAYMENT_DELAY_MINUTES", "3")
 SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES = env_float("SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES", "3")
@@ -7956,6 +7961,12 @@ def import_job_schedule_text(
             times = ", ".join(str(item) for item in run_times)
             return f"Fast plan fra EasyPark-downloader: {times}. Neste kjøring beregnes fra downloaderens /status."
 
+    if job_name == "sun2_sessions_import":
+        return (
+            "Kjøres ved lukking av solromdør, tidligst ett minutt etter hendelsen og med minst fem minutter "
+            "mellom oppslag. Et 30-minutters sikkerhetsnett kjører i åpningstiden. Varselgrense: 60 min."
+        )
+
     expected_minutes = definition.get("expected_interval_minutes")
     warning_minutes = definition.get("warning_after_minutes")
     expected_text = import_job_interval_text(expected_minutes)
@@ -14105,13 +14116,26 @@ def sunroom_door_period_key(item: Dict[str, Any]) -> str:
     )
 
 
+def sunroom_item_may_have_new_session(item: Dict[str, Any]) -> bool:
+    session_item = item.get("session") or {}
+    door_changed_at = sunroom_parse_time_value(item.get("doorChangedAt"))
+    payment_at = sunroom_parse_time_value(session_item.get("startedAt"))
+    if not door_changed_at or not payment_at:
+        return False
+    return payment_at < door_changed_at - timedelta(minutes=SUNROOM_DOOR_PAYMENT_DELAY_MINUTES + 2)
+
+
 def sunroom_force_sync_candidates(items: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
     threshold_seconds = int(SUNROOM_DOOR_FORCED_SYNC_MINUTES * 60)
     return [
         item
         for item in items
         if item.get("isOccupied")
-        and not item.get("session")
+        and (
+            not item.get("session")
+            or item.get("alarmReason") == "overstay"
+            or sunroom_item_may_have_new_session(item)
+        )
         and int(item.get("occupiedDurationSeconds") or 0) >= threshold_seconds
         and item.get("doorChangedAt")
     ]
@@ -14125,9 +14149,20 @@ def cleanup_sunroom_door_verifications(now: datetime) -> None:
             sunroom_door_verifications.pop(key, None)
 
 
-def request_sun2_today_sync() -> Dict[str, Any]:
+def sunroom_sync_candidate_is_due(item: Dict[str, Any], now: datetime) -> bool:
+    state = sunroom_door_verifications.get(sunroom_door_period_key(item)) or {}
+    attempted_at = state.get("attemptedAt")
+    attempt_count = int(state.get("attemptCount") or 0)
+    retry_before = now - timedelta(seconds=SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS)
+    return attempt_count < SUNROOM_DOOR_SYNC_MAX_ATTEMPTS and (
+        not isinstance(attempted_at, datetime) or attempted_at <= retry_before
+    )
+
+
+def request_sun2_today_sync(reason: str = "door_closed") -> Dict[str, Any]:
+    query = urlencode({"reason": reason[:120]})
     request = urllib.request.Request(
-        f"{SUN2_SESSION_SCRAPER_URL}/sync-today",
+        f"{SUN2_SESSION_SCRAPER_URL}/sync-today?{query}",
         data=b"",
         method="POST",
         headers={"Accept": "application/json"},
@@ -14135,7 +14170,7 @@ def request_sun2_today_sync() -> Dict[str, Any]:
     with urllib.request.urlopen(request, timeout=SUNROOM_DOOR_SYNC_TIMEOUT_SECONDS) as response:
         raw = response.read().decode("utf-8", errors="replace")
         payload = json.loads(raw or "{}")
-        if not isinstance(payload, dict) or payload.get("status") != "ok":
+        if not isinstance(payload, dict) or payload.get("status") not in {"ok", "deferred"}:
             raise RuntimeError(str(payload.get("error") if isinstance(payload, dict) else "Ugyldig svar fra Sun2-synk"))
         return payload
 
@@ -14147,14 +14182,7 @@ async def force_sun2_sync_for_closed_rooms(items: list[Dict[str, Any]], now: dat
     if not candidates:
         return {"attempted": False, "ok": None, "rooms": 0}
 
-    retry_before = now - timedelta(seconds=SUNROOM_DOOR_SYNC_RETRY_SECONDS)
-
-    def is_due(item: Dict[str, Any]) -> bool:
-        state = sunroom_door_verifications.get(sunroom_door_period_key(item)) or {}
-        attempted_at = state.get("attemptedAt")
-        return not state or (not state.get("ok") and (not isinstance(attempted_at, datetime) or attempted_at <= retry_before))
-
-    due = [item for item in candidates if is_due(item)]
+    due = [item for item in candidates if sunroom_sync_candidate_is_due(item, now)]
     if not due:
         return {"attempted": False, "ok": None, "rooms": len(candidates)}
     if sunroom_door_sync_lock is None:
@@ -14162,24 +14190,37 @@ async def force_sun2_sync_for_closed_rooms(items: list[Dict[str, Any]], now: dat
 
     async with sunroom_door_sync_lock:
         attempted_at = local_now_naive()
-        retry_before = attempted_at - timedelta(seconds=SUNROOM_DOOR_SYNC_RETRY_SECONDS)
-        due = [item for item in candidates if is_due(item)]
+        due = [item for item in candidates if sunroom_sync_candidate_is_due(item, attempted_at)]
         if not due:
             return {"attempted": False, "ok": None, "rooms": len(candidates)}
         error_text = ""
         response_payload: Dict[str, Any] = {}
+        room_labels = [str(item.get("displayRoomNumber") or item.get("roomId") or "?") for item in due]
+        reason = f"door_closed rooms={','.join(room_labels)}"
         try:
-            response_payload = await asyncio.to_thread(request_sun2_today_sync)
+            response_payload = await asyncio.to_thread(request_sun2_today_sync, reason)
+            if response_payload.get("status") == "deferred":
+                return {
+                    "attempted": False,
+                    "deferred": True,
+                    "ok": None,
+                    "rooms": len(due),
+                    "retryAfterSeconds": response_payload.get("retry_after_seconds"),
+                    "nextAllowedAt": response_payload.get("next_allowed_at"),
+                }
             ok = True
         except Exception as exc:
             ok = False
             error_text = str(exc)[:1000]
             logger.warning("Tvungen Sun2-synk for doralarm feilet: %s", exc)
         for item in due:
+            previous = sunroom_door_verifications.get(sunroom_door_period_key(item)) or {}
             sunroom_door_verifications[sunroom_door_period_key(item)] = {
                 "attemptedAt": attempted_at,
                 "ok": ok,
                 "error": error_text,
+                "attemptCount": int(previous.get("attemptCount") or 0) + 1,
+                "reason": "new_session_check" if item.get("session") else "missing_session",
             }
         return {
             "attempted": True,
@@ -14199,9 +14240,10 @@ def apply_sunroom_alarm_verification(
     verified_items: list[Dict[str, Any]] = []
     persisted_alarm_keys = persisted_alarm_keys or set()
     failure_threshold_seconds = int(SUNROOM_DOOR_SYNC_FAILURE_ALARM_MINUTES * 60)
+    new_session_grace_seconds = int(SUNROOM_DOOR_NEW_SESSION_GRACE_MINUTES * 60)
     for source_item in items:
         item = dict(source_item)
-        if not item.get("isOccupied") or item.get("session"):
+        if not item.get("isOccupied"):
             verified_items.append(item)
             continue
         state = sunroom_door_verifications.get(sunroom_door_period_key(item)) or {}
@@ -14210,6 +14252,60 @@ def apply_sunroom_alarm_verification(
             item["sun2VerificationAt"] = attempted_at.isoformat()
             item["sun2VerificationOk"] = bool(state.get("ok"))
             item["sun2VerificationError"] = state.get("error") or None
+            item["sun2VerificationAttemptCount"] = int(state.get("attemptCount") or 0)
+            item["sun2VerificationReason"] = state.get("reason") or None
+
+        if item.get("session"):
+            if item.get("alarmReason") != "overstay":
+                verified_items.append(item)
+                continue
+
+            occupied_seconds = int(item.get("occupiedDurationSeconds") or 0)
+            changed_at = sunroom_parse_time_value(item.get("doorChangedAt"))
+            verification_ready_at = (
+                changed_at + timedelta(minutes=SUNROOM_DOOR_NEW_SESSION_GRACE_MINUTES)
+                if changed_at
+                else None
+            )
+            persisted_alarm = sunroom_alarm_event_key(item) in persisted_alarm_keys
+            sync_succeeded_after_grace = bool(
+                state.get("ok")
+                and isinstance(attempted_at, datetime)
+                and verification_ready_at
+                and attempted_at >= verification_ready_at
+            )
+            sync_failed_long_enough = bool(
+                state
+                and not state.get("ok")
+                and occupied_seconds >= failure_threshold_seconds
+            )
+            is_critical = occupied_seconds >= int(SUNROOM_DOOR_CRITICAL_MINUTES * 60)
+            if persisted_alarm or sync_succeeded_after_grace:
+                item["newSessionCheckActive"] = False
+            elif sync_failed_long_enough or is_critical:
+                item["sun2VerificationFailed"] = True
+                item["newSessionCheckActive"] = False
+                item["detail"] = (
+                    "Forrige soltime er avsluttet, døren er fortsatt lukket og en mulig ny time "
+                    "kunne ikke bekreftes mot oppdaterte Sun2-data."
+                )
+            else:
+                item.update(
+                    {
+                        "severity": "waiting" if occupied_seconds < new_session_grace_seconds else "warning",
+                        "status": "Kontrollerer ny time",
+                        "detail": (
+                            "Forrige soltime er avsluttet. Avventer en ny Sun2-kontroll etter "
+                            f"{SUNROOM_DOOR_NEW_SESSION_GRACE_MINUTES:g} min før overtid kan varsles."
+                        ),
+                        "alarmReason": None,
+                        "alarmTitle": "",
+                        "alarmStage": None,
+                        "newSessionCheckActive": True,
+                    }
+                )
+            verified_items.append(item)
+            continue
 
         if not item.get("noSessionAlarmActive"):
             verified_items.append(item)
@@ -14537,7 +14633,7 @@ async def sunroom_door_session_payload(session, notify: bool = False) -> Dict[st
     candidate_alarm_keys = {
         sunroom_alarm_event_key(item)
         for item in rooms
-        if item.get("noSessionAlarmActive") and item.get("alarmReason") == "closed_without_session"
+        if item.get("isOccupied") and item.get("alarmReason")
     }
     persisted_alarm_keys: set[str] = set()
     if candidate_alarm_keys:
@@ -14570,6 +14666,10 @@ async def sunroom_door_session_payload(session, notify: bool = False) -> Dict[st
             "exitGraceMinutes": SUNROOM_DOOR_EXIT_GRACE_MINUTES,
             "sessionGraceMinutes": SUNROOM_DOOR_SESSION_GRACE_MINUTES,
             "forcedSyncMinutes": SUNROOM_DOOR_FORCED_SYNC_MINUTES,
+            "syncMinIntervalSeconds": SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS,
+            "syncMaxAttempts": SUNROOM_DOOR_SYNC_MAX_ATTEMPTS,
+            "newSessionGraceMinutes": SUNROOM_DOOR_NEW_SESSION_GRACE_MINUTES,
+            "syncStrategy": "door_event_with_fallback",
             "noSessionAlarmMinutes": SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES,
             "syncFailureAlarmMinutes": SUNROOM_DOOR_SYNC_FAILURE_ALARM_MINUTES,
             "criticalMinutes": SUNROOM_DOOR_CRITICAL_MINUTES,

@@ -187,7 +187,7 @@ beholdes som reserve og funksjonsreferanse, ikke som kilde for ny frontend.
 | 5 | Roborock logger | Renhold | QNAP | ca. 10 min |
 | 6 | Sun2 dagsfil nedlasting | Soling | QNAP | ca. 36 timer |
 | 7 | Sun2 dagsimport rom | Soling | QNAP | ca. 36 timer |
-| 8 | Sun2 enkelttimer | Soling | QNAP | ca. 7 min |
+| 8 | Sun2 enkelttimer | Soling | QNAP | ved solromdør, minst 5 min mellom oppslag; 30 min fallback |
 | 9 | Sun2 senger | Soling | QNAP | ca. 7 dager |
 | 10 | Sun2 medlemmer | Soling | QNAP | ca. 7 dager |
 | 11 | Sun2 produktsalg daglig | Soling | QNAP | ca. 36 timer |

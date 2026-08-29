@@ -658,6 +658,11 @@ export type DoorSunroomSessionsResponse = {
     fanAfterRunMinutes: number;
     exitGraceMinutes: number;
     sessionGraceMinutes: number;
+    forcedSyncMinutes?: number;
+    syncMinIntervalSeconds?: number;
+    syncMaxAttempts?: number;
+    newSessionGraceMinutes?: number;
+    syncStrategy?: string;
     noSessionAlarmMinutes?: number;
     warnAfterEndMinutes: number;
     alertAfterEndMinutes: number;
