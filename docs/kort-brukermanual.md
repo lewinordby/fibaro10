@@ -1,6 +1,6 @@
 # Kort brukermanual for Lilletorget
 
-Oppdatert 29.08.2026, build 1818.
+Oppdatert 29.08.2026, build 1819.
 
 Den levende og klikkbare manualen ligger under
 `https://ny.lilletorget.net/system/manual`. Dette dokumentet er en kort

@@ -44,6 +44,7 @@ class RevenueTopWeeksTests(unittest.TestCase):
 
         summaries = main.combine_business_summaries(sun, parking)
 
+        self.assertEqual([row["period"] for row in summaries["weekly"]], ["2026-W03", "2026-W02"])
         self.assertEqual([row["period"] for row in summaries["top_weeks"]], ["2026-W03", "2026-W02"])
         best = summaries["top_weeks"][0]
         self.assertEqual(best["period_label"], "Uke 3, 2026 (12.01-18.01.2026)")
@@ -63,6 +64,43 @@ class RevenueTopWeeksTests(unittest.TestCase):
 
         self.assertEqual(len(summaries["top_weeks"]), 20)
         self.assertEqual(summaries["top_weeks"][0]["total_paid"], 25)
+        self.assertEqual(len(summaries["weekly"]), 25)
+
+    def test_period_rank_uses_all_completed_periods(self) -> None:
+        rank = main.revenue_period_rank_summary(
+            [
+                {"period": "2026-W30", "total_paid": 1200},
+                {"period": "2026-W31", "total_paid": 800},
+                {"period": "2026-W32", "total_paid": 1000},
+                {"period": "2026-W33", "total_paid": 9999},
+            ],
+            900,
+            "2026-W33",
+            "uker",
+        )
+
+        self.assertIsNotNone(rank)
+        self.assertEqual(rank["rank"], 3)
+        self.assertEqual(rank["label"], "3. beste")
+        self.assertEqual(rank["totalPeriods"], 4)
+        self.assertEqual(rank["basis"], "Rangert mot historiske hele uker")
+
+    def test_day_rank_keeps_legacy_day_count(self) -> None:
+        rank = main.revenue_day_rank_summary(
+            {
+                "daily": [
+                    {"period": "2026-08-27", "total_paid": 1000},
+                    {"period": "2026-08-28", "total_paid": 500},
+                    {"period": "2026-08-29", "total_paid": 9999},
+                ]
+            },
+            750,
+            date(2026, 8, 29),
+        )
+
+        self.assertIsNotNone(rank)
+        self.assertEqual(rank["rank"], 2)
+        self.assertEqual(rank["totalDays"], 3)
 
     def test_revenue_overview_places_weeks_between_days_and_months(self) -> None:
         tables = main.api_revenue_overview_tables(

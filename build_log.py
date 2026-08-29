@@ -12,6 +12,35 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1819",
+        "date": "29.08.2026",
+        "headline": "Alle omsetningsperioder viser historisk plassering",
+        "title": "Uke, måned og år rangeres på samme måte som dagen",
+        "description": (
+            "Omsetningsdashboardet viser nå hvor godt inneværende uke, måned og år plasserer seg "
+            "mot alle tidligere fullførte perioder. Rangeringen bruker hele historikken og følger "
+            "samme kompakte presentasjon som dagskortet."
+        ),
+        "applications": [
+            "Omsetning Mantis: rangering vises konsekvent på alle fire dashboardkort.",
+            "Fibaro10 build 1819: komplett historisk rangering for uke, måned og år.",
+            "Tester: perioder etter valgt periode utelates, og hele historikken brukes.",
+        ],
+        "request": (
+            "På omsetningsdashboardet skal de andre boksene også vise hvor god uke, måned og år "
+            "perioden er, på samme måte som dagen."
+        ),
+        "work_duration": "ca. 25 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Inneværende uke rangeres mot alle tidligere hele uker.",
+            "Inneværende måned rangeres mot alle tidligere hele måneder.",
+            "Inneværende år rangeres mot alle tidligere hele år.",
+            "Rangeringsgrunnlaget vises som forklaring ved pekeren.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1818",
         "date": "29.08.2026",
         "headline": "HC3-inntaket leverer energimålinger igjen",
