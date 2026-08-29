@@ -304,7 +304,6 @@
           "icon": "compare",
           "items": [
             { "to": "/elvia-kontroll", "label": "Kontroll", "icon": "compare", "title": "Elvia-kontroll", "description": "Sammenlign Elvia-import med m\u00e5lt forbruk fra HC3.", "module": "energi", "view": "elvia-kontroll", "corePath": "/energi/elvia-kontroll" },
-            { "to": "/avvik", "label": "Energiavvik", "icon": "warning", "title": "Energiavvik", "description": "Prioritert kontroll av differanser, m\u00e5lebrudd, nullstillinger og manglende laster.", "module": "energi", "view": "avvik", "corePath": "/energi/elvia-kontroll" },
             { "to": "/elvia", "label": "Import", "icon": "calendar", "title": "Elvia-import", "description": "Last opp og kontroller forbruksfiler fra Elvia.", "module": "energi", "view": "elvia", "corePath": "/energi/elvia" }
           ]
         },

@@ -4287,17 +4287,19 @@ def combine_business_summaries(sun: Dict[str, Any], parking: Dict[str, Any]) -> 
     }
 
 
-def revenue_period_rank_summary(
+def period_rank_summary(
     items: list[Dict[str, Any]],
-    current_total: Any,
+    current_value_raw: Any,
     current_period: str,
     period_label: str,
+    value_key: str,
+    basis: str,
 ) -> Optional[Dict[str, Any]]:
-    current_value = float_or_zero(current_total)
+    current_value = float_or_zero(current_value_raw)
     historical_totals = [
-        float_or_zero(item.get("total_paid"))
+        float_or_zero(item.get(value_key))
         for item in items
-        if str(item.get("period") or "") < current_period and float_or_zero(item.get("total_paid")) > 0
+        if str(item.get("period") or "") < current_period and float_or_zero(item.get(value_key)) > 0
     ]
     if not historical_totals:
         return None
@@ -4306,15 +4308,49 @@ def revenue_period_rank_summary(
     return {
         "rank": rank,
         "label": f"{rank}. beste",
-        "basis": f"Rangert mot historiske hele {period_label}",
+        "basis": f"Rangert mot historiske hele {period_label} etter {basis}",
         "totalPeriods": len(historical_totals) + 1,
         "bestTotal": round(max(historical_totals), 2),
         "currentTotal": round(current_value, 2),
     }
 
 
+def revenue_period_rank_summary(
+    items: list[Dict[str, Any]],
+    current_total: Any,
+    current_period: str,
+    period_label: str,
+) -> Optional[Dict[str, Any]]:
+    result = period_rank_summary(items, current_total, current_period, period_label, "total_paid", "omsetning")
+    if result is not None:
+        result["basis"] = f"Rangert mot historiske hele {period_label}"
+    return result
+
+
+def count_period_rank_summary(
+    items: list[Dict[str, Any]],
+    current_count: Any,
+    current_period: str,
+    period_label: str,
+    basis: str,
+) -> Optional[Dict[str, Any]]:
+    return period_rank_summary(items, current_count, current_period, period_label, "total_count", basis)
+
+
 def revenue_day_rank_summary(summaries: Dict[str, Any], current_total: Any, today: date) -> Optional[Dict[str, Any]]:
     result = revenue_period_rank_summary(summaries.get("daily", []), current_total, today.isoformat(), "dager")
+    if result is not None:
+        result["totalDays"] = result["totalPeriods"]
+    return result
+
+
+def count_day_rank_summary(
+    summaries: Dict[str, Any],
+    current_count: Any,
+    today: date,
+    basis: str,
+) -> Optional[Dict[str, Any]]:
+    result = count_period_rank_summary(summaries.get("daily", []), current_count, today.isoformat(), "dager", basis)
     if result is not None:
         result["totalDays"] = result["totalPeriods"]
     return result
@@ -22858,25 +22894,69 @@ async def api_v2_overview(scope: Optional[str] = None):
     revenue_previous_year = float_or_zero(previous_year_sun.paid) + float_or_zero(previous_year_parking.paid)
     revenue_two_years = float_or_zero(two_years_full_sun.paid) + float_or_zero(two_years_parking.paid)
     revenue_summaries = combine_business_summaries(revenue_sun_summaries, revenue_parking_summaries)
-    revenue_today_rank = revenue_day_rank_summary(revenue_summaries, revenue_today, today)
+    rank_summaries = revenue_summaries
+    rank_basis = "omsetning"
+    rank_value_key = "total_paid"
+    rank_values = {
+        "today": revenue_today,
+        "week": revenue_week,
+        "month": revenue_month,
+        "year": revenue_year,
+    }
+    if scope == "parking":
+        rank_summaries = combine_business_summaries({}, revenue_parking_summaries)
+        rank_basis = "antall parkeringer"
+        rank_value_key = "total_count"
+        rank_values = {
+            "today": int_or_zero(today_parking.sessions),
+            "week": int_or_zero(week_parking.sessions),
+            "month": int_or_zero(month_parking.sessions),
+            "year": int_or_zero(year_parking.sessions),
+        }
+    elif scope == "sun":
+        rank_summaries = combine_business_summaries(revenue_sun_summaries, {})
+        rank_basis = "antall solinger"
+        rank_value_key = "total_count"
+        rank_values = {
+            "today": int_or_zero(today_sun.sessions),
+            "week": int_or_zero(week_sun.sessions),
+            "month": int_or_zero(month_sun.sessions),
+            "year": int_or_zero(year_sun.sessions),
+        }
+    overview_today_rank = period_rank_summary(
+        rank_summaries.get("daily", []),
+        rank_values["today"],
+        today.isoformat(),
+        "dager",
+        rank_value_key,
+        rank_basis,
+    )
+    if overview_today_rank is not None:
+        overview_today_rank["totalDays"] = overview_today_rank["totalPeriods"]
     iso_year, iso_week, _ = today.isocalendar()
-    revenue_week_rank = revenue_period_rank_summary(
-        revenue_summaries.get("weekly", []),
-        revenue_week,
+    overview_week_rank = period_rank_summary(
+        rank_summaries.get("weekly", []),
+        rank_values["week"],
         f"{iso_year}-W{iso_week:02d}",
         "uker",
+        rank_value_key,
+        rank_basis,
     )
-    revenue_month_rank = revenue_period_rank_summary(
-        revenue_summaries.get("monthly", []),
-        revenue_month,
+    overview_month_rank = period_rank_summary(
+        rank_summaries.get("monthly", []),
+        rank_values["month"],
         month_start.strftime("%Y-%m"),
         "måneder",
+        rank_value_key,
+        rank_basis,
     )
-    revenue_year_rank = revenue_period_rank_summary(
-        revenue_summaries.get("yearly", []),
-        revenue_year,
+    overview_year_rank = period_rank_summary(
+        rank_summaries.get("yearly", []),
+        rank_values["year"],
         str(today.year),
         "år",
+        rank_value_key,
+        rank_basis,
     )
     revenue_same_week_last_year = (
         float_or_zero(same_week_last_year_full_sun.paid) + float_or_zero(same_week_last_year_parking.paid)
@@ -22916,7 +22996,7 @@ async def api_v2_overview(scope: Optional[str] = None):
             "parking": float_or_zero(today_parking.paid),
             "parkingCount": int_or_zero(today_parking.sessions),
             "total": revenue_today,
-            "rank": revenue_today_rank,
+            "rank": overview_today_rank,
             "previousSol": float_or_zero(yesterday_same_time_sun.paid),
             "previousSolCount": int_or_zero(yesterday_same_time_sun.sessions),
             "previousParking": float_or_zero(yesterday_same_time_parking.paid),
@@ -22966,7 +23046,7 @@ async def api_v2_overview(scope: Optional[str] = None):
             "parking": float_or_zero(week_parking.paid),
             "parkingCount": int_or_zero(week_parking.sessions),
             "total": revenue_week,
-            "rank": revenue_week_rank,
+            "rank": overview_week_rank,
             "previousSol": float_or_zero(previous_week_same_time_sun.paid),
             "previousSolCount": int_or_zero(previous_week_same_time_sun.sessions),
             "previousParking": float_or_zero(previous_week_same_time_parking.paid),
@@ -23010,7 +23090,7 @@ async def api_v2_overview(scope: Optional[str] = None):
             "parking": float_or_zero(month_parking.paid),
             "parkingCount": int_or_zero(month_parking.sessions),
             "total": revenue_month,
-            "rank": revenue_month_rank,
+            "rank": overview_month_rank,
             "previousSol": float_or_zero(previous_month_same_time_sun.paid),
             "previousSolCount": int_or_zero(previous_month_same_time_sun.sessions),
             "previousParking": float_or_zero(previous_month_same_time_parking.paid),
@@ -23054,7 +23134,7 @@ async def api_v2_overview(scope: Optional[str] = None):
             "parking": float_or_zero(year_parking.paid),
             "parkingCount": int_or_zero(year_parking.sessions),
             "total": revenue_year,
-            "rank": revenue_year_rank,
+            "rank": overview_year_rank,
             "previousSol": float_or_zero(previous_year_same_time_sun.paid),
             "previousSolCount": int_or_zero(previous_year_same_time_sun.sessions),
             "previousParking": float_or_zero(previous_year_same_time_parking.paid),
@@ -32877,8 +32957,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             return {
                 "title": v2_module_title("koble", view),
                 "subtitle": (
-                    "Egen bakgrunnsapp gaar gjennom parkeringer fra nyeste. Kandidat krever samme bil og samme SUN2-ID "
-                    f"paa minst {min_required_matches} ulike parkeringer, med solstart innen {int_or_zero(state.max_minutes)} min etter ankomst."
+                    "Egen bakgrunnsapp går gjennom parkeringer fra nyeste. Kandidat krever samme bil og samme SUN2-ID "
+                    f"på minst {min_required_matches} ulike parkeringer, med solstart innen {int_or_zero(state.max_minutes)} min etter ankomst."
                 ),
                 "kobleReview": {
                     "generatedAt": api_local_iso(now_dt),
@@ -32947,7 +33027,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "Kvalifiserte kandidater",
                         format_short_number(state.candidate_count),
                         "",
-                        f"Samme bil og SUN2-ID paa minst {min_required_matches} parkeringer",
+                        f"Samme bil og SUN2-ID på minst {min_required_matches} parkeringer",
                         "sun2",
                         href="/koble/kandidater",
                     ),

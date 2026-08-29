@@ -245,7 +245,7 @@ async def reports_module(request: Request, client: httpx.AsyncClient, headers: d
         {"rapport": "Nattrapport renhold", "område": "Renhold", "periode": "Natt", "formål": "Planlagte og utførte robotjobber, batteri og vann", "path": "/renhold/rapport"},
         {"rapport": "Parkeringsoppgjør", "område": "Parkering", "periode": "Måned", "formål": "Oppgjør mot EasyPark og Flowbird/ParkNordic", "path": "/parkering/oppgjor"},
         {"rapport": "Soloppgjør", "område": "Soling", "periode": "Måned", "formål": "Soling og produkter mot kreditnota", "path": "/soling/oppgjor"},
-        {"rapport": "Energiavvik", "område": "Energi", "periode": "Valgt periode", "formål": "Elvia mot lokale målinger og manglende last", "path": "/energi/avvik"},
+        {"rapport": "Elvia-kontroll", "område": "Energi", "periode": "Valgt periode", "formål": "Elvia mot lokale målinger og manglende last", "path": "/energi/elvia-kontroll"},
         {"rapport": "Besøksanalyse", "område": "Parkering", "periode": "Valgt periode", "formål": "Tidspunkt, ukedag, varighet og omsetning", "path": "/parkering/besoksanalyse"},
         {"rapport": "Pris- og tiltaksanalyse", "område": "Parkering", "periode": "Flere år", "formål": "Utvikling før og etter prisendringer", "path": "/parkering/pris-analyse"},
         {"rapport": "Datakvalitet", "område": "System", "periode": "Akkurat nå", "formål": "Manglende, gamle og inkonsistente data", "path": "/operasjon/datakvalitet"},

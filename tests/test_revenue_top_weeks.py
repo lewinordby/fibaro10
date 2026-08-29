@@ -102,6 +102,24 @@ class RevenueTopWeeksTests(unittest.TestCase):
         self.assertEqual(rank["rank"], 2)
         self.assertEqual(rank["totalDays"], 3)
 
+    def test_count_rank_uses_count_instead_of_revenue(self) -> None:
+        rank = main.count_period_rank_summary(
+            [
+                {"period": "2026-W30", "total_paid": 5000, "total_count": 20},
+                {"period": "2026-W31", "total_paid": 100, "total_count": 40},
+                {"period": "2026-W32", "total_paid": 8000, "total_count": 10},
+                {"period": "2026-W33", "total_paid": 9999, "total_count": 999},
+            ],
+            25,
+            "2026-W33",
+            "uker",
+            "antall parkeringer",
+        )
+
+        self.assertIsNotNone(rank)
+        self.assertEqual(rank["rank"], 2)
+        self.assertEqual(rank["basis"], "Rangert mot historiske hele uker etter antall parkeringer")
+
     def test_revenue_overview_places_weeks_between_days_and_months(self) -> None:
         tables = main.api_revenue_overview_tables(
             {

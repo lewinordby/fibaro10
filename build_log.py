@@ -12,6 +12,45 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1825",
+        "date": "29.08.2026",
+        "headline": "Mikroappene er kvalitetssikret og teknisk isolert",
+        "title": "Alle tretten fagapper er gjennomgått, ryddet og optimalisert for seriøs bruk",
+        "description": (
+            "Hele den aktive Mantis-plattformen er kontrollert app for app. Hver mikroapp har nå en "
+            "egen ruteinngang, slik at den ikke lenger trekker inn sider fra andre fagområder. En reell "
+            "feil i rangeringen for Parkering og Soling er rettet, store kontrolltabeller er paginert, "
+            "dobbel Energi-navigasjon er fjernet og driftsflatene er gjort tydeligere og mer tilgjengelige."
+        ),
+        "applications": [
+            "Omsetning: verifisert rangering, sammenligninger og navigasjon.",
+            "Parkering og Soling: egen antallsrangering for dag, uke, måned og år.",
+            "Koble: raskere kontrollflater med stabil paginering og tydeligere tomtilstander.",
+            "Bygg, Renhold, Kontroll, Energi og Vedlikehold: ryddigere tabeller, tekster og betjening.",
+            "Operasjon, Eiendeler, Rapporter, System og Apper: kontrollert ruter, innhold og krysslenker.",
+            "Mantis-plattform: dedikerte bygg per app, felles kontraktkontroll og 116 verifiserte ruter.",
+        ],
+        "request": (
+            "Ta en og en mikroapp og kvalitetssikre, optimalisere og rydde opp i doble funksjoner. "
+            "Lag en ryddig app som kan tas i bruk seriøst, og bruk tiden som trengs."
+        ),
+        "work_duration": "ca. 4 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Skilt alle tretten mikroapper og portalen i egne eksplisitte ruteinnganger.",
+            "Lagt til byggkontroll som stopper leveransen hvis en app mangler egen ruteinngang.",
+            "Fjernet den doble Energiavvik-inngangen; Elvia-kontroll er nå ett entydig arbeidsområde.",
+            "Rettet rangeringen slik at Parkering og Soling bruker antall og ikke samlet omsetning.",
+            "Viser rangering for alle fire perioder også på antallsdashboardene.",
+            "Paginert store Koble-tabeller og hindret tom side når datamengden reduseres.",
+            "Forenklet renholdsplaner og forbruksdata til forståelige norske felt.",
+            "Rettet dynamisk antall energisamlere og forbedret navn på ikonbaserte handlinger.",
+            "Oppdatert aktiv navigasjon, rapportlenker, funksjonsmatrise og teknisk dokumentasjon.",
+            "Kjørt backendtester, frontendkontroller, appbygg og systematisk produksjonsgjennomgang.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1824",
         "date": "29.08.2026",
         "headline": "App er den permanente adressen",
