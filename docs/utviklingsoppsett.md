@@ -7,7 +7,7 @@ Oppdatert 29.08.2026.
 | Repo | Ansvar |
 | --- | --- |
 | `workspace/fibaro10` | API, database, adaptere, mobilapper, jobber og integrasjoner. |
-| `workspace/lilletorget-mantis` | Gjeldende PC-grensesnitt på `ny.lilletorget.net`. |
+| `workspace/lilletorget-mantis` | Gjeldende PC-grensesnitt på `app.lilletorget.net`. |
 | `workspace/lilletorget-kiosk` | Intern 1920 x 1080 robotkiosk. |
 
 Repoene committes, testes og deployes hver for seg. Det skal ikke kopieres CSS
@@ -66,7 +66,7 @@ Innlogget smoke bruker en dedikert testbruker i den ignorerte filen
 - SSH-alias: `qnap-fibaro10`
 - Backendkode: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`
 - Mantis-releaser: `/share/CACHEDEV3_DATA/lilletorget-mantis/releases`
-- Primær app: `https://ny.lilletorget.net`
+- Primær app: `https://app.lilletorget.net`
 - Kiosk: `https://kiosk.lilletorget.net`
 - Mobil: `https://online.lilletorget.net`, `https://vedl.lilletorget.net` og `https://alarm.lilletorget.net`
 - Lokasjon: `https://owntracks.lilletorget.net`

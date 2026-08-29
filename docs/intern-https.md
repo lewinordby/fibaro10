@@ -11,7 +11,7 @@ Interne apper kan derfor bare nås fra LAN eller VPN.
 
 | Flate | Adresse | Rolle |
 | --- | --- | --- |
-| Mantis | `https://ny.lilletorget.net` | Eneste PC-flate og installert PWA. |
+| Mantis | `https://app.lilletorget.net` | Eneste PC-flate og installert PWA. |
 | Kiosk | `https://kiosk.lilletorget.net` | Fast robotstatus. |
 
 Mobil- og lokasjonsappene beholder egne HTTPS-navn:
@@ -24,7 +24,7 @@ interne DNS-konfigurasjonen. De skal ikke brukes som reserveadresser.
 ## Sertifikat og DNS
 
 ACME-klienten lego bruker Domeneshop DNS-01. Det interne sertifikatet har
-`ny.lilletorget.net` som hovednavn og `kiosk.lilletorget.net` som SAN. Caddy
+`app.lilletorget.net` som hovednavn og `kiosk.lilletorget.net` som SAN. Caddy
 leser sertifikatet skrivebeskyttet fra SSD-runtimeområdet.
 
 ```powershell
@@ -48,7 +48,7 @@ kjører scriptet hver natt. Caddy restartes bare når sertifikatet faktisk endre
 
 ## PWA
 
-Installer bare `https://ny.lilletorget.net`. Alle Mantis-appene ligger i samme
+Installer bare `https://app.lilletorget.net`. Alle Mantis-appene ligger i samme
 manifest-scope, slik at appbytte skjer uten ekstra adresselinje. Etter en
 manifestendring avinstalleres den eksisterende PWA-en før den installeres på
 nytt fra vanlig Chrome-fane.
@@ -58,8 +58,8 @@ nytt fra vanlig Chrome-fane.
 | Symptom | Kontroller |
 | --- | --- |
 | Domenet svarer ikke | VPN/LAN, A-post til `192.168.20.219` og Caddy. |
-| Sertifikatfeil | QNAP-klokke, fornyelseslogg og `ny.lilletorget.net`-sertifikatet. |
-| Adresselinje i PWA | At bare `ny.lilletorget.net` er installert. |
+| Sertifikatfeil | QNAP-klokke, fornyelseslogg og `app.lilletorget.net`-sertifikatet. |
+| Adresselinje i PWA | At bare `app.lilletorget.net` er installert. |
 | Gjentatt innlogging | Cookie-domain `.lilletorget.net`, path `/` og HTTPS. |
 
 ## Gjenoppretting

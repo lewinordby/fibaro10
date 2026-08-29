@@ -12,7 +12,7 @@
 (internal_app) {
 	encode zstd gzip
 	import asset_cache
-	tls /certs/certificates/ny.lilletorget.net.crt /certs/certificates/ny.lilletorget.net.key
+	tls /certs/certificates/app.lilletorget.net.crt /certs/certificates/app.lilletorget.net.key
 
 	header {
 		Strict-Transport-Security "max-age=31536000"
@@ -27,7 +27,7 @@
 
 # One origin provides shared sign-in while each Mantis application remains an
 # independently built path artifact.
-https://ny.lilletorget.net {
+https://app.lilletorget.net {
 	import internal_app
 	reverse_proxy lilletorget_mantis:80
 }

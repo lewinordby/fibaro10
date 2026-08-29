@@ -8,7 +8,7 @@ CERT_DIR="${FIBARO10_TLS_CERT_DIR:-/share/CACHEDEV2_DATA/fibaro10_runtime/caddy/
 LEGO_IMAGE="${FIBARO10_LEGO_IMAGE:-goacme/lego:v4.26.0}"
 PROXY_LAN_IP="${FIBARO10_PROXY_LAN_IP:-192.168.20.219}"
 PROXY_LAN_INTERFACE="${FIBARO10_PROXY_LAN_INTERFACE:-eth1}"
-PRIMARY_DOMAIN="ny.lilletorget.net"
+PRIMARY_DOMAIN="app.lilletorget.net"
 CERT_FILE="$CERT_DIR/certificates/$PRIMARY_DOMAIN.crt"
 
 if [ ! -f "$ENV_FILE" ]; then
@@ -28,7 +28,7 @@ renew_days=30
 force_domains=0
 if [ -f "$CERT_FILE" ]; then
     before="$(sha256sum "$CERT_FILE" | awk '{print $1}')"
-    for required_san in ny.lilletorget.net kiosk.lilletorget.net; do
+    for required_san in app.lilletorget.net kiosk.lilletorget.net; do
         if ! openssl x509 -in "$CERT_FILE" -noout -text | grep -q "DNS:$required_san"; then
             renew_days=365
             force_domains=1
@@ -43,7 +43,7 @@ set -- \
     --accept-tos \
     --dns domeneshop \
     --dns.resolvers 1.1.1.1:53 \
-    --domains ny.lilletorget.net \
+    --domains app.lilletorget.net \
     --domains kiosk.lilletorget.net
 
 if [ -f "$CERT_FILE" ]; then

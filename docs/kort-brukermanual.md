@@ -3,7 +3,7 @@
 Oppdatert 29.08.2026, build 1820.
 
 Den levende og klikkbare manualen ligger under
-`https://ny.lilletorget.net/system/manual`. Dette dokumentet er en kort
+`https://app.lilletorget.net/system/manual`. Dette dokumentet er en kort
 tekstversjon for Git, backup og gjenoppretting.
 
 ## Start her
@@ -18,7 +18,7 @@ tekstversjon for Git, backup og gjenoppretting.
 | Se hva som er endret | `/system/build` | Bestilling, endringer, apper, tester og deploy. |
 | Brukere og tilgang | `/system/brukere` | Brukere, roller, passord og tilgang. |
 
-Alle stier over ligger under `https://ny.lilletorget.net`.
+Alle stier over ligger under `https://app.lilletorget.net`.
 
 ## De tretten appene
 
@@ -73,7 +73,7 @@ Alle stier over ligger under `https://ny.lilletorget.net`.
 
 ## Roller og ansvar
 
-- Mantis på `ny.lilletorget.net` er gjeldende brukerflate.
+- Mantis på `app.lilletorget.net` er gjeldende brukerflate.
 - Fibaro10 er produksjonskritisk kjerne/API uten egen ordinær brukerflate.
 - Fag-API-ene på port 8151-8158 oversetter mellom Mantis og Fibaro10.
 - Innsamlere kjører separat slik at EasyPark, SUN2, kamera og roboter kan

@@ -2,7 +2,7 @@
 
 Intern, avgrenset adapter mellom Mantis-appen Omsetning og Fibaro10-kjernen.
 Tjenesten leverer ikke et eget brukergrensesnitt. Gjeldende flate er
-`https://ny.lilletorget.net/omsetning/`.
+`https://app.lilletorget.net/omsetning/`.
 
 Adapteren håndterer felles innlogging, videresender bare godkjente
 omsetningsendepunkter og eksponerer `/health`, `/ready` og `/api/app/config`.

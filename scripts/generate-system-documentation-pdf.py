@@ -395,7 +395,7 @@ def architecture_overview() -> Drawing:
     _box(d, 340, 263, 180, 54, ["Felles innlogging", "DB-sesjon · delt sikker cookie"], fill=SOFT_PURPLE, stroke=PURPLE)
     _box(d, 550, 263, 160, 54, ["Tilgangsgrenser", "LAN/VPN eller valgt mobilflate"], fill=SOFT_RED, stroke=RED)
 
-    _box(d, 105, 184, 250, 54, ["Mantis · 13 apper", "ny.lilletorget.net · Nginx 8170"], fill=SOFT_PURPLE, stroke=PURPLE, font_size=8)
+    _box(d, 105, 184, 250, 54, ["Mantis · 13 apper", "app.lilletorget.net · Nginx 8170"], fill=SOFT_PURPLE, stroke=PURPLE, font_size=8)
     _box(d, 375, 184, 150, 54, ["Mobil og kiosk", "Egne arbeidsflater"], fill=SOFT_PURPLE, stroke=PURPLE, font_size=7.5)
     _box(d, 545, 184, 160, 54, ["OwnTracks-web", "Egen lokasjonsflate"], fill=PAPER, stroke=LINE, font_size=7.3)
 
@@ -615,19 +615,19 @@ def styles() -> dict[str, ParagraphStyle]:
 
 
 WEB_APPS = [
-    ("Omsetning", "https://ny.lilletorget.net/omsetning/", "8170", "Dashboard, månedsoversikt, år og sammenligning."),
-    ("Parkering", "https://ny.lilletorget.net/parkering/", "8170", "Parkeringer, kjøretøy, oppgjør, tidsanalyse og prognoser."),
-    ("Soling", "https://ny.lilletorget.net/soling/", "8170", "Soltimer, bilder, senger, medlemmer, produkter og oppgjør."),
-    ("Koble", "https://ny.lilletorget.net/koble/", "8170", "Kontroll av kobling mellom bil og Sun2-ID."),
-    ("Bygg", "https://ny.lilletorget.net/bygg/", "8170", "Ventilasjon, klima, lys og styring."),
-    ("Renhold", "https://ny.lilletorget.net/renhold/", "8170", "Roboter, planer, vann og rapporter."),
-    ("Kontroll", "https://ny.lilletorget.net/kontroll/", "8170", "Dører, solrom, alarm og pullerter."),
-    ("Energi", "https://ny.lilletorget.net/energi/", "8170", "Sanntid, Elvia-kontroll, kurs/last og solsengforbruk."),
-    ("Vedlikehold", "https://ny.lilletorget.net/vedlikehold/", "8170", "Besøk, oppgaver og vedlikeholdshistorikk."),
-    ("Operasjon", "https://ny.lilletorget.net/operasjon/", "8170", "Arbeidskø, kontroller, datakvalitet og søk."),
-    ("Eiendeler", "https://ny.lilletorget.net/eiendeler/", "8170", "Teknisk register, service og garanti."),
-    ("Rapporter", "https://ny.lilletorget.net/rapporter/", "8170", "Samlet rapportkatalog."),
-    ("System", "https://ny.lilletorget.net/system/", "8170", "Datakilder, brukere, build, manual og verktøy."),
+    ("Omsetning", "https://app.lilletorget.net/omsetning/", "8170", "Dashboard, månedsoversikt, år og sammenligning."),
+    ("Parkering", "https://app.lilletorget.net/parkering/", "8170", "Parkeringer, kjøretøy, oppgjør, tidsanalyse og prognoser."),
+    ("Soling", "https://app.lilletorget.net/soling/", "8170", "Soltimer, bilder, senger, medlemmer, produkter og oppgjør."),
+    ("Koble", "https://app.lilletorget.net/koble/", "8170", "Kontroll av kobling mellom bil og Sun2-ID."),
+    ("Bygg", "https://app.lilletorget.net/bygg/", "8170", "Ventilasjon, klima, lys og styring."),
+    ("Renhold", "https://app.lilletorget.net/renhold/", "8170", "Roboter, planer, vann og rapporter."),
+    ("Kontroll", "https://app.lilletorget.net/kontroll/", "8170", "Dører, solrom, alarm og pullerter."),
+    ("Energi", "https://app.lilletorget.net/energi/", "8170", "Sanntid, Elvia-kontroll, kurs/last og solsengforbruk."),
+    ("Vedlikehold", "https://app.lilletorget.net/vedlikehold/", "8170", "Besøk, oppgaver og vedlikeholdshistorikk."),
+    ("Operasjon", "https://app.lilletorget.net/operasjon/", "8170", "Arbeidskø, kontroller, datakvalitet og søk."),
+    ("Eiendeler", "https://app.lilletorget.net/eiendeler/", "8170", "Teknisk register, service og garanti."),
+    ("Rapporter", "https://app.lilletorget.net/rapporter/", "8170", "Samlet rapportkatalog."),
+    ("System", "https://app.lilletorget.net/system/", "8170", "Datakilder, brukere, build, manual og verktøy."),
 ]
 
 SPECIAL_APPS = [
@@ -848,7 +848,7 @@ def build_document() -> Path:
         ),
         Spacer(1, 10),
     ]
-    story += [p("Den gjeldende appstakken består av tretten Mantis-apper under ny.lilletorget.net. Alle statiske appbygg leveres fra Nginx på port 8170 og deler MUI/Mantis-design, API-klient og én databasesesjon for innlogging. Fibaro10-kjernen er fortsatt det sentrale API- og datalaget, mens fagadapterne på 8151-8158 oversetter forespørsler til kjernen.", s["Body"])]
+    story += [p("Den gjeldende appstakken består av tretten Mantis-apper under app.lilletorget.net. Alle statiske appbygg leveres fra Nginx på port 8170 og deler MUI/Mantis-design, API-klient og én databasesesjon for innlogging. Fibaro10-kjernen er fortsatt det sentrale API- og datalaget, mens fagadapterne på 8151-8158 oversetter forespørsler til kjernen.", s["Body"])]
     story += [p("Innsamling er flyttet ut i separate tjenester der det gir verdi: EasyPark, Sun2, Axis, UniFi Protect, kjøretøyoppslag, Roborock, Dreame, OwnTracks og koblingsmotoren kjører ved siden av kjernen. Denne oppdelingen reduserer påvirkning mellom integrasjoner og gjør feil enklere å lokalisere.", s["Body"])]
     story += [Paragraph("Viktigste arkitekturvalg", s["Heading2"])]
     for text in [
@@ -884,7 +884,7 @@ def build_document() -> Path:
     story.append(make_table([["Flate", "Adresse", "Port", "Formål"], *SPECIAL_APPS], [30 * mm, 52 * mm, 15 * mm, 57 * mm], s, font_size=7.2, header_color=NAVY_2))
     story += [Paragraph("3.3 Ansvarsdeling i frontend", s["Heading2"])]
     story += [
-        bullet("<b>Mantis:</b> gjeldende brukerflate med React, TypeScript, MUI og tretten apper under ny.lilletorget.net.", s),
+        bullet("<b>Mantis:</b> gjeldende brukerflate med React, TypeScript, MUI og tretten apper under app.lilletorget.net.", s),
         bullet("<b>Fibaro10 og adapterne:</b> produksjonskritisk API-lag uten egne desktopflater.", s),
         bullet("<b>Mobilappene:</b> AppKit Mobile PWA med mobilspesifikke arbeidsflyter, safe-area og bunnnavigasjon.", s),
         bullet("<b>Serverrendret innlogging:</b> lett felles side som lastes før React-bundlene og gir samme sesjon i alle appene.", s),

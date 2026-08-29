@@ -67,15 +67,15 @@ class RevenueAppTest(unittest.TestCase):
                 response = client.post(
                     "/auth/login",
                     data={"username": "master", "password": "secret"},
-                    headers={"host": "ny.lilletorget.net", "x-forwarded-proto": "https"},
+                    headers={"host": "app.lilletorget.net", "x-forwarded-proto": "https"},
                 )
 
         self.assertEqual(response.status_code, 204)
         self.assertIn("domain=.lilletorget.net", response.headers["set-cookie"].lower())
         _, kwargs = auth_client.post.call_args
-        self.assertEqual(kwargs["headers"]["X-Forwarded-Host"], "ny.lilletorget.net")
+        self.assertEqual(kwargs["headers"]["X-Forwarded-Host"], "app.lilletorget.net")
         self.assertEqual(kwargs["headers"]["X-Forwarded-Proto"], "https")
-        self.assertEqual(kwargs["headers"]["X-Lilletorget-Public-Host"], "ny.lilletorget.net")
+        self.assertEqual(kwargs["headers"]["X-Lilletorget-Public-Host"], "app.lilletorget.net")
         self.assertEqual(kwargs["headers"]["X-Lilletorget-Public-Proto"], "https")
 
 

@@ -2,7 +2,7 @@
 
 Intern, avgrenset adapter mellom Mantis-appen Parkering og Fibaro10-kjernen.
 Tjenesten leverer ikke et eget brukergrensesnitt. Gjeldende flate er
-`https://ny.lilletorget.net/parkering/`.
+`https://app.lilletorget.net/parkering/`.
 
 Adapteren håndterer felles innlogging og videresender bare godkjente
 parkeringsendepunkter. Den eksponerer `/health`, `/ready` og

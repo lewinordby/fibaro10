@@ -8,7 +8,7 @@
       "icon": "chart",
       "accent": "red",
       "port": 8151,
-      "url": "https://ny.lilletorget.net/omsetning/",
+      "url": "https://app.lilletorget.net/omsetning/",
       "groups": [
         {
           "label": "Dashboard",
@@ -37,7 +37,7 @@
       "icon": "parking",
       "accent": "sky",
       "port": 8152,
-      "url": "https://ny.lilletorget.net/parkering/",
+      "url": "https://app.lilletorget.net/parkering/",
       "groups": [
         {
           "label": "Oversikt",
@@ -97,7 +97,7 @@
       "icon": "sun",
       "accent": "yellow",
       "port": 8153,
-      "url": "https://ny.lilletorget.net/soling/",
+      "url": "https://app.lilletorget.net/soling/",
       "groups": [
         {
           "label": "Oversikt",
@@ -152,7 +152,7 @@
       "icon": "link",
       "accent": "violet",
       "port": 8158,
-      "url": "https://ny.lilletorget.net/koble/",
+      "url": "https://app.lilletorget.net/koble/",
       "groups": [
         {
           "label": "Koblinger",
@@ -182,7 +182,7 @@
       "icon": "building",
       "accent": "violet",
       "port": 8155,
-      "url": "https://ny.lilletorget.net/bygg/",
+      "url": "https://app.lilletorget.net/bygg/",
       "groups": [
         {
           "label": "Oversikt",
@@ -222,7 +222,7 @@
       "icon": "robot",
       "accent": "cyan",
       "port": 8155,
-      "url": "https://ny.lilletorget.net/renhold/",
+      "url": "https://app.lilletorget.net/renhold/",
       "groups": [
         {
           "label": "Oversikt",
@@ -251,7 +251,7 @@
       "icon": "warning",
       "accent": "red",
       "port": 8155,
-      "url": "https://ny.lilletorget.net/kontroll/",
+      "url": "https://app.lilletorget.net/kontroll/",
       "groups": [
         {
           "label": "Oversikt",
@@ -290,7 +290,7 @@
       "icon": "energy",
       "accent": "green",
       "port": 8154,
-      "url": "https://ny.lilletorget.net/energi/",
+      "url": "https://app.lilletorget.net/energi/",
       "groups": [
         {
           "label": "Status",
@@ -335,7 +335,7 @@
       "icon": "tools",
       "accent": "green",
       "port": 8156,
-      "url": "https://ny.lilletorget.net/vedlikehold/",
+      "url": "https://app.lilletorget.net/vedlikehold/",
       "groups": [
         {
           "label": "Oppgaver",
@@ -361,7 +361,7 @@
       "icon": "warning",
       "accent": "red",
       "port": 8157,
-      "url": "https://ny.lilletorget.net/operasjon/",
+      "url": "https://app.lilletorget.net/operasjon/",
       "groups": [
         {
           "label": "Oppf\u00f8lging",
@@ -392,7 +392,7 @@
       "icon": "asset",
       "accent": "cyan",
       "port": 8157,
-      "url": "https://ny.lilletorget.net/eiendeler/",
+      "url": "https://app.lilletorget.net/eiendeler/",
       "groups": [
         {
           "label": "Register",
@@ -411,7 +411,7 @@
       "icon": "report",
       "accent": "blue",
       "port": 8157,
-      "url": "https://ny.lilletorget.net/rapporter/",
+      "url": "https://app.lilletorget.net/rapporter/",
       "groups": [
         {
           "label": "Rapporter",
@@ -430,7 +430,7 @@
       "icon": "settings",
       "accent": "violet",
       "port": 8157,
-      "url": "https://ny.lilletorget.net/system/",
+      "url": "https://app.lilletorget.net/system/",
       "groups": [
         {
           "label": "Drift",

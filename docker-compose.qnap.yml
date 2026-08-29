@@ -1,5 +1,5 @@
 x-fibaro10-core-environment: &fibaro10-core-environment
-  APP_BUILD: ${APP_BUILD:-1823}
+  APP_BUILD: ${APP_BUILD:-1824}
   SUN2_AXIS_SNAPSHOT_ROOT: /axis_snapshots
   SUN2_AXIS_SNAPSHOT_LINK_DAYS: ${SUN2_AXIS_SNAPSHOT_LINK_DAYS:-35}
   CAR_INFO_LOOKUP_URL: http://car_info_lookup:8126

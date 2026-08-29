@@ -34,7 +34,7 @@ SYSTEM_COMPONENTS: list[dict[str, Any]] = [
         "runtime": "Docker / Nginx",
         "compose_service": "lilletorget_mantis",
         "interface": "Mantis web/PWA",
-        "web_url": "https://ny.lilletorget.net/",
+        "web_url": "https://app.lilletorget.net/",
         "local_url": "http://192.168.20.218:8170/",
         "health_url": "http://192.168.20.218:8170/ready",
         "health": "/ready",

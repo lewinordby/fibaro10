@@ -67,19 +67,31 @@ def test_manifest_serializes_unique_scope_extensions_in_order() -> None:
 def test_caddy_exposes_only_the_current_desktop_origin() -> None:
     caddyfile = (Path(__file__).resolve().parents[1] / "Caddyfile").read_text(encoding="utf-8")
 
-    assert "https://ny.lilletorget.net {" in caddyfile
+    assert "https://app.lilletorget.net {" in caddyfile
     assert "reverse_proxy lilletorget_mantis:80" in caddyfile
     assert "reverse_proxy shell_app:8150" not in caddyfile
     assert "reverse_proxy revenue_app:8151" not in caddyfile
     assert "reverse_proxy 192.168.20.218:8160" not in caddyfile
     for retired_host in (
         "fibaro10.lilletorget.net",
-        "app.lilletorget.net",
+        "ny.lilletorget.net",
         "omsetning.lilletorget.net",
         "parkering.lilletorget.net",
         "ipad.lilletorget.net",
     ):
         assert retired_host not in caddyfile
+
+
+def test_internal_dns_and_certificate_use_app_as_primary_origin() -> None:
+    root = Path(__file__).resolve().parents[1]
+    dns_script = (root / "scripts" / "configure_domeneshop_internal_dns.py").read_text(encoding="utf-8")
+    certificate_script = (root / "scripts" / "renew-internal-https.sh").read_text(encoding="utf-8")
+
+    assert 'HOSTS = (\n    "app",\n    "kiosk",' in dns_script
+    assert 'RETIRED_HOSTS = (\n    "fibaro10",\n    "ny",' in dns_script
+    assert 'PRIMARY_DOMAIN="app.lilletorget.net"' in certificate_script
+    assert '--domains app.lilletorget.net' in certificate_script
+    assert '--domains ny.lilletorget.net' not in certificate_script
 
 
 def test_https_proxy_returns_private_vpn_traffic_through_lan_interface() -> None:

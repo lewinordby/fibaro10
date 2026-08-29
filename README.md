@@ -7,7 +7,7 @@ vedlikehold, kamera, lokasjon og systemkontroll.
 
 Den primære brukerflaten er Mantis-serien:
 
-https://ny.lilletorget.net
+https://app.lilletorget.net
 
 Den består av elleve appidentiteter under samme origin: Omsetning, Parkering,
 Soling, Koble, Bygg og drift, Energi, Vedlikehold, Operasjonssentral,
@@ -40,7 +40,7 @@ Viktigste innganger:
 
 Levende manual:
 
-https://ny.lilletorget.net/system/manual
+https://app.lilletorget.net/system/manual
 
 ## Lokal kontroll
 

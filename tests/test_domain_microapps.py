@@ -70,7 +70,7 @@ def test_domain_adapters_apply_security_headers() -> None:
     with TestClient(revenue_app) as client:
         response = client.get(
             "/health",
-            headers={"X-Forwarded-Proto": "https", "X-Forwarded-Host": "ny.lilletorget.net"},
+            headers={"X-Forwarded-Proto": "https", "X-Forwarded-Host": "app.lilletorget.net"},
         )
     assert response.status_code == 200
     assert response.headers["strict-transport-security"] == "max-age=31536000"

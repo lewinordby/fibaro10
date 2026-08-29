@@ -41,7 +41,7 @@ file_is_fresh() {
 }
 
 check fibaro10 curl -fsS --max-time 15 http://192.168.20.218:8110/health
-check lilletorget_mantis curl -fsS --max-time 15 https://ny.lilletorget.net/ready
+check lilletorget_mantis curl -fsS --max-time 15 https://app.lilletorget.net/ready
 check lilletorget_kiosk curl -fsS --max-time 15 https://kiosk.lilletorget.net/health
 check revenue_app curl -fsS --max-time 15 http://192.168.20.218:8151/ready
 check parking_app curl -fsS --max-time 15 http://192.168.20.218:8152/ready

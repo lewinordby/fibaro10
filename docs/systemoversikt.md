@@ -10,7 +10,7 @@ desktop-, mikroapp-, iPad- og V1-grensesnitt er avviklet.
 
 | Flate | URL | Formål |
 | --- | --- | --- |
-| Mantis | `https://ny.lilletorget.net/` | Primær PC-app og installert PWA. |
+| Mantis | `https://app.lilletorget.net/` | Primær PC-app og installert PWA. |
 | Kiosk | `https://kiosk.lilletorget.net/` | Fast robotstatus for 1920 x 1080. |
 | Dashboard mobil | `https://online.lilletorget.net/` | Mobil status og daglig oversikt. |
 | Vedlikehold mobil | `https://vedl.lilletorget.net/` | Rask oppgaveregistrering. |
@@ -90,7 +90,7 @@ avgjøres av importstatus, ikke bare av at containeren kjører.
 
 ## Nettverk og innlogging
 
-- `ny.lilletorget.net` og de interne appnavnene peker til privat QNAP-adresse.
+- `app.lilletorget.net` og de interne appnavnene peker til privat QNAP-adresse.
 - Caddy godtar interne flater bare fra LAN/VPN.
 - Offentlig betrodd TLS utstedes med DNS-01; klientene trenger ikke lokale sertifikater.
 - `lilletorget_session` er en opak, tilbakekallbar cookie for `.lilletorget.net`.

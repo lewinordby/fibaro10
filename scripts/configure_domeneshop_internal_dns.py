@@ -16,12 +16,12 @@ API_BASE = "https://api.domeneshop.no/v0"
 DOMAIN = "lilletorget.net"
 PRIVATE_IP = "192.168.20.219"
 HOSTS = (
-    "ny",
+    "app",
     "kiosk",
 )
 RETIRED_HOSTS = (
     "fibaro10",
-    "app",
+    "ny",
     "omsetning",
     "parkering",
     "soling",

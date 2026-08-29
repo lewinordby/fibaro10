@@ -3,7 +3,7 @@
 Oppdatert 29.08.2026.
 
 Dette er inngangen til dokumentasjonen for Lilletorget. Den eneste ordinære
-PC-flaten er Mantis på `https://ny.lilletorget.net`. Mobilflatene beholdes som
+PC-flaten er Mantis på `https://app.lilletorget.net`. Mobilflatene beholdes som
 separate, oppgaveorienterte apper. Fibaro10-repoet eier API, database,
 forretningsregler, bakgrunnsjobber og integrasjoner.
 
@@ -19,12 +19,12 @@ forretningsregler, bakgrunnsjobber og integrasjoner.
 
 | Side | Adresse |
 | --- | --- |
-| Manual | `https://ny.lilletorget.net/system/manual` |
-| Menystruktur | `https://ny.lilletorget.net/system/manual/menystruktur` |
-| Datakilder | `https://ny.lilletorget.net/system/datakilder` |
-| Systemkart | `https://ny.lilletorget.net/system/systemkart` |
-| Undersystemer | `https://ny.lilletorget.net/system/undersystemer` |
-| Buildlogg | `https://ny.lilletorget.net/system/build` |
+| Manual | `https://app.lilletorget.net/system/manual` |
+| Menystruktur | `https://app.lilletorget.net/system/manual/menystruktur` |
+| Datakilder | `https://app.lilletorget.net/system/datakilder` |
+| Systemkart | `https://app.lilletorget.net/system/systemkart` |
+| Undersystemer | `https://app.lilletorget.net/system/undersystemer` |
+| Buildlogg | `https://app.lilletorget.net/system/build` |
 
 ## Gjeldende dokumenter
 

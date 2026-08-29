@@ -63,7 +63,7 @@ def menu_structure_module(_request: Request) -> dict[str, Any]:
         "title": "Menystruktur",
         "subtitle": "Gjeldende Mantis-struktur med alle appens sider samlet og gruppert i venstremenyen.",
         "cards": [
-            {"title": "Origin", "value": 1, "unit": "domene", "detail": "https://ny.lilletorget.net"},
+            {"title": "Origin", "value": 1, "unit": "domene", "detail": "https://app.lilletorget.net"},
             {"title": "Fagapper", "value": len(APP_MENU_STRUCTURE), "unit": "apper", "detail": "Stier under samme HTTPS-origin"},
             {"title": "Hovedomr\u00e5der", "value": area_count, "unit": "valg", "detail": "Grupper i appmenyen"},
             {"title": "Menysider", "value": page_count, "unit": "sider", "detail": "Registrerte navigasjonsruter"},

@@ -6,7 +6,7 @@ Oppdatert 29.08.2026.
 
 | Port | Tjeneste | Rolle |
 | ---: | --- | --- |
-| 8170 | `lilletorget_mantis` | Alle tretten PC-mikroapper under `ny.lilletorget.net`. |
+| 8170 | `lilletorget_mantis` | Alle tretten PC-mikroapper under `app.lilletorget.net`. |
 | 8163 | `lilletorget_kiosk` | Intern robotkiosk. |
 | 8111 | `online_dashboard` | Mobil dashboard. |
 | 8112 | `maintenance_mobile` | Mobil vedlikeholdsapp. |
@@ -48,7 +48,7 @@ er API og teknisk health-endepunkt, ikke en reserve-desktop.
 
 ## Praktisk regel
 
-- Brukere åpner `https://ny.lilletorget.net`.
+- Brukere åpner `https://app.lilletorget.net`.
 - Mantis bygges og deployes fra sitt eget repo.
 - Backend og adaptere bygges og deployes fra Fibaro10-repoet.
 - Gamle porter 8150, 8113, 8160-8162 og 8171 er avviklet.

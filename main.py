@@ -18639,14 +18639,14 @@ def admin_manual_payload() -> Dict[str, Any]:
     return {
         "build": APP_BUILD,
         "title": "Lilletorget manual",
-        "description": "Gjeldende bruker- og driftsmanual for Mantis-appene på ny.lilletorget.net. Fibaro10 er kjerne/API.",
+        "description": "Gjeldende bruker- og driftsmanual for Mantis-appene på app.lilletorget.net. Fibaro10 er kjerne/API.",
         "chapters": [
             {
                 "id": "hva-losningen-er",
                 "number": "01",
                 "title": "Hva løsningen er",
                 "paragraphs": [
-                    "Den gjeldende brukerflaten er tretten Mantis-apper under https://ny.lilletorget.net. Appene deler innlogging, design og navigasjonsprinsipper, men er delt etter fagområde.",
+                    "Den gjeldende brukerflaten er tretten Mantis-apper under https://app.lilletorget.net. Appene deler innlogging, design og navigasjonsprinsipper, men er delt etter fagområde.",
                     "Fibaro10-kjernen eier API, forretningsregler, database, jobber og integrasjoner. API-adapterne avgrenser tilgangen for hver Mantis-app og har ingen egne desktopflater.",
                 ],
                 "principles": [
@@ -18704,7 +18704,7 @@ def admin_manual_payload() -> Dict[str, Any]:
                 "subapps": [
                     {"title": "Varslinger", "text": "Alle ntfy-abonnementer finnes samlet under System -> Varslinger.", "path": "/system/varslinger"},
                     {"title": "Undersystemer", "text": "Alle klikkbare systemflater og interne tjenester finnes under System -> Undersystemer.", "path": "/system/undersystemer"},
-                    {"title": "Mantis", "text": "Gjeldende brukerflate med tretten fagapper på ny.lilletorget.net."},
+                    {"title": "Mantis", "text": "Gjeldende brukerflate med tretten fagapper på app.lilletorget.net."},
                     {"title": "Fibaro10", "text": "FastAPI-kjerne, database, autentisering, forretningsregler og bakgrunnsjobber."},
                     {"title": "lilletorget_kiosk", "text": "Fast statusflate for robotrenhold på kiosk.lilletorget.net."},
                     {"title": "online_dashboard", "text": "Ekstern mobilvisning på online.lilletorget.net."},
@@ -19957,7 +19957,7 @@ async def root_service_info():
     return {
         "service": "fibaro10",
         "role": "backend-api",
-        "ui": "https://ny.lilletorget.net/",
+        "ui": "https://app.lilletorget.net/",
         "health": "/health",
     }
 

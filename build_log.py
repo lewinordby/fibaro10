@@ -12,6 +12,33 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1824",
+        "date": "29.08.2026",
+        "headline": "App er den permanente adressen",
+        "title": "Mantis-plattformen er flyttet fra ny.lilletorget.net til app.lilletorget.net",
+        "description": (
+            "Den samlede PC- og PWA-flaten bruker nå app.lilletorget.net som eneste aktive "
+            "hovedadresse. HTTPS, DNS, appmenyer, manifestkontroller, driftstester og gjeldende "
+            "dokumentasjon følger den samme adressen."
+        ),
+        "applications": [
+            "Mantis: alle tretten fagapper og Apper-portalen bruker app.lilletorget.net.",
+            "HTTPS og DNS: app er aktivt privat navn, mens ny er faset ut.",
+            "System og dokumentasjon: lenker, manualer og systemkart er oppdatert.",
+        ],
+        "request": "Bruk app.lilletorget.net i stedet for ny.lilletorget.net; ny er ikke et passende permanent navn.",
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Gjort app.lilletorget.net til kanonisk adresse i Mantis-definisjoner og produksjonstester.",
+            "Flyttet Caddy og det offentlig betrodde interne sertifikatet til app.lilletorget.net.",
+            "Endret Domeneshop-oppsettet slik at app opprettes og ny fjernes som aktiv privat A-post.",
+            "Oppdatert gjeldende manualer, systemkart, appmenyer og PDF-generator.",
+            "Lagt inn kontrakttester som hindrer at ny.lilletorget.net blir aktivt igjen.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1823",
         "date": "29.08.2026",
         "headline": "Omsetningskortene er merkbart lavere",

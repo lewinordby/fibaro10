@@ -62,7 +62,7 @@ class ManualDocumentationTests(unittest.TestCase):
     def test_current_repository_manuals_name_mantis_as_primary(self) -> None:
         for relative_path in ("docs/README.md", "docs/kort-brukermanual.md"):
             content = (ROOT / relative_path).read_text(encoding="utf-8")
-            self.assertIn("https://ny.lilletorget.net", content, relative_path)
+            self.assertIn("https://app.lilletorget.net", content, relative_path)
             self.assertNotIn("/status/omsetning", content, relative_path)
             self.assertNotIn("/admin/datakilder", content, relative_path)
 
@@ -91,7 +91,7 @@ class ManualDocumentationTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn(
-            "https://ny.lilletorget.net/system/manual",
+            "https://app.lilletorget.net/system/manual",
             content,
         )
         self.assertNotIn("/konto/manual", content)
