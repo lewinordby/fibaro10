@@ -12,6 +12,33 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1823",
+        "date": "29.08.2026",
+        "headline": "Omsetningskortene er merkbart lavere",
+        "title": "Dashboardet bruker vesentlig mindre høyde og beholder hele sammenligningsgrunnlaget",
+        "description": (
+            "Omsetningskortene er komprimert på nytt etter visuell kontroll. Hovedtall, datatidspunkt, "
+            "fordeling, begge sammenligninger, inntektskilder og fullverdier er fortsatt med, men de fem "
+            "horisontale sonene bruker nå klart mindre høyde."
+        ),
+        "applications": [
+            "Omsetning Mantis: lavere toppfelt, fordelingslinje og sammenligningsfelt.",
+            "Omsetning Mantis: tettere inntektskildetabell og lavere referansefelt.",
+            "Mantis 4.2.0: leverandørens tema, CSS og rammeverksbaseline er urørt.",
+        ],
+        "request": "Kortene på omsetningsdashboardet ser fortsatt ikke mye lavere ut. Gjør reduksjonen tydeligere.",
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Redusert hovedtallet ett typografisk nivå uten å svekke lesbarheten.",
+            "Komprimert sammenligningsfeltene og beholdt beløp, prosent og referanseverdi.",
+            "Gjort begge kilderadene lavere med mindre ikon og strammere avstander.",
+            "Redusert høyden på fullverdifeltet uten å fjerne fremdrift eller gjenstående beløp.",
+            "Verifisert lint, TypeScript og Mantis-rammeverksrevisjon.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1822",
         "date": "29.08.2026",
         "headline": "Dashboardene er tettere og mer konsekvente",
