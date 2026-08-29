@@ -18014,6 +18014,7 @@ async def api_unifi_protect_bollard_incident_image(
 
 
 @app.get("/health")
+@app.get("/api/system/health")
 async def health(details: bool = Query(False)):
     database = {"status": "ok", "detail": "SELECT 1 OK"}
     sources = []
@@ -43249,6 +43250,7 @@ async def light_samples_view(
 
 
 @app.get("/lights/samples/download")
+@app.get("/api/system/resources/lights/samples/download")
 async def light_samples_download(
     mode: Optional[str] = None,
     from_text: Optional[str] = Query(default=None, alias="from"),
@@ -43330,6 +43332,7 @@ async def ventilation_samples_json(
 
 
 @app.get("/ventilation/samples/download")
+@app.get("/api/system/resources/ventilation/samples/download")
 async def ventilation_samples_download(
     mode: Optional[str] = None,
     from_text: Optional[str] = Query(default=None, alias="from"),
@@ -43361,6 +43364,7 @@ async def yr_samples_json(
 
 
 @app.get("/yr/samples/download")
+@app.get("/api/system/resources/yr/samples/download")
 async def yr_samples_download(
     from_text: Optional[str] = Query(default=None, alias="from"),
     to_text: Optional[str] = Query(default=None, alias="to"),
@@ -43370,11 +43374,13 @@ async def yr_samples_download(
 
 @app.get("/download")
 @app.get("/events/download")
+@app.get("/api/system/resources/events/download")
 async def generic_download():
     return await csv_response(GenericEvent, GENERIC_COLUMNS, "event_data.csv", None, None, None, None, None, None, None, None)
 
 
 @app.get("/events/json")
+@app.get("/api/system/resources/events/json")
 async def events_json(limit: int = 1000):
     limit = max(1, min(limit, 10000))
     async with async_session() as session:

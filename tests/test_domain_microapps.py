@@ -118,6 +118,23 @@ def test_adapter_images_and_downloads_remain_narrowly_scoped() -> None:
     assert system_main.RESOURCE_PATTERN.fullmatch("yr/samples/download")
     assert system_main.RESOURCE_PATTERN.fullmatch("lights/samples/download")
     assert system_main.RESOURCE_PATTERN.fullmatch("ventilation/samples/download")
+    assert system_main.DOMAIN_PATTERN.fullmatch("system/health")
+    assert system_main.DOMAIN_PATTERN.fullmatch("system/resources/events/json")
+    assert system_main.DOMAIN_PATTERN.fullmatch("system/resources/events/download")
+    assert system_main.DOMAIN_PATTERN.fullmatch("system/resources/yr/samples/download")
+
+
+def test_system_tools_have_proxy_safe_core_routes() -> None:
+    source = (Path(__file__).resolve().parents[1] / "main.py").read_text(encoding="utf-8")
+    for path in (
+        "/api/system/health",
+        "/api/system/resources/events/json",
+        "/api/system/resources/events/download",
+        "/api/system/resources/yr/samples/download",
+        "/api/system/resources/lights/samples/download",
+        "/api/system/resources/ventilation/samples/download",
+    ):
+        assert f'@app.get("{path}")' in source
 
 
 def test_operations_adapter_keeps_operational_contracts() -> None:

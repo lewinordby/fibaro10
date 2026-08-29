@@ -12,6 +12,41 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1828",
+        "date": "29.08.2026",
+        "headline": "System-menyen og verktøyene fungerer igjen",
+        "title": "Alle System-valg åpner riktig side, og tekniske logger og eksporter bruker gyldige API-adresser",
+        "description": (
+            "System-appen er gjennomgått side for side. En navigasjonsfeil gjorde at adressen ble endret "
+            "uten at innholdet fulgte etter, og flere verktøylenker ble fanget av appskallet i stedet for "
+            "å nå System-tjenesten. Navigasjonen er nå pålitelig, interne valg blir i samme fane, og rådata "
+            "og CSV-eksporter går gjennom egne, avgrensede System-ruter i API-et."
+        ),
+        "applications": [
+            "System: alle 31 menyvalg, detaljer, manualkapitler og interne krysslenker.",
+            "Systemverktøy: helsesjekk, hendelseslogg, AI-logg og tre dataeksporter.",
+            "System og Fibaro10 API: egne proxy-sikre ruter for helsesjekk, rålogg og eksport.",
+            "Mantis-plattform: regresjonskontroll uten endring av leverandørkode, tema eller CSS.",
+        ],
+        "request": (
+            "Det er en del ting i System-appen som ikke er helt bra; forskjellige menyvalg reagerer ikke. "
+            "Ta en grundig gjennomgang av System-appen."
+        ),
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Kartlagt og åpnet alle 31 System-ruter mot produksjonsdata.",
+            "Rettet menyklikk som bare endret URL uten å bytte innhold.",
+            "Sikret samme navigasjon fra datakilder, buildlogg, manual og System-kort.",
+            "Endret administrative verktøy slik at interne sider åpnes i samme fane.",
+            "Rettet helsesjekk, hendelseslogg og CSV-eksporter til gyldige API-ruter.",
+            "Lagt til avgrensede /api/system/resources-ruter som System-adapteren eksplisitt tillater.",
+            "Lagt til backend- og rammeverkskontroller som hindrer tilbakefall.",
+            "Kjørt komplett backendtest og full Mantis-verifikasjon.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1827",
         "date": "29.08.2026",
         "headline": "Originalt Mantis-tema er gjeninnfort og CSS-laget er ryddet",
