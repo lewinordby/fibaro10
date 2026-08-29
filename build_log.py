@@ -12,6 +12,37 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1829",
+        "date": "29.08.2026",
+        "headline": "Alle fagappene bytter nå side pålitelig",
+        "title": "Felles ruting er rettet, solromstatus viser riktige tall og gamle V2-tekster er fjernet",
+        "description": (
+            "Alle aktive fagapper er kontrollert med reelle menyklikk. Operasjon og Vedlikehold kunne beholde "
+            "forrige side selv om adressen endret seg, og solromsiden leste summer fra feltnavn som ikke lenger "
+            "finnes i API-kontrakten. Ruteskallet og fjerninnholdet er nå bundet til aktiv side, solromkortene "
+            "beregnes fra faktiske romdata, og synlige V2-rester er ryddet bort."
+        ),
+        "applications": [
+            "Alle Mantis-fagapper: pålitelig sidebytte og riktig datagrunnlag etter menyklikk.",
+            "Operasjon: Automatisering og Universalsøk åpner sine egne arbeidsflater.",
+            "Vedlikehold: Besøk åpner besøkslisten med notater og tilknyttede oppgaver.",
+            "Kontroll: Solrom viser riktig antall ledige, i bruk, overtid og ukjente rom.",
+            "Soling, Bygg og System: gamle synlige V2-betegnelser er fjernet.",
+        ],
+        "request": "Gjør en tilsvarende grundig gjennomgang av de andre appene som av System-appen.",
+        "work_duration": "ca. 2 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Klikket gjennom alle synlige ruter i de aktive fagappene mot produksjonsdata.",
+            "Gir hver klientrute en stabil nøkkel slik at forrige side ikke kan bli hengende igjen.",
+            "Viser bare fjerninnhold, feil og oppdateringstid som tilhører aktiv API-sti.",
+            "Rettet solromoppsummeringen mot gjeldende dør- og alarmkontrakt.",
+            "Fjernet utdaterte V2-tekster fra aktive Soling-, Ventilasjon- og Manual-flater.",
+            "Utvidet rammeverksrevisjonen med kontroller for ruting, dataisolasjon og solromstatus.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1828",
         "date": "29.08.2026",
         "headline": "System-menyen og verktøyene fungerer igjen",

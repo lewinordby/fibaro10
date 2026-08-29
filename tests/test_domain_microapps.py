@@ -137,6 +137,14 @@ def test_system_tools_have_proxy_safe_core_routes() -> None:
         assert f'@app.get("{path}")' in source
 
 
+def test_active_app_copy_does_not_expose_retired_v2_labels() -> None:
+    source = (Path(__file__).resolve().parents[1] / "main.py").read_text(encoding="utf-8")
+    assert "SUN2 soling samlet i egne V2-visninger" not in source
+    assert "Rediger ventilasjonsgrenser i V2-innstillinger" not in source
+    assert 'api_card("Manual", "V2"' not in source
+    assert "SUN2 soling samlet i egne visninger" in source
+
+
 def test_operations_adapter_keeps_operational_contracts() -> None:
     required_paths = (
         "operations/overview",

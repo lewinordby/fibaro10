@@ -26524,7 +26524,7 @@ async def api_v2_soling_module(
         api_card("Måned", month_sun.sessions, "stk", f"{format_short_number(month_sun.paid)} kr", "revenue", href="/omsetning/manedsoversikt"),
         api_card("Totalt", format_short_number(total_paid), "kr", f"{format_short_number(total_sessions)} solinger", "revenue", href="/soling/statistikk"),
     ]
-    subtitle = "SUN2 soling samlet i egne V2-visninger: oversikt, detaljer, enkeltimer, dagslinje, senger, medlemmer og prognose."
+    subtitle = "SUN2 soling samlet i egne visninger for oversikt, detaljer, enkeltimer, dagslinje, senger, medlemmer og prognose."
     charts = []
     tables = []
     actions = []
@@ -34321,7 +34321,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "Ventilasjonsverktøy",
                         ["tool", "path", "description", "count"],
                         [
-                            api_tool_row("Rediger innstillinger", "/ventilasjon/innstillinger", "Rediger ventilasjonsgrenser i V2-innstillinger.", config.version if config else None),
+                            api_tool_row("Rediger innstillinger", "/ventilasjon/innstillinger", "Rediger ventilasjonsgrenser i innstillingene.", config.version if config else None),
                             api_tool_row("Konfig API", "/api/config/ventilation", "JSON som HC3-runneren henter.", config.version if config else None),
                         ],
                     ),
@@ -35665,7 +35665,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             elif view == "manual":
                 inventory = system_component_summary()
                 admin_cards = [
-                    api_card("Manual", "V2", "", "Lenker og driftsinnganger samlet", "status", href="/manual/oversikt"),
+                    api_card("Manual", "Aktiv", "", "Lenker og driftsinnganger samlet", "status", href="/manual/oversikt"),
                     api_card("Systemkart", inventory["components"], "stk", "Komponenter og underapper", "status", href="/admin/systemkart"),
                     api_card("Datakilder", len(import_rows), "stk", "Status og forklaring per kilde", "status", href="/admin/datakilder"),
                     api_card("Build", APP_BUILD, "", BUILD_LOG[0]["title"], "status", href="/admin/build"),
