@@ -139,7 +139,8 @@ def test_system_tools_have_proxy_safe_core_routes() -> None:
 
 
 def test_active_app_copy_does_not_expose_retired_v2_labels() -> None:
-    source = (Path(__file__).resolve().parents[1] / "main.py").read_text(encoding="utf-8")
+    root = Path(__file__).resolve().parents[1]
+    source = "\n".join(path.read_text(encoding="utf-8") for path in (root / "fibaro_core").rglob("*.py"))
     assert "SUN2 soling samlet i egne V2-visninger" not in source
     assert "Rediger ventilasjonsgrenser i V2-innstillinger" not in source
     assert 'api_card("Manual", "V2"' not in source

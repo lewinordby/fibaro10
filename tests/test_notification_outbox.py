@@ -11,8 +11,8 @@ import main
 class NotificationOutboxTests(unittest.IsolatedAsyncioTestCase):
     def test_retry_delay_uses_capped_exponential_backoff(self) -> None:
         with (
-            patch.object(main, "NTFY_OUTBOX_RETRY_BASE_SECONDS", 5),
-            patch.object(main, "NTFY_OUTBOX_RETRY_MAX_SECONDS", 60),
+            patch.object(main.notifications_dependencies, "NTFY_OUTBOX_RETRY_BASE_SECONDS", 5),
+            patch.object(main.notifications_dependencies, "NTFY_OUTBOX_RETRY_MAX_SECONDS", 60),
         ):
             self.assertEqual(main.notification_retry_delay_seconds(1), 5)
             self.assertEqual(main.notification_retry_delay_seconds(2), 10)

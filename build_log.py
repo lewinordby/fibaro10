@@ -11,6 +11,23 @@ DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exi
 APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
+        "version": "1", "build": "1835", "date": "30.08.2026",
+        "headline": "Domenetjenester og bakgrunnsjobber er skilt ut",
+        "title": "Eksplisitte avhengigheter og ett eierskap til prosessressurser",
+        "description": "Tjenestene er fordelt etter fagområde. Låser, cache, databasesesjoner og eksterne kall leveres fra applikasjonens sammensetting. Importflyt, alarmregler og transaksjoner er bevart.",
+        "applications": ["Fibaro10 kjerne/API og kjernearbeider", "Ingen endring i frontend eller datainnsamlere"],
+        "request": "gjennomfør alle etapper",
+        "work_duration": "Del av sammenhengende modulariseringsarbeid; separat tid ikke målt",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "19 tjenestegrupper med eksplisitte avhengigheter, uten import av main.",
+            "Bevart én eier av prosesslåser og cache, inkludert Sun2, dørkontroll og varsler.",
+            "Kontrollert flyttede funksjonskropper og alle ti modulgrener mot build 1832.",
+            "Oppdatert testenes injeksjonspunkter uten å endre forventede API-resultater.",
+            "main.py redusert fra 23 260 til 5 814 linjer før siste sammensettingsrydding.",
+        ],
+    },
+    {
         "version": "1", "build": "1834", "date": "30.08.2026",
         "headline": "API-er og modulvisninger er delt etter fagområde",
         "title": "Egne domenefabrikker for rutene og ti separate modulbyggere",

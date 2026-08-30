@@ -126,6 +126,9 @@ class Scenario:
         async def parking(session):
             return summaries("parking")
         targets = [main]
+        for domain in ("dashboard", "presentation", "common", "system", "parking", "sun", "building", "weather"):
+            targets.append(importlib.import_module(f"fibaro_core.services.runtime.{domain}"))
+            targets.append(getattr(main, f"{domain}_dependencies"))
         for domain in ("revenue", "parking", "sun"):
             targets.append(importlib.import_module(f"fibaro_core.routers.{domain}_routes"))
             targets.append(getattr(main, f"{domain}_http").dependencies)

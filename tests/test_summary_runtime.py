@@ -14,6 +14,7 @@ import pytest
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost/test")
 import main
 from fibaro_core.services.summaries import energy, parking, periods, revenue, sun
+from fibaro_core.services.runtime import cache as cache_service
 
 
 def test_composition_root_has_no_shadowed_function_definitions():
@@ -36,9 +37,9 @@ def test_composition_root_reexports_the_actual_domain_functions(module):
 ])
 def test_cache_still_has_one_owner_and_force_bypasses_it(monkeypatch, domain, builder_name, getter):
     cache = {}
-    monkeypatch.setattr(main, "SUMMARY_CACHE", cache)
+    monkeypatch.setattr(main.cache_dependencies, "SUMMARY_CACHE", cache)
     builder = AsyncMock(side_effect=[{"total": 10}, {"total": 20}])
-    monkeypatch.setattr(main, builder_name, builder)
+    monkeypatch.setattr(cache_service, builder_name, builder)
     session = object()
 
     async def run():
@@ -55,7 +56,7 @@ def test_cache_still_has_one_owner_and_force_bypasses_it(monkeypatch, domain, bu
 
 def test_cache_invalidation_includes_variants_without_clearing_other_domains(monkeypatch):
     cache = dict.fromkeys(["sun2", "sun2:year", "sun2:month", "sun20", "parking", "energy"])
-    monkeypatch.setattr(main, "SUMMARY_CACHE", cache)
+    monkeypatch.setattr(main.cache_dependencies, "SUMMARY_CACHE", cache)
     main.clear_summary_cache("sun2")
     assert set(cache) == {"sun20", "parking", "energy"}
 
@@ -63,7 +64,7 @@ def test_cache_invalidation_includes_variants_without_clearing_other_domains(mon
 def test_failed_refresh_does_not_replace_cached_data(monkeypatch):
     old = {"expires": datetime.min, "value": {"total": 10}}
     cache = {"parking": old}
-    monkeypatch.setattr(main, "SUMMARY_CACHE", cache)
+    monkeypatch.setattr(main.cache_dependencies, "SUMMARY_CACHE", cache)
     builder = AsyncMock(side_effect=RuntimeError("database unavailable"))
     with pytest.raises(RuntimeError, match="database unavailable"):
         asyncio.run(main.cached_summaries("parking", builder, object()))

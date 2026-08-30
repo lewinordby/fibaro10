@@ -45,10 +45,10 @@ class OperationalMaintenanceTests(unittest.IsolatedAsyncioTestCase):
             "expires_at": now_value + timedelta(minutes=30),
         }
         main.MET_WEATHER_CACHE.update(expires=datetime.min, value=None)
-        main.met_weather_fetch_lock = None
+        main.process_locks.met_weather_fetch_lock = None
         with (
             patch("main.asyncio.to_thread", new=AsyncMock(return_value=forecast)) as fetch,
-            patch("main.async_session", return_value=session),
+            patch.object(main.weather_dependencies, "async_session", return_value=session),
             patch("main.record_import_job", new=AsyncMock()) as record,
         ):
             first = await main.met_weather_cached()
@@ -66,7 +66,7 @@ class OperationalMaintenanceTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_retention_only_deletes_operational_history(self) -> None:
         session = FakeSession()
-        with patch("main.async_session", return_value=session):
+        with patch.object(main.system_dependencies, "async_session", return_value=session):
             deleted = await main.cleanup_operational_history_once(datetime(2026, 8, 7, 12, 0))
 
         self.assertTrue(session.committed)

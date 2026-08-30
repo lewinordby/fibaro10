@@ -464,7 +464,7 @@ class CarsDayApiTests(unittest.IsolatedAsyncioTestCase):
             ],
         }
 
-        with patch.object(main, "async_session", new=lambda: Session()):
+        with patch.object(main.parking_dependencies, "async_session", new=lambda: Session()):
             payload = await main.unpaid_registered_vehicle_stays_payload(source, date(2026, 8, 1), date(2026, 9, 1))
 
         self.assertEqual(payload["summary"]["vehicleDayCount"], 1)

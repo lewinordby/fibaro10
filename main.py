@@ -47,7 +47,7 @@ from sqlalchemy.orm import load_only
 from dateutil import parser as dtparser
 load_dotenv()
 from fibaro_core.database import Base, create_database
-from fibaro_core.runtime_state import IncidentState
+from fibaro_core.runtime_state import IncidentState, ProcessLocks
 from fibaro_core.services.comparisons.overview import overview_comparison_plan, load_overview_comparisons, build_overview_cards
 from fibaro_core.services.comparisons.windows import (
     import_row_stamp,
@@ -530,7 +530,7 @@ MET_LAT = env_float("MET_LAT", "61.1153")
 MET_LON = env_float("MET_LON", "10.4662")
 MET_USER_AGENT = os.getenv("MET_USER_AGENT", "fibaro10/1.0 http://192.168.20.218:8110")
 MET_WEATHER_CACHE = {"expires": datetime.min, "value": None}
-met_weather_fetch_lock: Optional[asyncio.Lock] = None
+
 SUMMARY_CACHE_TTL = timedelta(minutes=5)
 SUMMARY_CACHE: Dict[str, Dict[str, Any]] = {}
 SUNBED_POWER_ANALYSIS_CACHE_TTL = timedelta(
@@ -736,10 +736,10 @@ SUN2_AXIS_SNAPSHOT_LINK_DAYS = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_DAY
 SUN2_AXIS_SNAPSHOT_LINK_LIMIT = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_LIMIT", "5000")))
 SUN2_AXIS_SNAPSHOT_DAY_CACHE_CURRENT_SECONDS = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_DAY_CACHE_CURRENT_SECONDS", "15")))
 SUN2_AXIS_SNAPSHOT_DAY_CACHE_ARCHIVE_SECONDS = max(60, int(os.getenv("SUN2_AXIS_SNAPSHOT_DAY_CACHE_ARCHIVE_SECONDS", "3600")))
-sun2_axis_snapshot_link_lock: Optional[asyncio.Lock] = None
+
 axis_snapshot_day_cache: Dict[tuple[str, str], Dict[str, Any]] = {}
 sunroom_door_verifications: Dict[str, Dict[str, Any]] = {}
-sunroom_door_sync_lock: Optional[asyncio.Lock] = None
+
 OWNTRACKS_SERVICE_URL = os.getenv("OWNTRACKS_SERVICE_URL", "http://owntracks_service:8128").rstrip("/")
 UNIFI_PROTECT_EVENTS_URL = os.getenv("UNIFI_PROTECT_EVENTS_URL", "http://unifi_protect_events:8130").rstrip("/")
 UNIFI_PROTECT_READ_API_TOKEN = os.getenv("UNIFI_PROTECT_READ_API_TOKEN", "").strip()
@@ -757,6 +757,7 @@ FULL_BACKUP_STATUS_PATH = Path(
     os.getenv("FULL_BACKUP_STATUS_PATH", "/system_backup_status/full/BACKUP_STATUS.txt")
 )
 incident_state = IncidentState()
+process_locks = ProcessLocks()
 OWNTRACKS_VISIT_SYNC_ENABLED = os.getenv("OWNTRACKS_VISIT_SYNC_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
 OWNTRACKS_VISIT_SYNC_INTERVAL_SECONDS = max(30, int(os.getenv("OWNTRACKS_VISIT_SYNC_INTERVAL_SECONDS", "60")))
 OWNTRACKS_VISIT_SYNC_LOOKBACK_HOURS = max(1, int(os.getenv("OWNTRACKS_VISIT_SYNC_LOOKBACK_HOURS", str(24 * 14))))
@@ -773,7 +774,7 @@ SITE_VISIT_MAINTENANCE_LINK_MARGIN_MINUTES = max(
     0,
     int(os.getenv("SITE_VISIT_MAINTENANCE_LINK_MARGIN_MINUTES", "30")),
 )
-owntracks_visit_sync_lock: Optional[asyncio.Lock] = None
+
 SECURITY_HSTS_ENABLED = os.getenv("SECURITY_HSTS_ENABLED", "false").strip().lower() in {"1", "true", "yes", "ja"}
 SECURITY_HSTS_MAX_AGE_SECONDS = max(0, int(os.getenv("SECURITY_HSTS_MAX_AGE_SECONDS", str(60 * 60 * 24 * 180))))
 SLOW_REQUEST_WARNING_MS = max(250.0, env_float("SLOW_REQUEST_WARNING_MS", "1500"))
@@ -820,10 +821,6 @@ templates.env.filters["source_datetime_short"] = format_source_datetime_short
 
 
 
-def json_safe_model_payload(model: BaseModel) -> Dict[str, Any]:
-    if hasattr(model, "model_dump"):
-        return model.model_dump(mode="json")
-    return json.loads(model.json())
 
 
 templates.env.filters["roborock_state"] = roborock_state_label
@@ -1086,35 +1083,14 @@ DOOR_SENSOR_CONFIG = [
 ]
 DOOR_SENSOR_IDS = [int(item["device_id"]) for item in DOOR_SENSOR_CONFIG if item.get("device_id") is not None]
 
-async def cached_summaries(cache_key: str, builder, session, force: bool = False) -> Dict[str, Any]:
-    now = datetime.utcnow()
-    cached = SUMMARY_CACHE.get(cache_key)
-    if not force and cached and cached.get("expires", datetime.min) > now:
-        return cached["value"]
-    value = await builder(session)
-    SUMMARY_CACHE[cache_key] = {"expires": now + SUMMARY_CACHE_TTL, "value": value}
-    return value
 
 
-async def get_sun2_summaries(session, force: bool = False) -> Dict[str, Any]:
-    return await cached_summaries("sun2", build_sun2_summaries_fast, session, force)
 
 
-async def get_energy_summaries(session, force: bool = False) -> Dict[str, Any]:
-    return await cached_summaries("energy", build_energy_summaries_fast, session, force)
 
 
-async def get_parking_summaries(session, force: bool = False) -> Dict[str, Any]:
-    return await cached_summaries("parking", build_parking_summaries_fast, session, force)
 
 
-def clear_summary_cache(*keys: str) -> None:
-    for key in keys:
-        SUMMARY_CACHE.pop(key, None)
-        prefix = f"{key}:"
-        for cached_key in list(SUMMARY_CACHE):
-            if cached_key.startswith(prefix):
-                SUMMARY_CACHE.pop(cached_key, None)
 
 
 LIGHT_TIMELINE_DEVICES = [
@@ -1337,2870 +1313,310 @@ CONTROL_DEVICES = {
 }
 
 
-def config_definition(key: str) -> Optional[Dict[str, Any]]:
-    return CONFIG_DEFINITIONS.get(key)
-
-
-def config_defaults(key: str) -> Dict[str, Any]:
-    definition = config_definition(key)
-    values: Dict[str, Any] = {}
-    if not definition:
-        return values
-    for group in definition["groups"]:
-        for field in group["fields"]:
-            values[field["key"]] = deepcopy(field["default"])
-    return values
-
-
-def value_from_payload(data: EventDataIn, key: str):
-    explicit = getattr(data, key)
-    if explicit is not None:
-        return explicit
-    return data.values.get(key)
-
-
-def json_value(value):
-    if isinstance(value, (dict, list)):
-        import json
-
-        return json.dumps(value, ensure_ascii=False)
-    if isinstance(value, (datetime, date)):
-        return value.isoformat()
-    return value
-
-
-def roborock_schedule_params(schedule: Dict[str, Any]) -> Dict[str, Any]:
-    params = (((schedule.get("param") or {}).get("params")) or [])
-    return params[0] if params and isinstance(params[0], dict) else {}
-
-
-def roborock_schedule_snapshot_rows(schedules: Iterable[Any]) -> list[Dict[str, Any]]:
-    rows = []
-    for schedule in schedules:
-        if isinstance(schedule, Mapping):
-            params = roborock_schedule_params(dict(schedule))
-            schedule_id = str(schedule.get("id") or schedule.get("schedule_id") or "")
-            row = {
-                "schedule_id": schedule_id,
-                "cron": schedule.get("cron"),
-                "enabled": bool_value(schedule.get("enabled")),
-                "repeated": bool_value(schedule.get("repeated")),
-                "segments": params.get("segments"),
-                "fan_power": int_value(params.get("fan_power")),
-                "mop_mode": int_value(params.get("mop_mode")),
-                "water_box_mode": int_value(params.get("water_box_mode")),
-                "repeat": int_value(params.get("repeat")),
-            }
-        else:
-            schedule_id = str(getattr(schedule, "schedule_id", "") or "")
-            row = {
-                "schedule_id": schedule_id,
-                "cron": getattr(schedule, "cron", None),
-                "enabled": getattr(schedule, "enabled", None),
-                "repeated": getattr(schedule, "repeated", None),
-                "segments": getattr(schedule, "segments", None),
-                "fan_power": getattr(schedule, "fan_power", None),
-                "mop_mode": getattr(schedule, "mop_mode", None),
-                "water_box_mode": getattr(schedule, "water_box_mode", None),
-                "repeat": getattr(schedule, "repeat", None),
-            }
-        if schedule_id:
-            rows.append(row)
-    return sorted(rows, key=lambda row: row["schedule_id"])
-
-
-def roborock_schedule_snapshot_fingerprint(rows: list[Dict[str, Any]]) -> str:
-    encoded = json.dumps(rows, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
-
-
-async def record_roborock_schedule_snapshot(
-    session,
-    robot_duid: str,
-    schedules: Iterable[Any],
-    captured_at: datetime,
-    source: str,
-) -> bool:
-    rows = roborock_schedule_snapshot_rows(schedules)
-    fingerprint = roborock_schedule_snapshot_fingerprint(rows)
-    latest = (
-        await session.execute(
-            select(RoborockScheduleSnapshot)
-            .where(RoborockScheduleSnapshot.robot_duid == robot_duid)
-            .order_by(RoborockScheduleSnapshot.captured_at.desc(), RoborockScheduleSnapshot.id.desc())
-            .limit(1)
-        )
-    ).scalars().first()
-    if latest and latest.fingerprint == fingerprint:
-        return False
-    session.add(
-        RoborockScheduleSnapshot(
-            robot_duid=robot_duid,
-            captured_at=captured_at,
-            source=source,
-            fingerprint=fingerprint,
-            schedules=rows,
-        )
-    )
-    return True
-
-
-async def ensure_roborock_schedule_snapshot_backfill(session) -> int:
-    robots = (await session.execute(select(RoborockRobot.duid))).scalars().all()
-    existing_robot_duids = set(
-        (await session.execute(select(RoborockScheduleSnapshot.robot_duid).distinct())).scalars().all()
-    )
-    created = 0
-    captured_at = local_now_naive()
-    for robot_duid in robots:
-        if robot_duid in existing_robot_duids:
-            continue
-        schedules = (
-            await session.execute(
-                select(RoborockSchedule)
-                .where(RoborockSchedule.robot_duid == robot_duid)
-                .where(RoborockSchedule.deleted_at.is_(None))
-                .order_by(RoborockSchedule.schedule_id)
-            )
-        ).scalars().all()
-        if await record_roborock_schedule_snapshot(
-            session,
-            robot_duid,
-            schedules,
-            captured_at,
-            "startup-backfill",
-        ):
-            created += 1
-    return created
-
-
-def roborock_cleaning_profile_payload(profile: RoborockCleaningProfile) -> Dict[str, Any]:
-    values = {
-        "cleaning_type": profile.cleaning_type,
-        "fan_power": profile.fan_power,
-        "water_box_mode": profile.water_box_mode,
-        "mop_mode": profile.mop_mode,
-        "repeat": profile.repeat,
-    }
-    return {
-        "id": profile.id,
-        "slug": profile.slug,
-        "name": profile.name,
-        "description": profile.description or "",
-        "cleaningType": profile.cleaning_type,
-        "cleaningTypeLabel": CLEANING_TYPE_LABELS.get(profile.cleaning_type, profile.cleaning_type),
-        "fanPower": profile.fan_power,
-        "fanLabel": roborock_fan_label(profile.fan_power),
-        "waterBoxMode": profile.water_box_mode,
-        "waterLabel": roborock_water_label(profile.water_box_mode),
-        "mopMode": profile.mop_mode,
-        "mopLabel": roborock_mop_label(profile.mop_mode),
-        "repeat": profile.repeat,
-        "roundsLabel": roborock_rounds_label(profile.repeat),
-        "summary": cleaning_profile_summary(values),
-        "active": bool(profile.active),
-        "builtin": bool(profile.builtin),
-        "createdAt": api_local_iso(utc_naive_to_local_naive(profile.created_at)),
-        "updatedAt": api_local_iso(utc_naive_to_local_naive(profile.updated_at)),
-    }
-
-
-async def ensure_default_roborock_cleaning_profiles(session) -> None:
-    existing = (
-        await session.execute(
-            select(RoborockCleaningProfile).where(
-                RoborockCleaningProfile.slug.in_([row["slug"] for row in DEFAULT_CLEANING_PROFILES])
-            )
-        )
-    ).scalars().all()
-    existing_slugs = {row.slug for row in existing}
-    now = datetime.utcnow()
-    for values in DEFAULT_CLEANING_PROFILES:
-        if values["slug"] in existing_slugs:
-            continue
-        session.add(
-            RoborockCleaningProfile(
-                **values,
-                active=True,
-                builtin=True,
-                created_at=now,
-                updated_at=now,
-            )
-        )
-
-
-async def ensure_default_roborock_door_automation(session) -> Optional[RoborockDoorAutomation]:
-    robot = (
-        await session.execute(
-            select(RoborockRobot).where(func.lower(RoborockRobot.name) == "1.etg b")
-        )
-    ).scalars().first()
-    if not robot:
-        return None
-    existing = (
-        await session.execute(
-            select(RoborockDoorAutomation).where(RoborockDoorAutomation.robot_duid == robot.duid)
-        )
-    ).scalars().first()
-    if existing:
-        return existing
-    await session.flush()
-    profile = (
-        await session.execute(
-            select(RoborockCleaningProfile)
-            .where(RoborockCleaningProfile.slug == "vacuum-normal")
-            .limit(1)
-        )
-    ).scalars().first()
-    if not profile:
-        profile = (
-            await session.execute(
-                select(RoborockCleaningProfile)
-                .where(
-                    RoborockCleaningProfile.cleaning_type == "vacuum",
-                    RoborockCleaningProfile.active == True,
-                )
-                .order_by(RoborockCleaningProfile.id)
-                .limit(1)
-            )
-        ).scalars().first()
-    if not profile:
-        return None
-    automation = RoborockDoorAutomation(
-        robot_duid=robot.duid,
-        door_device_id=541,
-        enabled=False,
-        opening_threshold=10,
-        minimum_interval_minutes=60,
-        zone_numbers=[1],
-        profile_id=profile.id,
-        counter_reset_at=local_now_naive(),
-        status="disabled",
-        created_at=local_now_naive(),
-        updated_at=local_now_naive(),
-    )
-    session.add(automation)
-    await session.flush()
-    return automation
-
-
-async def import_roborock_cleaning_zones(
-    session,
-    robot_duid: str,
-    schedules: Iterable[Any],
-    imported_by: str,
-) -> Dict[str, Any]:
-    candidates = discover_roborock_zone_candidates(schedules)
-    if not candidates:
-        return {"imported": 0, "created": 0, "updated": 0, "zones": []}
-
-    existing_pairs = (
-        await session.execute(
-            select(RoborockCleaningZoneMapping, CleaningZone)
-            .join(CleaningZone, CleaningZone.id == RoborockCleaningZoneMapping.zone_id)
-            .where(RoborockCleaningZoneMapping.robot_duid == robot_duid)
-        )
-    ).all()
-    proposed_segments = {zone.zone_number: mapping.segment_id for mapping, zone in existing_pairs}
-    proposed_segments.update({candidate.zone_number: candidate.segment_id for candidate in candidates})
-    segment_owners: Dict[str, int] = {}
-    for zone_number, segment_id in proposed_segments.items():
-        previous_zone = segment_owners.get(segment_id)
-        if previous_zone is not None and previous_zone != zone_number:
-            raise RoborockZoneScheduleError(
-                f"Segment {segment_id} er allerede koblet til Sone {previous_zone} for denne roboten"
-            )
-        segment_owners[segment_id] = zone_number
-
-    zone_numbers = [candidate.zone_number for candidate in candidates]
-    zones = (
-        await session.execute(select(CleaningZone).where(CleaningZone.zone_number.in_(zone_numbers)))
-    ).scalars().all()
-    zones_by_number = {zone.zone_number: zone for zone in zones}
-    now = datetime.utcnow()
-    created = 0
-    for zone_number in zone_numbers:
-        if zone_number not in zones_by_number:
-            zone = CleaningZone(
-                zone_number=zone_number,
-                name=f"Sone {zone_number}",
-                created_at=now,
-                updated_at=now,
-            )
-            session.add(zone)
-            zones_by_number[zone_number] = zone
-    await session.flush()
-
-    mappings_by_zone_id = {mapping.zone_id: mapping for mapping, _zone in existing_pairs}
-    rows = []
-    for candidate in candidates:
-        zone = zones_by_number[candidate.zone_number]
-        mapping = mappings_by_zone_id.get(zone.id)
-        if not mapping:
-            mapping = RoborockCleaningZoneMapping(robot_duid=robot_duid, zone_id=zone.id)
-            session.add(mapping)
-            created += 1
-        mapping.segment_id = candidate.segment_id
-        mapping.source_schedule_id = candidate.schedule_id
-        mapping.source_cron = candidate.cron
-        mapping.imported_at = now
-        mapping.imported_by = imported_by
-        rows.append(
-            {
-                "zoneNumber": zone.zone_number,
-                "name": zone.name,
-                "segmentId": mapping.segment_id,
-                "sourceScheduleId": mapping.source_schedule_id,
-                "sourceCron": mapping.source_cron,
-                "importedAt": api_local_iso(utc_naive_to_local_naive(mapping.imported_at)),
-                "importedBy": mapping.imported_by,
-            }
-        )
-    return {
-        "imported": len(rows),
-        "created": created,
-        "updated": len(rows) - created,
-        "zones": sorted(rows, key=lambda row: row["zoneNumber"]),
-    }
-
-
-def hash_access_key(value: str) -> str:
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
-
-
-def normalize_username(value: str) -> str:
-    return value.strip().casefold()
-
-
-def credential_hash(username: str, password: str) -> str:
-    return hash_access_key(normalize_username(username) + "\0" + password)
-
-
-def credential_prefix(username: str, password: str) -> str:
-    return "key_" + credential_hash(username, password)[:8]
-
-
-def access_password_hash(username: str, password: str, *, is_master: bool = False) -> str:
-    if is_master or normalize_username(username) == "master":
-        return hash_access_key(password)
-    return credential_hash(username, password)
-
-
-def access_key_prefix(username: str, password: str, *, is_master: bool = False) -> str:
-    if is_master or normalize_username(username) == "master":
-        return "sun2_master"
-    return credential_prefix(username, password)
-
-
-def client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else ""
-
-
-def presented_credentials(request: Request) -> tuple[Optional[str], Optional[str]]:
-    authorization = request.headers.get("authorization", "")
-    if authorization.lower().startswith("basic "):
-        try:
-            decoded = base64.b64decode(authorization.split(" ", 1)[1].strip()).decode("utf-8")
-            username, password = decoded.split(":", 1)
-            return username, password
-        except Exception:
-            return None, None
-    username = (
-        request.query_params.get("username")
-        or request.headers.get("x-access-username")
-    )
-    password = (
-        request.query_params.get("password")
-        or request.headers.get("x-access-password")
-    )
-    return username, password
-
-
-def presented_session_token(request: Request) -> Optional[str]:
-    return request.headers.get(AUTH_SESSION_HEADER_NAME) or request.cookies.get(AUTH_SESSION_COOKIE_NAME)
-
-
-def wants_html(request: Request) -> bool:
-    accept = request.headers.get("accept", "")
-    return "text/html" in accept or "*/*" in accept
-
-
-def is_public_request(request: Request) -> bool:
-    path = request.url.path
-    if path in PUBLIC_PATHS or any(path.startswith(prefix) for prefix in PUBLIC_PREFIXES):
-        return True
-    if request.method == "GET" and (path == "/api/config" or path.startswith("/api/config/")):
-        return True
-    return request.method == "POST" and path in {
-        "/events",
-        "/log",
-        "/api/auth/session",
-        "/api/energi/fibaro",
-        "/api/hc3/measurements/log",
-        "/api/hc3/door-events",
-    }
-
-
-async def parse_form_body(request: Request) -> Dict[str, str]:
-    raw = (await request.body()).decode("utf-8")
-    parsed = parse_qs(raw, keep_blank_values=True)
-    return {key: values[-1] if values else "" for key, values in parsed.items()}
-
-
-async def log_access_attempt(
-    request: Request,
-    success: bool,
-    reason: str,
-    access_key: Optional[AccessKey] = None,
-    attempted_username: Optional[str] = None,
-):
-    notify_master = success and should_publish_access_ntfy(request, access_key, reason)
-    now_value = datetime.utcnow()
-    normalized_attempted_username = normalize_username(attempted_username or "")
-    async with async_session() as session:
-        log_row = AccessLog(
-            access_key_id=access_key.id if access_key else None,
-            key_name=access_key.name if access_key else normalized_attempted_username or None,
-            key_prefix=access_key.key_prefix if access_key else None,
-            path=request.url.path,
-            method=request.method,
-            ip=client_ip(request),
-            user_agent=request.headers.get("user-agent", ""),
-            success=success,
-            reason=reason,
-        )
-        session.add(log_row)
-        if access_key and success:
-            values = {
-                "last_seen_at": now_value,
-                "last_ip": client_ip(request),
-                "last_user_agent": request.headers.get("user-agent", ""),
-                "uses_count": func.coalesce(AccessKey.uses_count, 0) + 1,
-            }
-            if notify_master:
-                values["last_notified_at"] = now_value
-            await session.execute(update(AccessKey).where(AccessKey.id == access_key.id).values(**values))
-        elif not success and normalized_attempted_username and normalized_attempted_username != "master":
-            await session.flush()
-            user_result = await session.execute(
-                select(AccessKey)
-                .where(AccessKey.name == normalized_attempted_username)
-                .where(AccessKey.is_master == False)
-                .where(AccessKey.active == True)
-                .order_by(AccessKey.id.desc())
-                .limit(1)
-            )
-            user_key = user_result.scalars().first()
-            if user_key:
-                recent_failures = (
-                    await session.execute(
-                        select(AccessLog.success)
-                        .where(AccessLog.key_name == normalized_attempted_username)
-                        .order_by(AccessLog.timestamp.desc(), AccessLog.id.desc())
-                        .limit(ACCESS_FAILED_DISABLE_THRESHOLD)
-                    )
-                ).scalars().all()
-                if len(recent_failures) >= ACCESS_FAILED_DISABLE_THRESHOLD and all(value is False for value in recent_failures):
-                    user_key.active = False
-                    log_row.access_key_id = user_key.id
-                    log_row.key_prefix = user_key.key_prefix
-                    log_row.reason = f"{reason}_auto_deactivated_after_{ACCESS_FAILED_DISABLE_THRESHOLD}_failures"
-        await session.commit()
-    if notify_master and access_key:
-        asyncio.create_task(
-            publish_access_ntfy(
-                access_key.name,
-                access_key.role,
-                access_key.is_master,
-                request.method,
-                request.url.path,
-                client_ip(request),
-                reason,
-            )
-        )
-
-
-async def find_access_key(username: Optional[str], password: Optional[str]) -> Optional[AccessKey]:
-    if not username or not password:
-        return None
-    normalized_username = normalize_username(username)
-    hashed = access_password_hash(normalized_username, password, is_master=normalized_username == "master")
-    async with async_session() as session:
-        result = await session.execute(
-            select(AccessKey)
-            .where(AccessKey.name == normalized_username)
-            .where(AccessKey.key_hash == hashed)
-            .where(AccessKey.active == True)
-        )
-        return result.scalars().first()
-
-
-def hash_auth_session_token(token: str) -> str:
-    return hashlib.sha256(token.encode("utf-8")).hexdigest()
-
-
-async def create_auth_session(access_key: AccessKey, request: Request) -> str:
-    token = secrets.token_urlsafe(32)
-    now_value = datetime.utcnow()
-    async with async_session() as session:
-        session.add(
-            AuthSession(
-                token_hash=hash_auth_session_token(token),
-                access_key_id=access_key.id,
-                credential_hash_at_issue=access_key.key_hash,
-                created_at=now_value,
-                expires_at=now_value + timedelta(seconds=AUTH_SESSION_MAX_AGE_SECONDS),
-                created_ip=client_ip(request),
-                user_agent=request.headers.get("user-agent", ""),
-            )
-        )
-        await session.execute(
-            delete(AuthSession).where(
-                or_(
-                    AuthSession.expires_at <= now_value,
-                    and_(AuthSession.revoked_at.is_not(None), AuthSession.revoked_at <= now_value - timedelta(days=7)),
-                )
-            )
-        )
-        await session.commit()
-    return token
-
-
-async def find_auth_session(token: Optional[str]) -> Optional[tuple[AccessKey, int]]:
-    if not token:
-        return None
-    now_value = datetime.utcnow()
-    async with async_session() as session:
-        result = await session.execute(
-            select(AuthSession, AccessKey)
-            .join(AccessKey, AccessKey.id == AuthSession.access_key_id)
-            .where(AuthSession.token_hash == hash_auth_session_token(token))
-            .where(AuthSession.revoked_at.is_(None))
-            .where(AuthSession.expires_at > now_value)
-            .where(AccessKey.active == True)
-            .limit(1)
-        )
-        row = result.first()
-        if not row:
-            return None
-        auth_session, access_key = row
-        if not secrets.compare_digest(auth_session.credential_hash_at_issue, access_key.key_hash):
-            auth_session.revoked_at = now_value
-            await session.commit()
-            return None
-        if auth_session.last_seen_at is None or auth_session.last_seen_at < now_value - timedelta(minutes=5):
-            auth_session.last_seen_at = now_value
-            await session.commit()
-        return access_key, auth_session.id
-
-
-async def revoke_auth_session(session_id: Optional[int]) -> None:
-    if not session_id:
-        return
-    async with async_session() as session:
-        await session.execute(
-            update(AuthSession)
-            .where(AuthSession.id == session_id)
-            .where(AuthSession.revoked_at.is_(None))
-            .values(revoked_at=datetime.utcnow())
-        )
-        await session.commit()
-
-
-def require_master(request: Request):
-    if not getattr(request.state, "auth_is_master", False):
-        return JSONResponse({"detail": "Masterbruker kreves"}, status_code=403)
-    return None
-
-
-def access_role(access_key: Optional[AccessKey]) -> str:
-    if not access_key:
-        return "viewer"
-    if access_key.is_master:
-        return "master"
-    role = (access_key.role or "viewer").strip().lower()
-    if role not in ["viewer", "settings"]:
-        return "viewer"
-    return role
-
-
-def access_role_label(role: Optional[str], is_master: bool = False) -> str:
-    if is_master or role == "master":
-        return "Master"
-    if role == "settings":
-        return "Innstillinger"
-    return "Vanlig"
-
-
-def require_settings_access(request: Request):
-    if not getattr(request.state, "auth_can_settings", False):
-        return JSONResponse({"detail": "Tilgang til innstillinger kreves"}, status_code=403)
-    return None
-
-
-def has_car_info_app_access(request: Request) -> bool:
-    token = (request.headers.get("x-car-info-token") or request.query_params.get("car_info_token") or "").strip()
-    return bool(CAR_INFO_APP_TOKEN and token and token == CAR_INFO_APP_TOKEN)
-
-
-def has_koble_worker_access(request: Request) -> bool:
-    token = (request.headers.get("x-koble-token") or request.query_params.get("koble_token") or "").strip()
-    allowed_tokens = {value for value in [KOBLE_WORKER_TOKEN, CAR_INFO_APP_TOKEN] if value}
-    return bool(token and token in allowed_tokens)
-
-
-def is_car_info_app_request_path(path: str) -> bool:
-    return path == "/api/parkering/kjoretoy/car-info-kandidater" or bool(
-        re.fullmatch(r"/api/parkering/kjoretoy/[A-Za-z0-9]+/car-info", path or "")
-    )
-
-
-def is_koble_worker_request_path(path: str) -> bool:
-    return bool((path or "").startswith("/api/koble/worker/"))
-
-
-def require_settings_or_car_info_access(request: Request):
-    if has_car_info_app_access(request):
-        return None
-    return require_settings_access(request)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 AXIS_SNAPSHOT_FILENAME_RE = re.compile(r"^axis_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})\.jpg$")
 AXIS_SNAPSHOT_ID_RE = re.compile(r"^\d{14}$")
 
 
-def parse_axis_snapshot_time(path: Path) -> Optional[datetime]:
-    match = AXIS_SNAPSHOT_FILENAME_RE.match(path.name)
-    if not match:
-        return None
-    try:
-        return datetime.strptime(f"{match.group(1)} {match.group(2)}", "%Y-%m-%d %H-%M-%S")
-    except ValueError:
-        return None
-
-
-def axis_snapshot_id(captured_at: datetime) -> str:
-    return normalize_local_naive(captured_at).strftime("%Y%m%d%H%M%S")
-
-
-def parse_axis_snapshot_id(snapshot_id: str) -> Optional[datetime]:
-    if not AXIS_SNAPSHOT_ID_RE.fullmatch((snapshot_id or "").strip()):
-        return None
-    try:
-        return datetime.strptime(snapshot_id, "%Y%m%d%H%M%S")
-    except ValueError:
-        return None
-
-
-def axis_snapshot_path_for_id(snapshot_id: str, root: Path = SUN2_AXIS_SNAPSHOT_ROOT) -> Optional[tuple[datetime, Path]]:
-    captured_at = parse_axis_snapshot_id(snapshot_id)
-    if captured_at is None:
-        return None
-    root_resolved = root.resolve()
-    direct = (
-        root_resolved
-        / captured_at.strftime("%Y-%m-%d")
-        / f"axis_{captured_at.strftime('%Y-%m-%d_%H-%M-%S')}.jpg"
-    )
-    try:
-        direct.resolve().relative_to(root_resolved)
-    except (OSError, ValueError):
-        return None
-    if direct.is_file():
-        return captured_at, direct
-    for candidate_at, path in axis_snapshot_day_candidates(captured_at.date(), root):
-        if candidate_at == captured_at:
-            return candidate_at, path
-    return None
-
-
-def axis_snapshot_day_candidates(day: date, root: Path = SUN2_AXIS_SNAPSHOT_ROOT) -> list[tuple[datetime, Path]]:
-    root_resolved = root.resolve()
-    day_dir = root_resolved / day.isoformat()
-    if not day_dir.is_dir():
-        return []
-    try:
-        day_dir.resolve().relative_to(root_resolved)
-    except (OSError, ValueError):
-        return []
-
-    cache_key = (str(root_resolved), day.isoformat())
-    stat = day_dir.stat()
-    ttl = (
-        SUN2_AXIS_SNAPSHOT_DAY_CACHE_CURRENT_SECONDS
-        if day >= local_now_naive().date()
-        else SUN2_AXIS_SNAPSHOT_DAY_CACHE_ARCHIVE_SECONDS
-    )
-    cached = axis_snapshot_day_cache.get(cache_key)
-    if (
-        cached
-        and cached.get("mtime_ns") == stat.st_mtime_ns
-        and float(cached.get("expires_at") or 0) > monotonic()
-    ):
-        return list(cached.get("candidates") or [])
-
-    candidates: list[tuple[datetime, Path]] = []
-    for path in day_dir.glob("*.jpg"):
-        captured_at = parse_axis_snapshot_time(path)
-        if captured_at is None:
-            continue
-        try:
-            path.resolve().relative_to(root_resolved)
-        except (OSError, ValueError):
-            continue
-        candidates.append((captured_at, path))
-    candidates = sorted(candidates, key=lambda item: item[0])
-    axis_snapshot_day_cache[cache_key] = {
-        "mtime_ns": stat.st_mtime_ns,
-        "expires_at": monotonic() + ttl,
-        "candidates": candidates,
-    }
-    return list(candidates)
-
-
-def axis_snapshot_archive_days(root: Path = SUN2_AXIS_SNAPSHOT_ROOT) -> list[date]:
-    if not root.exists():
-        return []
-    root_resolved = root.resolve()
-    days: list[date] = []
-    for path in root_resolved.iterdir():
-        if not path.is_dir():
-            continue
-        try:
-            path.resolve().relative_to(root_resolved)
-            days.append(date.fromisoformat(path.name))
-        except (OSError, ValueError):
-            continue
-    return sorted(days)
-
-
-def axis_snapshot_candidates(
-    root: Path = SUN2_AXIS_SNAPSHOT_ROOT,
-    start_at: Optional[datetime] = None,
-    end_at: Optional[datetime] = None,
-) -> list[tuple[datetime, Path]]:
-    if not root.exists():
-        return []
-    if start_at or end_at:
-        start_bound = normalize_local_naive(start_at) if start_at else normalize_local_naive(end_at)
-        end_bound = normalize_local_naive(end_at) if end_at else normalize_local_naive(start_at)
-        if start_bound is None or end_bound is None:
-            return []
-        if end_bound < start_bound:
-            start_bound, end_bound = end_bound, start_bound
-        candidates: list[tuple[datetime, Path]] = []
-        for day in iter_dates(start_bound.date(), end_bound.date()):
-            candidates.extend(
-                item
-                for item in axis_snapshot_day_candidates(day, root)
-                if start_bound <= item[0] <= end_bound
-            )
-        return sorted(candidates, key=lambda item: item[0])
-
-    candidates: list[tuple[datetime, Path]] = []
-    for day in axis_snapshot_archive_days(root):
-        candidates.extend(axis_snapshot_day_candidates(day, root))
-    return sorted(candidates, key=lambda item: item[0])
-
-
-def closest_axis_snapshot_index(candidates: list[tuple[datetime, Path]], target_at: datetime) -> int:
-    if not candidates:
-        return -1
-    times = [item[0] for item in candidates]
-    index = bisect_left(times, target_at)
-    if index <= 0:
-        return 0
-    if index >= len(candidates):
-        return len(candidates) - 1
-    before_delta = abs((times[index - 1] - target_at).total_seconds())
-    after_delta = abs((times[index] - target_at).total_seconds())
-    return index - 1 if before_delta <= after_delta else index
-
-
-def nearest_axis_snapshot(
-    candidates: list[tuple[datetime, Path]],
-    target_at: datetime,
-    tolerance_seconds: int = SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS,
-    times: Optional[list[datetime]] = None,
-    excluded_ids: Optional[set[str]] = None,
-) -> Optional[tuple[datetime, Path, float]]:
-    if not candidates:
-        return None
-    times = times or [item[0] for item in candidates]
-    excluded_ids = excluded_ids or set()
-    start = bisect_left(times, target_at - timedelta(seconds=tolerance_seconds))
-    end = bisect_right(times, target_at + timedelta(seconds=tolerance_seconds))
-    options = [
-        item
-        for item in candidates[start:end]
-        if axis_snapshot_id(item[0]) not in excluded_ids
-    ]
-    if not options:
-        return None
-    captured_at, path = min(options, key=lambda item: abs((item[0] - target_at).total_seconds()))
-    delta_seconds = abs((captured_at - target_at).total_seconds())
-    return captured_at, path, delta_seconds
-
-
-def axis_snapshot_series_around(
-    primary_captured_at: datetime,
-    root: Path = SUN2_AXIS_SNAPSHOT_ROOT,
-) -> list[tuple[int, datetime, Path, bool]]:
-    primary_captured_at = normalize_local_naive(primary_captured_at)
-    if primary_captured_at is None:
-        return []
-    day_start = datetime.combine(primary_captured_at.date(), time.min)
-    day_end = datetime.combine(primary_captured_at.date(), time.max.replace(microsecond=0))
-    candidates = axis_snapshot_candidates(root=root, start_at=day_start, end_at=day_end)
-    if not candidates:
-        return []
-    selected_index = closest_axis_snapshot_index(candidates, primary_captured_at)
-    if selected_index < 0:
-        return []
-    selected_at = candidates[selected_index][0]
-    selected_id = axis_snapshot_id(selected_at)
-    window_start = max(0, selected_index - 2)
-    window_end = min(len(candidates), selected_index + 3)
-    primary_offset = -SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS
-    series: list[tuple[int, datetime, Path, bool]] = []
-    for captured_at, path in candidates[window_start:window_end]:
-        relative_seconds = int(round((captured_at - selected_at).total_seconds()))
-        offset_seconds = primary_offset + relative_seconds
-        is_primary = axis_snapshot_id(captured_at) == selected_id
-        series.append((offset_seconds, captured_at, path, is_primary))
-    return series
-
-
-def sun2_session_axis_start_at(row: Sun2TanningSession) -> Optional[datetime]:
-    started_at = normalize_local_naive(row.started_at)
-    if not started_at:
-        return None
-    if started_at.second == 0 and started_at.microsecond == 0:
-        raw_time = str((row.raw or {}).get("Tidspunkt") or (row.raw or {}).get("tidspunkt") or "")
-        if raw_time and not re.search(r"\d{1,2}:\d{2}:\d{2}", raw_time):
-            started_at = started_at + timedelta(seconds=SUN2_AXIS_SNAPSHOT_MINUTE_ASSUMED_SECOND)
-    return started_at
-
-
-def sun2_session_axis_target_at(row: Sun2TanningSession) -> Optional[datetime]:
-    started_at = sun2_session_axis_start_at(row)
-    if not started_at:
-        return None
-    return started_at - timedelta(seconds=SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS)
-
-
-def sun2_session_axis_target_series(row: Sun2TanningSession) -> list[tuple[int, datetime, bool]]:
-    started_at = sun2_session_axis_start_at(row)
-    if not started_at:
-        return []
-    primary_offset = -SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS
-    return [
-        (offset_seconds, started_at + timedelta(seconds=offset_seconds), offset_seconds == primary_offset)
-        for offset_seconds in SUN2_AXIS_SNAPSHOT_SERIES_OFFSETS_SECONDS
-    ]
-
-
-def primary_sun2_session_image(images: Iterable[Sun2TanningSessionImage]) -> Optional[Sun2TanningSessionImage]:
-    rows = list(images)
-    if not rows:
-        return None
-    primary_offset = -SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS
-    primary_rows = [image for image in rows if bool(getattr(image, "is_primary", False))]
-    if primary_rows:
-        return sorted(primary_rows, key=lambda image: image.created_at or datetime.min, reverse=True)[0]
-    offset_rows = [image for image in rows if int_or_zero(getattr(image, "offset_seconds", 0)) == primary_offset]
-    if offset_rows:
-        return sorted(offset_rows, key=lambda image: image.created_at or datetime.min, reverse=True)[0]
-    return sorted(rows, key=lambda image: abs(int_or_zero(getattr(image, "offset_seconds", 0)) - primary_offset))[0]
-
-
-def sun2_session_image_meta_options():
-    return load_only(
-        Sun2TanningSessionImage.id,
-        Sun2TanningSessionImage.session_id,
-        Sun2TanningSessionImage.captured_at,
-        Sun2TanningSessionImage.target_at,
-        Sun2TanningSessionImage.offset_seconds,
-        Sun2TanningSessionImage.is_primary,
-        Sun2TanningSessionImage.delta_seconds,
-        Sun2TanningSessionImage.source,
-        Sun2TanningSessionImage.created_at,
-        Sun2TanningSessionImage.byte_size,
-        Sun2TanningSessionImage.content_type,
-    )
-
-
-def sun2_session_image_payload(row: Sun2TanningSession, image: Sun2TanningSessionImage) -> Dict[str, Any]:
-    captured_at = normalize_local_naive(image.captured_at)
-    image_url = f"/soling/enkeltimer/{row.id}/bilder/{image.id}.jpg" if image.id else f"/soling/enkeltimer/{row.id}/bilde.jpg"
-    snapshot_id_value = axis_snapshot_id(captured_at) if captured_at else ""
-    offset_seconds = int_or_zero(getattr(image, "offset_seconds", None))
-    return {
-        "id": image.id,
-        "snapshotId": snapshot_id_value,
-        "capturedAt": captured_at.isoformat() if captured_at else None,
-        "label": captured_at.strftime("%d.%m.%Y %H:%M:%S") if captured_at else "",
-        "imageUrl": image_url,
-        "offsetSeconds": offset_seconds,
-        "offsetLabel": f"{offset_seconds:+d} sek",
-        "deltaSeconds": round(float_or_zero(image.delta_seconds), 1),
-        "isPrimary": bool(image.is_primary),
-        "source": image.source,
-    }
-
-
-def axis_snapshot_browser_payload(
-    row: Sun2TanningSession,
-    images: Optional[list[Sun2TanningSessionImage]] = None,
-    snapshot_id_value: Optional[str] = None,
-) -> Dict[str, Any]:
-    images = sorted(images or [], key=lambda image: (int_or_zero(getattr(image, "offset_seconds", 0)), image.captured_at or datetime.min))
-    primary_image = primary_sun2_session_image(images)
-    saved_images = [sun2_session_image_payload(row, image) for image in images]
-    target_at = sun2_session_axis_target_at(row)
-    linked_id = axis_snapshot_id(primary_image.captured_at) if primary_image and primary_image.captured_at else None
-    requested_at = parse_axis_snapshot_id(snapshot_id_value or "") if snapshot_id_value else None
-    preferred_at = requested_at or (normalize_local_naive(primary_image.captured_at) if primary_image and primary_image.captured_at else None) or target_at
-    archive_day = (preferred_at or target_at or normalize_local_naive(row.started_at) or local_now_naive()).date()
-    archive_start = datetime.combine(archive_day, time.min)
-    archive_end = datetime.combine(archive_day, time.max.replace(microsecond=0))
-    candidates = axis_snapshot_candidates(start_at=archive_start, end_at=archive_end)
-    selected_index = closest_axis_snapshot_index(candidates, preferred_at) if preferred_at else -1
-
-    current = None
-    previous_id = None
-    next_id = None
-    if selected_index >= 0:
-        captured_at, path = candidates[selected_index]
-        current_id = axis_snapshot_id(captured_at)
-        previous_id = axis_snapshot_id(candidates[selected_index - 1][0]) if selected_index > 0 else None
-        next_id = axis_snapshot_id(candidates[selected_index + 1][0]) if selected_index < len(candidates) - 1 else None
-        delta_seconds = abs((captured_at - target_at).total_seconds()) if target_at else None
-        current = {
-            "id": current_id,
-            "capturedAt": captured_at.isoformat(),
-            "label": captured_at.strftime("%d.%m.%Y %H:%M:%S"),
-            "filename": path.name,
-            "imageUrl": f"/api/soling/axis-snapshots/{current_id}/image",
-            "deltaSeconds": round(delta_seconds, 1) if delta_seconds is not None else None,
-            "isLinked": linked_id == current_id,
-        }
-
-    linked = None
-    if primary_image:
-        linked = sun2_session_image_payload(row, primary_image)
-
-    return {
-        "sessionId": row.id,
-        "startedAt": row.started_at.isoformat() if row.started_at else None,
-        "targetAt": target_at.isoformat() if target_at else None,
-        "targetLabel": target_at.strftime("%d.%m.%Y %H:%M:%S") if target_at else "",
-        "seriesOffsets": SUN2_AXIS_SNAPSHOT_SERIES_OFFSETS_SECONDS,
-        "snapshotRoot": str(SUN2_AXIS_SNAPSHOT_ROOT),
-        "archiveDay": archive_day.isoformat(),
-        "snapshotsFound": len(candidates),
-        "linked": linked,
-        "savedImages": saved_images,
-        "current": current,
-        "previousSnapshotId": previous_id,
-        "nextSnapshotId": next_id,
-        "canPrevious": previous_id is not None,
-        "canNext": next_id is not None,
-    }
-
-
-async def replace_sun2_session_image_with_axis_snapshot(
-    session,
-    session_id: int,
-    snapshot_id_value: str,
-) -> Dict[str, Any]:
-    snapshot = axis_snapshot_path_for_id(snapshot_id_value)
-    if snapshot is None:
-        raise HTTPException(status_code=404, detail="Fant ikke valgt Axis-bilde i arkivet.")
-    captured_at, path = snapshot
-    row = (
-        await session.execute(
-            select(Sun2TanningSession).where(Sun2TanningSession.id == session_id)
-        )
-    ).scalars().first()
-    if not row:
-        raise HTTPException(status_code=404, detail="Fant ikke soltimen.")
-
-    series = axis_snapshot_series_around(captured_at)
-    if not series:
-        series = [(-SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS, captured_at, path, True)]
-    primary_target_at = sun2_session_axis_target_at(row)
-    primary_offset = -SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS
-    await session.execute(
-        delete(Sun2TanningSessionImage).where(Sun2TanningSessionImage.session_id == row.id)
-    )
-    added_primary = False
-    for offset_seconds, image_captured_at, image_path, is_primary in series:
-        content = image_path.read_bytes()
-        if not content.startswith(b"\xff\xd8"):
-            raise HTTPException(status_code=400, detail=f"Valgt bildefil er ikke et gyldig JPEG-bilde: {image_path.name}")
-        relative_seconds = offset_seconds - primary_offset
-        target_at = primary_target_at + timedelta(seconds=relative_seconds) if primary_target_at else None
-        delta_seconds = abs((image_captured_at - target_at).total_seconds()) if target_at else None
-        stat = image_path.stat()
-        image = Sun2TanningSessionImage(
-            session_id=row.id,
-            captured_at=image_captured_at,
-            target_at=target_at,
-            offset_seconds=offset_seconds,
-            is_primary=is_primary,
-            delta_seconds=delta_seconds,
-            source_path=str(image_path),
-            source_mtime=datetime.fromtimestamp(stat.st_mtime, LOCAL_TZ).replace(tzinfo=None),
-            content_type="image/jpeg",
-            image_bytes=content,
-            byte_size=len(content),
-            sha256=hashlib.sha256(content).hexdigest(),
-            source="axis_snapshot_manual",
-        )
-        session.add(image)
-        added_primary = added_primary or is_primary
-    if not added_primary:
-        raise HTTPException(status_code=400, detail="Kunne ikke finne valgt hovedbilde i bildepakken.")
-    await session.flush()
-    images = (
-        await session.execute(
-            select(Sun2TanningSessionImage)
-            .options(sun2_session_image_meta_options())
-            .where(Sun2TanningSessionImage.session_id == row.id)
-            .order_by(Sun2TanningSessionImage.offset_seconds.asc(), Sun2TanningSessionImage.captured_at.asc())
-        )
-    ).scalars().all()
-    return axis_snapshot_browser_payload(row, images, snapshot_id_value)
-
-
-async def set_sun2_session_primary_image(
-    session,
-    session_id: int,
-    image_id: int,
-) -> Dict[str, Any]:
-    row = (
-        await session.execute(
-            select(Sun2TanningSession).where(Sun2TanningSession.id == session_id)
-        )
-    ).scalars().first()
-    if not row:
-        raise HTTPException(status_code=404, detail="Fant ikke soltimen.")
-
-    image = (
-        await session.execute(
-            select(Sun2TanningSessionImage)
-            .options(sun2_session_image_meta_options())
-            .where(Sun2TanningSessionImage.session_id == session_id)
-            .where(Sun2TanningSessionImage.id == image_id)
-        )
-    ).scalars().first()
-    if not image:
-        raise HTTPException(status_code=404, detail="Fant ikke bildet på denne soltimen.")
-
-    await session.execute(
-        update(Sun2TanningSessionImage)
-        .where(Sun2TanningSessionImage.session_id == row.id)
-        .values(is_primary=False)
-    )
-    await session.execute(
-        update(Sun2TanningSessionImage)
-        .where(Sun2TanningSessionImage.id == image.id)
-        .values(is_primary=True)
-    )
-    await session.flush()
-
-    images = (
-        await session.execute(
-            select(Sun2TanningSessionImage)
-            .options(sun2_session_image_meta_options())
-            .where(Sun2TanningSessionImage.session_id == row.id)
-            .order_by(Sun2TanningSessionImage.offset_seconds.asc(), Sun2TanningSessionImage.captured_at.asc())
-        )
-    ).scalars().all()
-    return axis_snapshot_browser_payload(row, images, axis_snapshot_id(image.captured_at) if image.captured_at else None)
-
-
-async def link_axis_snapshots_to_sun2_sessions(
-    session,
-    days: int = 35,
-    limit: int = 5000,
-    tolerance_seconds: int = SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS,
-    replace: bool = False,
-) -> Dict[str, Any]:
-    days = max(1, min(int(days or 35), 3650))
-    limit = max(1, min(int(limit or 5000), 50000))
-    tolerance_seconds = max(1, min(int(tolerance_seconds or SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS), 300))
-    start_cutoff = local_now_naive() - timedelta(days=days)
-    result: Dict[str, Any] = {
-        "snapshot_root": str(SUN2_AXIS_SNAPSHOT_ROOT),
-        "snapshots_found": 0,
-        "sessions_checked": 0,
-        "linked": 0,
-        "already_linked": 0,
-        "no_match": 0,
-        "missing_file": 0,
-        "invalid_jpeg": 0,
-        "errors": 0,
-        "days": days,
-        "limit": limit,
-        "target_offset_seconds": SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS,
-        "target_offsets_seconds": SUN2_AXIS_SNAPSHOT_SERIES_OFFSETS_SECONDS,
-        "minute_assumed_second": SUN2_AXIS_SNAPSHOT_MINUTE_ASSUMED_SECOND,
-        "tolerance_seconds": tolerance_seconds,
-    }
-    rows = (
-        await session.execute(
-            select(Sun2TanningSession)
-            .where(Sun2TanningSession.started_at >= start_cutoff)
-            .order_by(Sun2TanningSession.started_at.desc())
-            .limit(limit)
-        )
-    ).scalars().all()
-    result["sessions_checked"] = len(rows)
-    if not rows:
-        return result
-
-    session_ids = [row.id for row in rows if row.id]
-    existing_image_rows = (
-            await session.execute(
-            select(
-                Sun2TanningSessionImage.session_id,
-                Sun2TanningSessionImage.offset_seconds,
-                Sun2TanningSessionImage.captured_at,
-            )
-            .where(Sun2TanningSessionImage.session_id.in_(session_ids))
-        )
-    ).all()
-    existing_by_session: dict[int, set[int]] = defaultdict(set)
-    used_snapshot_ids_by_session: dict[int, set[str]] = defaultdict(set)
-    for session_id, offset_seconds, captured_at in existing_image_rows:
-        if session_id is None:
-            continue
-        existing_by_session[int(session_id)].add(int_or_zero(offset_seconds))
-        if captured_at:
-            used_snapshot_ids_by_session[int(session_id)].add(axis_snapshot_id(captured_at))
-
-    needed_days: set[date] = set()
-    for row in rows:
-        if not row.id:
-            continue
-        existing_offsets = set() if replace else existing_by_session.get(row.id, set())
-        for offset_seconds, target_at, _is_primary in sun2_session_axis_target_series(row):
-            if offset_seconds in existing_offsets:
-                continue
-            needed_days.add((target_at - timedelta(seconds=tolerance_seconds)).date())
-            needed_days.add((target_at + timedelta(seconds=tolerance_seconds)).date())
-
-    candidates: list[tuple[datetime, Path]] = []
-    for candidate_day in sorted(needed_days):
-        candidates.extend(axis_snapshot_day_candidates(candidate_day))
-    candidates.sort(key=lambda item: item[0])
-    candidate_times = [item[0] for item in candidates]
-    result["snapshots_found"] = len(candidates)
-    result["snapshot_days_checked"] = len(needed_days)
-
-    for row in rows:
-        if not row.id:
-            continue
-        targets = sun2_session_axis_target_series(row)
-        if not targets:
-            result["no_match"] += 1
-            continue
-        existing_offsets = set() if replace else existing_by_session.get(row.id, set())
-        used_snapshot_ids = set() if replace else used_snapshot_ids_by_session.get(row.id, set()).copy()
-        if replace and existing_by_session.get(row.id):
-            await session.execute(delete(Sun2TanningSessionImage).where(Sun2TanningSessionImage.session_id == row.id))
-        for offset_seconds, target_at, is_primary in targets:
-            if offset_seconds in existing_offsets:
-                result["already_linked"] += 1
-                continue
-            match = nearest_axis_snapshot(
-                candidates,
-                target_at,
-                tolerance_seconds,
-                candidate_times,
-                excluded_ids=used_snapshot_ids,
-            )
-            if match is None:
-                result["no_match"] += 1
-                continue
-            captured_at, path, delta_seconds = match
-            try:
-                content = path.read_bytes()
-                if not content.startswith(b"\xff\xd8"):
-                    result["invalid_jpeg"] += 1
-                    continue
-                stat = path.stat()
-                image_values = {
-                    "session_id": row.id,
-                    "captured_at": captured_at,
-                    "target_at": target_at,
-                    "offset_seconds": offset_seconds,
-                    "is_primary": is_primary,
-                    "delta_seconds": delta_seconds,
-                    "source_path": str(path),
-                    "source_mtime": datetime.fromtimestamp(stat.st_mtime, LOCAL_TZ).replace(tzinfo=None),
-                    "content_type": "image/jpeg",
-                    "image_bytes": content,
-                    "byte_size": len(content),
-                    "sha256": hashlib.sha256(content).hexdigest(),
-                    "source": "axis_snapshot_backfill",
-                }
-                insert_result = await session.execute(
-                    pg_insert(Sun2TanningSessionImage)
-                    .values(**image_values)
-                    .on_conflict_do_nothing(index_elements=["session_id", "offset_seconds"])
-                    .returning(Sun2TanningSessionImage.id)
-                )
-                existing_offsets.add(offset_seconds)
-                if insert_result.scalar_one_or_none() is None:
-                    result["already_linked"] += 1
-                    continue
-                used_snapshot_ids.add(axis_snapshot_id(captured_at))
-                result["linked"] += 1
-            except FileNotFoundError:
-                result["missing_file"] += 1
-            except Exception:
-                logger.exception("Could not link Axis snapshot to SUN2 session %s offset %s", row.id, offset_seconds)
-                result["errors"] += 1
-    return result
-
-
-def get_sun2_axis_snapshot_link_lock() -> asyncio.Lock:
-    global sun2_axis_snapshot_link_lock
-    if sun2_axis_snapshot_link_lock is None:
-        sun2_axis_snapshot_link_lock = asyncio.Lock()
-    return sun2_axis_snapshot_link_lock
-
-
-async def run_sun2_axis_snapshot_link_once(
-    reason: str,
-    days: int = SUN2_AXIS_SNAPSHOT_LINK_DAYS,
-    limit: int = SUN2_AXIS_SNAPSHOT_LINK_LIMIT,
-    tolerance_seconds: int = SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS,
-    replace: bool = False,
-) -> Dict[str, Any]:
-    lock = get_sun2_axis_snapshot_link_lock()
-    if lock.locked():
-        logger.info("Axis SUN2 image link skipped, already running: reason=%s", reason)
-        return {"skipped": True, "reason": "already_running"}
-    async with lock:
-        async with async_session() as session:
-            result = await link_axis_snapshots_to_sun2_sessions(
-                session,
-                days=days,
-                limit=limit,
-                tolerance_seconds=tolerance_seconds,
-                replace=replace,
-            )
-            await session.commit()
-        if result.get("linked") or result.get("errors"):
-            logger.info(
-                "Axis SUN2 image link: reason=%s linked=%s already_linked=%s no_match=%s errors=%s snapshots=%s",
-                reason,
-                result.get("linked"),
-                result.get("already_linked"),
-                result.get("no_match"),
-                result.get("errors"),
-                result.get("snapshots_found"),
-            )
-        return result
-
-
-def schedule_sun2_axis_snapshot_link(reason: str, days: int = SUN2_AXIS_SNAPSHOT_LINK_DAYS) -> None:
-    if not SUN2_AXIS_SNAPSHOT_LINK_ENABLED:
-        return
-    asyncio.create_task(run_sun2_axis_snapshot_link_once(reason, days=days, limit=SUN2_AXIS_SNAPSHOT_LINK_LIMIT))
-
-
-async def sun2_axis_snapshot_link_worker() -> None:
-    await asyncio.sleep(SUN2_AXIS_SNAPSHOT_LINK_INITIAL_DELAY_SECONDS)
-    while True:
-        try:
-            await run_sun2_axis_snapshot_link_once("periodic")
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            logger.exception("Axis SUN2 image auto-link failed")
-        await asyncio.sleep(SUN2_AXIS_SNAPSHOT_LINK_INTERVAL_SECONDS)
-
-
-def minute_bucket(value: Optional[datetime]) -> datetime:
-    stamp = normalize_local_naive(value) or local_now_naive()
-    return stamp.replace(second=0, microsecond=0)
-
-
-def energy_sample_bucket(value: Optional[datetime]) -> datetime:
-    stamp = normalize_local_naive(value) or local_now_naive()
-    second = 30 if stamp.second >= 30 else 0
-    return stamp.replace(second=second, microsecond=0)
-
-
-def parse_day(value: Optional[str]) -> date:
-    if value:
-        try:
-            return date.fromisoformat(value)
-        except ValueError:
-            pass
-    return datetime.now(LOCAL_TZ).date()
-
-
-def parse_config_value(raw: Any, field: Dict[str, Any]):
-    field_type = field.get("type")
-    if field_type == "bool":
-        if isinstance(raw, bool):
-            return raw
-        return str(raw).strip().lower() in {"on", "true", "1", "yes"}
-    if raw in (None, ""):
-        return deepcopy(field["default"])
-    if field_type == "int":
-        try:
-            return int(float(raw))
-        except ValueError:
-            return int(field["default"])
-    if field_type == "float":
-        try:
-            return float(str(raw).replace(",", "."))
-        except ValueError:
-            return float(field["default"])
-    return str(raw).strip()
-
-
-def merge_config_values(key: str, values: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    merged = config_defaults(key)
-    if values:
-        for item_key, value in values.items():
-            if item_key in merged:
-                merged[item_key] = value
-    return merged
-
-
-def config_values_from_form(key: str, form: Dict[str, str]) -> Dict[str, Any]:
-    definition = config_definition(key)
-    values = config_defaults(key)
-    if not definition:
-        return values
-    for group in definition["groups"]:
-        for field in group["fields"]:
-            values[field["key"]] = parse_config_value(form.get(field["key"]), field)
-    return values
-
-
-def config_values_from_payload(key: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-    definition = config_definition(key)
-    values = config_defaults(key)
-    if not definition:
-        return values
-    source = payload.get("values") if isinstance(payload.get("values"), dict) else payload
-    for group in definition["groups"]:
-        for field in group["fields"]:
-            values[field["key"]] = parse_config_value(source.get(field["key"]), field)
-    return values
-
-
-def time_minutes(value: str) -> Optional[int]:
-    try:
-        hour, minute = str(value).split(":", 1)
-        return int(hour) * 60 + int(minute)
-    except (TypeError, ValueError):
-        return None
-
-
-def validate_config_values(key: str, values: Dict[str, Any]) -> list[str]:
-    errors: list[str] = []
-
-    def require_increasing(label: str, low_key: str, high_key: str):
-        if float(values[high_key]) <= float(values[low_key]):
-            errors.append(f"{label}: av-grensen må være høyere enn på-grensen.")
-
-    def require_lower_stop(label: str, stop_key: str, start_key: str):
-        if float(values[stop_key]) >= float(values[start_key]):
-            errors.append(f"{label}: stoppgrensen må være lavere enn startgrensen.")
-
-    def require_time_order(label: str, start_key: str, stop_key: str):
-        start = time_minutes(str(values[start_key]))
-        stop = time_minutes(str(values[stop_key]))
-        if start is None or stop is None:
-            errors.append(f"{label}: tidspunkt må være på formatet HH:MM.")
-        elif stop <= start:
-            errors.append(f"{label}: sluttid må være senere enn starttid.")
-
-    if key == "lights":
-        require_time_order("Lys åpningstid", "open_from", "close_at")
-        require_increasing("Lyslist", "lyslist_on_lux", "lyslist_off_lux")
-        require_increasing("Reklameplakater", "reklame_on_lux", "reklame_off_lux")
-        require_increasing("Spot foran glassvegg", "spot_glass_on_lux", "spot_glass_off_lux")
-        require_increasing("6xspot inngang", "spot_inngang_on_lux", "spot_inngang_off_lux")
-        require_increasing("Parkeringslys", "parkering_on_lux", "parkering_off_lux")
-        if int(values["decision_delay_seconds"]) < 0 or int(values["decision_delay_seconds"]) > 900:
-            errors.append("Bekreftelsestid bør være mellom 0 og 900 sekunder.")
-        if int(values["config_poll_minutes"]) < 1 or int(values["config_poll_minutes"]) > 60:
-            errors.append("HC3 config-henting bør være mellom 1 og 60 minutter.")
-    elif key == "ventilation":
-        require_time_order("Ventilasjon åpningstid", "open_from", "close_at")
-        require_lower_stop("VIP innluft", "vip_stop_temp", "vip_start_temp")
-        require_lower_stop("1./2.etg innluft", "floor_stop_temp", "floor_start_temp")
-        require_lower_stop("Takvifte loft", "loft_exhaust_stop_temp", "loft_exhaust_start_temp")
-        require_lower_stop("Avfukter kjeller", "basement_humidity_stop", "basement_humidity_start")
-        if int(values["afterrun_minutes"]) < 0 or int(values["afterrun_minutes"]) > 180:
-            errors.append("Ettergang bør være mellom 0 og 180 minutter.")
-        if int(values["exhaust_stop_before_close_minutes"]) < 0 or int(values["exhaust_stop_before_close_minutes"]) > 240:
-            errors.append("Stopp avtrekk før stenging bør være mellom 0 og 240 minutter.")
-
-    return errors
-
-
-def light_rules(values: Dict[str, Any]) -> list[str]:
-    return [
-        f"Lyslist slås på når lux er under {values['lyslist_on_lux']} og av når lux er over {values['lyslist_off_lux']}, innen {values['open_from']}-{values['close_at']}.",
-        f"Reklameplakater slås på når lux er under {values['reklame_on_lux']} og av når lux er over {values['reklame_off_lux']}, innen {values['open_from']}-{values['close_at']}.",
-        f"Spot foran glassvegg slås på under {values['spot_glass_on_lux']} lux og av over {values['spot_glass_off_lux']} lux, innen {values['open_from']}-{values['close_at']}.",
-        f"6xspot over inngang slås på under {values['spot_inngang_on_lux']} lux og av over {values['spot_inngang_off_lux']} lux, fra {values['open_from']} til {values['entrance_close_at']}.",
-        f"Parkeringslys slås på under {values['parkering_on_lux']} lux og av over {values['parkering_off_lux']} lux uavhengig av åpningstid.",
-        f"Alle lysendringer bekreftes etter {values['decision_delay_seconds']} sekunder for å unngå flimring.",
-    ]
-
-
-def ventilation_rules(values: Dict[str, Any]) -> list[str]:
-    return [
-        f"Normal ventilasjon vurderes mellom {values['open_from']} og {values['close_at']}; forkjøling kan starte {values['pre_cooling_from']} på varme dager.",
-        f"Mekanisk ventilasjon sperres når utetemperaturen er under {values['mechanical_min_outdoor_temp']}°C.",
-        f"VIP innluft starter over {values['vip_start_temp']}°C og stopper under {values['vip_stop_temp']}°C når ute er minst {values['outdoor_cooler_delta']}°C kaldere.",
-        f"2.etg innluft vurderer 1.etg og 2.etg, starter over {values['floor_start_temp']}°C og stopper under {values['floor_stop_temp']}°C.",
-        f"Takvifte starter når loftet er over {values['loft_exhaust_start_temp']}°C og stopper under {values['loft_exhaust_stop_temp']}°C, men ikke hvis inne er under {values['indoor_allow_exhaust_temp']}°C.",
-        f"Avtrekk stoppes {values['exhaust_stop_before_close_minutes']} minutter før stenging for å spare varme mot natten.",
-        "Hvis avtrekk er aktivt kan innluft tvinges for å unngå undertrykk, men ikke når ute er varmere enn inne med mindre loftet er sikkerhetsvarmt.",
-    ]
-
-
-def config_rules(key: str, values: Dict[str, Any]) -> list[str]:
-    if key == "lights":
-        return light_rules(values)
-    if key == "ventilation":
-        return ventilation_rules(values)
-    return []
-
-
-def config_summary_rows(key: str, values: Dict[str, Any]) -> list[Dict[str, str]]:
-    if key == "lights":
-        rows = []
-        for group in CONTROL_DEVICES["lights"]["groups"]:
-            window = "Hele døgnet"
-            if group["follows_opening_hours"]:
-                window = f"{values[group['time_from_key']]}-{values[group['time_to_key']]}"
-            rows.append(
-                {
-                    "name": group["name"],
-                    "device": group["key"],
-                    "start": f"PÅ under {values[group['on_lux_key']]} lux",
-                    "stop": f"AV over {values[group['off_lux_key']]} lux",
-                    "window": window,
-                    "note": "Styres av lux og tidsvindu" if group["follows_opening_hours"] else "Styres av lux uavhengig av åpningstid",
-                }
-            )
-        return rows
-
-    if key == "ventilation":
-        return [
-            {
-                "name": "Innluft VIP",
-                "device": "vip_intake",
-                "start": f"Start over {values['vip_start_temp']}°C",
-                "stop": f"Stopp under {values['vip_stop_temp']}°C",
-                "window": f"{values['open_from']}-{values['close_at']}",
-                "note": f"VIP vurderes mot ute minst {values['outdoor_cooler_delta']}°C kaldere",
-            },
-            {
-                "name": "Innluft 1./2.etg",
-                "device": "floor_intake",
-                "start": f"Start over {values['floor_start_temp']}°C",
-                "stop": f"Stopp under {values['floor_stop_temp']}°C",
-                "window": f"{values['open_from']}-{values['close_at']}",
-                "note": "Bruker 1.etg og 2.etg som grunnlag",
-            },
-            {
-                "name": "Takvifte avtrekk",
-                "device": "roof_exhaust",
-                "start": f"Loft over {values['loft_exhaust_start_temp']}°C",
-                "stop": f"Loft under {values['loft_exhaust_stop_temp']}°C",
-                "window": f"Stopper {values['exhaust_stop_before_close_minutes']} min før stenging",
-                "note": f"Ikke tillatt hvis inne er under {values['indoor_allow_exhaust_temp']}°C",
-            },
-            {
-                "name": "Avfukter kjeller",
-                "device": "dehumidifier_basement",
-                "start": f"Fukt over {values['basement_humidity_start']}%",
-                "stop": f"Fukt under {values['basement_humidity_stop']}%",
-                "window": f"Sperret under {values['basement_min_temp']}°C",
-                "note": "Bruker kjeller temperatur/fukt fra HC3 444/445",
-            },
-            {
-                "name": "Mekanisk sperre",
-                "device": "-",
-                "start": f"Tillatt over {values['mechanical_min_outdoor_temp']}°C ute",
-                "stop": f"Sperret under {values['mechanical_min_outdoor_temp']}°C ute",
-                "window": "Gjelder alle vifter",
-                "note": "Hindrer kald trekk og unødvendig varmetap",
-            },
-        ]
-
-    return []
-
-
-def config_stat_cards(key: str, values: Dict[str, Any], version: int) -> list[Dict[str, str]]:
-    if key == "lights":
-        return [
-            {"label": "Aktiv versjon", "value": str(version), "detail": "HC3 leser denne versjonen"},
-            {"label": "Runner-scene", "value": "362", "detail": "Kortkjørende Lua-styring"},
-            {"label": "Luxsensor", "value": "433", "detail": "Brukes av alle lysregler"},
-            {"label": "Sjekkintervall", "value": f"{values['config_poll_minutes']} min", "detail": "Trigger-scenen starter runneren"},
-        ]
-    if key == "ventilation":
-        return [
-            {"label": "Aktiv versjon", "value": str(version), "detail": "HC3 leser denne versjonen"},
-            {"label": "Runner-scene", "value": "363", "detail": "Kortkjørende Lua-styring"},
-            {"label": "Driftstid", "value": f"{values['open_from']}-{values['close_at']}", "detail": "Normal vurderingsperiode"},
-            {"label": "Utesperre", "value": f"{values['mechanical_min_outdoor_temp']}°C", "detail": "Stopper mekanisk ventilasjon"},
-        ]
-    return []
-
-
-def config_operational_notes(key: str, values: Dict[str, Any]) -> list[Dict[str, str]]:
-    if key == "lights":
-        return [
-            {
-                "title": "Når tar endringen effekt?",
-                "text": f"Trigger-scenen starter lys-runneren hvert {values['config_poll_minutes']} minutt. Runneren henter alltid siste config-versjon fra appen før den vurderer lux.",
-            },
-            {
-                "title": "Rask test",
-                "text": "Sett globalvariabelen UTE_LYS_TEST_LUX i HC3 til ønsket lux-verdi og kjør scene 362. Variabelen tømmes automatisk etter testen.",
-            },
-            {
-                "title": "Hysterese",
-                "text": "Lys slås på under på-grensen og av over av-grensen. Hvis lux ligger mellom disse verdiene beholdes gjeldende status.",
-            },
-        ]
-    if key == "ventilation":
-        return [
-            {
-                "title": "Når tar endringen effekt?",
-                "text": "Trigger-scenen starter ventilasjons-runneren hvert 5. minutt. Runneren henter alltid siste config-versjon fra appen før den styrer viftene.",
-            },
-            {
-                "title": "Rask test",
-                "text": "Bruk VENT_TEST_TEMP_INNE, VENT_TEST_TEMP_UTE og VENT_TEST_DIFF_W i HC3 og kjør scene 363. Testvariablene tømmes automatisk etter kjøring.",
-            },
-            {
-                "title": "Sikkerhet",
-                "text": "Mekanisk ventilasjon sperres ved for lav utetemperatur, og avtrekk skal ikke gå uten at innluft er vurdert samtidig.",
-            },
-        ]
-    return []
-
-
-def config_devices(key: str) -> Dict[str, Any]:
-    return deepcopy(CONTROL_DEVICES.get(key, {}))
-
-
-def config_payload(row: ControlConfig) -> Dict[str, Any]:
-    values = merge_config_values(row.key, row.values)
-    return {
-        "system": row.key,
-        "version": row.version,
-        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
-        "updated_by": row.updated_by,
-        "values": values,
-        "devices": config_devices(row.key),
-        "rules": config_rules(row.key, values),
-        "fallback_note": "HC3 skal bruke sist kjente verdier hvis API-et ikke kan nås.",
-    }
-
-
-async def get_or_create_config(session, key: str) -> Optional[ControlConfig]:
-    if key not in CONFIG_DEFINITIONS:
-        return None
-    row = (await session.execute(select(ControlConfig).where(ControlConfig.key == key))).scalars().first()
-    if row:
-        row.values = merge_config_values(key, row.values)
-        return row
-    row = ControlConfig(key=key, version=1, values=config_defaults(key), updated_by="system")
-    session.add(row)
-    session.add(ControlConfigHistory(config_key=key, version=1, values=row.values, changed_by="system", reason="Standardverdier opprettet"))
-    await session.commit()
-    await session.refresh(row)
-    return row
-
-
-def day_zoom_config(value: Optional[str]):
-    for option in DAY_ZOOM_OPTIONS:
-        if option["key"] == value:
-            return option
-    return DAY_ZOOM_OPTIONS[0]
-
-
-def day_zoom_window(selected_day: date, zoom_key: Optional[str]):
-    config = day_zoom_config(zoom_key)
-    day_start = datetime.combine(selected_day, time.min)
-    window_start = day_start + timedelta(hours=config["start_hour"])
-    window_end = day_start + timedelta(hours=config["end_hour"])
-    ticks = [
-        {
-            "label": f"{hour:02d}" if hour < 24 else "24",
-            "left": percent_between(day_start + timedelta(hours=hour), window_start, window_end),
-        }
-        for hour in config["ticks"]
-    ]
-    return config, window_start, window_end, ticks
-
-
-def display_action(action: Optional[str]) -> str:
-    if action == "PAA":
-        return "PÅ"
-    return action or ""
-
-
-def display_control_mode(value: Any) -> str:
-    normalized = str(value or "").strip().upper()
-    return {
-        "FORKJOLING": "Forkjøling",
-        "KJOLING": "Kjøling",
-        "NORMAL": "Normal",
-        "UTENFOR_DRIFTSTID": "Utenfor driftstid",
-    }.get(normalized, str(value or "-"))
-
-
-def clean_display_text(value: Optional[str]) -> str:
-    return (value or "").replace("innbl?sing", "innblåsing").replace("innblasing", "innblåsing").replace("KJ?LING", "KJØLING").replace("KJOLING", "KJØLING").replace("kj?lebehov", "kjølebehov").replace("kjolebehov", "kjølebehov")
-
-
-def ntfy_host() -> str:
-    parsed = urlparse(NTFY_BASE_URL)
-    return parsed.netloc or parsed.path.strip("/")
-
-
-def ntfy_topic_url(topic: str) -> str:
-    return f"{NTFY_BASE_URL}/{quote(topic, safe='')}"
-
-
-def ntfy_subscribe_url(topic: str, display_name: str) -> str:
-    return f"ntfy://{ntfy_host()}/{quote(topic, safe='')}?display={quote_plus(display_name)}"
-
-
-def ntfy_subscription_rows(bollard_status: Optional[dict[str, Any]] = None) -> list[dict[str, Any]]:
-    bollard_settings = bollard_status.get("settings") if isinstance(bollard_status, dict) else {}
-    if not isinstance(bollard_settings, dict):
-        bollard_settings = {}
-    definitions = [
-        {
-            "key": "doors",
-            "title": "Døralarmer",
-            "area": "Dører og solrom",
-            "topic": NTFY_DOORS_TOPIC,
-            "display_name": "SUN2 dørvarsler",
-            "description": "Varsler når et solrom er lukket uten tilhørende soltime, eller når kunden blir vesentlig lenger enn forventet.",
-            "triggers": ["Lukket uten soltime", "For lang tid etter soltime", "Prioriterte døravvik"],
-            "priority": "Høy",
-            "publishing_enabled": True,
-        },
-        {
-            "key": "bollards",
-            "title": "Pullerter og trapp",
-            "area": "Kamera og bygg",
-            "topic": NTFY_BOLLARDS_TOPIC,
-            "display_name": "Pullert- og trappevarsler",
-            "description": "Varsler om bekreftede visuelle endringer på pullerter og trappa ved Solstudio. Bilder og analysedata sendes ikke til ntfy.",
-            "triggers": ["Bekreftet endring på pullert", "Bekreftet endring på trapp"],
-            "priority": "Høy",
-            "publishing_enabled": bool(bollard_settings.get("notification_enabled")),
-        },
-        {
-            "key": "lights",
-            "title": "Lysstyring",
-            "area": "Lys",
-            "topic": NTFY_LIGHTS_TOPIC,
-            "display_name": "SUN2 lys",
-            "description": "Varsler ved PÅ- og AV-hendelser fra HC3, med lux og årsak når dette finnes i hendelsen.",
-            "triggers": ["Lys slås på", "Lys slås av"],
-            "priority": "Normal",
-            "publishing_enabled": True,
-        },
-        {
-            "key": "ventilation",
-            "title": "Ventilasjon",
-            "area": "Ventilasjon",
-            "topic": NTFY_VENTILATION_TOPIC,
-            "display_name": "SUN2 ventilasjon",
-            "description": "Varsler ved PÅ- og AV-hendelser for vifter og avfukter, med modus, temperaturer og fuktighet når tilgjengelig.",
-            "triggers": ["Vifte eller avfukter slås på", "Vifte eller avfukter slås av"],
-            "priority": "Normal",
-            "publishing_enabled": True,
-        },
-        {
-            "key": "access",
-            "title": "Brukeraktivitet",
-            "area": "Tilgang",
-            "topic": NTFY_ACCESS_TOPIC,
-            "display_name": "SUN2 tilgang",
-            "description": "Varsler når en ordinær bruker logger inn, og deretter høyst periodisk mens brukeren benytter løsningen. Master varsles ikke om egen bruk.",
-            "triggers": ["Innlogging", f"Videre bruk etter minst {int(NTFY_ACCESS_COOLDOWN_MINUTES)} minutter"],
-            "priority": "Normal",
-            "publishing_enabled": True,
-        },
-    ]
-    rows = []
-    for definition in definitions:
-        topic = str(definition.get("topic") or "")
-        display_name = str(definition.get("display_name") or "")
-        configured = bool(topic)
-        public_definition = {
-            key: value
-            for key, value in definition.items()
-            if key not in {"topic", "display_name", "publishing_enabled"}
-        }
-        rows.append(
-            {
-                **public_definition,
-                "configured": configured,
-                "publishingEnabled": configured and bool(definition.get("publishing_enabled")),
-                "subscribeUrl": ntfy_subscribe_url(topic, display_name) if configured else "",
-                "webUrl": ntfy_topic_url(topic) if configured else "",
-            }
-        )
-    return rows
-
-
-def publish_ntfy_message(
-    topic: str,
-    title: str,
-    message: str,
-    tags: str = "",
-    priority: str = "3",
-    click_url: str = "",
-) -> None:
-    headers = {"Title": title, "Priority": priority}
-    if tags:
-        headers["Tags"] = tags
-    if click_url:
-        headers["Click"] = click_url
-    request = urllib.request.Request(
-        ntfy_topic_url(topic),
-        data=message.encode("utf-8"),
-        headers=headers,
-        method="POST",
-    )
-    with urllib.request.urlopen(request, timeout=NTFY_TIMEOUT_SECONDS):
-        pass
-
-
-def notification_retry_delay_seconds(attempts: int) -> int:
-    exponent = max(0, min(16, int(attempts or 0) - 1))
-    return min(NTFY_OUTBOX_RETRY_MAX_SECONDS, NTFY_OUTBOX_RETRY_BASE_SECONDS * (2**exponent))
-
-
-def notification_outbox_row(
-    topic: str,
-    title: str,
-    message: str,
-    tags: str = "",
-    priority: str = "3",
-    click_url: str = "",
-    related_type: str = "",
-    related_id: Optional[int] = None,
-) -> NotificationOutbox:
-    now = datetime.utcnow()
-    return NotificationOutbox(
-        topic=topic.strip(),
-        title=title.strip(),
-        message=message.strip(),
-        tags=tags.strip() or None,
-        priority=str(priority or "3"),
-        click_url=click_url.strip() or None,
-        status="pending",
-        attempts=0,
-        next_attempt_at=now,
-        related_type=related_type.strip() or None,
-        related_id=related_id,
-        created_at=now,
-        updated_at=now,
-    )
-
-
-async def enqueue_ntfy_message(
-    topic: str,
-    title: str,
-    message: str,
-    tags: str = "",
-    priority: str = "3",
-    click_url: str = "",
-    related_type: str = "",
-    related_id: Optional[int] = None,
-    session=None,
-) -> bool:
-    if not topic.strip() or not message.strip():
-        return False
-    row = notification_outbox_row(
-        topic,
-        title,
-        message,
-        tags,
-        priority,
-        click_url,
-        related_type,
-        related_id,
-    )
-    if session is not None:
-        session.add(row)
-        await session.flush()
-        return True
-    async with async_session() as own_session:
-        own_session.add(row)
-        await own_session.commit()
-    return True
-
-
-async def claim_notification_outbox_row() -> Optional[dict[str, Any]]:
-    now = datetime.utcnow()
-    stale_before = now - timedelta(seconds=NTFY_OUTBOX_STALE_LOCK_SECONDS)
-    eligible = or_(
-        NotificationOutbox.status.in_(("pending", "retry")),
-        and_(
-            NotificationOutbox.status == "sending",
-            or_(NotificationOutbox.locked_at.is_(None), NotificationOutbox.locked_at < stale_before),
-        ),
-    )
-    async with async_session() as session:
-        row = (
-            await session.execute(
-                select(NotificationOutbox)
-                .where(eligible)
-                .where(NotificationOutbox.next_attempt_at <= now)
-                .order_by(NotificationOutbox.next_attempt_at.asc(), NotificationOutbox.id.asc())
-                .with_for_update(skip_locked=True)
-                .limit(1)
-            )
-        ).scalars().first()
-        if row is None:
-            return None
-        row.status = "sending"
-        row.attempts = int(row.attempts or 0) + 1
-        row.locked_at = now
-        row.updated_at = now
-        await session.commit()
-        return {
-            "id": row.id,
-            "topic": row.topic,
-            "title": row.title,
-            "message": row.message,
-            "tags": row.tags or "",
-            "priority": row.priority or "3",
-            "click_url": row.click_url or "",
-            "attempts": row.attempts,
-            "related_type": row.related_type,
-            "related_id": row.related_id,
-        }
-
-
-async def finish_notification_outbox_row(item: dict[str, Any], error: Optional[Exception] = None) -> None:
-    now = datetime.utcnow()
-    alarm_now = local_now_naive()
-    async with async_session() as session:
-        row = await session.get(NotificationOutbox, item["id"])
-        if row is None:
-            return
-        row.locked_at = None
-        row.updated_at = now
-        if error is None:
-            row.status = "sent"
-            row.sent_at = now
-            row.last_error = None
-            if row.related_type == "alarm_event" and row.related_id:
-                alarm = await session.get(AlarmEvent, row.related_id)
-                if alarm is not None:
-                    alarm.notification_status = "sent"
-                    alarm.notification_count = int(alarm.notification_count or 0) + 1
-                    alarm.first_notification_at = alarm.first_notification_at or alarm_now
-                    alarm.last_notification_at = alarm_now
-                    alarm.updated_at = alarm_now
-        else:
-            row.status = "retry"
-            row.last_error = str(error)[:2000]
-            row.next_attempt_at = now + timedelta(seconds=notification_retry_delay_seconds(row.attempts))
-        await session.commit()
-
-
-async def notification_outbox_worker() -> None:
-    while True:
-        try:
-            item = await claim_notification_outbox_row()
-            if item is None:
-                await asyncio.sleep(NTFY_OUTBOX_POLL_SECONDS)
-                continue
-            try:
-                await asyncio.to_thread(
-                    publish_ntfy_message,
-                    item["topic"],
-                    item["title"],
-                    item["message"],
-                    item["tags"],
-                    item["priority"],
-                    item["click_url"],
-                )
-            except Exception as exc:
-                logger.warning(
-                    "NTFY-varsel %s feilet (forsok %s), prover igjen: %s",
-                    item["id"],
-                    item["attempts"],
-                    exc,
-                )
-                await finish_notification_outbox_row(item, exc)
-            else:
-                await finish_notification_outbox_row(item)
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            logger.exception("Uventet feil i NTFY-utkoarbeider")
-            await asyncio.sleep(max(1.0, NTFY_OUTBOX_POLL_SECONDS))
-
-
-async def notification_outbox_status(session) -> dict[str, Any]:
-    rows = (
-        await session.execute(
-            select(NotificationOutbox.status, func.count(NotificationOutbox.id)).group_by(NotificationOutbox.status)
-        )
-    ).all()
-    counts = {str(status): int(count or 0) for status, count in rows}
-    oldest = (
-        await session.execute(
-            select(func.min(NotificationOutbox.created_at)).where(
-                NotificationOutbox.status.in_(("pending", "retry", "sending"))
-            )
-        )
-    ).scalar_one_or_none()
-    return {
-        "status": "warning" if counts.get("retry", 0) else "ok",
-        "pending": counts.get("pending", 0),
-        "sending": counts.get("sending", 0),
-        "retrying": counts.get("retry", 0),
-        "sent": counts.get("sent", 0),
-        "oldestPendingAt": api_local_iso(oldest),
-    }
-
-
-async def cleanup_operational_history_once(now_value: Optional[datetime] = None) -> dict[str, int]:
-    now_value = now_value or datetime.now(timezone.utc).replace(tzinfo=None)
-    cutoffs = OPERATIONAL_RETENTION_POLICY.cutoffs(now_value)
-    statements = {
-        "accessLogsSuccess": delete(AccessLog).where(
-            AccessLog.success.is_(True),
-            AccessLog.timestamp < cutoffs["access_success"],
-        ),
-        "accessLogsFailure": delete(AccessLog).where(
-            AccessLog.success.is_not(True),
-            AccessLog.timestamp < cutoffs["access_failure"],
-        ),
-        "importRunsSuccess": delete(ImportJobRun).where(
-            ImportJobRun.ok.is_(True),
-            ImportJobRun.finished_at < cutoffs["import_success"],
-        ),
-        "importRunsFailure": delete(ImportJobRun).where(
-            ImportJobRun.ok.is_not(True),
-            ImportJobRun.finished_at < cutoffs["import_failure"],
-        ),
-        "notificationsSent": delete(NotificationOutbox).where(
-            NotificationOutbox.status == "sent",
-            NotificationOutbox.sent_at < cutoffs["notification_sent"],
-        ),
-        "authSessions": delete(AuthSession).where(
-            or_(
-                AuthSession.expires_at < cutoffs["auth_session"],
-                and_(AuthSession.revoked_at.isnot(None), AuthSession.revoked_at < cutoffs["auth_session"]),
-            )
-        ),
-    }
-    return await execute_retention_statements(async_session, statements)
-
-
-async def operational_retention_worker() -> None:
-    await asyncio.sleep(OPERATIONAL_RETENTION_INITIAL_DELAY_SECONDS)
-    while True:
-        run_at = datetime.now(timezone.utc).replace(tzinfo=None)
-        OPERATIONAL_RETENTION_STATE["status"] = "running"
-        OPERATIONAL_RETENTION_STATE["lastRunAt"] = api_local_iso(run_at)
-        try:
-            deleted = await cleanup_operational_history_once(run_at)
-            OPERATIONAL_RETENTION_STATE.update(
-                status="ok",
-                lastSuccessAt=api_local_iso(datetime.now(timezone.utc).replace(tzinfo=None)),
-                lastError=None,
-                deleted=deleted,
-            )
-            if any(deleted.values()):
-                logger.info("Operational retention removed rows: %s", deleted)
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:
-            OPERATIONAL_RETENTION_STATE.update(status="error", lastError=str(exc)[:1000])
-            logger.exception("Operational retention failed")
-        await asyncio.sleep(OPERATIONAL_RETENTION_INTERVAL_HOURS * 3600)
-
-
-def bollard_mobile_notification_payload(status: dict[str, Any]) -> dict[str, Any]:
-    settings = status.get("settings") if isinstance(status.get("settings"), dict) else {}
-    summary = status.get("summary") if isinstance(status.get("summary"), dict) else {}
-    runtime = status.get("runtime") if isinstance(status.get("runtime"), dict) else {}
-    topic_configured = bool(NTFY_BOLLARDS_TOPIC) and bool(runtime.get("notification_configured"))
-    return {
-        "channelName": "Pullerter og trapp ved Solstudio",
-        "configured": topic_configured,
-        "enabled": bool(settings.get("notification_enabled")),
-        "monitoringReady": bool(summary.get("monitoring_ready")),
-        "activeIncidents": int(summary.get("active_incidents") or 0),
-        "lastCheckAt": runtime.get("last_success_at"),
-        "subscribeUrl": ntfy_subscribe_url(NTFY_BOLLARDS_TOPIC, "Pullert- og trappevarsler") if NTFY_BOLLARDS_TOPIC else "",
-        "webUrl": ntfy_topic_url(NTFY_BOLLARDS_TOPIC) if NTFY_BOLLARDS_TOPIC else "",
-        "provider": ntfy_host(),
-        "privacy": "Kun alarmtekst sendes. Bilder, registreringsnummer og analysedata forblir lokale.",
-    }
-
-
-def should_publish_access_ntfy(request: Request, access_key: Optional[AccessKey], reason: str) -> bool:
-    if not access_key or access_key.is_master:
-        return False
-    if reason != "login" and (request.method != "GET" or not wants_html(request)):
-        return False
-    if reason != "login" and request.url.path.startswith("/auth/"):
-        return False
-    last_notified = access_key.last_notified_at or access_key.last_seen_at
-    if not last_notified:
-        return True
-    return datetime.utcnow() - last_notified >= timedelta(minutes=NTFY_ACCESS_COOLDOWN_MINUTES)
-
-
-async def publish_access_ntfy(
-    username: str,
-    role: Optional[str],
-    is_master: bool,
-    method: str,
-    path: str,
-    ip: str,
-    reason: str,
-) -> bool:
-    role_label = access_role_label(role, is_master)
-    action = "logget inn" if reason == "login" else "bruker løsningen"
-    message = (
-        f"{username} ({role_label}) {action}. "
-        f"Side: {method} {path}. "
-        f"IP: {ip or '-'}."
-    )
-    try:
-        return await enqueue_ntfy_message(
-            NTFY_ACCESS_TOPIC,
-            "SUN2 brukeraktivitet",
-            message,
-            "bust_in_silhouette",
-            "3",
-        )
-    except Exception as exc:
-        logger.warning("Kunne ikke legge NTFY-varsel for tilgang i ko: %s", exc, exc_info=True)
-        return False
-
-
-def light_ntfy_payload(event: OutdoorLightEvent) -> Optional[dict[str, Any]]:
-    state = state_from_event(event)
-    if state is None:
-        return None
-    action = "P\u00c5" if state else "AV"
-    device_name = event.device_name or event.device_key or "Ukjent lys"
-    pieces = [f"{device_name} er {action}."]
-    if event.lux is not None:
-        pieces.append(f"Lux: {event.lux:.0f}.")
-    detail = clean_display_text(event.reason or event.source or "")
-    if detail:
-        pieces.append(f"\u00c5rsak: {detail}.")
-    return {
-        "topic": NTFY_LIGHTS_TOPIC,
-        "title": f"SUN2 lys {action}",
-        "message": " ".join(pieces),
-        "tags": "bulb",
-        "priority": "3",
-    }
-
-
-async def publish_light_ntfy(event: OutdoorLightEvent) -> bool:
-    payload = light_ntfy_payload(event)
-    if payload is None:
-        return False
-    try:
-        return await enqueue_ntfy_message(**payload)
-    except Exception as exc:
-        logger.warning("Kunne ikke legge NTFY-varsel for lys i ko: %s", exc, exc_info=True)
-        return False
-
-
-def ventilation_ntfy_payload(event: VentilationEvent) -> Optional[dict[str, Any]]:
-    state = state_from_event(event)
-    if state is None:
-        return None
-    action = "P\u00c5" if state else "AV"
-    device_name = event.device_name or event.device_key or "Ukjent vifte"
-    pieces = [f"{device_name} er {action}."]
-    if event.mode:
-        pieces.append(f"Modus: {clean_display_text(event.mode)}.")
-    temps = []
-    if event.temp_1etg is not None:
-        temps.append(f"1.etg {event.temp_1etg:.1f}\u00b0")
-    if event.temp_2etg is not None:
-        temps.append(f"2.etg {event.temp_2etg:.1f}\u00b0")
-    if event.temp_vip is not None:
-        temps.append(f"VIP {event.temp_vip:.1f}\u00b0")
-    if event.humidity_1etg is not None:
-        temps.append(f"fukt 1.etg {event.humidity_1etg:.0f}%")
-    if event.humidity_2etg is not None:
-        temps.append(f"fukt 2.etg {event.humidity_2etg:.0f}%")
-    if event.humidity_vip is not None:
-        temps.append(f"fukt VIP {event.humidity_vip:.0f}%")
-    if event.temp_kjeller is not None:
-        temps.append(f"kjeller {event.temp_kjeller:.1f}\u00b0")
-    if event.humidity_kjeller is not None:
-        temps.append(f"fukt kjeller {event.humidity_kjeller:.0f}%")
-    if event.temp_ute is not None:
-        temps.append(f"ute {event.temp_ute:.1f}\u00b0")
-    if event.temp_loft is not None:
-        temps.append(f"loft {event.temp_loft:.1f}\u00b0")
-    if temps:
-        pieces.append("Temp: " + ", ".join(temps) + ".")
-    if event.diff_w is not None:
-        pieces.append(f"Diff: {event.diff_w:.0f} W.")
-    detail = clean_display_text(event.reason or event.source or "")
-    if detail:
-        pieces.append(f"\u00c5rsak: {detail}.")
-    return {
-        "topic": NTFY_VENTILATION_TOPIC,
-        "title": f"SUN2 ventilasjon {action}",
-        "message": " ".join(pieces),
-        "tags": "dash",
-        "priority": "3",
-    }
-
-
-async def publish_ventilation_ntfy(event: VentilationEvent) -> bool:
-    payload = ventilation_ntfy_payload(event)
-    if payload is None:
-        return False
-    try:
-        return await enqueue_ntfy_message(**payload)
-    except Exception as exc:
-        logger.warning("Kunne ikke legge NTFY-varsel for ventilasjon i ko: %s", exc, exc_info=True)
-        return False
-
-
-async def publish_door_ntfy(
-    title: str,
-    message: str,
-    priority: str = "4",
-    tags: str = "door,warning",
-    click_url: str = "",
-    related_type: str = "",
-    related_id: Optional[int] = None,
-    session=None,
-) -> bool:
-    try:
-        return await enqueue_ntfy_message(
-            NTFY_DOORS_TOPIC,
-            title,
-            message,
-            tags,
-            priority,
-            click_url,
-            related_type,
-            related_id,
-            session,
-        )
-    except Exception as exc:
-        logger.warning("Kunne ikke legge NTFY-varsel for dorer i ko: %s", exc, exc_info=True)
-        return False
-
-
-def state_from_event(row):
-    if row.action == "PAA":
-        return True
-    if row.action == "AV":
-        return False
-    if row.state is not None:
-        return bool(row.state)
-    return None
-
-
-def percent_between(value: datetime, start: datetime, end: datetime) -> float:
-    total = (end - start).total_seconds()
-    if total <= 0:
-        return 0
-    seconds = (value - start).total_seconds()
-    return round(max(0, min(100, seconds / total * 100)), 3)
-
-
-def span_width(start_value: datetime, end_value: datetime, day_start: datetime, day_end: datetime) -> float:
-    return round(max(0, percent_between(end_value, day_start, day_end) - percent_between(start_value, day_start, day_end)), 3)
-
-
-def add_segment(segments, start_value: datetime, end_value: datetime):
-    if end_value <= start_value:
-        return
-    if segments and segments[-1]["end_dt"] == start_value:
-        segments[-1]["end_dt"] = end_value
-    else:
-        segments.append({"start_dt": start_value, "end_dt": end_value})
-
-
-def display_segments(raw_segments, day_start: datetime, day_end: datetime):
-    return [
-        {
-            "left": percent_between(segment["start_dt"], day_start, day_end),
-            "width": span_width(segment["start_dt"], segment["end_dt"], day_start, day_end),
-            "start": segment["start_dt"].strftime("%H:%M"),
-            "end": segment["end_dt"].strftime("%H:%M"),
-        }
-        for segment in raw_segments
-    ]
-
-
-def total_from_segments(segments) -> str:
-    total_minutes = int(round(sum((segment["end_dt"] - segment["start_dt"]).total_seconds() / 60 for segment in segments)))
-    return f"{total_minutes // 60}t {total_minutes % 60}m"
-
-
-def lux_scale(values):
-    max_value = max([value for value in values if value is not None] or [100])
-    for axis_max, step in [(200, 50), (1000, 250), (2000, 500), (5000, 1000), (10000, 2000), (20000, 5000)]:
-        if max_value <= axis_max:
-            return {"max": float(axis_max), "step": step}
-    return {"max": 20000.0, "step": 5000}
-
-
-def lux_y(value: float, max_lux: float) -> float:
-    graph_top = 22
-    graph_bottom = 278
-    graph_mid = (graph_top + graph_bottom) / 2
-    scale_break = 2000.0
-    usable = graph_bottom - graph_top
-    if max_lux <= 0:
-        return graph_bottom
-    value = max(0, min(value, max_lux))
-    if max_lux <= scale_break:
-        return round(graph_bottom - (value / max_lux) * usable, 2)
-    if value <= scale_break:
-        return round(graph_bottom - (value / scale_break) * (graph_bottom - graph_mid), 2)
-    return round(graph_mid - ((value - scale_break) / (max_lux - scale_break)) * (graph_mid - graph_top), 2)
-
-
-def lux_tick_values(max_lux: float):
-    if max_lux <= 200:
-        values = [50, 100, 150, 200]
-    elif max_lux <= 1000:
-        values = [100, 250, 500, 750, 1000]
-    elif max_lux <= 2000:
-        values = [250, 500, 1000, 1500, 2000]
-    else:
-        values = [500, 1000, 1500, 2000, 5000, 10000, 15000, 20000]
-    return [value for value in values if value <= max_lux]
-
-
-def lux_tick_label(value: int) -> str:
-    if value >= 1000:
-        return f"{value // 1000}K" if value % 1000 == 0 else f"{value / 1000:g}K"
-    return str(value)
-
-
-def temp_axis(values):
-    valid_values = [float(value) for value in values if value is not None]
-    if not valid_values:
-        return {"min": 0.0, "max": 30.0, "step": 5.0}
-
-    raw_min = min(valid_values)
-    raw_max = max(valid_values)
-    lower = math.floor(raw_min - 1)
-    upper = math.ceil(raw_max + 1)
-    if upper - lower < 4:
-        center = (upper + lower) / 2
-        lower = math.floor(center - 2)
-        upper = math.ceil(center + 2)
-
-    span = upper - lower
-    if span <= 8:
-        step = 1.0
-    elif span <= 16:
-        step = 2.0
-    else:
-        step = 5.0
-
-    lower = math.floor(lower / step) * step
-    upper = math.ceil(upper / step) * step
-    return {"min": float(lower), "max": float(upper), "step": step}
-
-
-def temp_y(value: float, axis_min: float, axis_max: float) -> float:
-    graph_top = 22
-    graph_bottom = 278
-    usable = graph_bottom - graph_top
-    if axis_max <= axis_min:
-        return graph_bottom
-    ratio = (value - axis_min) / (axis_max - axis_min)
-    return round(graph_bottom - max(0, min(1, ratio)) * usable, 2)
-
-
-def temp_label(value) -> str:
-    if value is None:
-        return "-"
-    return f"{float(value):.1f}°"
-
-
-def minutes_since(value: Optional[datetime], now_value: Optional[datetime] = None) -> Optional[int]:
-    if not value:
-        return None
-    value = normalize_local_naive(value)
-    now_value = normalize_local_naive(now_value) or local_now_naive()
-    if not value:
-        return None
-    delta = now_value - value
-    return max(0, int(delta.total_seconds() // 60))
-
-
-def age_label(minutes: Optional[int]) -> str:
-    if minutes is None:
-        return "Ingen data"
-    if minutes < 1:
-        return "Akkurat nå"
-    if minutes < 60:
-        return f"{minutes} min siden"
-    hours = minutes // 60
-    rest = minutes % 60
-    if hours < 24:
-        return f"{hours}t {rest}m siden"
-    days = hours // 24
-    return f"{days}d siden"
-
-
-def average_value(values):
-    present = [value for value in values if value is not None]
-    if not present:
-        return None
-    return sum(present) / len(present)
-
-
-def latest_timestamp_from(*rows):
-    timestamps = [row.timestamp for row in rows if row is not None and row.timestamp is not None]
-    if not timestamps:
-        return None
-    return max(timestamps)
-
-
-def nested_extra_value(value, keys):
-    if value is None:
-        return None
-    if isinstance(value, dict):
-        for key in keys:
-            found = value.get(key)
-            if found not in (None, ""):
-                if isinstance(found, (dict, list)):
-                    nested = nested_extra_value(found, keys)
-                    if nested not in (None, ""):
-                        return nested
-                    continue
-                return found
-        for child in value.values():
-            found = nested_extra_value(child, keys)
-            if found not in (None, ""):
-                return found
-    elif isinstance(value, list):
-        for child in value:
-            found = nested_extra_value(child, keys)
-            if found not in (None, ""):
-                return found
-    return None
-
-
-def weather_label(value) -> Optional[str]:
-    if value in (None, ""):
-        return None
-    raw = str(value).strip()
-    key = raw.lower().replace("-", "_")
-    if key in WEATHER_LABELS:
-        return WEATHER_LABELS[key]
-    for suffix in ("_day", "_night", "_polartwilight"):
-        if key.endswith(suffix) and key[: -len(suffix)] in WEATHER_LABELS:
-            return WEATHER_LABELS[key[: -len(suffix)]]
-    cleaned = raw.replace("_", " ").replace("-", " ")
-    return cleaned[:1].upper() + cleaned[1:] if cleaned else None
-
-
-def weather_from_rows(*rows) -> Optional[str]:
-    keys = [
-        "weather_text",
-        "weather_type",
-        "yr_weather",
-        "weather",
-        "condition_text",
-        "condition",
-        "summary",
-        "symbol_code",
-        "weather_symbol",
-        "yr_symbol",
-        "next_1_hours_symbol_code",
-    ]
-    for row in rows:
-        if row is None:
-            continue
-        for attr in ("weather_text", "weather_type", "yr_weather", "weather_symbol", "yr_symbol"):
-            label = weather_label(getattr(row, attr, None))
-            if label:
-                return label
-        extra = getattr(row, "extra", None)
-        found = nested_extra_value(extra, keys)
-        label = weather_label(found)
-        if label:
-            return label
-    return None
-
-
-def met_time(value: Optional[str]) -> Optional[datetime]:
-    if not value:
-        return None
-    try:
-        stamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if stamp.tzinfo:
-        stamp = stamp.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
-    return stamp
-
-
-def http_header_time(value: Optional[str]) -> Optional[datetime]:
-    if not value:
-        return None
-    try:
-        stamp = parsedate_to_datetime(value)
-    except (TypeError, ValueError):
-        return None
-    if stamp.tzinfo:
-        stamp = stamp.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
-    return stamp
-
-
-def met_age_seconds(value: Optional[str]) -> Optional[int]:
-    try:
-        return int(value) if value is not None else None
-    except (TypeError, ValueError):
-        return None
-
-
-def met_next_fetch_after(forecast: Optional[Dict[str, Any]], now_value: Optional[datetime] = None) -> datetime:
-    now_value = now_value or datetime.utcnow()
-    expires_at = (forecast or {}).get("expires_at")
-    if isinstance(expires_at, datetime) and expires_at > now_value:
-        return expires_at + timedelta(minutes=1)
-    return now_value + timedelta(minutes=1)
-
-
-def met_details(entry: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    if not entry:
-        return {}
-    return entry.get("data", {}).get("instant", {}).get("details", {}) or {}
-
-
-def met_period_details(entry: Optional[Dict[str, Any]], period: str) -> Dict[str, Any]:
-    if not entry:
-        return {}
-    return entry.get("data", {}).get(period, {}).get("details", {}) or {}
-
-
-def met_period_symbol(entry: Optional[Dict[str, Any]]) -> Optional[str]:
-    if not entry:
-        return None
-    data = entry.get("data", {})
-    for period in ("next_1_hours", "next_6_hours", "next_12_hours"):
-        symbol = data.get(period, {}).get("summary", {}).get("symbol_code")
-        if symbol:
-            return symbol
-    return None
-
-
-def met_value(details: Dict[str, Any], key: str) -> Optional[float]:
-    value = details.get(key)
-    try:
-        return float(value) if value is not None else None
-    except (TypeError, ValueError):
-        return None
-
-
-def met_entry_at(timeseries: list[Dict[str, Any]], base_time: Optional[datetime], hours: int) -> Optional[Dict[str, Any]]:
-    if not timeseries or not base_time:
-        return None
-    target = base_time + timedelta(hours=hours)
-    entries = [(met_time(entry.get("time")), entry) for entry in timeseries]
-    entries = [(stamp, entry) for stamp, entry in entries if stamp is not None]
-    if not entries:
-        return None
-    future_entries = [(stamp, entry) for stamp, entry in entries if stamp >= target]
-    source = future_entries or entries
-    return min(source, key=lambda item: abs((item[0] - target).total_seconds()))[1]
-
-
-def met_forecast_from_payload(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    timeseries = payload.get("properties", {}).get("timeseries", [])
-    if not timeseries:
-        return None
-    meta = payload.get("properties", {}).get("meta", {}) or {}
-    current = timeseries[0]
-    forecast_time = met_time(current.get("time"))
-    details = met_details(current)
-    symbol = met_period_symbol(current)
-    next_1h = met_period_details(current, "next_1_hours")
-    next_6h = met_period_details(current, "next_6_hours")
-    next_12h = met_period_details(current, "next_12_hours")
-    next_12h_summary = current.get("data", {}).get("next_12_hours", {}).get("summary", {}) or {}
-    forecast: Dict[str, Any] = {
-        "symbol": symbol or "",
-        "text": weather_label(symbol),
-        "api_updated_at": met_time(meta.get("updated_at")),
-        "forecast_time": forecast_time,
-        "air_temperature": met_value(details, "air_temperature"),
-        "air_temperature_percentile_10": met_value(details, "air_temperature_percentile_10"),
-        "air_temperature_percentile_90": met_value(details, "air_temperature_percentile_90"),
-        "relative_humidity": met_value(details, "relative_humidity"),
-        "wind_speed": met_value(details, "wind_speed"),
-        "wind_speed_of_gust": met_value(details, "wind_speed_of_gust"),
-        "wind_speed_percentile_10": met_value(details, "wind_speed_percentile_10"),
-        "wind_speed_percentile_90": met_value(details, "wind_speed_percentile_90"),
-        "wind_from_direction": met_value(details, "wind_from_direction"),
-        "cloud_area_fraction": met_value(details, "cloud_area_fraction"),
-        "cloud_area_fraction_high": met_value(details, "cloud_area_fraction_high"),
-        "cloud_area_fraction_medium": met_value(details, "cloud_area_fraction_medium"),
-        "cloud_area_fraction_low": met_value(details, "cloud_area_fraction_low"),
-        "fog_area_fraction": met_value(details, "fog_area_fraction"),
-        "dew_point_temperature": met_value(details, "dew_point_temperature"),
-        "air_pressure_at_sea_level": met_value(details, "air_pressure_at_sea_level"),
-        "ultraviolet_index_clear_sky": met_value(details, "ultraviolet_index_clear_sky"),
-        "precipitation_next_1h": met_value(next_1h, "precipitation_amount"),
-        "precipitation_next_1h_min": met_value(next_1h, "precipitation_amount_min"),
-        "precipitation_next_1h_max": met_value(next_1h, "precipitation_amount_max"),
-        "precipitation_next_6h": met_value(next_6h, "precipitation_amount"),
-        "precipitation_next_6h_min": met_value(next_6h, "precipitation_amount_min"),
-        "precipitation_next_6h_max": met_value(next_6h, "precipitation_amount_max"),
-        "probability_of_precipitation_next_1h": met_value(next_1h, "probability_of_precipitation"),
-        "probability_of_precipitation_next_6h": met_value(next_6h, "probability_of_precipitation"),
-        "probability_of_precipitation_next_12h": met_value(next_12h, "probability_of_precipitation"),
-        "probability_of_thunder_next_1h": met_value(next_1h, "probability_of_thunder"),
-        "air_temperature_min_next_6h": met_value(next_6h, "air_temperature_min"),
-        "air_temperature_max_next_6h": met_value(next_6h, "air_temperature_max"),
-        "symbol_confidence_next_12h": next_12h_summary.get("symbol_confidence"),
-    }
-    for hours in (1, 3, 6, 12, 24):
-        entry = met_entry_at(timeseries, forecast_time, hours)
-        forecast[f"temp_{hours}h"] = met_value(met_details(entry), "air_temperature")
-        forecast[f"symbol_{hours}h"] = met_period_symbol(entry)
-    next_6h_values = []
-    if forecast_time:
-        for entry in timeseries:
-            stamp = met_time(entry.get("time"))
-            temp = met_value(met_details(entry), "air_temperature")
-            if stamp and temp is not None and forecast_time <= stamp <= forecast_time + timedelta(hours=6):
-                next_6h_values.append(temp)
-    forecast["temp_min_next_6h"] = min(next_6h_values) if next_6h_values else None
-    forecast["temp_max_next_6h"] = max(next_6h_values) if next_6h_values else None
-    forecast["raw_meta"] = meta
-    forecast["timeseries_count"] = len(timeseries)
-    return forecast if forecast["text"] or forecast["air_temperature"] is not None else None
-
-
-def fetch_met_weather() -> Optional[Dict[str, Any]]:
-    url = f"https://api.met.no/weatherapi/locationforecast/2.0/complete?lat={MET_LAT:.4f}&lon={MET_LON:.4f}"
-    request = urllib.request.Request(
-        url,
-        headers={
-            "Accept": "application/json",
-            "User-Agent": MET_USER_AGENT,
-        },
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=4) as response:
-            headers = response.headers
-            payload = json.loads(response.read().decode("utf-8"))
-    except (OSError, urllib.error.URLError, json.JSONDecodeError):
-        return None
-    forecast = met_forecast_from_payload(payload)
-    if forecast:
-        forecast["last_modified"] = http_header_time(headers.get("Last-Modified"))
-        forecast["expires_at"] = http_header_time(headers.get("Expires"))
-        forecast["age_seconds"] = met_age_seconds(headers.get("Age"))
-        forecast["next_fetch_after"] = met_next_fetch_after(forecast)
-        forecast["raw_payload"] = payload
-        forecast["raw_headers"] = dict(headers.items())
-        forecast["raw_endpoint"] = url
-        forecast["raw_coordinates"] = {"lat": MET_LAT, "lon": MET_LON}
-    return forecast
-
-
-async def met_weather_cached() -> Optional[Dict[str, Any]]:
-    global met_weather_fetch_lock
-    now_value = datetime.now(timezone.utc).replace(tzinfo=None)
-    if MET_WEATHER_CACHE["expires"] > now_value:
-        return MET_WEATHER_CACHE["value"]
-    if met_weather_fetch_lock is None:
-        met_weather_fetch_lock = asyncio.Lock()
-    async with met_weather_fetch_lock:
-        now_value = datetime.now(timezone.utc).replace(tzinfo=None)
-        if MET_WEATHER_CACHE["expires"] > now_value:
-            return MET_WEATHER_CACHE["value"]
-        started_at = local_now_naive()
-        started_perf = perf_counter()
-        value = await asyncio.to_thread(fetch_met_weather)
-        finished_at = local_now_naive()
-        MET_WEATHER_CACHE["value"] = value
-        MET_WEATHER_CACHE["expires"] = met_next_fetch_after(value, now_value) if value else now_value + timedelta(minutes=5)
-        try:
-            async with async_session() as session:
-                await record_import_job(
-                    session,
-                    "yr_weather_refresh",
-                    ok=value is not None,
-                    started_at=started_at,
-                    finished_at=finished_at,
-                    records_imported=1 if value is not None else 0,
-                    records_total=1,
-                    duration_seconds=round(perf_counter() - started_perf, 3),
-                    message=(
-                        f"Ny prognose hentet fra MET ({value.get('text') or value.get('symbol_code') or 'værdata'})."
-                        if value is not None
-                        else "MET svarte ikke med en gyldig prognose; prøver igjen om 5 minutter."
-                    ),
-                    raw={
-                        "endpoint": value.get("raw_endpoint") if value else None,
-                        "forecastTime": json_value(value.get("forecast_time")) if value else None,
-                        "nextFetchAfter": MET_WEATHER_CACHE["expires"].replace(tzinfo=timezone.utc).isoformat(),
-                        "cacheRefresh": True,
-                    },
-                )
-                await session.commit()
-        except Exception:
-            logger.warning("Could not persist MET refresh status", exc_info=True)
-        return value
-
-
-def build_now_status(latest_sample, latest_light_sample, latest_light, latest_yr_sample=None):
-    indoor_values = [
-        {"label": "1.etg", "value": latest_sample.temp_1etg if latest_sample else None},
-        {"label": "2.etg", "value": latest_sample.temp_2etg if latest_sample else None},
-        {"label": "VIP", "value": latest_sample.temp_vip if latest_sample else None},
-        {"label": "Kjeller", "value": latest_sample.temp_kjeller if latest_sample else None},
-    ]
-    humidity_values = [
-        {"label": "1.etg", "value": latest_sample.humidity_1etg if latest_sample else None},
-        {"label": "2.etg", "value": latest_sample.humidity_2etg if latest_sample else None},
-        {"label": "VIP", "value": latest_sample.humidity_vip if latest_sample else None},
-        {"label": "Loft", "value": latest_sample.humidity_loft if latest_sample else None},
-        {"label": "Kjeller", "value": latest_sample.humidity_kjeller if latest_sample else None},
-        {"label": "Yr", "value": latest_sample.humidity_yr if latest_sample else None},
-    ]
-    outdoor_ute = None
-    outdoor_yr = None
-    if latest_sample:
-        outdoor_ute = latest_sample.temp_ute if latest_sample.temp_ute is not None else latest_sample.temp_ute_netatmo
-        outdoor_yr = latest_sample.temp_yr
-    outdoor_yr_api = latest_yr_sample.air_temperature if latest_yr_sample else None
-    outdoor_values = [
-        {"label": "Ute", "value": outdoor_ute},
-        {"label": "Yr HC3", "value": outdoor_yr},
-        {"label": "Yr API", "value": outdoor_yr_api},
-    ]
-    lux = None
-    if latest_light_sample and latest_light_sample.lux is not None:
-        lux = latest_light_sample.lux
-    elif latest_light and latest_light.lux is not None:
-        lux = latest_light.lux
-    timestamp = latest_timestamp_from(latest_sample, latest_light_sample, latest_light, latest_yr_sample)
-    weather = weather_from_rows(latest_yr_sample, latest_light_sample, latest_sample, latest_light)
-    outdoor_avg_values = [outdoor_ute, outdoor_yr_api if outdoor_yr_api is not None else outdoor_yr]
-    weather_card = {
-        "text": weather,
-        "temperature": latest_yr_sample.air_temperature if latest_yr_sample else None,
-        "temp_6h": latest_yr_sample.temp_6h if latest_yr_sample else None,
-        "humidity": latest_yr_sample.relative_humidity if latest_yr_sample else None,
-        "wind": latest_yr_sample.wind_speed if latest_yr_sample else None,
-        "precipitation": latest_yr_sample.precipitation_next_1h if latest_yr_sample else None,
-        "clouds": latest_yr_sample.cloud_area_fraction if latest_yr_sample else None,
-        "basement_humidity": latest_sample.humidity_kjeller if latest_sample else None,
-        "timestamp": latest_yr_sample.timestamp if latest_yr_sample else None,
-        "api_updated_at": latest_yr_sample.api_updated_at if latest_yr_sample else None,
-        "expires_at": latest_yr_sample.expires_at if latest_yr_sample else None,
-        "next_fetch_after": latest_yr_sample.next_fetch_after if latest_yr_sample else None,
-    }
-    return {
-        "timestamp": timestamp,
-        "mode": latest_sample.mode if latest_sample else None,
-        "indoor_avg": average_value([item["value"] for item in indoor_values]),
-        "indoor_values": indoor_values,
-        "humidity_values": humidity_values,
-        "outdoor_avg": average_value(outdoor_avg_values),
-        "outdoor_values": outdoor_values,
-        "lux": lux,
-        "weather": weather,
-        "weather_card": weather_card,
-        "has_data": any(
-            value is not None
-            for value in [
-                lux,
-                weather,
-                *[item["value"] for item in indoor_values],
-                *[item["value"] for item in outdoor_values],
-            ]
-        ),
-    }
-
-
-def freshness_item(name: str, row, expected_minutes: int, warning_minutes: Optional[int] = None):
-    warning_minutes = warning_minutes or expected_minutes * 2
-    stamp = row.timestamp if row else None
-    age_minutes = minutes_since(stamp)
-    if age_minutes is None:
-        status = "bad"
-        status_text = "Mangler"
-    elif age_minutes <= expected_minutes:
-        status = "ok"
-        status_text = "OK"
-    elif age_minutes <= warning_minutes:
-        status = "warn"
-        status_text = "Treg"
-    else:
-        status = "bad"
-        status_text = "Gammel"
-    return {
-        "name": name,
-        "age": age_label(age_minutes),
-        "status": status,
-        "status_text": status_text,
-        "timestamp": stamp,
-    }
-
-
-def import_job_definition(job_name: str) -> Dict[str, Any]:
-    fallback = {
-        "title": job_name.replace("_", " ").title(),
-        "category": "Annet",
-        "source": None,
-        "expected_interval_minutes": None,
-        "warning_after_minutes": None,
-        "description": "",
-        "data_flow": "",
-        "dependencies": [],
-    }
-    return {**fallback, **IMPORT_JOB_DEFINITIONS.get(job_name, {})}
-
-
-def import_job_interval_text(minutes: Optional[int]) -> Optional[str]:
-    if minutes is None:
-        return None
-    if minutes < 60:
-        return f"{minutes} min"
-    if minutes % (24 * 60) == 0:
-        days = minutes // (24 * 60)
-        return "1 dag" if days == 1 else f"{days} dager"
-    if minutes % 60 == 0:
-        hours = minutes // 60
-        return "1 time" if hours == 1 else f"{hours} timer"
-    hours = minutes // 60
-    rest = minutes % 60
-    return f"{hours} t {rest} min"
-
-
-def import_job_schedule_text(
-    job_name: str,
-    definition: Dict[str, Any],
-    easypark_status: Optional[Dict[str, Any]] = None,
-) -> str:
-    if job_name == "easypark_parking_import" and isinstance(easypark_status, dict):
-        schedule = easypark_status.get("schedule") if isinstance(easypark_status.get("schedule"), dict) else {}
-        run_times = schedule.get("run_times")
-        if isinstance(run_times, list) and run_times:
-            times = ", ".join(str(item) for item in run_times)
-            return f"Fast plan fra EasyPark-downloader: {times}. Neste kjøring beregnes fra downloaderens /status."
-
-    if job_name == "sun2_sessions_import":
-        return (
-            "Kjøres ved lukking av solromdør, tidligst ett minutt etter hendelsen og med minst fem minutter "
-            "mellom oppslag. Et 30-minutters sikkerhetsnett kjører i åpningstiden. Varselgrense: 60 min."
-        )
-
-    expected_minutes = definition.get("expected_interval_minutes")
-    warning_minutes = definition.get("warning_after_minutes")
-    expected_text = import_job_interval_text(expected_minutes)
-    warning_text = import_job_interval_text(warning_minutes)
-    if expected_text and warning_text:
-        return f"Forventet ny vellykket oppdatering minst hver {expected_text}. Varselgrense: {warning_text}."
-    if expected_text:
-        return f"Forventet ny vellykket oppdatering minst hver {expected_text}."
-    return "Ingen fast intervallovervåking. Datakilden kjøres manuelt, ved behov eller som del av en separat bakgrunnsjobb."
-
-
-def import_job_status_from_age(stamp: Optional[datetime], expected_minutes: Optional[int], warning_minutes: Optional[int]) -> tuple[str, str]:
-    age_minutes = minutes_since(stamp)
-    return import_job_status_from_minutes(age_minutes, expected_minutes, warning_minutes)
-
-
-def import_job_status_from_minutes(age_minutes: Optional[int], expected_minutes: Optional[int], warning_minutes: Optional[int]) -> tuple[str, str]:
-    if age_minutes is None:
-        return "bad", "Mangler"
-    if expected_minutes is None:
-        return "ok", "OK"
-    warning_minutes = warning_minutes or expected_minutes * 2
-    if age_minutes <= expected_minutes:
-        return "ok", "OK"
-    if age_minutes <= warning_minutes:
-        return "warn", "Treg"
-    return "bad", "Gammel"
-
-
-def sun2_sessions_active_minutes_since(stamp: Optional[datetime], now_value: Optional[datetime] = None) -> Optional[int]:
-    if stamp is None:
-        return None
-    now_value = now_value or local_now_naive()
-    if stamp.tzinfo is not None:
-        stamp = stamp.astimezone(LOCAL_TZ).replace(tzinfo=None)
-    if now_value.tzinfo is not None:
-        now_value = now_value.astimezone(LOCAL_TZ).replace(tzinfo=None)
-    if stamp >= now_value:
-        return 0
-
-    total = 0.0
-    day = stamp.date()
-    while day <= now_value.date():
-        active_start = datetime.combine(day, time(hour=SUN2_SESSIONS_QUIET_END_HOUR))
-        active_end = datetime.combine(day + timedelta(days=1), time.min)
-        segment_start = max(stamp, active_start)
-        segment_end = min(now_value, active_end)
-        if segment_end > segment_start:
-            total += (segment_end - segment_start).total_seconds() / 60
-        day += timedelta(days=1)
-    return int(total)
-
-
-def import_job_age(row: Optional[ImportJobStatus]) -> str:
-    stamp = row.last_success_at if row else None
-    return age_label(minutes_since(stamp))
-
-
-def import_job_updated_ago(row: Optional[ImportJobStatus]) -> str:
-    stamp = row.last_success_at if row else None
-    minutes = minutes_since(stamp)
-    if minutes is None:
-        return "Ingen importstatus"
-    if minutes < 1:
-        return "Oppdatert under 1 min siden"
-    return f"Oppdatert {age_label(minutes)}"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 from fibaro_core.services.presentation import format_short_number
@@ -4209,187 +1625,22 @@ from fibaro_core.services.presentation import format_short_number
 from fibaro_core.services.presentation import format_signed_short_number
 
 
-def dashboard_compare_detail(
-    label: str,
-    current_count: Any,
-    current_paid: Any,
-    previous_count: Any,
-    previous_paid: Any,
-) -> str:
-    count_delta = float_or_zero(current_count) - float_or_zero(previous_count)
-    paid_delta = float_or_zero(current_paid) - float_or_zero(previous_paid)
-    return f"vs {label}: {format_signed_short_number(count_delta)} stk / {format_signed_short_number(paid_delta)} kr"
 
 
-def dashboard_compare_value(current: Any, previous: Any) -> str:
-    return f"{format_short_number(current)}/{format_short_number(previous)}"
 
 
-def dashboard_money_compare(current: Any, previous: Any) -> str:
-    return f"{format_short_number(current)}/{format_short_number(previous)} kr"
 
 
-def parking_departure_slot_delta_minutes(row: ParkingSession) -> Optional[int]:
-    if not row.start_time or not row.end_time:
-        return None
-    status = (row.status or "").strip().lower()
-    if status in {"ongoing", "active", "aktiv", "pågående"}:
-        return None
-    actual_minutes = (row.end_time - row.start_time).total_seconds() / 60
-    if actual_minutes < 0:
-        return None
-    paid_slot_minutes = math.ceil(actual_minutes / 30) * 30 if actual_minutes else 0
-    return int(round(actual_minutes - paid_slot_minutes))
 
 
-def status_sun_timeline_event(row: Sun2TanningSession, period_start: datetime, lane_end: datetime, axis_seconds: float) -> Optional[Dict[str, Any]]:
-    bounds = sunbed_session_bounds(row)
-    if not bounds:
-        return None
-    start_at, end_at = bounds
-    position = status_timeline_position(start_at, end_at, period_start, lane_end, axis_seconds)
-    if not position:
-        return None
-    customer_type = (row.customer_type or "").lower()
-    kind = "standard"
-    if "ikke" in customer_type:
-        kind = "no-member"
-    elif "medlem" in customer_type:
-        kind = "member"
-    paid = float_or_zero(row.paid_amount_kr)
-    room_label = sun2_room_label(row.room_id, row.room or row.source_room_name)
-    title_parts = [f"{room_label} {start_at:%d.%m %H:%M}-{end_at:%H:%M}", f"{float_or_zero(row.duration_minutes):.0f} min"]
-    if paid:
-        title_parts.append(f"{paid:.0f} kr")
-    if row.user_name:
-        title_parts.append(str(row.user_name))
-    href = f"/soling/enkeltimer?date_from={start_at.date().isoformat()}&date_to={start_at.date().isoformat()}"
-    if row.room_id:
-        href += f"&room_id={quote_plus(str(row.room_id))}"
-    return {
-        "id": f"sun-{row.id}",
-        "kind": kind,
-        "left": position["left"],
-        "width": position["width"],
-        "label": room_label,
-        "title": " | ".join(title_parts),
-        "start": api_local_iso(start_at),
-        "end": api_local_iso(end_at),
-        "amount": paid,
-        "href": href,
-    }
 
 
-def status_parking_timeline_event(row: ParkingSession, period_start: datetime, lane_end: datetime, axis_seconds: float) -> Optional[Dict[str, Any]]:
-    start_at = normalize_local_naive(row.start_time)
-    if not start_at:
-        return None
-    end_at = normalize_local_naive(row.end_time)
-    if not end_at:
-        end_at = start_at + timedelta(minutes=float_or_zero(row.parking_time_min) or 15)
-    if end_at <= start_at:
-        end_at = start_at + timedelta(minutes=max(1.0, float_or_zero(row.parking_time_min) or 1.0))
-    position = status_timeline_position(start_at, end_at, period_start, lane_end, axis_seconds)
-    if not position:
-        return None
-    paid = float_or_zero(row.fee_inc_vat)
-    plate = str(row.car_license_number or "").strip()
-    title_parts = [f"{start_at:%d.%m %H:%M}-{end_at:%H:%M}", f"{float_or_zero(row.parking_time_min):.0f} min"]
-    if plate:
-        title_parts.append(plate)
-    if row.parking_area:
-        title_parts.append(str(row.parking_area))
-    if paid:
-        title_parts.append(f"{paid:.0f} kr")
-    href = f"/parkering/parkeringer?day={start_at.date().isoformat()}"
-    if plate:
-        href += f"&plate={quote_plus(plate)}"
-    return {
-        "id": f"parking-{row.id}",
-        "kind": "parking",
-        "left": position["left"],
-        "width": position["width"],
-        "label": plate or str(row.area_number),
-        "title": " | ".join(title_parts),
-        "start": api_local_iso(start_at),
-        "end": api_local_iso(end_at),
-        "amount": paid,
-        "href": href,
-    }
 
 
-async def status_timeline_lane(
-    session,
-    source: str,
-    label: str,
-    period_label: str,
-    kind: str,
-    start: datetime,
-    end: datetime,
-    axis_seconds: float,
-) -> Dict[str, Any]:
-    if kind == "sun":
-        rows = (
-            await session.execute(
-                select(Sun2TanningSession)
-                .where(Sun2TanningSession.started_at >= start)
-                .where(Sun2TanningSession.started_at < end)
-                .order_by(Sun2TanningSession.started_at.asc())
-            )
-        ).scalars().all()
-        events = [item for row in rows if (item := status_sun_timeline_event(row, start, end, axis_seconds))]
-        paid = sum(float_or_zero(row.paid_amount_kr) for row in rows)
-        count = len(rows)
-    else:
-        rows = (
-            await session.execute(
-                select(ParkingSession)
-                .where(ParkingSession.start_time >= start)
-                .where(ParkingSession.start_time < end)
-                .order_by(ParkingSession.start_time.asc())
-            )
-        ).scalars().all()
-        events = [item for row in rows if (item := status_parking_timeline_event(row, start, end, axis_seconds))]
-        paid = sum(float_or_zero(row.fee_inc_vat) for row in rows)
-        count = len(rows)
-    return {
-        "key": f"{source}-{kind}",
-        "source": source,
-        "label": label,
-        "periodLabel": period_label,
-        "kind": kind,
-        "start": api_local_iso(start),
-        "end": api_local_iso(end),
-        "endLeft": round(max(0, min(100, ((end - start).total_seconds() / axis_seconds) * 100)), 4) if axis_seconds > 0 else 0,
-        "count": count,
-        "paid": paid,
-        "events": events,
-    }
 
 
-def operating_window(now: datetime) -> Dict[str, Any]:
-    open_at = datetime.combine(now.date(), time.min).replace(hour=7)
-    close_at = datetime.combine(now.date(), time.min).replace(hour=23)
-    if now < open_at:
-        return {"label": "Stengt", "detail": "Åpner 07:00", "progress": 0}
-    if now >= close_at:
-        return {"label": "Stengt", "detail": "Stengte 23:00", "progress": 100}
-    total_seconds = (close_at - open_at).total_seconds()
-    progress = int(((now - open_at).total_seconds() / total_seconds) * 100)
-    return {"label": "Åpent", "detail": "Stenger 23:00", "progress": max(0, min(100, progress))}
 
 
-def normalize_month(value: Optional[str], fallback: date) -> date:
-    if value:
-        try:
-            year_text, month_text = value.split("-", 1)
-            year = int(year_text)
-            month = int(month_text)
-            if 1 <= month <= 12:
-                return date(year, month, 1)
-        except (TypeError, ValueError):
-            pass
-    return fallback.replace(day=1)
 
 
 from fibaro_core.services.forecasts.calendar import easter_sunday
@@ -4453,10 +1704,6 @@ from fibaro_core.services.forecasts.models import parking_historical_day_fractio
 from fibaro_core.services.forecasts.models import intraday_forecast_value
 
 
-async def build_sun2_forecast(session, today: date, now_local: datetime) -> Dict[str, Any]:
-    return await forecast_builders.build_sun2_forecast(
-        session, today, now_local, cache=SUMMARY_CACHE, summaries_getter=get_sun2_summaries,
-    )
 
 
 from fibaro_core.services.forecasts.models import parking_daily_model
@@ -4477,10 +1724,6 @@ from fibaro_core.services.forecasts.models import parking_history_weight
 from fibaro_core.services.forecasts.models import parking_history_weight_precomputed
 
 
-async def build_parking_forecast(session, today: date, now_local: datetime) -> Dict[str, Any]:
-    return await forecast_builders.build_parking_forecast(
-        session, today, now_local, cache=SUMMARY_CACHE, summaries_getter=get_parking_summaries,
-    )
 
 
 from fibaro_core.services.forecasts.snapshots import forecast_period_label
@@ -4498,29 +1741,6 @@ from fibaro_core.services.forecasts.snapshots import forecast_snapshot_from_peri
 from fibaro_core.services.forecasts.snapshots import save_forecast_snapshots
 
 
-async def save_parking_forecast_after_import(session, created_by: str = "EasyPark import") -> Dict[str, Any]:
-    clear_summary_cache("parking")
-    now_local = datetime.now(LOCAL_TZ)
-    forecast = await build_parking_forecast(session, now_local.date(), now_local)
-    await save_forecast_snapshots(session, "parking", forecast, created_by)
-    day_forecast = (forecast.get("day") or {}).get("forecast") or {}
-    month_forecast = (forecast.get("month") or {}).get("forecast") or {}
-    year_forecast = (forecast.get("year") or {}).get("forecast") or {}
-    return {
-        "generated_at": api_local_iso(forecast.get("generated_at")),
-        "day": {
-            "sessions": round(float_or_zero(day_forecast.get("sessions")), 1),
-            "paid": round(float_or_zero(day_forecast.get("paid")), 2),
-        },
-        "month": {
-            "sessions": round(float_or_zero(month_forecast.get("sessions")), 1),
-            "paid": round(float_or_zero(month_forecast.get("paid")), 2),
-        },
-        "year": {
-            "sessions": round(float_or_zero(year_forecast.get("sessions")), 1),
-            "paid": round(float_or_zero(year_forecast.get("paid")), 2),
-        },
-    }
 
 
 from fibaro_core.services.forecasts.snapshots import saved_forecast_table
@@ -4535,53 +1755,6 @@ from fibaro_core.services.forecasts.snapshots import forecast_snapshot_stamp
 from fibaro_core.services.forecasts.snapshots import forecast_chart_time_label
 
 
-def api_parking_forecast_evolution_chart(rows: list[ForecastSnapshot]) -> Optional[Dict[str, Any]]:
-    if not rows:
-        return None
-    ordered = sorted(rows, key=lambda row: (forecast_snapshot_stamp(row) or datetime.min, row.id or 0))
-    groups: Dict[str, Dict[str, Any]] = {}
-    for row in ordered:
-        stamp_value = forecast_snapshot_stamp(row)
-        key = stamp_value.isoformat() if stamp_value else str(row.id)
-        group = groups.setdefault(key, {"stamp": stamp_value, "rows": {}})
-        group["rows"][row.period_type] = row
-
-    period_labels = {"day": "Dag", "month": "Måned", "year": "År"}
-    period_colors = {"day": "#4e8793", "month": "#d59a18", "year": "#071943"}
-    group_items = list(groups.values())
-    x_values = [forecast_chart_time_label(item["stamp"]) for item in group_items]
-
-    def series_for(field: str, unit: str) -> list[Dict[str, Any]]:
-        series = []
-        for period_type in ("day", "month", "year"):
-            values = []
-            for item in group_items:
-                row = item["rows"].get(period_type)
-                values.append(round(float_or_zero(getattr(row, field, None)), 2) if row else None)
-            series.append(
-                {
-                    "name": period_labels[period_type],
-                    "data": values,
-                    "color": period_colors[period_type],
-                    "unit": unit,
-                }
-            )
-        return series
-
-    revenue_series = series_for("forecast_paid", "kr")
-    return api_chart(
-        "Prognoseutvikling parkering",
-        x_values,
-        revenue_series,
-        "Lagrede prognoser over tid. Nytt punkt lagres etter hver EasyPark-import.",
-        "line",
-        340,
-        metrics=[
-            {"key": "revenue", "label": "Omsetning", "unit": "kr", "series": revenue_series},
-            {"key": "count", "label": "Antall", "unit": "stk", "series": series_for("forecast_sessions", "stk")},
-        ],
-        default_metric="revenue",
-    )
 
 
 templates.env.filters["short_number"] = format_short_number
@@ -4652,1891 +1825,104 @@ ENERGY_HOURLY_COMPARE_FIELDS = [
 ]
 
 
-async def seed_energy_circuits(session) -> None:
-    count = await session.scalar(select(func.count(EnergyCircuit.id)))
-    if count:
-        return
-    now_value = datetime.utcnow()
-    for row in ENERGY_CIRCUIT_SEED_ROWS:
-        status = row.get("status") or ("aktiv" if row.get("breaker_rating_a") else "ukjent")
-        session.add(
-            EnergyCircuit(
-                circuit_no=row["circuit_no"],
-                description=row.get("description"),
-                breaker_type=row.get("breaker_type"),
-                breaker_rating_a=row.get("breaker_rating_a"),
-                breaker_characteristic=row.get("breaker_characteristic"),
-                cable_spec=row.get("cable_spec"),
-                cable_length_m=row.get("cable_length_m"),
-                install_method=row.get("install_method"),
-                terminal_ref=row.get("terminal_ref"),
-                rcd_ma=row.get("rcd_ma"),
-                note=row.get("note"),
-                status=status,
-                source=ENERGY_CIRCUIT_SEED_SOURCE,
-                imported_at=now_value,
-                updated_at=now_value,
-            )
-        )
-
-
-def sum_optional(values: list[Optional[float]]) -> Optional[float]:
-    if any(value is None for value in values):
-        return None
-    return sum(float(value or 0) for value in values)
-
-
-def calculated_difference(main_value: Optional[float], values: list[Optional[float]]) -> Optional[float]:
-    sub_sum = sum_optional(values)
-    if main_value is None or sub_sum is None:
-        return None
-    return float(main_value) - sub_sum
-
-
-def accumulated_delta(current: Optional[float], previous: Optional[float]) -> tuple[Optional[float], bool]:
-    if current is None:
-        return None, False
-    if previous is None:
-        return None, False
-    current_value = float(current)
-    previous_value = float(previous)
-    if current_value + 0.0001 >= previous_value:
-        return max(current_value - previous_value, 0.0), False
-    return max(current_value, 0.0), True
-
-
-def realtime_power_delta_kwh(
-    current_w: Optional[float],
-    previous_w: Optional[float],
-    current_time: Optional[datetime],
-    previous_time: Optional[datetime],
-) -> Optional[float]:
-    if current_w is None or current_time is None or previous_time is None:
-        return None
-    seconds = (current_time - previous_time).total_seconds()
-    if seconds <= 0 or seconds > ENERGY_REALTIME_MAX_DELTA_SECONDS:
-        return None
-    if previous_w is None:
-        average_w = float(current_w)
-    else:
-        average_w = (float(previous_w) + float(current_w)) / 2
-    return max(average_w, 0.0) * seconds / 3600000
-
-
-def energy_hour_has_changed(existing: EnergyHourlyConsumption, row: Dict[str, Any]) -> bool:
-    for field in ENERGY_HOURLY_COMPARE_FIELDS:
-        current = getattr(existing, field)
-        incoming = row.get(field)
-        if isinstance(current, float) or isinstance(incoming, float):
-            if current is None or incoming is None:
-                if current != incoming:
-                    return True
-            elif abs(float(current) - float(incoming)) > 0.000001:
-                return True
-        elif current != incoming:
-            return True
-    return False
-
-
-def dashboard_alert(level: str, title: str, detail: str, href: str = "/admin/datakilder") -> Dict[str, str]:
-    return {"level": level, "title": title, "detail": detail, "href": href}
-
-
-async def record_import_job(
-    session,
-    job_name: str,
-    *,
-    ok: bool = True,
-    title: Optional[str] = None,
-    category: Optional[str] = None,
-    source: Optional[str] = None,
-    started_at: Optional[datetime] = None,
-    finished_at: Optional[datetime] = None,
-    next_expected_at: Optional[datetime] = None,
-    expected_interval_minutes: Optional[int] = None,
-    warning_after_minutes: Optional[int] = None,
-    records_imported: Optional[int] = None,
-    records_total: Optional[int] = None,
-    duration_seconds: Optional[float] = None,
-    message: Optional[str] = None,
-    raw: Optional[Dict[str, Any]] = None,
-) -> ImportJobStatus:
-    definition = import_job_definition(job_name)
-    finished_at = finished_at or local_now_naive()
-    title = title or definition["title"]
-    category = category or definition["category"]
-    source = source or definition.get("source")
-    expected_interval_minutes = expected_interval_minutes if expected_interval_minutes is not None else definition.get("expected_interval_minutes")
-    warning_after_minutes = warning_after_minutes if warning_after_minutes is not None else definition.get("warning_after_minutes")
-    if next_expected_at is None and ok and expected_interval_minutes:
-        next_expected_at = finished_at + timedelta(minutes=expected_interval_minutes)
-    status = "ok" if ok else "bad"
-    status_text = "OK" if ok else "Feil"
-
-    session.add(
-        ImportJobRun(
-            job_name=job_name,
-            title=title,
-            category=category,
-            source=source,
-            started_at=started_at,
-            finished_at=finished_at,
-            ok=ok,
-            status=status,
-            records_imported=records_imported,
-            records_total=records_total,
-            duration_seconds=duration_seconds,
-            message=message,
-            raw=raw or {},
-        )
-    )
-
-    existing = (
-        await session.execute(select(ImportJobStatus).where(ImportJobStatus.job_name == job_name))
-    ).scalars().first()
-    if not existing:
-        existing = ImportJobStatus(job_name=job_name, title=title, category=category)
-        session.add(existing)
-    existing.title = title
-    existing.category = category
-    existing.source = source
-    existing.status = status
-    existing.status_text = status_text
-    existing.last_started_at = started_at or existing.last_started_at
-    existing.last_run_at = finished_at
-    if ok:
-        existing.last_success_at = finished_at
-    else:
-        existing.last_failed_at = finished_at
-    existing.next_expected_at = next_expected_at
-    existing.expected_interval_minutes = expected_interval_minutes
-    existing.warning_after_minutes = warning_after_minutes
-    existing.records_imported = records_imported
-    existing.records_total = records_total
-    existing.duration_seconds = duration_seconds
-    existing.message = message
-    existing.raw = raw or {}
-    return existing
-
-
-async def mark_import_job_running(
-    session,
-    job_name: str,
-    *,
-    message: Optional[str] = None,
-    source: Optional[str] = None,
-    raw: Optional[Dict[str, Any]] = None,
-) -> ImportJobStatus:
-    definition = import_job_definition(job_name)
-    started_at = local_now_naive()
-    existing = (
-        await session.execute(select(ImportJobStatus).where(ImportJobStatus.job_name == job_name))
-    ).scalars().first()
-    if not existing:
-        existing = ImportJobStatus(job_name=job_name, title=definition["title"], category=definition["category"])
-        session.add(existing)
-    existing.title = definition["title"]
-    existing.category = definition["category"]
-    existing.source = source or definition.get("source")
-    existing.status = "running"
-    existing.status_text = "Kjører"
-    existing.last_started_at = started_at
-    existing.last_run_at = started_at
-    existing.message = message or "Import kjører"
-    existing.raw = raw or {}
-    return existing
-
-
-async def fallback_car_info_import_status(session, job_name: str) -> Dict[str, Any]:
-    country_code = next(
-        (country for country, current_job_name in CAR_INFO_IMPORT_JOB_BY_COUNTRY.items() if current_job_name == job_name),
-        "",
-    )
-    if not country_code:
-        return {}
-    rows = (
-        await session.execute(
-            select(ParkingVehicle)
-            .where(ParkingVehicle.car_info_fetched_at.isnot(None))
-            .order_by(ParkingVehicle.car_info_fetched_at.desc())
-            .limit(500)
-        )
-    ).scalars().all()
-    row = next((vehicle for vehicle in rows if car_info_lookup_country_code(vehicle.car_info_data, vehicle.plate) == country_code), None)
-    if not row:
-        return {"message": "Ingen oppslag registrert ennå"}
-    payload = {
-        "message": f"{row.plate}: {car_info_status_label(row.car_info_status, row.car_info_data)}",
-        "records_total": 1,
-        "records_imported": 1 if row.car_info_status == 200 and car_info_confirmed_foreign(row.car_info_data) else 0,
-    }
-    if car_info_import_ok(row.car_info_status):
-        payload["last_success_at"] = row.car_info_fetched_at
-    else:
-        payload["last_failed_at"] = row.car_info_fetched_at
-    return payload
-
-
-async def fallback_import_job_status(session, job_name: str) -> Dict[str, Any]:
-    if job_name in CAR_INFO_IMPORT_JOB_BY_COUNTRY.values():
-        return await fallback_car_info_import_status(session, job_name)
-    if job_name == "hc3_light_5min":
-        row = (await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.timestamp.desc()).limit(1))).scalars().first()
-        return {"last_success_at": row.timestamp if row else None, "message": "Sist funnet i luxloggen" if row else ""}
-    if job_name == "hc3_ventilation_5min":
-        row = (await session.execute(select(VentilationSample).order_by(VentilationSample.timestamp.desc()).limit(1))).scalars().first()
-        return {"last_success_at": row.timestamp if row else None, "message": "Sist funnet i temploggen" if row else ""}
-    if job_name == "yr_weather_refresh":
-        row = (await session.execute(select(YrForecastSample).order_by(YrForecastSample.timestamp.desc()).limit(1))).scalars().first()
-        return {"last_success_at": utc_naive_to_local_naive(row.timestamp) if row else None, "message": row.weather_text if row else ""}
-    if job_name == "hc3_energy_1min":
-        row = (await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))).scalars().first()
-        return {
-            "last_success_at": row.bucket_start if row else None,
-            "message": f"Inntak {format_short_number(row.inntak_w)} W" if row and row.inntak_w is not None else "Sist funnet i energiloggen" if row else "",
-        }
-    if job_name == "hc3_door_events":
-        row = (await session.execute(select(DoorEvent).order_by(DoorEvent.timestamp.desc()).limit(1))).scalars().first()
-        return {
-            "last_success_at": row.timestamp if row else None,
-            "message": f"{row.device_name or row.device_key or row.device_id}: {row.action}" if row else "",
-        }
-    if job_name == "roborock_sync":
-        row = (await session.execute(select(RoborockSyncRun).order_by(RoborockSyncRun.timestamp.desc()).limit(1))).scalars().first()
-        return {"last_success_at": row.timestamp if row and row.ok is not False else None, "last_failed_at": row.timestamp if row and row.ok is False else None, "message": row.message if row else "", "records_total": row.robots_count if row else None}
-    if job_name == "sun2_room_daily_import":
-        row = (await session.execute(select(Sun2ImportRun).order_by(Sun2ImportRun.timestamp.desc()).limit(1))).scalars().first()
-        return {"last_success_at": row.timestamp if row and row.ok is not False else None, "last_failed_at": row.timestamp if row and row.ok is False else None, "message": row.message if row else "", "records_total": row.rows_count if row else None}
-    if job_name == "sun2_sessions_import":
-        row = (await session.execute(select(Sun2SessionImportRun).order_by(Sun2SessionImportRun.timestamp.desc()).limit(1))).scalars().first()
-        return {"last_success_at": row.timestamp if row and row.ok is not False else None, "last_failed_at": row.timestamp if row and row.ok is False else None, "message": row.message if row else "", "records_total": row.rows_count if row else None}
-    if job_name == "sun2_beds_import":
-        row = (await session.execute(select(Sun2Bed).order_by(Sun2Bed.imported_at.desc()).limit(1))).scalars().first()
-        count = (await session.execute(select(func.count()).select_from(Sun2Bed))).scalar_one()
-        return {"last_success_at": row.imported_at if row else None, "message": "Sist funnet i senger-tabellen" if row else "", "records_total": count}
-    if job_name == "sun2_members_import":
-        row = (await session.execute(select(Sun2Member).order_by(Sun2Member.imported_at.desc()).limit(1))).scalars().first()
-        count = (await session.execute(select(func.count()).select_from(Sun2Member))).scalar_one()
-        return {"last_success_at": row.imported_at if row else None, "message": "Sist funnet i medlemstabellen" if row else "", "records_total": count}
-    if job_name in {"sun2_product_sales_daily_import", "sun2_product_sales_monthly_import"}:
-        monthly = job_name == "sun2_product_sales_monthly_import"
-        query = select(Sun2ProductSale)
-        if monthly:
-            query = query.where(Sun2ProductSale.period_start != Sun2ProductSale.period_end)
-        else:
-            query = query.where(Sun2ProductSale.period_start == Sun2ProductSale.period_end)
-        row = (await session.execute(query.order_by(Sun2ProductSale.imported_at.desc()).limit(1))).scalars().first()
-        if not row:
-            return {"message": "Ingen produktsalg importert ennå"}
-        count = (
-            await session.execute(
-                select(func.count())
-                .select_from(Sun2ProductSale)
-                .where(Sun2ProductSale.source_file == row.source_file)
-            )
-        ).scalar_one()
-        return {
-            "last_success_at": row.imported_at,
-            "message": f"Sist funnet i {row.source_file}",
-            "records_total": count,
-        }
-    if job_name == "sun2_finance_settlement_monthly_import":
-        row = (
-            await session.execute(
-                select(Sun2FinanceSettlement).order_by(Sun2FinanceSettlement.imported_at.desc()).limit(1)
-            )
-        ).scalars().first()
-        if not row:
-            return {"message": "Ingen Sun2 finansoppgjør importert ennå"}
-        return {
-            "last_success_at": row.imported_at,
-            "message": f"Sist funnet i {row.payout_label or row.source_file or row.source_payout_id}",
-            "records_total": 1,
-        }
-    if job_name == "elvia_monthly_import":
-        row = (await session.execute(select(EnergyImportRun).order_by(EnergyImportRun.timestamp.desc()).limit(1))).scalars().first()
-        return {"last_success_at": row.timestamp if row and row.ok is not False else None, "last_failed_at": row.timestamp if row and row.ok is False else None, "message": row.message if row else "", "records_total": row.hours_count if row else None}
-    return {}
-
-
-async def import_status_rows(session) -> list[Dict[str, Any]]:
-    existing = {
-        row.job_name: row
-        for row in (
-            await session.execute(select(ImportJobStatus))
-        ).scalars().all()
-    }
-    easypark_status = easypark_downloader_status()
-    easypark_next_run_at = easypark_next_run_at_from_status(easypark_status)
-    rows = []
-    for job_name, definition in IMPORT_JOB_DEFINITIONS.items():
-        row = existing.get(job_name)
-        fallback = {} if row else await fallback_import_job_status(session, job_name)
-        stamp = row.last_success_at if row else fallback.get("last_success_at")
-        last_failed_at = row.last_failed_at if row else fallback.get("last_failed_at")
-        expected_minutes = definition.get("expected_interval_minutes")
-        warning_minutes = definition.get("warning_after_minutes")
-        next_expected_at = row.next_expected_at if row else None
-        if expected_minutes is None:
-            next_expected_at = None
-        if stamp and expected_minutes:
-            calculated_next = stamp + timedelta(minutes=expected_minutes)
-            if not next_expected_at or abs((next_expected_at - calculated_next).total_seconds()) > 60:
-                next_expected_at = calculated_next
-        if job_name == "sun2_sessions_import" and expected_minutes:
-            now_for_sun2 = local_now_naive()
-            live_start_today = datetime.combine(now_for_sun2.date(), time(hour=SUN2_SESSIONS_QUIET_END_HOUR))
-            if now_for_sun2 < live_start_today:
-                next_expected_at = live_start_today
-            elif stamp and stamp < live_start_today:
-                next_expected_at = live_start_today + timedelta(minutes=expected_minutes)
-        if job_name == "easypark_parking_import" and easypark_next_run_at:
-            next_expected_at = easypark_next_run_at
-        if row and row.status == "running":
-            status, status_text = "running", "Kjører"
-        elif job_name == "sun2_sessions_import":
-            active_age_minutes = sun2_sessions_active_minutes_since(stamp)
-            status, status_text = import_job_status_from_minutes(
-                active_age_minutes,
-                expected_minutes,
-                warning_minutes,
-            )
-        else:
-            status, status_text = import_job_status_from_age(
-                stamp,
-                expected_minutes,
-                warning_minutes,
-            )
-        if row and row.status != "running" and last_failed_at and (not stamp or last_failed_at > stamp):
-            status, status_text = "bad", "Feil"
-        rows.append(
-            {
-                "source_no": IMPORT_JOB_NUMBER_BY_NAME.get(job_name),
-                "job_name": job_name,
-                "title": row.title if row else definition["title"],
-                "category": row.category if row else definition["category"],
-                "source": row.source if row and row.source else definition.get("source"),
-                "description": definition.get("description", ""),
-                "data_flow": definition.get("data_flow") or definition.get("description", ""),
-                "dependencies": definition.get("dependencies", []),
-                "schedule_text": import_job_schedule_text(job_name, definition, easypark_status),
-                "expected_interval_minutes": expected_minutes,
-                "warning_after_minutes": warning_minutes,
-                "status": status,
-                "status_text": status_text,
-                "age": age_label(sun2_sessions_active_minutes_since(stamp)) if job_name == "sun2_sessions_import" else (import_job_age(row) if row else age_label(minutes_since(stamp))),
-                "last_success_at": stamp,
-                "last_run_at": row.last_run_at if row else stamp,
-                "last_failed_at": last_failed_at,
-                "next_expected_at": next_expected_at,
-                "records_imported": row.records_imported if row else None,
-                "records_total": row.records_total if row else fallback.get("records_total"),
-                "duration_seconds": row.duration_seconds if row else None,
-                "message": row.message if row else fallback.get("message", ""),
-            }
-        )
-    return rows
-
-
-def light_status_text(row: OutdoorLightSample) -> str:
-    active = []
-    for device in LIGHT_TIMELINE_DEVICES:
-        if light_sample_state(row, device):
-            active.append(device["name"])
-    return ", ".join(active) if active else "Alt av"
-
-
-def event_detail(system: str, row) -> str:
-    pieces = []
-    if system == "lys" and row.lux is not None:
-        pieces.append(f"Lux {row.lux:.0f}")
-    if system == "ventilasjon":
-        if row.temp_1etg is not None:
-            pieces.append(f"1.etg {row.temp_1etg:.1f}°")
-        if row.temp_2etg is not None:
-            pieces.append(f"2.etg {row.temp_2etg:.1f}°")
-        if row.temp_vip is not None:
-            pieces.append(f"VIP {row.temp_vip:.1f}°")
-        if row.humidity_1etg is not None:
-            pieces.append(f"fukt 1.etg {row.humidity_1etg:.0f}%")
-        if row.humidity_2etg is not None:
-            pieces.append(f"fukt 2.etg {row.humidity_2etg:.0f}%")
-        if row.humidity_vip is not None:
-            pieces.append(f"fukt VIP {row.humidity_vip:.0f}%")
-        if row.temp_kjeller is not None:
-            pieces.append(f"kjeller {row.temp_kjeller:.1f}°")
-        if row.humidity_kjeller is not None:
-            pieces.append(f"fukt kjeller {row.humidity_kjeller:.0f}%")
-        if row.temp_ute is not None:
-            pieces.append(f"ute {row.temp_ute:.1f}°")
-        if row.diff_w is not None:
-            pieces.append(f"diff {row.diff_w:.0f} W")
-    return ", ".join(pieces)
-
-
-def light_sample_state(row, device) -> Optional[bool]:
-    attr = device.get("sample_attr")
-    value = getattr(row, attr, None)
-    if value is None:
-        return None
-    return bool(value)
-
-
-def sample_state(row, device) -> Optional[bool]:
-    attr = device.get("sample_attr")
-    if not row or not attr:
-        return None
-    value = getattr(row, attr, None)
-    if value is None:
-        return None
-    return bool(value)
-
-
-def hc3_control_device_id(device: Dict[str, Any]) -> Optional[int]:
-    ids = device.get("legacy_ids") or []
-    if not ids:
-        return None
-    try:
-        return int(ids[0])
-    except (TypeError, ValueError):
-        return None
-
-
-def hc3_switch_config_for_timeline_device(device: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    device_id = hc3_control_device_id(device)
-    if device_id is None:
-        return None
-    return {
-        "key": device.get("key"),
-        "name": device.get("name"),
-        "device_id": device_id,
-    }
-
-
-def ventilation_status_payload(
-    device: Dict[str, Any],
-    latest_sample: Optional[VentilationSample],
-    hc3_status: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
-    sample_value = sample_state(latest_sample, device) if latest_sample else None
-    sample_at = latest_sample.bucket_start or latest_sample.timestamp if latest_sample else None
-    hc3_value = hc3_status.get("state") if hc3_status else None
-    has_hc3_value = hc3_value is not None
-    state = hc3_value if has_hc3_value else sample_value
-    device_id = (hc3_status or {}).get("deviceId") or hc3_control_device_id(device)
-    checked_at = (hc3_status or {}).get("checkedAt")
-    error = (hc3_status or {}).get("error")
-    if has_hc3_value:
-        source = "HC3 styring"
-    elif error:
-        source = "Siste sample (HC3 styring feilet)"
-    elif hc3_status:
-        source = "Siste sample (styring ukjent)"
-    else:
-        source = "Siste sample"
-    tooltip_parts = [
-        f"{device.get('name') or device.get('key')}",
-        f"Styringsgrunnlag: {source}",
-        "Merk: dette er antatt drift fra HC3-bryter/rele, ikke separat fysisk viftesensor.",
-    ]
-    if device_id:
-        tooltip_parts.append(f"HC3-id: {device_id}")
-    if checked_at:
-        tooltip_parts.append(f"Sjekket: {checked_at}")
-    if sample_at:
-        tooltip_parts.append(f"Siste sample: {format_source_datetime_short(sample_at)}")
-    if error:
-        tooltip_parts.append(f"Feil: {error}")
-    return {
-        "key": device.get("key"),
-        "label": device.get("name"),
-        "state": api_bool_state(state),
-        "sampleState": api_bool_state(sample_value),
-        "sampleAt": api_local_iso(sample_at),
-        "deviceId": device_id,
-        "deviceName": (hc3_status or {}).get("deviceName") or device.get("name"),
-        "statusSource": source,
-        "checkedAt": checked_at,
-        "error": error,
-        "tooltip": " | ".join(part for part in tooltip_parts if part),
-    }
-
-
-def event_extra_key(row) -> Optional[str]:
-    extra = getattr(row, "extra", None) or {}
-    if isinstance(extra, dict):
-        key = extra.get("device_key") or extra.get("key")
-        if key:
-            return str(key)
-    return None
-
-
-def event_device_key(row, devices) -> Optional[str]:
-    key = getattr(row, "device_key", None) or event_extra_key(row)
-    if key:
-        return str(key)
-    device_id = getattr(row, "device_id", None)
-    device_name = (getattr(row, "device_name", None) or "").strip().lower()
-    for device in devices:
-        if device_id is not None and device_id in device.get("legacy_ids", []):
-            return device["key"]
-        if device_name and device_name == device["name"].strip().lower():
-            return device["key"]
-    return None
-
-
-def event_matches_device(row, device, devices) -> bool:
-    return event_device_key(row, devices) == device["key"]
-
-
-def dedupe_samples_by_bucket(rows):
-    buckets = {}
-    for row in rows:
-        buckets[row.bucket_start or row.timestamp] = row
-    return [buckets[key] for key in sorted(buckets)]
-
-
-def point_from_row(row, day_start: datetime, day_end: datetime, system: str):
-    event_time = max(day_start, min(day_end, row.timestamp))
-    reason = clean_display_text(row.reason or row.source or "")
-    return {
-        "left": percent_between(event_time, day_start, day_end),
-        "time": event_time.strftime("%H:%M"),
-        "action": display_action(row.action),
-        "action_class": "on" if row.action == "PAA" else "off" if row.action == "AV" else "neutral",
-        "reason": reason,
-        "detail": event_detail(system, row),
-    }
-
-
-def build_timeline_item(device, rows, previous_row, day_start: datetime, day_end: datetime, timeline_end: datetime, system: str):
-    state = state_from_event(previous_row) if previous_row else False
-    if state is None:
-        state = False
-    cursor = day_start
-    raw_segments = []
-    points = []
-
-    for row in rows:
-        if row.timestamp >= timeline_end:
-            break
-        event_time = max(day_start, min(timeline_end, row.timestamp))
-        if state and event_time > cursor:
-            add_segment(raw_segments, cursor, event_time)
-
-        new_state = state_from_event(row)
-        points.append(point_from_row(row, day_start, day_end, system))
-        if new_state is not None:
-            state = new_state
-            cursor = event_time
-
-    if state and cursor < timeline_end:
-        add_segment(raw_segments, cursor, timeline_end)
-
-    return {
-        "id": device["key"],
-        "name": device["name"],
-        "segments": display_segments(raw_segments, day_start, day_end),
-        "points": points,
-        "total": total_from_segments(raw_segments),
-    }
-
-
-async def build_timeline_group(model, devices, system: str, day_start: datetime, day_end: datetime, timeline_end: datetime):
-    async with async_session() as session:
-        day_result = await session.execute(
-            select(model)
-            .where(model.timestamp >= day_start)
-            .where(model.timestamp < timeline_end)
-            .order_by(model.timestamp.asc())
-        )
-        rows = day_result.scalars().all()
-        previous = {}
-        for device in devices:
-            previous_candidates = (await session.execute(
-                select(model)
-                .where(model.timestamp < day_start)
-                .order_by(model.timestamp.desc())
-                .limit(300)
-            )).scalars().all()
-            previous[device["key"]] = next((row for row in previous_candidates if event_matches_device(row, device, devices)), None)
-
-    rows_by_device = {device["key"]: [] for device in devices}
-    for row in rows:
-        key = event_device_key(row, devices)
-        if key in rows_by_device:
-            rows_by_device[key].append(row)
-
-    return [
-        build_timeline_item(device, rows_by_device.get(device["key"], []), previous.get(device["key"]), day_start, day_end, timeline_end, system)
-        for device in devices
-    ]
-
-
-async def build_light_timeline_group(day_start: datetime, day_end: datetime, timeline_end: datetime):
-    async with async_session() as session:
-        event_result = await session.execute(
-            select(OutdoorLightEvent)
-            .where(OutdoorLightEvent.timestamp >= day_start)
-            .where(OutdoorLightEvent.timestamp < timeline_end)
-            .order_by(OutdoorLightEvent.timestamp.asc())
-        )
-        event_rows = event_result.scalars().all()
-        sample_result = await session.execute(
-            select(OutdoorLightSample)
-            .where(OutdoorLightSample.timestamp >= day_start)
-            .where(OutdoorLightSample.timestamp < timeline_end)
-            .order_by(OutdoorLightSample.timestamp.asc())
-        )
-        sample_rows = sample_result.scalars().all()
-        sample_rows = dedupe_samples_by_bucket(sample_rows)
-        previous_sample_result = await session.execute(
-            select(OutdoorLightSample)
-            .where(OutdoorLightSample.timestamp < day_start)
-            .order_by(OutdoorLightSample.timestamp.desc())
-            .limit(1)
-        )
-        previous_sample = previous_sample_result.scalars().first()
-        previous_events = {}
-        for device in LIGHT_TIMELINE_DEVICES:
-            previous_candidates = (await session.execute(
-                select(OutdoorLightEvent)
-                .where(OutdoorLightEvent.timestamp < day_start)
-                .order_by(OutdoorLightEvent.timestamp.desc())
-                .limit(300)
-            )).scalars().all()
-            previous_events[device["key"]] = next(
-                (row for row in previous_candidates if event_matches_device(row, device, LIGHT_TIMELINE_DEVICES)),
-                None,
-            )
-
-    events_by_device = {device["key"]: [] for device in LIGHT_TIMELINE_DEVICES}
-    for row in event_rows:
-        key = event_device_key(row, LIGHT_TIMELINE_DEVICES)
-        if key in events_by_device:
-            events_by_device[key].append(row)
-
-    items = []
-    for device in LIGHT_TIMELINE_DEVICES:
-        state = light_sample_state(previous_sample, device) if previous_sample else None
-        if state is None and previous_events.get(device["key"]):
-            state = state_from_event(previous_events[device["key"]])
-        if state is None:
-            state = False
-        cursor = day_start
-        raw_segments = []
-        points = [point_from_row(row, day_start, day_end, "lys") for row in events_by_device.get(device["key"], [])]
-        sample_points = []
-        state_changes = []
-
-        for row in sample_rows:
-            sample_time = row.bucket_start or row.timestamp
-            if sample_time >= timeline_end:
-                break
-            event_time = max(day_start, min(timeline_end, sample_time))
-            new_state = light_sample_state(row, device)
-            if new_state is None:
-                continue
-            state_changes.append({
-                "time": event_time,
-                "state": new_state,
-                "source": "sample",
-                "lux": row.lux,
-            })
-
-        for row in events_by_device.get(device["key"], []):
-            if row.timestamp >= timeline_end:
-                continue
-            event_time = max(day_start, min(timeline_end, row.timestamp))
-            new_state = state_from_event(row)
-            if new_state is None:
-                continue
-            state_changes.append({
-                "time": event_time,
-                "state": new_state,
-                "source": "event",
-                "lux": row.lux,
-            })
-
-        state_changes.sort(key=lambda item: (item["time"], 0 if item["source"] == "sample" else 1))
-
-        for change in state_changes:
-            event_time = change["time"]
-            new_state = change["state"]
-            if state and event_time > cursor:
-                add_segment(raw_segments, cursor, event_time)
-            if new_state != state and change["source"] == "sample":
-                action = "PAA" if new_state else "AV"
-                has_event_point = any(point["time"] == event_time.strftime("%H:%M") and point["action"] == display_action(action) for point in points)
-                if not has_event_point:
-                    sample_points.append({
-                        "left": percent_between(event_time, day_start, day_end),
-                        "time": event_time.strftime("%H:%M"),
-                        "action": display_action(action),
-                        "action_class": "on" if new_state else "off",
-                        "reason": "Statusendring fra 5-minutters luxlogg",
-                        "detail": f"Lux {change['lux']:.0f}" if change["lux"] is not None else "",
-                    })
-            state = new_state
-            cursor = event_time
-
-        if state and cursor < timeline_end:
-            add_segment(raw_segments, cursor, timeline_end)
-
-        all_points = sorted(points + sample_points, key=lambda point: point["time"])
-        items.append({
-            "id": device["key"],
-            "name": device["name"],
-            "segments": display_segments(raw_segments, day_start, day_end),
-            "points": all_points,
-            "total": total_from_segments(raw_segments),
-        })
-
-    return items
-
-
-async def build_light_chart_markers(day_start: datetime, day_end: datetime, timeline_end: datetime):
-    light_colors = {
-        "lyslist": "#df705d",
-        "reklame": "#f2b84b",
-        "spot_glass_275": "#3f7fbd",
-        "spot_glass_299": "#2f8fa3",
-        "spot_inngang": "#726189",
-        "parkering": "#2563eb",
-    }
-    light_shorts = {
-        "lyslist": "Lyslist",
-        "reklame": "Reklame",
-        "spot_glass_275": "Glass",
-        "spot_glass_299": "Massasje",
-        "spot_inngang": "Inngang",
-        "parkering": "Parkering",
-    }
-    devices = [
-        {
-            **device,
-            "short": light_shorts.get(device["key"], device["name"]),
-            "color": light_colors.get(device["key"], "#df705d"),
-            "default": True,
-        }
-        for device in LIGHT_TIMELINE_DEVICES
-    ]
-
-    async with async_session() as session:
-        event_rows = (
-            await session.execute(
-                select(OutdoorLightEvent)
-                .where(OutdoorLightEvent.timestamp >= day_start)
-                .where(OutdoorLightEvent.timestamp < timeline_end)
-                .order_by(OutdoorLightEvent.timestamp.asc())
-            )
-        ).scalars().all()
-        sample_rows = (
-            await session.execute(
-                select(OutdoorLightSample)
-                .where(OutdoorLightSample.timestamp >= day_start)
-                .where(OutdoorLightSample.timestamp < timeline_end)
-                .order_by(OutdoorLightSample.timestamp.asc())
-            )
-        ).scalars().all()
-        sample_rows = dedupe_samples_by_bucket(sample_rows)
-        previous_sample = (
-            await session.execute(
-                select(OutdoorLightSample)
-                .where(OutdoorLightSample.timestamp < day_start)
-                .order_by(OutdoorLightSample.timestamp.desc())
-                .limit(1)
-            )
-        ).scalars().first()
-        previous_candidates = (
-            await session.execute(
-                select(OutdoorLightEvent)
-                .where(OutdoorLightEvent.timestamp < day_start)
-                .order_by(OutdoorLightEvent.timestamp.desc())
-                .limit(300)
-            )
-        ).scalars().all()
-
-    events_by_device = {device["key"]: [] for device in devices}
-    for row in event_rows:
-        key = event_device_key(row, LIGHT_TIMELINE_DEVICES)
-        if key in events_by_device:
-            events_by_device[key].append(row)
-
-    markers = []
-    light_lane_y = {device["key"]: 34 + index * 13 for index, device in enumerate(devices)}
-    for device in devices:
-        state = light_sample_state(previous_sample, device) if previous_sample else None
-        if state is None:
-            previous_event = next(
-                (row for row in previous_candidates if event_matches_device(row, device, LIGHT_TIMELINE_DEVICES)),
-                None,
-            )
-            state = state_from_event(previous_event) if previous_event else None
-        if state is None:
-            state = False
-
-        changes = []
-        for row in sample_rows:
-            sample_time = row.bucket_start or row.timestamp
-            if sample_time is None or sample_time >= timeline_end:
-                continue
-            new_state = light_sample_state(row, device)
-            if new_state is None:
-                continue
-            changes.append(
-                {
-                    "time": max(day_start, min(timeline_end, sample_time)),
-                    "state": new_state,
-                    "source_order": 0,
-                    "detail": f"Lux {row.lux:.0f}" if row.lux is not None else "",
-                    "reason": "Statusendring fra 5-minutters luxlogg",
-                }
-            )
-
-        for row in events_by_device.get(device["key"], []):
-            if row.timestamp >= timeline_end:
-                continue
-            new_state = state_from_event(row)
-            if new_state is None:
-                continue
-            detail = event_detail("lys", row)
-            reason = clean_display_text(row.reason or row.source or "")
-            changes.append(
-                {
-                    "time": max(day_start, min(timeline_end, row.timestamp)),
-                    "state": new_state,
-                    "source_order": 1,
-                    "detail": detail,
-                    "reason": reason,
-                }
-            )
-
-        seen = set()
-        for change in sorted(changes, key=lambda item: (item["time"], item["source_order"])):
-            if change["state"] == state:
-                continue
-            action = "PÅ" if change["state"] else "AV"
-            action_class = "on" if change["state"] else "off"
-            marker_key = (device["key"], change["time"].replace(second=0, microsecond=0), action_class)
-            if marker_key in seen:
-                state = change["state"]
-                continue
-            seen.add(marker_key)
-            markers.append(
-                {
-                    "light_key": device["key"],
-                    "light_name": device["name"],
-                    "light_short": device["short"],
-                    "color": device["color"],
-                    "x": percent_between(change["time"], day_start, day_end) * 10,
-                    "lane_y": light_lane_y.get(device["key"], 34),
-                    "time": change["time"].strftime("%H:%M"),
-                    "action": action,
-                    "class": action_class,
-                    "detail": change["detail"],
-                    "reason": change["reason"],
-                }
-            )
-            state = change["state"]
-
-    return {"lights": devices, "events": markers}
-
-
-async def fetch_lux_samples(day_start: datetime, timeline_end: datetime):
-    async with async_session() as session:
-        sample_result = await session.execute(
-            select(OutdoorLightSample)
-            .where(OutdoorLightSample.timestamp >= day_start)
-            .where(OutdoorLightSample.timestamp < timeline_end)
-            .order_by(OutdoorLightSample.timestamp.asc())
-        )
-        sample_rows = dedupe_samples_by_bucket(sample_result.scalars().all())
-
-    samples = []
-    lux_values = []
-    for row in sample_rows:
-        sample_time = row.bucket_start or row.timestamp
-        lux_value = row.lux if row.lux is not None else row.value
-        if sample_time is None or lux_value is None:
-            continue
-        lux_values.append(lux_value)
-        samples.append(
-            {
-                "time_dt": sample_time,
-                "time": sample_time.strftime("%H:%M"),
-                "lux": round(lux_value, 1),
-                "lux_label": f"{lux_value:.0f}",
-                "mode": row.mode or "",
-                "source": row.source or "",
-                "lights": light_status_text(row),
-                "light_states": {device["key"]: light_sample_state(row, device) for device in LIGHT_TIMELINE_DEVICES},
-            }
-        )
-    return samples, lux_values
-
-
-async def fetch_yr_cloud_samples(day_start: datetime, day_end: datetime):
-    async with async_session() as session:
-        sample_result = await session.execute(
-            select(YrForecastSample)
-            .where(YrForecastSample.bucket_start >= day_start)
-            .where(YrForecastSample.bucket_start < day_end)
-            .order_by(YrForecastSample.bucket_start.asc(), YrForecastSample.timestamp.asc())
-        )
-        sample_rows = dedupe_samples_by_bucket(sample_result.scalars().all())
-
-    samples = []
-    for row in sample_rows:
-        sample_time = row.bucket_start or row.timestamp
-        cloud_value = row.cloud_area_fraction
-        if sample_time is None or cloud_value is None:
-            continue
-        samples.append(
-            {
-                "time_dt": sample_time,
-                "time": sample_time.strftime("%H:%M"),
-                "cloud_area_fraction": round(float(cloud_value), 1),
-                "weather_text": row.weather_text or "",
-            }
-        )
-    return samples
-
-
-def build_solar_elevation_samples(day_start: datetime, day_end: datetime, interval_minutes: int = 10):
-    samples = []
-    cursor = day_start
-    interval = timedelta(minutes=max(1, interval_minutes))
-    while cursor <= day_end:
-        elevation = solar_elevation_degrees(cursor, MET_LAT, MET_LON, LOCAL_TZ)
-        samples.append(
-            {
-                "time_dt": cursor,
-                "time": cursor.strftime("%H:%M"),
-                "solar_elevation": round(max(0.0, elevation), 1),
-            }
-        )
-        cursor += interval
-    return samples
-
-
-async def build_lux_day(day_start: datetime, day_end: datetime, timeline_end: datetime, scale_values: Optional[list] = None):
-    samples, lux_values = await fetch_lux_samples(day_start, timeline_end)
-
-    scale = lux_scale(scale_values if scale_values is not None else lux_values)
-    max_lux = scale["max"]
-    points = []
-    for sample in samples:
-        points.append(
-            {
-                **sample,
-                "x": percent_between(sample["time_dt"], day_start, day_end) * 10,
-                "y": lux_y(float(sample["lux"]), max_lux),
-            }
-        )
-    polyline = " ".join(f"{point['x']:.2f},{point['y']:.2f}" for point in points)
-
-    y_ticks = [
-        {
-            "label": lux_tick_label(value),
-            "value": value,
-            "y": lux_y(float(value), max_lux),
-            "symbol_radius": round(2.2 + math.sqrt(value / max_lux) * 3.8, 2),
-            "symbol_opacity": round(0.25 + math.sqrt(value / max_lux) * 0.55, 2),
-        }
-        for value in lux_tick_values(max_lux)
-    ]
-    reference_lines = [
-        {"label": f"{lux_tick_label(value)} lux", "value": value, "y": lux_y(float(value), max_lux)}
-        for value in [100, 1000, 2000]
-        if value <= max_lux
-    ]
-
-    lux_only = [sample["lux"] for sample in samples]
-    summary = {
-        "count": len(samples),
-        "min": f"{min(lux_only):.0f}" if lux_only else "-",
-        "max": f"{max(lux_only):.0f}" if lux_only else "-",
-        "latest": f"{lux_only[-1]:.0f}" if lux_only else "-",
-        "latest_time": samples[-1]["time"] if samples else "-",
-        "scale_max": f"{max_lux:.0f}",
-        "scale_step": f"{scale['step']:.0f}",
-        "scale_break": "2000",
-    }
-    return {
-        "points": points,
-        "polyline": polyline,
-        "y_ticks": y_ticks,
-        "reference_lines": reference_lines,
-        "samples_desc": list(reversed(samples)),
-        "summary": summary,
-    }
-
-
-def build_lux_sparkline(sample_rows, day_start: datetime, day_end: datetime):
-    rows = dedupe_samples_by_bucket(sample_rows)
-    values = []
-    points = []
-    for row in rows:
-        sample_time = row.bucket_start or row.timestamp
-        lux_value = row.lux if row.lux is not None else row.value
-        if sample_time is None or lux_value is None:
-            continue
-        values.append(float(lux_value))
-        points.append((sample_time, float(lux_value)))
-    if not points:
-        return {"polyline": "", "count": 0}
-    max_lux = lux_scale(values)["max"]
-    polyline = " ".join(
-        f"{percent_between(sample_time, day_start, day_end) * 10:.2f},{lux_y(value, max_lux):.2f}"
-        for sample_time, value in points
-    )
-    return {"polyline": polyline, "count": len(points)}
-
-
-async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: datetime):
-    series_config = [
-        {"key": "temp_1etg", "label": "1.etg", "kind": "temperature", "unit": "C", "class": "one", "color": "#df705d", "default": False},
-        {"key": "temp_2etg", "label": "2.etg", "kind": "temperature", "unit": "C", "class": "two", "color": "#f2b84b", "default": False},
-        {"key": "temp_vip", "label": "VIP", "kind": "temperature", "unit": "C", "class": "vip", "color": "#8b5cf6", "default": False},
-        {"key": "temp_ute", "label": "Ute styring", "kind": "temperature", "unit": "C", "class": "outdoor", "color": "#2f8fa3", "default": False},
-        {"key": "temp_ute_netatmo", "label": "Ute Netatmo", "kind": "temperature", "unit": "C", "class": "outdoor-netatmo", "color": "#14b8a6", "default": False},
-        {"key": "temp_yr", "label": "Yr API", "kind": "temperature", "unit": "C", "class": "yr", "color": "#4b7fbb", "default": False},
-        {"key": "temp_loft", "label": "Loft", "kind": "temperature", "unit": "C", "class": "loft", "color": "#726189", "default": True},
-        {"key": "temp_kjeller", "label": "Kjeller", "kind": "temperature", "unit": "C", "class": "basement", "color": "#2f8fa3", "default": False},
-        {"key": "temp_passiv", "label": "Pass innluft", "kind": "temperature", "unit": "C", "class": "passive", "color": "#52a464", "default": False},
-        {"key": "temp_luftinntak", "label": "Luftinntak", "kind": "temperature", "unit": "C", "class": "intake", "color": "#9a660f", "default": False},
-        {"key": "temp_min_inne", "label": "Min inne", "kind": "temperature", "unit": "C", "class": "indoor-min", "color": "#93c5fd", "default": False},
-        {"key": "temp_avg_inne", "label": "Snitt inne", "kind": "temperature", "unit": "C", "class": "indoor-avg", "color": "#3f7fbd", "default": False},
-        {"key": "temp_max_inne", "label": "Maks inne", "kind": "temperature", "unit": "C", "class": "indoor-max", "color": "#1d4ed8", "default": False},
-        {"key": "humidity_kjeller", "label": "Fukt kjeller", "kind": "humidity", "unit": "%", "class": "humidity-basement", "color": "#0f766e", "default": True},
-        {"key": "humidity_1etg", "label": "Fukt 1.etg", "kind": "humidity", "unit": "%", "class": "humidity-one", "color": "#16a34a", "default": False},
-        {"key": "humidity_2etg", "label": "Fukt 2.etg", "kind": "humidity", "unit": "%", "class": "humidity-two", "color": "#22c55e", "default": False},
-        {"key": "humidity_vip", "label": "Fukt VIP", "kind": "humidity", "unit": "%", "class": "humidity-vip", "color": "#14b8a6", "default": False},
-        {"key": "humidity_loft", "label": "Fukt loft", "kind": "humidity", "unit": "%", "class": "humidity-loft", "color": "#0d9488", "default": False},
-        {"key": "humidity_ute", "label": "Fukt ute", "kind": "humidity", "unit": "%", "class": "humidity-outdoor", "color": "#38bdf8", "default": False},
-        {"key": "humidity_yr", "label": "Fukt Yr", "kind": "humidity", "unit": "%", "class": "humidity-yr", "color": "#60a5fa", "default": False},
-        {"key": "humidity_luftinntak", "label": "Fukt innluft", "kind": "humidity", "unit": "%", "class": "humidity-intake", "color": "#06b6d4", "default": False},
-        {"key": "humidity_passiv", "label": "Fukt passiv", "kind": "humidity", "unit": "%", "class": "humidity-passive", "color": "#84cc16", "default": False},
-    ]
-    fan_config = [
-        {**VENT_TIMELINE_DEVICES[0], "short": "VIP", "color": "#52a464", "default": True},
-        {**VENT_TIMELINE_DEVICES[1], "short": "2.etg", "color": "#3f7fbd", "default": True},
-        {**VENT_TIMELINE_DEVICES[2], "short": "Tak", "color": "#726189", "default": True},
-        {**VENT_TIMELINE_DEVICES[3], "short": "Avf.", "color": "#2f8fa3", "default": True},
-    ]
-    fan_by_key = {fan["key"]: fan for fan in fan_config}
-
-    async with async_session() as session:
-        sample_result = await session.execute(
-            select(VentilationSample)
-            .where(VentilationSample.timestamp >= day_start)
-            .where(VentilationSample.timestamp < timeline_end)
-            .order_by(VentilationSample.timestamp.asc())
-        )
-        sample_rows = dedupe_samples_by_bucket(sample_result.scalars().all())
-        fan_result = await session.execute(
-            select(VentilationEvent)
-            .where(VentilationEvent.timestamp >= day_start)
-            .where(VentilationEvent.timestamp < timeline_end)
-            .order_by(VentilationEvent.timestamp.asc())
-        )
-        fan_rows = fan_result.scalars().all()
-
-    def day_value_label(series: Dict[str, Any], value: Any) -> str:
-        if value is None:
-            return "-"
-        if series.get("kind") == "humidity":
-            return f"{float(value):.0f}%"
-        return temp_label(value)
-
-    samples = []
-    all_values = []
-    for row in sample_rows:
-        sample_time = row.bucket_start or row.timestamp
-        if sample_time is None:
-            continue
-
-        sample = {
-            "time_dt": sample_time,
-            "time": sample_time.strftime("%H:%M"),
-            "mode": row.mode or "",
-            "source": row.source or "",
-        }
-        has_value = False
-        for series in series_config:
-            value = getattr(row, series["key"], None)
-            sample[series["key"]] = value
-            sample[f"{series['key']}_label"] = day_value_label(series, value)
-            if value is not None:
-                has_value = True
-                if series.get("kind") == "temperature":
-                    all_values.append(value)
-        for fan in fan_config:
-            sample_attr = fan.get("sample_attr")
-            if not sample_attr:
-                continue
-            state = getattr(row, sample_attr, None)
-            sample[sample_attr] = state
-            if state is not None:
-                has_value = True
-        if has_value:
-            samples.append(sample)
-
-    axis = temp_axis(all_values)
-    series_items = []
-    for series in series_config:
-        points = []
-        values = []
-        for sample in samples:
-            value = sample[series["key"]]
-            if value is None:
-                continue
-            values.append(value)
-            if series.get("kind") == "temperature":
-                points.append(
-                    {
-                        "x": percent_between(sample["time_dt"], day_start, day_end) * 10,
-                        "y": temp_y(float(value), axis["min"], axis["max"]),
-                    }
-                )
-        series_items.append(
-            {
-                **series,
-                "polyline": " ".join(f"{point['x']:.2f},{point['y']:.2f}" for point in points),
-                "latest": day_value_label(series, values[-1]) if values else "-",
-                "min": day_value_label(series, min(values)) if values else "-",
-                "max": day_value_label(series, max(values)) if values else "-",
-            }
-        )
-
-    y_ticks = []
-    tick = axis["min"]
-    while tick <= axis["max"] + 0.001:
-        y_ticks.append({"label": temp_label(tick), "y": temp_y(tick, axis["min"], axis["max"])})
-        tick += axis["step"]
-
-    fan_events = []
-    for row in fan_rows:
-        fan_key = event_device_key(row, VENT_TIMELINE_DEVICES)
-        if fan_key not in fan_by_key:
-            continue
-        state = state_from_event(row)
-        if state is None:
-            continue
-        fan = fan_by_key[fan_key]
-        event_time = max(day_start, min(timeline_end, row.timestamp))
-        fan_events.append(
-            {
-                "fan_key": fan_key,
-                "fan_name": fan["name"],
-                "fan_short": fan["short"],
-                "color": fan["color"],
-                "x": percent_between(event_time, day_start, day_end) * 10,
-                "time": event_time.strftime("%H:%M"),
-                "action": "PÅ" if state else "AV",
-                "class": "on" if state else "off",
-                "detail": clean_display_text(row.reason or row.source or ""),
-            }
-        )
-
-    visible_series_count = sum(1 for series in series_items if series["polyline"])
-    summary = {
-        "count": len(samples),
-        "fan_event_count": len(fan_events),
-        "latest_time": samples[-1]["time"] if samples else "-",
-        "axis_min": temp_label(axis["min"]),
-        "axis_max": temp_label(axis["max"]),
-        "series_count": visible_series_count,
-    }
-    return {
-        "series": series_items,
-        "fans": fan_config,
-        "fan_events": fan_events,
-        "y_ticks": y_ticks,
-        "samples_desc": list(reversed(samples)),
-        "summary": summary,
-    }
-
-
-def row_to_dict(row, columns):
-    out = {}
-    for column in columns:
-        if column == "extra":
-            continue
-        value = getattr(row, column)
-        out[column] = value.isoformat() if isinstance(value, (datetime, date)) else value
-    if hasattr(row, "extra"):
-        out["extra"] = row.extra or {}
-    return out
-
-
-def energy_fibaro_sample_payload(data: EnergyFibaroIn, previous: Optional[EnergyFibaroSample]) -> Dict[str, Any]:
-    timestamp = normalize_local_naive(data.timestamp) or local_now_naive()
-    bucket_start = energy_sample_bucket(data.bucket_start or timestamp)
-    values: Dict[str, Any] = {
-        "timestamp": timestamp,
-        "bucket_start": bucket_start,
-        "source": data.source,
-        "inntak_w": data.inntak_w,
-        "varmepumper_w": data.varmepumper_w,
-        "belysning_w": data.belysning_w,
-        "massasje_w": data.massasje_w,
-        "annet_w": data.annet_w,
-        "avfukter_w": data.avfukter_w,
-        "differanse_fibaro_w": None,
-        "inntak_kwh": data.inntak_kwh,
-        "varmepumper_kwh": data.varmepumper_kwh,
-        "belysning_kwh": data.belysning_kwh,
-        "massasje_kwh": data.massasje_kwh,
-        "annet_kwh": data.annet_kwh,
-        "avfukter_kwh": data.avfukter_kwh,
-        "differanse_fibaro_kwh": None,
-        "extra": data.extra or {},
-    }
-    values["differanse_beregnet_w"] = calculated_difference(
-        values["inntak_w"],
-        [values[f"{key}_w"] for key in ENERGY_SUB_KEYS],
-    )
-    values["differanse_beregnet_kwh"] = calculated_difference(
-        values["inntak_kwh"],
-        [values[f"{key}_kwh"] for key in ENERGY_SUB_KEYS],
-    )
-
-    reset_flags: Dict[str, bool] = {}
-    accumulated_control_deltas: Dict[str, Optional[float]] = {}
-    for key in ENERGY_ACCUMULATED_KEYS:
-        delta, reset = accumulated_delta(
-            values.get(f"{key}_kwh"),
-            getattr(previous, f"{key}_kwh", None) if previous else None,
-        )
-        accumulated_control_deltas[key] = delta
-        values[f"{key}_delta_kwh"] = realtime_power_delta_kwh(
-            values.get(f"{key}_w"),
-            getattr(previous, f"{key}_w", None) if previous else None,
-            timestamp,
-            previous.timestamp if previous else None,
-        )
-        values[f"{key}_reset"] = reset
-        reset_flags[key] = reset
-
-    values["differanse_beregnet_delta_kwh"] = realtime_power_delta_kwh(
-        values.get("differanse_beregnet_w"),
-        getattr(previous, "differanse_beregnet_w", None) if previous else None,
-        timestamp,
-        previous.timestamp if previous else None,
-    )
-    values["extra"] = {
-        **(values.get("extra") or {}),
-        "reset_flags": reset_flags,
-        "accumulated_control_deltas": accumulated_control_deltas,
-        "delta_source": "realtime_w",
-        "delta_max_interval_seconds": ENERGY_REALTIME_MAX_DELTA_SECONDS,
-        "calculated_by": "fibaro10",
-    }
-    return values
-
-
-async def upsert_energy_fibaro_sample(session, data: EnergyFibaroIn) -> EnergyFibaroSample:
-    timestamp = normalize_local_naive(data.timestamp) or local_now_naive()
-    bucket_start = energy_sample_bucket(data.bucket_start or timestamp)
-    previous = (
-        await session.execute(
-            select(EnergyFibaroSample)
-            .where(EnergyFibaroSample.bucket_start < bucket_start)
-            .order_by(EnergyFibaroSample.bucket_start.desc())
-            .limit(1)
-        )
-    ).scalars().first()
-    values = energy_fibaro_sample_payload(
-        EnergyFibaroIn(**{**data.dict(), "timestamp": timestamp, "bucket_start": bucket_start}),
-        previous,
-    )
-    existing = (
-        await session.execute(
-            select(EnergyFibaroSample)
-            .where(EnergyFibaroSample.bucket_start == bucket_start)
-            .limit(1)
-        )
-    ).scalars().first()
-    if existing:
-        for key, value in values.items():
-            setattr(existing, key, value)
-        return existing
-    record = EnergyFibaroSample(**values)
-    session.add(record)
-    return record
-
-
-def energy_area_cards(latest: Optional[EnergyFibaroSample], totals: Dict[str, float], reset_counts: Dict[str, int]) -> list[Dict[str, Any]]:
-    cards = []
-    for area in ENERGY_FIBARO_AREAS:
-        key = area["key"]
-        cards.append(
-            {
-                **area,
-                "power_w": getattr(latest, f"{key}_w", None) if latest else None,
-                "energy_kwh": getattr(latest, f"{key}_kwh", None) if latest else None,
-                "today_kwh": totals.get(f"{key}_delta_kwh", 0.0),
-                "resets_today": reset_counts.get(key, 0),
-            }
-        )
-    return cards
-
-
-def percentile(values: list[float], percent: float) -> Optional[float]:
-    if not values:
-        return None
-    ordered = sorted(values)
-    if len(ordered) == 1:
-        return ordered[0]
-    position = (len(ordered) - 1) * percent
-    lower = math.floor(position)
-    upper = math.ceil(position)
-    if lower == upper:
-        return ordered[int(position)]
-    return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
-
-
-def sunbed_session_bounds(row: Sun2TanningSession) -> tuple[datetime, datetime] | None:
-    if not row.started_at:
-        return None
-    start_at = normalize_local_naive(row.started_at)
-    end_at = normalize_local_naive(row.ended_at)
-    if not start_at:
-        return None
-    if not end_at:
-        end_at = start_at + timedelta(minutes=float(row.duration_minutes or 15))
-    if end_at <= start_at:
-        end_at = start_at + timedelta(minutes=max(1.0, float(row.duration_minutes or 1)))
-    return start_at, end_at
-
-
-def build_sunbed_power_analysis(
-    sessions: list[Sun2TanningSession],
-    samples: list[Any],
-    bed_lookup: Dict[str, Any],
-    ventilation_samples: Optional[list[Any]] = None,
-) -> Dict[str, Any]:
-    warmup_minutes = 2
-    cooldown_minutes = 3
-    stop_before_end_minutes = 1
-    min_samples_per_session = 3
-    session_items = []
-    for row in sessions:
-        room_id = normalize_room_id(row.room_id)
-        bounds = sunbed_session_bounds(row)
-        if not room_id or not bounds:
-            continue
-        start_at, end_at = bounds
-        session_items.append(
-            {
-                "id": row.id,
-                "room_id": room_id,
-                "sun2_bed_id": row.sun2_bed_id,
-                "start": start_at,
-                "end": end_at,
-                "measure_start": start_at + timedelta(minutes=warmup_minutes),
-                "measure_end": end_at - timedelta(minutes=stop_before_end_minutes),
-                "occupied_end": end_at + timedelta(minutes=cooldown_minutes),
-                "duration_minutes": max(0.0, (end_at - start_at).total_seconds() / 60),
-            }
-        )
-
-    events = []
-    sessions_by_id = {}
-    for item in session_items:
-        sessions_by_id[item["id"]] = item
-        events.append((item["start"], 1, item["id"]))
-        events.append((item["occupied_end"], -1, item["id"]))
-    events.sort(key=lambda item: (item[0], item[1]))
-
-    ventilation_items: list[tuple[datetime, bool]] = []
-    for row in ventilation_samples or []:
-        bucket = row.get("bucket_start") if isinstance(row, dict) else getattr(row, "bucket_start", None)
-        bucket = normalize_local_naive(bucket)
-        fan_tak = row.get("fan_tak") if isinstance(row, dict) else getattr(row, "fan_tak", None)
-        if bucket is not None:
-            ventilation_items.append((bucket, bool(fan_tak)))
-    ventilation_items.sort(key=lambda item: item[0])
-
-    sample_items: list[tuple[datetime, float]] = []
-    for sample in samples:
-        bucket = sample.get("bucket_start") if isinstance(sample, dict) else getattr(sample, "bucket_start", None)
-        bucket = normalize_local_naive(bucket)
-        value = sample.get("differanse_beregnet_w") if isinstance(sample, dict) else getattr(sample, "differanse_beregnet_w", None)
-        try:
-            diff_w = float(value)
-        except (TypeError, ValueError):
-            continue
-        if bucket is not None:
-            sample_items.append((bucket, diff_w))
-    sample_items.sort(key=lambda item: item[0])
-    sample_interval_candidates = [
-        (right[0] - left[0]).total_seconds()
-        for left, right in zip(sample_items, sample_items[1:])
-        if 5 <= (right[0] - left[0]).total_seconds() <= 300
-    ]
-    sample_interval_seconds = float(median(sample_interval_candidates)) if sample_interval_candidates else 30.0
-
-    active: set[int] = set()
-    event_index = 0
-    ventilation_index = 0
-    single_samples: list[tuple[datetime, float, float, int]] = []
-    baseline_by_day_hour: Dict[tuple[date, int], list[float]] = defaultdict(list)
-    baseline_by_day: Dict[date, list[float]] = defaultdict(list)
-    baseline_global: list[float] = []
-    overlap_samples = 0
-    roof_exhaust_adjusted_samples = 0
-
-    for sample_time, diff_w in sample_items:
-        while (
-            ventilation_index < len(ventilation_items)
-            and ventilation_items[ventilation_index][0] < sample_time
-        ):
-            ventilation_index += 1
-        ventilation_candidates = []
-        if ventilation_index < len(ventilation_items):
-            ventilation_candidates.append(ventilation_items[ventilation_index])
-        if ventilation_index > 0:
-            ventilation_candidates.append(ventilation_items[ventilation_index - 1])
-        adjustment_w = 0.0
-        if ventilation_candidates:
-            nearest_time, nearest_fan_tak = min(
-                ventilation_candidates,
-                key=lambda item: abs((sample_time - item[0]).total_seconds()),
-            )
-            if (
-                nearest_fan_tak
-                and abs((sample_time - nearest_time).total_seconds()) <= SUNBED_ANALYSIS_VENTILATION_MATCH_SECONDS
-            ):
-                adjustment_w = ROOF_EXHAUST_UNMETERED_W
-                roof_exhaust_adjusted_samples += 1
-        analysis_diff_w = diff_w - adjustment_w
-
-        while event_index < len(events) and events[event_index][0] <= sample_time:
-            _, action, session_id = events[event_index]
-            if action == 1:
-                active.add(session_id)
-            else:
-                active.discard(session_id)
-            event_index += 1
-        if len(active) == 0:
-            baseline_by_day_hour[(sample_time.date(), sample_time.hour)].append(analysis_diff_w)
-            baseline_by_day[sample_time.date()].append(analysis_diff_w)
-            baseline_global.append(analysis_diff_w)
-        elif len(active) == 1:
-            single_samples.append((sample_time, diff_w, analysis_diff_w, next(iter(active))))
-        else:
-            overlap_samples += 1
-
-    global_baseline = median(baseline_global) if baseline_global else None
-    baseline_by_day_hour_median = {
-        key: median(values)
-        for key, values in baseline_by_day_hour.items()
-        if values
-    }
-    baseline_by_day_median = {
-        key: median(values)
-        for key, values in baseline_by_day.items()
-        if values
-    }
-    per_room: Dict[str, Dict[str, Any]] = {}
-    per_session: Dict[int, Dict[str, Any]] = {}
-    candidate_sessions: Dict[int, Dict[str, Any]] = {}
-    used_samples = 0
-    rejected_low = 0
-    missing_baseline = 0
-    rejected_warmup_cooldown = 0
-    rejected_short_sessions = 0
-    rejected_short_samples = 0
-
-    for sample_time, diff_w, analysis_diff_w, session_id in single_samples:
-        session_item = sessions_by_id.get(session_id)
-        if not session_item:
-            continue
-        if not (session_item["measure_start"] <= sample_time < session_item["measure_end"]):
-            rejected_warmup_cooldown += 1
-            continue
-        baseline = baseline_by_day_hour_median.get((sample_time.date(), sample_time.hour))
-        if baseline is None:
-            baseline = baseline_by_day_median.get(sample_time.date(), global_baseline)
-        if baseline is None:
-            missing_baseline += 1
-            continue
-        net_w = analysis_diff_w - baseline
-        if net_w <= 500:
-            rejected_low += 1
-            continue
-
-        if session_id not in candidate_sessions:
-            candidate_sessions[session_id] = {
-                **session_item,
-                "net_values": [],
-                "observed_values": [],
-                "baseline_values": [],
-            }
-        candidate_sessions[session_id]["net_values"].append(net_w)
-        candidate_sessions[session_id]["observed_values"].append(diff_w)
-        candidate_sessions[session_id]["baseline_values"].append(baseline)
-
-    for session_id, session_item in candidate_sessions.items():
-        net_values = session_item["net_values"]
-        if len(net_values) < min_samples_per_session:
-            rejected_short_sessions += 1
-            rejected_short_samples += len(net_values)
-            continue
-        room_id = session_item["room_id"]
-        bed = bed_lookup.get(room_id)
-        if room_id not in per_room:
-            per_room[room_id] = {
-                "room_id": room_id,
-                "label": sun2_room_label(room_id, getattr(bed, "name", None) if bed else None),
-                "sun2_bed_id": getattr(bed, "sun2_bed_id", None) if bed else session_item.get("sun2_bed_id"),
-                "bed_model": getattr(bed, "bed_model", None) if bed else None,
-                "samples_count": 0,
-                "sessions": set(),
-                "net_values": [],
-                "observed_values": [],
-                "baseline_values": [],
-                "estimated_kwh": 0.0,
-                "duration_minutes": 0.0,
-            }
-        target = per_room[room_id]
-        target["samples_count"] += len(net_values)
-        target["sessions"].add(session_id)
-        target["net_values"].extend(net_values)
-        target["observed_values"].extend(session_item["observed_values"])
-        target["baseline_values"].extend(session_item["baseline_values"])
-        target["estimated_kwh"] += sum(net_values) * sample_interval_seconds / 3600 / 1000
-        used_samples += len(net_values)
-        per_session[session_id] = {
-            **session_item,
-            "label": target["label"],
-            "net_values": list(net_values),
-            "observed_values": list(session_item["observed_values"]),
-            "baseline_values": list(session_item["baseline_values"]),
-        }
-
-    rooms = []
-    for item in per_room.values():
-        net_values = item.pop("net_values")
-        observed_values = item.pop("observed_values")
-        baseline_values = item.pop("baseline_values")
-        session_count = len(item.pop("sessions"))
-        avg_w = sum(net_values) / len(net_values) if net_values else None
-        median_w = median(net_values) if net_values else None
-        estimate_w = median_w
-        item.update(
-            {
-                "sessions_count": session_count,
-                "avg_w": avg_w,
-                "median_w": median_w,
-                "estimate_w": estimate_w,
-                "p25_w": percentile(net_values, 0.25),
-                "p75_w": percentile(net_values, 0.75),
-                "min_w": min(net_values) if net_values else None,
-                "max_w": max(net_values) if net_values else None,
-                "avg_observed_w": sum(observed_values) / len(observed_values) if observed_values else None,
-                "avg_baseline_w": sum(baseline_values) / len(baseline_values) if baseline_values else None,
-                "kwh_10_min": (estimate_w or 0) / 1000 * (10 / 60),
-                "kwh_15_min": (estimate_w or 0) / 1000 * (15 / 60),
-                "kwh_20_min": (estimate_w or 0) / 1000 * (20 / 60),
-                "confidence": "Høy" if len(net_values) >= 60 and session_count >= 5 else "Middels" if len(net_values) >= 20 and session_count >= 2 else "Lav",
-            }
-        )
-        rooms.append(item)
-    rooms.sort(key=lambda item: (item.get("room_id") or ""))
-
-    observations = []
-    for item in per_session.values():
-        net_values = item["net_values"]
-        if not net_values:
-            continue
-        observations.append(
-            {
-                "session_id": item["id"],
-                "room_id": item["room_id"],
-                "label": item["label"],
-                "start": item["start"],
-                "end": item["end"],
-                "duration_minutes": item["duration_minutes"],
-                "samples_count": len(net_values),
-                "avg_w": sum(net_values) / len(net_values),
-                "median_w": median(net_values),
-                "avg_observed_w": sum(item["observed_values"]) / len(item["observed_values"]),
-                "avg_baseline_w": sum(item["baseline_values"]) / len(item["baseline_values"]),
-                "estimated_kwh": sum(net_values) * sample_interval_seconds / 3600 / 1000,
-            }
-        )
-    observations.sort(key=lambda item: item["start"], reverse=True)
-
-    return {
-        "rooms": rooms,
-        "observations": observations[:80],
-        "summary": {
-            "sessions_total": len(session_items),
-            "energy_samples_total": len(sample_items),
-            "roof_exhaust_adjusted_samples": roof_exhaust_adjusted_samples,
-            "roof_exhaust_adjustment_w": ROOF_EXHAUST_UNMETERED_W,
-            "baseline_samples": len(baseline_global),
-            "single_samples": used_samples,
-            "overlap_samples": overlap_samples,
-            "missing_baseline_samples": missing_baseline,
-            "rejected_low_samples": rejected_low,
-            "rejected_warmup_cooldown_samples": rejected_warmup_cooldown,
-            "rejected_short_sessions": rejected_short_sessions,
-            "rejected_short_samples": rejected_short_samples,
-            "global_baseline_w": global_baseline,
-            "rooms_count": len(rooms),
-            "warmup_minutes": warmup_minutes,
-            "cooldown_minutes": cooldown_minutes,
-            "stop_before_end_minutes": stop_before_end_minutes,
-            "min_samples_per_session": min_samples_per_session,
-            "sample_interval_seconds": sample_interval_seconds,
-        },
-    }
-
-
-def sunbed_analysis_date_range(
-    date_from: Optional[str],
-    date_to: Optional[str],
-    today: date,
-    max_days: int = 120,
-) -> tuple[date, date, int]:
-    end_day = parse_day(date_to) if date_to else today
-    start_day = parse_day(date_from) if date_from else end_day - timedelta(days=30)
-    if start_day > end_day:
-        start_day, end_day = end_day, start_day
-    if (end_day - start_day).days > max_days:
-        start_day = end_day - timedelta(days=max_days)
-    return start_day, end_day, max_days
-
-
-async def load_sunbed_power_analysis(
-    session,
-    date_from: Optional[str],
-    date_to: Optional[str],
-    today: date,
-) -> Dict[str, Any]:
-    start_day, end_day, max_days = sunbed_analysis_date_range(date_from, date_to, today)
-    cache_key = f"sunbed_power_analysis:{start_day.isoformat()}:{end_day.isoformat()}"
-    now_utc = datetime.utcnow()
-    cached = SUMMARY_CACHE.get(cache_key)
-    if cached and cached.get("expires", datetime.min) > now_utc:
-        return deepcopy(cached["value"])
-    start_at = datetime.combine(start_day, time.min)
-    end_at = datetime.combine(end_day + timedelta(days=1), time.min)
-    session_rows = (
-        await session.execute(
-            select(Sun2TanningSession)
-            .where(Sun2TanningSession.started_at >= start_at)
-            .where(Sun2TanningSession.started_at < end_at)
-            .where(Sun2TanningSession.room_id.is_not(None))
-            .order_by(Sun2TanningSession.started_at.asc())
-        )
-    ).scalars().all()
-    energy_rows = (
-        await session.execute(
-            select(
-                EnergyFibaroSample.bucket_start.label("bucket_start"),
-                EnergyFibaroSample.differanse_beregnet_w.label("differanse_beregnet_w"),
-            )
-            .where(EnergyFibaroSample.bucket_start >= start_at)
-            .where(EnergyFibaroSample.bucket_start < end_at)
-            .order_by(EnergyFibaroSample.bucket_start.asc())
-        )
-    ).mappings().all()
-    ventilation_rows = (
-        await session.execute(
-            select(
-                VentilationSample.bucket_start.label("bucket_start"),
-                VentilationSample.fan_tak.label("fan_tak"),
-            )
-            .where(VentilationSample.bucket_start >= start_at)
-            .where(VentilationSample.bucket_start < end_at)
-            .order_by(VentilationSample.bucket_start.asc())
-        )
-    ).mappings().all()
-    bed_rows = (
-        await session.execute(
-            select(Sun2Bed).where(Sun2Bed.room_id.is_not(None))
-        )
-    ).scalars().all()
-    bed_lookup = {bed.room_id: bed for bed in bed_rows if bed.room_id}
-    analysis = await asyncio.to_thread(
-        build_sunbed_power_analysis,
-        session_rows,
-        [dict(row) for row in energy_rows],
-        bed_lookup,
-        [dict(row) for row in ventilation_rows],
-    )
-    max_power = max([float_or_zero(room.get("estimate_w")) for room in analysis["rooms"]] or [0.0])
-    value = {
-        "dateFrom": start_day.isoformat(),
-        "dateTo": end_day.isoformat(),
-        "maxDays": max_days,
-        "maxPower": max_power,
-        **analysis,
-    }
-    SUMMARY_CACHE[cache_key] = {"expires": now_utc + SUNBED_POWER_ANALYSIS_CACHE_TTL, "value": deepcopy(value)}
-    return value
-
-
-async def sunbed_power_cache_warm_worker() -> None:
-    refresh_seconds = max(60.0, SUNBED_POWER_ANALYSIS_CACHE_TTL.total_seconds() / 2)
-    while True:
-        try:
-            async with async_session() as session:
-                await load_sunbed_power_analysis(
-                    session,
-                    None,
-                    None,
-                    datetime.now(LOCAL_TZ).date(),
-                )
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            logger.warning("Kunne ikke varme cache for energiforbruk per seng", exc_info=True)
-        await asyncio.sleep(refresh_seconds)
-
-
-def merged_extra(data: EventDataIn):
-    extra = dict(data.extra or {})
-    if data.device_key:
-        extra["device_key"] = data.device_key
-    if data.values:
-        extra["values"] = data.values
-    for key in ("weather_type", "weather_symbol", "weather_text", "yr_weather", "yr_symbol"):
-        value = getattr(data, key)
-        if value not in (None, ""):
-            extra[key] = value
-    return extra or None
-
-
-def light_from_payload(data: EventDataIn) -> OutdoorLightEvent:
-    return OutdoorLightEvent(
-        timestamp=data.timestamp or datetime.now(timezone.utc).replace(tzinfo=None),
-        event_type=data.event_type,
-        action=data.action,
-        device_key=data.device_key,
-        device_id=data.device_id,
-        device_name=data.device_name,
-        mode=data.mode,
-        reason=data.reason,
-        source=data.source,
-        lux=value_from_payload(data, "lux"),
-        value=value_from_payload(data, "value"),
-        state=value_from_payload(data, "state"),
-        extra=merged_extra(data),
-    )
-
-
-def payload_weather_symbol(data: EventDataIn) -> Optional[str]:
-    return (
-        data.weather_symbol
-        or data.yr_symbol
-        or nested_extra_value(data.extra, ["weather_symbol", "yr_symbol", "symbol_code", "next_1_hours_symbol_code"])
-        or nested_extra_value(data.values, ["weather_symbol", "yr_symbol", "symbol_code", "next_1_hours_symbol_code"])
-    )
-
-
-def payload_weather_text(data: EventDataIn) -> Optional[str]:
-    return (
-        data.weather_text
-        or data.weather_type
-        or data.yr_weather
-        or nested_extra_value(data.extra, ["weather_text", "weather_type", "yr_weather", "weather", "condition_text", "condition"])
-        or nested_extra_value(data.values, ["weather_text", "weather_type", "yr_weather", "weather", "condition_text", "condition"])
-    )
-
-
-def light_sample_from_payload(data: EventDataIn, met_weather: Optional[Dict[str, Any]] = None) -> OutdoorLightSample:
-    timestamp = data.timestamp or datetime.utcnow()
-    weather_symbol = payload_weather_symbol(data) or ((met_weather or {}).get("symbol") or None)
-    weather_text = weather_label(payload_weather_text(data)) or ((met_weather or {}).get("text") or None)
-    return OutdoorLightSample(
-        timestamp=timestamp,
-        bucket_start=data.bucket_start or sample_bucket(timestamp),
-        mode=data.mode,
-        source=data.source,
-        lux=value_from_payload(data, "lux"),
-        value=value_from_payload(data, "value"),
-        light_lyslist=value_from_payload(data, "light_lyslist"),
-        light_reklame=value_from_payload(data, "light_reklame"),
-        light_spot_glass_275=value_from_payload(data, "light_spot_glass_275"),
-        light_spot_glass_299=value_from_payload(data, "light_spot_glass_299"),
-        light_spot_inngang=value_from_payload(data, "light_spot_inngang"),
-        light_parkering=value_from_payload(data, "light_parkering"),
-        weather_symbol=weather_symbol,
-        weather_text=weather_text,
-        extra=merged_extra(data),
-    )
-
-
-def yr_sample_from_forecast(
-    timestamp: datetime,
-    bucket_start: datetime,
-    source: Optional[str],
-    forecast: Dict[str, Any],
-) -> YrForecastSample:
-    return YrForecastSample(
-        timestamp=timestamp,
-        bucket_start=bucket_start,
-        source=source or "MET/Yr Locationforecast",
-        api_updated_at=forecast.get("api_updated_at"),
-        last_modified=forecast.get("last_modified"),
-        expires_at=forecast.get("expires_at"),
-        next_fetch_after=forecast.get("next_fetch_after"),
-        age_seconds=forecast.get("age_seconds"),
-        forecast_time=forecast.get("forecast_time"),
-        symbol_code=forecast.get("symbol") or None,
-        weather_text=forecast.get("text") or None,
-        air_temperature=forecast.get("air_temperature"),
-        air_temperature_percentile_10=forecast.get("air_temperature_percentile_10"),
-        air_temperature_percentile_90=forecast.get("air_temperature_percentile_90"),
-        relative_humidity=forecast.get("relative_humidity"),
-        wind_speed=forecast.get("wind_speed"),
-        wind_speed_of_gust=forecast.get("wind_speed_of_gust"),
-        wind_speed_percentile_10=forecast.get("wind_speed_percentile_10"),
-        wind_speed_percentile_90=forecast.get("wind_speed_percentile_90"),
-        wind_from_direction=forecast.get("wind_from_direction"),
-        cloud_area_fraction=forecast.get("cloud_area_fraction"),
-        cloud_area_fraction_high=forecast.get("cloud_area_fraction_high"),
-        cloud_area_fraction_medium=forecast.get("cloud_area_fraction_medium"),
-        cloud_area_fraction_low=forecast.get("cloud_area_fraction_low"),
-        fog_area_fraction=forecast.get("fog_area_fraction"),
-        dew_point_temperature=forecast.get("dew_point_temperature"),
-        air_pressure_at_sea_level=forecast.get("air_pressure_at_sea_level"),
-        ultraviolet_index_clear_sky=forecast.get("ultraviolet_index_clear_sky"),
-        precipitation_next_1h=forecast.get("precipitation_next_1h"),
-        precipitation_next_1h_min=forecast.get("precipitation_next_1h_min"),
-        precipitation_next_1h_max=forecast.get("precipitation_next_1h_max"),
-        precipitation_next_6h=forecast.get("precipitation_next_6h"),
-        precipitation_next_6h_min=forecast.get("precipitation_next_6h_min"),
-        precipitation_next_6h_max=forecast.get("precipitation_next_6h_max"),
-        probability_of_precipitation_next_1h=forecast.get("probability_of_precipitation_next_1h"),
-        probability_of_precipitation_next_6h=forecast.get("probability_of_precipitation_next_6h"),
-        probability_of_precipitation_next_12h=forecast.get("probability_of_precipitation_next_12h"),
-        probability_of_thunder_next_1h=forecast.get("probability_of_thunder_next_1h"),
-        air_temperature_min_next_6h=forecast.get("air_temperature_min_next_6h"),
-        air_temperature_max_next_6h=forecast.get("air_temperature_max_next_6h"),
-        symbol_confidence_next_12h=forecast.get("symbol_confidence_next_12h"),
-        temp_1h=forecast.get("temp_1h"),
-        temp_3h=forecast.get("temp_3h"),
-        temp_6h=forecast.get("temp_6h"),
-        temp_12h=forecast.get("temp_12h"),
-        temp_24h=forecast.get("temp_24h"),
-        symbol_1h=forecast.get("symbol_1h"),
-        symbol_3h=forecast.get("symbol_3h"),
-        symbol_6h=forecast.get("symbol_6h"),
-        symbol_12h=forecast.get("symbol_12h"),
-        symbol_24h=forecast.get("symbol_24h"),
-        temp_min_next_6h=forecast.get("temp_min_next_6h"),
-        temp_max_next_6h=forecast.get("temp_max_next_6h"),
-        extra=yr_sample_extra(forecast),
-        raw=yr_sample_raw(forecast),
-    )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 YR_FORECAST_ASSIGNMENTS = [
@@ -6593,4968 +1979,309 @@ YR_FORECAST_ASSIGNMENTS = [
 ]
 
 
-def yr_sample_extra(forecast: Dict[str, Any]) -> Dict[str, Any]:
-    return {
-        "raw_meta": forecast.get("raw_meta") or {},
-        "timeseries_count": forecast.get("timeseries_count"),
-    }
-
-
-def yr_sample_raw(forecast: Dict[str, Any]) -> Dict[str, Any]:
-    return {
-        "endpoint": forecast.get("raw_endpoint"),
-        "coordinates": forecast.get("raw_coordinates"),
-        "headers": forecast.get("raw_headers") or {},
-        "payload": forecast.get("raw_payload") or {},
-    }
-
-
-def update_yr_sample_from_forecast(record: YrForecastSample, forecast: Dict[str, Any]) -> None:
-    for attr, key in YR_FORECAST_ASSIGNMENTS:
-        value = forecast.get(key)
-        if attr == "symbol_code":
-            value = value or None
-        elif attr == "weather_text":
-            value = value or None
-        setattr(record, attr, value)
-    record.extra = yr_sample_extra(forecast)
-    record.raw = yr_sample_raw(forecast)
-
-
-async def save_yr_sample_for_payload(data: EventDataIn, forecast: Optional[Dict[str, Any]] = None) -> Optional[int]:
-    forecast = forecast or await met_weather_cached()
-    if not forecast:
-        return None
-    timestamp = data.timestamp or datetime.utcnow()
-    bucket_start = data.bucket_start or sample_bucket(timestamp)
-    expires_at = forecast.get("expires_at")
-    api_updated_at = forecast.get("api_updated_at")
-    async with async_session() as session:
-        stmt = select(YrForecastSample).limit(1)
-        if expires_at:
-            stmt = stmt.where(YrForecastSample.expires_at == expires_at)
-        elif api_updated_at:
-            stmt = stmt.where(YrForecastSample.api_updated_at == api_updated_at)
-        else:
-            stmt = stmt.where(YrForecastSample.bucket_start == bucket_start)
-        existing = (await session.execute(stmt)).scalars().first()
-        if existing:
-            update_yr_sample_from_forecast(existing, forecast)
-            await session.commit()
-            return existing.id
-        record = yr_sample_from_forecast(timestamp, bucket_start, data.source, forecast)
-        session.add(record)
-        await session.commit()
-        await session.refresh(record)
-        return record.id
-
-
-def vent_from_payload(data: EventDataIn) -> VentilationEvent:
-    return VentilationEvent(
-        timestamp=data.timestamp or datetime.utcnow(),
-        event_type=data.event_type,
-        action=data.action,
-        device_key=data.device_key,
-        device_id=data.device_id,
-        device_name=data.device_name,
-        mode=data.mode,
-        reason=data.reason,
-        source=data.source,
-        value=value_from_payload(data, "value"),
-        state=value_from_payload(data, "state"),
-        temp_1etg=value_from_payload(data, "temp_1etg"),
-        temp_2etg=value_from_payload(data, "temp_2etg"),
-        temp_vip=value_from_payload(data, "temp_vip"),
-        temp_ute=value_from_payload(data, "temp_ute"),
-        temp_loft=value_from_payload(data, "temp_loft"),
-        humidity_1etg=value_from_payload(data, "humidity_1etg"),
-        humidity_2etg=value_from_payload(data, "humidity_2etg"),
-        humidity_vip=value_from_payload(data, "humidity_vip"),
-        humidity_ute=value_from_payload(data, "humidity_ute"),
-        humidity_yr=value_from_payload(data, "humidity_yr"),
-        humidity_loft=value_from_payload(data, "humidity_loft"),
-        temp_kjeller=value_from_payload(data, "temp_kjeller"),
-        humidity_kjeller=value_from_payload(data, "humidity_kjeller"),
-        temp_passiv=value_from_payload(data, "temp_passiv"),
-        temp_luftinntak=value_from_payload(data, "temp_luftinntak"),
-        humidity_passiv=value_from_payload(data, "humidity_passiv"),
-        humidity_luftinntak=value_from_payload(data, "humidity_luftinntak"),
-        diff_w=value_from_payload(data, "diff_w"),
-        power_w=value_from_payload(data, "power_w"),
-        energy_kwh=value_from_payload(data, "energy_kwh"),
-        fan_vip=value_from_payload(data, "fan_vip"),
-        fan_2etg=value_from_payload(data, "fan_2etg"),
-        fan_tak=value_from_payload(data, "fan_tak"),
-        fan_avfukter=value_from_payload(data, "fan_avfukter"),
-        extra=merged_extra(data),
-    )
-
-
-def vent_sample_from_payload(data: EventDataIn) -> VentilationSample:
-    timestamp = data.timestamp or datetime.utcnow()
-    return VentilationSample(
-        timestamp=timestamp,
-        bucket_start=data.bucket_start or sample_bucket(timestamp),
-        mode=data.mode,
-        source=data.source,
-        temp_1etg=value_from_payload(data, "temp_1etg"),
-        temp_2etg=value_from_payload(data, "temp_2etg"),
-        temp_vip=value_from_payload(data, "temp_vip"),
-        temp_ute=value_from_payload(data, "temp_ute"),
-        temp_ute_netatmo=value_from_payload(data, "temp_ute_netatmo"),
-        temp_yr=value_from_payload(data, "temp_yr"),
-        temp_loft=value_from_payload(data, "temp_loft"),
-        humidity_1etg=value_from_payload(data, "humidity_1etg"),
-        humidity_2etg=value_from_payload(data, "humidity_2etg"),
-        humidity_vip=value_from_payload(data, "humidity_vip"),
-        humidity_ute=value_from_payload(data, "humidity_ute"),
-        humidity_yr=value_from_payload(data, "humidity_yr"),
-        humidity_loft=value_from_payload(data, "humidity_loft"),
-        temp_kjeller=value_from_payload(data, "temp_kjeller"),
-        humidity_kjeller=value_from_payload(data, "humidity_kjeller"),
-        temp_passiv=value_from_payload(data, "temp_passiv"),
-        temp_luftinntak=value_from_payload(data, "temp_luftinntak"),
-        humidity_passiv=value_from_payload(data, "humidity_passiv"),
-        humidity_luftinntak=value_from_payload(data, "humidity_luftinntak"),
-        temp_min_inne=value_from_payload(data, "temp_min_inne"),
-        temp_avg_inne=value_from_payload(data, "temp_avg_inne"),
-        temp_max_inne=value_from_payload(data, "temp_max_inne"),
-        diff_w=value_from_payload(data, "diff_w"),
-        estimated_sunbeds=value_from_payload(data, "estimated_sunbeds"),
-        afterrun_active=value_from_payload(data, "afterrun_active"),
-        heat_need=value_from_payload(data, "heat_need"),
-        cool_need=value_from_payload(data, "cool_need"),
-        open_time=value_from_payload(data, "open_time"),
-        pre_cooling=value_from_payload(data, "pre_cooling"),
-        exhaust_time_allowed=value_from_payload(data, "exhaust_time_allowed"),
-        fan_vip=value_from_payload(data, "fan_vip"),
-        fan_2etg=value_from_payload(data, "fan_2etg"),
-        fan_tak=value_from_payload(data, "fan_tak"),
-        fan_avfukter=value_from_payload(data, "fan_avfukter"),
-        extra=merged_extra(data),
-    )
-
-
-async def upsert_kjeller_measurement_sample(session, timestamp: datetime, fibaroid: int, value: float, source: str) -> Optional[int]:
-    field_map = {
-        408: "humidity_1etg",
-        344: "humidity_2etg",
-        347: "humidity_vip",
-        350: "humidity_ute",
-        353: "humidity_loft",
-        357: "humidity_luftinntak",
-        359: "humidity_2etg",
-        362: "humidity_vip",
-        444: "temp_kjeller",
-        445: "humidity_kjeller",
-    }
-    field = field_map.get(fibaroid)
-    if not field:
-        return None
-    bucket_start = sample_bucket(timestamp)
-    row = (
-        await session.execute(
-            select(VentilationSample)
-            .where(VentilationSample.bucket_start == bucket_start)
-            .order_by(VentilationSample.id.desc())
-            .limit(1)
-        )
-    ).scalars().first()
-    if not row:
-        row = VentilationSample(
-            timestamp=timestamp,
-            bucket_start=bucket_start,
-            source=source,
-            extra={"measurement_source": "hc3_meter_readings"},
-        )
-        session.add(row)
-        await session.flush()
-    else:
-        row.timestamp = max(row.timestamp or timestamp, timestamp)
-        row.source = row.source or source
-        row.extra = {
-            **(row.extra or {}),
-            "measurement_source": "hc3_meter_readings",
-        }
-    setattr(row, field, value)
-    return row.id
-
-
-def generic_from_payload(data: EventDataIn) -> GenericEvent:
-    return GenericEvent(
-        timestamp=data.timestamp or datetime.utcnow(),
-        system=data.system,
-        event_type=data.event_type,
-        action=data.action,
-        device_key=data.device_key,
-        device_id=data.device_id,
-        device_name=data.device_name,
-        mode=data.mode,
-        reason=data.reason,
-        source=data.source,
-        lux=value_from_payload(data, "lux"),
-        value=value_from_payload(data, "value"),
-        state=value_from_payload(data, "state"),
-        extra=merged_extra(data),
-    )
-
-
-def parse_boolish(value: Any) -> Optional[bool]:
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, (int, float)):
-        if value == 1:
-            return True
-        if value == 0:
-            return False
-    text = str(value).strip().lower()
-    if text in {"true", "1", "yes", "ja", "on", "open", "opened", "åpen", "aapen"}:
-        return True
-    if text in {"false", "0", "no", "nei", "off", "closed", "close", "lukket", "stengt"}:
-        return False
-    return None
-
-
-def door_action_from_state(state: Optional[bool], action: Optional[str], raw_value: Optional[str]) -> str:
-    action_text = (action or "").strip().upper()
-    if action_text in {"OPEN", "OPENED", "APEN", "ÅPEN", "AOPEN", "PAA", "PÅ"}:
-        return "OPEN"
-    if action_text in {"CLOSED", "CLOSE", "LUKKET", "STENGT", "AV"}:
-        return "CLOSED"
-    resolved_state = state if state is not None else parse_boolish(raw_value)
-    if resolved_state is True:
-        return "OPEN"
-    if resolved_state is False:
-        return "CLOSED"
-    return action_text or "UNKNOWN"
-
-
-def door_event_from_payload(data: DoorEventIn) -> DoorEvent:
-    state = data.state if data.state is not None else parse_boolish(data.raw_value)
-    return DoorEvent(
-        timestamp=normalize_local_naive(data.timestamp) or local_now_naive(),
-        event_type=data.event_type or "door_change",
-        action=door_action_from_state(state, data.action, data.raw_value),
-        device_key=data.device_key,
-        device_id=data.device_id,
-        device_name=data.device_name,
-        source=data.source or "HC3",
-        raw_value=str(data.raw_value) if data.raw_value is not None else None,
-        state=state,
-        previous_state=data.previous_state,
-        battery_level=data.battery_level,
-        extra=data.extra or {},
-    )
-
-
-def door_age_label(value: Optional[datetime], now: Optional[datetime] = None) -> str:
-    if not value:
-        return "Aldri"
-    now = now or local_now_naive()
-    seconds = max(0, int((now - value).total_seconds()))
-    if seconds < 60:
-        return "Akkurat nå"
-    minutes = seconds // 60
-    if minutes < 60:
-        return f"{minutes} min siden"
-    hours = minutes // 60
-    if hours < 24:
-        return f"{hours} t siden"
-    days = hours // 24
-    return "1 dag siden" if days == 1 else f"{days} dager siden"
-
-
-def door_state_from_event(row: Optional[DoorEvent]) -> Dict[str, str]:
-    if not row:
-        return {"state": "unknown", "label": "Ukjent", "tone": "unknown"}
-    action = (row.action or "").upper()
-    if row.state is True or action == "OPEN":
-        return {"state": "open", "label": "Åpen", "tone": "warn"}
-    if row.state is False or action == "CLOSED":
-        return {"state": "closed", "label": "Lukket", "tone": "ok"}
-    return {"state": "unknown", "label": "Ukjent", "tone": "unknown"}
-
-
-def door_event_payload(row: DoorEvent, now: Optional[datetime] = None) -> Dict[str, Any]:
-    state = door_state_from_event(row)
-    timestamp = normalize_local_naive(row.timestamp)
-    return {
-        "id": row.id,
-        "timestamp": timestamp.isoformat() if timestamp else None,
-        "timeLabel": format_source_datetime(timestamp) if timestamp else "-",
-        "ageLabel": door_age_label(timestamp, now),
-        "eventType": row.event_type,
-        "action": row.action,
-        "state": state["state"],
-        "stateLabel": state["label"],
-        "tone": state["tone"],
-        "deviceKey": row.device_key,
-        "deviceId": row.device_id,
-        "deviceName": row.device_name,
-        "source": row.source,
-        "rawValue": row.raw_value,
-        "batteryLevel": row.battery_level,
-        "previousState": row.previous_state,
-        "extra": row.extra or {},
-    }
-
-
-def door_status_payload(
-    config: Dict[str, Any],
-    row: Optional[DoorEvent],
-    now: datetime,
-    changed_row: Optional[DoorEvent] = None,
-) -> Dict[str, Any]:
-    state = door_state_from_event(row)
-    change_event = changed_row or row
-    timestamp = normalize_local_naive(change_event.timestamp) if change_event else None
-    device_id = config.get("device_id")
-    normal_state = str(config.get("normal_state") or "closed")
-    return {
-        "deviceId": device_id,
-        "deviceKey": config["device_key"],
-        "title": config["title"],
-        "hc3Name": row.device_name if row and row.device_name else config.get("hc3_name", ""),
-        "groupKey": config.get("group_key", "andre"),
-        "groupTitle": config.get("group_title", "Andre dører"),
-        "sectionKey": config.get("section_key", config.get("group_key", "andre")),
-        "sectionTitle": config.get("section_title", config.get("group_title", "Andre dører")),
-        "sortOrder": int(config.get("sort_order") or 0),
-        "normalState": normal_state,
-        "normalStateLabel": "Normalt åpen" if normal_state == "open" else "Normalt lukket",
-        "isConfigured": device_id is not None,
-        "state": state["state"],
-        "stateLabel": state["label"] if device_id is not None else "Klargjort",
-        "tone": state["tone"],
-        "lastChangedAt": timestamp.isoformat() if timestamp else None,
-        "lastChangedLabel": format_source_datetime(timestamp) if timestamp else "-",
-        "ageLabel": door_age_label(timestamp, now),
-        "rawValue": row.raw_value if row else None,
-        "batteryLevel": row.battery_level if row else None,
-        "batteryLabel": f"{row.battery_level:.0f}%" if row and row.battery_level is not None else "-",
-        "eventId": row.id if row else None,
-        "lastChangedEventId": change_event.id if change_event else None,
-    }
-
-
-def door_event_state_bool(row: Optional[DoorEvent]) -> Optional[bool]:
-    if not row:
-        return None
-    state = door_state_from_event(row)
-    if state["state"] == "open":
-        return True
-    if state["state"] == "closed":
-        return False
-    return None
-
-
-def door_event_device_key(row: DoorEvent) -> str:
-    if row.device_id is not None:
-        return f"id:{int(row.device_id)}"
-    return f"key:{row.device_key or 'unknown'}"
-
-
-def door_config_device_key(config: Dict[str, Any]) -> str:
-    if config.get("device_id") is None:
-        return f"key:{config.get('device_key') or 'unknown'}"
-    return f"id:{int(config['device_id'])}"
-
-
-def hc3_first_present(*values: Any) -> Any:
-    for value in values:
-        if value is not None:
-            return value
-    return None
-
-
-def hc3_api_is_configured() -> bool:
-    return bool(HC3_BASE_URL and HC3_USER and HC3_PASS)
-
-
-def hc3_door_poll_is_configured() -> bool:
-    return hc3_api_is_configured()
-
-
-def hc3_basic_auth_header() -> str:
-    token = base64.b64encode(f"{HC3_USER}:{HC3_PASS}".encode("utf-8")).decode("ascii")
-    return f"Basic {token}"
-
-
-def hc3_device_request(device_id: int, timeout_seconds: Optional[int] = None) -> Dict[str, Any]:
-    if not hc3_api_is_configured():
-        raise RuntimeError("HC3_BASE_URL/HC3_USER/HC3_PASS er ikke konfigurert for Fibaro10.")
-    request = urllib.request.Request(f"{HC3_BASE_URL}/api/devices/{int(device_id)}")
-    request.add_header("Accept", "application/json")
-    request.add_header("Authorization", hc3_basic_auth_header())
-    try:
-        with urllib.request.urlopen(request, timeout=timeout_seconds or HC3_DOOR_POLL_TIMEOUT_SECONDS) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        raise RuntimeError(f"HC3 svarte {exc.code}") from exc
-    except urllib.error.URLError as exc:
-        raise RuntimeError(f"HC3 kunne ikke nås: {exc.reason}") from exc
-    if not isinstance(payload, dict):
-        raise RuntimeError("HC3 svarte ikke med et JSON-objekt.")
-    return payload
-
-
-def hc3_cached_device_request(device_id: int, timeout_seconds: Optional[int] = None) -> Dict[str, Any]:
-    device_id_int = int(device_id)
-    now_monotonic = monotonic()
-    cached = hc3_switch_status_cache.get(device_id_int)
-    if cached and HC3_SWITCH_STATUS_CACHE_SECONDS > 0 and now_monotonic - cached[0] <= HC3_SWITCH_STATUS_CACHE_SECONDS:
-        return dict(cached[1])
-    payload = hc3_device_request(device_id_int, timeout_seconds=timeout_seconds)
-    hc3_switch_status_cache[device_id_int] = (now_monotonic, dict(payload))
-    return payload
-
-
-def hc3_devices_request(timeout_seconds: Optional[int] = None) -> list[Dict[str, Any]]:
-    if not hc3_api_is_configured():
-        raise RuntimeError("HC3_BASE_URL/HC3_USER/HC3_PASS er ikke konfigurert for Fibaro10.")
-    now_monotonic = monotonic()
-    cached_at = float(hc3_energy_device_list_cache.get("cached_at") or 0)
-    cached_rows = hc3_energy_device_list_cache.get("rows")
-    if isinstance(cached_rows, list) and now_monotonic - cached_at <= HC3_ENERGY_DEVICE_LIST_CACHE_SECONDS:
-        return [dict(row) for row in cached_rows]
-    request = urllib.request.Request(f"{HC3_BASE_URL}/api/devices")
-    request.add_header("Accept", "application/json")
-    request.add_header("Authorization", hc3_basic_auth_header())
-    try:
-        with urllib.request.urlopen(request, timeout=timeout_seconds or HC3_ENERGY_LIVE_TIMEOUT_SECONDS) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        raise RuntimeError(f"HC3 svarte {exc.code}") from exc
-    except urllib.error.URLError as exc:
-        raise RuntimeError(f"HC3 kunne ikke nås: {exc.reason}") from exc
-    if not isinstance(payload, list):
-        raise RuntimeError("HC3 svarte ikke med en enhetsliste.")
-    rows = [dict(row) for row in payload if isinstance(row, dict)]
-    hc3_energy_device_list_cache["cached_at"] = now_monotonic
-    hc3_energy_device_list_cache["rows"] = rows
-    return [dict(row) for row in rows]
-
-
-def hc3_energy_device_summary(device: Dict[str, Any]) -> Dict[str, Any]:
-    properties = device.get("properties") if isinstance(device.get("properties"), dict) else {}
-    device_type = str(device.get("type") or "")
-    base_type = str(device.get("baseType") or "")
-    raw_value = hc3_first_present(properties.get("value"), device.get("value"))
-    power_raw = hc3_first_present(properties.get("power"), device.get("power"))
-    if power_raw is None and "powermeter" in device_type.lower():
-        power_raw = raw_value
-    energy_raw = hc3_first_present(properties.get("energy"), device.get("energy"))
-    if energy_raw is None and "energymeter" in device_type.lower():
-        energy_raw = raw_value
-    current_power = float_value(power_raw) if power_raw is not None and not isinstance(power_raw, bool) else None
-    current_energy = float_value(energy_raw) if energy_raw is not None and not isinstance(energy_raw, bool) else None
-    switch_capable = "binaryswitch" in device_type.lower() or isinstance(raw_value, bool)
-    return {
-        "id": int(device.get("id")) if device.get("id") is not None else None,
-        "name": hc3_first_present(device.get("name"), properties.get("name")),
-        "type": device_type or None,
-        "baseType": base_type or None,
-        "parentId": int(device.get("parentId")) if device.get("parentId") is not None else None,
-        "roomId": int(device.get("roomID")) if device.get("roomID") is not None else None,
-        "manufacturer": hc3_first_present(
-            properties.get("manufacturer"),
-            properties.get("manufacturerName"),
-            device.get("manufacturer"),
-        ),
-        "model": hc3_first_present(
-            properties.get("model"),
-            properties.get("modelIdentifier"),
-            properties.get("productLabel"),
-            device.get("model"),
-        ),
-        "value": raw_value,
-        "powerW": current_power,
-        "energyKwh": current_energy,
-        "switchState": parse_boolish(raw_value) if switch_capable else None,
-        "hasPower": current_power is not None or "powermeter" in device_type.lower() or "power" in properties,
-        "hasEnergy": current_energy is not None or "energymeter" in device_type.lower() or "energy" in properties,
-        "hasSwitch": switch_capable,
-        "dead": parse_boolish(hc3_first_present(properties.get("dead"), device.get("dead"))),
-        "enabled": parse_boolish(hc3_first_present(properties.get("enabled"), device.get("enabled"))),
-        "visible": parse_boolish(hc3_first_present(device.get("visible"), properties.get("visible"))),
-    }
-
-
-async def hc3_energy_nodes_live(nodes: list[EnergyNode]) -> Dict[str, Any]:
-    checked_at = api_local_iso(local_now_naive())
-    if not hc3_api_is_configured():
-        return {
-            "checkedAt": checked_at,
-            "configured": False,
-            "nodes": {
-                str(node.id): {
-                    "nodeId": node.id,
-                    "status": "unavailable",
-                    "checkedAt": checked_at,
-                    "error": "HC3-tilgang er ikke konfigurert.",
-                }
-                for node in nodes
-                if node.id is not None
-            },
-            "aggregateMeters": {},
-        }
-
-    device_ids = {
-        int(device_id)
-        for node in nodes
-        for device_id in (
-            node.hc3_device_id,
-            node.hc3_power_device_id,
-            node.hc3_energy_device_id,
-            node.hc3_switch_device_id,
-        )
-        if device_id is not None
-    }
-    device_ids.update(
-        int(device_id)
-        for group in ENERGY_AGGREGATE_METERS
-        for device_id in (group["realtimeId"], group["accumulatedId"])
-    )
-    semaphore = asyncio.Semaphore(8)
-
-    async def fetch_one(device_id: int) -> tuple[int, Optional[Dict[str, Any]], Optional[str]]:
-        async with semaphore:
-            try:
-                device = await asyncio.to_thread(hc3_cached_device_request, device_id, HC3_ENERGY_LIVE_TIMEOUT_SECONDS)
-                return device_id, hc3_energy_device_summary(device), None
-            except Exception as exc:
-                return device_id, None, str(exc)
-
-    fetched = await asyncio.gather(*(fetch_one(device_id) for device_id in sorted(device_ids)))
-    devices = {device_id: payload for device_id, payload, error in fetched if payload is not None and error is None}
-    errors = {device_id: error for device_id, payload, error in fetched if error}
-    live_nodes: Dict[str, Dict[str, Any]] = {}
-    for node in nodes:
-        if node.id is None:
-            continue
-        power_id = node.hc3_power_device_id or (node.hc3_device_id if node.has_meter else None)
-        energy_id = node.hc3_energy_device_id
-        switch_id = node.hc3_switch_device_id or (node.hc3_device_id if node.has_switch else None)
-        identity = devices.get(int(node.hc3_device_id)) if node.hc3_device_id is not None else None
-        power = devices.get(int(power_id)) if power_id is not None else None
-        energy = devices.get(int(energy_id)) if energy_id is not None else None
-        if energy is None and power is not None and power.get("hasEnergy"):
-            energy = power
-        switch = devices.get(int(switch_id)) if switch_id is not None else None
-        configured_ids = [value for value in (node.hc3_device_id, power_id, energy_id, switch_id) if value is not None]
-        node_errors = [errors[int(value)] for value in configured_ids if int(value) in errors]
-        configuration_errors: list[str] = []
-        if power_id is not None and power is not None and not power.get("hasPower"):
-            configuration_errors.append(f"HC3-enhet {power_id} rapporterer ikke watt.")
-        if energy_id is not None and energy is not None and not energy.get("hasEnergy"):
-            configuration_errors.append(f"HC3-enhet {energy_id} rapporterer ikke akkumulert kWh.")
-        if switch_id is not None and switch is not None and not switch.get("hasSwitch"):
-            configuration_errors.append(f"HC3-enhet {switch_id} rapporterer ikke av/på-status.")
-        unavailable = [item for item in (identity, power, energy, switch) if item and item.get("dead") is True]
-        disabled = [item for item in (identity, power, energy, switch) if item and item.get("enabled") is False]
-        if unavailable:
-            configuration_errors.append("En eller flere HC3-enheter er utilgjengelige.")
-        if disabled:
-            configuration_errors.append("En eller flere HC3-enheter er deaktivert.")
-        if not configured_ids:
-            status = "unconfigured"
-        elif configuration_errors:
-            status = "error"
-        elif node_errors and not any((identity, power, energy, switch)):
-            status = "error"
-        elif node_errors:
-            status = "partial"
-        else:
-            status = "ok"
-        live_nodes[str(node.id)] = {
-            "nodeId": node.id,
-            "status": status,
-            "checkedAt": checked_at,
-            "currentPowerW": power.get("powerW") if power else None,
-            "currentEnergyKwh": energy.get("energyKwh") if energy else None,
-            "switchState": switch.get("switchState") if switch else None,
-            "deviceName": identity.get("name") if identity else None,
-            "powerDeviceName": power.get("name") if power else None,
-            "energyDeviceName": energy.get("name") if energy else None,
-            "switchDeviceName": switch.get("name") if switch else None,
-            "dead": any(item.get("dead") is True for item in (identity, power, energy, switch) if item),
-            "enabled": all(item.get("enabled") is not False for item in (identity, power, energy, switch) if item),
-            "error": " · ".join(dict.fromkeys([*configuration_errors, *node_errors])) if configuration_errors or node_errors else None,
-        }
-    aggregate_live = {}
-    for group in ENERGY_AGGREGATE_METERS:
-        power_id = int(group["realtimeId"])
-        energy_id = int(group["accumulatedId"])
-        power = devices.get(power_id)
-        energy = devices.get(energy_id)
-        group_errors = [errors[device_id] for device_id in (power_id, energy_id) if device_id in errors]
-        if power is not None and not power.get("hasPower"):
-            group_errors.append(f"HC3-enhet {power_id} rapporterer ikke watt.")
-        if energy is not None and not energy.get("hasEnergy"):
-            group_errors.append(f"HC3-enhet {energy_id} rapporterer ikke akkumulert kWh.")
-        if group_errors and not power and not energy:
-            status = "error"
-        elif group_errors or not power or not energy:
-            status = "partial"
-        else:
-            status = "ok"
-        aggregate_live[group["key"]] = {
-            "key": group["key"],
-            "status": status,
-            "currentPowerW": power.get("powerW") if power else None,
-            "currentEnergyKwh": energy.get("energyKwh") if energy else None,
-            "error": " · ".join(dict.fromkeys(group_errors)) if group_errors else None,
-        }
-    return {"checkedAt": checked_at, "configured": True, "nodes": live_nodes, "aggregateMeters": aggregate_live}
-
-
-def hc3_door_status_from_device(config: Dict[str, Any], device: Dict[str, Any]) -> Dict[str, Any]:
-    properties = device.get("properties") if isinstance(device.get("properties"), dict) else {}
-    raw_value = hc3_first_present(properties.get("value"), device.get("value"))
-    battery_raw = hc3_first_present(properties.get("batteryLevel"), properties.get("battery"), device.get("batteryLevel"))
-    battery_level = float_value(battery_raw) if battery_raw is not None else None
-    dead = parse_boolish(hc3_first_present(properties.get("dead"), device.get("dead")))
-    raw_text = str(raw_value).lower() if isinstance(raw_value, bool) else str(raw_value) if raw_value is not None else None
-    return {
-        "device_id": int(config["device_id"]),
-        "device_key": config.get("device_key"),
-        "device_name": hc3_first_present(device.get("name"), properties.get("name"), config.get("hc3_name"), config.get("title")),
-        "state": parse_boolish(raw_value),
-        "raw_value": raw_text,
-        "battery_level": battery_level,
-        "dead": dead,
-        "hc3_enabled": parse_boolish(hc3_first_present(properties.get("enabled"), device.get("enabled"))),
-    }
-
-
-async def hc3_fetch_door_status(config: Dict[str, Any]) -> Dict[str, Any]:
-    device = await asyncio.to_thread(hc3_device_request, int(config["device_id"]))
-    return hc3_door_status_from_device(config, device)
-
-
-async def hc3_fetch_door_statuses(configs: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
-    semaphore = asyncio.Semaphore(4)
-
-    async def fetch_one(config: Dict[str, Any]) -> Dict[str, Any]:
-        async with semaphore:
-            try:
-                payload = await hc3_fetch_door_status(config)
-                return {"config": config, "payload": payload, "error": None}
-            except Exception as exc:
-                return {
-                    "config": config,
-                    "payload": None,
-                    "error": str(exc),
-                }
-
-    return await asyncio.gather(*(fetch_one(config) for config in configs))
-
-
-def hc3_switch_status_from_device(config: Dict[str, Any], device: Dict[str, Any]) -> Dict[str, Any]:
-    properties = device.get("properties") if isinstance(device.get("properties"), dict) else {}
-    raw_value = hc3_first_present(properties.get("value"), device.get("value"))
-    dead = parse_boolish(hc3_first_present(properties.get("dead"), device.get("dead")))
-    enabled = parse_boolish(hc3_first_present(properties.get("enabled"), device.get("enabled")))
-    return {
-        "key": config.get("key"),
-        "label": config.get("name"),
-        "deviceId": int(config.get("device_id") or device.get("id") or 0) or None,
-        "deviceName": hc3_first_present(device.get("name"), properties.get("name"), config.get("name")),
-        "state": parse_boolish(raw_value),
-        "rawValue": str(raw_value).lower() if isinstance(raw_value, bool) else str(raw_value) if raw_value is not None else None,
-        "dead": dead,
-        "enabled": enabled,
-        "statusSource": "HC3 styring",
-        "checkedAt": api_local_iso(local_now_naive()),
-        "error": None,
-    }
-
-
-async def hc3_fetch_switch_status(config: Dict[str, Any]) -> Dict[str, Any]:
-    device_id = config.get("device_id")
-    if device_id is None:
-        raise RuntimeError("Mangler HC3 device-id.")
-    device = await asyncio.to_thread(
-        hc3_cached_device_request,
-        int(device_id),
-        HC3_SWITCH_POLL_TIMEOUT_SECONDS,
-    )
-    return hc3_switch_status_from_device(config, device)
-
-
-async def hc3_fetch_switch_statuses(configs: list[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
-    if not configs or not hc3_api_is_configured():
-        return {}
-    semaphore = asyncio.Semaphore(4)
-
-    async def fetch_one(config: Dict[str, Any]) -> tuple[str, Dict[str, Any]]:
-        key = str(config.get("key") or config.get("device_id") or "unknown")
-        async with semaphore:
-            try:
-                return key, await hc3_fetch_switch_status(config)
-            except Exception as exc:
-                return key, {
-                    "key": key,
-                    "label": config.get("name"),
-                    "deviceId": config.get("device_id"),
-                    "deviceName": config.get("name"),
-                    "state": None,
-                    "rawValue": None,
-                    "dead": None,
-                    "enabled": None,
-                    "statusSource": "HC3 styring feilet",
-                    "checkedAt": api_local_iso(local_now_naive()),
-                    "error": str(exc),
-                }
-
-    rows = await asyncio.gather(*(fetch_one(config) for config in configs))
-    return {key: payload for key, payload in rows}
-
-
-async def hc3_fetch_all_door_statuses() -> list[Dict[str, Any]]:
-    configured = [config for config in DOOR_SENSOR_CONFIG if config.get("device_id") is not None]
-    return await hc3_fetch_door_statuses(configured)
-
-
-async def latest_door_changes_by_device(session) -> Dict[int, DoorEvent]:
-    if not DOOR_SENSOR_IDS:
-        return {}
-    raw_limit = max(len(DOOR_SENSOR_IDS) * 150, 1000)
-    result = await session.execute(
-        select(DoorEvent)
-        .where(DoorEvent.device_id.in_(DOOR_SENSOR_IDS))
-        .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
-        .limit(raw_limit)
-    )
-    change_rows = door_change_rows(list(reversed(result.scalars().all())))
-    latest: Dict[int, DoorEvent] = {}
-    for row in reversed(change_rows):
-        if row.device_id is not None:
-            latest.setdefault(int(row.device_id), row)
-    return latest
-
-
-def door_state_age_minutes(row: Optional[DoorEvent], now: datetime) -> Optional[float]:
-    if not row or not row.timestamp:
-        return None
-    timestamp = normalize_local_naive(row.timestamp)
-    if not timestamp:
-        return None
-    return max(0.0, (now - timestamp).total_seconds() / 60)
-
-
-def door_unexpected_reason(config: Dict[str, Any], latest_row: Optional[DoorEvent], now: datetime) -> Optional[str]:
-    device_id = config.get("device_id")
-    if device_id is None:
-        return None
-    if latest_row is None:
-        return "mangler kjent dørstatus"
-    state = door_event_state_bool(latest_row)
-    if state is None:
-        return "ukjent dørstatus"
-    age_minutes = door_state_age_minutes(latest_row, now)
-    if age_minutes is None:
-        return "mangler gyldig tidspunkt for siste dørstatus"
-    title = str(config.get("title") or config.get("device_key") or device_id)
-    if config.get("group_key") == "solrom":
-        if state is False and age_minutes >= HC3_DOOR_SOLROOM_CLOSED_VERIFY_MINUTES:
-            return f"{title} har vært lukket i {door_duration_label(int(age_minutes * 60))}"
-        return None
-    normal_state = str(config.get("normal_state") or "closed").lower()
-    expected_state = True if normal_state == "open" else False
-    if state != expected_state and age_minutes >= HC3_DOOR_OTHER_OPEN_VERIFY_MINUTES:
-        status_text = "åpen" if state else "lukket"
-        return f"{title} er {status_text} i {door_duration_label(int(age_minutes * 60))}"
-    return None
-
-
-def hc3_unexpected_poll_cooldown_active(device_id: int, now: datetime) -> bool:
-    until = hc3_door_unexpected_verified_until.get(int(device_id))
-    return bool(until and until > now)
-
-
-def mark_hc3_unexpected_poll_verified(device_ids: Iterable[int], now: datetime) -> None:
-    until = now + timedelta(minutes=HC3_DOOR_UNEXPECTED_RECHECK_MINUTES)
-    for device_id in device_ids:
-        hc3_door_unexpected_verified_until[int(device_id)] = until
-
-
-def hc3_door_unexpected_targets(
-    latest_by_device: Dict[int, DoorEvent],
-    now: datetime,
-) -> tuple[list[Dict[str, Any]], list[Dict[str, Any]]]:
-    targets: list[Dict[str, Any]] = []
-    cooldown: list[Dict[str, Any]] = []
-    for config in DOOR_SENSOR_CONFIG:
-        device_id = config.get("device_id")
-        if device_id is None:
-            continue
-        device_id_int = int(device_id)
-        reason = door_unexpected_reason(config, latest_by_device.get(device_id_int), now)
-        if not reason:
-            continue
-        item = {
-            "device_id": device_id_int,
-            "title": config.get("title"),
-            "reason": reason,
-        }
-        if hc3_unexpected_poll_cooldown_active(device_id_int, now):
-            cooldown.append(item)
-            continue
-        targets.append({"config": config, **item})
-    return targets, cooldown
-
-
-def door_poll_sync_payload(config: Dict[str, Any], status: Dict[str, Any], latest_row: Optional[DoorEvent]) -> DoorEventIn:
-    latest_state = door_event_state_bool(latest_row)
-    current_state = status.get("state")
-    return DoorEventIn(
-        timestamp=local_now_naive(),
-        event_type="door_sync",
-        action=door_action_from_state(current_state, None, status.get("raw_value")),
-        device_key=status.get("device_key") or config.get("device_key"),
-        device_id=status.get("device_id") or config.get("device_id"),
-        device_name=status.get("device_name") or config.get("hc3_name") or config.get("title"),
-        source="HC3 POLL SYNC",
-        raw_value=status.get("raw_value"),
-        state=current_state,
-        previous_state=latest_state,
-        battery_level=status.get("battery_level"),
-        extra={
-            "reason": "hc3_poll_reconciliation",
-            "hc3_dead": status.get("dead"),
-            "hc3_enabled": status.get("hc3_enabled"),
-            "previous_event_id": latest_row.id if latest_row else None,
-            "previous_timestamp": normalize_local_naive(latest_row.timestamp).isoformat() if latest_row and latest_row.timestamp else None,
-        },
-    )
-
-
-async def run_hc3_door_poll_once(
-    reason: str = "manual",
-    configs: Optional[list[Dict[str, Any]]] = None,
-    target_reasons: Optional[Dict[int, str]] = None,
-) -> Dict[str, Any]:
-    started_at = local_now_naive()
-    target_configs = configs if configs is not None else [config for config in DOOR_SENSOR_CONFIG if config.get("device_id") is not None]
-    if not hc3_door_poll_is_configured():
-        async with async_session() as session:
-            row = await record_import_job(
-                session,
-                "hc3_door_poll_sync",
-                ok=False,
-                source="HC3 API",
-                started_at=started_at,
-                finished_at=local_now_naive(),
-                records_imported=0,
-                records_total=len(target_configs),
-                message="HC3 API-konfigurasjon mangler i Fibaro10-containeren.",
-                raw={"reason": reason, "configured": False},
-            )
-            await session.commit()
-        return {"ok": False, "message": row.message, "checked": 0, "changed": 0, "errors": 1}
-
-    fetch_results = await hc3_fetch_door_statuses(target_configs)
-    checked = 0
-    changes: list[Dict[str, Any]] = []
-    errors: list[Dict[str, Any]] = []
-
-    async with async_session() as session:
-        latest_by_device = await latest_door_changes_by_device(session)
-        for item in fetch_results:
-            config = item["config"]
-            device_id = int(config["device_id"])
-            title = str(config.get("title") or config.get("device_key") or device_id)
-            if item.get("error"):
-                errors.append({"device_id": device_id, "title": title, "error": item["error"]})
-                continue
-            checked += 1
-            status = item.get("payload") or {}
-            current_state = status.get("state")
-            if current_state is None:
-                errors.append({"device_id": device_id, "title": title, "error": f"Ukjent HC3-verdi: {status.get('raw_value')}"})
-                continue
-            latest_row = latest_by_device.get(device_id)
-            latest_state = door_event_state_bool(latest_row)
-            if latest_state == current_state:
-                continue
-            row = door_event_from_payload(door_poll_sync_payload(config, status, latest_row))
-            session.add(row)
-            await session.flush()
-            changes.append(
-                {
-                    "event_id": row.id,
-                    "device_id": device_id,
-                    "title": title,
-                    "previous_state": latest_state,
-                    "state": current_state,
-                    "action": row.action,
-                    "reason": (target_reasons or {}).get(device_id),
-                }
-            )
-
-        ok = not errors
-        if changes and errors:
-            message = f"Korrigerte {len(changes)} dørstatus(er), men {len(errors)} HC3-oppslag feilet."
-        elif changes:
-            message = f"Korrigerte {len(changes)} dørstatus(er) etter kontroll mot HC3."
-        elif errors:
-            message = f"{len(errors)} HC3-oppslag feilet under dørstatuskontroll."
-        else:
-            message = f"Alle {checked} konfigurerte dører stemmer med HC3."
-        await record_import_job(
-            session,
-            "hc3_door_poll_sync",
-            ok=ok,
-            source="HC3 API",
-            started_at=started_at,
-            finished_at=local_now_naive(),
-            records_imported=len(changes),
-            records_total=len(target_configs),
-            duration_seconds=(local_now_naive() - started_at).total_seconds(),
-            message=message,
-            raw={
-                "reason": reason,
-                "checked": checked,
-                "polled": len(target_configs),
-                "configured_total": len(DOOR_SENSOR_IDS),
-                "target_reasons": target_reasons or {},
-                "changed": len(changes),
-                "errors": errors[:20],
-                "changes": changes[:20],
-            },
-        )
-        await session.commit()
-
-    return {
-        "ok": ok,
-        "message": message,
-        "checked": checked,
-        "polled": len(target_configs),
-        "changed": len(changes),
-        "errors": len(errors),
-        "changes": changes,
-    }
-
-
-async def run_hc3_door_unexpected_check_once(reason: str = "interval") -> Dict[str, Any]:
-    started_at = local_now_naive()
-    now = local_now_naive()
-    async with async_session() as session:
-        latest_by_device = await latest_door_changes_by_device(session)
-        targets, cooldown = hc3_door_unexpected_targets(latest_by_device, now)
-        if not targets:
-            message = (
-                "Uventet dørstatus er nylig kontrollert - HC3 ble ikke spurt igjen."
-                if cooldown
-                else "Ingen uventede dørstatuser - HC3 ble ikke spurt."
-            )
-            await record_import_job(
-                session,
-                "hc3_door_poll_sync",
-                ok=True,
-                source="Fibaro10 lokal kontroll",
-                started_at=started_at,
-                finished_at=local_now_naive(),
-                records_imported=0,
-                records_total=len(DOOR_SENSOR_IDS),
-                duration_seconds=(local_now_naive() - started_at).total_seconds(),
-                message=message,
-                raw={
-                    "reason": reason,
-                    "unexpected": len(cooldown),
-                    "polled": 0,
-                    "configured_total": len(DOOR_SENSOR_IDS),
-                    "cooldown": cooldown[:20],
-                },
-            )
-            await session.commit()
-            return {"ok": True, "message": message, "unexpected": len(cooldown), "polled": 0, "changed": 0, "errors": 0}
-
-    target_configs = [item["config"] for item in targets]
-    target_reasons = {int(item["device_id"]): str(item["reason"]) for item in targets}
-    result = await run_hc3_door_poll_once(reason, target_configs, target_reasons)
-    mark_hc3_unexpected_poll_verified((int(item["device_id"]) for item in targets), local_now_naive())
-    result["unexpected"] = len(targets)
-    result["cooldownSkipped"] = len(cooldown)
-    return result
-
-
-async def hc3_door_poll_worker():
-    await asyncio.sleep(HC3_DOOR_UNEXPECTED_CHECK_INITIAL_DELAY_SECONDS)
-    while True:
-        try:
-            await run_hc3_door_unexpected_check_once("unexpected_interval")
-        except Exception as exc:
-            logger.warning("HC3 dørstatuskontroll feilet: %s", exc, exc_info=True)
-            try:
-                async with async_session() as session:
-                    await record_import_job(
-                        session,
-                        "hc3_door_poll_sync",
-                        ok=False,
-                        source="HC3 API",
-                        started_at=local_now_naive(),
-                        finished_at=local_now_naive(),
-                        records_imported=0,
-                        records_total=len(DOOR_SENSOR_IDS),
-                        message=f"HC3 dørstatuskontroll feilet: {exc}",
-                        raw={"reason": "worker_exception"},
-                    )
-                    await session.commit()
-            except Exception:
-                logger.warning("Kunne ikke logge feil fra HC3 dørstatuskontroll.", exc_info=True)
-        await asyncio.sleep(HC3_DOOR_UNEXPECTED_CHECK_INTERVAL_SECONDS)
-
-
-def door_period_device_key(period: Dict[str, Any]) -> str:
-    device_id = period.get("deviceId")
-    if device_id is not None:
-        try:
-            return f"id:{int(device_id)}"
-        except (TypeError, ValueError):
-            pass
-    return f"key:{period.get('deviceKey') or 'unknown'}"
-
-
-def door_change_rows(rows_ascending: list[DoorEvent]) -> list[DoorEvent]:
-    changes_by_device: Dict[str, list[DoorEvent]] = {}
-    last_state_by_device: Dict[str, bool] = {}
-    for row in rows_ascending:
-        state = door_event_state_bool(row)
-        if state is None:
-            continue
-        key = door_event_device_key(row)
-        if key not in last_state_by_device or last_state_by_device[key] != state:
-            changes_by_device.setdefault(key, []).append(row)
-            last_state_by_device[key] = state
-
-    stabilized: list[DoorEvent] = []
-    for device_rows in changes_by_device.values():
-        cluster: list[DoorEvent] = []
-
-        def flush_cluster() -> None:
-            if not cluster:
-                return
-            if len(cluster) <= 2:
-                stabilized.extend(cluster)
-                return
-            final_state = door_event_state_bool(cluster[-1])
-            representative = next(
-                (item for item in cluster if door_event_state_bool(item) == final_state),
-                cluster[-1],
-            )
-            stabilized.append(representative)
-
-        for row in device_rows:
-            if cluster:
-                previous_at = normalize_local_naive(cluster[-1].timestamp)
-                current_at = normalize_local_naive(row.timestamp)
-                gap_seconds = (current_at - previous_at).total_seconds() if previous_at and current_at else None
-                if gap_seconds is None or gap_seconds > HC3_DOOR_DEBOUNCE_SECONDS:
-                    flush_cluster()
-                    cluster = []
-            cluster.append(row)
-        flush_cluster()
-
-    stabilized.sort(
-        key=lambda row: (
-            normalize_local_naive(row.timestamp) or datetime.min,
-            int(row.id or 0),
-        )
-    )
-    changes: list[DoorEvent] = []
-    last_stable_state_by_device: Dict[str, bool] = {}
-    for row in stabilized:
-        state = door_event_state_bool(row)
-        key = door_event_device_key(row)
-        if state is not None and last_stable_state_by_device.get(key) != state:
-            changes.append(row)
-            last_stable_state_by_device[key] = state
-    return changes
-
-
-def latest_door_event_by_device(rows_descending: list[DoorEvent]) -> Dict[int, DoorEvent]:
-    latest_by_device: Dict[int, DoorEvent] = {}
-    for row in rows_descending:
-        if row.device_id is None:
-            continue
-        latest_by_device.setdefault(int(row.device_id), row)
-    return latest_by_device
-
-
-def door_duration_label(seconds: Optional[int]) -> str:
-    if seconds is None:
-        return "-"
-    seconds = max(0, int(seconds))
-    if seconds < 60:
-        return f"{seconds} sek"
-    minutes = seconds // 60
-    if minutes < 60:
-        return "1 min" if minutes == 1 else f"{minutes} min"
-    hours = minutes // 60
-    rest_minutes = minutes % 60
-    if hours < 24:
-        if rest_minutes:
-            return f"{hours} t {rest_minutes} min"
-        return "1 t" if hours == 1 else f"{hours} t"
-    days = hours // 24
-    rest_hours = hours % 24
-    if rest_hours:
-        return f"{days} d {rest_hours} t"
-    return "1 dag" if days == 1 else f"{days} dager"
-
-
-def door_title_for_row(row: DoorEvent) -> str:
-    if row.device_id is not None:
-        for config in DOOR_SENSOR_CONFIG:
-            if config.get("device_id") is not None and int(config["device_id"]) == int(row.device_id):
-                return str(config["title"])
-    return row.device_name or row.device_key or "Ukjent dør"
-
-
-def door_period_payload(open_row: DoorEvent, close_row: Optional[DoorEvent], now: datetime) -> Dict[str, Any]:
-    opened_at = normalize_local_naive(open_row.timestamp)
-    closed_at = normalize_local_naive(close_row.timestamp) if close_row else None
-    duration_end = closed_at or now
-    duration_seconds = int((duration_end - opened_at).total_seconds()) if opened_at else None
-    state = "open" if close_row is None else "closed"
-    return {
-        "id": f"{open_row.device_id or open_row.device_key or 'door'}-{open_row.id}",
-        "deviceId": open_row.device_id,
-        "deviceKey": open_row.device_key,
-        "deviceName": open_row.device_name,
-        "title": door_title_for_row(open_row),
-        "state": state,
-        "stateLabel": "Åpen nå" if state == "open" else "Lukket",
-        "tone": "warn" if state == "open" else "ok",
-        "openedAt": opened_at.isoformat() if opened_at else None,
-        "openedLabel": format_source_datetime(opened_at) if opened_at else "-",
-        "openedAgeLabel": door_age_label(opened_at, now),
-        "closedAt": closed_at.isoformat() if closed_at else None,
-        "closedLabel": format_source_datetime(closed_at) if closed_at else "Åpen nå",
-        "closedAgeLabel": door_age_label(closed_at, now) if closed_at else "",
-        "durationSeconds": duration_seconds,
-        "durationLabel": door_duration_label(duration_seconds),
-        "openedEventId": open_row.id,
-        "closedEventId": close_row.id if close_row else None,
-    }
-
-
-def door_open_periods(change_rows_ascending: list[DoorEvent], now: datetime) -> list[Dict[str, Any]]:
-    open_by_device: Dict[str, DoorEvent] = {}
-    periods: list[Dict[str, Any]] = []
-    for row in change_rows_ascending:
-        state = door_event_state_bool(row)
-        key = door_event_device_key(row)
-        if state is True:
-            open_by_device[key] = row
-        elif state is False:
-            open_row = open_by_device.pop(key, None)
-            if open_row:
-                periods.append(door_period_payload(open_row, row, now))
-    for open_row in open_by_device.values():
-        periods.append(door_period_payload(open_row, None, now))
-    return sorted(periods, key=lambda item: item.get("openedAt") or "", reverse=True)
-
-
-def door_closed_period_payload(close_row: DoorEvent, open_row: Optional[DoorEvent], now: datetime) -> Dict[str, Any]:
-    closed_at = normalize_local_naive(close_row.timestamp)
-    opened_at = normalize_local_naive(open_row.timestamp) if open_row else None
-    duration_end = opened_at or now
-    duration_seconds = int((duration_end - closed_at).total_seconds()) if closed_at else None
-    state = "active" if open_row is None else "closed"
-    return {
-        "id": f"{close_row.device_id or close_row.device_key or 'door'}-{close_row.id}",
-        "deviceId": close_row.device_id,
-        "deviceKey": close_row.device_key,
-        "title": door_title_for_row(close_row),
-        "state": state,
-        "closedAt": closed_at,
-        "openedAt": opened_at,
-        "closedEventId": close_row.id,
-        "openedEventId": open_row.id if open_row else None,
-        "durationSeconds": duration_seconds,
-    }
-
-
-def door_closed_periods(change_rows_ascending: list[DoorEvent], now: datetime) -> list[Dict[str, Any]]:
-    closed_by_device: Dict[str, DoorEvent] = {}
-    periods: list[Dict[str, Any]] = []
-    for row in change_rows_ascending:
-        state = door_event_state_bool(row)
-        key = door_event_device_key(row)
-        if state is False:
-            closed_by_device[key] = row
-        elif state is True:
-            close_row = closed_by_device.pop(key, None)
-            if close_row:
-                periods.append(door_closed_period_payload(close_row, row, now))
-    for close_row in closed_by_device.values():
-        periods.append(door_closed_period_payload(close_row, None, now))
-    return sorted(periods, key=lambda item: item.get("closedAt") or datetime.min, reverse=True)
-
-
-def sunroom_display_number(config: Dict[str, Any]) -> Optional[int]:
-    try:
-        return int(config.get("sort_order") or 0)
-    except (TypeError, ValueError):
-        return None
-
-
-def sunroom_identity_for_config(config: Dict[str, Any]) -> Dict[str, Any]:
-    display_number = sunroom_display_number(config)
-    if display_number is None:
-        return {}
-    return dict(SUN2_ROOM_MAP_BY_DISPLAY.get(display_number) or {})
-
-
-def sunroom_room_id_for_config(config: Dict[str, Any]) -> Optional[str]:
-    display_number = sunroom_display_number(config)
-    if display_number is None:
-        return None
-    mapped = sunroom_identity_for_config(config)
-    return mapped.get("room_id") or normalize_room_id(f"rom-{display_number:02d}")
-
-
-def sunroom_bed_id_for_config(config: Dict[str, Any]) -> Optional[str]:
-    bed_id = sunroom_identity_for_config(config).get("sun2_bed_id")
-    return str(bed_id).strip() if bed_id is not None and str(bed_id).strip() else None
-
-
-def sunroom_canonical_room_id(row: Sun2TanningSession) -> Optional[str]:
-    bed_id = str(row.sun2_bed_id or "").strip()
-    if bed_id:
-        for identity in SUN2_ROOM_MAP_BY_DISPLAY.values():
-            if str(identity.get("sun2_bed_id") or "").strip() == bed_id:
-                return normalize_room_id(identity.get("room_id"))
-    return normalize_room_id(row.room_id)
-
-
-def sunroom_config_for_room_id(room_id: str) -> Optional[Dict[str, Any]]:
-    normalized = normalize_room_id(room_id)
-    if not normalized:
-        return None
-    for config in DOOR_SENSOR_CONFIG:
-        if config.get("group_key") == "solrom" and sunroom_room_id_for_config(config) == normalized:
-            return config
-    return None
-
-
-def sunroom_session_sun_start_at(row: Sun2TanningSession) -> Optional[datetime]:
-    start_at = normalize_local_naive(row.started_at)
-    if not start_at:
-        return None
-    return start_at + timedelta(minutes=SUNROOM_DOOR_PAYMENT_DELAY_MINUTES)
-
-
-def sunroom_session_end_at(row: Sun2TanningSession) -> Optional[datetime]:
-    sun_start_at = sunroom_session_sun_start_at(row)
-    if sun_start_at and row.duration_minutes is not None:
-        try:
-            return sun_start_at + timedelta(minutes=float(row.duration_minutes))
-        except (TypeError, ValueError):
-            return None
-    return normalize_local_naive(row.ended_at)
-
-
-def sunroom_expected_exit_at(row: Sun2TanningSession) -> Optional[datetime]:
-    end_at = sunroom_session_end_at(row)
-    if not end_at:
-        return None
-    return end_at + timedelta(minutes=SUNROOM_DOOR_EXIT_GRACE_MINUTES)
-
-
-def sunroom_session_payload(row: Sun2TanningSession) -> Dict[str, Any]:
-    start_at = normalize_local_naive(row.started_at)
-    end_at = sunroom_session_end_at(row)
-    expected_exit_at = sunroom_expected_exit_at(row)
-    sun_start_at = sunroom_session_sun_start_at(row)
-    href_params = {}
-    if start_at:
-        href_params["date_from"] = start_at.date().isoformat()
-        href_params["date_to"] = start_at.date().isoformat()
-    if row.room_id:
-        href_params["room_id"] = row.room_id
-    return {
-        "id": row.id,
-        "sourceSessionId": row.source_session_id,
-        "roomId": row.room_id,
-        "roomLabel": sun2_room_label(row.room_id, row.room or row.source_room_name),
-        "startedAt": start_at.isoformat() if start_at else None,
-        "startedLabel": format_source_datetime(start_at) if start_at else "-",
-        "sunStartAt": sun_start_at.isoformat() if sun_start_at else None,
-        "sunStartLabel": format_source_datetime(sun_start_at) if sun_start_at else "-",
-        "endedAt": end_at.isoformat() if end_at else None,
-        "endedLabel": format_source_datetime(end_at) if end_at else "-",
-        "expectedExitAt": expected_exit_at.isoformat() if expected_exit_at else None,
-        "expectedExitLabel": format_source_datetime(expected_exit_at) if expected_exit_at else "-",
-        "sun2UserId": row.sun2_user_id,
-        "sun2BedId": row.sun2_bed_id,
-        "userName": row.user_name,
-        "sourceRoomName": row.source_room_name,
-        "durationMinutes": row.duration_minutes,
-        "paidAmountKr": row.paid_amount_kr,
-        "status": row.status,
-        "href": f"/soling/enkeltimer?{urlencode(href_params)}" if href_params else "/soling/enkeltimer",
-    }
-
-
-def sunroom_session_energy_window(row: Sun2TanningSession) -> Optional[tuple[datetime, datetime]]:
-    sun_start_at = sunroom_session_sun_start_at(row)
-    end_at = sunroom_session_end_at(row)
-    if not sun_start_at or not end_at or end_at <= sun_start_at:
-        return None
-    return sun_start_at, end_at
-
-
-def sunroom_median_float(values: list[float]) -> Optional[float]:
-    return float(median(values)) if values else None
-
-
-def sunroom_watt_label(value: Optional[float]) -> str:
-    if value is None:
-        return "-"
-    return f"{round(float(value)):,}".replace(",", " ") + " W"
-
-
-def sunroom_energy_sample_items(samples: list[Any]) -> list[Dict[str, Any]]:
-    items: list[Dict[str, Any]] = []
-    for sample in samples:
-        sample_time = sample.get("bucket_start") if isinstance(sample, dict) else getattr(sample, "bucket_start", None)
-        sample_time = normalize_local_naive(sample_time)
-        value = sample.get("differanse_beregnet_w") if isinstance(sample, dict) else getattr(sample, "differanse_beregnet_w", None)
-        try:
-            diff_w = float(value)
-        except (TypeError, ValueError):
-            continue
-        if sample_time:
-            items.append({"time": sample_time, "diff_w": diff_w})
-    return sorted(items, key=lambda item: item["time"])
-
-
-def sunroom_energy_sample_window(
-    samples: list[Dict[str, Any]],
-    start_at: datetime,
-    end_at: datetime,
-    sample_times: Optional[list[datetime]] = None,
-    *,
-    include_end: bool = False,
-) -> list[Dict[str, Any]]:
-    if not samples or end_at < start_at:
-        return []
-    times = sample_times if sample_times is not None else [item["time"] for item in samples]
-    start_index = bisect_left(times, start_at)
-    end_index = bisect_right(times, end_at) if include_end else bisect_left(times, end_at)
-    return samples[start_index:end_index]
-
-
-def sunroom_session_energy_evidence(
-    row: Sun2TanningSession,
-    samples: list[Dict[str, Any]],
-    all_sessions: list[Sun2TanningSession],
-    sample_times: Optional[list[datetime]] = None,
-) -> Dict[str, Any]:
-    payment_at = normalize_local_naive(row.started_at)
-    window = sunroom_session_energy_window(row)
-    if not payment_at or not window:
-        return {
-            "quality": "missing",
-            "qualityLabel": "Mangler tid",
-            "status": "unknown",
-            "statusLabel": "Ikke vurdert",
-            "detail": "Sun2-timen mangler start, varighet eller sluttid.",
-            "samplesCount": 0,
-        }
-
-    sun_start_at, end_at = window
-    measure_start = sun_start_at + timedelta(minutes=2)
-    measure_end = end_at - timedelta(minutes=1)
-    baseline_start = payment_at - timedelta(minutes=10)
-    baseline_end = payment_at
-    start_check_end = sun_start_at + timedelta(minutes=6)
-    expected_delay_seconds = int((sun_start_at - payment_at).total_seconds())
-
-    baseline_values = [
-        item["diff_w"]
-        for item in sunroom_energy_sample_window(samples, baseline_start, baseline_end, sample_times)
-    ]
-    active_values = [
-        item["diff_w"]
-        for item in sunroom_energy_sample_window(samples, measure_start, measure_end, sample_times)
-    ]
-    start_values = sunroom_energy_sample_window(
-        samples,
-        payment_at - timedelta(minutes=1),
-        start_check_end,
-        sample_times,
-        include_end=True,
-    )
-    baseline_w = sunroom_median_float(baseline_values)
-    active_w = sunroom_median_float(active_values)
-    net_w = active_w - baseline_w if active_w is not None and baseline_w is not None else None
-
-    overlap_count = 0
-    edge_conflict = False
-    own_id = row.id
-    for other in all_sessions:
-        if other.id == own_id:
-            continue
-        other_window = sunroom_session_energy_window(other)
-        if not other_window:
-            continue
-        other_start, other_end = other_window
-        other_occupied_end = other_end + timedelta(minutes=SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES)
-        if other_start < measure_end and other_occupied_end > measure_start:
-            overlap_count += 1
-            for other_edge in (other_start, other_end):
-                if abs((other_edge - sun_start_at).total_seconds()) <= 180 or abs((other_edge - end_at).total_seconds()) <= 180:
-                    edge_conflict = True
-
-    first_rise_at: Optional[datetime] = None
-    start_delta_w: Optional[float] = None
-    if baseline_w is not None:
-        threshold = baseline_w + 1000
-        for item in start_values:
-            if item["time"] < sun_start_at - timedelta(minutes=1):
-                continue
-            if item["diff_w"] >= threshold:
-                first_rise_at = item["time"]
-                start_delta_w = item["diff_w"] - baseline_w
-                break
-    start_delay_seconds = int((first_rise_at - payment_at).total_seconds()) if first_rise_at else None
-    delay_deviation_seconds = start_delay_seconds - expected_delay_seconds if start_delay_seconds is not None else None
-
-    if not samples:
-        quality = "missing"
-        quality_label = "Mangler energidata"
-    elif overlap_count == 0:
-        quality = "clean"
-        quality_label = "Ren måling"
-    elif not edge_conflict:
-        quality = "separable"
-        quality_label = "Kan vurderes"
-    else:
-        quality = "overlap"
-        quality_label = "Overlapp"
-
-    if first_rise_at and delay_deviation_seconds is not None and abs(delay_deviation_seconds) <= 90:
-        status = "confirmed"
-        status_label = "Starter som forventet"
-    elif first_rise_at:
-        status = "deviation"
-        status_label = "Startavvik"
-    elif baseline_w is not None and active_w is not None and (net_w or 0) > 1500:
-        status = "power_seen"
-        status_label = "Effekt sett"
-    elif quality == "overlap":
-        status = "overlap"
-        status_label = "Overlapp"
-    else:
-        status = "unknown"
-        status_label = "Ikke nok grunnlag"
-
-    if status == "confirmed":
-        detail = f"Første tydelige effektøkning kom {door_duration_label(start_delay_seconds)} etter betaling."
-    elif status == "deviation":
-        direction = "sent" if (delay_deviation_seconds or 0) > 0 else "tidlig"
-        detail = f"Effektøkningen kom {door_duration_label(abs(delay_deviation_seconds or 0))} {direction} mot forventet 3 min."
-    elif status == "power_seen":
-        detail = "Målt effekt i solperioden, men startøyeblikket er ikke tydelig nok."
-    elif status == "overlap":
-        detail = "Andre senger overlapper start eller slutt, så energien kan ikke fordeles sikkert."
-    else:
-        detail = "Ikke nok ren energidata til å kontrollere start."
-
-    return {
-        "quality": quality,
-        "qualityLabel": quality_label,
-        "status": status,
-        "statusLabel": status_label,
-        "detail": detail,
-        "samplesCount": len(active_values),
-        "baselineSamples": len(baseline_values),
-        "overlapCount": overlap_count,
-        "edgeConflict": edge_conflict,
-        "baselineW": round(baseline_w, 1) if baseline_w is not None else None,
-        "baselineLabel": sunroom_watt_label(baseline_w),
-        "activeMedianW": round(active_w, 1) if active_w is not None else None,
-        "activeMedianLabel": sunroom_watt_label(active_w),
-        "estimatedNetW": round(net_w, 1) if net_w is not None else None,
-        "estimatedNetLabel": sunroom_watt_label(net_w),
-        "startDeltaW": round(start_delta_w, 1) if start_delta_w is not None else None,
-        "startDeltaLabel": sunroom_watt_label(start_delta_w),
-        "expectedDelaySeconds": expected_delay_seconds,
-        "expectedDelayLabel": door_duration_label(expected_delay_seconds),
-        "firstRiseAt": first_rise_at.isoformat() if first_rise_at else None,
-        "firstRiseLabel": format_source_datetime(first_rise_at) if first_rise_at else "-",
-        "startDelaySeconds": start_delay_seconds,
-        "startDelayLabel": door_duration_label(start_delay_seconds) if start_delay_seconds is not None else "-",
-        "delayDeviationSeconds": delay_deviation_seconds,
-        "delayDeviationLabel": door_duration_label(abs(delay_deviation_seconds)) if delay_deviation_seconds is not None else "-",
-    }
-
-
-def sunroom_power_marker(
-    kind: str,
-    label: str,
-    anchor_at: datetime,
-    value_w: Optional[float],
-    reference_w: Optional[float],
-) -> Optional[Dict[str, Any]]:
-    if value_w is None or reference_w is None:
-        return None
-    delta_w = float(value_w) - float(reference_w)
-    if delta_w < 5000:
-        return None
-    return {
-        "kind": kind,
-        "label": label,
-        "time": anchor_at.isoformat(),
-        "timeLabel": format_source_datetime(anchor_at),
-        "valueW": round(float(value_w), 1),
-        "valueLabel": sunroom_watt_label(value_w),
-        "deltaW": round(delta_w, 1),
-        "deltaLabel": sunroom_watt_label(delta_w),
-        "detail": f"Endring minst {sunroom_watt_label(delta_w)} mot referanse.",
-    }
-
-
-def sunroom_power_markers(
-    row: Sun2TanningSession,
-    samples: list[Dict[str, Any]],
-    sample_times: Optional[list[datetime]] = None,
-) -> list[Dict[str, Any]]:
-    window = sunroom_session_energy_window(row)
-    if not window:
-        return []
-    sun_start_at, end_at = window
-    start_anchor = sun_start_at + timedelta(minutes=5)
-    stop_anchor = end_at - timedelta(minutes=5)
-    baseline_w = sunroom_median_float(
-        [
-            item["diff_w"]
-            for item in sunroom_energy_sample_window(
-                samples,
-                sun_start_at - timedelta(minutes=5),
-                sun_start_at,
-                sample_times,
-            )
-        ]
-    )
-    start_w = sunroom_median_float(
-        [
-            item["diff_w"]
-            for item in sunroom_energy_sample_window(
-                samples,
-                start_anchor - timedelta(minutes=1),
-                start_anchor + timedelta(minutes=1),
-                sample_times,
-                include_end=True,
-            )
-        ]
-    )
-    stop_w = sunroom_median_float(
-        [
-            item["diff_w"]
-            for item in sunroom_energy_sample_window(
-                samples,
-                stop_anchor - timedelta(minutes=1),
-                stop_anchor + timedelta(minutes=1),
-                sample_times,
-                include_end=True,
-            )
-        ]
-    )
-    after_w = sunroom_median_float(
-        [
-            item["diff_w"]
-            for item in sunroom_energy_sample_window(
-                samples,
-                end_at,
-                end_at + timedelta(minutes=5),
-                sample_times,
-                include_end=True,
-            )
-        ]
-    )
-    markers = [
-        sunroom_power_marker("power_start", "Effekt +5 min", start_anchor, start_w, baseline_w),
-        sunroom_power_marker("power_stop", "Effekt -5 min", stop_anchor, stop_w, after_w),
-    ]
-    return [marker for marker in markers if marker]
-
-
-def sunroom_day_event(
-    kind: str,
-    label: str,
-    event_at: Optional[datetime],
-    detail: Optional[str] = None,
-    source: Optional[str] = None,
-    tone: str = "neutral",
-    event_id: Optional[Any] = None,
-) -> Optional[Dict[str, Any]]:
-    event_at = sunroom_parse_time_value(event_at)
-    if not event_at:
-        return None
-    return {
-        "id": f"{kind}-{event_id or event_at.isoformat()}",
-        "kind": kind,
-        "label": label,
-        "time": event_at.isoformat(),
-        "timeLabel": format_source_datetime(event_at),
-        "detail": detail,
-        "source": source,
-        "tone": tone,
-    }
-
-
-def sunroom_parse_time_value(value: Any) -> Optional[datetime]:
-    if isinstance(value, datetime):
-        return normalize_local_naive(value)
-    if isinstance(value, str):
-        return normalize_local_naive(parse_datetime(value))
-    return None
-
-
-def sunroom_marker_day_event(marker: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    event_at = sunroom_parse_time_value(marker.get("time"))
-    kind = str(marker.get("kind") or "marker")
-    label = str(marker.get("label") or "Markør")
-    tone = "neutral"
-    if kind.startswith("entrance_"):
-        tone = "entrance"
-    elif kind.startswith("power_"):
-        tone = "power"
-        if kind == "power_start":
-            label = "Effektøkning"
-        elif kind == "power_stop":
-            label = "Effektfall"
-    detail = marker.get("detail") or marker.get("deltaLabel") or marker.get("valueLabel")
-    return sunroom_day_event(
-        kind=kind,
-        label=label,
-        event_at=event_at,
-        detail=detail,
-        source="Inngang" if kind.startswith("entrance_") else "HC3 effekt",
-        tone=tone,
-        event_id=marker.get("eventId") or marker.get("time"),
-    )
-
-
-def sunroom_session_day_events(
-    row: Sun2TanningSession,
-    entrance_change_rows: list[DoorEvent],
-    energy_samples: list[Dict[str, Any]],
-    day_start: datetime,
-    day_end: datetime,
-    energy_sample_times: Optional[list[datetime]] = None,
-) -> list[Dict[str, Any]]:
-    payload = sunroom_session_payload(row)
-    events: list[Dict[str, Any]] = []
-    sun_start_at = sunroom_parse_time_value(payload.get("sunStartAt"))
-    ended_at = sunroom_parse_time_value(payload.get("endedAt"))
-    room_detail = f"{payload.get('durationMinutes') or '-'} min · {sunroom_money_label(payload.get('paidAmountKr'))}"
-    for event in [
-        sunroom_day_event("sun_start", "Soltime start", sun_start_at, room_detail, "Sun2", "sun", row.id),
-        sunroom_day_event("sun_end", "Soltime slutt", ended_at, payload.get("roomLabel"), "Sun2", "sun", f"{row.id}-end"),
-    ]:
-        if event:
-            events.append(event)
-    for marker in sunroom_entrance_markers(row, entrance_change_rows) + sunroom_power_markers(
-        row,
-        energy_samples,
-        energy_sample_times,
-    ):
-        event = sunroom_marker_day_event(marker)
-        if event:
-            events.append(event)
-    return [
-        event
-        for event in events
-        if (event_at := sunroom_parse_time_value(event.get("time"))) and day_start <= event_at < day_end
-    ]
-
-
-def sunroom_period_day_events(period: Dict[str, Any], day_start: datetime, day_end: datetime) -> list[Dict[str, Any]]:
-    events: list[Dict[str, Any]] = []
-    closed_at = sunroom_parse_time_value(period.get("closedAt"))
-    opened_at = sunroom_parse_time_value(period.get("openedAt"))
-    duration_label = door_duration_label(period.get("durationSeconds")) if period.get("durationSeconds") is not None else None
-    for event in [
-        sunroom_day_event("door_closed", "Dør lukket", closed_at, duration_label, "HC3 dør", "door", period.get("closedEventId")),
-        sunroom_day_event("door_open", "Dør åpnet", opened_at, duration_label, "HC3 dør", "door", period.get("openedEventId")),
-    ]:
-        if event and (event_at := sunroom_parse_time_value(event.get("time"))) and day_start <= event_at < day_end:
-            events.append(event)
-    return events
-
-
-def sunroom_money_label(value: Any) -> str:
-    try:
-        amount = float(value)
-    except (TypeError, ValueError):
-        return "-"
-    return f"{amount:,.0f} kr".replace(",", " ")
-
-
-def sunroom_entrance_config() -> Optional[Dict[str, Any]]:
-    return next((config for config in DOOR_SENSOR_CONFIG if config.get("device_key") == "door_inngang"), None)
-
-
-def sunroom_door_event_marker(row: DoorEvent, kind: str, label: str) -> Optional[Dict[str, Any]]:
-    event_at = normalize_local_naive(row.timestamp)
-    state = door_state_from_event(row)
-    if not event_at:
-        return None
-    return {
-        "kind": kind,
-        "label": label,
-        "time": event_at.isoformat(),
-        "timeLabel": format_source_datetime(event_at),
-        "state": state["state"],
-        "stateLabel": state["label"],
-        "eventId": row.id,
-        "deviceId": row.device_id,
-        "deviceKey": row.device_key,
-    }
-
-
-def sunroom_entrance_markers(row: Sun2TanningSession, entrance_rows: list[DoorEvent]) -> list[Dict[str, Any]]:
-    sun_start_at = sunroom_session_sun_start_at(row) or normalize_local_naive(row.started_at)
-    end_at = sunroom_session_end_at(row)
-    if not sun_start_at or not end_at:
-        return []
-    window_start = sun_start_at - timedelta(minutes=90)
-    window_end = end_at + timedelta(minutes=90)
-    items: list[tuple[datetime, DoorEvent, Optional[bool]]] = []
-    for event in entrance_rows:
-        event_at = normalize_local_naive(event.timestamp)
-        state = door_event_state_bool(event)
-        if event_at and state is not None and window_start <= event_at <= window_end:
-            items.append((event_at, event, state))
-    before_open = next((item for item in reversed(items) if item[0] <= sun_start_at and item[2] is True), None)
-    before_closed = next((item for item in reversed(items) if item[0] <= sun_start_at and item[2] is False), None)
-    after_open = next((item for item in items if item[0] >= end_at and item[2] is True), None)
-    after_closed = next((item for item in items if item[0] >= end_at and item[2] is False), None)
-    marker_specs = [
-        (before_open, "entrance_open_before", "Inngang åpnet før"),
-        (before_closed, "entrance_closed_before", "Inngang lukket før"),
-        (after_open, "entrance_open_after", "Inngang åpnet etter"),
-        (after_closed, "entrance_closed_after", "Inngang lukket etter"),
-    ]
-    markers: list[Dict[str, Any]] = []
-    for item, kind, label in marker_specs:
-        if not item:
-            continue
-        marker = sunroom_door_event_marker(item[1], kind, label)
-        if marker:
-            markers.append(marker)
-    return sorted(markers, key=lambda marker: marker.get("time") or "")
-
-
-def sunroom_session_matches_closed_period(row: Sun2TanningSession, closed_since: Optional[datetime], now: datetime) -> bool:
-    start_at = normalize_local_naive(row.started_at)
-    if not start_at or not closed_since:
-        return False
-    if start_at > now + timedelta(minutes=SUNROOM_DOOR_SESSION_GRACE_MINUTES):
-        return False
-    sun_start_at = sunroom_session_sun_start_at(row)
-    session_end_at = sunroom_session_end_at(row)
-    payment_window_start = closed_since - timedelta(minutes=SUNROOM_DOOR_PAYMENT_DELAY_MINUTES + 2)
-    payment_window_end = closed_since + timedelta(minutes=SUNROOM_DOOR_SYNC_FAILURE_ALARM_MINUTES)
-    paid_near_close = payment_window_start <= start_at <= min(
-        payment_window_end,
-        now + timedelta(minutes=SUNROOM_DOOR_SESSION_GRACE_MINUTES),
-    )
-    active_when_closed = bool(
-        sun_start_at
-        and session_end_at
-        and sun_start_at <= closed_since <= session_end_at
-    )
-    return paid_near_close or active_when_closed
-
-
-def sunroom_session_matches_period(row: Sun2TanningSession, closed_at: Optional[datetime], opened_at: Optional[datetime], now: datetime) -> bool:
-    start_at = normalize_local_naive(row.started_at)
-    if not start_at or not closed_at:
-        return False
-    period_end = opened_at or now
-    sun_start_at = sunroom_session_sun_start_at(row)
-    session_end_at = sunroom_session_end_at(row)
-    paid_near_close = (
-        closed_at - timedelta(minutes=SUNROOM_DOOR_PAYMENT_DELAY_MINUTES + 2)
-        <= start_at
-        <= closed_at + timedelta(minutes=SUNROOM_DOOR_SYNC_FAILURE_ALARM_MINUTES)
-    )
-    physical_session_overlaps = bool(
-        sun_start_at
-        and session_end_at
-        and sun_start_at <= period_end
-        and session_end_at >= closed_at
-    )
-    return paid_near_close or physical_session_overlaps
-
-
-def sunroom_session_period_score(row: Sun2TanningSession, closed_at: datetime, opened_at: Optional[datetime], now: datetime) -> float:
-    start_at = normalize_local_naive(row.started_at) or datetime.max
-    expected_exit_at = sunroom_expected_exit_at(row)
-    period_end = opened_at or now
-    start_score = abs((start_at - closed_at).total_seconds())
-    if expected_exit_at:
-        exit_score = abs((expected_exit_at - period_end).total_seconds())
-        return min(start_score, exit_score + 60)
-    return start_score
-
-
-def sunroom_match_session_for_period(
-    sessions: list[Sun2TanningSession],
-    closed_at: Optional[datetime],
-    opened_at: Optional[datetime],
-    now: datetime,
-) -> Optional[Sun2TanningSession]:
-    if not closed_at:
-        return None
-    candidates = [
-        row
-        for row in sessions
-        if sunroom_session_matches_period(row, closed_at, opened_at, now)
-    ]
-    if not candidates:
-        return None
-    return sorted(candidates, key=lambda row: sunroom_session_period_score(row, closed_at, opened_at, now))[0]
-
-
-def sunroom_best_session_for_door(
-    sessions: list[Sun2TanningSession],
-    is_occupied: bool,
-    changed_at: Optional[datetime],
-    now: datetime,
-) -> Optional[Sun2TanningSession]:
-    if not sessions:
-        return None
-    if not is_occupied:
-        return sessions[0]
-    for row in sessions:
-        if sunroom_session_matches_closed_period(row, changed_at, now):
-            return row
-    return None
-
-
-def sunroom_duration_label(seconds: Optional[int]) -> str:
-    if seconds is None:
-        return "-"
-    if seconds > 0:
-        return f"om {door_duration_label(seconds)}"
-    return door_duration_label(abs(seconds))
-
-
-def sunroom_period_status(
-    matched_session: Optional[Sun2TanningSession],
-    closed_at: Optional[datetime],
-    opened_at: Optional[datetime],
-    now: datetime,
-) -> Dict[str, Any]:
-    duration_seconds = int(((opened_at or now) - closed_at).total_seconds()) if closed_at else None
-    expected_exit_at = sunroom_expected_exit_at(matched_session) if matched_session else None
-    is_active = opened_at is None
-    severity = "ok"
-    status = "Ferdig"
-    detail = "Dørperiode ferdig."
-    overstay_seconds: Optional[int] = None
-    remaining_seconds: Optional[int] = None
-    missing_session = False
-
-    if not matched_session:
-        missing_session = bool(duration_seconds is not None and duration_seconds >= int(SUNROOM_DOOR_SESSION_GRACE_MINUTES * 60))
-        severity = "warning" if missing_session else "waiting"
-        status = "Mangler soltime" if missing_session else "Avventer Sun2"
-        detail = "Ingen Sun2-time er funnet for denne dørperioden." if missing_session else "Kort dørperiode uten sikker Sun2-kobling."
-    elif expected_exit_at:
-        session_end_at = sunroom_session_end_at(matched_session)
-        compare_at = opened_at or now
-        remaining_seconds = int((expected_exit_at - compare_at).total_seconds())
-        overstay_seconds = max(0, -remaining_seconds)
-        alert_seconds = int((compare_at - session_end_at).total_seconds()) if session_end_at else overstay_seconds
-        if alert_seconds >= int(SUNROOM_DOOR_ALERT_AFTER_END_MINUTES * 60):
-            severity = "alert"
-            status = "Overtid"
-            detail = "Døren ble ikke åpnet før rød grense etter solslutt."
-        elif alert_seconds >= int(SUNROOM_DOOR_WARN_AFTER_END_MINUTES * 60):
-            severity = "warning"
-            status = "Overtid"
-            detail = "Døren ble ikke åpnet før oransje grense etter solslutt."
-        elif is_active:
-            severity = "active"
-            status = "Pågår"
-            detail = "Soltime pågår eller kunden er innenfor normal utgangstid."
-        else:
-            severity = "ok"
-            status = "OK"
-            detail = "Døren ble åpnet innenfor forventet tid."
-    elif matched_session and is_active:
-        severity = "active"
-        status = "Pågår"
-        detail = "Soltime funnet, men sluttid mangler."
-
-    return {
-        "severity": severity,
-        "status": status,
-        "detail": detail,
-        "missingSession": missing_session,
-        "expectedExitAt": expected_exit_at,
-        "remainingSeconds": remaining_seconds,
-        "overstaySeconds": overstay_seconds,
-    }
-
-
-def sunroom_period_payload(
-    period: Dict[str, Any],
-    matched_session: Optional[Sun2TanningSession],
-    now: datetime,
-) -> Dict[str, Any]:
-    closed_at = period.get("closedAt")
-    opened_at = period.get("openedAt")
-    status = sunroom_period_status(matched_session, closed_at, opened_at, now)
-    expected_exit_at = status.get("expectedExitAt")
-    remaining_seconds = status.get("remainingSeconds")
-    overstay_seconds = status.get("overstaySeconds")
-    return {
-        "id": period.get("id"),
-        "state": period.get("state"),
-        "isActive": opened_at is None,
-        "closedAt": closed_at.isoformat() if closed_at else None,
-        "closedLabel": format_source_datetime(closed_at) if closed_at else "-",
-        "closedAgeLabel": door_age_label(closed_at, now),
-        "openedAt": opened_at.isoformat() if opened_at else None,
-        "openedLabel": format_source_datetime(opened_at) if opened_at else "Pågår",
-        "openedAgeLabel": door_age_label(opened_at, now) if opened_at else "",
-        "durationSeconds": period.get("durationSeconds"),
-        "durationLabel": door_duration_label(period.get("durationSeconds")),
-        "closedEventId": period.get("closedEventId"),
-        "openedEventId": period.get("openedEventId"),
-        "session": sunroom_session_payload(matched_session) if matched_session else None,
-        "severity": status.get("severity"),
-        "status": status.get("status"),
-        "detail": status.get("detail"),
-        "missingSession": status.get("missingSession"),
-        "expectedExitAt": expected_exit_at.isoformat() if expected_exit_at else None,
-        "expectedExitLabel": format_source_datetime(expected_exit_at) if expected_exit_at else "-",
-        "remainingSeconds": remaining_seconds,
-        "remainingLabel": sunroom_duration_label(remaining_seconds) if remaining_seconds is not None else "-",
-        "overstaySeconds": overstay_seconds,
-        "overstayLabel": door_duration_label(overstay_seconds) if overstay_seconds else "",
-    }
-
-
-def sunroom_status_item(
-    config: Dict[str, Any],
-    latest_row: Optional[DoorEvent],
-    sessions_by_room: Dict[str, list[Sun2TanningSession]],
-    now: datetime,
-) -> Dict[str, Any]:
-    door = door_status_payload(config, latest_row, now)
-    identity = sunroom_identity_for_config(config)
-    display_number = identity.get("display_room_number") or sunroom_display_number(config)
-    room_id = sunroom_room_id_for_config(config)
-    bed_id = sunroom_bed_id_for_config(config)
-    sessions = sessions_by_room.get(room_id or "", [])
-    door_state = door.get("state")
-    is_occupied = door_state == "closed"
-    changed_at = normalize_local_naive(latest_row.timestamp) if latest_row else None
-    closed_since = changed_at if is_occupied else None
-    occupied_seconds = int((now - closed_since).total_seconds()) if closed_since else None
-    matched_session = sunroom_best_session_for_door(sessions, is_occupied, changed_at, now)
-    expected_exit_at = sunroom_expected_exit_at(matched_session) if matched_session else None
-
-    severity = "free"
-    status = "Ledig"
-    detail = "Døren er åpen."
-    overstay_seconds: Optional[int] = None
-    remaining_seconds: Optional[int] = None
-    missing_session = False
-    no_session_alarm_active = False
-    no_session_alarm_threshold_seconds = int(SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES * 60)
-    no_session_critical_active = False
-    alarm_stage: Optional[str] = None
-
-    if not door.get("isConfigured"):
-        severity = "unknown"
-        status = "Ikke koblet"
-        detail = "Sensor mangler HC3-id."
-    elif door_state == "unknown":
-        severity = "unknown"
-        status = "Ukjent"
-        detail = "Ingen sikker dørstatus."
-    elif is_occupied:
-        if not matched_session:
-            missing_session = bool(occupied_seconds is not None and occupied_seconds >= int(SUNROOM_DOOR_SESSION_GRACE_MINUTES * 60))
-            no_session_alarm_active = bool(
-                missing_session and occupied_seconds is not None and occupied_seconds >= no_session_alarm_threshold_seconds
-            )
-            no_session_critical_active = bool(
-                no_session_alarm_active
-                and occupied_seconds is not None
-                and occupied_seconds >= int(SUNROOM_DOOR_CRITICAL_MINUTES * 60)
-            )
-            if missing_session:
-                severity = "alert" if no_session_alarm_active else "warning"
-                status = "Kritisk alarm" if no_session_critical_active else "Alarm" if no_session_alarm_active else "Mangler soltime"
-                if no_session_critical_active:
-                    detail = f"Dør lukket i mer enn {SUNROOM_DOOR_CRITICAL_MINUTES:g} min uten funnet Sun2-time."
-                elif no_session_alarm_active:
-                    detail = f"Dør lukket i mer enn {SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES:g} min uten funnet Sun2-time."
-                else:
-                    detail = f"Dør lukket i mer enn {SUNROOM_DOOR_SESSION_GRACE_MINUTES:g} min uten funnet Sun2-time."
-            else:
-                severity = "waiting"
-                status = "Venter på soltime"
-                detail = f"Avventer Sun2-data inntil {SUNROOM_DOOR_SESSION_GRACE_MINUTES:g} min etter at døren ble lukket."
-        elif expected_exit_at:
-            remaining_seconds = int((expected_exit_at - now).total_seconds())
-            overstay_seconds = max(0, -remaining_seconds)
-            session_end_at = sunroom_session_end_at(matched_session)
-            alert_seconds = int((now - session_end_at).total_seconds()) if session_end_at else overstay_seconds
-            if alert_seconds >= int(SUNROOM_DOOR_ALERT_AFTER_END_MINUTES * 60):
-                severity = "alert"
-                status = "Overtid"
-                detail = f"Kunden er fortsatt inne mer enn {SUNROOM_DOOR_ALERT_AFTER_END_MINUTES:g} min etter solslutt."
-            elif alert_seconds >= int(SUNROOM_DOOR_WARN_AFTER_END_MINUTES * 60):
-                severity = "warning"
-                status = "Overtid"
-                detail = f"Kunden er fortsatt inne mer enn {SUNROOM_DOOR_WARN_AFTER_END_MINUTES:g} min etter solslutt."
-            else:
-                severity = "active"
-                status = "I bruk"
-                detail = "Soltime funnet. Forventet ut-tid er beregnet fra betaling + oppstart + soltid + normal utgangstid."
-        else:
-            severity = "active"
-            status = "I bruk"
-            detail = "Soltime funnet, men sluttid mangler."
-
-    alarm_reason = None
-    alarm_title = ""
-    if no_session_alarm_active:
-        alarm_reason = "closed_without_session"
-        alarm_title = "Lukket uten soltime"
-        alarm_stage = "critical" if no_session_critical_active else "standard"
-    elif severity == "alert" and is_occupied and matched_session:
-        alarm_reason = "overstay"
-        alarm_title = "Overtid etter solslutt"
-        alarm_stage = "standard"
-
-    return {
-        "deviceId": door.get("deviceId"),
-        "deviceKey": door.get("deviceKey"),
-        "title": door.get("title"),
-        "sectionKey": door.get("sectionKey"),
-        "sectionTitle": door.get("sectionTitle"),
-        "sortOrder": door.get("sortOrder"),
-        "displayRoomNumber": display_number,
-        "physicalRoomNumber": identity.get("physical_room_number"),
-        "sun2BedId": bed_id,
-        "roomId": room_id,
-        "roomLabel": door.get("title") or sun2_room_label(room_id, None),
-        "doorState": door_state,
-        "doorStateLabel": door.get("stateLabel"),
-        "doorChangedAt": changed_at.isoformat() if changed_at else None,
-        "doorChangedLabel": format_source_datetime(changed_at) if changed_at else "-",
-        "doorAgeLabel": door.get("ageLabel"),
-        "isOccupied": is_occupied,
-        "occupiedSince": closed_since.isoformat() if closed_since else None,
-        "occupiedSinceLabel": format_source_datetime(closed_since) if closed_since else "-",
-        "occupiedDurationSeconds": occupied_seconds,
-        "occupiedDurationLabel": door_duration_label(occupied_seconds),
-        "severity": severity,
-        "status": status,
-        "detail": detail,
-        "missingSession": missing_session,
-        "noSessionAlarmActive": no_session_alarm_active,
-        "noSessionCriticalActive": no_session_critical_active,
-        "noSessionAlarmMinutes": SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES,
-        "noSessionCriticalMinutes": SUNROOM_DOOR_CRITICAL_MINUTES,
-        "alarmReason": alarm_reason,
-        "alarmTitle": alarm_title,
-        "alarmStage": alarm_stage,
-        "session": sunroom_session_payload(matched_session) if matched_session else None,
-        "expectedExitAt": expected_exit_at.isoformat() if expected_exit_at else None,
-        "expectedExitLabel": format_source_datetime(expected_exit_at) if expected_exit_at else "-",
-        "remainingSeconds": remaining_seconds,
-        "remainingLabel": sunroom_duration_label(remaining_seconds) if remaining_seconds is not None else "-",
-        "overstaySeconds": overstay_seconds,
-        "overstayLabel": door_duration_label(overstay_seconds) if overstay_seconds else "",
-    }
-
-
-def sunroom_alarm_event_key(item: Dict[str, Any]) -> str:
-    session_item = item.get("session") or {}
-    identity = "|".join(
-        (
-            str(item.get("deviceKey") or item.get("roomId") or "unknown"),
-            str(item.get("alarmReason") or "overstay"),
-            str(item.get("doorChangedAt") or ""),
-            str(session_item.get("sourceSessionId") or session_item.get("id") or "missing"),
-        )
-    )
-    return hashlib.sha256(identity.encode("utf-8")).hexdigest()
-
-
-def sunroom_alert_key(item: Dict[str, Any]) -> str:
-    return sunroom_alarm_event_key(item)
-
-
-def sunroom_alarm_detected_at(item: Dict[str, Any], now: datetime) -> datetime:
-    reason = item.get("alarmReason") or "overstay"
-    if reason == "closed_without_session":
-        changed_at = sunroom_parse_time_value(item.get("doorChangedAt"))
-        if changed_at:
-            return changed_at + timedelta(
-                minutes=float(item.get("alarmThresholdMinutes") or SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES)
-            )
-    session_item = item.get("session") or {}
-    ended_at = sunroom_parse_time_value(session_item.get("endedAt"))
-    if ended_at:
-        return ended_at + timedelta(minutes=SUNROOM_DOOR_ALERT_AFTER_END_MINUTES)
-    return now
-
-
-def sunroom_alarm_message(item: Dict[str, Any], checked_at: Optional[datetime] = None) -> str:
-    if item.get("noSessionAlarmActive"):
-        suffix = f" Kontrollert {checked_at.strftime('%H:%M:%S')}." if checked_at else ""
-        verification_suffix = ""
-        if item.get("sun2VerificationFailed"):
-            verification_suffix = " Sun2 kunne ikke bekrefte dagens data."
-        if item.get("hc3VerificationFailed"):
-            verification_suffix += " HC3-status kunne ikke bekreftes."
-        return (
-            f"{item.get('title') or item.get('roomLabel')}: dør lukket i "
-            f"{item.get('occupiedDurationLabel') or '-'} uten funnet Sun2-time. "
-            f"Lukket siden {item.get('occupiedSinceLabel') or '-'}.{verification_suffix}{suffix}"
-        )
-    return (
-        f"{item.get('title') or item.get('roomLabel')}: dør fortsatt lukket. "
-        f"Forventet ut {item.get('expectedExitLabel') or '-'}. "
-        f"Overtid {item.get('overstayLabel') or '-'}."
-    )
-
-
-def sunroom_door_period_key(item: Dict[str, Any]) -> str:
-    return "|".join(
-        (
-            str(item.get("deviceKey") or item.get("roomId") or "unknown"),
-            str(item.get("doorChangedAt") or "unknown"),
-        )
-    )
-
-
-def sunroom_item_may_have_new_session(item: Dict[str, Any]) -> bool:
-    session_item = item.get("session") or {}
-    door_changed_at = sunroom_parse_time_value(item.get("doorChangedAt"))
-    payment_at = sunroom_parse_time_value(session_item.get("startedAt"))
-    if not door_changed_at or not payment_at:
-        return False
-    return payment_at < door_changed_at - timedelta(minutes=SUNROOM_DOOR_PAYMENT_DELAY_MINUTES + 2)
-
-
-def sunroom_force_sync_candidates(items: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
-    threshold_seconds = int(SUNROOM_DOOR_FORCED_SYNC_MINUTES * 60)
-    return [
-        item
-        for item in items
-        if item.get("isOccupied")
-        and (
-            not item.get("session")
-            or item.get("alarmReason") == "overstay"
-            or sunroom_item_may_have_new_session(item)
-        )
-        and int(item.get("occupiedDurationSeconds") or 0) >= threshold_seconds
-        and item.get("doorChangedAt")
-    ]
-
-
-def cleanup_sunroom_door_verifications(now: datetime) -> None:
-    cutoff = now - timedelta(hours=max(24, SUNROOM_DOOR_SESSION_LOOKBACK_HOURS * 2))
-    for key, state in list(sunroom_door_verifications.items()):
-        attempted_at = state.get("attemptedAt")
-        if not isinstance(attempted_at, datetime) or attempted_at < cutoff:
-            sunroom_door_verifications.pop(key, None)
-
-
-def sunroom_sync_candidate_is_due(item: Dict[str, Any], now: datetime) -> bool:
-    state = sunroom_door_verifications.get(sunroom_door_period_key(item)) or {}
-    attempted_at = state.get("attemptedAt")
-    attempt_count = int(state.get("attemptCount") or 0)
-    retry_before = now - timedelta(seconds=SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS)
-    return attempt_count < SUNROOM_DOOR_SYNC_MAX_ATTEMPTS and (
-        not isinstance(attempted_at, datetime) or attempted_at <= retry_before
-    )
-
-
-def request_sun2_today_sync(reason: str = "door_closed") -> Dict[str, Any]:
-    query = urlencode({"reason": reason[:120]})
-    request = urllib.request.Request(
-        f"{SUN2_SESSION_SCRAPER_URL}/sync-today?{query}",
-        data=b"",
-        method="POST",
-        headers={"Accept": "application/json"},
-    )
-    with urllib.request.urlopen(request, timeout=SUNROOM_DOOR_SYNC_TIMEOUT_SECONDS) as response:
-        raw = response.read().decode("utf-8", errors="replace")
-        payload = json.loads(raw or "{}")
-        if not isinstance(payload, dict) or payload.get("status") not in {"ok", "deferred"}:
-            raise RuntimeError(str(payload.get("error") if isinstance(payload, dict) else "Ugyldig svar fra Sun2-synk"))
-        return payload
-
-
-async def force_sun2_sync_for_closed_rooms(items: list[Dict[str, Any]], now: datetime) -> Dict[str, Any]:
-    global sunroom_door_sync_lock
-    cleanup_sunroom_door_verifications(now)
-    candidates = sunroom_force_sync_candidates(items)
-    if not candidates:
-        return {"attempted": False, "ok": None, "rooms": 0}
-
-    due = [item for item in candidates if sunroom_sync_candidate_is_due(item, now)]
-    if not due:
-        return {"attempted": False, "ok": None, "rooms": len(candidates)}
-    if sunroom_door_sync_lock is None:
-        sunroom_door_sync_lock = asyncio.Lock()
-
-    async with sunroom_door_sync_lock:
-        attempted_at = local_now_naive()
-        due = [item for item in candidates if sunroom_sync_candidate_is_due(item, attempted_at)]
-        if not due:
-            return {"attempted": False, "ok": None, "rooms": len(candidates)}
-        error_text = ""
-        response_payload: Dict[str, Any] = {}
-        room_labels = [str(item.get("displayRoomNumber") or item.get("roomId") or "?") for item in due]
-        reason = f"door_closed rooms={','.join(room_labels)}"
-        try:
-            response_payload = await asyncio.to_thread(request_sun2_today_sync, reason)
-            if response_payload.get("status") == "deferred":
-                return {
-                    "attempted": False,
-                    "deferred": True,
-                    "ok": None,
-                    "rooms": len(due),
-                    "retryAfterSeconds": response_payload.get("retry_after_seconds"),
-                    "nextAllowedAt": response_payload.get("next_allowed_at"),
-                }
-            ok = True
-        except Exception as exc:
-            ok = False
-            error_text = str(exc)[:1000]
-            logger.warning("Tvungen Sun2-synk for doralarm feilet: %s", exc)
-        for item in due:
-            previous = sunroom_door_verifications.get(sunroom_door_period_key(item)) or {}
-            sunroom_door_verifications[sunroom_door_period_key(item)] = {
-                "attemptedAt": attempted_at,
-                "ok": ok,
-                "error": error_text,
-                "attemptCount": int(previous.get("attemptCount") or 0) + 1,
-                "reason": "new_session_check" if item.get("session") else "missing_session",
-            }
-        return {
-            "attempted": True,
-            "attemptedAt": attempted_at.isoformat(),
-            "ok": ok,
-            "rooms": len(due),
-            "error": error_text or None,
-            "result": response_payload.get("result") if ok else None,
-        }
-
-
-def apply_sunroom_alarm_verification(
-    items: list[Dict[str, Any]],
-    now: datetime,
-    persisted_alarm_keys: Optional[set[str]] = None,
-) -> list[Dict[str, Any]]:
-    verified_items: list[Dict[str, Any]] = []
-    persisted_alarm_keys = persisted_alarm_keys or set()
-    failure_threshold_seconds = int(SUNROOM_DOOR_SYNC_FAILURE_ALARM_MINUTES * 60)
-    new_session_grace_seconds = int(SUNROOM_DOOR_NEW_SESSION_GRACE_MINUTES * 60)
-    for source_item in items:
-        item = dict(source_item)
-        if not item.get("isOccupied"):
-            verified_items.append(item)
-            continue
-        state = sunroom_door_verifications.get(sunroom_door_period_key(item)) or {}
-        attempted_at = state.get("attemptedAt")
-        if isinstance(attempted_at, datetime):
-            item["sun2VerificationAt"] = attempted_at.isoformat()
-            item["sun2VerificationOk"] = bool(state.get("ok"))
-            item["sun2VerificationError"] = state.get("error") or None
-            item["sun2VerificationAttemptCount"] = int(state.get("attemptCount") or 0)
-            item["sun2VerificationReason"] = state.get("reason") or None
-
-        if item.get("session"):
-            if item.get("alarmReason") != "overstay":
-                verified_items.append(item)
-                continue
-
-            occupied_seconds = int(item.get("occupiedDurationSeconds") or 0)
-            changed_at = sunroom_parse_time_value(item.get("doorChangedAt"))
-            verification_ready_at = (
-                changed_at + timedelta(minutes=SUNROOM_DOOR_NEW_SESSION_GRACE_MINUTES)
-                if changed_at
-                else None
-            )
-            persisted_alarm = sunroom_alarm_event_key(item) in persisted_alarm_keys
-            sync_succeeded_after_grace = bool(
-                state.get("ok")
-                and isinstance(attempted_at, datetime)
-                and verification_ready_at
-                and attempted_at >= verification_ready_at
-            )
-            sync_failed_long_enough = bool(
-                state
-                and not state.get("ok")
-                and occupied_seconds >= failure_threshold_seconds
-            )
-            is_critical = occupied_seconds >= int(SUNROOM_DOOR_CRITICAL_MINUTES * 60)
-            if persisted_alarm or sync_succeeded_after_grace:
-                item["newSessionCheckActive"] = False
-            elif sync_failed_long_enough or is_critical:
-                item["sun2VerificationFailed"] = True
-                item["newSessionCheckActive"] = False
-                item["detail"] = (
-                    "Forrige soltime er avsluttet, døren er fortsatt lukket og en mulig ny time "
-                    "kunne ikke bekreftes mot oppdaterte Sun2-data."
-                )
-            else:
-                item.update(
-                    {
-                        "severity": "waiting" if occupied_seconds < new_session_grace_seconds else "warning",
-                        "status": "Kontrollerer ny time",
-                        "detail": (
-                            "Forrige soltime er avsluttet. Avventer en ny Sun2-kontroll etter "
-                            f"{SUNROOM_DOOR_NEW_SESSION_GRACE_MINUTES:g} min før overtid kan varsles."
-                        ),
-                        "alarmReason": None,
-                        "alarmTitle": "",
-                        "alarmStage": None,
-                        "newSessionCheckActive": True,
-                    }
-                )
-            verified_items.append(item)
-            continue
-
-        if not item.get("noSessionAlarmActive"):
-            verified_items.append(item)
-            continue
-
-        occupied_seconds = int(item.get("occupiedDurationSeconds") or 0)
-        is_critical = bool(item.get("noSessionCriticalActive"))
-        persisted_alarm = sunroom_alarm_event_key(item) in persisted_alarm_keys
-        sync_succeeded = bool(state.get("ok")) or persisted_alarm
-        sync_failed_long_enough = bool(state and not state.get("ok") and occupied_seconds >= failure_threshold_seconds)
-        if sync_succeeded:
-            item["alarmThresholdMinutes"] = SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES
-        elif sync_failed_long_enough or is_critical:
-            item["sun2VerificationFailed"] = True
-            item["alarmThresholdMinutes"] = (
-                SUNROOM_DOOR_CRITICAL_MINUTES if is_critical and not state else SUNROOM_DOOR_SYNC_FAILURE_ALARM_MINUTES
-            )
-            item["detail"] = (
-                f"Dør lukket i {item.get('occupiedDurationLabel') or '-'} uten funnet soltime. "
-                "Tvungen Sun2-kontroll feilet."
-            )
-        else:
-            item.update(
-                {
-                    "severity": "warning",
-                    "status": "Kontrollerer Sun2",
-                    "detail": "Avventer tvungen kontroll av dagens Sun2-data før varsel sendes.",
-                    "noSessionAlarmActive": False,
-                    "alarmReason": None,
-                    "alarmTitle": "",
-                    "alarmStage": None,
-                }
-            )
-        verified_items.append(item)
-    return verified_items
-
-
-async def verify_sunroom_alert_doors_with_hc3(items: list[Dict[str, Any]]) -> Dict[str, Any]:
-    candidate_ids = {
-        int(item["deviceId"])
-        for item in items
-        if item.get("severity") == "alert" and item.get("isOccupied") and item.get("deviceId") is not None
-    }
-    configs = [
-        config
-        for config in DOOR_SENSOR_CONFIG
-        if config.get("device_id") is not None and int(config["device_id"]) in candidate_ids
-    ]
-    if not configs:
-        return {"ok": False, "checked": 0, "errors": 1, "message": "Ingen HC3-sensorer kunne kontrolleres."}
-    reasons = {int(config["device_id"]): "sunroom_alarm_confirmation" for config in configs}
-    return await run_hc3_door_poll_once(
-        reason="sunroom_alarm_confirmation",
-        configs=configs,
-        target_reasons=reasons,
-    )
-
-
-def attach_hc3_alarm_verification(items: list[Dict[str, Any]], result: Optional[Dict[str, Any]]) -> list[Dict[str, Any]]:
-    if result is None:
-        return items
-    checked_at = local_now_naive().isoformat()
-    checked_ok = bool(result.get("ok")) and int(result.get("checked") or 0) > 0
-    output: list[Dict[str, Any]] = []
-    for source_item in items:
-        item = dict(source_item)
-        if item.get("severity") == "alert" and item.get("isOccupied") and item.get("alarmReason"):
-            item["hc3VerificationAt"] = checked_at
-            item["hc3VerificationOk"] = checked_ok
-            item["hc3VerificationFailed"] = not checked_ok
-            item["hc3VerificationMessage"] = result.get("message")
-        output.append(item)
-    return output
-
-
-def alarm_event_payload(row: AlarmEvent) -> Dict[str, Any]:
-    return {
-        "id": row.id,
-        "eventKey": row.event_key,
-        "domain": row.domain,
-        "alarmType": row.alarm_type,
-        "status": row.status,
-        "severity": row.severity,
-        "outcome": row.outcome,
-        "title": row.title,
-        "detail": row.detail,
-        "deviceKey": row.device_key,
-        "deviceId": row.device_id,
-        "roomId": row.room_id,
-        "displayRoomNumber": row.display_room_number,
-        "physicalRoomNumber": row.physical_room_number,
-        "sun2BedId": row.sun2_bed_id,
-        "sourceSessionId": row.source_session_id,
-        "doorChangedAt": row.door_changed_at.isoformat() if row.door_changed_at else None,
-        "expectedExitAt": row.expected_exit_at.isoformat() if row.expected_exit_at else None,
-        "detectedAt": row.detected_at.isoformat() if row.detected_at else None,
-        "detectedLabel": format_source_datetime(row.detected_at) if row.detected_at else "-",
-        "lastObservedAt": row.last_observed_at.isoformat() if row.last_observed_at else None,
-        "resolvedAt": row.resolved_at.isoformat() if row.resolved_at else None,
-        "resolvedLabel": format_source_datetime(row.resolved_at) if row.resolved_at else "Pågår",
-        "resolutionReason": row.resolution_reason,
-        "notificationStatus": row.notification_status,
-        "notificationCount": int(row.notification_count or 0),
-        "firstNotificationAt": row.first_notification_at.isoformat() if row.first_notification_at else None,
-        "lastNotificationAt": row.last_notification_at.isoformat() if row.last_notification_at else None,
-        "lastNotificationLabel": format_source_datetime(row.last_notification_at) if row.last_notification_at else "-",
-        "reviewedAt": row.reviewed_at.isoformat() if row.reviewed_at else None,
-        "reviewedBy": row.reviewed_by,
-        "reviewNote": row.review_note,
-        "source": row.source,
-    }
-
-
-async def sync_sunroom_alarm_history(session, items: list[Dict[str, Any]], now: datetime) -> Dict[str, AlarmEvent]:
-    active_items = [
-        item
-        for item in items
-        if item.get("severity") == "alert" and item.get("isOccupied") and item.get("alarmReason")
-    ]
-    active_by_key = {sunroom_alarm_event_key(item): item for item in active_items}
-    where_clause = and_(AlarmEvent.domain == "doors", AlarmEvent.status == "active")
-    if active_by_key:
-        where_clause = and_(
-            AlarmEvent.domain == "doors",
-            or_(AlarmEvent.status == "active", AlarmEvent.event_key.in_(list(active_by_key))),
-        )
-    existing_rows = (await session.execute(select(AlarmEvent).where(where_clause))).scalars().all()
-    existing_by_key = {row.event_key: row for row in existing_rows}
-    current_by_device = {str(item.get("deviceKey") or ""): item for item in items}
-
-    for event_key, item in active_by_key.items():
-        alarm = existing_by_key.get(event_key)
-        session_item = item.get("session") or {}
-        notification_stages: list[str] = []
-        if alarm is not None and isinstance(alarm.raw, dict):
-            notification_stages = [
-                str(stage)
-                for stage in alarm.raw.get("_notificationStages") or []
-                if str(stage) in {"standard", "critical"}
-            ]
-        if alarm is None:
-            alarm = AlarmEvent(
-                event_key=event_key,
-                domain="doors",
-                alarm_type=str(item.get("alarmReason") or "overstay"),
-                status="active",
-                severity="alert",
-                outcome="unreviewed",
-                title=str(item.get("title") or item.get("roomLabel") or "Solromalarm"),
-                detected_at=sunroom_alarm_detected_at(item, now),
-                created_at=now,
-                source="sunroom_door_monitor",
-            )
-            session.add(alarm)
-            existing_by_key[event_key] = alarm
-        alarm.status = "active"
-        alarm.severity = str(item.get("severity") or "alert")
-        alarm.detail = str(item.get("detail") or sunroom_alarm_message(item))
-        alarm.device_key = item.get("deviceKey")
-        alarm.device_id = item.get("deviceId")
-        alarm.room_id = item.get("roomId")
-        alarm.display_room_number = item.get("displayRoomNumber")
-        alarm.physical_room_number = item.get("physicalRoomNumber")
-        alarm.sun2_bed_id = item.get("sun2BedId")
-        alarm.source_session_id = session_item.get("sourceSessionId")
-        alarm.door_changed_at = sunroom_parse_time_value(item.get("doorChangedAt"))
-        alarm.expected_exit_at = sunroom_parse_time_value(item.get("expectedExitAt"))
-        alarm.last_observed_at = now
-        alarm.resolved_at = None
-        alarm.resolution_reason = None
-        alarm.updated_at = now
-        alarm.raw = {**item, "_notificationStages": notification_stages}
-
-    for alarm in existing_rows:
-        if alarm.status != "active" or alarm.event_key in active_by_key:
-            continue
-        current = current_by_device.get(str(alarm.device_key or "")) or {}
-        alarm.status = "resolved"
-        alarm.resolved_at = now
-        if current.get("doorState") == "open":
-            alarm.resolution_reason = "door_opened"
-        elif current.get("session"):
-            alarm.resolution_reason = "session_found"
-        else:
-            alarm.resolution_reason = "condition_cleared"
-        if alarm.notification_status == "pending":
-            alarm.notification_status = "not_sent"
-        alarm.last_observed_at = now
-        alarm.updated_at = now
-
-    await session.flush()
-    return existing_by_key
-
-
-async def publish_sunroom_door_alerts(items: list[Dict[str, Any]], now: datetime, session=None) -> int:
-    sent_count = 0
-    candidates = [
-        item
-        for item in items
-        if item.get("severity") == "alert" and item.get("isOccupied") and item.get("alarmReason")
-    ]
-    persisted_by_key: Dict[str, AlarmEvent] = {}
-    if session is not None and candidates:
-        keys = [sunroom_alarm_event_key(item) for item in candidates]
-        rows = (await session.execute(select(AlarmEvent).where(AlarmEvent.event_key.in_(keys)))).scalars().all()
-        persisted_by_key = {row.event_key: row for row in rows}
-
-    for item in candidates:
-        key = sunroom_alert_key(item)
-        persisted = persisted_by_key.get(key)
-        alarm_stage = str(item.get("alarmStage") or "standard")
-        queued_stages: list[str] = []
-        if persisted is not None and isinstance(persisted.raw, dict):
-            queued_stages = [str(stage) for stage in persisted.raw.get("_notificationStages") or []]
-        notification_count = int(persisted.notification_count or 0) if persisted is not None else 0
-        if alarm_stage in queued_stages:
-            continue
-        if alarm_stage == "standard" and notification_count >= 1:
-            continue
-        if alarm_stage == "critical" and notification_count >= 2:
-            continue
-        if persisted is not None and persisted.notification_status == "queued":
-            continue
-        if item.get("noSessionAlarmActive"):
-            message = sunroom_alarm_message(item, now)
-            if alarm_stage == "critical":
-                title = "SUN2 kritisk alarm: lukket uten soltime"
-                tags = "door,rotating_light"
-                priority = "5"
-            else:
-                title = "SUN2 alarm: lukket uten soltime"
-                tags = "door,warning"
-                priority = "4"
-        else:
-            message = sunroom_alarm_message(item, now)
-            title = "SUN2 dørvarsel"
-            tags = "door,rotating_light"
-            priority = "4"
-        click_url = f"{ALARM_APP_URL}/?section=dorer"
-        if persisted is not None and persisted.id:
-            click_url = f"{click_url}&alarm={persisted.id}"
-        sent = await publish_door_ntfy(
-            title,
-            message,
-            priority=priority,
-            tags=tags,
-            click_url=click_url,
-            related_type="alarm_event" if persisted is not None else "",
-            related_id=persisted.id if persisted is not None else None,
-            session=session,
-        )
-        if sent:
-            sent_count += 1
-            logger.warning(
-                "Sunroom door alert lagt i ko: room=%s bed=%s reason=%s door_changed=%s checked=%s",
-                item.get("roomId"),
-                item.get("sun2BedId"),
-                item.get("alarmReason") or "overstay",
-                item.get("doorChangedAt"),
-                now.isoformat(),
-            )
-        if persisted is not None:
-            persisted.notification_status = "queued" if sent else "failed"
-            if sent:
-                persisted.raw = {
-                    **(persisted.raw if isinstance(persisted.raw, dict) else item),
-                    "_notificationStages": [*queued_stages, alarm_stage],
-                }
-            persisted.updated_at = now
-    if session is not None:
-        await session.flush()
-    return sent_count
-
-
-async def sunroom_door_session_payload(session, notify: bool = False) -> Dict[str, Any]:
-    now = local_now_naive()
-    solroom_configs = [config for config in DOOR_SENSOR_CONFIG if config.get("group_key") == "solrom"]
-    solroom_device_ids = [int(config["device_id"]) for config in solroom_configs if config.get("device_id") is not None]
-    raw_limit = max(len(solroom_device_ids) * 180, 1000)
-    raw_rows: list[DoorEvent] = []
-    if solroom_device_ids:
-        result = await session.execute(
-            select(DoorEvent)
-            .where(DoorEvent.device_id.in_(solroom_device_ids))
-            .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
-            .limit(raw_limit)
-        )
-        raw_rows = result.scalars().all()
-    change_rows_ascending = door_change_rows(list(reversed(raw_rows)))
-    latest_change_by_device: Dict[int, DoorEvent] = {}
-    for row in reversed(change_rows_ascending):
-        if row.device_id is None:
-            continue
-        latest_change_by_device.setdefault(int(row.device_id), row)
-
-    room_ids = sorted({room_id for room_id in (sunroom_room_id_for_config(config) for config in solroom_configs) if room_id})
-    bed_ids = sorted({bed_id for bed_id in (sunroom_bed_id_for_config(config) for config in solroom_configs) if bed_id})
-    sessions_by_room: Dict[str, list[Sun2TanningSession]] = {room_id: [] for room_id in room_ids}
-    if room_ids or bed_ids:
-        start_cutoff = now - timedelta(hours=SUNROOM_DOOR_SESSION_LOOKBACK_HOURS)
-        identity_conditions = []
-        if room_ids:
-            identity_conditions.append(Sun2TanningSession.room_id.in_(room_ids))
-        if bed_ids:
-            identity_conditions.append(Sun2TanningSession.sun2_bed_id.in_(bed_ids))
-        session_rows = (
-            await session.execute(
-                select(Sun2TanningSession)
-                .where(or_(*identity_conditions))
-                .where(Sun2TanningSession.started_at >= start_cutoff)
-                .order_by(Sun2TanningSession.started_at.desc(), Sun2TanningSession.id.desc())
-            )
-        ).scalars().all()
-        for row in session_rows:
-            room_id = sunroom_canonical_room_id(row)
-            if room_id:
-                sessions_by_room.setdefault(room_id, []).append(row)
-
-    rooms = []
-    for config in solroom_configs:
-        device_id = config.get("device_id")
-        latest_row = latest_change_by_device.get(int(device_id)) if device_id is not None else None
-        rooms.append(sunroom_status_item(config, latest_row, sessions_by_room, now))
-    rooms.sort(key=lambda item: (str(item.get("sectionKey") or ""), int(item.get("sortOrder") or 0)))
-    candidate_alarm_keys = {
-        sunroom_alarm_event_key(item)
-        for item in rooms
-        if item.get("isOccupied") and item.get("alarmReason")
-    }
-    persisted_alarm_keys: set[str] = set()
-    if candidate_alarm_keys:
-        persisted_alarm_keys = set(
-            (
-                await session.execute(
-                    select(AlarmEvent.event_key)
-                    .where(AlarmEvent.event_key.in_(candidate_alarm_keys))
-                    .where(AlarmEvent.status == "active")
-                )
-            ).scalars().all()
-        )
-    rooms = apply_sunroom_alarm_verification(rooms, now, persisted_alarm_keys)
-    if notify:
-        await sync_sunroom_alarm_history(session, rooms, now)
-        await publish_sunroom_door_alerts(rooms, now, session=session)
-        await session.commit()
-    active_rooms = [item for item in rooms if item.get("isOccupied")]
-    warning_rooms = [item for item in rooms if item.get("severity") == "warning"]
-    alert_rooms = [item for item in rooms if item.get("severity") == "alert"]
-    missing_session_rooms = [item for item in rooms if item.get("missingSession")]
-    no_session_alarm_rooms = [item for item in rooms if item.get("noSessionAlarmActive")]
-    return {
-        "generatedAt": now.isoformat(),
-        "ntfyDoorsSubscribeUrl": ntfy_subscribe_url(NTFY_DOORS_TOPIC, "SUN2 dørvarsler"),
-        "ntfyDoorsWebUrl": ntfy_topic_url(NTFY_DOORS_TOPIC),
-        "rules": {
-            "paymentDelayMinutes": SUNROOM_DOOR_PAYMENT_DELAY_MINUTES,
-            "fanAfterRunMinutes": SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES,
-            "exitGraceMinutes": SUNROOM_DOOR_EXIT_GRACE_MINUTES,
-            "sessionGraceMinutes": SUNROOM_DOOR_SESSION_GRACE_MINUTES,
-            "forcedSyncMinutes": SUNROOM_DOOR_FORCED_SYNC_MINUTES,
-            "syncMinIntervalSeconds": SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS,
-            "syncMaxAttempts": SUNROOM_DOOR_SYNC_MAX_ATTEMPTS,
-            "newSessionGraceMinutes": SUNROOM_DOOR_NEW_SESSION_GRACE_MINUTES,
-            "syncStrategy": "door_event_with_fallback",
-            "noSessionAlarmMinutes": SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES,
-            "syncFailureAlarmMinutes": SUNROOM_DOOR_SYNC_FAILURE_ALARM_MINUTES,
-            "criticalMinutes": SUNROOM_DOOR_CRITICAL_MINUTES,
-            "warnAfterEndMinutes": SUNROOM_DOOR_WARN_AFTER_END_MINUTES,
-            "alertAfterEndMinutes": SUNROOM_DOOR_ALERT_AFTER_END_MINUTES,
-            "monitorIntervalSeconds": SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS,
-        },
-        "summary": {
-            "rooms": len(rooms),
-            "active": len(active_rooms),
-            "waiting": len([item for item in rooms if item.get("severity") == "waiting"]),
-            "warning": len(warning_rooms),
-            "alert": len(alert_rooms),
-            "missingSession": len(missing_session_rooms),
-            "noSessionAlarm": len(no_session_alarm_rooms),
-            "ok": len([item for item in rooms if item.get("severity") in {"free", "active"}]),
-        },
-        "rooms": rooms,
-    }
-
-
-async def sunroom_door_alarm_payload(
-    session,
-    history_limit: int = 100,
-    history_day: Optional[date] = None,
-) -> Dict[str, Any]:
-    payload = await sunroom_door_session_payload(session, notify=False)
-    rooms = list(payload.get("rooms") or [])
-    alarms = [item for item in rooms if item.get("severity") == "alert" and item.get("isOccupied")]
-    watch = [item for item in rooms if item.get("missingSession") and not item.get("noSessionAlarmActive")]
-    occupied_without_session = [item for item in rooms if item.get("isOccupied") and not item.get("session")]
-    history_limit = max(10, min(int(history_limit or 100), 500))
-    history_stmt = select(AlarmEvent).where(AlarmEvent.domain == "doors")
-    if history_day:
-        history_start = datetime.combine(history_day, time.min)
-        history_end = history_start + timedelta(days=1)
-        history_stmt = history_stmt.where(
-            or_(
-                and_(AlarmEvent.detected_at >= history_start, AlarmEvent.detected_at < history_end),
-                and_(AlarmEvent.door_changed_at >= history_start, AlarmEvent.door_changed_at < history_end),
-            )
-        )
-    history_rows = (
-        await session.execute(
-            history_stmt.order_by(AlarmEvent.detected_at.desc(), AlarmEvent.id.desc()).limit(history_limit)
-        )
-    ).scalars().all()
-    payload["alarms"] = alarms
-    payload["watch"] = watch
-    payload["occupiedWithoutSession"] = occupied_without_session
-    payload["history"] = [alarm_event_payload(row) for row in history_rows]
-    payload["summary"] = {
-        **dict(payload.get("summary") or {}),
-        "alarm": len(alarms),
-        "watch": len(watch),
-        "occupiedWithoutSession": len(occupied_without_session),
-        "history": len(history_rows),
-        "historyActive": len([row for row in history_rows if row.status == "active"]),
-        "historyNotified": len([row for row in history_rows if int(row.notification_count or 0) > 0]),
-    }
-    return payload
-
-
-def fetch_sun2_scraper_runtime() -> Dict[str, Any]:
-    request = urllib.request.Request(
-        f"{SUN2_SESSION_SCRAPER_URL}/json",
-        method="GET",
-        headers={"Accept": "application/json"},
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=4) as response:
-            payload = json.loads(response.read().decode("utf-8", errors="replace") or "{}")
-        if not isinstance(payload, dict):
-            raise ValueError("Ugyldig statusformat")
-        return {"available": True, **payload}
-    except Exception as exc:
-        return {"available": False, "error": str(exc)[:500]}
-
-
-def sunroom_sync_reason_label(reason: Any) -> str:
-    value = str(reason or "").strip()
-    if not value:
-        return "Planlagt eller manuell kontroll"
-    if value == "fallback":
-        return "30-minutters sikkerhetsnett"
-    if value.startswith("door_closed"):
-        rooms = value.partition("rooms=")[2].strip()
-        return f"Lukket dør, rom {rooms}" if rooms else "Lukket solromdør"
-    labels = {
-        "external": "Ekstern eller manuell kontroll",
-        "manual": "Manuell kontroll",
-        "production_rate_check": "Produksjonskontroll",
-        "nightly_current_month": "Nattlig kontroll av måneden",
-    }
-    return labels.get(value, value.replace("_", " ").strip().capitalize())
-
-
-def sunroom_logic_for_room(item: Dict[str, Any], now: datetime) -> Dict[str, Any]:
-    door_changed_at = sunroom_parse_time_value(item.get("doorChangedAt"))
-    verification_at = sunroom_parse_time_value(item.get("sun2VerificationAt"))
-    attempt_count = int(item.get("sun2VerificationAttemptCount") or 0)
-    max_attempts = SUNROOM_DOOR_SYNC_MAX_ATTEMPTS
-    next_at: Optional[datetime] = None
-    phase = str(item.get("status") or "Ukjent")
-    decision = str(item.get("detail") or "Ingen vurdering tilgjengelig.")
-    trigger = "Venter på gyldig sensorstatus"
-    next_action = "Kontroller sensortilkoblingen."
-
-    if item.get("doorState") == "open":
-        phase = "Ledig"
-        decision = "Døren er åpen, og det finnes ingen aktiv dørperiode."
-        trigger = "Neste lukking av døren"
-        next_action = "Starter et nytt kontrollvindu når døren lukkes."
-    elif item.get("doorState") == "unknown":
-        phase = "Ukjent status"
-        decision = "Systemet mangler en sikker dørstatus."
-        trigger = "Ny dørhendelse eller HC3-kontroll"
-        next_action = "Avventer status fra HC3."
-    elif item.get("severity") == "alert":
-        phase = "Alarm"
-        trigger = "Bekreftet alarmregel"
-        next_action = "Varsling er aktiv; alarmen avsluttes når situasjonen normaliseres."
-    elif item.get("newSessionCheckActive"):
-        phase = "Kontrollerer ny time"
-        trigger = "Forrige soltime er avsluttet, men døren er fortsatt lukket"
-        next_action = "Henter SUN2 på nytt før overtid kan varsles."
-    elif item.get("session"):
-        phase = "Soltime verifisert"
-        trigger = "Soltime matchet mot rom og dørperiode"
-        next_action = (
-            f"Følger forventet ut-tid {item.get('expectedExitLabel') or '-'}; "
-            "varsler først ved reell overtid."
-        )
-        next_at = sunroom_parse_time_value(item.get("expectedExitAt"))
-    elif item.get("isOccupied"):
-        elapsed_seconds = int(item.get("occupiedDurationSeconds") or 0)
-        forced_after_seconds = int(SUNROOM_DOOR_FORCED_SYNC_MINUTES * 60)
-        phase = "Klargjøring" if elapsed_seconds < forced_after_seconds else "Kontrollerer betaling"
-        decision = (
-            "Døren er lukket uten en matchet soltime. Betalingen kan fortsatt mangle i siste "
-            "nedlasting."
-        )
-        trigger = f"Dør lukket i minst {SUNROOM_DOOR_FORCED_SYNC_MINUTES:g} min"
-        if attempt_count >= max_attempts:
-            next_action = "Maksimalt antall automatiske SUN2-kontroller er brukt for denne dørperioden."
-        else:
-            next_at = (
-                verification_at + timedelta(seconds=SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS)
-                if verification_at
-                else door_changed_at + timedelta(seconds=forced_after_seconds)
-                if door_changed_at
-                else now
-            )
-            if next_at < now:
-                next_at = now
-            next_action = (
-                f"SUN2-kontroll {attempt_count + 1} av {max_attempts} kan kjøres "
-                f"{format_source_time(next_at)}."
-            )
-
-    verification_ok = item.get("sun2VerificationOk") if verification_at else None
-    return {
-        "roomId": item.get("roomId"),
-        "title": item.get("title") or item.get("roomLabel"),
-        "sectionTitle": item.get("sectionTitle"),
-        "sortOrder": item.get("sortOrder"),
-        "doorState": item.get("doorState"),
-        "doorStateLabel": item.get("doorStateLabel"),
-        "doorAgeLabel": item.get("doorAgeLabel"),
-        "doorChangedAt": api_local_iso(door_changed_at),
-        "severity": item.get("severity"),
-        "phase": phase,
-        "decision": decision,
-        "trigger": trigger,
-        "nextAction": next_action,
-        "nextAt": api_local_iso(next_at),
-        "attemptCount": attempt_count,
-        "maxAttempts": max_attempts,
-        "lastVerificationAt": api_local_iso(verification_at),
-        "lastVerificationOk": verification_ok,
-        "lastVerificationError": item.get("sun2VerificationError"),
-        "verificationReason": sunroom_sync_reason_label(item.get("sun2VerificationReason")),
-        "session": item.get("session"),
-        "expectedExitAt": item.get("expectedExitAt"),
-        "expectedExitLabel": item.get("expectedExitLabel"),
-    }
-
-
-def sunroom_logic_event(
-    event_id: str,
-    timestamp: Optional[datetime],
-    *,
-    kind: str,
-    kind_label: str,
-    room_id: Optional[str],
-    room_label: str,
-    event: str,
-    logic: str,
-    action: str,
-    result: str,
-    tone: str,
-) -> Dict[str, Any]:
-    normalized = normalize_local_naive(timestamp)
-    return {
-        "id": event_id,
-        "timestamp": api_local_iso(normalized),
-        "timeLabel": format_source_datetime(normalized),
-        "kind": kind,
-        "kindLabel": kind_label,
-        "roomId": room_id,
-        "roomLabel": room_label,
-        "event": event,
-        "logic": logic,
-        "action": action,
-        "result": result,
-        "tone": tone,
-        "_sortAt": normalized or datetime.min,
-    }
-
-
-async def sunroom_logic_payload(session, hours: int = 12, limit: int = 180) -> Dict[str, Any]:
-    now = local_now_naive()
-    hours = max(1, min(int(hours or 12), 72))
-    limit = max(20, min(int(limit or 180), 500))
-    start_at = now - timedelta(hours=hours)
-    status = await sunroom_door_session_payload(session, notify=False)
-    rooms = list(status.get("rooms") or [])
-    room_logic = [sunroom_logic_for_room(item, now) for item in rooms]
-    config_by_device = {
-        int(config["device_id"]): config
-        for config in DOOR_SENSOR_CONFIG
-        if config.get("group_key") == "solrom" and config.get("device_id") is not None
-    }
-    device_ids = list(config_by_device)
-    timeline: list[Dict[str, Any]] = []
-
-    door_rows: list[DoorEvent] = []
-    if device_ids:
-        raw_door_rows = (
-            await session.execute(
-                select(DoorEvent)
-                .where(DoorEvent.device_id.in_(device_ids))
-                .where(DoorEvent.timestamp >= start_at)
-                .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
-                .limit(max(limit * 4, 800))
-            )
-        ).scalars().all()
-        door_rows = list(reversed(door_change_rows(list(reversed(raw_door_rows)))))
-
-    current_by_device = {int(item["deviceId"]): item for item in rooms if item.get("deviceId") is not None}
-    for row in door_rows:
-        config = config_by_device.get(int(row.device_id or 0))
-        if not config:
-            continue
-        room_id = sunroom_room_id_for_config(config)
-        room_label = str(config.get("title") or row.device_name or room_id or "Solrom")
-        is_open = door_event_state_bool(row) is True
-        current = current_by_device.get(int(row.device_id or 0))
-        row_at = normalize_local_naive(row.timestamp)
-        is_current_period = bool(
-            current
-            and row_at
-            and (current_at := sunroom_parse_time_value(current.get("doorChangedAt")))
-            and abs((current_at - row_at).total_seconds()) <= 2
-        )
-        timeline.append(
-            sunroom_logic_event(
-                f"door-{row.id}",
-                row_at,
-                kind="door",
-                kind_label="Dør",
-                room_id=room_id,
-                room_label=room_label,
-                event="Dør åpnet" if is_open else "Dør lukket",
-                logic=(
-                    "Aktiv dørperiode avsluttes."
-                    if is_open
-                    else "Ny dørperiode opprettes; normal klargjøringstid starter."
-                ),
-                action=(
-                    "Stopper videre betalingskontroll for denne dørperioden."
-                    if is_open
-                    else f"SUN2 kan kontrolleres etter {SUNROOM_DOOR_FORCED_SYNC_MINUTES:g} min."
-                ),
-                result=(
-                    str(current.get("status"))
-                    if is_current_period and current
-                    else "Dørperioden avsluttet" if is_open else "Kontrollvindu opprettet"
-                ),
-                tone="green" if is_open else "sky",
-            )
-        )
-
-    room_ids = [item.get("roomId") for item in rooms if item.get("roomId")]
-    bed_ids = [item.get("sun2BedId") for item in rooms if item.get("sun2BedId")]
-    session_conditions = []
-    if room_ids:
-        session_conditions.append(Sun2TanningSession.room_id.in_(room_ids))
-    if bed_ids:
-        session_conditions.append(Sun2TanningSession.sun2_bed_id.in_(bed_ids))
-    if session_conditions:
-        session_rows = (
-            await session.execute(
-                select(Sun2TanningSession)
-                .where(or_(*session_conditions))
-                .where(Sun2TanningSession.started_at >= start_at)
-                .order_by(Sun2TanningSession.started_at.desc(), Sun2TanningSession.id.desc())
-                .limit(limit)
-            )
-        ).scalars().all()
-        for row in session_rows:
-            room_id = sunroom_canonical_room_id(row)
-            config = sunroom_config_for_room_id(room_id or "")
-            payload = sunroom_session_payload(row)
-            duration = f"{float(row.duration_minutes):g} min" if row.duration_minutes is not None else "ukjent tid"
-            amount = sunroom_money_label(row.paid_amount_kr)
-            timeline.append(
-                sunroom_logic_event(
-                    f"session-{row.id}",
-                    normalize_local_naive(row.started_at),
-                    kind="session",
-                    kind_label="SUN2",
-                    room_id=room_id,
-                    room_label=str(config.get("title") if config else payload.get("roomLabel") or room_id or "Solrom"),
-                    event="Soltime registrert",
-                    logic="Betaling matches mot nærmeste dørperiode for samme rom.",
-                    action="Beregner forventet solstart, slutt og tidspunkt ut av rommet.",
-                    result=f"{duration} · {amount} · forventet ut {format_source_time(sunroom_parse_time_value(payload.get('expectedExitAt')))}",
-                    tone="green",
-                )
-            )
-
-    import_start_utc = local_naive_to_utc_naive(start_at)
-    import_rows = (
-        await session.execute(
-            select(Sun2SessionImportRun)
-            .where(Sun2SessionImportRun.timestamp >= import_start_utc)
-            .order_by(Sun2SessionImportRun.timestamp.desc(), Sun2SessionImportRun.id.desc())
-            .limit(min(limit, 120))
-        )
-    ).scalars().all()
-    for row in import_rows:
-        raw = row.raw if isinstance(row.raw, dict) else {}
-        extra = raw.get("extra") if isinstance(raw.get("extra"), dict) else {}
-        reason = extra.get("trigger_reason")
-        result_parts = [f"{int(row.rows_count or 0)} timer lest"]
-        changed = int(row.inserted_count or 0) + int(row.updated_count or 0)
-        if changed:
-            result_parts.append(f"{changed} nye eller oppdaterte")
-        timeline.append(
-            sunroom_logic_event(
-                f"sync-{row.id}",
-                utc_naive_to_local_naive(row.timestamp),
-                kind="sync",
-                kind_label="Kontroll",
-                room_id=None,
-                room_label="Alle rom",
-                event="SUN2-data oppdatert" if row.ok is not False else "SUN2-kontroll feilet",
-                logic=sunroom_sync_reason_label(reason),
-                action="Vurderer alle aktive dørperioder på nytt mot ferske enkelttimer.",
-                result=" · ".join(result_parts) if row.ok is not False else str(row.message or "Ukjent feil"),
-                tone="sky" if row.ok is not False else "red",
-            )
-        )
-
-    alarm_rows = (
-        await session.execute(
-            select(AlarmEvent)
-            .where(AlarmEvent.domain == "doors")
-            .where(or_(AlarmEvent.detected_at >= start_at, AlarmEvent.resolved_at >= start_at))
-            .order_by(AlarmEvent.detected_at.desc(), AlarmEvent.id.desc())
-            .limit(min(limit, 120))
-        )
-    ).scalars().all()
-    for row in alarm_rows:
-        alarm_logic = (
-            "Døren er fortsatt lukket etter kontroll uten en passende soltime."
-            if row.alarm_type == "closed_without_session"
-            else "Døren er fortsatt lukket etter beregnet ut-tid."
-        )
-        timeline.append(
-            sunroom_logic_event(
-                f"alarm-{row.id}",
-                normalize_local_naive(row.detected_at),
-                kind="alarm",
-                kind_label="Alarm",
-                room_id=row.room_id,
-                room_label=row.title or f"Solrom {row.display_room_number or '-'}",
-                event="Alarm utløst",
-                logic=alarm_logic,
-                action="Varsling sendes og hendelsen lagres for etterkontroll.",
-                result=f"{row.status} · {row.notification_status}",
-                tone="red",
-            )
-        )
-        if row.resolved_at and normalize_local_naive(row.resolved_at) >= start_at:
-            timeline.append(
-                sunroom_logic_event(
-                    f"alarm-resolved-{row.id}",
-                    normalize_local_naive(row.resolved_at),
-                    kind="alarm",
-                    kind_label="Alarm",
-                    room_id=row.room_id,
-                    room_label=row.title or f"Solrom {row.display_room_number or '-'}",
-                    event="Alarm avsluttet",
-                    logic="Dør- eller soltimedata viser at alarmsituasjonen ikke lenger er aktiv.",
-                    action="Stopper videre varsling for hendelsen.",
-                    result=row.resolution_reason or "Normalisert",
-                    tone="green",
-                )
-            )
-
-    timeline.sort(key=lambda item: item["_sortAt"], reverse=True)
-    for item in timeline:
-        item.pop("_sortAt", None)
-    timeline = timeline[:limit]
-    scraper = await asyncio.to_thread(fetch_sun2_scraper_runtime)
-    latest_import = import_rows[0] if import_rows else None
-    latest_import_at = utc_naive_to_local_naive(latest_import.timestamp) if latest_import else None
-    return {
-        "generatedAt": api_local_iso(now),
-        "windowHours": hours,
-        "summary": {
-            **dict(status.get("summary") or {}),
-            "events": len(timeline),
-            "latestSun2At": api_local_iso(latest_import_at),
-            "latestSun2Label": format_source_datetime(latest_import_at),
-            "scraperAvailable": bool(scraper.get("available")),
-        },
-        "rules": status.get("rules") or {},
-        "scraper": {
-            "available": bool(scraper.get("available")),
-            "error": scraper.get("error"),
-            "lastAttemptAt": scraper.get("today_sync_last_attempt_at"),
-            "lastReason": scraper.get("today_sync_last_reason"),
-            "lastReasonLabel": sunroom_sync_reason_label(scraper.get("today_sync_last_reason")),
-            "lastAction": scraper.get("live_last_action"),
-            "lastDeferredAt": scraper.get("today_sync_last_deferred_at"),
-            "minIntervalSeconds": scraper.get("live_sync_min_interval_seconds", SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS),
-            "fallbackIntervalSeconds": scraper.get("live_sync_fallback_interval_seconds", 1800),
-        },
-        "rooms": room_logic,
-        "events": timeline,
-    }
-
-
-async def sunroom_room_detail_payload(session, room_id: str, days: int = 14, limit: int = 120) -> Dict[str, Any]:
-    now = local_now_naive()
-    normalized_room_id = normalize_room_id(room_id)
-    config = sunroom_config_for_room_id(room_id)
-    if not normalized_room_id or not config:
-        raise HTTPException(status_code=404, detail="Ukjent solrom")
-
-    days = max(1, min(days, 90))
-    limit = max(10, min(limit, 500))
-    start_cutoff = now - timedelta(days=days)
-    bed_id = sunroom_bed_id_for_config(config)
-    device_id = config.get("device_id")
-    latest_row: Optional[DoorEvent] = None
-    raw_rows: list[DoorEvent] = []
-
-    if device_id is not None:
-        latest_row = (
-            await session.execute(
-                select(DoorEvent)
-                .where(DoorEvent.device_id == int(device_id))
-                .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
-                .limit(1)
-            )
-        ).scalars().first()
-        raw_rows = (
-            await session.execute(
-                select(DoorEvent)
-                .where(DoorEvent.device_id == int(device_id))
-                .where(DoorEvent.timestamp >= start_cutoff - timedelta(hours=12))
-                .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
-                .limit(max(limit * 25, 1500))
-            )
-        ).scalars().all()
-
-    session_identity = Sun2TanningSession.room_id == normalized_room_id
-    if bed_id:
-        session_identity = or_(session_identity, Sun2TanningSession.sun2_bed_id == bed_id)
-    session_rows = (
-        await session.execute(
-            select(Sun2TanningSession)
-            .where(session_identity)
-            .where(Sun2TanningSession.started_at >= start_cutoff - timedelta(hours=2))
-            .order_by(Sun2TanningSession.started_at.desc(), Sun2TanningSession.id.desc())
-            .limit(max(limit * 3, 300))
-        )
-    ).scalars().all()
-
-    change_rows_ascending = door_change_rows(list(reversed(raw_rows)))
-    closed_period_rows = [
-        period
-        for period in door_closed_periods(change_rows_ascending, now)
-        if (period.get("openedAt") is None)
-        or (period.get("openedAt") and period["openedAt"] >= start_cutoff)
-        or (period.get("closedAt") and period["closedAt"] >= start_cutoff)
-    ][:limit]
-
-    periods = []
-    matched_session_ids: set[int] = set()
-    for period in closed_period_rows:
-        matched_session = sunroom_match_session_for_period(session_rows, period.get("closedAt"), period.get("openedAt"), now)
-        if matched_session and matched_session.id is not None:
-            matched_session_ids.add(int(matched_session.id))
-        periods.append(sunroom_period_payload(period, matched_session, now))
-
-    current_period = next((period for period in periods if period.get("isActive")), None)
-    sessions_without_door = [
-        sunroom_session_payload(row)
-        for row in session_rows
-        if row.id is not None and int(row.id) not in matched_session_ids and normalize_local_naive(row.started_at) >= start_cutoff
-    ][:25]
-    current = sunroom_status_item(config, latest_row, {normalized_room_id: session_rows}, now)
-    alerts = [period for period in periods if period.get("severity") == "alert"]
-    warnings = [period for period in periods if period.get("severity") == "warning"]
-    missing = [period for period in periods if period.get("missingSession")]
-
-    return {
-        "generatedAt": now.isoformat(),
-        "days": days,
-        "room": current,
-        "summary": {
-            "periods": len(periods),
-            "active": 1 if current_period else 0,
-            "warnings": len(warnings),
-            "alerts": len(alerts),
-            "missingSession": len(missing),
-            "sessions": len([row for row in session_rows if normalize_local_naive(row.started_at) >= start_cutoff]),
-            "sessionsWithoutDoor": len(sessions_without_door),
-        },
-        "currentPeriod": current_period,
-        "periods": periods,
-        "sessionsWithoutDoor": sessions_without_door,
-    }
-
-
-async def sunroom_room_overview_payload(session, days: int = 2, day: Optional[str] = None) -> Dict[str, Any]:
-    now = local_now_naive()
-    days = max(1, min(days, 30))
-    selected_day = parse_day(day) if day else now.date()
-    has_day_filter = bool(day)
-    day_start = datetime.combine(selected_day, time.min)
-    day_end = day_start + timedelta(days=1)
-    start_cutoff = now - timedelta(days=days)
-    raw_start_cutoff = day_start - timedelta(hours=12) if has_day_filter else min(start_cutoff, day_start - timedelta(hours=12))
-    raw_end = day_end + timedelta(hours=12) if has_day_filter else now + timedelta(hours=2)
-    session_start = day_start - timedelta(hours=2) if has_day_filter else start_cutoff - timedelta(hours=2)
-    session_end = day_end + timedelta(hours=2) if has_day_filter else now + timedelta(hours=2)
-    energy_start = day_start - timedelta(minutes=30) if has_day_filter else start_cutoff - timedelta(minutes=30)
-    energy_end = day_end + timedelta(hours=2) if has_day_filter else now + timedelta(hours=2)
-    configs = [config for config in DOOR_SENSOR_CONFIG if config.get("group_key") == "solrom"]
-    configs.sort(key=lambda config: int(config.get("sort_order") or 0))
-    device_ids = [int(config["device_id"]) for config in configs if config.get("device_id") is not None]
-    room_ids = [room_id for room_id in (sunroom_room_id_for_config(config) for config in configs) if room_id]
-    bed_ids = [bed_id for bed_id in (sunroom_bed_id_for_config(config) for config in configs) if bed_id]
-    entrance_config = sunroom_entrance_config()
-    entrance_device_id = int(entrance_config["device_id"]) if entrance_config and entrance_config.get("device_id") is not None else None
-
-    raw_rows: list[DoorEvent] = []
-    if device_ids:
-        raw_rows = (
-            await session.execute(
-                select(DoorEvent)
-                .where(DoorEvent.device_id.in_(device_ids))
-                .where(DoorEvent.timestamp >= raw_start_cutoff)
-                .where(DoorEvent.timestamp <= raw_end)
-                .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
-                .limit(max(len(device_ids) * 500, 4000))
-            )
-        ).scalars().all()
-    entrance_rows: list[DoorEvent] = []
-    if entrance_device_id is not None:
-        entrance_rows = (
-            await session.execute(
-                select(DoorEvent)
-                .where(DoorEvent.device_id == entrance_device_id)
-                .where(DoorEvent.timestamp >= raw_start_cutoff)
-                .where(DoorEvent.timestamp <= raw_end)
-                .order_by(DoorEvent.timestamp.asc(), DoorEvent.id.asc())
-                .limit(2000)
-            )
-        ).scalars().all()
-    entrance_change_rows = door_change_rows(entrance_rows)
-
-    session_identity_conditions = []
-    if room_ids:
-        session_identity_conditions.append(Sun2TanningSession.room_id.in_(room_ids))
-    if bed_ids:
-        session_identity_conditions.append(Sun2TanningSession.sun2_bed_id.in_(bed_ids))
-    session_rows = (
-        await session.execute(
-            select(Sun2TanningSession)
-            .where(or_(*session_identity_conditions))
-            .where(Sun2TanningSession.started_at >= session_start)
-            .where(Sun2TanningSession.started_at <= session_end)
-            .order_by(Sun2TanningSession.started_at.desc(), Sun2TanningSession.id.desc())
-        )
-    ).scalars().all()
-
-    energy_rows = (
-        await session.execute(
-            select(
-                EnergyFibaroSample.bucket_start.label("bucket_start"),
-                EnergyFibaroSample.differanse_beregnet_w.label("differanse_beregnet_w"),
-            )
-            .where(EnergyFibaroSample.bucket_start >= energy_start)
-            .where(EnergyFibaroSample.bucket_start <= energy_end)
-            .order_by(EnergyFibaroSample.bucket_start.asc())
-        )
-    ).mappings().all()
-    energy_samples = sunroom_energy_sample_items([dict(row) for row in energy_rows])
-    energy_sample_times = [item["time"] for item in energy_samples]
-    energy_by_session_id = {
-        int(row.id): sunroom_session_energy_evidence(
-            row,
-            energy_samples,
-            session_rows,
-            energy_sample_times,
-        )
-        for row in session_rows
-        if row.id is not None
-    }
-
-    change_rows_ascending = door_change_rows(list(reversed(raw_rows)))
-    latest_change_by_device: Dict[int, DoorEvent] = {}
-    for row in reversed(change_rows_ascending):
-        if row.device_id is None:
-            continue
-        latest_change_by_device.setdefault(int(row.device_id), row)
-
-    all_closed_periods = door_closed_periods(change_rows_ascending, now)
-    periods_by_device: Dict[str, list[Dict[str, Any]]] = {}
-    for period in all_closed_periods:
-        closed_at = period.get("closedAt")
-        opened_at = period.get("openedAt")
-        if has_day_filter:
-            if closed_at and closed_at >= day_end:
-                continue
-            if opened_at and opened_at < day_start and (not closed_at or closed_at < day_start):
-                continue
-        elif opened_at and opened_at < start_cutoff and (not closed_at or closed_at < start_cutoff):
-            continue
-        periods_by_device.setdefault(door_period_device_key(period), []).append(period)
-
-    sessions_by_room: Dict[str, list[Sun2TanningSession]] = {room_id: [] for room_id in room_ids}
-    for row in session_rows:
-        normalized = sunroom_canonical_room_id(row)
-        if normalized:
-            sessions_by_room.setdefault(normalized, []).append(row)
-
-    rooms = []
-    all_matched_ids: set[int] = set()
-    for config in configs:
-        display_number = sunroom_display_number(config)
-        room_id = sunroom_room_id_for_config(config)
-        device_id = config.get("device_id")
-        latest_row = latest_change_by_device.get(int(device_id)) if device_id is not None else None
-        room_sessions = sessions_by_room.get(room_id or "", [])
-        status_item = sunroom_status_item(config, latest_row, {room_id or "": room_sessions}, now)
-        device_periods = periods_by_device.get(door_config_device_key(config), [])
-
-        periods = []
-        matched_ids: set[int] = set()
-        visible_device_periods = device_periods if has_day_filter else device_periods[:12]
-        for period in visible_device_periods:
-            matched_session = sunroom_match_session_for_period(room_sessions, period.get("closedAt"), period.get("openedAt"), now)
-            if matched_session and matched_session.id is not None:
-                matched_ids.add(int(matched_session.id))
-                all_matched_ids.add(int(matched_session.id))
-            payload = sunroom_period_payload(period, matched_session, now)
-            if matched_session and matched_session.id is not None:
-                payload["energy"] = energy_by_session_id.get(int(matched_session.id))
-                payload["entranceMarkers"] = sunroom_entrance_markers(matched_session, entrance_change_rows)
-                payload["powerMarkers"] = sunroom_power_markers(
-                    matched_session,
-                    energy_samples,
-                    energy_sample_times,
-                )
-            else:
-                payload["energy"] = None
-                payload["entranceMarkers"] = []
-                payload["powerMarkers"] = []
-            periods.append(payload)
-
-        day_events: list[Dict[str, Any]] = []
-        for period in device_periods:
-            day_events.extend(sunroom_period_day_events(period, day_start, day_end))
-
-        for row in room_sessions:
-            start_at = normalize_local_naive(row.started_at)
-            if start_at and day_start - timedelta(hours=2) <= start_at < day_end:
-                day_events.extend(
-                    sunroom_session_day_events(
-                        row,
-                        entrance_change_rows,
-                        energy_samples,
-                        day_start,
-                        day_end,
-                        energy_sample_times,
-                    )
-                )
-
-        day_events = sorted(
-            day_events,
-            key=lambda item: (sunroom_parse_time_value(item.get("time")) or datetime.min, str(item.get("kind") or ""), str(item.get("id") or "")),
-        )
-
-        recent_sessions = [
-            {
-                **sunroom_session_payload(row),
-                "energy": energy_by_session_id.get(int(row.id)) if row.id is not None else None,
-                "entranceMarkers": sunroom_entrance_markers(row, entrance_change_rows),
-                "powerMarkers": sunroom_power_markers(row, energy_samples, energy_sample_times),
-                "hasDoorMatch": row.id is not None and int(row.id) in matched_ids,
-            }
-            for row in room_sessions
-            if (start_at := normalize_local_naive(row.started_at))
-            and ((day_start <= start_at < day_end) if has_day_filter else start_at >= start_cutoff)
-        ]
-        if not has_day_filter:
-            recent_sessions = recent_sessions[:8]
-
-        sessions_without_door = [item for item in recent_sessions if not item.get("hasDoorMatch")]
-        alerts = [period for period in periods if period.get("severity") == "alert"]
-        warnings = [period for period in periods if period.get("severity") == "warning"]
-        energy_confirmed = [
-            item
-            for item in recent_sessions
-            if (item.get("energy") or {}).get("status") == "confirmed"
-        ]
-        energy_overlap = [
-            item
-            for item in recent_sessions
-            if (item.get("energy") or {}).get("quality") == "overlap"
-        ]
-
-        rooms.append(
-            {
-                "displayRoomNumber": display_number,
-                "title": config.get("title") or f"Solrom {display_number}",
-                "sectionKey": config.get("section_key"),
-                "sectionTitle": config.get("section_title"),
-                "deviceId": device_id,
-                "deviceKey": config.get("device_key"),
-                "roomId": room_id,
-                "roomLabel": sun2_room_label(room_id, None),
-                "status": status_item,
-                "latestPeriod": periods[0] if periods else None,
-                "periods": periods,
-                "recentSessions": recent_sessions,
-                "sessionsWithoutDoor": sessions_without_door,
-                "dayEvents": day_events,
-                "summary": {
-                    "periods": len(periods),
-                    "sessions": len(recent_sessions),
-                    "matched": len([item for item in recent_sessions if item.get("hasDoorMatch")]),
-                    "withoutDoor": len(sessions_without_door),
-                    "warnings": len(warnings),
-                    "alerts": len(alerts),
-                    "energyConfirmed": len(energy_confirmed),
-                    "energyOverlap": len(energy_overlap),
-                },
-            }
-        )
-
-    active_rooms = [room for room in rooms if (room.get("status") or {}).get("isOccupied")]
-    warning_rooms = [room for room in rooms if (room.get("status") or {}).get("severity") == "warning"]
-    alert_rooms = [room for room in rooms if (room.get("status") or {}).get("severity") == "alert"]
-    sessions_without_door_count = sum(int((room.get("summary") or {}).get("withoutDoor") or 0) for room in rooms)
-    energy_confirmed_count = sum(int((room.get("summary") or {}).get("energyConfirmed") or 0) for room in rooms)
-    return {
-        "generatedAt": now.isoformat(),
-        "dayDate": day_start.date().isoformat(),
-        "dayStart": day_start.isoformat(),
-        "dayEnd": day_end.isoformat(),
-        "days": days,
-        "rules": {
-            "paymentDelayMinutes": SUNROOM_DOOR_PAYMENT_DELAY_MINUTES,
-            "exitGraceMinutes": SUNROOM_DOOR_EXIT_GRACE_MINUTES,
-            "fanAfterRunMinutes": SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES,
-            "warnAfterEndMinutes": SUNROOM_DOOR_WARN_AFTER_END_MINUTES,
-            "alertAfterEndMinutes": SUNROOM_DOOR_ALERT_AFTER_END_MINUTES,
-        },
-        "summary": {
-            "rooms": len(rooms),
-            "active": len(active_rooms),
-            "warnings": len(warning_rooms),
-            "alerts": len(alert_rooms),
-            "sessions": len([row for row in session_rows if normalize_local_naive(row.started_at) >= start_cutoff]),
-            "dayActivityRooms": len([room for room in rooms if room.get("dayEvents")]),
-            "dayEvents": sum(len(room.get("dayEvents") or []) for room in rooms),
-            "daySessions": sum(
-                len([event for event in room.get("dayEvents") or [] if event.get("kind") == "sun_start"])
-                for room in rooms
-            ),
-            "dayPowerEvents": sum(
-                len([event for event in room.get("dayEvents") or [] if str(event.get("kind") or "").startswith("power_")])
-                for room in rooms
-            ),
-            "doorMatches": len(all_matched_ids),
-            "sessionsWithoutDoor": sessions_without_door_count,
-            "energyConfirmed": energy_confirmed_count,
-            "energySamples": len(energy_samples),
-        },
-        "rooms": rooms,
-    }
-
-
-async def sunroom_door_monitor_worker():
-    await asyncio.sleep(SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS)
-    while True:
-        try:
-            async with async_session() as session:
-                payload = await sunroom_door_session_payload(session, notify=False)
-            sync_result = await force_sun2_sync_for_closed_rooms(
-                list(payload.get("rooms") or []),
-                local_now_naive(),
-            )
-            if sync_result.get("attempted"):
-                logger.info(
-                    "Tvungen Sun2-kontroll for doralarm: ok=%s rooms=%s error=%s",
-                    sync_result.get("ok"),
-                    sync_result.get("rooms"),
-                    sync_result.get("error"),
-                )
-
-            async with async_session() as checked_session:
-                checked_payload = await sunroom_door_session_payload(checked_session, notify=False)
-                checked_rooms = list(checked_payload.get("rooms") or [])
-                has_alert = any(
-                    item.get("severity") == "alert" and item.get("isOccupied") and item.get("alarmReason")
-                    for item in checked_rooms
-                )
-                if not has_alert:
-                    await sync_sunroom_alarm_history(checked_session, checked_rooms, local_now_naive())
-                    await checked_session.commit()
-            if has_alert:
-                hc3_result = await verify_sunroom_alert_doors_with_hc3(checked_rooms)
-                async with async_session() as confirmation_session:
-                    confirmed = await sunroom_door_session_payload(confirmation_session, notify=False)
-                    confirmed_at = local_now_naive()
-                    confirmed_rooms = attach_hc3_alarm_verification(
-                        list(confirmed.get("rooms") or []),
-                        hc3_result,
-                    )
-                    await sync_sunroom_alarm_history(confirmation_session, confirmed_rooms, confirmed_at)
-                    await publish_sunroom_door_alerts(
-                        confirmed_rooms,
-                        confirmed_at,
-                        session=confirmation_session,
-                    )
-                    await confirmation_session.commit()
-        except Exception as exc:
-            logger.warning("Sunroom door monitor feilet: %s", exc, exc_info=True)
-        await asyncio.sleep(SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS)
-
-
-def door_change_text(row: Optional[DoorEvent]) -> str:
-    if not row:
-        return "Ingen endringer registrert"
-    state = door_state_from_event(row)
-    action_text = "Åpnet" if state["state"] == "open" else "Lukket" if state["state"] == "closed" else "Ukjent status"
-    return f"{door_title_for_row(row)} {action_text.lower()}"
-
-
-def apply_common_filters(stmt, model, event_type, action, device_key, device_id, mode, source_contains, from_ts, to_ts):
-    if event_type:
-        stmt = stmt.where(model.event_type == event_type)
-    if action:
-        stmt = stmt.where(model.action == action)
-    if device_key:
-        stmt = stmt.where(model.device_key == device_key)
-    if device_id is not None:
-        stmt = stmt.where(model.device_id == device_id)
-    if mode:
-        stmt = stmt.where(model.mode == mode)
-    if source_contains:
-        stmt = stmt.where(model.source.ilike(f"%{source_contains}%"))
-    if from_ts:
-        stmt = stmt.where(model.timestamp >= from_ts)
-    if to_ts:
-        stmt = stmt.where(model.timestamp <= to_ts)
-    return stmt
-
-
-async def save_record(record, notification: Optional[dict[str, Any]] = None) -> int:
-    async with async_session() as session:
-        session.add(record)
-        await session.flush()
-        if notification:
-            await enqueue_ntfy_message(
-                **notification,
-                related_type=getattr(record, "__tablename__", record.__class__.__name__),
-                related_id=getattr(record, "id", None),
-                session=session,
-            )
-        await session.commit()
-        await session.refresh(record)
-        return record.id
-
-
-async def ingest_roborock_robot(session, robot_data: Dict[str, Any], batch_time: datetime, source: str) -> Dict[str, Any]:
-    meta = robot_data.get("metadata") or robot_data
-    provider = cleaning_provider(robot_data.get("provider") or meta.get("provider"), source)
-    raw_identity = robot_data.get("external_id") or robot_data.get("duid") or robot_data.get("robot_duid")
-    external_id = cleaning_robot_external_id(provider, raw_identity)
-    duid = cleaning_robot_uid(provider, external_id)
-    if not duid:
-        return {"ok": False, "error": "Mangler DUID"}
-
-    network = robot_data.get("network") or {}
-    capabilities = robot_data.get("capabilities") or robot_data.get("probe_results") or {}
-    local_ip = robot_data.get("local_ip") or network.get("ip") or meta.get("local_ip")
-    status = first_dict(robot_data.get("status"))
-    consumable = first_dict(robot_data.get("consumables") or robot_data.get("consumable"))
-    cloud_online = bool_value(meta.get("online") if "online" in meta else meta.get("cloud_online"))
-
-    existing = (
-        await session.execute(select(RoborockRobot).where(RoborockRobot.duid == duid))
-    ).scalars().first()
-    if not existing:
-        existing = RoborockRobot(
-            duid=duid,
-            provider=provider,
-            external_id=external_id,
-            integration_status="active",
-            name=robot_data.get("name") or meta.get("name") or duid,
-        )
-        session.add(existing)
-
-    existing.provider = provider
-    existing.external_id = external_id
-    existing.integration_status = "active"
-    existing.name = robot_data.get("name") or meta.get("name") or existing.name or duid
-    existing.product = robot_data.get("product") or meta.get("product") or meta.get("product_id") or existing.product
-    existing.model = robot_data.get("model") or meta.get("model") or existing.model
-    existing.firmware = meta.get("firmware") or meta.get("fv") or existing.firmware
-    existing.protocol_version = meta.get("protocol_version") or meta.get("pv") or existing.protocol_version
-    existing.serial_number = robot_data.get("serial_number") or meta.get("serial_number") or meta.get("sn") or existing.serial_number
-    existing.local_ip = local_ip or existing.local_ip
-    existing.cloud_online = cloud_online if cloud_online is not None else existing.cloud_online
-    existing.shared = bool_value(meta.get("shared") if "shared" in meta else meta.get("share"))
-    existing.time_zone_id = meta.get("time_zone_id") or meta.get("timezone") or existing.time_zone_id
-    existing.last_seen_at = batch_time
-    if robot_data.get("cloud"):
-        existing.last_cloud_at = batch_time
-    if status or network:
-        existing.last_local_at = batch_time
-    if status:
-        existing.last_status_at = batch_time
-    if robot_data.get("map"):
-        existing.last_map_at = batch_time
-    existing.last_error = robot_data.get("last_error") or robot_data.get("error") or None
-    existing.capabilities = capabilities or existing.capabilities
-    existing.extra = {
-        "source": source,
-        "provider": provider,
-        "metadata": meta,
-        "summary": robot_data.get("clean_summary"),
-        "settings": robot_data.get("settings"),
-    }
-
-    if status:
-        session.add(
-            RoborockStatusSample(
-                robot_duid=duid,
-                timestamp=batch_time,
-                source=source,
-                state_code=int_value(status.get("state")),
-                state_name=status.get("state_name") or roborock_state_label(status.get("state")),
-                battery=int_value(status.get("battery")),
-                error_code=int_value(status.get("error_code") if "error_code" in status else status.get("error")),
-                in_cleaning=bool_value(status.get("in_cleaning")),
-                in_returning=bool_value(status.get("in_returning")),
-                clean_time_seconds=int_value(status.get("clean_time")),
-                clean_area_m2=area_m2_from_payload(status.get("clean_area")),
-                fan_power=int_value(status.get("fan_power")),
-                water_box_mode=int_value(status.get("water_box_mode")),
-                mop_mode=int_value(status.get("mop_mode")),
-                dock_type=int_value(status.get("dock_type")),
-                charge_status=int_value(status.get("charge_status")),
-                clean_percent=int_value(status.get("clean_percent")),
-                local_ip=local_ip,
-                rssi=int_value(network.get("rssi")),
-                raw={"status": status, "network": network},
-            )
-        )
-
-    if consumable:
-        session.add(
-            RoborockConsumableSnapshot(
-                robot_duid=duid,
-                timestamp=batch_time,
-                main_brush_work_time=int_value(consumable.get("main_brush_work_time")),
-                side_brush_work_time=int_value(consumable.get("side_brush_work_time")),
-                filter_work_time=int_value(consumable.get("filter_work_time")),
-                sensor_dirty_time=int_value(consumable.get("sensor_dirty_time")),
-                dust_collection_work_times=int_value(consumable.get("dust_collection_work_times")),
-                raw=consumable,
-            )
-        )
-
-    for job in robot_data.get("clean_jobs") or robot_data.get("jobs") or []:
-        record_id = str(job.get("id") or job.get("record_id") or "")
-        if not record_id:
-            continue
-        existing_job = (
-            await session.execute(
-                select(RoborockCleanJob)
-                .where(RoborockCleanJob.robot_duid == duid)
-                .where(RoborockCleanJob.record_id == record_id)
-            )
-        ).scalars().first()
-        if not existing_job:
-            existing_job = RoborockCleanJob(robot_duid=duid, record_id=record_id)
-            session.add(existing_job)
-        existing_job.begin_at = timestamp_value(job.get("begin") or job.get("begin_at"))
-        existing_job.end_at = timestamp_value(job.get("end") or job.get("end_at"))
-        existing_job.duration_seconds = int_value(job.get("duration_seconds") or job.get("duration"))
-        existing_job.duration_minutes = float_value(job.get("duration_minutes"))
-        existing_job.area_m2 = float_value(job.get("area_m2")) or area_m2_from_payload(job.get("area"))
-        existing_job.cleaned_area_m2 = float_value(job.get("cleaned_area_m2")) or area_m2_from_payload(job.get("cleaned_area"))
-        existing_job.complete = bool_value(job.get("complete"))
-        existing_job.error_code = int_value(job.get("error") if "error" in job else job.get("error_code"))
-        existing_job.start_type = int_value(job.get("start_type"))
-        existing_job.clean_type = int_value(job.get("clean_type"))
-        existing_job.finish_reason = int_value(job.get("finish_reason"))
-        existing_job.dust_collection_status = int_value(job.get("dust_collection_status"))
-        existing_job.avoid_count = int_value(job.get("avoid_count"))
-        existing_job.wash_count = int_value(job.get("wash_count"))
-        existing_job.clean_times = int_value(job.get("clean_times"))
-        existing_job.updated_at = batch_time
-        existing_job.raw = job
-
-    raw_schedules = robot_data.get("schedules")
-    schedules_received = isinstance(raw_schedules, list) and all(
-        isinstance(schedule, dict) and str(schedule.get("id") or schedule.get("schedule_id") or "")
-        for schedule in raw_schedules
-    )
-    schedule_payloads = raw_schedules if schedules_received else []
-    existing_schedules = []
-    schedules_by_id: Dict[str, RoborockSchedule] = {}
-    if schedules_received:
-        existing_schedules = (
-            await session.execute(
-                select(RoborockSchedule).where(RoborockSchedule.robot_duid == duid)
-            )
-        ).scalars().all()
-        schedules_by_id = {str(row.schedule_id): row for row in existing_schedules}
-    seen_schedule_ids: set[str] = set()
-    for schedule in schedule_payloads:
-        schedule_id = str(schedule.get("id") or schedule.get("schedule_id") or "")
-        if not schedule_id:
-            continue
-        seen_schedule_ids.add(schedule_id)
-        params = roborock_schedule_params(schedule)
-        existing_schedule = schedules_by_id.get(schedule_id)
-        if not existing_schedule:
-            existing_schedule = RoborockSchedule(robot_duid=duid, schedule_id=schedule_id)
-            session.add(existing_schedule)
-            existing_schedules.append(existing_schedule)
-            schedules_by_id[schedule_id] = existing_schedule
-        existing_schedule.cron = schedule.get("cron")
-        existing_schedule.enabled = bool_value(schedule.get("enabled"))
-        existing_schedule.repeated = bool_value(schedule.get("repeated"))
-        existing_schedule.segments = params.get("segments")
-        existing_schedule.fan_power = int_value(params.get("fan_power"))
-        existing_schedule.mop_mode = int_value(params.get("mop_mode"))
-        existing_schedule.water_box_mode = int_value(params.get("water_box_mode"))
-        existing_schedule.repeat = int_value(params.get("repeat"))
-        existing_schedule.updated_at = batch_time
-        existing_schedule.raw = schedule
-
-    deleted_schedules = (
-        reconcile_roborock_schedule_snapshot(existing_schedules, seen_schedule_ids, batch_time)
-        if schedules_received
-        else 0
-    )
-    schedule_snapshot_created = False
-    if schedules_received:
-        schedule_snapshot_created = await record_roborock_schedule_snapshot(
-            session,
-            duid,
-            schedule_payloads,
-            batch_time,
-            source,
-        )
-
-    if provider == "roborock":
-        try:
-            zone_import = await import_roborock_cleaning_zones(session, duid, schedule_payloads, source)
-            zone_import_status = {
-                "status": "ok",
-                "checkedAt": api_local_iso(batch_time),
-                "imported": zone_import["imported"],
-            }
-        except RoborockZoneScheduleError as exc:
-            zone_import_status = {
-                "status": "error",
-                "checkedAt": api_local_iso(batch_time),
-                "message": str(exc),
-            }
-    else:
-        zone_import_status = {
-            "status": "not_applicable",
-            "checkedAt": api_local_iso(batch_time),
-            "message": "Soner administreres av Dreamehome.",
-        }
-    existing.extra = {**(existing.extra or {}), "cleaning_zone_import": zone_import_status}
-
-    map_data = robot_data.get("map") or {}
-    if map_data:
-        image_size = map_data.get("image_size") or []
-        if not isinstance(image_size, list):
-            image_size = []
-        session.add(
-            RoborockMapSnapshot(
-                robot_duid=duid,
-                timestamp=batch_time,
-                image_bytes=int_value(map_data.get("image_bytes")),
-                raw_bytes=int_value(map_data.get("raw_bytes")),
-                image_width=int_value(image_size[0] if len(image_size) > 0 else map_data.get("image_width")),
-                image_height=int_value(image_size[1] if len(image_size) > 1 else map_data.get("image_height")),
-                rooms=int_value(map_data.get("rooms")),
-                zones=int_value(map_data.get("zones")),
-                charger=map_data.get("charger"),
-                vacuum_position=map_data.get("vacuum_position"),
-                image_base64=map_data.get("image_base64"),
-                raw={key: value for key, value in map_data.items() if key != "image_base64"},
-            )
-        )
-
-    for probe in robot_data.get("probe_results") or []:
-        session.add(
-            RoborockProbeResult(
-                robot_duid=duid,
-                timestamp=batch_time,
-                source=probe.get("source") or source,
-                command=probe.get("command") or probe.get("name"),
-                ok=bool_value(probe.get("ok")),
-                error=probe.get("error"),
-                result_type=probe.get("type") or probe.get("result_type"),
-                raw=probe,
-            )
-        )
-    return {
-        "ok": True,
-        "duid": duid,
-        "deleted_schedules": deleted_schedules,
-        "schedule_snapshot_created": schedule_snapshot_created,
-    }
-
-
-def roborock_telemetry_sample_values(telemetry: Dict[str, Any]) -> Dict[str, Any]:
-    return {
-        "state_code": int_value(telemetry.get("state_code")),
-        "state_name": telemetry.get("state_name"),
-        "battery": int_value(telemetry.get("battery")),
-        "error_code": int_value(telemetry.get("error_code")),
-        "in_cleaning": bool_value(telemetry.get("in_cleaning")),
-        "in_returning": bool_value(telemetry.get("in_returning")),
-        "clean_time_seconds": int_value(telemetry.get("clean_time_seconds")),
-        "clean_area_m2": area_m2_from_payload(telemetry.get("clean_area_raw")),
-        "clean_percent": int_value(telemetry.get("clean_percent")),
-        "fan_power": int_value(telemetry.get("fan_power")),
-        "water_box_mode": int_value(telemetry.get("water_box_mode")),
-        "mop_mode": int_value(telemetry.get("mop_mode")),
-        "charge_status": int_value(telemetry.get("charge_status")),
-        "is_charging": bool_value(telemetry.get("is_charging")),
-        "dock_type": int_value(telemetry.get("dock_type")),
-        "dock_error_status": int_value(telemetry.get("dock_error_status")),
-        "dust_collection_status": int_value(telemetry.get("dust_collection_status")),
-        "auto_dust_collection": bool_value(telemetry.get("auto_dust_collection")),
-        "wash_status": int_value(telemetry.get("wash_status")),
-        "wash_phase": int_value(telemetry.get("wash_phase")),
-        "wash_ready": bool_value(telemetry.get("wash_ready")),
-        "dry_status": int_value(telemetry.get("dry_status")),
-        "water_shortage_status": int_value(telemetry.get("water_shortage_status")),
-        "water_box_status": int_value(telemetry.get("water_box_status")),
-        "water_box_carriage_status": int_value(telemetry.get("water_box_carriage_status")),
-        "clear_water_status": int_value(telemetry.get("clear_water_status")),
-        "clear_water_status_name": telemetry.get("clear_water_status_name"),
-        "dirty_water_status": int_value(telemetry.get("dirty_water_status")),
-        "dirty_water_status_name": telemetry.get("dirty_water_status_name"),
-        "dust_bag_status": int_value(telemetry.get("dust_bag_status")),
-        "dust_bag_status_name": telemetry.get("dust_bag_status_name"),
-        "clean_fluid_status": int_value(telemetry.get("clean_fluid_status")),
-        "clean_fluid_status_name": telemetry.get("clean_fluid_status_name"),
-        "water_box_filter_status": int_value(telemetry.get("water_box_filter_status")),
-        "dock_cool_fan_status": int_value(telemetry.get("dock_cool_fan_status")),
-        "local_ip": telemetry.get("local_ip"),
-        "rssi": int_value(telemetry.get("rssi")),
-        "dss": int_value(telemetry.get("dss")),
-        "rss": int_value(telemetry.get("rss")),
-    }
-
-
-def roborock_water_interlock_from_sample(sample: Any) -> Dict[str, Any]:
-    raw = getattr(sample, "raw", None)
-    normalized = raw.get("normalized") if isinstance(raw, dict) else None
-    interlock = normalized.get("water_interlock") if isinstance(normalized, dict) else None
-    return interlock if isinstance(interlock, dict) else {}
-
-
-async def ingest_roborock_telemetry_robot(
-    session,
-    robot_data: Dict[str, Any],
-    batch_time: datetime,
-    source: str,
-) -> Dict[str, Any]:
-    provider = cleaning_provider(robot_data.get("provider"), source)
-    raw_identity = robot_data.get("external_id") or robot_data.get("duid") or robot_data.get("robot_duid")
-    external_id = cleaning_robot_external_id(provider, raw_identity)
-    duid = cleaning_robot_uid(provider, external_id)
-    if not duid:
-        return {"ok": False, "error": "Mangler DUID", "events": 0}
-
-    robot = (
-        await session.execute(select(RoborockRobot).where(RoborockRobot.duid == duid))
-    ).scalars().first()
-    if not robot:
-        robot = RoborockRobot(
-            duid=duid,
-            provider=provider,
-            external_id=external_id,
-            integration_status="active",
-            name=robot_data.get("name") or duid,
-        )
-        session.add(robot)
-    robot.provider = provider
-    robot.external_id = external_id
-    robot.integration_status = "active"
-    robot.name = robot_data.get("name") or robot.name
-    robot.model = robot_data.get("model") or robot.model
-    robot.local_ip = robot_data.get("local_ip") or robot.local_ip
-    robot.last_seen_at = batch_time
-
-    telemetry = robot_data.get("telemetry") or {}
-    events_created = 0
-    if telemetry:
-        values = roborock_telemetry_sample_values(telemetry)
-        previous = (
-            await session.execute(
-                select(RoborockTelemetrySample)
-                .where(RoborockTelemetrySample.robot_duid == duid)
-                .order_by(RoborockTelemetrySample.timestamp.desc(), RoborockTelemetrySample.id.desc())
-                .limit(1)
-            )
-        ).scalars().first()
-        previous_values = (
-            row_to_dict(previous, [column for column in ROBOROCK_TELEMETRY_COLUMNS if column not in {"id", "raw"}])
-            if previous
-            else None
-        )
-        sample = RoborockTelemetrySample(
-            robot_duid=duid,
-            timestamp=batch_time,
-            source=source,
-            raw={
-                "status_raw": telemetry.get("status_raw") or {},
-                "network_raw": telemetry.get("network_raw") or {},
-                "normalized": {
-                    key: value
-                    for key, value in telemetry.items()
-                    if key not in {"status_raw", "network_raw"}
-                },
-            },
-            **values,
-        )
-        session.add(sample)
-        robot.last_local_at = batch_time
-        robot.last_status_at = batch_time
-        robot.local_ip = values.get("local_ip") or robot.local_ip
-
-        for change in roborock_telemetry_changes(previous_values, values, robot.provider):
-            session.add(
-                RoborockTelemetryEvent(
-                    robot_duid=duid,
-                    timestamp=batch_time,
-                    raw={"source": source},
-                    **change,
-                )
-            )
-            events_created += 1
-
-    for probe in robot_data.get("probes") or []:
-        command = probe.get("command") or probe.get("name")
-        if command in {"GET_STATUS", "GET_NETWORK_INFO"}:
-            continue
-        session.add(
-            RoborockProbeResult(
-                robot_duid=duid,
-                timestamp=batch_time,
-                source=probe.get("source") or source,
-                command=command,
-                ok=bool_value(probe.get("ok")),
-                error=probe.get("error"),
-                result_type=probe.get("result_type") or probe.get("type"),
-                raw=probe,
-            )
-        )
-    return {"ok": bool(telemetry), "duid": duid, "events": events_created}
-
-
-async def ingest_sun2_room_stats(session, data: Sun2RoomStatsIngestIn, batch_time: datetime) -> Dict[str, int]:
-    inserted = 0
-    updated = 0
-    batch_date = data.stat_date
-    for row in data.rows:
-        source_room_name = (repair_mojibake(row.source_room_name or row.room) or "").strip()
-        room = (repair_mojibake(row.room) or source_room_name).strip()
-        room_key = (repair_mojibake(row.room_key) or room_key_from_name(source_room_name) or room_key_from_name(room) or room).strip()
-        identity = sun2_room_identity(source_room_name or room, row.room_id, row.sun2_bed_id)
-        if not room:
-            continue
-        stat_date = row.stat_date or batch_date
-        existing = (
-            await session.execute(
-                select(Sun2RoomDailyStat)
-                .where(Sun2RoomDailyStat.stat_date == stat_date)
-                .where(Sun2RoomDailyStat.room_key == room_key)
-            )
-        ).scalars().first()
-        if not existing:
-            existing = (
-                await session.execute(
-                    select(Sun2RoomDailyStat)
-                    .where(Sun2RoomDailyStat.stat_date == stat_date)
-                    .where(Sun2RoomDailyStat.room == room)
-                )
-            ).scalars().first()
-        if not existing:
-            same_day = (
-                await session.execute(
-                    select(Sun2RoomDailyStat).where(Sun2RoomDailyStat.stat_date == stat_date)
-                )
-            ).scalars().all()
-            existing = next(
-                (
-                    candidate for candidate in same_day
-                    if repair_mojibake(candidate.room) == room
-                    or repair_mojibake(candidate.source_room_name) == source_room_name
-                    or (candidate.room_key and repair_mojibake(candidate.room_key) == room_key)
-                ),
-                None,
-            )
-        if not existing:
-            existing = Sun2RoomDailyStat(stat_date=stat_date, room=room)
-            session.add(existing)
-            inserted += 1
-        else:
-            updated += 1
-
-        existing.room_key = room_key
-        existing.room_id = identity.get("room_id")
-        existing.room = room
-        existing.source_room_name = source_room_name
-        existing.sun2_bed_id = identity.get("sun2_bed_id")
-        existing.total_soletid_minutter = row.total_soletid_minutter
-        existing.totalt_antall_solinger = row.totalt_antall_solinger
-        existing.solinger_medlemmer = row.solinger_medlemmer
-        existing.solinger_ikke_medlemmer = row.solinger_ikke_medlemmer
-        existing.totalt_inntjent_kr = row.totalt_inntjent_kr
-        existing.inntjent_medlemmer_kr = row.inntjent_medlemmer_kr
-        existing.inntjent_ikke_medlemmer_kr = row.inntjent_ikke_medlemmer_kr
-        existing.source = data.source
-        existing.source_file = data.source_file
-        existing.imported_at = batch_time
-        existing.raw = row.raw or {}
-
-    return {"inserted": inserted, "updated": updated}
-
-
-async def ingest_sun2_beds(session, data: Sun2BedsIngestIn, batch_time: datetime) -> Dict[str, int]:
-    inserted = 0
-    updated = 0
-    skipped = 0
-    for row in data.beds:
-        bed_id = (repair_mojibake(row.sun2_bed_id) or "").strip()
-        name = (repair_mojibake(row.name) or "").strip()
-        if not bed_id or not name:
-            skipped += 1
-            continue
-        identity = sun2_room_identity(row.source_room_name or name, row.room_id, bed_id)
-        existing = (
-            await session.execute(
-                select(Sun2Bed).where(Sun2Bed.sun2_bed_id == bed_id)
-            )
-        ).scalars().first()
-        if not existing:
-            existing = Sun2Bed(sun2_bed_id=bed_id, name=name)
-            session.add(existing)
-            inserted += 1
-        else:
-            updated += 1
-
-        existing.room_id = row.room_id or identity.get("room_id")
-        existing.physical_room_number = row.physical_room_number or identity.get("physical_room_number")
-        existing.display_room_number = row.display_room_number or identity.get("display_room_number")
-        existing.sun2_center_id = (repair_mojibake(row.sun2_center_id) or "").strip() or None
-        existing.sun2_bed_id = bed_id
-        existing.name = name
-        existing.source_room_name = (repair_mojibake(row.source_room_name) or name).strip() or None
-        existing.bed_model = (repair_mojibake(row.bed_model) or "").strip() or None
-        existing.bed_model_id = (repair_mojibake(row.bed_model_id) or "").strip() or None
-        existing.max_minutes = row.max_minutes
-        existing.startup_minutes = row.startup_minutes
-        existing.cooldown_minutes = row.cooldown_minutes
-        existing.current_price_per_min = row.current_price_per_min
-        existing.status = (repair_mojibake(row.status) or "").strip() or None
-        existing.status_code = (repair_mojibake(row.status_code) or "").strip() or None
-        existing.lamp_status = (repair_mojibake(row.lamp_status) or "").strip() or None
-        existing.source = data.source
-        existing.imported_at = batch_time
-        existing.raw = row.raw or {}
-    return {"inserted": inserted, "updated": updated, "skipped": skipped}
-
-
-async def ingest_sun2_members(session, data: Sun2MembersIngestIn, batch_time: datetime) -> Dict[str, int]:
-    inserted = 0
-    updated = 0
-    skipped = 0
-    source = data.source or "sun2_session_scraper"
-    for row in data.members:
-        sun2_user_id = (repair_mojibake(row.sun2_user_id) or "").strip()
-        if not sun2_user_id:
-            skipped += 1
-            continue
-        existing = (
-            await session.execute(
-                select(Sun2Member).where(Sun2Member.sun2_user_id == sun2_user_id)
-            )
-        ).scalars().first()
-        if not existing:
-            existing = Sun2Member(sun2_user_id=sun2_user_id)
-            session.add(existing)
-            inserted += 1
-        else:
-            updated += 1
-
-        existing.sun2_center_id = (repair_mojibake(row.sun2_center_id) or "").strip() or existing.sun2_center_id
-        existing.name = (repair_mojibake(row.name) or "").strip() or None
-        existing.display_name = (repair_mojibake(row.display_name) or "").strip() or existing.name or None
-        existing.initials = (repair_mojibake(row.initials) or "").strip() or None
-        existing.age = row.age
-        existing.email = (repair_mojibake(row.email) or "").strip() or None
-        existing.phone = (repair_mojibake(row.phone) or "").strip() or None
-        existing.profile_url = (repair_mojibake(row.profile_url) or "").strip() or None
-        existing.customer_type = (repair_mojibake(row.customer_type) or "").strip() or None
-        existing.gender = (repair_mojibake(row.gender) or "").strip() or None
-        existing.birth_date = row.birth_date
-        existing.member_since = row.member_since
-        existing.last_seen_at = row.last_seen_at
-        existing.status = (repair_mojibake(row.status) or "").strip() or None
-        existing.balance_kr = row.balance_kr
-        existing.total_spent_kr = row.total_spent_kr
-        existing.visits_count = row.visits_count
-        existing.source = source
-        existing.source_file = (repair_mojibake(row.source_file or "") or "").strip() or None
-        existing.imported_at = batch_time
-        existing.raw = row.raw or {}
-    return {"inserted": inserted, "updated": updated, "skipped": skipped}
-
-
-async def ingest_sun2_product_sales(session, data: Sun2ProductSalesIngestIn, batch_time: datetime) -> Dict[str, int]:
-    inserted = 0
-    updated = 0
-    skipped = 0
-    source = data.source or "sun2_session_scraper"
-    source_file = (repair_mojibake(data.source_file) or "").strip()
-    period_summary = data.extra.get("period_summary") if isinstance(data.extra.get("period_summary"), dict) else None
-    replaced = 0
-    if source_file and data.rows:
-        result = await session.execute(
-            delete(Sun2ProductSale)
-            .where(Sun2ProductSale.source == source)
-            .where(Sun2ProductSale.source_file == source_file)
-        )
-        replaced = int(result.rowcount or 0)
-    for row in data.rows:
-        source_sale_id = (repair_mojibake(row.source_sale_id) or "").strip()
-        stat_date = row.stat_date or (row.sold_at.date() if row.sold_at else None) or data.period_start
-        if not source_sale_id or not stat_date:
-            skipped += 1
-            continue
-        existing = (
-            await session.execute(
-                select(Sun2ProductSale)
-                .where(Sun2ProductSale.source == source)
-                .where(Sun2ProductSale.source_sale_id == source_sale_id)
-            )
-        ).scalars().first()
-        if not existing:
-            existing = Sun2ProductSale(source=source, source_sale_id=source_sale_id, stat_date=stat_date)
-            session.add(existing)
-            inserted += 1
-        else:
-            updated += 1
-
-        existing.source = source
-        existing.source_sale_id = source_sale_id
-        existing.sold_at = row.sold_at
-        existing.stat_date = stat_date
-        existing.period_start = row.period_start or data.period_start
-        existing.period_end = row.period_end or data.period_end
-        existing.product_name = (repair_mojibake(row.product_name) or "").strip() or None
-        existing.product_category = (repair_mojibake(row.product_category) or "").strip() or None
-        existing.quantity = row.quantity
-        existing.unit_price_kr = row.unit_price_kr
-        existing.amount_inc_vat_kr = row.amount_inc_vat_kr
-        existing.amount_ex_vat_kr = row.amount_ex_vat_kr
-        existing.vat_kr = row.vat_kr
-        existing.payment_method = (repair_mojibake(row.payment_method) or "").strip() or None
-        existing.sun2_user_id = (repair_mojibake(row.sun2_user_id) or "").strip() or None
-        existing.user_name = (repair_mojibake(row.user_name) or "").strip() or None
-        existing.source_file = source_file or data.source_file
-        existing.imported_at = batch_time
-        raw = dict(row.raw or {})
-        if period_summary and not isinstance(raw.get("period_summary"), dict):
-            raw["period_summary"] = period_summary
-        existing.raw = raw
-    return {"inserted": inserted, "updated": updated, "skipped": skipped, "replaced": replaced}
-
-
-async def ingest_sun2_finance_settlements(session, data: Sun2FinanceSettlementsIngestIn, batch_time: datetime) -> Dict[str, int]:
-    inserted = 0
-    updated = 0
-    skipped = 0
-    source = data.source or "sun2_session_scraper"
-    source_file = (repair_mojibake(data.source_file) or "").strip()
-    for row in data.rows:
-        source_payout_id = (repair_mojibake(row.source_payout_id) or "").strip()
-        if not source_payout_id or not row.period_start or not row.period_end:
-            skipped += 1
-            continue
-        existing = (
-            await session.execute(
-                select(Sun2FinanceSettlement)
-                .where(Sun2FinanceSettlement.source == source)
-                .where(Sun2FinanceSettlement.source_payout_id == source_payout_id)
-            )
-        ).scalars().first()
-        if not existing:
-            existing = Sun2FinanceSettlement(source=source, source_payout_id=source_payout_id)
-            session.add(existing)
-            inserted += 1
-        else:
-            updated += 1
-
-        tanning_control_inc = row.tanning_control_inc_vat_kr
-        tanning_values_present = any(
-            value is not None
-            for value in (
-                row.member_tanning_inc_vat_kr,
-                row.unregistered_tanning_inc_vat_kr,
-                row.tanning_bonus_inc_vat_kr,
-            )
-        )
-        if tanning_control_inc is None and tanning_values_present:
-            tanning_control_inc = (
-                float_or_zero(row.member_tanning_inc_vat_kr)
-                + float_or_zero(row.unregistered_tanning_inc_vat_kr)
-                - float_or_zero(row.tanning_bonus_inc_vat_kr)
-            )
-        tanning_control_ex = row.tanning_control_ex_vat_kr
-        if tanning_control_ex is None and tanning_control_inc is not None:
-            tanning_control_ex = round(tanning_control_inc / 1.25, 2)
-
-        product_control_inc = row.product_control_inc_vat_kr
-        product_values_present = any(
-            value is not None
-            for value in (
-                row.member_product_inc_vat_kr,
-                row.unregistered_product_inc_vat_kr,
-                row.product_bonus_inc_vat_kr,
-            )
-        )
-        if product_control_inc is None and product_values_present:
-            product_control_inc = (
-                float_or_zero(row.member_product_inc_vat_kr)
-                + float_or_zero(row.unregistered_product_inc_vat_kr)
-                - float_or_zero(row.product_bonus_inc_vat_kr)
-            )
-        product_control_ex = row.product_control_ex_vat_kr
-        if product_control_ex is None and product_control_inc is not None:
-            product_control_ex = round(product_control_inc / 1.25, 2)
-
-        existing.source = source
-        existing.source_payout_id = source_payout_id
-        existing.payout_label = (repair_mojibake(row.payout_label) or "").strip() or None
-        existing.period_start = row.period_start
-        existing.period_end = row.period_end
-        existing.payout_date = row.payout_date
-        existing.member_tanning_count = row.member_tanning_count
-        existing.member_tanning_inc_vat_kr = row.member_tanning_inc_vat_kr
-        existing.unregistered_tanning_count = row.unregistered_tanning_count
-        existing.unregistered_tanning_inc_vat_kr = row.unregistered_tanning_inc_vat_kr
-        existing.tanning_bonus_inc_vat_kr = row.tanning_bonus_inc_vat_kr
-        existing.tanning_control_inc_vat_kr = round(tanning_control_inc, 2) if tanning_control_inc is not None else None
-        existing.tanning_control_ex_vat_kr = round(tanning_control_ex, 2) if tanning_control_ex is not None else None
-        existing.member_product_count = row.member_product_count
-        existing.member_product_inc_vat_kr = row.member_product_inc_vat_kr
-        existing.unregistered_product_count = row.unregistered_product_count
-        existing.unregistered_product_inc_vat_kr = row.unregistered_product_inc_vat_kr
-        existing.product_bonus_inc_vat_kr = row.product_bonus_inc_vat_kr
-        existing.product_control_inc_vat_kr = round(product_control_inc, 2) if product_control_inc is not None else None
-        existing.product_control_ex_vat_kr = round(product_control_ex, 2) if product_control_ex is not None else None
-        existing.transaction_cost_kr = row.transaction_cost_kr
-        existing.service_fee_kr = row.service_fee_kr
-        existing.payout_inc_vat_kr = row.payout_inc_vat_kr
-        existing.vat_kr = row.vat_kr
-        existing.source_file = source_file or data.source_file
-        existing.imported_at = batch_time
-        existing.raw = row.raw or {}
-    return {"inserted": inserted, "updated": updated, "skipped": skipped}
-
-
-async def ingest_sun2_tanning_sessions(session, data: Sun2TanningSessionsIngestIn, batch_time: datetime) -> Dict[str, int]:
-    inserted = 0
-    updated = 0
-    skipped = 0
-    source = data.source or "sun2_session_scraper"
-    source_file = (repair_mojibake(data.source_file) or "").strip()
-    replaced = 0
-
-    if source_file and data.rows:
-        result = await session.execute(
-            delete(Sun2TanningSession)
-            .where(Sun2TanningSession.source == source)
-            .where(Sun2TanningSession.source_file == source_file)
-        )
-        replaced = int(result.rowcount or 0)
-
-    for row in data.rows:
-        source_session_id = (repair_mojibake(row.source_session_id) or "").strip()
-        if not source_session_id or not row.started_at:
-            skipped += 1
-            continue
-        source_room_name = (repair_mojibake(row.source_room_name or row.room) or "").strip()
-        room = (repair_mojibake(row.room) or source_room_name).strip()
-        room_key = (repair_mojibake(row.room_key) or room_key_from_name(source_room_name) or room_key_from_name(room) or "").strip()
-        identity = sun2_room_identity(source_room_name or room, row.room_id, row.sun2_bed_id)
-        stat_date = row.stat_date or row.started_at.date()
-
-        existing = (
-            await session.execute(
-                select(Sun2TanningSession)
-                .where(Sun2TanningSession.source == source)
-                .where(Sun2TanningSession.source_session_id == source_session_id)
-            )
-        ).scalars().first()
-
-        if not existing:
-            legacy_source_session_id = str((row.raw or {}).get("legacy_source_session_id") or "").strip()
-            if legacy_source_session_id:
-                existing = (
-                    await session.execute(
-                        select(Sun2TanningSession)
-                        .where(Sun2TanningSession.source == source)
-                        .where(Sun2TanningSession.source_session_id == legacy_source_session_id)
-                    )
-                ).scalars().first()
-
-        if not existing:
-            natural_query = (
-                select(Sun2TanningSession)
-                .where(Sun2TanningSession.source == source)
-                .where(Sun2TanningSession.started_at == row.started_at)
-                .where(Sun2TanningSession.stat_date == stat_date)
-                .where(Sun2TanningSession.duration_minutes == row.duration_minutes)
-                .where(Sun2TanningSession.paid_amount_kr == row.paid_amount_kr)
-            )
-            if identity.get("sun2_bed_id"):
-                natural_query = natural_query.where(Sun2TanningSession.sun2_bed_id == identity.get("sun2_bed_id"))
-            elif identity.get("room_id"):
-                natural_query = natural_query.where(Sun2TanningSession.room_id == identity.get("room_id"))
-            if row.sun2_user_id:
-                natural_query = natural_query.where(Sun2TanningSession.sun2_user_id == row.sun2_user_id)
-            elif row.user_identifier:
-                natural_query = natural_query.where(Sun2TanningSession.user_identifier == row.user_identifier)
-            existing = (await session.execute(natural_query)).scalars().first()
-
-        if not existing:
-            existing = Sun2TanningSession(source=source, source_session_id=source_session_id)
-            session.add(existing)
-            inserted += 1
-        else:
-            updated += 1
-
-        existing.source = source
-        existing.source_session_id = source_session_id
-        existing.started_at = row.started_at
-        existing.ended_at = row.ended_at
-        existing.stat_date = stat_date
-        existing.room_id = identity.get("room_id")
-        existing.room_key = room_key or None
-        existing.room = room or None
-        existing.source_room_name = source_room_name or None
-        existing.sun2_user_id = (repair_mojibake(row.sun2_user_id) or "").strip() or None
-        existing.sun2_center_id = (repair_mojibake(row.sun2_center_id) or "").strip() or None
-        existing.sun2_bed_id = identity.get("sun2_bed_id")
-        existing.user_name = (repair_mojibake(row.user_name) or "").strip() or None
-        existing.user_identifier = (repair_mojibake(row.user_identifier) or "").strip() or None
-        existing.customer_type = (repair_mojibake(row.customer_type) or "").strip() or None
-        existing.gender = (repair_mojibake(row.gender) or "").strip() or None
-        existing.payment_method = (repair_mojibake(row.payment_method) or "").strip() or None
-        existing.duration_minutes = row.duration_minutes
-        existing.paid_amount_kr = row.paid_amount_kr
-        existing.status = (repair_mojibake(row.status) or "").strip() or None
-        existing.source_file = source_file or data.source_file
-        existing.imported_at = batch_time
-        existing.raw = row.raw or {}
-
-    return {"inserted": inserted, "updated": updated, "skipped": skipped, "replaced": replaced}
-
-
-def sun2_duplicate_session_id_payload(rows: list[Sun2TanningSessionIn]) -> list[Dict[str, Any]]:
-    grouped: Dict[str, list[Sun2TanningSessionIn]] = defaultdict(list)
-    for row in rows:
-        source_session_id = (repair_mojibake(row.source_session_id) or "").strip()
-        if source_session_id:
-            grouped[source_session_id].append(row)
-
-    duplicates: list[Dict[str, Any]] = []
-    for source_session_id, items in grouped.items():
-        if len(items) < 2:
-            continue
-        duplicates.append(
-            {
-                "source_session_id": source_session_id,
-                "count": len(items),
-                "rows": [
-                    {
-                        "started_at": item.started_at.isoformat() if item.started_at else None,
-                        "room_id": item.room_id,
-                        "sun2_bed_id": item.sun2_bed_id,
-                        "sun2_user_id": item.sun2_user_id,
-                        "duration_minutes": item.duration_minutes,
-                        "paid_amount_kr": item.paid_amount_kr,
-                    }
-                    for item in items
-                ],
-            }
-        )
-    return duplicates
-
-
-async def backfill_sun2_room_identity(session) -> Dict[str, int]:
-    counts = {"daily": 0, "sessions": 0}
-    for model, key in [(Sun2RoomDailyStat, "daily"), (Sun2TanningSession, "sessions")]:
-        source_text = func.lower(func.trim(func.coalesce(model.source_room_name, model.room, model.room_key, "")))
-        missing_identity = or_(model.room_id.is_(None), model.sun2_bed_id.is_(None))
-        old_room = await session.execute(
-            update(model)
-            .where(missing_identity)
-            .where(or_(source_text == ".", source_text == "-"))
-            .values(room_id=SUN2_ROOM_UNKNOWN_OLD_10["room_id"], sun2_bed_id=SUN2_ROOM_UNKNOWN_OLD_10["sun2_bed_id"])
-        )
-        counts[key] += int(old_room.rowcount or 0)
-
-        for display_number, identity in SUN2_ROOM_MAP_BY_DISPLAY.items():
-            room_text = f"rom {display_number}"
-            result = await session.execute(
-                update(model)
-                .where(missing_identity)
-                .where(or_(source_text == room_text, source_text.like(f"{room_text} %")))
-                .values(room_id=identity["room_id"], sun2_bed_id=identity["sun2_bed_id"])
-            )
-            counts[key] += int(result.rowcount or 0)
-    return counts
-
-
-async def ingest_elvia_hours(session, parsed: Dict[str, Any], batch_time: datetime) -> Dict[str, int]:
-    rows = parsed["rows"]
-    if not rows:
-        return {"inserted": 0, "updated": 0, "skipped": 0}
-
-    meter_id = parsed["meter_id"]
-    first_at = parsed["first_at"]
-    last_at = parsed["last_at"]
-    existing_rows = (
-        await session.execute(
-            select(EnergyHourlyConsumption)
-            .where(EnergyHourlyConsumption.meter_id == meter_id)
-            .where(EnergyHourlyConsumption.measured_at >= first_at)
-            .where(EnergyHourlyConsumption.measured_at <= last_at)
-        )
-    ).scalars().all()
-    existing_by_time = {row.measured_at: row for row in existing_rows}
-    inserted = 0
-    updated = 0
-    skipped = 0
-
-    for row in rows:
-        existing = existing_by_time.get(row["measured_at"])
-        if not existing:
-            existing = EnergyHourlyConsumption(meter_id=meter_id, measured_at=row["measured_at"])
-            session.add(existing)
-            inserted += 1
-        else:
-            if not energy_hour_has_changed(existing, row):
-                skipped += 1
-                continue
-            updated += 1
-
-        existing.stat_date = row["stat_date"]
-        existing.year = row["year"]
-        existing.month = row["month"]
-        existing.day = row["day"]
-        existing.hour = row["hour"]
-        existing.consumption_kwh = row["consumption_kwh"]
-        existing.production_kwh = row["production_kwh"]
-        existing.status = row["status"]
-        existing.is_verified = row["is_verified"]
-        existing.is_estimated = row["is_estimated"]
-        existing.is_public_holiday = row["is_public_holiday"]
-        existing.use_weekend_prices = row["use_weekend_prices"]
-        existing.source = "elvia"
-        existing.source_file = parsed["source_file"]
-        existing.imported_at = batch_time
-        existing.raw = row["raw"]
-
-    return {"inserted": inserted, "updated": updated, "skipped": skipped}
-
-
-async def run_elvia_import_background(content: bytes, filename: str):
-    started_at = local_now_naive()
-    batch_time = datetime.utcnow()
-    try:
-        parsed = parse_elvia_json_payload(content, filename)
-        if not parsed["rows"]:
-            raise ValueError("Filen inneholder ingen timeverdier som kan importeres.")
-        async with async_session() as session:
-            counts = await ingest_elvia_hours(session, parsed, batch_time)
-            message = (
-                f"{counts['inserted']} nye, {counts['updated']} oppdatert, "
-                f"{counts['skipped']} uendret for måler {parsed['meter_id']}."
-            )
-            session.add(
-                EnergyImportRun(
-                    timestamp=batch_time,
-                    meter_id=parsed["meter_id"],
-                    source="elvia",
-                    ok=True,
-                    source_file=filename,
-                    period_first=parsed["first_at"],
-                    period_last=parsed["last_at"],
-                    days_count=parsed["days_count"],
-                    hours_count=parsed["hours_count"],
-                    inserted_count=counts["inserted"],
-                    updated_count=counts["updated"],
-                    skipped_count=counts["skipped"],
-                    total_kwh=parsed["total_kwh"],
-                    estimated_hours_count=parsed["estimated_hours_count"],
-                    message=message,
-                    raw={"partial_months": parsed["partial_months"]},
-                )
-            )
-            await record_import_job(
-                session,
-                "elvia_monthly_import",
-                source="elvia",
-                started_at=started_at,
-                finished_at=local_now_naive(),
-                records_imported=counts["inserted"] + counts["updated"],
-                records_total=parsed["hours_count"],
-                duration_seconds=(local_now_naive() - started_at).total_seconds(),
-                message=message,
-                raw={"source_file": filename, "partial_months": parsed["partial_months"], "counts": counts},
-            )
-            await session.commit()
-        clear_summary_cache("energy")
-    except (json.JSONDecodeError, UnicodeDecodeError):
-        error = "Filen kunne ikke leses som gyldig JSON."
-        async with async_session() as session:
-            session.add(EnergyImportRun(timestamp=batch_time, source="elvia", ok=False, source_file=filename, message=error))
-            await record_import_job(
-                session,
-                "elvia_monthly_import",
-                ok=False,
-                source="elvia",
-                started_at=started_at,
-                finished_at=local_now_naive(),
-                duration_seconds=(local_now_naive() - started_at).total_seconds(),
-                message=error,
-                raw={"source_file": filename},
-            )
-            await session.commit()
-    except Exception as exc:
-        logger.exception("Elvia-import feilet for %s", filename)
-        error = str(exc)
-        async with async_session() as session:
-            session.add(EnergyImportRun(timestamp=batch_time, source="elvia", ok=False, source_file=filename, message=error))
-            await record_import_job(
-                session,
-                "elvia_monthly_import",
-                ok=False,
-                source="elvia",
-                started_at=started_at,
-                finished_at=local_now_naive(),
-                duration_seconds=(local_now_naive() - started_at).total_seconds(),
-                message=error,
-                raw={"source_file": filename},
-            )
-            await session.commit()
-
-
-async def fetch_rows(model, event_type, action, device_key, device_id, mode, source_contains, from_text, to_text, limit, time_basis: str = "source"):
-    from_ts = parse_datetime(from_text)
-    to_ts = parse_datetime(to_text)
-    if time_basis == "utc":
-        from_ts = local_naive_to_utc_naive(from_ts)
-        to_ts = local_naive_to_utc_naive(to_ts)
-    limit = max(1, min(limit, 10000))
-    stmt = select(model).order_by(model.timestamp.desc()).limit(limit)
-    stmt = apply_common_filters(stmt, model, event_type, action, device_key, device_id, mode, source_contains, from_ts, to_ts)
-    async with async_session() as session:
-        result = await session.execute(stmt)
-        return result.scalars().all(), limit
-
-
-async def csv_response(model, columns, filename, event_type, action, device_key, device_id, mode, source_contains, from_text, to_text, time_basis: str = "source"):
-    rows, _ = await fetch_rows(model, event_type, action, device_key, device_id, mode, source_contains, from_text, to_text, 10000, time_basis=time_basis)
-    output = StringIO()
-    writer = csv.writer(output)
-    writer.writerow(columns)
-    for row in rows:
-        row_dict = row_to_dict(row, columns)
-        writer.writerow([json_value(row_dict.get(column)) for column in columns])
-    output.seek(0)
-    return StreamingResponse(
-        output,
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
-    )
-
-
-def ai_jsonable(value: Any) -> Any:
-    if isinstance(value, (datetime, date)):
-        return value.isoformat()
-    if isinstance(value, dict):
-        return {key: ai_jsonable(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [ai_jsonable(item) for item in value]
-    return value
-
-
-def ai_dataset_overview() -> list[Dict[str, Any]]:
-    return [
-        {
-            "key": key,
-            "table": dataset["table"],
-            "title": repair_mojibake(dataset["title"]),
-            "description": repair_mojibake(dataset["description"]),
-            "time_column": dataset.get("time_column"),
-            "columns_count": len(dataset["columns"]),
-        }
-        for key, dataset in AI_DATASETS.items()
-    ]
-
-
-def ai_dataset_schema(dataset_key: str) -> Dict[str, Any]:
-    dataset = AI_DATASETS.get((dataset_key or "").strip())
-    if not dataset:
-        return {"ok": False, "error": "Ukjent datasett", "datasets": list(AI_DATASETS)}
-    return {
-        "ok": True,
-        "key": dataset_key,
-        "table": dataset["table"],
-        "title": repair_mojibake(dataset["title"]),
-        "description": repair_mojibake(dataset["description"]),
-        "time_column": dataset.get("time_column"),
-        "columns": dataset["columns"],
-    }
-
-
-def validate_ai_sql(sql: str) -> tuple[bool, str]:
-    sql_clean = (sql or "").strip()
-    if not re.match(r"(?is)^select\b", sql_clean):
-        return False, "Kun SELECT-spørringer er tillatt."
-    if ";" in sql_clean or "--" in sql_clean or "/*" in sql_clean or "*/" in sql_clean:
-        return False, "Kommentarer og flere SQL-setninger er ikke tillatt."
-    forbidden = r"\b(insert|update|delete|drop|alter|truncate|create|grant|revoke|copy|execute|call|merge|vacuum|analyze)\b"
-    if re.search(forbidden, sql_clean, flags=re.IGNORECASE):
-        return False, "Spørringen inneholder ikke-tillatte SQL-kommandoer."
-    from_match = re.search(r"(?is)\bfrom\b(.*?)(\bwhere\b|\bgroup\b|\border\b|\blimit\b|$)", sql_clean)
-    if from_match and "," in from_match.group(1):
-        return False, "Bruk eksplisitt JOIN i stedet for kommaseparerte tabeller."
-    allowed_tables = {dataset["table"].lower() for dataset in AI_DATASETS.values()}
-    used_tables = {
-        match.group(1).split(".")[-1].strip('"').lower()
-        for match in re.finditer(r"(?is)\b(?:from|join)\s+([a-zA-Z_][\w.]*)", sql_clean)
-    }
-    if not used_tables:
-        return False, "Fant ingen tabell i spørringen."
-    unknown = sorted(table for table in used_tables if table not in allowed_tables)
-    if unknown:
-        return False, f"Tabellen er ikke godkjent for AI-søk: {', '.join(unknown)}"
-    return True, ""
-
-
-async def run_safe_ai_sql(sql: str, limit: int = 200) -> Dict[str, Any]:
-    ok, error = validate_ai_sql(sql)
-    if not ok:
-        return {"ok": False, "error": error, "rows": []}
-    safe_limit = max(1, min(int_value(limit) or 200, 500))
-    wrapped_sql = f"SELECT * FROM ({sql.strip()}) AS ai_query LIMIT {safe_limit}"
-    async with async_session() as session:
-        result = await session.execute(sql_text(wrapped_sql))
-        rows = [dict(row._mapping) for row in result.fetchall()]
-    return {
-        "ok": True,
-        "limit": safe_limit,
-        "count": len(rows),
-        "rows": ai_jsonable(rows),
-    }
-
-
-def ai_tools_definition() -> list[Dict[str, Any]]:
-    return [
-        {
-            "type": "function",
-            "name": "list_datasets",
-            "description": "Lister alle datasett og tabeller som kan brukes til analyse.",
-            "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
-        },
-        {
-            "type": "function",
-            "name": "get_dataset_schema",
-            "description": "Henter tabellnavn, kolonner og beskrivelse for ett datasett.",
-            "parameters": {
-                "type": "object",
-                "properties": {"dataset": {"type": "string"}},
-                "required": ["dataset"],
-                "additionalProperties": False,
-            },
-        },
-        {
-            "type": "function",
-            "name": "run_safe_sql",
-            "description": "Kjører en trygg SELECT-spørring mot godkjente tabeller. Bruk alltid LIMIT eller argumentet limit.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "sql": {"type": "string"},
-                    "limit": {"type": "integer", "minimum": 1, "maximum": 500},
-                },
-                "required": ["sql"],
-                "additionalProperties": False,
-            },
-        },
-    ]
-
-
-async def run_ai_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
-    if name == "list_datasets":
-        return {"ok": True, "datasets": ai_dataset_overview()}
-    if name == "get_dataset_schema":
-        return ai_dataset_schema(str(arguments.get("dataset") or ""))
-    if name == "run_safe_sql":
-        return await run_safe_ai_sql(str(arguments.get("sql") or ""), int_value(arguments.get("limit")) or 200)
-    return {"ok": False, "error": f"Ukjent verktøy: {name}"}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 AI_CONFIG_KEY = "ai"
 
 
-def openai_env_api_key() -> str:
-    return (os.getenv("OPENAI_API_KEY") or "").strip()
 
 
-def mask_secret(value: Optional[str]) -> str:
-    if not value:
-        return ""
-    value = str(value)
-    if len(value) <= 10:
-        return "********"
-    return f"{value[:7]}...{value[-4:]}"
 
 
-async def get_ai_config() -> ControlConfig:
-    async with async_session() as session:
-        row = (await session.execute(select(ControlConfig).where(ControlConfig.key == AI_CONFIG_KEY))).scalars().first()
-        if row:
-            return row
-        row = ControlConfig(
-            key=AI_CONFIG_KEY,
-            version=1,
-            values={"openai_api_key": "", "openai_model": OPENAI_MODEL},
-            updated_by="system",
-        )
-        session.add(row)
-        session.add(
-            ControlConfigHistory(
-                config_key=AI_CONFIG_KEY,
-                version=1,
-                values={"openai_api_key": "", "openai_model": OPENAI_MODEL},
-                changed_by="system",
-                reason="AI-innstillinger opprettet",
-            )
-        )
-        await session.commit()
-        await session.refresh(row)
-        return row
 
 
-async def effective_openai_settings() -> Dict[str, Any]:
-    env_key = openai_env_api_key()
-    row = await get_ai_config()
-    values = row.values or {}
-    stored_key = str(values.get("openai_api_key") or "").strip()
-    stored_model = str(values.get("openai_model") or "").strip()
-    return {
-        "api_key": env_key or stored_key,
-        "source": "Servermiljøvariabel" if env_key else ("App-innstilling" if stored_key else "Mangler"),
-        "has_env_key": bool(env_key),
-        "has_stored_key": bool(stored_key),
-        "stored_key_masked": mask_secret(stored_key),
-        "model": stored_model or OPENAI_MODEL,
-        "config": row,
-    }
 
 
-def openai_responses_request(payload: Dict[str, Any], api_key: str) -> Dict[str, Any]:
-    if not api_key:
-        raise RuntimeError("OpenAI API key mangler.")
-    request = urllib.request.Request(
-        "https://api.openai.com/v1/responses",
-        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=75) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"OpenAI svarte {exc.code}: {body[:800]}") from exc
 
 
-def response_output_text(response: Dict[str, Any]) -> str:
-    if response.get("output_text"):
-        return str(response["output_text"]).strip()
-    parts = []
-    for item in response.get("output", []) or []:
-        if item.get("type") != "message":
-            continue
-        for content in item.get("content", []) or []:
-            if content.get("type") in {"output_text", "text"} and content.get("text"):
-                parts.append(str(content["text"]))
-    return "\n".join(parts).strip()
 
 
-def response_function_calls(response: Dict[str, Any]) -> list[Dict[str, Any]]:
-    return [item for item in response.get("output", []) or [] if item.get("type") == "function_call"]
 
 
-async def ask_ai(question: str, username: str) -> Dict[str, Any]:
-    question = (question or "").strip()
-    if not question:
-        return {"ok": False, "answer": "", "error": "Skriv inn et spørsmål først.", "tool_calls": []}
-    openai_settings = await effective_openai_settings()
-    api_key = openai_settings["api_key"]
-    model = openai_settings["model"]
-    if not api_key:
-        return {
-            "ok": False,
-            "answer": "",
-            "error": "OpenAI API key mangler. Legg den inn under AI > Innstillinger eller som OPENAI_API_KEY på serveren.",
-            "tool_calls": [],
-        }
-
-    system_prompt = (
-        "Du er analyseassistent for SUN2 Lillehammer sin Fibaro10-applikasjon. "
-        "Svar på norsk, kort og konkret, men forklar metode når tallene kan misforstås. "
-        "Du har bare lov til å bruke verktøyene for å se datasett, skjema og lese data. "
-        "Ikke finn opp tall. Hvis data mangler, si det tydelig. "
-        "Når du trenger data, bruk først list_datasets eller get_dataset_schema, og kjør deretter run_safe_sql. "
-        "SQL skal være enkel SELECT mot godkjente tabeller."
-    )
-    tools = ai_tools_definition()
-    conversation_items = [
-        {
-            "role": "user",
-            "content": [{"type": "input_text", "text": question}],
-        }
-    ]
-    payload = {
-        "model": model,
-        "instructions": system_prompt,
-        "tools": tools,
-        "input": conversation_items,
-    }
-    response = await asyncio.to_thread(openai_responses_request, payload, api_key)
-    tool_log: list[Dict[str, Any]] = []
-
-    for _ in range(6):
-        calls = response_function_calls(response)
-        if not calls:
-            answer = response_output_text(response)
-            return {"ok": bool(answer), "answer": answer, "error": "" if answer else "Fikk ikke svar fra modellen.", "tool_calls": tool_log}
-
-        outputs = []
-        for call in calls:
-            try:
-                args = json.loads(call.get("arguments") or "{}")
-            except json.JSONDecodeError:
-                args = {}
-            result = await run_ai_tool(call.get("name") or "", args)
-            tool_log.append(
-                {
-                    "name": call.get("name"),
-                    "arguments": args,
-                    "ok": result.get("ok", True),
-                    "count": result.get("count"),
-                    "error": result.get("error"),
-                }
-            )
-            outputs.append(
-                {
-                    "type": "function_call_output",
-                    "call_id": call.get("call_id"),
-                    "output": json.dumps(result, ensure_ascii=False, default=str),
-                }
-            )
-        conversation_items.extend(response.get("output", []) or [])
-        conversation_items.extend(outputs)
-        response = await asyncio.to_thread(
-            openai_responses_request,
-            {
-                "model": model,
-                "instructions": system_prompt,
-                "tools": tools,
-                "input": conversation_items,
-            },
-            api_key,
-        )
-
-    return {"ok": False, "answer": response_output_text(response), "error": "AI-søket stoppet etter for mange verktøykall.", "tool_calls": tool_log}
 
 
-async def recent_ai_logs(limit: int = 10) -> list[AiQueryLog]:
-    async with async_session() as session:
-        result = await session.execute(select(AiQueryLog).order_by(AiQueryLog.timestamp.desc()).limit(limit))
-        return result.scalars().all()
 
 
 async def startup():
@@ -11671,190 +2398,7 @@ async def shutdown_application():
     await background_tasks.stop_all()
 
 
-def protect_ledger_client() -> ProtectLedgerClient:
-    if not UNIFI_PROTECT_READ_API_TOKEN:
-        raise HTTPException(status_code=503, detail="UniFi Protect API token is not configured")
-    return ProtectLedgerClient(
-        UNIFI_PROTECT_EVENTS_URL,
-        UNIFI_PROTECT_READ_API_TOKEN,
-        UNIFI_PROTECT_API_TIMEOUT_SECONDS,
-    )
-
-
-async def protect_ledger_json(method: str, **params: Any) -> dict[str, Any]:
-    client = protect_ledger_client()
-    try:
-        return await asyncio.to_thread(getattr(client, method), **params)
-    except ProtectLedgerError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.message) from error
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-async def unpaid_registered_vehicle_stays_payload(
-    source_report: Mapping[str, Any],
-    period_start: date,
-    period_end: date,
-) -> dict[str, Any]:
-    source_days = [item for item in source_report.get("days") or [] if isinstance(item, Mapping)]
-    plate_values = sorted(
-        {
-            compact_plate(vehicle.get("plate"))
-            for source_day in source_days
-            for vehicle in source_day.get("vehicles") or []
-            if isinstance(vehicle, Mapping) and compact_plate(vehicle.get("plate"))
-        }
-    )
-    parking_by_plate: Dict[str, list[ParkingSession]] = defaultdict(list)
-    vehicle_by_plate: Dict[str, Dict[str, Any]] = {}
-    if plate_values:
-        query_start = datetime.combine(period_start - timedelta(days=7), time.min)
-        query_end = datetime.combine(period_end, time.min)
-        normalized_session_plate = compact_plate_sql(ParkingSession.car_license_number)
-        async with async_session() as session:
-            parking_rows = (
-                await session.execute(
-                    select(ParkingSession)
-                    .where(normalized_session_plate.in_(plate_values))
-                    .where(ParkingSession.start_time < query_end)
-                    .where(
-                        or_(
-                            ParkingSession.end_time.is_(None),
-                            ParkingSession.end_time >= query_start,
-                        )
-                    )
-                    .order_by(ParkingSession.start_time.asc(), ParkingSession.id.asc())
-                )
-            ).scalars().all()
-            vehicle_rows = (
-                await session.execute(
-                    select(ParkingVehicle, ParkingVehicleDetails)
-                    .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-                    .where(compact_plate_sql(ParkingVehicle.plate).in_(plate_values))
-                )
-            ).all()
-        for parking in parking_rows:
-            plate = compact_plate(parking.car_license_number)
-            if plate:
-                parking_by_plate[plate].append(parking)
-        for vehicle, details in vehicle_rows:
-            plate = compact_plate(vehicle.plate)
-            if plate:
-                vehicle_by_plate[plate] = {
-                    "name": vehicle.navn,
-                    "area": vehicle.omrade,
-                    "title": parking_vehicle_summary(details, vehicle.car_info_data),
-                    "path": f"/parkering/kjoretoy/{quote(vehicle.plate or plate, safe='')}",
-                }
-
-    days: list[dict[str, Any]] = []
-    unique_plates: set[str] = set()
-    observation_count = 0
-    observed_minutes = 0.0
-    excluded_paid_vehicle_days = 0
-    for source_day in source_days:
-        try:
-            day_value = date.fromisoformat(str(source_day.get("date")))
-        except (TypeError, ValueError):
-            continue
-        day_start = datetime.combine(day_value, time.min)
-        day_end = day_start + timedelta(days=1)
-        vehicles: list[dict[str, Any]] = []
-        for source_vehicle in source_day.get("vehicles") or []:
-            if not isinstance(source_vehicle, Mapping):
-                continue
-            plate = compact_plate(source_vehicle.get("plate"))
-            if not plate:
-                continue
-            paid_same_day = any(
-                float_or_zero(parking.fee_inc_vat) > 0
-                and (start_at := normalize_local_naive(parking.start_time)) is not None
-                and start_at < day_end
-                and (
-                    (end_at := normalize_local_naive(parking.end_time)) is None
-                    or end_at >= day_start
-                )
-                for parking in parking_by_plate.get(plate, [])
-            )
-            if paid_same_day:
-                excluded_paid_vehicle_days += 1
-                continue
-            local_vehicle = vehicle_by_plate.get(plate) or {}
-            duration_minutes = float_or_zero(source_vehicle.get("duration_minutes"))
-            observations = int_or_zero(source_vehicle.get("observation_count"))
-            unique_plates.add(plate)
-            observation_count += observations
-            observed_minutes += duration_minutes
-            vehicles.append(
-                {
-                    "id": source_vehicle.get("id") or f"{plate.lower()}-{day_value.isoformat()}",
-                    "plate": plate,
-                    "displayName": source_vehicle.get("display_name") or plate,
-                    "vehicleLabel": local_vehicle.get("title") or source_vehicle.get("vehicle_label") or "Kjøretøy funnet i register",
-                    "ownerName": local_vehicle.get("name"),
-                    "area": local_vehicle.get("area"),
-                    "vehiclePath": local_vehicle.get("path"),
-                    "countryCode": source_vehicle.get("country_code"),
-                    "registrySource": source_vehicle.get("registry_source"),
-                    "firstObservedAt": source_vehicle.get("first_observed_at"),
-                    "lastObservedAt": source_vehicle.get("last_observed_at"),
-                    "durationMinutes": duration_minutes,
-                    "observationCount": observations,
-                    "cameraNames": list(source_vehicle.get("camera_names") or []),
-                }
-            )
-        if vehicles:
-            days.append(
-                {
-                    "date": day_value.isoformat(),
-                    "label": day_value.strftime("%d.%m"),
-                    "weekdayLabel": ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"][day_value.weekday()],
-                    "isWeekend": day_value.weekday() >= 5,
-                    "vehicleCount": len(vehicles),
-                    "observationCount": sum(item["observationCount"] for item in vehicles),
-                    "vehicles": vehicles,
-                }
-            )
 
-    source_policy = source_report.get("policy") if isinstance(source_report.get("policy"), Mapping) else {}
-    source_summary = source_report.get("summary") if isinstance(source_report.get("summary"), Mapping) else {}
-    return {
-        "policy": {
-            "minDurationMinutes": int_or_zero(source_policy.get("min_duration_minutes")) or 10,
-            "countryCodes": list(source_policy.get("country_codes") or ["NO", "SE", "DK"]),
-            "paymentMatch": "same_calendar_day",
-            "label": "Registerfunnet uten betaling",
-            "detail": (
-                "Kjøretøyet er bekreftet i kjøretøyregister for Norge, Sverige eller Danmark, "
-                "er observert i mer enn 10 minutter samme dag og har ingen positiv "
-                "parkeringsbetaling som overlapper kalenderdagen."
-            ),
-        },
-        "summary": {
-            "vehicleDayCount": sum(day["vehicleCount"] for day in days),
-            "activeDays": len(days),
-            "uniqueVehicleCount": len(unique_plates),
-            "observationCount": observation_count,
-            "observedMinutes": round(observed_minutes, 1),
-            "sourceVehicleDayCount": int_or_zero(source_summary.get("vehicle_day_count")),
-            "excludedPaidVehicleDays": excluded_paid_vehicle_days,
-        },
-        "days": days,
-    }
 
 
 
@@ -11873,12 +2417,6 @@ async def unpaid_registered_vehicle_stays_payload(
 
 
 
-def bollard_image_cache_control(kind: str, *, historical: bool = False) -> str:
-    if historical:
-        return "private, max-age=86400, immutable"
-    if kind == "baseline":
-        return "private, max-age=300"
-    return "private, max-age=15, stale-while-revalidate=30"
 
 
 
@@ -11897,1439 +2435,195 @@ def bollard_image_cache_control(kind: str, *, historical: bool = False) -> str:
 
 
 
-def redirect_keep_query(request: Request, target: str, status_code: int = 307) -> RedirectResponse:
-    query = request.url.query
-    if query:
-        separator = "&" if "?" in target else "?"
-        target = f"{target}{separator}{query}"
-    return RedirectResponse(target, status_code=status_code)
-
-
-def redirect_with_query_params(request: Request, target: str, status_code: int = 303, **params: Any) -> RedirectResponse:
-    query = dict(request.query_params)
-    query.update({key: str(value) for key, value in params.items() if value not in (None, "")})
-    if query:
-        separator = "&" if "?" in target else "?"
-        target = f"{target}{separator}{urlencode(query)}"
-    return RedirectResponse(target, status_code=status_code)
-
-
-def should_use_secure_cookie(request: Request) -> bool:
-    return request_is_secure(request)
-
-
-
-
-
-
-
-
-
-
-
-
-def manual_energy_quickapp_report() -> Dict[str, Any]:
-    inventory_dir = Path("outputs/hc3_inventory")
-    inventory_files = sorted(
-        inventory_dir.glob("energy_quickapps_current_*.json"),
-        key=lambda item: item.stat().st_mtime,
-        reverse=True,
-    )
-    snapshot_path = Path("docs/hc3-energy-inventory-current.json")
-    data: Dict[str, Any] = {}
-    inventory_path = ""
-
-    def load_inventory_file(path: Path) -> Dict[str, Any] | None:
-        try:
-            with path.open("r", encoding="utf-8") as handle:
-                loaded = json.load(handle)
-                if isinstance(loaded, dict):
-                    return loaded
-        except (OSError, json.JSONDecodeError) as exc:
-            logger.warning("Kunne ikke lese HC3 energiinventar %s: %s", path.as_posix(), exc)
-        return None
-
-    inventory_candidates = [*inventory_files]
-    if snapshot_path.exists():
-        inventory_candidates.append(snapshot_path)
-    for candidate in inventory_candidates:
-        loaded = load_inventory_file(candidate)
-        if loaded and isinstance(loaded.get("all_devices"), list):
-            data = loaded
-            inventory_path = candidate.as_posix()
-            break
-    if not data:
-        for candidate in inventory_candidates:
-            loaded = load_inventory_file(candidate)
-            if loaded:
-                data = loaded
-                inventory_path = candidate.as_posix()
-                break
-
-    group_meta = {
-        "237": {"category": "Varmepumper", "kind": "Realtime W", "role": "Summerer faktisk effekt fra varmepumper."},
-        "335": {"category": "Varmepumper", "kind": "Akkumulert kWh", "role": "Kontrollverdi for akkumulert energi fra varmepumper."},
-        "305": {"category": "Belysning", "kind": "Realtime W", "role": "Summerer faktisk effekt fra lys og fasadebelysning."},
-        "336": {"category": "Belysning", "kind": "Akkumulert kWh", "role": "Kontrollverdi for akkumulert energi fra lys."},
-        "333": {"category": "Massasje", "kind": "Realtime W", "role": "Summerer effekt fra massasje, bad og varmtvann."},
-        "337": {"category": "Massasje", "kind": "Akkumulert kWh", "role": "Kontrollverdi for akkumulert energi fra massasjegruppen."},
-        "332": {"category": "Annet", "kind": "Realtime W", "role": "Summerer øvrige målte laster som TV, dataskap, ventilasjon, avfukter og Kurs 6."},
-        "328": {"category": "Annet", "kind": "Akkumulert kWh", "role": "Kontrollverdi for akkumulert energi fra øvrige målte laster, inkludert Kurs 6."},
-        "331": {"category": "Differanse", "kind": "Realtime W", "role": "HC3-kontroll. Fibaro10 beregner differanse selv og logger ikke denne som grunnlag."},
-        "334": {"category": "Differanse", "kind": "Akkumulert kWh", "role": "HC3-kontroll. Brukes ikke som grunnlag for Fibaro10-forbruk."},
-    }
-    ordered_group_ids = ["237", "335", "305", "336", "333", "337", "332", "328", "331", "334"]
-    groups_raw = data.get("groups") if isinstance(data.get("groups"), dict) else {}
-    course6_covered_devices = {
-        511: "Vifte VIP ligger bak Kurs 6 og forbruket inngår i 530 realtime / 529 akkumulert sammen med Lys loft massasje og bredbandsruter.",
-        512: "Lys loft massasje ligger bak Kurs 6 og forbruket inngår i 530 realtime / 529 akkumulert sammen med Vifte VIP og bredbandsruter.",
-    }
-
-    included_parents: Dict[int, list[Dict[str, Any]]] = defaultdict(list)
-    accumulated_group_ids = {"335", "336", "337", "328"}
-    realtime_group_ids = {"237", "305", "333", "332"}
-    for group_id in ordered_group_ids:
-        group = groups_raw.get(group_id) if isinstance(groups_raw.get(group_id), dict) else {}
-        for member in group.get("members") or []:
-            if not isinstance(member, dict):
-                continue
-            parent_id = member.get("parentId")
-            if isinstance(parent_id, int) and parent_id > 0:
-                included_parents[parent_id].append(
-                    {
-                        "groupId": group_id,
-                        "groupName": group.get("name") or group_meta.get(group_id, {}).get("category") or group_id,
-                        "kind": group_meta.get(group_id, {}).get("kind", ""),
-                        "memberId": member.get("id"),
-                        "memberName": member.get("name"),
-                    }
-                )
-
-    def meter_value_label(row: Dict[str, Any]) -> str:
-        for key in ("value", "power", "energy"):
-            value = row.get(key)
-            if isinstance(value, (int, float)):
-                return f"{value:g}"
-        return ""
-
-    groups: list[Dict[str, Any]] = []
-    for group_id in ordered_group_ids:
-        raw_group = groups_raw.get(group_id) if isinstance(groups_raw.get(group_id), dict) else {}
-        meta = group_meta[group_id]
-        members = []
-        for member in raw_group.get("members") or []:
-            if not isinstance(member, dict):
-                continue
-            members.append(
-                {
-                    "id": member.get("id"),
-                    "name": member.get("name") or "",
-                    "type": member.get("type") or "",
-                    "room": member.get("room") or "",
-                    "parentId": member.get("parentId"),
-                    "value": meter_value_label(member),
-                    "dead": bool(member.get("dead")),
-                    "visible": member.get("visible"),
-                    "note": "Direkte med i QuickApp-koden.",
-                }
-            )
-        groups.append(
-            {
-                "id": int(group_id),
-                "name": raw_group.get("name") or meta["category"],
-                "category": meta["category"],
-                "kind": meta["kind"],
-                "role": meta["role"],
-                "memberCount": len(members),
-                "ids": raw_group.get("ids") or [member.get("id") for member in members],
-                "members": members,
-            }
-        )
-
-    uncovered: list[Dict[str, Any]] = []
-    for row in data.get("not_in_groups") or []:
-        if not isinstance(row, dict):
-            continue
-        parent_id = row.get("parentId")
-        parent_matches = included_parents.get(parent_id, []) if isinstance(parent_id, int) and parent_id > 0 else []
-        parent_group_ids = {str(item.get("groupId") or "") for item in parent_matches}
-        row_type = str(row.get("type") or "")
-        dead = bool(row.get("dead"))
-        status = "Ikke vurdert"
-        severity = "info"
-        note = ""
-        if dead:
-            status = "Død/utkoblet"
-            severity = "muted"
-            note = "HC3 markerer enheten som død. Den skal ikke legges til uten ny fysisk kontroll."
-        elif row_type.endswith("energyMeter") and parent_group_ids & realtime_group_ids and not (parent_group_ids & accumulated_group_ids):
-            status = "Mangler i akkumulert"
-            severity = "bad"
-            note = "Samme node har realtime-måler i oppsamling, men denne kWh-måleren ligger ikke i akkumulert gruppe."
-        elif "electricMeter" in row_type:
-            status = "Underverdi"
-            severity = "muted"
-            note = "Elektrisk underverdi, typisk spenning/strøm. Skal normalt ikke summeres i forbruk."
-        elif parent_matches:
-            status = "Dekket via node"
-            severity = "ok"
-            note = "Samme Z-Wave-node har en synlig kanal i oppsamling. Denne raden er normalt skjult/master/søskenkanal."
-        else:
-            status = "Ikke med"
-            severity = "warn"
-            note = "Ingen direkte oppsamling funnet. Bør vurderes hvis dette er en aktiv last."
-
-        uncovered.append(
-            {
-                "id": row.get("id"),
-                "name": row.get("name") or "",
-                "type": row_type,
-                "parentId": parent_id,
-                "parentName": row.get("parentName") or "",
-                "value": meter_value_label(row),
-                "status": status,
-                "severity": severity,
-                "coveredBy": ", ".join(
-                    f"{item.get('groupName')} ({item.get('kind')})" for item in parent_matches[:4]
-                ),
-                "note": note,
-                "dead": dead,
-                "visible": row.get("visible"),
-            }
-        )
-
-    gaps = [row for row in uncovered if row.get("severity") in {"bad", "warn"}]
-    uncovered_by_id = {
-        int(row["id"]): row
-        for row in uncovered
-        if isinstance(row.get("id"), int)
-    }
-    direct_by_id: Dict[int, list[Dict[str, Any]]] = defaultdict(list)
-    for group in groups:
-        for member in group.get("members") or []:
-            member_id = member.get("id")
-            if not isinstance(member_id, int):
-                continue
-            direct_by_id[member_id].append(
-                {
-                    "groupId": group.get("id"),
-                    "groupName": group.get("name"),
-                    "kind": group.get("kind"),
-                    "category": group.get("category"),
-                }
-            )
-    quickapp_ids = {int(group_id) for group_id in ordered_group_ids}
-
-    def row_is_energy_like(row: Dict[str, Any]) -> bool:
-        row_type = f"{row.get('type') or ''} {row.get('baseType') or ''}"
-        if any(marker in row_type for marker in ("powerMeter", "energyMeter", "electricMeter")):
-            return True
-        return any(isinstance(row.get(key), (int, float)) for key in ("power", "energy"))
-
-    all_devices: list[Dict[str, Any]] = []
-    for row in data.get("all_devices") or []:
-        if not isinstance(row, dict):
-            continue
-        row_id = row.get("id")
-        parent_id = row.get("parentId")
-        direct_matches = direct_by_id.get(row_id, []) if isinstance(row_id, int) else []
-        parent_matches = included_parents.get(parent_id, []) if isinstance(parent_id, int) and parent_id > 0 else []
-        uncovered_row = uncovered_by_id.get(row_id) if isinstance(row_id, int) else None
-        status = "Ikke energi"
-        severity = "muted"
-        note = "Ikke relevant for energisummering."
-        covered_by = ""
-        group_label = ""
-
-        if isinstance(row_id, int) and row_id in quickapp_ids:
-            status = "QuickApp"
-            severity = "info"
-            note = "Summerende HC3 QuickApp."
-        elif direct_matches:
-            status = "Med i oppsamling"
-            severity = "ok"
-            note = "Direkte medlem i QuickApp-kode."
-            group_label = ", ".join(
-                f"{item.get('groupName')} ({item.get('kind')})" for item in direct_matches[:4]
-            )
-            covered_by = group_label
-        elif isinstance(row_id, int) and row_id in course6_covered_devices:
-            status = "Dekket av Kurs 6"
-            severity = "ok"
-            note = course6_covered_devices[row_id]
-            covered_by = "Annet R (530 Kurs 6), Annet A (529 Kurs 6)"
-        elif uncovered_row:
-            status = str(uncovered_row.get("status") or "Ikke med")
-            severity = str(uncovered_row.get("severity") or "info")
-            note = str(uncovered_row.get("note") or "")
-            covered_by = str(uncovered_row.get("coveredBy") or "")
-        elif parent_matches:
-            status = "Samme node"
-            severity = "muted"
-            note = "Samme Z-Wave-node har kanal i oppsamling."
-            covered_by = ", ".join(
-                f"{item.get('groupName')} ({item.get('kind')})" for item in parent_matches[:4]
-            )
-        elif row_is_energy_like(row):
-            status = "Ikke med"
-            severity = "warn"
-            note = "Energi-/effektenhet uten oppsamlingstreff."
-
-        all_devices.append(
-            {
-                "id": row_id,
-                "name": row.get("name") or "",
-                "type": row.get("type") or "",
-                "baseType": row.get("baseType") or "",
-                "room": row.get("room") or "",
-                "parentId": parent_id,
-                "parentName": row.get("parentName") or "",
-                "value": meter_value_label(row),
-                "status": status,
-                "severity": severity,
-                "groups": group_label,
-                "coveredBy": covered_by,
-                "note": note,
-                "dead": bool(row.get("dead")),
-                "visible": row.get("visible"),
-                "enabled": row.get("enabled"),
-            }
-        )
-
-    direct_member_count = sum(group["memberCount"] for group in groups if group["id"] not in {331, 334})
-    quickapp_count = len([group for group in groups if group["id"] not in {331, 334}])
-    diff_count = len([group for group in groups if group["id"] in {331, 334}])
-    bad_gap_count = len([row for row in gaps if row.get("severity") == "bad"])
-
-    findings = [
-        {
-            "title": "Hovedstatus",
-            "text": (
-                f"{quickapp_count} summerende QuickApps er kontrollert: realtime og akkumulert for varmepumper, "
-                "belysning, massasje og annet. Rapporten viser også komplett HC3-enhetsliste fra /api/devices."
-            ),
-        },
-        {
-            "title": "Reell mangel",
-            "text": (
-                f"{bad_gap_count} måler peker seg ut som reell mangel. Se listen under for hvilke målere som bør vurderes."
-                if bad_gap_count
-                else "Ingen reelle hull ble funnet i siste inventar."
-            ),
-        },
-        {
-            "title": "Ikke direkte med",
-            "text": (
-                "Listen over ikke direkte med inneholder også skjulte masterkanaler, spenning/strøm-underenheter "
-                "og døde noder. De skal normalt ikke legges inn i summeringen fordi det kan gi dobbeltelling."
-            ),
-        },
-        {
-            "title": "Differanse",
-            "text": (
-                f"{diff_count} differanse-QuickApps finnes i HC3 som kontroll, men Fibaro10 bruker egne beregninger "
-                "fra 30-sekunders realtime samples som forbruksgrunnlag."
-            ),
-        },
-    ]
-
-    return {
-        "createdAt": data.get("created_at") or "",
-        "inventoryFile": inventory_path,
-        "summary": {
-            "quickApps": quickapp_count,
-            "diffQuickApps": diff_count,
-            "directMembers": direct_member_count,
-            "notDirectlyIncluded": len(uncovered),
-            "gaps": len(gaps),
-            "realGaps": bad_gap_count,
-            "energyDevices": data.get("energy_device_count"),
-            "allDevices": len(all_devices) or data.get("all_device_count"),
-        },
-        "findings": findings,
-        "groups": groups,
-        "gaps": gaps,
-        "notDirectlyIncluded": uncovered,
-        "allDevices": all_devices,
-    }
-
-
-def admin_manual_payload() -> Dict[str, Any]:
-    economy_areas = [
-        {
-            "title": "Omsetning",
-            "marker": "OM",
-            "tone": "revenue",
-            "path": "/omsetning/",
-            "purpose": "Samler økonomien på tvers av parkering og soling, med sammenligninger på samme datagrunnlag og tidspunkt.",
-            "canSee": [
-                "omsetning hittil i dag, uke, måned og år",
-                "sammenligning mot relevante referanseperioder",
-                "toppdager, toppuker og toppmåneder",
-                "månedsoversikt og årssammenligning",
-            ],
-            "canDo": ["følge utvikling gjennom dagen", "sammenligne perioder", "gå fra total til parkering eller soling"],
-        },
-        {
-            "title": "Parkering",
-            "marker": "P",
-            "tone": "parking",
-            "path": "/parkering/parkeringer",
-            "purpose": "Viser EasyPark/Flowbird-grunnlaget, kjøretøy, betaling, områder og historikk per bil.",
-            "canSee": [
-                "dagens parkeringer, pågående og avsluttede",
-                "kjøretøyinfo, eier, område, bilmerke, type og farge",
-                "UniFi Protect-lenker for start og slutt",
-                "oppgjør, prognose, årsutvikling, ukesnitt og tidspunktfordeling",
-            ],
-            "canDo": ["oppdatere EasyPark", "søke etter bil/eier", "kontrollere område og biloppslag", "åpne bilhistorikk"],
-        },
-        {
-            "title": "Soling",
-            "marker": "S",
-            "tone": "sun",
-            "path": "/soling/dagslinje",
-            "purpose": "Viser SUN2-data, enkelttimer, produkter, senger, medlemmer, bilder og oppgjør.",
-            "canSee": [
-                "dagslinje per rom og seng",
-                "enkeltimer med SUN2-ID, rom, bilde og betaling",
-                "produktsalg og oppgjørskontroll",
-                "årssammenligning, prognoser og statistikk",
-                "bildearkiv fra Axis knyttet til soltimer",
-            ],
-            "canDo": ["bla i bilder", "sette hovedbilde", "kontrollere romkobling", "sjekke produkter og medlemmer"],
-        },
-        {
-            "title": "Koble",
-            "marker": "K",
-            "tone": "link",
-            "path": "/koble/",
-            "purpose": "Finner sannsynlige koblinger mellom bilnummer og SUN2-ID når samme mønster skjer flere ganger.",
-            "canSee": [
-                "kandidater der samme bil og SUN2-ID matcher minst to parkeringer",
-                "hvor mange parkeringer som har soltreff",
-                "hvilke biler som peker mot samme SUN2-ID",
-                "jobbstatus og parametere for koblingsmotoren",
-            ],
-            "canDo": ["bekrefte eller avvise koblinger", "justere parametere", "starte jobben på nytt fra nyeste parkering"],
-        },
-    ]
-
-    operations_areas = [
-        {
-            "title": "Energi",
-            "marker": "EL",
-            "tone": "energy",
-            "path": "/energi/",
-            "purpose": "Samler sanntidseffekt fra HC3, kurser, laster, Elvia-kontroll og solsengforbruk.",
-            "canSee": ["inntak, varmepumper, belysning, massasje, annet og diff", "kurser og målere", "Elvia mot HC3", "forbruk per seng"],
-            "canDo": ["kontrollere strømavvik", "importere Elvia", "beregne forbruk per seng", "vedlikeholde laster og kursinfo"],
-        },
-        {
-            "title": "Bygg",
-            "marker": "DR",
-            "tone": "building",
-            "path": "/bygg/",
-            "purpose": "Samler ventilasjon, klima og lys i én fagapp.",
-            "canSee": ["driftsstatus for ventilasjon og lys", "temperatur, fukt, vær og vifter", "lux og styringshendelser"],
-            "canDo": ["åpne fagdetaljer", "kontrollere måleverdier", "endre godkjente innstillinger", "følge historikk"],
-        },
-        {
-            "title": "Renhold",
-            "marker": "R",
-            "tone": "building",
-            "path": "/renhold/",
-            "purpose": "Samler robotstatus, planer, nattjobber, vann og renholdslogger.",
-            "canSee": ["status for alle roboter", "planlagte og gjennomførte jobber", "batteri, vann, dokk og forbruksdeler"],
-            "canDo": ["starte manuelle jobber", "kontrollere nattplan", "vedlikeholde profiler", "følge vannstatus"],
-        },
-        {
-            "title": "Kontroll",
-            "marker": "K",
-            "tone": "admin",
-            "path": "/kontroll/",
-            "purpose": "Samler dører, solrom, alarmer og fysisk kontroll av pullerter og fasade.",
-            "canSee": ["dør- og solromstatus", "alarmer og avvik", "pullert-, trapp- og fasadekontroll"],
-            "canDo": ["åpne hendelser", "kontrollere bilder", "følge alarmhistorikk", "kvittere avvik"],
-        },
-        {
-            "title": "Vedlikehold",
-            "marker": "VD",
-            "tone": "maintenance",
-            "path": "/vedlikehold/",
-            "purpose": "Logger besøk på Lilletorget og oppgavene som blir gjort under hvert besøk.",
-            "canSee": ["besøk fra OwnTracks/Lilletorget", "oppgaver per besøk", "notater, tagger, oppfølging og status"],
-            "canDo": ["redigere besøk", "skrive notat", "legge til eller endre oppgaver", "følge opp åpne punkter"],
-        },
-        {
-            "title": "Operasjonssentral",
-            "marker": "OP",
-            "tone": "admin",
-            "path": "/operasjon/",
-            "purpose": "Samler hendelser, datakvalitet, kontroller og oppfølging som krever handling.",
-            "canSee": ["prioritert arbeidskø", "kritiske hendelser", "operative kontroller", "behandlet historikk"],
-            "canDo": ["kvittere og kommentere hendelser", "finne datakvalitetsfeil", "søke på tvers av løsningen"],
-        },
-        {
-            "title": "Eiendeler og rapporter",
-            "marker": "ER",
-            "tone": "admin",
-            "path": "/eiendeler/",
-            "purpose": "Gir teknisk eiendelsregister og samlet inngang til operative og økonomiske rapporter.",
-            "canSee": ["utstyr, plassering, modell og service", "garanti og vedlikeholdsintervall", "rapportkatalog med direkte faglenker"],
-            "canDo": ["vedlikeholde eiendeler", "synkronisere kjente enheter", "åpne rapporter i riktig fagapp"],
-        },
-    ]
-
-    system_areas = [
-        {
-            "title": "Manual",
-            "marker": "M",
-            "tone": "manual",
-            "path": "/system/manual",
-            "purpose": "Egen dokumentasjonsdel med forklaring av hovedområder, datakilder, rutiner og feilsøking.",
-            "canSee": ["kapitteldelt manual", "menyforklaringer", "daglige rutiner", "datagrunnlag og feilsøking"],
-            "canDo": ["slå opp hvordan en side brukes", "finne riktig startpunkt", "følge kontrollrutiner"],
-        },
-        {
-            "title": "System",
-            "marker": "SY",
-            "tone": "admin",
-            "path": "/system/",
-            "purpose": "Drifts- og administrasjonsområde for datakilder, jobber, buildlogg, brukere, manual og systemkart.",
-            "canSee": ["datakilder", "buildlogg", "systemkart", "brukere", "teknisk drift", "AI og verktøy"],
-            "canDo": ["feilsøke tjenester", "kontrollere tilgang", "finne URL-er og health", "lese hva som er endret"],
-        },
-    ]
-
-    return {
-        "build": APP_BUILD,
-        "title": "Lilletorget manual",
-        "description": "Gjeldende bruker- og driftsmanual for Mantis-appene på app.lilletorget.net. Fibaro10 er kjerne/API.",
-        "chapters": [
-            {
-                "id": "hva-losningen-er",
-                "number": "01",
-                "title": "Hva løsningen er",
-                "paragraphs": [
-                    "Den gjeldende brukerflaten er tretten Mantis-apper under https://app.lilletorget.net. Appene deler innlogging, design og navigasjonsprinsipper, men er delt etter fagområde.",
-                    "Fibaro10-kjernen eier API, forretningsregler, database, jobber og integrasjoner. API-adapterne avgrenser tilgangen for hver Mantis-app og har ingen egne desktopflater.",
-                ],
-                "principles": [
-                    {"marker": "DB", "title": "Database først", "text": "Appen viser normalt data fra egen database, ikke direkte fra tredjepart i øyeblikket."},
-                    {"marker": "OK", "title": "Datakilder er fasit", "text": "Når tall virker feil, kontroller først om kilden faktisk har levert ferske data."},
-                    {"marker": "SPOR", "title": "Alt skal kunne spores", "text": "Systemkart, buildlogg og oppgjør gjør det mulig å finne kilde, endring og kontrollgrunnlag."},
-                ],
-            },
-            {
-                "id": "daglig-bruk",
-                "number": "02",
-                "title": "Slik bruker du den daglig",
-                "startLinks": [
-                    {"label": "Omsetning", "path": "/omsetning/", "note": "Dagens økonomiske status og relevante sammenligninger."},
-                    {"label": "Operasjonssentral", "path": "/operasjon/", "note": "Hendelser og avvik som krever oppfølging."},
-                    {"label": "Datakilder", "path": "/system/datakilder", "note": "Første stopp når tall mangler eller virker gamle."},
-                    {"label": "Systemkart", "path": "/system/systemkart", "note": "Apper, tjenester, URL-er og avhengigheter."},
-                    {"label": "Buildlogg", "path": "/system/build", "note": "Hva som er endret, hvorfor og hvordan det ble testet."},
-                ],
-                "flow": [
-                    {"title": "Start med Omsetning", "text": "Se om parkering, soling og totalsum ligger normalt an."},
-                    {"title": "Gå til fagområdet", "text": "Åpne parkering, soling, energi, lys, ventilasjon eller dører for forklaringen."},
-                    {"title": "Sjekk datakilden", "text": "Hvis noe ikke stemmer, kontroller alder og melding før du tolker tallene."},
-                    {"title": "Bruk buildlogg", "text": "Hvis noe oppfører seg annerledes enn før, se hvilken build som endret det."},
-                ],
-            },
-            {
-                "id": "menyvalg",
-                "number": "03",
-                "title": "Menyvalg",
-                "menuGroups": [
-                    {"title": "Omsetning", "path": "/omsetning/", "text": "Dashboard, oversikt, måned, år og periodesammenligning."},
-                    {"title": "Parkering", "path": "/parkering/", "text": "Parkeringer, kjøretøy, oppgjør, analyse, prognose og datakvalitet."},
-                    {"title": "Soling", "path": "/soling/", "text": "Soltimer, bilder, dagslinje, senger, medlemmer, produkter, oppgjør og analyse."},
-                    {"title": "Koble", "path": "/koble/", "text": "Kandidater og kontroll av koblinger mellom bilnummer og SUN2-ID."},
-                    {"title": "Bygg", "path": "/bygg/", "text": "Ventilasjon, klima, lys og styringshendelser."},
-                    {"title": "Renhold", "path": "/renhold/", "text": "Roboter, planer, jobber, vann og renholdslogger."},
-                    {"title": "Kontroll", "path": "/kontroll/", "text": "Dører, solrom, alarmer, pullerter og fysisk kontroll."},
-                    {"title": "Energi", "path": "/energi/", "text": "Sanntidsstatus, Elvia, kurs/last, målere og solsengforbruk."},
-                    {"title": "Vedlikehold", "path": "/vedlikehold/", "text": "Oppgaver, besøk, notater og redigering."},
-                    {"title": "Operasjonssentral", "path": "/operasjon/", "text": "Arbeidskø, kritiske hendelser, datakvalitet, automatisering og søk."},
-                    {"title": "Eiendeler", "path": "/eiendeler/", "text": "Teknisk register med plassering, modell, service og garanti."},
-                    {"title": "Rapporter", "path": "/rapporter/", "text": "Samlet inngang til operative, økonomiske og tekniske rapporter."},
-                    {"title": "System", "path": "/system/", "text": "Datakilder, jobber, brukere, buildlogg, varslinger, verktøy og manual."},
-                ],
-                "note": "Menyvalgene er organisert etter fagområde. Dashboard er status først, fagmenyene forklarer tallene, og Admin brukes til drift, kontroll og systemforståelse.",
-            },
-            {"id": "okonomi", "number": "04", "title": "Økonomi", "areas": economy_areas},
-            {"id": "bygg-drift", "number": "05", "title": "Bygg og drift", "areas": operations_areas},
-            {
-                "id": "system-underapper",
-                "number": "06",
-                "title": "System og underapper",
-                "areas": system_areas,
-                "subapps": [
-                    {"title": "Varslinger", "text": "Alle ntfy-abonnementer finnes samlet under System -> Varslinger.", "path": "/system/varslinger"},
-                    {"title": "Undersystemer", "text": "Alle klikkbare systemflater og interne tjenester finnes under System -> Undersystemer.", "path": "/system/undersystemer"},
-                    {"title": "Mantis", "text": "Gjeldende brukerflate med tretten fagapper på app.lilletorget.net."},
-                    {"title": "Fibaro10", "text": "FastAPI-kjerne, database, autentisering, forretningsregler og bakgrunnsjobber."},
-                    {"title": "lilletorget_kiosk", "text": "Fast statusflate for robotrenhold på kiosk.lilletorget.net."},
-                    {"title": "online_dashboard", "text": "Ekstern mobilvisning på online.lilletorget.net."},
-                    {"title": "maintenance_mobile", "text": "Mobil vedlikeholdsapp på vedl.lilletorget.net."},
-                    {"title": "alarm_mobile", "text": "Mobil alarm- og kontrollflate på alarm.lilletorget.net."},
-                    {"title": "owntracks_service", "text": "Lokasjon, waypoints og sonebesøk på owntracks.lilletorget.net."},
-                    {"title": "axis_camera_snapshots", "text": "Henter og rydder Axis-bilder til soltimer."},
-                    {"title": "sun2_session_scraper", "text": "Henter SUN2 enkelttimer, produkter, senger og medlemmer."},
-                    {"title": "easypark_downloader", "text": "Henter EasyPark-data og holder parkeringsgrunnlaget oppdatert."},
-                    {"title": "parking_sun_linker", "text": "Bakgrunnsmotor for kobling mellom parkering og SUN2-ID."},
-                    {"title": "roborock_logger / dreame_logger", "text": "Separate tjenester for robotstatus, telemetri, planer og vaskehistorikk."},
-                ],
-            },
-            {
-                "id": "datagrunnlag",
-                "number": "07",
-                "title": "Datagrunnlag",
-                "dataSources": [
-                    {"title": "HC3", "text": "Poster energi, lys, ventilasjon og dørhendelser inn i Fibaro10."},
-                    {"title": "EasyPark/Flowbird", "text": "Gir parkeringsgrunnlag, kilder, betalinger, tidspunkt og oppgjørskontroll."},
-                    {"title": "SUN2", "text": "Gir soltimer, produkter, medlemmer, senger, rom og økonomigrunnlag."},
-                    {"title": "Axis", "text": "Leverer snapshots som kobles til soltimer og bildearkiv."},
-                    {"title": "UniFi Protect", "text": "Gir tidslenker, hendelser og bilder til parkering og fysisk kontroll."},
-                    {"title": "Yr", "text": "Gir vær, temperatur, fukt, vind, skydekke og nedbør til analyse og styring."},
-                    {"title": "Elvia", "text": "Manuell import som brukes som kontroll mot HC3-forbruk."},
-                    {"title": "Roborock og Dreame", "text": "Logger roboter, telemetri, vannstatus, planer og vaskehistorikk."},
-                    {"title": "OwnTracks", "text": "Egen tjeneste for lokasjon, waypoints og besøk på kjente steder."},
-                    {"title": "Kjøretøyoppslag", "text": "SVV brukes først, deretter svenske og danske oppslag for aktuelle registreringsnumre."},
-                    {"title": "Lokal visuell analyse", "text": "Faste utsnitt og lokal modell brukes som støtte ved kontroll av pullerter, fasade og trapp."},
-                    {"title": "HC3 energioppsamlinger", "text": "Detaljert rapport over QuickApps, målte medlemmer og målere som ikke er direkte med.", "path": "/system/manual/hc3-energi"},
-                ],
-                "note": "Bruk System -> Datakilder for operativ status, System -> Undersystemer for webflater og System -> Systemkart for avhengigheter.",
-            },
-            {
-                "id": "hc3-energi",
-                "number": "08",
-                "title": "HC3 energioppsamlinger",
-                "energyQuickappReport": manual_energy_quickapp_report(),
-                "note": "Rapporten bygger på siste avleste HC3-inventar i outputs/hc3_inventory. Den skiller mellom reelle hull og underenheter som ikke skal summeres direkte.",
-            },
-            {
-                "id": "rutiner",
-                "number": "09",
-                "title": "Rutiner og kontroll",
-                "checklists": [
-                    {"title": "Daglig økonomi", "path": "/omsetning/", "text": "Sjekk omsetning hittil i dag, referanseperioder og tidspunkt for siste parkerings- og soloppdatering."},
-                    {"title": "Daglig parkering", "path": "/parkering/parkeringer", "text": "Sjekk dagens parkeringer, pågående parkeringer, nye kjøretøy, manglende område og om EasyPark er oppdatert."},
-                    {"title": "Daglig soling", "path": "/soling/dagslinje", "text": "Sjekk dagslinje, enkelttimer, bilder og eventuelle rom som ikke passer med dør/strøm."},
-                    {"title": "Drift gjennom dagen", "path": "/system/datakilder", "text": "Hvis noe virker feil, sjekk datakildene før du tolker tallene. Alder og sist OK er viktigere enn grafen når data er gamle."},
-                    {"title": "Operative hendelser", "path": "/operasjon/", "text": "Følg opp åpne hendelser, kritiske avvik og datakvalitet i prioritert rekkefølge."},
-                    {"title": "Ukentlig kontroll", "path": "/omsetning/sammenligning", "text": "Bruk periodesammenligning og årssammenligning for å se om ukeutviklingen er logisk på soling, parkering og samlet omsetning."},
-                    {"title": "Månedlig kontroll", "path": "/omsetning/oversikt", "text": "Kontroller månedstall, parkering oppgjør, soling oppgjør, Elvia mot HC3 og eventuelle avvik før tall brukes videre."},
-                    {"title": "Vedlikehold", "path": "/vedlikehold/besok", "text": "Kontroller at besøk fra OwnTracks er registrert, og at oppgaver ligger på riktig besøk."},
-                    {"title": "Etter endringer", "path": "/system/build", "text": "Les buildlogg for siste endring. Den skal vise bestilling, berørte apper, tester og deploy."},
-                ],
-                "note": "Bruk denne delen som arbeidsgang: start bredt, gå til fagområdet, sjekk datakilde, og bruk buildlogg når atferd har endret seg.",
-            },
-            {
-                "id": "feilsoking",
-                "number": "10",
-                "title": "Feilsøking",
-                "troubleshooting": [
-                    {"title": "Tall mangler eller virker gamle", "path": "/system/datakilder", "text": "Sjekk sist OK, alder, melding og neste planlagte jobb før du vurderer grafen."},
-                    {"title": "Parkering stemmer ikke", "path": "/parkering/parkeringer", "text": "Sjekk EasyPark-import, dagens liste, kilde og oppgjør."},
-                    {"title": "Soling stemmer ikke", "path": "/soling/enkeltimer", "text": "Sjekk enkelttimer, dagslinje, produkter, bildearkiv og SUN2-scraper."},
-                    {"title": "Strøm avviker", "path": "/energi/elvia-kontroll", "text": "Sammenlign HC3 og Elvia, og se etter hull eller nullstilling på målere."},
-                    {"title": "Lys eller ventilasjon virker feil", "path": "/bygg/", "text": "Sjekk dagslogg, vær, måleverdier, hendelser og gjeldende innstillinger."},
-                    {"title": "Robot eller nattjobb virker feil", "path": "/renhold/rapport", "text": "Sjekk plan, faktisk jobb, batteri, dokkperioder, vannstatus og telemetri."},
-                    {"title": "Underapp svarer ikke", "path": "/system/systemkart", "text": "Åpne riktig tjeneste, health-lenke og avhengighetsoversikt."},
-                ],
-                "note": "Praktisk regel: feilsøk først om datagrunnlaget er ferskt, deretter om faglogikken er riktig, og til slutt om visningen/grafen presenterer tallene feil.",
-            },
-        ],
-    }
-
-
-
-
-
-
-
-
-def operational_incident_review_payload(row: OperationalIncidentReview) -> Dict[str, Any]:
-    return {
-        "status": row.status,
-        "note": row.note or "",
-        "reviewed_at": row.reviewed_at,
-        "reviewed_by": row.reviewed_by,
-    }
-
-
-def read_operational_status_file(path: Path) -> dict[str, str]:
-    try:
-        return parse_status_text(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError):
-        return {}
-
-
-def import_incident_recommended_action(row: Mapping[str, Any]) -> str:
-    status_text = str(row.get("status_text") or "").casefold()
-    if "feil" in status_text:
-        return "Åpne datakilden, les siste feilmelding og kjør jobben på nytt når årsaken er rettet."
-    if "mangler" in status_text:
-        return "Kontroller at kilden er konfigurert og at første vellykkede import er gjennomført."
-    return "Kontroller tidsplan, avhengigheter og siste vellykkede kjøring før tallene brukes."
-
-
-def backup_incident_from_control(control: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
-    status = str(control.get("status") or "unknown")
-    if status == "ok":
-        return None
-    observed_at = control.get("updatedAt") or datetime(2000, 1, 1)
-    return operational_incident(
-        key=f"backup:{control.get('key')}",
-        domain="Backup",
-        title=str(control.get("title") or "Backup"),
-        detail=str(control.get("detail") or "Backupstatus må kontrolleres."),
-        severity="critical" if status == "critical" else "warning",
-        source="QNAP backup",
-        started_at=observed_at,
-        observed_at=observed_at,
-        recommended_action="Kontroller siste statusfil, diskplass og backupjobben før neste planlagte kjøring.",
-        path=str(control.get("path") or "/manual/oversikt"),
-    )
-
-
-async def build_operational_incident_center(
-    session,
-    now_dt: datetime,
-    bollard_status: Optional[Mapping[str, Any]],
-    bollard_error: Optional[str],
-    bollard_error_started_at: Optional[datetime],
-) -> Dict[str, Any]:
-    import_rows = await import_status_rows(session)
-    delivery = await notification_outbox_status(session)
-    controls: list[Dict[str, Any]] = []
-    incidents: list[Dict[str, Any]] = []
-
-    bad_sources = [row for row in import_rows if row.get("status") == "bad"]
-    warning_sources = [row for row in import_rows if row.get("status") == "warn"]
-    source_control_status = "critical" if bad_sources else "warning" if warning_sources else "ok"
-    controls.append(
-        {
-            "key": "data-sources",
-            "title": "Datakilder",
-            "status": source_control_status,
-            "statusLabel": "OK" if source_control_status == "ok" else "Feil" if bad_sources else "Kontroller",
-            "detail": f"{len(import_rows) - len(bad_sources) - len(warning_sources)}/{len(import_rows)} OK; {len(warning_sources)} trege; {len(bad_sources)} feil eller gamle.",
-            "updatedAt": api_local_iso(now_dt),
-            "path": "/admin/datakilder",
-        }
-    )
-    for row in bad_sources + warning_sources:
-        status = str(row.get("status") or "bad")
-        started_at = row.get("last_failed_at") or row.get("last_run_at") or row.get("last_success_at")
-        if status == "warn" and row.get("last_success_at") and row.get("expected_interval_minutes"):
-            started_at = row["last_success_at"] + timedelta(minutes=int(row["expected_interval_minutes"]))
-        started_at = started_at or datetime(2000, 1, 1)
-        detail_parts = [str(row.get("status_text") or "Datakilden må kontrolleres")]
-        if row.get("age"):
-            detail_parts.append(f"alder {row['age']}")
-        if row.get("message"):
-            detail_parts.append(str(row["message"]))
-        incidents.append(
-            operational_incident(
-                key=f"source:{row.get('job_name')}",
-                domain="Datakilder",
-                title=str(row.get("title") or row.get("job_name") or "Datakilde"),
-                detail=" · ".join(detail_parts),
-                severity="critical" if status == "bad" else "warning",
-                source=str(row.get("source") or row.get("category") or "Import"),
-                started_at=started_at,
-                observed_at=row.get("last_failed_at") or row.get("last_run_at") or row.get("last_success_at"),
-                recommended_action=import_incident_recommended_action(row),
-                path=f"/admin/datakilder/{quote(str(row.get('job_name') or ''))}",
-                metadata={"status": status, "sourceNo": row.get("source_no")},
-            )
-        )
-
-    nightly_control = backup_control(
-        key="nightly-backup",
-        title="Nattbackup",
-        values=read_operational_status_file(NIGHTLY_BACKUP_STATUS_PATH),
-        now=now_dt,
-        warning_after_hours=24,
-        critical_after_hours=26,
-    )
-    restore_control = backup_control(
-        key="full-restore-backup",
-        title="Gjenopprettingsbackup",
-        values=read_operational_status_file(FULL_BACKUP_STATUS_PATH),
-        now=now_dt,
-        warning_after_hours=48,
-        critical_after_hours=49,
-    )
-    controls.extend([nightly_control, restore_control])
-    incidents.extend(
-        incident
-        for incident in (
-            backup_incident_from_control(nightly_control),
-            backup_incident_from_control(restore_control),
-        )
-        if incident is not None
-    )
-
-    delivery_status = str(delivery.get("status") or "ok")
-    controls.append(
-        {
-            "key": "notification-delivery",
-            "title": "Varselutsending",
-            "status": "warning" if delivery_status == "warning" else "ok",
-            "statusLabel": "Kontroller" if delivery_status == "warning" else "OK",
-            "detail": f"{int_or_zero(delivery.get('pending'))} venter; {int_or_zero(delivery.get('retrying'))} prøves på nytt.",
-            "updatedAt": delivery.get("oldestPendingAt"),
-            "path": "/varslinger/oversikt",
-        }
-    )
-    if int_or_zero(delivery.get("retrying")):
-        incidents.append(
-            operational_incident(
-                key="notifications:delivery-retry",
-                domain="Varslinger",
-                title="Varsler prøves på nytt",
-                detail=f"{int_or_zero(delivery.get('retrying'))} varsler ligger i retry-kø.",
-                severity="warning",
-                source="ntfy-utkø",
-                started_at=delivery.get("oldestPendingAt") or now_dt,
-                observed_at=now_dt,
-                recommended_action="Kontroller ntfy-tilgang og siste feilmelding dersom køen ikke tømmes automatisk.",
-                path="/varslinger/oversikt",
-            )
-        )
-
-    door_rows = (
-        await session.execute(
-            select(AlarmEvent)
-            .where(AlarmEvent.domain == "doors", AlarmEvent.status == "active")
-            .order_by(AlarmEvent.detected_at.desc(), AlarmEvent.id.desc())
-        )
-    ).scalars().all()
-    for row in door_rows:
-        incidents.append(
-            operational_incident(
-                key=f"door:{row.event_key}",
-                domain="Dører",
-                title=row.title,
-                detail=row.detail or "Aktiv døralarm.",
-                severity="critical" if row.severity == "alert" else "warning",
-                source="Solromkontroll",
-                started_at=row.detected_at,
-                observed_at=row.last_observed_at,
-                recommended_action="Kontroller rommet og den tilhørende soltimen. Alarmen løses automatisk når tilstanden opphører.",
-                path=f"/dorer/alarm?alarm={row.id}",
-                metadata={"alarmId": row.id, "notificationStatus": row.notification_status},
-            )
-        )
-
-    bollard_incidents = list((bollard_status or {}).get("incidents") or [])
-    active_bollards = [
-        row for row in bollard_incidents if str(row.get("status") or "").strip().lower() in {"active", "acknowledged"}
-    ]
-    if bollard_error:
-        controls.append(
-            {
-                "key": "bollards",
-                "title": "Pullertkontroll",
-                "status": "critical",
-                "statusLabel": "Feil",
-                "detail": bollard_error,
-                "updatedAt": api_local_iso(now_dt),
-                "path": "/pullerter/oversikt",
-            }
-        )
-        incidents.append(
-            operational_incident(
-                key="bollards:service-unavailable",
-                domain="Pullerter",
-                title="Pullertkontrollen svarer ikke",
-                detail=bollard_error,
-                severity="critical",
-                source="Protect Ledger",
-                started_at=bollard_error_started_at or now_dt,
-                observed_at=now_dt,
-                recommended_action="Åpne pullertoversikten og kontroller Protect Ledger-tjenesten og kameraene.",
-                path="/pullerter/oversikt",
-            )
-        )
-    else:
-        runtime = dict((bollard_status or {}).get("runtime") or {})
-        ready = bool(dict((bollard_status or {}).get("summary") or {}).get("monitoring_ready"))
-        control_status = "critical" if not runtime.get("running", True) or not ready else "warning" if active_bollards else "ok"
-        controls.append(
-            {
-                "key": "bollards",
-                "title": "Pullertkontroll",
-                "status": control_status,
-                "statusLabel": "OK" if control_status == "ok" else "Kontroller" if control_status == "warning" else "Feil",
-                "detail": f"{len(active_bollards)} aktive hendelser; siste kontroll {runtime.get('last_success_at') or runtime.get('last_run_at') or '-'}.",
-                "updatedAt": runtime.get("last_success_at") or runtime.get("last_run_at"),
-                "path": "/pullerter/oversikt",
-            }
-        )
-        for row in active_bollards:
-            severity = str(row.get("severity") or "warning").lower()
-            incidents.append(
-                operational_incident(
-                    key=f"bollard:{row.get('incident_id')}",
-                    domain="Pullerter",
-                    title=str(row.get("display_name") or "Visuell endring"),
-                    detail="Bekreftet visuell endring som fortsatt er aktiv.",
-                    severity="critical" if severity in {"critical", "alert", "high"} else "warning",
-                    source="Protect Ledger",
-                    started_at=row.get("detected_at") or now_dt,
-                    observed_at=row.get("last_observed_at") or row.get("detected_at"),
-                    recommended_action="Sammenlign referanse og siste bilde, og kvitter hendelsen etter fysisk eller visuell kontroll.",
-                    path="/pullerter/oversikt",
-                    metadata={"incidentId": row.get("incident_id")},
-                )
-            )
-
-    review_rows = (await session.execute(select(OperationalIncidentReview))).scalars().all()
-    review_by_key = {row.incident_key: operational_incident_review_payload(row) for row in review_rows}
-    reviewed_incidents = apply_incident_reviews(incidents, review_by_key)
-    return {
-        "summary": incident_summary(reviewed_incidents),
-        "controls": controls,
-        "incidents": reviewed_incidents,
-        "delivery": delivery,
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-async def admin_keys_context(
-    request: Request,
-    session,
-    created_username: str = "",
-    created_key: str = "",
-    error: str = "",
-) -> Dict[str, Any]:
-    key_rows = (await session.execute(select(AccessKey).order_by(AccessKey.created_at.desc()))).scalars().all()
-    selected_key = None
-    try:
-        selected_key_id = int(request.query_params.get("key_id") or "0")
-    except ValueError:
-        selected_key_id = 0
-    if selected_key_id:
-        selected_key = next((key for key in key_rows if key.id == selected_key_id), None)
-
-    log_query = select(AccessLog).order_by(AccessLog.timestamp.desc()).limit(200)
-    if selected_key:
-        log_query = (
-            select(AccessLog)
-            .where((AccessLog.access_key_id == selected_key.id) | (AccessLog.key_name == selected_key.name))
-            .order_by(AccessLog.timestamp.desc())
-            .limit(200)
-        )
-    log_rows = (await session.execute(log_query)).scalars().all()
-    return {
-        "keys": key_rows,
-        "logs": log_rows,
-        "selected_key": selected_key,
-        "created_username": created_username,
-        "created_key": created_key,
-        "error": error,
-        "ntfy_access_subscribe_url": ntfy_subscribe_url(NTFY_ACCESS_TOPIC, "SUN2 tilgang"),
-        "ntfy_access_web_url": ntfy_topic_url(NTFY_ACCESS_TOPIC),
-        "ntfy_access_cooldown_minutes": int(NTFY_ACCESS_COOLDOWN_MINUTES),
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-async def config_context(config_key: str):
-    definition = config_definition(config_key)
-    if not definition:
-        return None
-    async with async_session() as session:
-        row = await get_or_create_config(session, config_key)
-        history = (
-            await session.execute(
-                select(ControlConfigHistory)
-                .where(ControlConfigHistory.config_key == config_key)
-                .order_by(ControlConfigHistory.changed_at.desc())
-                .limit(20)
-            )
-        ).scalars().all()
-    values = merge_config_values(config_key, row.values)
-    return {
-        "definition": definition,
-        "config_key": config_key,
-        "config": row,
-        "values": values,
-        "rules": config_rules(config_key, values),
-        "summary_rows": config_summary_rows(config_key, values),
-        "stat_cards": config_stat_cards(config_key, values, row.version),
-        "operational_notes": config_operational_notes(config_key, values),
-        "devices": config_devices(config_key),
-        "history": history,
-        "saved": False,
-        "errors": [],
-    }
-
-
-
-
-
-
-
-
-
-
-def mobile_preview_screen_payload(screen: Dict[str, Any]) -> Dict[str, Any]:
-    key = str(screen["key"])
-    return {
-        "key": key,
-        "title": screen["title"],
-        "subtitle": screen["subtitle"],
-        "sourcePath": screen["source_path"],
-        "frameUrl": f"/api/mobile-preview/frame/{quote(key, safe='')}",
-    }
-
-
-def mobile_preview_can_view_money(request: Request) -> bool:
-    return bool(
-        getattr(request.state, "auth_is_master", False)
-        or getattr(request.state, "auth_can_settings", False)
-    )
-
-
-def mobile_preview_screens_for_request(request: Request) -> List[Dict[str, Any]]:
-    if mobile_preview_can_view_money(request):
-        return MOBILE_PREVIEW_SCREENS
-    return [
-        screen
-        for screen in MOBILE_PREVIEW_SCREENS
-        if str(screen.get("key") or "") not in MOBILE_PREVIEW_MONEY_KEYS
-    ]
-
-
-def mobile_preview_access_key(request: Request) -> Dict[str, Any]:
-    can_view_money = mobile_preview_can_view_money(request)
-    return {
-        "id": getattr(request.state, "access_key_id", 0) or 0,
-        "name": getattr(request.state, "access_key_name", None) or "desktop",
-        "key_prefix": "desktop",
-        "role": "settings" if can_view_money else "viewer",
-        "is_master": bool(getattr(request.state, "auth_is_master", False)),
-        "active": True,
-    }
-
-
-def mobile_preview_injected_head() -> str:
-    return f"""
-  <style>
-    html,
-    body {{
-      min-width: 0 !important;
-      overflow: hidden !important;
-      background: #f6f8fb !important;
-    }}
-    body {{
-      margin: 0 !important;
-    }}
-    .topbar,
-    .detail-hero {{
-      display: none !important;
-    }}
-    .dashboard {{
-      padding: 8px 10px 10px !important;
-      gap: 10px !important;
-    }}
-    a,
-    button,
-    input,
-    select,
-    textarea,
-    form {{
-      pointer-events: none !important;
-    }}
-    .metric-card,
-    .pulse-card,
-    .temperature-card,
-    .section-block,
-    .detail-card,
-    .detail-stat {{
-      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06) !important;
-    }}
-  </style>
-  <script>
-    window.setTimeout(() => window.location.reload(), {MOBILE_PREVIEW_REFRESH_SECONDS * 1000});
-  </script>
-"""
-
-
-def mobile_preview_html(html: str) -> str:
-    injected = mobile_preview_injected_head()
-    if "</head>" in html:
-        html = html.replace("</head>", f"{injected}</head>", 1)
-    else:
-        html = f"{injected}{html}"
-    return html
-
-
-async def render_mobile_preview_screen(request: Request, screen_key: str) -> HTMLResponse:
-    screen = next((item for item in MOBILE_PREVIEW_SCREENS if item["key"] == screen_key), None)
-    if not screen:
-        raise HTTPException(status_code=404, detail="Ukjent mobilskjerm")
-    if screen_key in MOBILE_PREVIEW_MONEY_KEYS and not mobile_preview_can_view_money(request):
-        raise HTTPException(status_code=403, detail="Mobilskjermen krever tilgang til omsetning")
-
-    from online_dashboard.app import main as mobile_app
-
-    fake_request = SimpleNamespace(state=SimpleNamespace(access_key=mobile_preview_access_key(request)))
-    handlers = {
-        "home": mobile_app.dashboard,
-        "soling": mobile_app.soling_detail,
-        "parkering": mobile_app.parking_detail,
-        "omsetning": mobile_app.revenue_detail,
-        "omsetning-uke": mobile_app.revenue_week_detail,
-        "energi": mobile_app.energy_detail,
-        "temperatur": mobile_app.temperature_detail,
-        "lys": mobile_app.light_detail,
-        "ventilasjon": mobile_app.ventilation_detail,
-    }
-    response = await handlers[screen_key](fake_request)
-    if not isinstance(response, HTMLResponse):
-        raise HTTPException(status_code=403, detail="Mobilskjermen kan ikke vises for denne brukeren")
-    html = response.body.decode(response.charset or "utf-8", errors="replace")
-    return HTMLResponse(
-        mobile_preview_html(html),
-        headers={"Cache-Control": "no-store"},
-    )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def api_roborock_active_cycle(status_rows: list[Any]) -> Optional[Dict[str, Any]]:
-    cycle = roborock_active_cycle_summary(status_rows)
-    if not cycle:
-        return None
-    return {
-        **cycle,
-        "started_at": api_local_iso(cycle.get("started_at")),
-        "last_floor_at": api_local_iso(cycle.get("last_floor_at")),
-        "dock_since": api_local_iso(cycle.get("dock_since")),
-        "last_observed_at": api_local_iso(cycle.get("last_observed_at")),
-    }
-
-
-def api_import_status_row(row: Dict[str, Any]) -> Dict[str, Any]:
-    payload = dict(row)
-    for key in ("last_success_at", "last_run_at", "last_failed_at", "next_expected_at"):
-        payload[key] = api_local_iso(payload.get(key))
-    if payload.get("job_name"):
-        payload["path"] = f"/admin/datakilder/{quote(str(payload['job_name']))}"
-    return payload
-
-
-def api_import_status_rows(rows: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
-    return [api_import_status_row(row) for row in rows]
-
-
-def api_import_job_run_row(row: ImportJobRun) -> Dict[str, Any]:
-    return {
-        "id": row.id,
-        "job_name": row.job_name,
-        "title": row.title,
-        "category": row.category,
-        "source": row.source,
-        "started_at": api_local_iso(row.started_at),
-        "finished_at": api_local_iso(row.finished_at),
-        "ok": row.ok,
-        "status": row.status,
-        "records_imported": row.records_imported,
-        "records_total": row.records_total,
-        "duration_seconds": row.duration_seconds,
-        "message": row.message,
-    }
-
-
-def api_bool_state(value: Any) -> Optional[bool]:
-    if value is None:
-        return None
-    return bool(value)
-
-
-def api_revenue_day(row: Dict[str, Any]) -> Dict[str, Any]:
-    return {
-        "day": row["day"].isoformat(),
-        "dayLabel": row["day_label"],
-        "weekday": row["weekday"],
-        "sol": row["sol"],
-        "solCount": row["sol_count"],
-        "parking": row["parking"],
-        "parkingCount": row["parking_count"],
-        "total": row["total"],
-        "isToday": row["is_today"],
-        "isWeekend": row["is_weekend"],
-    }
-
-
-async def build_revenue_month_context(month: Optional[str] = None) -> Dict[str, Any]:
-    today = local_now_naive().date()
-    month_start = normalize_month(month, today)
-    next_month = add_months(month_start, 1)
-    previous_month = add_months(month_start, -1)
-    days_in_month = (next_month - month_start).days
-    async with async_session() as session:
-        sol_rows = (
-            await session.execute(
-                select(
-                    Sun2TanningSession.stat_date.label("day"),
-                    func.count(Sun2TanningSession.id).label("count"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("amount"),
-                )
-                .where(Sun2TanningSession.stat_date >= month_start)
-                .where(Sun2TanningSession.stat_date < next_month)
-                .group_by(Sun2TanningSession.stat_date)
-            )
-        ).mappings().all()
-        parking_day = cast(ParkingSession.start_time, Date)
-        parking_rows = (
-            await session.execute(
-                select(
-                    parking_day.label("day"),
-                    func.count(ParkingSession.id).label("count"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("amount"),
-                )
-                .where(ParkingSession.start_time >= datetime.combine(month_start, time.min))
-                .where(ParkingSession.start_time < datetime.combine(next_month, time.min))
-                .group_by(parking_day)
-            )
-        ).mappings().all()
-
-    sol_by_day = {row["day"]: float_or_zero(row["amount"]) for row in sol_rows}
-    sol_count_by_day = {row["day"]: int_or_zero(row["count"]) for row in sol_rows}
-    parking_by_day = {row["day"]: float_or_zero(row["amount"]) for row in parking_rows}
-    parking_count_by_day = {row["day"]: int_or_zero(row["count"]) for row in parking_rows}
-    rows = []
-    for offset in range(days_in_month):
-        day = month_start + timedelta(days=offset)
-        sol_amount = sol_by_day.get(day, 0.0)
-        parking_amount = parking_by_day.get(day, 0.0)
-        rows.append(
-            {
-                "day": day,
-                "day_label": day.strftime("%d.%m"),
-                "weekday": ["Man", "Tir", "Ons", "Tor", "Fre", "Lor", "Son"][day.weekday()],
-                "sol": sol_amount,
-                "sol_count": sol_count_by_day.get(day, 0),
-                "parking": parking_amount,
-                "parking_count": parking_count_by_day.get(day, 0),
-                "total": sol_amount + parking_amount,
-                "is_today": day == today,
-                "is_weekend": day.weekday() >= 5,
-            }
-        )
-    max_total = max([row["total"] for row in rows] + [1.0])
-    for row in rows:
-        row["sol_pct"] = 0.0 if row["sol"] <= 0 else max(4.0, row["sol"] / max_total * 100)
-        row["parking_pct"] = 0.0 if row["parking"] <= 0 else max(4.0, row["parking"] / max_total * 100)
-        if row["sol_pct"] + row["parking_pct"] > 100:
-            scale = 100.0 / (row["sol_pct"] + row["parking_pct"])
-            row["sol_pct"] *= scale
-            row["parking_pct"] *= scale
-    total_sol = sum(row["sol"] for row in rows)
-    total_parking = sum(row["parking"] for row in rows)
-    if month_start <= today < next_month:
-        average_day_count = (today - month_start).days + 1
-    elif month_start < today.replace(day=1):
-        average_day_count = days_in_month
-    else:
-        average_day_count = 0
-    average_per_day = (total_sol + total_parking) / average_day_count if average_day_count else 0.0
-    top_day = max(rows, key=lambda row: row["total"], default=None)
-    today_row = next((row for row in rows if row["day"] == today), None)
-    return {
-        "rows": rows,
-        "summary": {
-            "label": month_label(month_start),
-            "month": month_start.strftime("%Y-%m"),
-            "previous_month": previous_month.strftime("%Y-%m"),
-            "next_month": next_month.strftime("%Y-%m"),
-            "current_month": today.replace(day=1).strftime("%Y-%m"),
-            "total": total_sol + total_parking,
-            "sol": total_sol,
-            "parking": total_parking,
-            "sol_count": sum(row["sol_count"] for row in rows),
-            "parking_count": sum(row["parking_count"] for row in rows),
-            "average_day_count": average_day_count,
-            "average_per_day": average_per_day,
-            "max_total": max_total,
-            "top_day": top_day,
-            "today_row": today_row,
-        },
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def operations_area_status(
-    key: str,
-    label: str,
-    status: str,
-    status_label: str,
-    detail: str,
-    href: str,
-    updated_at: Optional[datetime],
-    metrics: list[Dict[str, Any]],
-    items: list[Dict[str, Any]],
-    issues: Optional[list[str]] = None,
-    recent_jobs: Optional[list[Dict[str, Any]]] = None,
-) -> Dict[str, Any]:
-    return {
-        "key": key,
-        "label": label,
-        "status": status,
-        "statusLabel": status_label,
-        "detail": detail,
-        "href": href,
-        "updatedAt": api_local_iso(updated_at),
-        "metrics": metrics,
-        "items": items,
-        "issues": issues or [],
-        "recentJobs": recent_jobs or [],
-    }
-
-
-def operations_metric(label: str, value: Any, detail: str = "") -> Dict[str, Any]:
-    return {"label": label, "value": value, "detail": detail}
-
-
-def operations_switch_item(label: str, state: Optional[bool]) -> Dict[str, Any]:
-    return {
-        "label": label,
-        "value": "På" if state is True else "Av" if state is False else "Ukjent",
-        "state": "on" if state is True else "off" if state is False else "unknown",
-    }
-
-
-def operations_recent_door_items(door_result: Dict[str, Any], limit: int = 4) -> list[Dict[str, Any]]:
-    doors = door_result.get("doors") or []
-    titles_by_key = {
-        str(door.get("deviceKey")): door.get("title")
-        for door in doors
-        if door.get("deviceKey") is not None and door.get("title")
-    }
-    titles_by_id = {
-        str(door.get("deviceId")): door.get("title")
-        for door in doors
-        if door.get("deviceId") is not None and door.get("title")
-    }
-    items = []
-    for change in (door_result.get("changes") or [])[:limit]:
-        device_key = change.get("deviceKey")
-        device_id = change.get("deviceId")
-        label = (
-            titles_by_key.get(str(device_key))
-            or titles_by_id.get(str(device_id))
-            or change.get("deviceName")
-            or device_key
-            or device_id
-            or "Ukjent dør"
-        )
-        items.append({
-            "label": label,
-            "value": change.get("stateLabel"),
-            "detail": change.get("ageLabel"),
-            "state": change.get("state"),
-        })
-    return items
-
-
-def latest_cleaning_robot_sample(status_sample: Any = None, telemetry_sample: Any = None) -> Any:
-    candidates = [sample for sample in (telemetry_sample, status_sample) if sample is not None]
-    return max(
-        candidates,
-        key=lambda sample: normalize_local_naive(getattr(sample, "timestamp", None)) or datetime.min,
-        default=None,
-    )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13352,203 +2646,14 @@ from fibaro_core.services.presentation import api_table
 from fibaro_core.services.presentation import api_table_meta
 
 
-def api_filter(
-    key: str,
-    label: str,
-    filter_type: str = "text",
-    value: Any = "",
-    placeholder: str = "",
-    options: Optional[list[Dict[str, Any]]] = None,
-) -> Dict[str, Any]:
-    payload = {
-        "key": key,
-        "label": label,
-        "type": filter_type,
-        "value": value if value is not None else "",
-    }
-    if placeholder:
-        payload["placeholder"] = placeholder
-    if options is not None:
-        payload["options"] = options
-    return payload
 
 
-def api_filter_value(params: Any, key: str, default: str = "") -> str:
-    return str(params.get(key) or default).strip()
 
 
-def api_filter_int(params: Any, key: str, default: int, minimum: int = 1, maximum: int = 1000) -> int:
-    try:
-        value = int(params.get(key) or default)
-    except (TypeError, ValueError):
-        value = default
-    return max(minimum, min(maximum, value))
 
 
-def api_filter_options(values: Iterable[Any]) -> list[Dict[str, Any]]:
-    seen = set()
-    options = []
-    for value in values:
-        if value is None:
-            continue
-        text_value = str(value).strip()
-        if not text_value or text_value in seen:
-            continue
-        seen.add(text_value)
-        options.append({"label": text_value, "value": text_value})
-    return options
 
 
-async def parking_sun_link_candidates(
-    session: Any,
-    reference_time: datetime,
-    min_matches: int = 2,
-    max_minutes: int = 3,
-    recent_days: int = 0,
-    limit: int = 250,
-) -> Dict[str, Any]:
-    parking_plate = func.upper(func.replace(func.coalesce(ParkingSession.car_license_number, ""), " ", ""))
-    session_sun2_id = func.trim(func.coalesce(Sun2TanningSession.sun2_user_id, ""))
-    delta_seconds = func.extract("epoch", Sun2TanningSession.started_at - ParkingSession.start_time)
-    recent_cutoff = reference_time - timedelta(days=recent_days) if recent_days > 0 else None
-    recent_plates_query = (
-        select(parking_plate.label("plate"))
-        .where(ParkingSession.car_license_number.is_not(None))
-        .where(parking_plate != "")
-    )
-    if recent_cutoff:
-        recent_plates_query = recent_plates_query.where(ParkingSession.start_time >= recent_cutoff)
-    recent_plates = recent_plates_query.distinct().subquery()
-    match_conditions = [
-        ParkingSession.start_time.is_not(None),
-        ParkingSession.car_license_number.is_not(None),
-        Sun2TanningSession.started_at.is_not(None),
-        session_sun2_id != "",
-        parking_plate.in_(select(recent_plates.c.plate)),
-        delta_seconds >= 0,
-        delta_seconds <= max_minutes * 60,
-    ]
-
-    base_from = (
-        select()
-        .select_from(ParkingSession)
-        .outerjoin(ParkingVehicle, ParkingVehicle.plate == parking_plate)
-        .join(Sun2TanningSession, and_(Sun2TanningSession.started_at >= ParkingSession.start_time, session_sun2_id != ""))
-        .where(*match_conditions)
-    )
-    count_expr = func.count(func.distinct(Sun2TanningSession.id)).label("matches_count")
-    parking_match_count_expr = func.count(func.distinct(ParkingSession.id)).label("parking_match_count")
-    latest_parking_expr = func.max(ParkingSession.start_time)
-    candidate_stmt = (
-        base_from.with_only_columns(
-            parking_plate.label("plate"),
-            session_sun2_id.label("sun2_id"),
-            count_expr,
-            parking_match_count_expr,
-            func.min(ParkingSession.start_time).label("first_match_at"),
-            latest_parking_expr.label("last_match_at"),
-            func.avg(delta_seconds / 60.0).label("avg_delta_minutes"),
-            func.max(ParkingVehicle.navn).label("vehicle_name"),
-            func.max(ParkingVehicle.omrade).label("vehicle_area"),
-            func.max(Sun2TanningSession.user_name).label("sun2_user_name"),
-            func.max(ParkingVehicle.parkering_count).label("parking_count"),
-            func.max(ParkingVehicle.paid_total).label("paid_total"),
-        )
-        .group_by(parking_plate, session_sun2_id)
-        .having(func.count(func.distinct(ParkingSession.id)) >= min_matches)
-        .order_by(count_expr.desc(), latest_parking_expr.desc())
-        .limit(limit)
-    )
-    recent_plate_count = int_or_zero((await session.execute(select(func.count()).select_from(recent_plates))).scalar_one_or_none())
-    candidate_rows_raw = (await session.execute(candidate_stmt)).all()
-    candidate_pairs = [(row.plate, row.sun2_id) for row in candidate_rows_raw if row.plate and row.sun2_id]
-
-    match_rows: list[Dict[str, Any]] = []
-    if candidate_pairs:
-        match_stmt = (
-            base_from.with_only_columns(
-                ParkingSession.id.label("parking_record_id"),
-                ParkingSession.parking_id.label("parking_id"),
-                ParkingSession.source_system.label("source_system"),
-                ParkingSession.start_time.label("parking_start_at"),
-                ParkingSession.end_time.label("parking_end_at"),
-                ParkingSession.status.label("parking_status"),
-                ParkingSession.fee_inc_vat.label("fee_inc_vat"),
-                parking_plate.label("plate"),
-                session_sun2_id.label("sun2_id"),
-                ParkingVehicle.navn.label("vehicle_name"),
-                ParkingVehicle.omrade.label("vehicle_area"),
-                Sun2TanningSession.id.label("sun_session_id"),
-                Sun2TanningSession.source_session_id.label("source_session_id"),
-                Sun2TanningSession.started_at.label("sun_started_at"),
-                Sun2TanningSession.ended_at.label("sun_ended_at"),
-                Sun2TanningSession.room_id.label("room_id"),
-                Sun2TanningSession.room.label("room"),
-                Sun2TanningSession.user_name.label("sun2_user_name"),
-                Sun2TanningSession.duration_minutes.label("duration_minutes"),
-                Sun2TanningSession.paid_amount_kr.label("paid_amount_kr"),
-                delta_seconds.label("delta_seconds"),
-            )
-            .where(tuple_(parking_plate, session_sun2_id).in_(candidate_pairs))
-            .order_by(ParkingSession.start_time.desc(), Sun2TanningSession.started_at.desc())
-            .limit(max(250, min(1000, limit * 6)))
-        )
-        for row in (await session.execute(match_stmt)).all():
-            plate = str(row.plate or "").strip()
-            match_rows.append(
-                {
-                    "id": f"{row.parking_record_id}-{row.sun_session_id}",
-                    "parking_start_at": api_local_iso(row.parking_start_at),
-                    "sun_started_at": api_local_iso(row.sun_started_at),
-                    "delta_minutes": round(float_or_zero(row.delta_seconds) / 60.0, 2),
-                    "plate": plate,
-                    "sun2_id": row.sun2_id,
-                    "navn": row.vehicle_name,
-                    "omrade": row.vehicle_area,
-                    "room_label": sun2_room_label(row.room_id, row.room),
-                    "user_name": row.sun2_user_name,
-                    "duration_minutes": round(float_or_zero(row.duration_minutes), 1),
-                    "paid_amount_kr": round(float_or_zero(row.paid_amount_kr), 2),
-                    "fee_inc_vat": round(float_or_zero(row.fee_inc_vat), 2),
-                    "source_system": row.source_system,
-                    "parking_id": row.parking_id,
-                    "parking_record_id": int_or_zero(row.parking_record_id),
-                    "sun_session_id": int_or_zero(row.sun_session_id),
-                    "source_session_id": row.source_session_id,
-                    "path": f"/parkering/kjoretoy/{quote(plate)}" if plate else "",
-                }
-            )
-
-    candidate_rows: list[Dict[str, Any]] = []
-    for row in candidate_rows_raw:
-        plate = str(row.plate or "").strip()
-        candidate_rows.append(
-            {
-                "id": f"{plate}-{row.sun2_id}",
-                "plate": plate,
-                "sun2_id": row.sun2_id,
-                "matches_count": int_or_zero(row.matches_count),
-                "parking_match_count": int_or_zero(row.parking_match_count),
-                "first_match_at": api_local_iso(row.first_match_at),
-                "last_match_at": api_local_iso(row.last_match_at),
-                "avg_delta_minutes": round(float_or_zero(row.avg_delta_minutes), 2),
-                "navn": row.vehicle_name,
-                "omrade": row.vehicle_area,
-                "user_name": row.sun2_user_name,
-                "parking_count": int_or_zero(row.parking_count),
-                "paid_total": round(float_or_zero(row.paid_total), 2),
-                "path": f"/parkering/kjoretoy/{quote(plate)}" if plate else "",
-            }
-        )
-
-    return {
-        "candidate_rows": candidate_rows,
-        "match_rows": match_rows,
-        "candidate_count": len(candidate_rows),
-        "match_count": sum(row["matches_count"] for row in candidate_rows),
-        "recent_plate_count": recent_plate_count,
-        "recent_cutoff": recent_cutoff,
-    }
 
 
 PARKING_SUN_LINK_PENDING = "Avventer"
@@ -13561,1491 +2666,85 @@ PARKING_SUN_LINK_STATUSES = [
 ]
 
 
-def parking_sun_link_status_value(value: Optional[str]) -> str:
-    normalized = (value or "").strip().lower()
-    if normalized in {"bekreftet", "confirmed", "ok", "ja"}:
-        return PARKING_SUN_LINK_CONFIRMED
-    if normalized in {"avvist", "rejected", "nei"}:
-        return PARKING_SUN_LINK_REJECTED
-    return PARKING_SUN_LINK_PENDING
 
 
-def parking_sun_link_probability(
-    matches_count: int,
-    avg_delta_minutes: Optional[float],
-    *,
-    min_matches: int = 2,
-    parking_match_count: Optional[int] = None,
-    match_days_count: Optional[int] = None,
-    plate_candidate_count: Optional[int] = None,
-    sun2_candidate_count: Optional[int] = None,
-    competitor_matches_count: Optional[int] = None,
-) -> float:
-    matches = int_or_zero(matches_count)
-    observations = int_or_zero(parking_match_count) or matches
-    days = int_or_zero(match_days_count)
-    plate_options = max(1, int_or_zero(plate_candidate_count) or 1)
-    sun2_options = max(1, int_or_zero(sun2_candidate_count) or 1)
-    competitor = int_or_zero(competitor_matches_count)
-    required = max(1, int_or_zero(min_matches) or 2)
-    avg_delta = float_or_zero(avg_delta_minutes)
-
-    if observations >= required:
-        probability = 58.0 + min(24.0, (observations - required) * 8.0)
-    else:
-        probability = min(54.0, 18.0 + observations * 22.0)
-
-    if days >= 3:
-        probability += 10.0
-    elif days >= 2:
-        probability += 6.0
-
-    if avg_delta <= 0.5:
-        probability += 12.0
-    elif avg_delta <= 1:
-        probability += 9.0
-    elif avg_delta <= 2:
-        probability += 6.0
-    elif avg_delta <= 3:
-        probability += 3.0
-
-    probability -= min(20.0, (plate_options - 1) * 8.0)
-    probability -= min(20.0, (sun2_options - 1) * 8.0)
-    if competitor >= observations and competitor > 0:
-        probability -= 18.0
-    elif competitor >= max(1, observations - 1):
-        probability -= 8.0
-
-    if observations < required:
-        probability = min(probability, 55.0)
-    return round(max(5.0, min(98.0, probability)), 1)
 
 
-def parking_sun_link_assessment(
-    status: str,
-    confidence: float,
-    *,
-    min_matches: int,
-    parking_match_count: int,
-    plate_candidate_count: int,
-    sun2_candidate_count: int,
-    competitor_matches_count: int,
-) -> str:
-    if status == PARKING_SUN_LINK_CONFIRMED:
-        return "Bekreftet manuelt"
-    if status == PARKING_SUN_LINK_REJECTED:
-        return "Avvist manuelt"
-    required = max(1, int_or_zero(min_matches) or 2)
-    observations = int_or_zero(parking_match_count)
-    if observations < required:
-        return f"Venter på flere treff ({observations}/{required})"
-    if competitor_matches_count >= observations and competitor_matches_count > 0:
-        return "Usikker: konkurrerende kobling er like sterk"
-    if plate_candidate_count > 1 or sun2_candidate_count > 1:
-        return "Mulig kobling, men har alternativer"
-    if confidence >= 85:
-        return "Svært sannsynlig"
-    if confidence >= 70:
-        return "Sannsynlig"
-    return "Krever manuell vurdering"
 
 
-def parking_sun_link_settings_edit() -> Dict[str, Any]:
-    return {
-        "kind": "koble-settings",
-        "title": "parameter",
-        "idField": "id",
-        "endpoint": "/api/koble/settings/{id}",
-        "method": "PATCH",
-        "fields": [
-            {"key": "min_matches", "label": "Sterk kandidat fra treff", "type": "number"},
-            {"key": "max_minutes", "label": "Maks minutter etter parkering", "type": "number"},
-            {"key": "recent_days", "label": "Bilutvalg dager (0 = alle)", "type": "number"},
-            {"key": "idle_sleep_seconds", "label": "Pause naar ajour sek", "type": "number"},
-        ],
-    }
 
 
-def parking_sun_link_candidate_edit() -> Dict[str, Any]:
-    return {
-        "kind": "koble-candidate",
-        "title": "kobling",
-        "idField": "id",
-        "endpoint": "/api/koble/candidates/{id}",
-        "method": "PATCH",
-        "fields": [
-            {
-                "key": "status",
-                "label": "Status",
-                "type": "select",
-                "options": [{"label": value, "value": value} for value in PARKING_SUN_LINK_STATUSES],
-                "required": True,
-            },
-            {"key": "note", "label": "Notat", "type": "textarea"},
-        ],
-    }
 
 
-async def get_parking_sun_link_state(session: Any) -> ParkingSunLinkJobState:
-    state = (
-        await session.execute(select(ParkingSunLinkJobState).where(ParkingSunLinkJobState.id == 1))
-    ).scalars().first()
-    if not state:
-        state = ParkingSunLinkJobState(id=1)
-        session.add(state)
-        await session.flush()
-    changed = False
-    defaults = {
-        "enabled": False,
-        "generation": 1,
-        "min_matches": 2,
-        "max_minutes": 3,
-        "recent_days": 0,
-        "idle_sleep_seconds": 20,
-        "status": "stoppet",
-        "status_text": "Koblingsjobben er stoppet.",
-        "processed_count": 0,
-        "matched_count": 0,
-        "candidate_count": 0,
-        "strong_candidate_count": 0,
-        "checked_plate_count": 0,
-        "updated_at": local_now_naive(),
-        "raw": {},
-    }
-    for key, value in defaults.items():
-        if getattr(state, key, None) is None:
-            setattr(state, key, value)
-            changed = True
-    if changed:
-        await session.flush()
-    return state
 
 
-async def reset_parking_sun_link_data(session: Any, state: ParkingSunLinkJobState, *, enabled: bool = True) -> ParkingSunLinkJobState:
-    await session.execute(delete(ParkingSunLinkMatch))
-    await session.execute(delete(ParkingSunLinkCandidate))
-    await session.execute(delete(ParkingSunLinkProcessed))
-    state.enabled = enabled
-    state.generation = int_or_zero(state.generation) + 1
-    state.status = "venter" if enabled else "stoppet"
-    state.status_text = "Starter fra nyeste parkering." if enabled else "Stoppet."
-    state.processed_count = 0
-    state.matched_count = 0
-    state.candidate_count = 0
-    state.strong_candidate_count = 0
-    state.checked_plate_count = 0
-    state.last_processed_parking_id = None
-    state.last_processed_plate = None
-    state.last_processed_at = None
-    state.last_started_at = local_now_naive() if enabled else state.last_started_at
-    state.last_finished_at = None
-    state.last_error = None
-    state.updated_at = local_now_naive()
-    state.raw = {}
-    return state
 
 
-def api_parking_sun_link_state_row(state: ParkingSunLinkJobState) -> Dict[str, Any]:
-    return {
-        "id": state.id,
-        "enabled": bool(state.enabled),
-        "generation": int_or_zero(state.generation),
-        "min_matches": int_or_zero(state.min_matches),
-        "max_minutes": int_or_zero(state.max_minutes),
-        "recent_days": int_or_zero(state.recent_days),
-        "idle_sleep_seconds": int_or_zero(state.idle_sleep_seconds),
-        "status": state.status,
-        "status_text": state.status_text,
-        "processed_count": int_or_zero(state.processed_count),
-        "matched_count": int_or_zero(state.matched_count),
-        "candidate_count": int_or_zero(state.candidate_count),
-        "strong_candidate_count": int_or_zero(state.strong_candidate_count),
-        "checked_plate_count": int_or_zero(state.checked_plate_count),
-        "last_processed_parking_id": state.last_processed_parking_id,
-        "last_processed_plate": state.last_processed_plate,
-        "last_processed_at": api_local_iso(state.last_processed_at),
-        "last_worker_seen_at": api_local_iso(state.last_worker_seen_at),
-        "updated_at": api_local_iso(state.updated_at),
-    }
 
 
-def api_parking_sun_link_candidate_row(row: ParkingSunLinkCandidate) -> Dict[str, Any]:
-    plate = str(row.plate or "").strip()
-    return {
-        "id": row.id,
-        "status": row.status,
-        "confidence": round(float_or_zero(row.confidence), 1),
-        "assessment": row.assessment,
-        "plate": plate,
-        "sun2_id": row.sun2_id,
-        "matches_count": int_or_zero(row.matches_count),
-        "parking_match_count": int_or_zero(row.parking_match_count),
-        "match_days_count": int_or_zero(row.match_days_count),
-        "plate_candidate_count": int_or_zero(row.plate_candidate_count),
-        "sun2_candidate_count": int_or_zero(row.sun2_candidate_count),
-        "competitor_matches_count": int_or_zero(row.competitor_matches_count),
-        "first_match_at": api_local_iso(row.first_match_at),
-        "last_match_at": api_local_iso(row.last_match_at),
-        "avg_delta_minutes": round(float_or_zero(row.avg_delta_minutes), 2),
-        "navn": row.navn,
-        "omrade": row.omrade,
-        "user_name": row.user_name,
-        "parking_count": int_or_zero(row.parking_count),
-        "paid_total": round(float_or_zero(row.paid_total), 2),
-        "matched_paid_total": round(float_or_zero(row.matched_paid_total), 2),
-        "note": row.note,
-        "confirmed_at": api_local_iso(row.confirmed_at),
-        "confirmed_by": row.confirmed_by,
-        "rejected_at": api_local_iso(row.rejected_at),
-        "rejected_by": row.rejected_by,
-        "path": f"/parkering/kjoretoy/{quote(plate)}" if plate else "",
-    }
 
 
-def api_parking_sun_link_match_row(row: ParkingSunLinkMatch) -> Dict[str, Any]:
-    plate = str(row.plate or "").strip()
-    return {
-        "id": row.id,
-        "parking_start_at": api_local_iso(row.parking_start_at),
-        "sun_started_at": api_local_iso(row.sun_started_at),
-        "delta_minutes": round(float_or_zero(row.delta_minutes), 2),
-        "plate": plate,
-        "sun2_id": row.sun2_id,
-        "room_label": sun2_room_label(row.room_id, row.room),
-        "user_name": row.user_name,
-        "duration_minutes": round(float_or_zero(row.duration_minutes), 1),
-        "paid_amount_kr": round(float_or_zero(row.paid_amount_kr), 2),
-        "fee_inc_vat": round(float_or_zero(row.fee_inc_vat), 2),
-        "source_system": row.source_system,
-        "parking_id": row.parking_id,
-        "parking_record_id": row.parking_record_id,
-        "sun_session_id": row.sun_session_id,
-        "source_session_id": row.source_session_id,
-        "path": f"/parkering/kjoretoy/{quote(plate)}" if plate else "",
-    }
 
 
-async def parking_sun_link_matched_paid_totals(
-    session: Any,
-    generation: int,
-    pairs: Optional[Iterable[tuple[str, str]]] = None,
-) -> Dict[tuple[str, str], float]:
-    clean_pairs = sorted({(str(plate or "").strip(), str(sun2_id or "").strip()) for plate, sun2_id in (pairs or []) if plate and sun2_id})
-    stmt = (
-        select(
-            ParkingSunLinkMatch.plate.label("plate"),
-            ParkingSunLinkMatch.sun2_id.label("sun2_id"),
-            ParkingSunLinkMatch.parking_record_id.label("parking_record_id"),
-            func.max(ParkingSunLinkMatch.fee_inc_vat).label("fee_inc_vat"),
-        )
-        .where(ParkingSunLinkMatch.generation == generation)
-        .group_by(ParkingSunLinkMatch.plate, ParkingSunLinkMatch.sun2_id, ParkingSunLinkMatch.parking_record_id)
-    )
-    if clean_pairs:
-        stmt = stmt.where(tuple_(ParkingSunLinkMatch.plate, ParkingSunLinkMatch.sun2_id).in_(clean_pairs))
-    matched_parking_amounts = stmt.subquery()
-    rows = (
-        await session.execute(
-            select(
-                matched_parking_amounts.c.plate,
-                matched_parking_amounts.c.sun2_id,
-                func.coalesce(func.sum(matched_parking_amounts.c.fee_inc_vat), 0).label("matched_paid_total"),
-            ).group_by(matched_parking_amounts.c.plate, matched_parking_amounts.c.sun2_id)
-        )
-    ).all()
-    return {
-        (str(row.plate or "").strip(), str(row.sun2_id or "").strip()): float_or_zero(row.matched_paid_total)
-        for row in rows
-    }
 
 
-async def parking_sun_link_qualified_distinct_matched_paid_total(
-    session: Any,
-    generation: int,
-    min_parking_match_count: int = 2,
-) -> float:
-    matched_parking_amounts = (
-        select(
-            ParkingSunLinkMatch.parking_record_id.label("parking_record_id"),
-            func.max(ParkingSunLinkMatch.fee_inc_vat).label("fee_inc_vat"),
-        )
-        .join(
-            ParkingSunLinkCandidate,
-            and_(
-                ParkingSunLinkCandidate.generation == ParkingSunLinkMatch.generation,
-                ParkingSunLinkCandidate.plate == ParkingSunLinkMatch.plate,
-                ParkingSunLinkCandidate.sun2_id == ParkingSunLinkMatch.sun2_id,
-            ),
-        )
-        .where(ParkingSunLinkMatch.generation == generation)
-        .where(ParkingSunLinkCandidate.generation == generation)
-        .where(ParkingSunLinkCandidate.parking_match_count >= min_parking_match_count)
-        .group_by(ParkingSunLinkMatch.parking_record_id)
-        .subquery()
-    )
-    return float_or_zero(
-        (
-            await session.execute(
-                select(func.coalesce(func.sum(matched_parking_amounts.c.fee_inc_vat), 0))
-            )
-        ).scalar_one_or_none()
-    )
 
 
-async def refresh_parking_sun_link_candidate_pairs(
-    session: Any,
-    generation: int,
-    pairs: Optional[Iterable[tuple[str, str]]] = None,
-    min_matches: int = 2,
-) -> None:
-    required_matches = max(1, int_or_zero(min_matches) or 2)
-    clean_pairs = sorted({(str(plate or "").strip(), str(sun2_id or "").strip()) for plate, sun2_id in (pairs or []) if plate and sun2_id})
-    pair_count_rows = (
-        await session.execute(
-            select(
-                ParkingSunLinkMatch.plate,
-                ParkingSunLinkMatch.sun2_id,
-                func.count(func.distinct(ParkingSunLinkMatch.parking_record_id)).label("parking_match_count"),
-            )
-            .where(ParkingSunLinkMatch.generation == generation)
-            .group_by(ParkingSunLinkMatch.plate, ParkingSunLinkMatch.sun2_id)
-        )
-    ).all()
-    pair_counts: Dict[tuple[str, str], int] = {}
-    qualified_plate_options: Dict[str, set[str]] = {}
-    qualified_sun2_options: Dict[str, set[str]] = {}
-    for pair_row in pair_count_rows:
-        plate_key = str(pair_row.plate or "").strip()
-        sun2_key = str(pair_row.sun2_id or "").strip()
-        if not plate_key or not sun2_key:
-            continue
-        pair_key = (plate_key, sun2_key)
-        pair_count = int_or_zero(pair_row.parking_match_count)
-        pair_counts[pair_key] = pair_count
-        if pair_count >= required_matches:
-            qualified_plate_options.setdefault(plate_key, set()).add(sun2_key)
-            qualified_sun2_options.setdefault(sun2_key, set()).add(plate_key)
-
-    matched_parking_amounts = (
-        select(
-            ParkingSunLinkMatch.plate.label("plate"),
-            ParkingSunLinkMatch.sun2_id.label("sun2_id"),
-            ParkingSunLinkMatch.parking_record_id.label("parking_record_id"),
-            func.max(ParkingSunLinkMatch.fee_inc_vat).label("fee_inc_vat"),
-        )
-        .where(ParkingSunLinkMatch.generation == generation)
-        .group_by(ParkingSunLinkMatch.plate, ParkingSunLinkMatch.sun2_id, ParkingSunLinkMatch.parking_record_id)
-        .subquery()
-    )
-    matched_paid_by_pair = (
-        select(
-            matched_parking_amounts.c.plate.label("plate"),
-            matched_parking_amounts.c.sun2_id.label("sun2_id"),
-            func.coalesce(func.sum(matched_parking_amounts.c.fee_inc_vat), 0).label("matched_paid_total"),
-        )
-        .group_by(matched_parking_amounts.c.plate, matched_parking_amounts.c.sun2_id)
-        .subquery()
-    )
-
-    stmt = (
-        select(
-            ParkingSunLinkMatch.plate,
-            ParkingSunLinkMatch.sun2_id,
-            func.count(ParkingSunLinkMatch.id).label("matches_count"),
-            func.count(func.distinct(ParkingSunLinkMatch.parking_record_id)).label("parking_match_count"),
-            func.count(func.distinct(cast(ParkingSunLinkMatch.parking_start_at, Date))).label("match_days_count"),
-            func.min(ParkingSunLinkMatch.parking_start_at).label("first_match_at"),
-            func.max(ParkingSunLinkMatch.parking_start_at).label("last_match_at"),
-            func.avg(ParkingSunLinkMatch.delta_minutes).label("avg_delta_minutes"),
-            func.max(ParkingVehicle.navn).label("navn"),
-            func.max(ParkingVehicle.omrade).label("omrade"),
-            func.max(ParkingSunLinkMatch.user_name).label("user_name"),
-            func.max(ParkingVehicle.parkering_count).label("parking_count"),
-            func.max(ParkingVehicle.paid_total).label("paid_total"),
-            func.max(matched_paid_by_pair.c.matched_paid_total).label("matched_paid_total"),
-        )
-        .select_from(ParkingSunLinkMatch)
-        .outerjoin(ParkingVehicle, ParkingVehicle.plate == ParkingSunLinkMatch.plate)
-        .outerjoin(
-            matched_paid_by_pair,
-            and_(
-                matched_paid_by_pair.c.plate == ParkingSunLinkMatch.plate,
-                matched_paid_by_pair.c.sun2_id == ParkingSunLinkMatch.sun2_id,
-            ),
-        )
-        .where(ParkingSunLinkMatch.generation == generation)
-        .group_by(ParkingSunLinkMatch.plate, ParkingSunLinkMatch.sun2_id)
-    )
-    if clean_pairs:
-        stmt = stmt.where(tuple_(ParkingSunLinkMatch.plate, ParkingSunLinkMatch.sun2_id).in_(clean_pairs))
-    rows = (await session.execute(stmt)).all()
-    now_value = local_now_naive()
-    for row in rows:
-        plate_key = str(row.plate or "").strip()
-        sun2_key = str(row.sun2_id or "").strip()
-        pair_key = (plate_key, sun2_key)
-        parking_match_count = int_or_zero(row.parking_match_count)
-        match_days_count = int_or_zero(row.match_days_count)
-        is_qualified_pair = parking_match_count >= required_matches
-        plate_candidate_count = len(qualified_plate_options.get(plate_key, set())) if is_qualified_pair else 1
-        sun2_candidate_count = len(qualified_sun2_options.get(sun2_key, set())) if is_qualified_pair else 1
-        plate_candidate_count = max(1, plate_candidate_count)
-        sun2_candidate_count = max(1, sun2_candidate_count)
-        competitor_matches_count = 0
-        for other_key, other_count in pair_counts.items():
-            other_plate, other_sun2 = other_key
-            if other_key == pair_key:
-                continue
-            if int_or_zero(other_count) < required_matches:
-                continue
-            if other_plate == plate_key or other_sun2 == sun2_key:
-                competitor_matches_count = max(competitor_matches_count, int_or_zero(other_count))
-        candidate = (
-            await session.execute(
-                select(ParkingSunLinkCandidate)
-                .where(ParkingSunLinkCandidate.generation == generation)
-                .where(ParkingSunLinkCandidate.plate == row.plate)
-                .where(ParkingSunLinkCandidate.sun2_id == row.sun2_id)
-            )
-        ).scalars().first()
-        if not candidate:
-            candidate = ParkingSunLinkCandidate(
-                generation=generation,
-                plate=row.plate,
-                sun2_id=row.sun2_id,
-                status=PARKING_SUN_LINK_PENDING,
-                created_at=now_value,
-            )
-            session.add(candidate)
-        candidate.matches_count = int_or_zero(row.matches_count)
-        candidate.parking_match_count = parking_match_count
-        candidate.match_days_count = match_days_count
-        candidate.plate_candidate_count = plate_candidate_count
-        candidate.sun2_candidate_count = sun2_candidate_count
-        candidate.competitor_matches_count = competitor_matches_count
-        candidate.first_match_at = normalize_local_naive(row.first_match_at) if row.first_match_at else None
-        candidate.last_match_at = normalize_local_naive(row.last_match_at) if row.last_match_at else None
-        candidate.avg_delta_minutes = float_or_zero(row.avg_delta_minutes)
-        candidate.navn = row.navn
-        candidate.omrade = row.omrade
-        candidate.user_name = row.user_name
-        candidate.parking_count = int_or_zero(row.parking_count)
-        candidate.paid_total = float_or_zero(row.paid_total)
-        candidate.matched_paid_total = float_or_zero(row.matched_paid_total)
-        candidate.confidence = 100.0 if candidate.status == PARKING_SUN_LINK_CONFIRMED else parking_sun_link_probability(
-            candidate.matches_count,
-            candidate.avg_delta_minutes,
-            min_matches=required_matches,
-            parking_match_count=parking_match_count,
-            match_days_count=match_days_count,
-            plate_candidate_count=plate_candidate_count,
-            sun2_candidate_count=sun2_candidate_count,
-            competitor_matches_count=competitor_matches_count,
-        )
-        candidate.assessment = parking_sun_link_assessment(
-            candidate.status,
-            candidate.confidence,
-            min_matches=required_matches,
-            parking_match_count=parking_match_count,
-            plate_candidate_count=plate_candidate_count,
-            sun2_candidate_count=sun2_candidate_count,
-            competitor_matches_count=competitor_matches_count,
-        )
-        candidate.updated_at = now_value
 
 
-async def refresh_parking_sun_link_state_counts(session: Any, state: ParkingSunLinkJobState) -> None:
-    generation = int_or_zero(state.generation)
-    required_matches = max(1, int_or_zero(state.min_matches) or 2)
-    state.processed_count = int_or_zero(
-        (await session.execute(select(func.count(ParkingSunLinkProcessed.id)).where(ParkingSunLinkProcessed.generation == generation))).scalar_one_or_none()
-    )
-    state.matched_count = int_or_zero(
-        (await session.execute(select(func.count(ParkingSunLinkMatch.id)).where(ParkingSunLinkMatch.generation == generation))).scalar_one_or_none()
-    )
-    state.candidate_count = int_or_zero(
-        (
-            await session.execute(
-                select(func.count(ParkingSunLinkCandidate.id))
-                .where(ParkingSunLinkCandidate.generation == generation)
-                .where(ParkingSunLinkCandidate.parking_match_count >= required_matches)
-            )
-        ).scalar_one_or_none()
-    )
-    state.strong_candidate_count = int_or_zero(
-        (
-            await session.execute(
-                select(func.count(ParkingSunLinkCandidate.id))
-                .where(ParkingSunLinkCandidate.generation == generation)
-                .where(ParkingSunLinkCandidate.parking_match_count >= required_matches)
-                .where(ParkingSunLinkCandidate.status == PARKING_SUN_LINK_PENDING)
-                .where(ParkingSunLinkCandidate.confidence >= 70)
-            )
-        ).scalar_one_or_none()
-    )
-    state.checked_plate_count = int_or_zero(
-        (
-            await session.execute(
-                select(func.count(func.distinct(ParkingSunLinkProcessed.plate))).where(ParkingSunLinkProcessed.generation == generation)
-            )
-        ).scalar_one_or_none()
-    )
-    state.updated_at = local_now_naive()
 
 
-async def update_parking_sun_link_import_status(session: Any, state: ParkingSunLinkJobState) -> None:
-    definition = import_job_definition("parking_sun_link_worker")
-    now_value = local_now_naive()
-    row = (
-        await session.execute(select(ImportJobStatus).where(ImportJobStatus.job_name == "parking_sun_link_worker"))
-    ).scalars().first()
-    if not row:
-        row = ImportJobStatus(job_name="parking_sun_link_worker", title=definition["title"], category=definition["category"])
-        session.add(row)
-    row.title = definition["title"]
-    row.category = definition["category"]
-    row.source = definition.get("source")
-    row.status = "bad" if state.status == "feil" else ("running" if state.enabled and state.status not in {"ajour", "stoppet"} else "ok")
-    row.status_text = state.status_text or state.status
-    row.last_run_at = state.last_worker_seen_at or now_value
-    if row.status == "bad":
-        row.last_failed_at = state.last_worker_seen_at or now_value
-    else:
-        row.last_success_at = state.last_worker_seen_at or now_value
-    row.expected_interval_minutes = definition.get("expected_interval_minutes")
-    row.warning_after_minutes = definition.get("warning_after_minutes")
-    row.records_imported = int_or_zero(state.processed_count)
-    # Candidate count is an outcome, not the total number of parking rows.
-    row.records_total = None
-    row.next_expected_at = (state.last_worker_seen_at or now_value) + timedelta(minutes=definition.get("expected_interval_minutes") or 10)
-    row.message = state.status_text
-    row.raw = api_parking_sun_link_state_row(state)
 
 
-def ventilation_latest_payload(
-    latest: Optional[VentilationSample],
-    latest_yr: Optional[YrForecastSample],
-    fan_statuses: Optional[list[Dict[str, Any]]] = None,
-) -> Dict[str, Any]:
-    def measurement(key: str, label: str, temp_key: Optional[str] = None, humidity_key: Optional[str] = None, detail: str = "") -> Dict[str, Any]:
-        return {
-            "key": key,
-            "label": label,
-            "temperature": getattr(latest, temp_key, None) if latest and temp_key else None,
-            "humidity": getattr(latest, humidity_key, None) if latest and humidity_key else None,
-            "detail": detail,
-        }
-
-    fans = fan_statuses if fan_statuses is not None else [
-        {
-            **ventilation_status_payload(device, latest, None),
-            "detail": "Paa" if sample_state(latest, device) is True else "AV" if sample_state(latest, device) is False else "-",
-        }
-        for device in VENT_TIMELINE_DEVICES
-    ]
-    return {
-        "bucketStart": api_local_iso(latest.bucket_start if latest else None),
-        "timestamp": api_local_iso(latest.timestamp if latest else None),
-        "mode": latest.mode if latest else None,
-        "source": latest.source if latest else None,
-        "groups": [
-            {
-                "key": "indoor",
-                "title": "Inne",
-                "fields": [
-                    measurement("1etg", "1.etg", "temp_1etg", "humidity_1etg"),
-                    measurement("2etg", "2.etg", "temp_2etg", "humidity_2etg"),
-                    measurement("vip", "VIP", "temp_vip", "humidity_vip"),
-                ],
-            },
-            {
-                "key": "outdoor",
-                "title": "Ute og Yr",
-                "fields": [
-                    measurement("styring", "Ute styring", "temp_ute", "humidity_ute"),
-                    measurement("netatmo", "Netatmo ute", "temp_ute_netatmo", "humidity_ute"),
-                    measurement("yr", "Yr", "temp_yr", "humidity_yr", latest_yr.weather_text if latest_yr else ""),
-                ],
-            },
-            {
-                "key": "ventilation",
-                "title": "Ventilasjon",
-                "fields": [
-                    measurement("loft", "Loft", "temp_loft", "humidity_loft"),
-                    measurement("luftinntak", "Innluft", "temp_luftinntak", "humidity_luftinntak"),
-                    measurement("passiv", "Passiv innluft", "temp_passiv", "humidity_passiv"),
-                ],
-            },
-            {
-                "key": "basement",
-                "title": "Kjeller",
-                "fields": [
-                    measurement("kjeller", "Kjeller", "temp_kjeller", "humidity_kjeller", "Avfukter styres av fukt"),
-                ],
-            },
-        ],
-        "fans": fans,
-        "weather": {
-            "bucketStart": api_local_iso(latest_yr.bucket_start if latest_yr else None),
-            "text": latest_yr.weather_text if latest_yr else None,
-            "airTemperature": latest_yr.air_temperature if latest_yr else None,
-            "relativeHumidity": latest_yr.relative_humidity if latest_yr else None,
-            "windSpeed": latest_yr.wind_speed if latest_yr else None,
-            "windGust": latest_yr.wind_speed_of_gust if latest_yr else None,
-            "cloudAreaFraction": latest_yr.cloud_area_fraction if latest_yr else None,
-            "precipitationNext1h": latest_yr.precipitation_next_1h if latest_yr else None,
-        },
-    }
 
 
-def ventilation_day_payload(temp_day: Dict[str, Any], selected_day: date, is_today: bool, now_marker: Optional[float]) -> Dict[str, Any]:
-    samples = []
-    for sample in reversed(temp_day["samples_desc"]):
-        cleaned = {key: value for key, value in sample.items() if key != "time_dt" and not key.endswith("_label")}
-        samples.append(cleaned)
-    return {
-        "selectedDay": selected_day.isoformat(),
-        "selectedDayLabel": selected_day.strftime("%d.%m.%Y"),
-        "prevDay": (selected_day - timedelta(days=1)).isoformat(),
-        "nextDay": (selected_day + timedelta(days=1)).isoformat(),
-        "isToday": is_today,
-        "nowMarker": now_marker,
-        "summary": temp_day["summary"],
-        "series": temp_day["series"],
-        "fans": temp_day["fans"],
-        "fanEvents": temp_day["fan_events"],
-        "samples": samples,
-    }
 
 
-def empty_ventilation_day_payload(selected_day: date, is_today: bool, now_marker: Optional[float]) -> Dict[str, Any]:
-    return {
-        "selectedDay": selected_day.isoformat(),
-        "selectedDayLabel": selected_day.strftime("%d.%m.%Y"),
-        "prevDay": (selected_day - timedelta(days=1)).isoformat(),
-        "nextDay": (selected_day + timedelta(days=1)).isoformat(),
-        "isToday": is_today,
-        "nowMarker": now_marker,
-        "summary": {},
-        "series": [],
-        "fans": [],
-        "fanEvents": [],
-        "samples": [],
-    }
 
 
-def control_settings_payload(
-    config_key: str,
-    config: ControlConfig,
-    values: Dict[str, Any],
-    history: list[ControlConfigHistory],
-) -> Dict[str, Any]:
-    definition = config_definition(config_key) or {}
-    groups = []
-    for group in definition.get("groups", []):
-        groups.append(
-            {
-                "title": group["title"],
-                "description": group.get("description", ""),
-                "fields": [
-                    {
-                        "key": field["key"],
-                        "label": field["label"],
-                        "type": field.get("type", "text"),
-                        "unit": field.get("unit", ""),
-                        "help": field.get("help", ""),
-                        "value": values.get(field["key"]),
-                    }
-                    for field in group.get("fields", [])
-                ],
-            }
-        )
-    return {
-        "system": config_key,
-        "title": definition.get("title", config_key),
-        "subtitle": definition.get("subtitle", ""),
-        "version": config.version,
-        "updatedAt": api_local_iso(config.updated_at),
-        "updatedBy": config.updated_by,
-        "groups": groups,
-        "rules": config_rules(config_key, values),
-        "summaryRows": config_summary_rows(config_key, values),
-        "notes": config_operational_notes(config_key, values),
-        "history": api_config_history_rows(history),
-        "updateEndpoint": f"/api/config/{config_key}",
-    }
 
 
-def ventilation_settings_payload(
-    config: ControlConfig,
-    values: Dict[str, Any],
-    history: list[ControlConfigHistory],
-) -> Dict[str, Any]:
-    return control_settings_payload("ventilation", config, values, history)
 
 
 from fibaro_core.services.presentation import api_chart
 
 
-def api_day_navigation(selected_day: date, today: date) -> Dict[str, Any]:
-    return {
-        "selectedDay": selected_day.isoformat(),
-        "selectedDayLabel": selected_day.strftime("%d.%m.%Y"),
-        "prevDay": (selected_day - timedelta(days=1)).isoformat(),
-        "nextDay": (selected_day + timedelta(days=1)).isoformat(),
-        "isToday": selected_day == today,
-    }
 
 
-def api_parking_weekly_chart(summaries: Dict[str, Any]) -> Dict[str, Any]:
-    chart_rows = summaries.get("weekly_chart", [])
-
-    def metric_series(metric: str) -> list[Dict[str, Any]]:
-        return [
-            {
-                "name": row["year"],
-                "data": row[metric],
-                "color": row.get("color"),
-                "unit": "kr" if metric == "revenue" else "stk",
-            }
-            for row in chart_rows
-        ]
-
-    current_year = local_now_naive().year
-    return api_chart(
-        "Ukesutvikling parkering",
-        [str(week) for week in range(1, 54)],
-        metric_series("revenue"),
-        "Velg omsetning eller antall. I år og i fjor vises ved åpning; andre år slås på i forklaringen.",
-        "line",
-        360,
-        metrics=[
-            {"key": "revenue", "label": "Omsetning", "unit": "kr", "series": metric_series("revenue")},
-            {"key": "count", "label": "Antall", "unit": "stk", "series": metric_series("count")},
-        ],
-        default_metric="revenue",
-        default_visible_series=[str(current_year), str(current_year - 1)],
-    )
 
 
-def api_revenue_weekly_chart(summaries: Dict[str, Any]) -> Dict[str, Any]:
-    chart_rows = summaries.get("weekly_chart", [])
-
-    def metric_series(metric: str) -> list[Dict[str, Any]]:
-        return [
-            {
-                "name": row["year"],
-                "data": row[metric],
-                "color": row.get("color"),
-                "unit": "kr" if metric == "revenue" else "stk",
-            }
-            for row in chart_rows
-        ]
-
-    current_year = local_now_naive().year
-    return api_chart(
-        "Sum omsetning ukesutvikling",
-        [str(week) for week in range(1, 54)],
-        metric_series("revenue"),
-        "Samlet omsetning fra soling og parkering.",
-        "line",
-        360,
-        metrics=[
-            {"key": "revenue", "label": "Omsetning", "unit": "kr", "series": metric_series("revenue")},
-        ],
-        default_metric="revenue",
-        default_visible_series=[str(current_year), str(current_year - 1)],
-    )
 
 
-def api_revenue_accumulated_year_chart(summaries: Dict[str, Any]) -> Dict[str, Any]:
-    chart_rows = summaries.get("weekly_chart", [])
-
-    def cumulative(values: list[Any]) -> list[Optional[float]]:
-        total = 0.0
-        result: list[Optional[float]] = []
-        normalized = list(values[:53])
-        last_value_index = max((index for index, value in enumerate(normalized) if value is not None), default=-1)
-        for index in range(53):
-            value = normalized[index] if index < len(normalized) else None
-            if index > last_value_index:
-                result.append(None)
-                continue
-            total += float_or_zero(value)
-            result.append(round(total, 2))
-        return result
-
-    def metric_series(metric: str) -> list[Dict[str, Any]]:
-        return [
-            {
-                "name": row["year"],
-                "data": cumulative(row.get(metric) or []),
-                "color": row.get("color"),
-                "unit": "kr" if metric == "revenue" else "stk",
-                "smooth": False,
-                "step": "end",
-            }
-            for row in chart_rows
-        ]
-
-    current_year = local_now_naive().year
-    return api_chart(
-        "Akkumulert år",
-        [str(week) for week in range(1, 54)],
-        metric_series("revenue"),
-        "Løpende sum uke for uke fra samme grunnlag som Omsetning oversikt.",
-        "line",
-        520,
-        metrics=[
-            {"key": "revenue", "label": "Omsetning", "unit": "kr", "series": metric_series("revenue")},
-            {"key": "count", "label": "Antall", "unit": "stk", "series": metric_series("count")},
-        ],
-        default_metric="revenue",
-        default_visible_series=[str(current_year), str(current_year - 1)],
-    )
 
 
-def cumulative_energy_series(rows: list[EnergyFibaroSample], attr: str) -> list[float]:
-    total = 0.0
-    values = []
-    for row in rows:
-        total += float_or_zero(getattr(row, attr, None))
-        values.append(round(total, 3))
-    return values
 
 
-def cumulative_energy_points(rows: list[EnergyFibaroSample], attr: str) -> list[list[Any]]:
-    total = 0.0
-    points = []
-    for row in rows:
-        stamp = api_local_iso(row.bucket_start)
-        if not stamp:
-            continue
-        total += float_or_zero(getattr(row, attr, None))
-        points.append([stamp, round(total, 3)])
-    return points
 
 
-def decimate_rows(rows: list[Any], max_points: int) -> list[Any]:
-    if max_points <= 0 or len(rows) <= max_points:
-        return rows
-    step = max(1, math.ceil(len(rows) / max_points))
-    decimated = rows[::step]
-    if decimated[-1] is not rows[-1]:
-        decimated.append(rows[-1])
-    return decimated
 
 
-def api_tool_row(tool: str, path: str, description: str, count: Optional[int] = None) -> Dict[str, Any]:
-    return {
-        "tool": tool,
-        "path": path,
-        "description": description,
-        "count": count,
-    }
 
 
-def api_admin_manual_payload(import_rows: list[Dict[str, Any]], access_keys: list[Any]) -> tuple[list[ModuleCardPayload], list[ModuleTablePayload]]:
-    inventory = system_component_summary()
-    cards = [
-        api_card("Manual", "Kort", "", "Overblikk over hva du kan se og gjøre", "status", href="/manual/oversikt"),
-        api_card("Systemkart", inventory["components"], "stk", "Apper, tjenester og webflater", "status", href="/admin/systemkart"),
-        api_card("Datakilder", len(import_rows), "stk", "Ferskhet og feilsøking", "status", href="/admin/datakilder"),
-        api_card("Build", APP_BUILD, "", "Siste endringspakke", "status", href="/admin/build"),
-    ]
-    tables = [
-        api_table(
-            "Start her",
-            ["area", "path", "role", "recommended_action"],
-            [
-                {
-                    "area": "Daglig drift",
-                    "path": "/status/omsetning",
-                    "role": "Dashboard for omsetning, parkering, soling og drift akkurat nå.",
-                    "recommended_action": "Start her når du vil vite om dagen ligger foran eller bak.",
-                },
-                {
-                    "area": "Datagrunnlag",
-                    "path": "/admin/datakilder",
-                    "role": "Viser om importjobber, HC3, SUN2, EasyPark, Yr og underapper er ferske.",
-                    "recommended_action": "Sjekk denne først når tall mangler eller virker feil.",
-                },
-                {
-                    "area": "System",
-                    "path": "/admin/systemkart",
-                    "role": "Klikkbar oversikt over apper, underapper, porter, URL-er og health-lenker.",
-                    "recommended_action": "Brukes når du skal finne hvor en tjeneste bor.",
-                },
-                {
-                    "area": "Endringer",
-                    "path": "/admin/build",
-                    "role": "Buildlogg med bestilling, endringer, berørte applikasjoner og tester.",
-                    "recommended_action": "Brukes når du lurer på hva som sist ble endret.",
-                },
-                {
-                    "area": "Tilgang",
-                    "path": "/admin/brukere",
-                    "role": "Brukere, roller, master-funksjoner og tilgangslogg.",
-                    "recommended_action": "Brukes for passord, aktive brukere og innloggingskontroll.",
-                },
-            ],
-        ),
-        api_table(
-            "Hva du kan se og gjøre",
-            ["area", "path", "role", "recommended_action"],
-            [
-                {
-                    "area": "Omsetning",
-                    "path": "/omsetning/oversikt",
-                    "role": "År, måned, dag, toppdager, toppmåneder og samlet kontroll mot oppgjør.",
-                    "recommended_action": "Brukes for økonomisk oversikt og avvik.",
-                },
-                {
-                    "area": "Parkering",
-                    "path": "/parkering/parkeringer",
-                    "role": "Dagens parkeringer, kjøretøy, eier, bilinfo, områder, kamera og oppgjør.",
-                    "recommended_action": "Brukes for daglig kontroll av EasyPark og biler.",
-                },
-                {
-                    "area": "Soling",
-                    "path": "/soling/dagslinje",
-                    "role": "Soltimer, rom, senger, medlemmer, produkter, bilder, prognoser og oppgjør.",
-                    "recommended_action": "Brukes for å kontrollere soltimer og bildegrunnlag.",
-                },
-                {
-                    "area": "Koble",
-                    "path": "/koble/oversikt",
-                    "role": "Finner sannsynlige koblinger mellom bilnummer og SUN2-ID basert på tidstreff.",
-                    "recommended_action": "Brukes for visuell kontroll og bekreftelse av kandidater.",
-                },
-                {
-                    "area": "Energi",
-                    "path": "/energi/status",
-                    "role": "Realtime HC3-forbruk, kurser, laster, Elvia-kontroll og forbruk per seng.",
-                    "recommended_action": "Brukes for strømavvik, solsengforbruk og målerkontroll.",
-                },
-                {
-                    "area": "Ventilasjon",
-                    "path": "/ventilasjon/dagslogg",
-                    "role": "Temperatur, fuktighet, Yr, viftehendelser og ventilasjonsinnstillinger.",
-                    "recommended_action": "Brukes for å forstå kjøling, lufting og avfukter.",
-                },
-                {
-                    "area": "Lys",
-                    "path": "/lys/dagslogg",
-                    "role": "Lux, skydekke, solhøyde, lysstatus, hendelser og styringsregler.",
-                    "recommended_action": "Brukes når lys virker feil eller terskler skal vurderes.",
-                },
-                {
-                    "area": "Solrom",
-                    "path": "/solrom/oversikt",
-                    "role": "Nåstatus, forventet ut, romdetaljer og dagskontroll for solrom 1-12.",
-                    "recommended_action": "Brukes for romkontroll og varsel ved for lenge lukket/opptatt rom.",
-                },
-                {
-                    "area": "Solrom-2",
-                    "path": "/solrom-2/oversikt",
-                    "role": "Ny arbeidsflate for solrom med nåstatus, dagsmatrise, avvikskontroll og romdetalj.",
-                    "recommended_action": "Brukes for å vurdere beste endelige romkontrollflate mot Solrom og Dører2.",
-                },
-                {
-                    "area": "Dører2",
-                    "path": "/dorer2/oversikt",
-                    "role": "Ny situasjonsflate for rom og byggdører med avvik først, romkart, tidslinje og detaljvisning.",
-                    "recommended_action": "Brukes når du trenger rask operativ vurdering av romstatus og døravvik.",
-                },
-                {
-                    "area": "Dører",
-                    "path": "/dorer/oversikt",
-                    "role": "Byggdører, andre dører, åpne/lukke-historikk, rådata og synlige romkontrollvarianter.",
-                    "recommended_action": "Brukes for statuskontroll, feilsøking og sammenligning av ulike romkontrollflater.",
-                },
-                {
-                    "area": "Vedlikehold",
-                    "path": "/vedlikehold/besok",
-                    "role": "Besøk på Lilletorget og oppgaver utført under hvert besøk.",
-                    "recommended_action": "Brukes for notater, historikk og oppfølging.",
-                },
-                {
-                    "area": "Renhold",
-                    "path": "/renhold/oversikt",
-                    "role": "Roborock-status, siste jobber, robotdetaljer og loggerstatus.",
-                    "recommended_action": "Brukes når robotvaskere må sjekkes.",
-                },
-                {
-                    "area": "Mobil og iPad",
-                    "path": "/mobil/oversikt",
-                    "role": "Samlet visning av mobilkortene og inngang til egne mobil/iPad-flater.",
-                    "recommended_action": "Brukes for å kontrollere hva de lette grensesnittene viser.",
-                },
-                {
-                    "area": "Ideer",
-                    "path": "/ideer/oversikt",
-                    "role": "Forslag, analyseideer og mulige forbedringer før de flyttes inn i fagområder.",
-                    "recommended_action": "Brukes som venteliste for nye funksjoner.",
-                },
-            ],
-        ),
-        api_table(
-            "Når noe ser feil ut",
-            ["problem", "path", "first_check", "recommended_action"],
-            [
-                {
-                    "problem": "Tall mangler eller virker gamle",
-                    "path": "/admin/datakilder",
-                    "first_check": "Se sist OK, alder, melding og neste planlagte jobb.",
-                    "recommended_action": "Feilsøk kilden før du vurderer selve grafen.",
-                },
-                {
-                    "problem": "Parkering stemmer ikke",
-                    "path": "/parkering/parkeringer",
-                    "first_check": "Sist EasyPark-import, dagens liste og kilde EasyPark/flowbird-parknordic.",
-                    "recommended_action": "Trigger import hvis den er gammel, og sjekk oppgjør ved månedsavvik.",
-                },
-                {
-                    "problem": "Soling stemmer ikke",
-                    "path": "/soling/enkeltimer",
-                    "first_check": "Enkelttimer, dagslinje, produkter og bildearkiv.",
-                    "recommended_action": "Sjekk SUN2-scraper og om bildetidspunkt/romkobling er riktig.",
-                },
-                {
-                    "problem": "Strøm eller forbruk avviker",
-                    "path": "/energi/elvia-kontroll",
-                    "first_check": "HC3 realtime, Elvia-import og om målere har hull/nullstilling.",
-                    "recommended_action": "Bruk Elvia som kontroll og HC3 som løpende datagrunnlag.",
-                },
-                {
-                    "problem": "Lys eller ventilasjon oppfører seg uventet",
-                    "path": "/lys/dagslogg",
-                    "first_check": "Lux, skydekke, solhøyde, temperatur, fukt og hendelser samme dag.",
-                    "recommended_action": "Sjekk innstillinger etter at datagrunnlaget er bekreftet ferskt.",
-                },
-                {
-                    "problem": "En underapp svarer ikke",
-                    "path": "/admin/systemkart",
-                    "first_check": "Health-lenke, lokal URL og compose-service.",
-                    "recommended_action": "Bruk QNAP-status/deploy-script hvis tjenesten ikke er healthy.",
-                },
-            ],
-        ),
-        api_table(
-            "Underapper med webgrensesnitt",
-            ["component", "area", "interface", "web_url", "local_url", "health_url", "status"],
-            system_web_interface_rows(),
-        ),
-    ]
-    return cards, tables
 
 
-def api_sun2_summary_row(item: Dict[str, Any]) -> Dict[str, Any]:
-    return {
-        "period": item.get("period"),
-        "period_label": item.get("period_label") or item.get("period"),
-        "totalt_inntjent_kr": round(float_or_zero(item.get("totalt_inntjent_kr")), 2),
-        "totalt_antall_solinger": int_or_zero(item.get("totalt_antall_solinger")),
-        "total_soletid_timer": round(float_or_zero(item.get("total_soletid_timer")), 2),
-        "rooms_count": int_or_zero(item.get("rooms_count")),
-        "days_count": int_or_zero(item.get("days_count")),
-    }
 
 
-def api_parking_summary_row(item: Dict[str, Any]) -> Dict[str, Any]:
-    return {
-        "period": item.get("period"),
-        "period_label": item.get("period_label") or item.get("period"),
-        "paid": round(float_or_zero(item.get("paid")), 2),
-        "sessions": int_or_zero(item.get("sessions")),
-        "vehicles": int_or_zero(item.get("vehicles")),
-        "minutes": round(float_or_zero(item.get("minutes")), 2),
-        "days_count": int_or_zero(item.get("days_count")),
-    }
 
 
-def api_revenue_summary_row(item: Dict[str, Any]) -> Dict[str, Any]:
-    return {
-        "period": item.get("period"),
-        "period_label": item.get("period_label") or item.get("period"),
-        "sun_paid": round(float_or_zero(item.get("sun_paid")), 2),
-        "parking_paid": round(float_or_zero(item.get("parking_paid")), 2),
-        "total_paid": round(float_or_zero(item.get("total_paid")), 2),
-        "sun_count": int_or_zero(item.get("sun_count")),
-        "parking_count": int_or_zero(item.get("parking_count")),
-        "total_count": int_or_zero(item.get("total_count")),
-    }
 
 
-def api_revenue_overview_tables(summaries: Dict[str, Any]) -> list[Dict[str, Any]]:
-    revenue_columns = ["period_label", "total_paid", "parking_paid", "parking_count", "sun_paid", "sun_count"]
-    return [
-        api_table("Topp dager omsetning", revenue_columns, [api_revenue_summary_row(row) for row in summaries.get("top_days", [])]),
-        api_table("Topp uker omsetning", revenue_columns, [api_revenue_summary_row(row) for row in summaries.get("top_weeks", [])]),
-        api_table("Topp m\u00e5neder omsetning", ["period", *revenue_columns[1:]], [api_revenue_summary_row(row) for row in summaries.get("top_months", [])]),
-    ]
 
 
-def api_parking_overview_tables(summaries: Dict[str, Any], latest_rows: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
-    return [
-        api_table(
-            "Topp dager omsetning",
-            ["period_label", "paid", "sessions", "vehicles", "minutes"],
-            [api_parking_summary_row(row) for row in summaries.get("top_days", [])],
-        ),
-        api_table(
-            "Topp uker omsetning",
-            ["period_label", "paid", "sessions", "minutes", "days_count"],
-            [api_parking_summary_row(row) for row in summaries.get("top_weeks", [])],
-        ),
-        api_table(
-            "Topp m\u00e5neder omsetning",
-            ["period", "paid", "sessions", "vehicles", "minutes", "days_count"],
-            [api_parking_summary_row(row) for row in summaries.get("top_months", [])],
-        ),
-        api_table(
-            "Topp dager antall",
-            ["period_label", "sessions", "paid", "vehicles", "minutes"],
-            [api_parking_summary_row(row) for row in summaries.get("top_days_by_count", [])],
-        ),
-        api_table(
-            "Topp uker antall",
-            ["period_label", "sessions", "paid", "minutes", "days_count"],
-            [api_parking_summary_row(row) for row in summaries.get("top_weeks_by_count", [])],
-        ),
-        api_table(
-            "Topp m\u00e5neder antall",
-            ["period", "sessions", "paid", "vehicles", "minutes", "days_count"],
-            [api_parking_summary_row(row) for row in summaries.get("top_months_by_count", [])],
-        ),
-        api_table(
-            "Siste parkeringer",
-            ["status", "start_time", "end_time", "car_license_number", "vehicle_make", "vehicle_type", "vehicle_color", "vehicle_owner", "fee_inc_vat", "parking_time_min"],
-            latest_rows,
-            meta={"rowLinkColumn": "car_license_number"},
-        ),
-    ]
 
 
-def api_sun2_overview_tables(summaries: Dict[str, Any], latest_sessions: list[Dict[str, Any]], latest_import_rows: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
-    return [
-        api_table(
-            "Topp dager omsetning",
-            ["period_label", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "rooms_count"],
-            [api_sun2_summary_row(row) for row in summaries.get("top_days", [])],
-        ),
-        api_table(
-            "Topp uker omsetning",
-            ["period_label", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "days_count"],
-            [api_sun2_summary_row(row) for row in summaries.get("top_weeks", [])],
-        ),
-        api_table(
-            "Topp m\u00e5neder omsetning",
-            ["period", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "days_count"],
-            [api_sun2_summary_row(row) for row in summaries.get("top_months", [])],
-        ),
-        api_table(
-            "Topp dager antall",
-            ["period_label", "totalt_antall_solinger", "totalt_inntjent_kr", "total_soletid_timer", "rooms_count"],
-            [api_sun2_summary_row(row) for row in summaries.get("top_days_by_count", [])],
-        ),
-        api_table(
-            "Topp uker antall",
-            ["period_label", "totalt_antall_solinger", "totalt_inntjent_kr", "total_soletid_timer", "days_count"],
-            [api_sun2_summary_row(row) for row in summaries.get("top_weeks_by_count", [])],
-        ),
-        api_table(
-            "Topp m\u00e5neder antall",
-            ["period", "totalt_antall_solinger", "totalt_inntjent_kr", "total_soletid_timer", "days_count"],
-            [api_sun2_summary_row(row) for row in summaries.get("top_months_by_count", [])],
-        ),
-        api_table("Siste solinger", ["started_at", "room_label", "duration_minutes", "paid_amount_kr", "user_name", "customer_type", "status"], latest_sessions),
-        api_table("Siste import", SUN2_IMPORT_COLUMNS, latest_import_rows),
-    ]
 
 
-def api_sun2_weekly_chart(summaries: Dict[str, Any], metric: str = "revenue") -> Dict[str, Any]:
-    chart_rows = summaries.get("weekly_chart", [])
-
-    def metric_series(metric_key: str) -> list[Dict[str, Any]]:
-        return [
-            {
-                "name": row["year"],
-                "data": row[metric_key],
-                "color": row.get("color"),
-                "unit": "kr" if metric_key == "revenue" else "stk",
-            }
-            for row in chart_rows
-        ]
-
-    current_year = local_now_naive().year
-    default_metric = "count" if metric == "count" else "revenue"
-    return api_chart(
-        "Ukesutvikling soling",
-        [str(week) for week in range(1, 54)],
-        metric_series(default_metric),
-        "En linje per år, uke 1-53. Samme datagrunnlag som V1 oversikt.",
-        "line",
-        360,
-        metrics=[
-            {"key": "revenue", "label": "Omsetning", "unit": "kr", "series": metric_series("revenue")},
-            {"key": "count", "label": "Antall", "unit": "stk", "series": metric_series("count")},
-        ],
-        default_metric=default_metric,
-        default_visible_series=[str(current_year), str(current_year - 1)],
-    )
 
 
-def api_sun2_session_row(
-    row: Sun2TanningSession,
-    image: Optional[Sun2TanningSessionImage] = None,
-    image_count: int = 0,
-    images: Optional[list[Sun2TanningSessionImage]] = None,
-) -> Dict[str, Any]:
-    data = api_pick(row, SUN2_SESSION_COLUMNS)
-    if row.room_id:
-        data["room_label"] = sun2_room_label(row.room_id, row.room)
-    if images is not None:
-        ordered_images = sorted(
-            images,
-            key=lambda item: (
-                int_or_zero(getattr(item, "offset_seconds", 0)),
-                item.captured_at or datetime.min,
-                item.id or 0,
-            ),
-        )
-        image = primary_sun2_session_image(ordered_images)
-        image_count = len(ordered_images)
-        data["session_images"] = [sun2_session_image_payload(row, item) for item in ordered_images]
-    else:
-        data["session_images"] = [sun2_session_image_payload(row, image)] if image else []
-    if image:
-        data.update(
-            {
-                "has_image": True,
-                "image_url": f"/soling/enkeltimer/{row.id}/bilde.jpg",
-                "image_captured_at": image.captured_at.isoformat() if image.captured_at else None,
-                "image_target_at": image.target_at.isoformat() if image.target_at else None,
-                "image_delta_seconds": round(float_or_zero(image.delta_seconds), 1),
-                "image_byte_size": image.byte_size,
-                "image_count": max(1, image_count),
-                "image_offset_seconds": image.offset_seconds,
-            }
-        )
-    else:
-        data.update(
-            {
-                "has_image": False,
-                "image_url": "",
-                "image_captured_at": None,
-                "image_target_at": None,
-                "image_delta_seconds": None,
-                "image_byte_size": None,
-                "image_count": 0,
-                "image_offset_seconds": None,
-            }
-        )
-    return data
 
 
-def api_sun2_bed_row(row: Sun2Bed, totals: Dict[str, Any]) -> Dict[str, Any]:
-    data = api_pick(row, SUN2_BED_COLUMNS)
-    total = totals.get(row.room_id) or {}
-    data.update(
-        {
-            "room_label": sun2_room_label(row.room_id, row.name),
-            "sessions_count": int_or_zero(total.get("sessions_count")),
-            "duration_hours": round(float_or_zero(total.get("duration_minutes")) / 60, 2),
-            "paid_amount_kr": round(float_or_zero(total.get("paid_amount_kr")), 2),
-            "last_session_at": total.get("last_at"),
-        }
-    )
-    return data
 
 
-async def api_sun2_day_timeline(session, selected: date) -> Dict[str, Any]:
-    day_start = datetime.combine(selected, time.min)
-    day_end = day_start + timedelta(days=1)
-    visible_room_numbers = list(range(1, 10)) + [11, 12, 13]
-    visible_room_ids = [f"rom-{number:02d}" for number in visible_room_numbers]
-    room_lookup = {
-        room_id: {
-            "roomId": room_id,
-            "label": f"Rom {int(room_id.rsplit('-', 1)[-1])}",
-            "sessions": [],
-            "count": 0,
-            "minutes": 0.0,
-            "paid": 0.0,
-        }
-        for room_id in visible_room_ids
-    }
-
-    rows = (
-        await session.execute(
-            select(Sun2TanningSession)
-            .where(Sun2TanningSession.stat_date == selected)
-            .where(Sun2TanningSession.room_id.in_(visible_room_ids))
-            .order_by(Sun2TanningSession.room_id.asc(), Sun2TanningSession.started_at.asc())
-        )
-    ).scalars().all()
-    energy_rows = (
-        await session.execute(
-            select(
-                EnergyHourlyConsumption.hour.label("hour"),
-                func.coalesce(func.sum(EnergyHourlyConsumption.consumption_kwh), 0).label("consumption_kwh"),
-                func.coalesce(func.sum(EnergyHourlyConsumption.production_kwh), 0).label("production_kwh"),
-                func.count(EnergyHourlyConsumption.id).label("rows_count"),
-            )
-            .where(EnergyHourlyConsumption.stat_date == selected)
-            .group_by(EnergyHourlyConsumption.hour)
-            .order_by(EnergyHourlyConsumption.hour.asc())
-        )
-    ).mappings().all()
-    internal_energy_hour = func.extract("hour", EnergyFibaroSample.bucket_start)
-    internal_energy_rows = (
-        await session.execute(
-            select(
-                internal_energy_hour.label("hour"),
-                func.coalesce(func.sum(EnergyFibaroSample.inntak_delta_kwh), 0).label("internal_kwh"),
-                func.count(EnergyFibaroSample.id).label("samples_count"),
-            )
-            .where(EnergyFibaroSample.bucket_start >= day_start)
-            .where(EnergyFibaroSample.bucket_start < day_end)
-            .group_by(internal_energy_hour)
-            .order_by(internal_energy_hour.asc())
-        )
-    ).mappings().all()
-
-    totals = {"sessionsCount": 0, "durationMinutes": 0.0, "durationHours": 0.0, "paidAmountKr": 0.0}
-    aggregate_sessions = []
-    for row in rows:
-        room_id = normalize_room_id(row.room_id)
-        if room_id not in room_lookup or not row.started_at:
-            continue
-        start_at = row.started_at
-        end_at = row.ended_at
-        if getattr(start_at, "tzinfo", None):
-            start_at = start_at.astimezone(LOCAL_TZ).replace(tzinfo=None)
-        if end_at and getattr(end_at, "tzinfo", None):
-            end_at = end_at.astimezone(LOCAL_TZ).replace(tzinfo=None)
-        if not end_at:
-            end_at = start_at + timedelta(minutes=float(row.duration_minutes or 15))
-        if end_at <= start_at:
-            end_at = start_at + timedelta(minutes=max(1.0, float(row.duration_minutes or 1)))
-
-        clamped_start = max(day_start, min(day_end, start_at))
-        clamped_end = max(clamped_start, min(day_end, end_at))
-        duration_minutes = max(0.0, (clamped_end - clamped_start).total_seconds() / 60)
-        if duration_minutes <= 0:
-            continue
-
-        left = round(((clamped_start - day_start).total_seconds() / 86400) * 100, 4)
-        width = max(0.18, round(((clamped_end - clamped_start).total_seconds() / 86400) * 100, 4))
-        customer_type = (row.customer_type or "").lower()
-        kind = "standard"
-        if "ikke" in customer_type:
-            kind = "no-member"
-        elif "medlem" in customer_type:
-            kind = "member"
-        paid = float(row.paid_amount_kr or 0)
-        title_parts = [
-            f"{room_lookup[room_id]['label']} {start_at:%H:%M}-{end_at:%H:%M}",
-            f"{duration_minutes:.0f} min",
-        ]
-        if row.user_name:
-            title_parts.append(str(row.user_name))
-        if paid:
-            title_parts.append(f"{paid:.0f} kr")
-        item = {
-            "left": left,
-            "width": width,
-            "label": f"{start_at:%H:%M}",
-            "title": " | ".join(title_parts),
-            "kind": kind,
-            "href": f"/soling/enkeltimer?date_from={selected.isoformat()}&date_to={selected.isoformat()}&room_id={room_id}",
-        }
-        room_lookup[room_id]["sessions"].append(item)
-        aggregate_sessions.append({**item, "label": room_lookup[room_id]["label"]})
-        room_lookup[room_id]["count"] += 1
-        room_lookup[room_id]["minutes"] += duration_minutes
-        room_lookup[room_id]["paid"] += paid
-        totals["sessionsCount"] += 1
-        totals["durationMinutes"] += duration_minutes
-        totals["paidAmountKr"] += paid
-
-    totals["durationHours"] = round(totals["durationMinutes"] / 60, 2)
-    rooms = [room_lookup[room_id] for room_id in visible_room_ids]
-    busiest_room = max(rooms, key=lambda item: item["count"], default=None)
-    if busiest_room and not busiest_room["count"]:
-        busiest_room = None
-    top_revenue_room = max(rooms, key=lambda item: item["paid"], default=None)
-    if top_revenue_room and not top_revenue_room["paid"]:
-        top_revenue_room = None
-    today = datetime.now(LOCAL_TZ).date()
-    now_marker = None
-    if selected == today:
-        now_local = datetime.now(LOCAL_TZ).replace(tzinfo=None)
-        now_marker = round(max(0, min(100, ((now_local - day_start).total_seconds() / 86400) * 100)), 3)
-
-    ticks = [{"label": f"{hour:02d}", "left": round(hour / 24 * 100, 4)} for hour in range(0, 25, 2)]
-    energy_lookup = {int(item.get("hour") or 0): item for item in energy_rows}
-    internal_energy_lookup = {int(item.get("hour") or 0): item for item in internal_energy_rows}
-    energy_hours = []
-    max_energy_kwh = max([float((item.get("consumption_kwh") or 0)) for item in energy_rows] or [0.0])
-    max_internal_energy_kwh = max([float((item.get("internal_kwh") or 0)) for item in internal_energy_rows] or [0.0])
-    max_visible_energy_kwh = max(max_energy_kwh, max_internal_energy_kwh)
-    total_energy_kwh = sum(float((item.get("consumption_kwh") or 0)) for item in energy_rows)
-    total_internal_energy_kwh = sum(float((item.get("internal_kwh") or 0)) for item in internal_energy_rows)
-    total_internal_energy_samples = sum(int_or_zero(item.get("samples_count")) for item in internal_energy_rows)
-    for hour in range(24):
-        item = energy_lookup.get(hour) or {}
-        internal_item = internal_energy_lookup.get(hour) or {}
-        consumption = float(item.get("consumption_kwh") or 0)
-        production = float(item.get("production_kwh") or 0)
-        internal_kwh = float(internal_item.get("internal_kwh") or 0)
-        internal_samples = int_or_zero(internal_item.get("samples_count"))
-        energy_hours.append(
-            {
-                "hour": hour,
-                "left": round(hour / 24 * 100, 4),
-                "width": round(100 / 24, 4),
-                "height": round((consumption / max_visible_energy_kwh) * 100, 2) if max_visible_energy_kwh else 0,
-                "internalHeight": round((internal_kwh / max_visible_energy_kwh) * 100, 2) if max_visible_energy_kwh else 0,
-                "consumptionKwh": consumption,
-                "productionKwh": production,
-                "internalKwh": internal_kwh,
-                "internalSamples": internal_samples,
-                "title": f"{hour:02d}:00-{(hour + 1) % 24:02d}:00 | Elvia {consumption:.2f} kWh | Egen {internal_kwh:.2f} kWh",
-            }
-        )
-    peak_energy_hour = max(energy_hours, key=lambda item: item["consumptionKwh"], default=None)
-    if peak_energy_hour and not peak_energy_hour["consumptionKwh"]:
-        peak_energy_hour = None
-    peak_internal_energy_hour = max(energy_hours, key=lambda item: item["internalKwh"], default=None)
-    if peak_internal_energy_hour and not peak_internal_energy_hour["internalKwh"]:
-        peak_internal_energy_hour = None
-    return {
-        "selectedDay": selected.isoformat(),
-        "selectedDayLabel": selected.strftime("%d.%m.%Y"),
-        "prevDay": (selected - timedelta(days=1)).isoformat(),
-        "nextDay": (selected + timedelta(days=1)).isoformat(),
-        "rooms": rooms,
-        "aggregateSessions": aggregate_sessions,
-        "totals": totals,
-        "busiestRoom": busiest_room,
-        "topRevenueRoom": top_revenue_room,
-        "ticks": ticks,
-        "nowMarker": now_marker,
-        "energyHours": energy_hours,
-        "energySummary": {
-            "hoursCount": len([item for item in energy_hours if item["consumptionKwh"] > 0]),
-            "totalKwh": total_energy_kwh,
-            "maxKwh": max_energy_kwh,
-            "peakHour": peak_energy_hour,
-            "internalHoursCount": len([item for item in energy_hours if item["internalKwh"] > 0]),
-            "internalTotalKwh": total_internal_energy_kwh,
-            "internalMaxKwh": max_internal_energy_kwh,
-            "internalSamples": total_internal_energy_samples,
-            "internalPeakHour": peak_internal_energy_hour,
-        },
-    }
 
 
 PARKING_TIMELINE_ROWS = [
@@ -15071,502 +2770,26 @@ PARKING_WEEKLY_AVERAGE_PERIOD_OPTIONS = [
 ]
 
 
-def parse_optional_date(value: Optional[str]) -> Optional[date]:
-    if not value:
-        return None
-    try:
-        return date.fromisoformat(str(value).strip())
-    except ValueError:
-        return None
 
 
-def parking_time_distribution_period(params: Any, today: date) -> Dict[str, Any]:
-    requested = api_filter_value(params, "period", "this_month")
-    valid_periods = {item["key"] for item in PARKING_TIME_PERIOD_OPTIONS}
-    period_key = requested if requested in valid_periods else "this_month"
-    custom_from = parse_optional_date(api_filter_value(params, "date_from"))
-    custom_to = parse_optional_date(api_filter_value(params, "date_to"))
-
-    if period_key == "this_year":
-        start_day = date(today.year, 1, 1)
-        end_day = today
-        label = f"{today.year}"
-    elif period_key == "last_90_days":
-        start_day = today - timedelta(days=89)
-        end_day = today
-        label = "Siste 90 dager"
-    elif period_key == "previous_month":
-        start_day = add_months(today.replace(day=1), -1)
-        end_day = today.replace(day=1) - timedelta(days=1)
-        label = month_label(start_day)
-    elif period_key == "last_year":
-        start_day = date(today.year - 1, 1, 1)
-        end_day = date(today.year - 1, 12, 31)
-        label = str(today.year - 1)
-    elif period_key == "custom" and custom_from and custom_to:
-        start_day, end_day = sorted([custom_from, custom_to])
-        label = f"{start_day:%d.%m.%Y} - {end_day:%d.%m.%Y}"
-    else:
-        period_key = "this_month" if period_key == "custom" else period_key
-        start_day = today.replace(day=1)
-        end_day = today
-        label = month_label(start_day)
-
-    end_exclusive = end_day + timedelta(days=1)
-    days_count = max(0, (end_day - start_day).days + 1)
-    return {
-        "key": period_key,
-        "label": label,
-        "dateFrom": start_day.isoformat(),
-        "dateTo": end_day.isoformat(),
-        "start": datetime.combine(start_day, time.min),
-        "end": datetime.combine(end_exclusive, time.min),
-        "daysCount": days_count,
-        "options": PARKING_TIME_PERIOD_OPTIONS,
-    }
 
 
-def parking_time_weekday_day_counts(start_day: date, end_day: date) -> list[int]:
-    counts = [0 for _ in PARKING_TIME_WEEKDAYS]
-    cursor = start_day
-    while cursor <= end_day:
-        counts[cursor.weekday()] += 1
-        cursor += timedelta(days=1)
-    return counts
 
 
-async def api_parking_time_distribution(session, params: Any, now_dt: datetime) -> Dict[str, Any]:
-    period = parking_time_distribution_period(params, now_dt.date())
-    start_day = date.fromisoformat(period["dateFrom"])
-    end_day = date.fromisoformat(period["dateTo"])
-    weekday_day_counts = parking_time_weekday_day_counts(start_day, end_day)
-    rows = (
-        await session.execute(
-            select(
-                ParkingSession.start_time,
-                ParkingSession.end_time,
-                ParkingSession.parking_time_min,
-                ParkingSession.fee_inc_vat,
-            )
-            .where(ParkingSession.start_time >= period["start"])
-            .where(ParkingSession.start_time < period["end"])
-            .order_by(ParkingSession.start_time.asc())
-        )
-    ).all()
-
-    buckets = [
-        [
-            {
-                "weekdayIndex": weekday_index,
-                "weekday": PARKING_TIME_WEEKDAYS[weekday_index],
-                "hour": hour,
-                "hourLabel": f"{hour:02d}:00",
-                "sessions": 0,
-                "paid": 0.0,
-                "minutes": 0.0,
-            }
-            for hour in range(24)
-        ]
-        for weekday_index in range(7)
-    ]
-    weekday_totals = [
-        {
-            "weekdayIndex": weekday_index,
-            "weekday": PARKING_TIME_WEEKDAYS[weekday_index],
-            "days": weekday_day_counts[weekday_index],
-            "sessions": 0,
-            "paid": 0.0,
-            "minutes": 0.0,
-        }
-        for weekday_index in range(7)
-    ]
-    hour_totals = [
-        {
-            "hour": hour,
-            "hourLabel": f"{hour:02d}:00",
-            "sessions": 0,
-            "paid": 0.0,
-            "minutes": 0.0,
-        }
-        for hour in range(24)
-    ]
-
-    for start_time, end_time, parking_time_min, fee_inc_vat in rows:
-        start_at = normalize_local_naive(start_time)
-        if not start_at:
-            continue
-        paid = float_or_zero(fee_inc_vat)
-        minutes = float_or_zero(parking_time_min)
-        if minutes <= 0:
-            end_at = normalize_local_naive(end_time)
-            if end_at and end_at > start_at:
-                minutes = (end_at - start_at).total_seconds() / 60
-        weekday_index = start_at.weekday()
-        hour = start_at.hour
-        for target in (buckets[weekday_index][hour], weekday_totals[weekday_index], hour_totals[hour]):
-            target["sessions"] += 1
-            target["paid"] += paid
-            target["minutes"] += minutes
-
-    def finalize_bucket(item: Dict[str, Any], days: int = 0) -> Dict[str, Any]:
-        sessions = int_or_zero(item.get("sessions"))
-        paid = round(float_or_zero(item.get("paid")), 2)
-        minutes = round(float_or_zero(item.get("minutes")), 1)
-        item["sessions"] = sessions
-        item["paid"] = paid
-        item["minutes"] = minutes
-        item["hours"] = round(minutes / 60, 2)
-        item["avgPaidPerSession"] = round(paid / sessions, 2) if sessions else 0.0
-        item["avgMinutesPerSession"] = round(minutes / sessions, 1) if sessions else 0.0
-        item["avgPaidPerDay"] = round(paid / days, 2) if days else 0.0
-        item["avgSessionsPerDay"] = round(sessions / days, 2) if days else 0.0
-        item["avgMinutesPerDay"] = round(minutes / days, 1) if days else 0.0
-        return item
-
-    finalized_weekdays = []
-    finalized_cells = []
-    for weekday_index, weekday in enumerate(PARKING_TIME_WEEKDAYS):
-        days = weekday_day_counts[weekday_index]
-        hours = [finalize_bucket(item, days) for item in buckets[weekday_index]]
-        finalized_cells.extend(hours)
-        finalized_weekdays.append({**finalize_bucket(weekday_totals[weekday_index], days), "hours": hours})
-    finalized_hours = [finalize_bucket(item, max(1, period["daysCount"])) for item in hour_totals]
-    total_sessions = sum(item["sessions"] for item in finalized_weekdays)
-    total_paid = round(sum(item["paid"] for item in finalized_weekdays), 2)
-    total_minutes = round(sum(item["minutes"] for item in finalized_weekdays), 1)
-    max_values = {
-        "paid": max([item["paid"] for item in finalized_cells] + [1.0]),
-        "minutes": max([item["minutes"] for item in finalized_cells] + [1.0]),
-        "sessions": max([item["sessions"] for item in finalized_cells] + [1]),
-        "avgPaidPerDay": max([item["avgPaidPerDay"] for item in finalized_cells] + [1.0]),
-        "avgMinutesPerDay": max([item["avgMinutesPerDay"] for item in finalized_cells] + [1.0]),
-    }
-    top_slots = sorted(finalized_cells, key=lambda item: (item["paid"], item["sessions"], item["minutes"]), reverse=True)[:20]
-    return {
-        "generatedAt": api_local_iso(now_dt),
-        "period": {
-            **{key: value for key, value in period.items() if key not in {"start", "end"}},
-            "detail": f"{period['daysCount']} dager - fordelt etter starttidspunkt",
-        },
-        "summary": {
-            "sessions": total_sessions,
-            "paid": total_paid,
-            "minutes": total_minutes,
-            "hours": round(total_minutes / 60, 2),
-            "avgPaidPerSession": round(total_paid / total_sessions, 2) if total_sessions else 0.0,
-            "avgMinutesPerSession": round(total_minutes / total_sessions, 1) if total_sessions else 0.0,
-            "avgPaidPerDay": round(total_paid / max(1, period["daysCount"]), 2),
-            "avgSessionsPerDay": round(total_sessions / max(1, period["daysCount"]), 2),
-        },
-        "max": max_values,
-        "weekdays": finalized_weekdays,
-        "hours": finalized_hours,
-        "topSlots": top_slots,
-    }
 
 
-def parking_timeline_end(row: ParkingSession, timeline_end: datetime) -> datetime:
-    start_at = normalize_local_naive(row.start_time) or timeline_end
-    end_at = normalize_local_naive(row.end_time)
-    status = (row.status or "").strip().lower()
-    if end_at:
-        return end_at
-    if status in {"ongoing", "active", "started"}:
-        return timeline_end
-    if row.parking_time_min and row.parking_time_min > 0:
-        return start_at + timedelta(minutes=float(row.parking_time_min))
-    return start_at + timedelta(minutes=30)
 
 
-async def api_parking_day_timeline(session, selected: date, now_dt: datetime) -> Dict[str, Any]:
-    day_start = datetime.combine(selected, time.min)
-    day_end = day_start + timedelta(days=1)
-    is_today = selected == now_dt.date()
-    timeline_end = min(now_dt, day_end) if is_today else day_end
-    normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
-    query_start = day_start - timedelta(days=7)
-    rows = (
-        await session.execute(
-            select(ParkingSession, ParkingVehicle)
-            .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
-            .where(ParkingSession.start_time >= query_start)
-            .where(ParkingSession.start_time < day_end)
-            .where(
-                or_(
-                    ParkingSession.start_time >= day_start,
-                    ParkingSession.end_time.is_(None),
-                    ParkingSession.end_time >= day_start,
-                )
-            )
-            .order_by(ParkingSession.start_time.asc(), ParkingSession.id.asc())
-        )
-    ).all()
-
-    spaces = []
-    slot_to_space: Dict[int, Dict[str, Any]] = {}
-    slot_index = 0
-    for row_def in PARKING_TIMELINE_ROWS:
-        row_spaces = []
-        for number in range(1, int(row_def["count"]) + 1):
-            label = f"{number:02d}"
-            space = {
-                "spaceId": f"space-{label}",
-                "label": label,
-                "rowKey": row_def["key"],
-                "rowLabel": row_def["label"],
-                "sessions": [],
-                "count": 0,
-                "minutes": 0.0,
-                "paid": 0.0,
-            }
-            row_spaces.append(space)
-            slot_to_space[slot_index] = space
-            slot_index += 1
-        spaces.append({**row_def, "spaces": row_spaces})
-
-    event_candidates = []
-    for row, vehicle in rows:
-        start_at = normalize_local_naive(row.start_time)
-        if not start_at:
-            continue
-        end_at = parking_timeline_end(row, timeline_end)
-        if end_at <= start_at:
-            end_at = start_at + timedelta(minutes=max(1.0, float_or_zero(row.parking_time_min) or 1.0))
-        clamped_start = max(day_start, min(day_end, start_at))
-        clamped_end = max(clamped_start, min(day_end, end_at))
-        duration_minutes = max(0.0, (clamped_end - clamped_start).total_seconds() / 60)
-        if duration_minutes <= 0:
-            continue
-        plate = normalize_plate(row.car_license_number)
-        paid = float_or_zero(row.fee_inc_vat)
-        status = (row.status or "").strip()
-        status_key = status.lower()
-        if status_key in {"ongoing", "active", "started"} and not row.end_time:
-            kind = "ongoing"
-        elif paid <= 0:
-            kind = "unpaid"
-        else:
-            kind = "paid"
-        title_parts = [
-            f"{parking_day_time_label(start_at, selected)}-{parking_day_time_label(end_at, selected)}",
-            f"{duration_minutes:.0f} min",
-        ]
-        if paid:
-            title_parts.append(f"{paid:.0f} kr")
-        if vehicle and vehicle.navn:
-            title_parts.append(str(vehicle.navn))
-        if vehicle and vehicle.omrade:
-            title_parts.append(str(vehicle.omrade))
-        if row.parking_area:
-            title_parts.append(str(row.parking_area))
-        if status:
-            title_parts.append(status)
-        event_candidates.append(
-            {
-                "_start": clamped_start,
-                "_end": clamped_end,
-                "id": f"parking-{row.id}",
-                "left": round(((clamped_start - day_start).total_seconds() / 86400) * 100, 4),
-                "width": max(0.12, round(((clamped_end - clamped_start).total_seconds() / 86400) * 100, 4)),
-                "label": "",
-                "plate": plate,
-                "title": " | ".join(title_parts),
-                "kind": kind,
-                "start": api_local_iso(start_at),
-                "end": api_local_iso(end_at),
-                "durationMinutes": round(duration_minutes, 1),
-                "paid": round(paid, 2),
-                "status": status,
-                "area": row.parking_area,
-                "owner": vehicle.navn if vehicle else None,
-                "ownerArea": vehicle.omrade if vehicle else None,
-                "href": (
-                    f"/parkering/parkeringer?day={selected.isoformat()}&plate={quote(plate, safe='')}"
-                    if plate
-                    else f"/parkering/parkeringer?day={selected.isoformat()}"
-                ),
-            }
-        )
-
-    slot_available = [day_start for _ in range(PARKING_TIMELINE_CAPACITY)]
-    overflow_sessions = []
-    assigned_events = []
-    for item in sorted(event_candidates, key=lambda event: (event["_start"], event["_end"])):
-        free_slots = [index for index, available_at in enumerate(slot_available) if available_at <= item["_start"]]
-        slot = max(free_slots, key=lambda index: (slot_available[index], -index)) if free_slots else None
-        payload = {key: value for key, value in item.items() if not key.startswith("_")}
-        if slot is None:
-            payload["kind"] = "overflow"
-            overflow_sessions.append(payload)
-            assigned_events.append(item)
-            continue
-        space = slot_to_space[slot]
-        payload["spaceId"] = space["spaceId"]
-        space["sessions"].append(payload)
-        space["count"] += 1
-        space["minutes"] += item["durationMinutes"]
-        space["paid"] += item["paid"]
-        slot_available[slot] = item["_end"]
-        assigned_events.append(item)
-
-    occupancy = []
-    peak_count = 0
-    peak_time_label = None
-    for index in range(96):
-        bucket_start = day_start + timedelta(minutes=index * 15)
-        bucket_end = bucket_start + timedelta(minutes=15)
-        bucket_mid = bucket_start + timedelta(minutes=7.5)
-        count = sum(1 for item in assigned_events if item["_start"] <= bucket_mid < item["_end"])
-        if count > peak_count:
-            peak_count = count
-            peak_time_label = bucket_start.strftime("%H:%M")
-        occupancy.append(
-            {
-                "left": round(index / 96 * 100, 4),
-                "width": round(100 / 96, 4),
-                "count": count,
-                "height": round((min(count, PARKING_OCCUPANCY_SCALE_MAX) / PARKING_OCCUPANCY_SCALE_MAX) * 100, 2),
-                "title": f"{bucket_start:%H:%M}-{bucket_end:%H:%M} | {count} biler | skala 25, kapasitet 23",
-            }
-        )
-
-    total_minutes = round(sum(item["durationMinutes"] for item in assigned_events), 1)
-    total_paid = round(sum(item["paid"] for item in assigned_events), 2)
-    total_sessions = len(assigned_events)
-    utilization_percent = round((total_minutes / (PARKING_TIMELINE_CAPACITY * 1440)) * 100, 1) if PARKING_TIMELINE_CAPACITY else 0
-    avg_minutes = round(total_minutes / total_sessions, 1) if total_sessions else 0
-    today = datetime.now(LOCAL_TZ).date()
-    now_marker = None
-    if selected == today:
-        now_local = datetime.now(LOCAL_TZ).replace(tzinfo=None)
-        now_marker = round(max(0, min(100, ((now_local - day_start).total_seconds() / 86400) * 100)), 3)
-    ticks = [{"label": f"{hour:02d}", "left": round(hour / 24 * 100, 4)} for hour in range(0, 25, 2)]
-    return {
-        "selectedDay": selected.isoformat(),
-        "selectedDayLabel": selected.strftime("%d.%m.%Y"),
-        "prevDay": (selected - timedelta(days=1)).isoformat(),
-        "nextDay": (selected + timedelta(days=1)).isoformat(),
-        "capacity": PARKING_TIMELINE_CAPACITY,
-        "occupancyScaleMax": PARKING_OCCUPANCY_SCALE_MAX,
-        "layout": [{"key": row["key"], "label": row["label"], "count": row["count"]} for row in PARKING_TIMELINE_ROWS],
-        "spaceRows": spaces,
-        "overflowSessions": overflow_sessions,
-        "occupancy": occupancy,
-        "ticks": ticks,
-        "nowMarker": now_marker,
-        "summary": {
-            "sessionsCount": total_sessions,
-            "paidAmountKr": total_paid,
-            "durationMinutes": total_minutes,
-            "durationHours": round(total_minutes / 60, 2),
-            "avgMinutes": avg_minutes,
-            "peakCount": peak_count,
-            "peakTimeLabel": peak_time_label,
-            "utilizationPercent": utilization_percent,
-            "overflowCount": len(overflow_sessions),
-        },
-    }
 
 
-def api_sun2_member_row(row: Sun2Member, stats: Dict[str, Any]) -> Dict[str, Any]:
-    data = api_pick(row, SUN2_MEMBER_COLUMNS)
-    stat = stats.get(row.sun2_user_id) or {}
-    data.update(
-        {
-            "sessions_count": int_or_zero(stat.get("sessions_count")),
-            "duration_hours": round(float_or_zero(stat.get("duration_minutes")) / 60, 2),
-            "paid_amount_kr": round(float_or_zero(stat.get("paid_amount_kr")), 2),
-            "last_session_at": stat.get("last_session_at"),
-            "session_name": stat.get("session_name"),
-        }
-    )
-    return data
 
 
-def api_sun2_forecast_rows(forecast: Dict[str, Any]) -> list[Dict[str, Any]]:
-    rows = []
-    for key, label in [("day", "I dag"), ("month", "Måned"), ("year", "År")]:
-        item = forecast.get(key) or {}
-        actual = item.get("actual") or {}
-        forecast_values = item.get("forecast") or {}
-        rows.append(
-            {
-                "period": label,
-                "label": item.get("label") or label,
-                "actual_sessions": round(float_or_zero(actual.get("sessions")), 1),
-                "forecast_sessions": round(float_or_zero(forecast_values.get("sessions")), 1),
-                "actual_paid": round(float_or_zero(actual.get("paid")), 2),
-                "forecast_paid": round(float_or_zero(forecast_values.get("paid")), 2),
-                "actual_hours": round(float_or_zero(actual.get("minutes")) / 60, 2),
-                "forecast_hours": round(float_or_zero(forecast_values.get("minutes")) / 60, 2),
-                "tempo": round(float_or_zero(item.get("tempo")) * 100, 1) if item.get("tempo") is not None else None,
-                "remaining_days": item.get("remaining_days"),
-            }
-        )
-    return rows
 
 
-def api_parking_forecast_rows(forecast: Dict[str, Any]) -> list[Dict[str, Any]]:
-    rows = []
-    for key, label in [("day", "I dag"), ("month", "Måned"), ("year", "År")]:
-        item = forecast.get(key) or {}
-        actual = item.get("actual") or {}
-        forecast_values = item.get("forecast") or {}
-        rows.append(
-            {
-                "period": label,
-                "label": item.get("label") or label,
-                "actual_parkeringer": round(float_or_zero(actual.get("sessions")), 1),
-                "forecast_parkeringer": round(float_or_zero(forecast_values.get("sessions")), 1),
-                "actual_paid": round(float_or_zero(actual.get("paid")), 2),
-                "forecast_paid": round(float_or_zero(forecast_values.get("paid")), 2),
-                "actual_minutes": round(float_or_zero(actual.get("minutes")), 1),
-                "forecast_minutes": round(float_or_zero(forecast_values.get("minutes")), 1),
-                "actual_vehicles": round(float_or_zero(actual.get("vehicles")), 1),
-                "forecast_vehicles": round(float_or_zero(forecast_values.get("vehicles")), 1),
-                "tempo": round(float_or_zero(item.get("tempo")) * 100, 1) if item.get("tempo") is not None else None,
-                "remaining_days": item.get("remaining_days"),
-            }
-        )
-    return rows
 
 
-def api_saved_forecast_rows(rows: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
-    return [
-        {
-            "created_at": row.get("created_at"),
-            "period_type": row.get("period_type"),
-            "period_label": row.get("period_label"),
-            "forecast_sessions": round(float_or_zero((row.get("forecast") or {}).get("sessions")), 1),
-            "actual_sessions": round(float_or_zero((row.get("actual") or {}).get("sessions")), 1),
-            "delta_sessions": round(float_or_zero((row.get("delta") or {}).get("sessions")), 1),
-            "forecast_paid": round(float_or_zero((row.get("forecast") or {}).get("paid")), 2),
-            "actual_paid": round(float_or_zero((row.get("actual") or {}).get("paid")), 2),
-            "delta_paid": round(float_or_zero((row.get("delta") or {}).get("paid")), 2),
-            "period_done": row.get("period_done"),
-        }
-        for row in rows
-    ]
 
 
-def api_parking_saved_forecast_rows(rows: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
-    return [
-        {
-            "created_at": row.get("created_at"),
-            "period_type": row.get("period_type"),
-            "period_label": row.get("period_label"),
-            "forecast_parkeringer": round(float_or_zero((row.get("forecast") or {}).get("sessions")), 1),
-            "actual_parkeringer": round(float_or_zero((row.get("actual") or {}).get("sessions")), 1),
-            "delta_parkeringer": round(float_or_zero((row.get("delta") or {}).get("sessions")), 1),
-            "forecast_paid": round(float_or_zero((row.get("forecast") or {}).get("paid")), 2),
-            "actual_paid": round(float_or_zero((row.get("actual") or {}).get("paid")), 2),
-            "delta_paid": round(float_or_zero((row.get("delta") or {}).get("paid")), 2),
-            "forecast_vehicles": round(float_or_zero((row.get("forecast") or {}).get("vehicles")), 1),
-            "actual_vehicles": round(float_or_zero((row.get("actual") or {}).get("vehicles")), 1),
-            "period_done": row.get("period_done"),
-        }
-        for row in rows
-    ]
 
 
 from fibaro_core.services.settlements.source_queries import sun2_product_daily_scope_condition
@@ -15581,1181 +2804,28 @@ from fibaro_core.services.settlements.source_queries import sun2_product_amount_
 from fibaro_core.services.settlements.source_queries import sun2_product_amount_ex_expr
 
 
-def sun2_product_summary_row(period: str, label: str, summary: Dict[str, Any]) -> Dict[str, Any]:
-    amount_inc = float_or_zero(summary.get("amount_inc_vat"))
-    amount_ex = float_or_zero(summary.get("amount_ex_vat"))
-    count_value = int_or_zero(summary.get("count"))
-    quantity = float_or_zero(summary.get("quantity"))
-    return {
-        "period": period,
-        "period_label": label,
-        "sales_count": count_value,
-        "quantity": round(quantity, 2),
-        "amount_inc_vat_kr": round(amount_inc, 2),
-        "amount_ex_vat_kr": round(amount_ex, 2),
-        "average_sale_inc_vat_kr": round(amount_inc / count_value, 2) if count_value else None,
-        "first_date": summary.get("first_date"),
-        "last_date": summary.get("last_date"),
-        "last_imported_at": summary.get("last_imported_at"),
-        "source_scope": summary.get("source_scope"),
-        "control_basis": summary.get("control_basis"),
-    }
 
 
-async def sun2_product_sales_range_summary(session, start: date, end: date) -> Dict[str, Any]:
-    rows = []
-    cursor = date(start.year, start.month, 1)
-    while cursor <= end:
-        period_start = cursor
-        period_end = min(month_end(cursor), end)
-        summary = await sun2_product_sales_period_summary(session, period_start, period_end)
-        rows.append(sun2_product_summary_row(period_start.strftime("%Y-%m"), period_start.strftime("%m.%Y"), summary))
-        cursor = add_months(cursor, 1)
-    amount_inc = sum(float_or_zero(row.get("amount_inc_vat_kr")) for row in rows)
-    amount_ex = sum(float_or_zero(row.get("amount_ex_vat_kr")) for row in rows)
-    sales_count = sum(int_or_zero(row.get("sales_count")) for row in rows)
-    quantity = sum(float_or_zero(row.get("quantity")) for row in rows)
-    return {
-        "count": sales_count,
-        "quantity": round(quantity, 2),
-        "amount_inc_vat": round(amount_inc, 2),
-        "amount_ex_vat": round(amount_ex, 2),
-        "first_date": start,
-        "last_date": end,
-        "months": rows,
-        "source_scope": "month_summary",
-    }
 
 
-async def sun2_product_sales_month_rows(session, limit: int = 24) -> list[Dict[str, Any]]:
-    period_rows = (
-        await session.execute(
-            select(Sun2ProductSale.stat_date, Sun2ProductSale.period_start, Sun2ProductSale.period_end)
-            .order_by(Sun2ProductSale.stat_date.desc(), Sun2ProductSale.period_start.desc().nullslast())
-            .limit(6000)
-        )
-    ).all()
-    month_starts: list[date] = []
-    seen = set()
-    for stat_date, period_start, _period_end in period_rows:
-        candidate = period_start or stat_date
-        if not candidate:
-            continue
-        month_start = date(candidate.year, candidate.month, 1)
-        key = month_start.isoformat()
-        if key in seen:
-            continue
-        seen.add(key)
-        month_starts.append(month_start)
-        if len(month_starts) >= limit:
-            break
-    rows = []
-    for month_start_value in month_starts:
-        period_end = month_end(month_start_value)
-        summary = await sun2_product_sales_period_summary(session, month_start_value, period_end)
-        rows.append(sun2_product_summary_row(month_start_value.strftime("%Y-%m"), month_start_value.strftime("%B %Y"), summary))
-    return rows
 
 
-def api_sun2_product_sale_row(row: Sun2ProductSale) -> Dict[str, Any]:
-    data = api_pick(
-        row,
-        [
-            "sold_at",
-            "stat_date",
-            "period_start",
-            "period_end",
-            "product_name",
-            "product_category",
-            "quantity",
-            "unit_price_kr",
-            "amount_inc_vat_kr",
-            "amount_ex_vat_kr",
-            "vat_kr",
-            "payment_method",
-            "user_name",
-            "source_file",
-            "imported_at",
-        ],
-    )
-    data["source_scope"] = "maaned" if row.period_start and row.period_end and row.period_start != row.period_end else "dag"
-    return data
 
 
-async def sun2_product_module_payload(
-    session,
-    today: date,
-    month_start: date,
-    params: Any,
-) -> Dict[str, Any]:
-    year_start = date(today.year, 1, 1)
-    recent_start = today - timedelta(days=119)
-    q_value = api_filter_value(params, "q")
-    date_from_value = api_filter_value(params, "date_from")
-    date_to_value = api_filter_value(params, "date_to")
-    category_value = api_filter_value(params, "category")
-    payment_method_value = api_filter_value(params, "payment_method")
-    scope_value = api_filter_value(params, "scope", "daily") or "daily"
-    limit_value = api_filter_int(params, "limit", 250, 25, 1000)
-
-    today_summary = await sun2_product_sales_period_summary(session, today, today)
-    month_summary = await sun2_product_sales_period_summary(session, month_start, today)
-    year_summary = await sun2_product_sales_range_summary(session, year_start, today)
-    month_rows = await sun2_product_sales_month_rows(session)
-
-    product_conditions = []
-    if scope_value == "daily":
-        product_conditions.append(sun2_product_daily_scope_condition())
-    elif scope_value == "monthly":
-        product_conditions.append(sun2_product_monthly_scope_condition())
-    if q_value:
-        like = f"%{q_value.lower()}%"
-        product_conditions.append(
-            or_(
-                func.lower(func.coalesce(Sun2ProductSale.product_name, "")).like(like),
-                func.lower(func.coalesce(Sun2ProductSale.product_category, "")).like(like),
-                func.lower(func.coalesce(Sun2ProductSale.user_name, "")).like(like),
-                func.lower(func.coalesce(Sun2ProductSale.sun2_user_id, "")).like(like),
-                func.lower(func.coalesce(Sun2ProductSale.payment_method, "")).like(like),
-                func.lower(func.coalesce(Sun2ProductSale.source_file, "")).like(like),
-            )
-        )
-    if date_from_value:
-        product_conditions.append(Sun2ProductSale.stat_date >= parse_day(date_from_value))
-    if date_to_value:
-        product_conditions.append(Sun2ProductSale.stat_date <= parse_day(date_to_value))
-    if category_value:
-        product_conditions.append(Sun2ProductSale.product_category == category_value)
-    if payment_method_value:
-        product_conditions.append(Sun2ProductSale.payment_method == payment_method_value)
-
-    product_stmt = select(Sun2ProductSale).order_by(Sun2ProductSale.stat_date.desc(), Sun2ProductSale.sold_at.desc().nullslast()).limit(limit_value)
-    product_count_stmt = select(func.count(Sun2ProductSale.id))
-    if product_conditions:
-        product_stmt = product_stmt.where(*product_conditions)
-        product_count_stmt = product_count_stmt.where(*product_conditions)
-    product_rows = (await session.execute(product_stmt)).scalars().all()
-    filtered_count = (await session.execute(product_count_stmt)).scalar_one()
-
-    amount_inc_expr = sun2_product_amount_inc_expr()
-    amount_ex_expr = sun2_product_amount_ex_expr()
-    top_product_conditions = list(product_conditions)
-    if not date_from_value and not date_to_value:
-        top_product_conditions.append(Sun2ProductSale.stat_date >= recent_start)
-    product_name_expr = func.coalesce(Sun2ProductSale.product_name, "Ukjent")
-    product_category_expr = func.coalesce(Sun2ProductSale.product_category, "")
-    top_product_stmt = (
-        select(
-            product_name_expr.label("product_name"),
-            product_category_expr.label("product_category"),
-            func.count(Sun2ProductSale.id).label("sales_count"),
-            func.coalesce(func.sum(Sun2ProductSale.quantity), 0).label("quantity"),
-            func.coalesce(func.sum(amount_inc_expr), 0).label("amount_inc_vat_kr"),
-            func.coalesce(func.sum(amount_ex_expr), 0).label("amount_ex_vat_kr"),
-            func.max(Sun2ProductSale.stat_date).label("last_date"),
-        )
-        .group_by(product_name_expr, product_category_expr)
-        .order_by(func.coalesce(func.sum(amount_inc_expr), 0).desc())
-        .limit(20)
-    )
-    if top_product_conditions:
-        top_product_stmt = top_product_stmt.where(*top_product_conditions)
-    top_products = [
-        {
-            "product_name": item.get("product_name"),
-            "product_category": item.get("product_category"),
-            "sales_count": int_or_zero(item.get("sales_count")),
-            "quantity": round(float_or_zero(item.get("quantity")), 2),
-            "amount_inc_vat_kr": round(float_or_zero(item.get("amount_inc_vat_kr")), 2),
-            "amount_ex_vat_kr": round(float_or_zero(item.get("amount_ex_vat_kr")), 2),
-            "last_date": item.get("last_date"),
-        }
-        for item in (await session.execute(top_product_stmt)).mappings().all()
-    ]
-
-    chart_anchor_day = today
-    if date_from_value:
-        chart_anchor_day = parse_day(date_from_value)
-    elif date_to_value:
-        chart_anchor_day = parse_day(date_to_value)
-    chart_month_start = date(chart_anchor_day.year, chart_anchor_day.month, 1)
-    chart_month_end = month_end(chart_anchor_day)
-    daily_chart_rows = (
-        await session.execute(
-            select(
-                Sun2ProductSale.stat_date.label("stat_date"),
-                func.count(Sun2ProductSale.id).label("sales_count"),
-                func.coalesce(func.sum(Sun2ProductSale.quantity), 0).label("quantity"),
-                func.coalesce(func.sum(amount_inc_expr), 0).label("amount_inc_vat_kr"),
-                func.coalesce(func.sum(amount_ex_expr), 0).label("amount_ex_vat_kr"),
-            )
-            .where(sun2_product_daily_scope_condition())
-            .where(Sun2ProductSale.stat_date >= chart_month_start)
-            .where(Sun2ProductSale.stat_date <= chart_month_end)
-            .group_by(Sun2ProductSale.stat_date)
-            .order_by(Sun2ProductSale.stat_date.asc())
-        )
-    ).mappings().all()
-    daily_by_date = {item.get("stat_date"): item for item in daily_chart_rows if item.get("stat_date")}
-    daily_rows = []
-    for day in iter_dates(chart_month_start, chart_month_end):
-        item = daily_by_date.get(day)
-        future_day = day > today
-        daily_rows.append(
-            {
-                "period": day.isoformat(),
-                "period_label": day.strftime("%d.%m"),
-                "sales_count": None if future_day else int_or_zero(item.get("sales_count") if item else 0),
-                "quantity": None if future_day else round(float_or_zero(item.get("quantity") if item else 0), 2),
-                "amount_inc_vat_kr": None if future_day else round(float_or_zero(item.get("amount_inc_vat_kr") if item else 0), 2),
-                "amount_ex_vat_kr": None if future_day else round(float_or_zero(item.get("amount_ex_vat_kr") if item else 0), 2),
-            }
-        )
-
-    category_options = api_filter_options(
-        (await session.execute(select(Sun2ProductSale.product_category).distinct().order_by(Sun2ProductSale.product_category.asc()))).scalars().all()
-    )
-    payment_options = api_filter_options(
-        (await session.execute(select(Sun2ProductSale.payment_method).distinct().order_by(Sun2ProductSale.payment_method.asc()))).scalars().all()
-    )
-    daily_status = (
-        await session.execute(select(ImportJobStatus).where(ImportJobStatus.job_name == "sun2_product_sales_daily_import").limit(1))
-    ).scalars().first()
-    monthly_status = (
-        await session.execute(select(ImportJobStatus).where(ImportJobStatus.job_name == "sun2_product_sales_monthly_import").limit(1))
-    ).scalars().first()
-
-    charts = [
-        api_chart(
-            "Produktsalg per dag",
-            [row["period_label"] for row in daily_rows],
-            [
-                {"name": "Omsetning inkl. mva", "data": [row["amount_inc_vat_kr"] for row in daily_rows], "type": "bar", "color": "#f59e0b"},
-                {"name": "Antall", "data": [row["sales_count"] for row in daily_rows], "type": "line", "color": "#64748b"},
-            ],
-            f"Daglige produktsalg for {chart_month_start.strftime('%m.%Y')}. Månedsimport brukes ikke her for å unngå dobbelttelling.",
-            "bar",
-            320,
-        ),
-        api_chart(
-            "Produktsalg per måned",
-            [row["period_label"] for row in reversed(month_rows[:12])],
-            [
-                {"name": "Omsetning inkl. mva", "data": [row["amount_inc_vat_kr"] for row in reversed(month_rows[:12])], "type": "bar", "color": "#d97706"},
-            ],
-            "Månedsgrunnlag bruker månedsimport der den finnes, ellers daglige linjer.",
-            "bar",
-            300,
-        ),
-    ]
-    tables = [
-        api_table(
-            "Produktsalg",
-            ["sold_at", "stat_date", "product_name", "product_category", "quantity", "unit_price_kr", "amount_inc_vat_kr", "amount_ex_vat_kr", "payment_method", "user_name", "source_scope", "source_file", "imported_at"],
-            [api_sun2_product_sale_row(row) for row in product_rows],
-        ),
-        api_table(
-            "Månedsgrunnlag",
-            ["period_label", "sales_count", "quantity", "amount_inc_vat_kr", "amount_ex_vat_kr", "average_sale_inc_vat_kr", "source_scope", "control_basis", "last_imported_at"],
-            month_rows,
-        ),
-        api_table(
-            "Topp produkter",
-            ["product_name", "product_category", "sales_count", "quantity", "amount_inc_vat_kr", "amount_ex_vat_kr", "last_date"],
-            top_products,
-        ),
-    ]
-    return {
-        "title": "Soling · Produkter",
-        "subtitle": "Produktsalg fra Sun2. Månedsgrunnlag brukes til kontroll, daglige linjer brukes til dagsfordeling.",
-        "cards": [
-            api_card("I dag", format_short_number(today_summary.get("amount_inc_vat"), 2), "kr", f"{format_short_number(today_summary.get('quantity'), 2)} stk / {today_summary.get('count', 0)} linjer", "sun2", href="/soling/produkter"),
-            api_card("Måned", format_short_number(month_summary.get("amount_inc_vat"), 2), "kr", f"{format_short_number(month_summary.get('quantity'), 2)} stk / {month_summary.get('count', 0)} linjer", "revenue", href="/soling/produkter"),
-            api_card("I år", format_short_number(year_summary.get("amount_inc_vat"), 2), "kr", f"{format_short_number(year_summary.get('quantity'), 2)} stk", "revenue", href="/soling/produkter"),
-            api_card("Treff", filtered_count, "linjer", f"Viser {len(product_rows)} linjer", "status", href="/soling/produkter"),
-            api_card("Dagimport", import_job_age(daily_status) if daily_status else "-", "", daily_status.status_text if daily_status else "Ingen status", "status", href="/admin/datakilder"),
-            api_card("Månedsimport", import_job_age(monthly_status) if monthly_status else "-", "", monthly_status.status_text if monthly_status else "Ingen status", "status", href="/admin/datakilder"),
-        ],
-        "charts": charts,
-        "tables": tables,
-        "filters": [
-            api_filter("q", "Søk", "text", q_value, "Produkt, kategori, navn, betaling eller fil"),
-            api_filter("date_from", "Fra dato", "date", date_from_value),
-            api_filter("date_to", "Til dato", "date", date_to_value),
-            api_filter("category", "Kategori", "select", category_value, options=category_options),
-            api_filter("payment_method", "Betaling", "select", payment_method_value, options=payment_options),
-            api_filter(
-                "scope",
-                "Grunnlag",
-                "select",
-                scope_value,
-                options=[
-                    {"label": "Daglige linjer", "value": "daily"},
-                    {"label": "Månedsimport", "value": "monthly"},
-                    {"label": "Alle linjer", "value": "all"},
-                ],
-            ),
-            api_filter("limit", "Antall", "number", limit_value),
-        ],
-    }
 
 
-async def sun2_sessions_module_payload(session, params: Optional[Any] = None) -> Dict[str, Any]:
-    params = params or {}
-    q_value = api_filter_value(params, "q")
-    date_from_value = api_filter_value(params, "date_from")
-    date_to_value = api_filter_value(params, "date_to")
-    room_id_value = api_filter_value(params, "room_id")
-    payment_method_value = api_filter_value(params, "payment_method")
-    status_value = api_filter_value(params, "status")
-    customer_type_value = api_filter_value(params, "customer_type")
-    limit_value = api_filter_int(params, "limit", 100, 25, 1000)
-    page_value = api_filter_int(params, "page", 1, 1, 100000)
-    offset_value = (page_value - 1) * limit_value
-    session_conditions = []
-    if q_value:
-        like = f"%{q_value.lower()}%"
-        session_conditions.append(
-            or_(
-                func.lower(func.coalesce(Sun2TanningSession.user_name, "")).like(like),
-                func.lower(func.coalesce(Sun2TanningSession.sun2_user_id, "")).like(like),
-                func.lower(func.coalesce(Sun2TanningSession.user_identifier, "")).like(like),
-                func.lower(func.coalesce(Sun2TanningSession.room, "")).like(like),
-                func.lower(func.coalesce(Sun2TanningSession.room_id, "")).like(like),
-                func.lower(func.coalesce(Sun2TanningSession.source_file, "")).like(like),
-            )
-        )
-    if date_from_value:
-        session_conditions.append(Sun2TanningSession.stat_date >= parse_day(date_from_value))
-    if date_to_value:
-        session_conditions.append(Sun2TanningSession.stat_date <= parse_day(date_to_value))
-    if room_id_value:
-        session_conditions.append(Sun2TanningSession.room_id == room_id_value)
-    if payment_method_value:
-        session_conditions.append(Sun2TanningSession.payment_method == payment_method_value)
-    if status_value:
-        session_conditions.append(Sun2TanningSession.status == status_value)
-    if customer_type_value:
-        session_conditions.append(Sun2TanningSession.customer_type == customer_type_value)
-
-    session_stmt = select(Sun2TanningSession).order_by(Sun2TanningSession.started_at.desc()).offset(offset_value).limit(limit_value)
-    session_count_stmt = select(func.count(Sun2TanningSession.id))
-    if session_conditions:
-        session_stmt = session_stmt.where(*session_conditions)
-        session_count_stmt = session_count_stmt.where(*session_conditions)
-    filtered_sessions = (await session.execute(session_stmt)).scalars().all()
-    filtered_count = (await session.execute(session_count_stmt)).scalar_one()
-
-    filtered_session_ids = [row.id for row in filtered_sessions if row.id]
-    filtered_image_lookup: Dict[int, Sun2TanningSessionImage] = {}
-    filtered_image_counts: Dict[int, int] = {}
-    images_by_session: Dict[int, list[Sun2TanningSessionImage]] = {}
-    if filtered_session_ids:
-        filtered_image_rows = (
-            await session.execute(
-                select(Sun2TanningSessionImage)
-                .options(sun2_session_image_meta_options())
-                .where(Sun2TanningSessionImage.session_id.in_(filtered_session_ids))
-                .order_by(
-                    Sun2TanningSessionImage.session_id.asc(),
-                    Sun2TanningSessionImage.is_primary.desc(),
-                    Sun2TanningSessionImage.offset_seconds.desc(),
-                    Sun2TanningSessionImage.created_at.desc(),
-                )
-            )
-        ).scalars().all()
-        images_by_session = defaultdict(list)
-        for image in filtered_image_rows:
-            images_by_session[image.session_id].append(image)
-        filtered_image_lookup = {
-            session_id: primary_sun2_session_image(images)
-            for session_id, images in images_by_session.items()
-        }
-        filtered_image_counts = {session_id: len(images) for session_id, images in images_by_session.items()}
-
-    room_option_rows = (
-        await session.execute(
-            select(Sun2TanningSession.room_id, func.max(Sun2TanningSession.room))
-            .where(Sun2TanningSession.room_id.is_not(None))
-            .group_by(Sun2TanningSession.room_id)
-            .order_by(Sun2TanningSession.room_id.asc())
-        )
-    ).all()
-    payment_options = api_filter_options(
-        (await session.execute(select(Sun2TanningSession.payment_method).distinct().order_by(Sun2TanningSession.payment_method.asc()))).scalars().all()
-    )
-    status_options = api_filter_options(
-        (await session.execute(select(Sun2TanningSession.status).distinct().order_by(Sun2TanningSession.status.asc()))).scalars().all()
-    )
-    customer_options = api_filter_options(
-        (await session.execute(select(Sun2TanningSession.customer_type).distinct().order_by(Sun2TanningSession.customer_type.asc()))).scalars().all()
-    )
-    room_options = [
-        {"label": sun2_room_label(room_id, room_name), "value": room_id}
-        for room_id, room_name in room_option_rows
-        if room_id
-    ]
-
-    return {
-        "title": "Soling · enkeltimer",
-        "subtitle": "Enkeltimer fra Sun2 med lagrede Axis-bilder og bildearkiv.",
-        "cards": [
-            api_card("Treff", filtered_count, "stk", f"Viser {offset_value + 1 if filtered_sessions else 0}-{min(offset_value + len(filtered_sessions), filtered_count)}", "sun2", href="/soling/enkeltimer"),
-            api_card(
-                "Med bilde",
-                sum(1 for row in filtered_sessions if filtered_image_counts.get(row.id, 0)),
-                "stk",
-                "I viste rader",
-                "status",
-                href="/soling/enkeltimer",
-            ),
-        ],
-        "charts": [],
-        "tables": [
-            api_table(
-                "Enkeltimer",
-                ["started_at", "ended_at", "room_label", "duration_minutes", "paid_amount_kr", "user_name", "payment_method", "customer_type", "status"],
-                [
-                    api_sun2_session_row(
-                        row,
-                        filtered_image_lookup.get(row.id),
-                        filtered_image_counts.get(row.id, 0),
-                        images_by_session.get(row.id, []),
-                    )
-                    for row in filtered_sessions
-                ],
-                meta=api_table_meta(filtered_count, page_value, limit_value, len(filtered_sessions)),
-            ),
-        ],
-        "filters": [
-            api_filter("q", "Søk", "text", q_value, "Navn, SUN2-id, rom, fil"),
-            api_filter("date_from", "Fra dato", "date", date_from_value),
-            api_filter("date_to", "Til dato", "date", date_to_value),
-            api_filter("room_id", "Rom", "select", room_id_value, options=room_options),
-            api_filter("payment_method", "Betaling", "select", payment_method_value, options=payment_options),
-            api_filter("status", "Status", "select", status_value, options=status_options),
-            api_filter("customer_type", "Kundetype", "select", customer_type_value, options=customer_options),
-            api_filter("page", "Side", "number", page_value),
-            api_filter("limit", "Antall", "number", limit_value),
-        ],
-    }
 
 
-async def api_v2_soling_module(
-    session,
-    view: str,
-    today: date,
-    tomorrow: date,
-    month_start: date,
-    selected_day: Optional[date] = None,
-    params: Optional[Any] = None,
-) -> Dict[str, Any]:
-    params = params or {}
-    view = view or "oversikt"
-    if view not in {"oversikt", "dagslinje", "prognose", "statistikk", "detaljer", "enkeltimer", "senger", "medlemmer", "produkter", "oppgjor"}:
-        view = "oversikt"
-    if view == "oppgjor":
-        return await sun_settlement_module_payload(session)
-    if view == "produkter":
-        return await sun2_product_module_payload(session, today, month_start, params)
-    if view == "enkeltimer":
-        return await sun2_sessions_module_payload(session, params)
-
-    yesterday = today - timedelta(days=1)
-    recent_start = today - timedelta(days=119)
-    sun2_summaries = await get_sun2_summaries(session)
-    today_sun = await sun2_period_snapshot(session, today, tomorrow)
-    yesterday_sun = await sun2_period_snapshot(session, yesterday, today)
-    month_sun = await sun2_period_snapshot(session, month_start, tomorrow)
-    database_total = await get_sun2_session_database_total(session)
-    latest_import = (
-        await session.execute(
-            select(Sun2ImportRun)
-            .order_by(Sun2ImportRun.timestamp.desc())
-            .limit(1)
-        )
-    ).scalars().first()
-    latest_sessions = (
-        await session.execute(
-            select(Sun2TanningSession)
-            .order_by(Sun2TanningSession.started_at.desc())
-            .limit(80)
-        )
-    ).scalars().all()
-
-    if view == "oversikt":
-        current_year_summary = next(
-            (item for item in sun2_summaries.get("yearly", []) if str(item.get("period")) == str(today.year)),
-            {},
-        )
-        year_sessions = int_or_zero(current_year_summary.get("totalt_antall_solinger"))
-        year_paid = float_or_zero(current_year_summary.get("totalt_inntjent_kr"))
-        daily_rows = list(reversed(sun2_summaries.get("daily", [])[:120]))
-        daily_count_chart = api_chart(
-            "Solinger per dag",
-            [str(row.get("period") or "") for row in daily_rows],
-            [{"name": "Solinger", "data": [int_or_zero(row.get("totalt_antall_solinger")) for row in daily_rows], "type": "bar"}],
-            "Siste 120 dager fra samlet SUN2-grunnlag.",
-            "bar",
-            300,
-        )
-        return {
-            "title": v2_module_title("soling", "oversikt"),
-            "subtitle": "SUN2 soling samlet i egne visninger for oversikt, detaljer, enkeltimer, senger, medlemmer og prognose.",
-            "cards": [
-                api_card("Solinger i dag", today_sun.sessions, "stk", f"{format_short_number(today_sun.paid)} kr", "sun2", href="/soling/dagslinje"),
-                api_card(
-                    "I går",
-                    yesterday_sun.sessions,
-                    "stk",
-                    f"{format_short_number(yesterday_sun.paid)} kr",
-                    "sun2",
-                    href=f"/soling/enkeltimer?date_from={yesterday.isoformat()}&date_to={yesterday.isoformat()}",
-                ),
-                api_card("Måned", month_sun.sessions, "stk", f"{format_short_number(month_sun.paid)} kr", "revenue", href="/soling/periode?period=month"),
-                api_card("I år", year_sessions, "stk", f"{format_short_number(year_paid)} kr", "sun2", href="/soling/sammenligning"),
-            ],
-            "charts": [api_sun2_weekly_chart(sun2_summaries, "revenue"), daily_count_chart],
-            "tables": api_sun2_overview_tables(
-                sun2_summaries,
-                [api_sun2_session_row(row) for row in latest_sessions],
-                [api_pick(latest_import, SUN2_IMPORT_COLUMNS)] if latest_import else [],
-            ),
-            "actions": [],
-            "filters": [],
-            "sunTimeline": None,
-        }
-
-    members = (await session.execute(select(func.count()).select_from(Sun2Member))).scalar_one()
-    known_members = (
-        await session.execute(
-            select(func.count(func.distinct(Sun2TanningSession.sun2_user_id)))
-            .where(Sun2TanningSession.sun2_user_id.is_not(None))
-            .where(Sun2TanningSession.sun2_user_id != "")
-        )
-    ).scalar_one()
-    imports = (
-        await session.execute(
-            select(Sun2ImportRun)
-            .order_by(Sun2ImportRun.timestamp.desc())
-            .limit(25)
-        )
-    ).scalars().all()
-    session_imports = (
-        await session.execute(
-            select(Sun2SessionImportRun)
-            .order_by(Sun2SessionImportRun.timestamp.desc())
-            .limit(20)
-        )
-    ).scalars().all()
-    today_sessions = (
-        await session.execute(
-            select(Sun2TanningSession)
-            .where(Sun2TanningSession.stat_date == today)
-            .order_by(Sun2TanningSession.started_at.asc())
-            .limit(250)
-        )
-    ).scalars().all()
-    room_rows = (
-        await session.execute(
-            select(Sun2RoomDailyStat)
-            .order_by(Sun2RoomDailyStat.stat_date.desc(), Sun2RoomDailyStat.room.asc())
-            .limit(350)
-        )
-    ).scalars().all()
-    beds = (
-        await session.execute(
-            select(Sun2Bed)
-            .order_by(Sun2Bed.physical_room_number, Sun2Bed.room_id, Sun2Bed.name)
-        )
-    ).scalars().all()
-    bed_totals_rows = (
-        await session.execute(
-            select(
-                Sun2TanningSession.room_id.label("room_id"),
-                func.count(Sun2TanningSession.id).label("sessions_count"),
-                func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                func.max(Sun2TanningSession.started_at).label("last_at"),
-            )
-            .group_by(Sun2TanningSession.room_id)
-        )
-    ).mappings().all()
-    bed_totals = {item["room_id"]: item for item in bed_totals_rows}
-    member_rows = (
-        await session.execute(
-            select(Sun2Member)
-            .order_by(Sun2Member.last_seen_at.desc().nullslast(), Sun2Member.name.asc(), Sun2Member.sun2_user_id.asc())
-            .limit(300)
-        )
-    ).scalars().all()
-    member_ids = [member.sun2_user_id for member in member_rows if member.sun2_user_id]
-    member_stats = {}
-    if member_ids:
-        member_stats_rows = (
-            await session.execute(
-                select(
-                    Sun2TanningSession.sun2_user_id.label("sun2_user_id"),
-                    func.count(Sun2TanningSession.id).label("sessions_count"),
-                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                    func.max(Sun2TanningSession.started_at).label("last_session_at"),
-                    func.max(Sun2TanningSession.user_name).label("session_name"),
-                )
-                .where(Sun2TanningSession.sun2_user_id.in_(member_ids))
-                .group_by(Sun2TanningSession.sun2_user_id)
-            )
-        ).mappings().all()
-        member_stats = {item["sun2_user_id"]: item for item in member_stats_rows}
-
-    daily_session_rows = [
-        dict(item)
-        for item in (
-            await session.execute(
-                select(
-                    Sun2TanningSession.stat_date.label("stat_date"),
-                    func.count(Sun2TanningSession.id).label("sessions_count"),
-                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                    func.count(func.distinct(Sun2TanningSession.room_id)).label("rooms_count"),
-                )
-                .where(Sun2TanningSession.stat_date >= recent_start)
-                .group_by(Sun2TanningSession.stat_date)
-                .order_by(Sun2TanningSession.stat_date.asc())
-            )
-        ).mappings().all()
-    ]
-    hour_part = func.extract("hour", Sun2TanningSession.started_at)
-    hourly_rows = [
-        dict(item)
-        for item in (
-            await session.execute(
-                select(
-                    hour_part.label("hour"),
-                    func.count(Sun2TanningSession.id).label("sessions_count"),
-                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                )
-                .where(Sun2TanningSession.stat_date >= recent_start)
-                .group_by(hour_part)
-                .order_by(hour_part.asc())
-            )
-        ).mappings().all()
-    ]
-    today_room_rows = [
-        {
-            "room_label": sun2_room_label(item.get("room_id"), item.get("source_room_name")),
-            "room_id": item.get("room_id"),
-            "sessions_count": int_or_zero(item.get("sessions_count")),
-            "duration_hours": round(float_or_zero(item.get("duration_minutes")) / 60, 2),
-            "paid_amount_kr": round(float_or_zero(item.get("paid_amount_kr")), 2),
-            "first_at": item.get("first_at"),
-            "last_at": item.get("last_at"),
-        }
-        for item in (
-            await session.execute(
-                select(
-                    Sun2TanningSession.room_id.label("room_id"),
-                    func.max(Sun2TanningSession.room).label("source_room_name"),
-                    func.count(Sun2TanningSession.id).label("sessions_count"),
-                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                    func.min(Sun2TanningSession.started_at).label("first_at"),
-                    func.max(Sun2TanningSession.started_at).label("last_at"),
-                )
-                .where(Sun2TanningSession.stat_date == today)
-                .group_by(Sun2TanningSession.room_id)
-                .order_by(func.count(Sun2TanningSession.id).desc())
-            )
-        ).mappings().all()
-    ]
-    top_rooms = [
-        {
-            "room_label": sun2_room_label(item.get("room_id"), item.get("source_room_name")),
-            "room_id": item.get("room_id"),
-            "sessions_count": int_or_zero(item.get("sessions_count")),
-            "duration_hours": round(float_or_zero(item.get("duration_minutes")) / 60, 2),
-            "paid_amount_kr": round(float_or_zero(item.get("paid_amount_kr")), 2),
-        }
-        for item in (
-            await session.execute(
-                select(
-                    Sun2TanningSession.room_id.label("room_id"),
-                    func.max(Sun2TanningSession.room).label("source_room_name"),
-                    func.count(Sun2TanningSession.id).label("sessions_count"),
-                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                )
-                .where(Sun2TanningSession.stat_date >= recent_start)
-                .group_by(Sun2TanningSession.room_id)
-                .order_by(func.count(Sun2TanningSession.id).desc())
-                .limit(15)
-            )
-        ).mappings().all()
-    ]
-    top_users = [
-        {
-            "sun2_user_id": item.get("sun2_user_id"),
-            "user_name": item.get("user_name"),
-            "sessions_count": int_or_zero(item.get("sessions_count")),
-            "duration_hours": round(float_or_zero(item.get("duration_minutes")) / 60, 2),
-            "paid_amount_kr": round(float_or_zero(item.get("paid_amount_kr")), 2),
-            "last_at": item.get("last_at"),
-        }
-        for item in (
-            await session.execute(
-                select(
-                    Sun2TanningSession.sun2_user_id.label("sun2_user_id"),
-                    func.max(Sun2TanningSession.user_name).label("user_name"),
-                    func.count(Sun2TanningSession.id).label("sessions_count"),
-                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                    func.max(Sun2TanningSession.started_at).label("last_at"),
-                )
-                .where(Sun2TanningSession.sun2_user_id.is_not(None))
-                .where(Sun2TanningSession.sun2_user_id != "")
-                .where(Sun2TanningSession.stat_date >= recent_start)
-                .group_by(Sun2TanningSession.sun2_user_id)
-                .order_by(func.count(Sun2TanningSession.id).desc())
-                .limit(15)
-            )
-        ).mappings().all()
-    ]
-    payment_breakdown = [
-        {
-            "payment_method": item.get("payment_method") or "Ukjent",
-            "sessions_count": int_or_zero(item.get("sessions_count")),
-            "paid_amount_kr": round(float_or_zero(item.get("paid_amount_kr")), 2),
-        }
-        for item in (
-            await session.execute(
-                select(
-                    Sun2TanningSession.payment_method.label("payment_method"),
-                    func.count(Sun2TanningSession.id).label("sessions_count"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                )
-                .where(Sun2TanningSession.stat_date >= recent_start)
-                .group_by(Sun2TanningSession.payment_method)
-                .order_by(func.count(Sun2TanningSession.id).desc())
-                .limit(10)
-            )
-        ).mappings().all()
-    ]
-    status_breakdown = [
-        {
-            "status": item.get("status") or "Ukjent",
-            "sessions_count": int_or_zero(item.get("sessions_count")),
-        }
-        for item in (
-            await session.execute(
-                select(
-                    Sun2TanningSession.status.label("status"),
-                    func.count(Sun2TanningSession.id).label("sessions_count"),
-                )
-                .where(Sun2TanningSession.stat_date >= recent_start)
-                .group_by(Sun2TanningSession.status)
-                .order_by(func.count(Sun2TanningSession.id).desc())
-                .limit(10)
-            )
-        ).mappings().all()
-    ]
-    energy_hour_rows = [
-        {
-            "hour": int_or_zero(item.get("hour")),
-            "consumption_kwh": round(float_or_zero(item.get("consumption_kwh")), 3),
-            "production_kwh": round(float_or_zero(item.get("production_kwh")), 3),
-            "rows_count": int_or_zero(item.get("rows_count")),
-        }
-        for item in (
-            await session.execute(
-                select(
-                    EnergyHourlyConsumption.hour.label("hour"),
-                    func.coalesce(func.sum(EnergyHourlyConsumption.consumption_kwh), 0).label("consumption_kwh"),
-                    func.coalesce(func.sum(EnergyHourlyConsumption.production_kwh), 0).label("production_kwh"),
-                    func.count(EnergyHourlyConsumption.id).label("rows_count"),
-                )
-                .where(EnergyHourlyConsumption.stat_date == today)
-                .group_by(EnergyHourlyConsumption.hour)
-                .order_by(EnergyHourlyConsumption.hour.asc())
-            )
-        ).mappings().all()
-    ]
-
-    daily_chart_rows = [row for row in daily_session_rows if row.get("stat_date")]
-    daily_x = [row["stat_date"].isoformat() if hasattr(row["stat_date"], "isoformat") else str(row["stat_date"]) for row in daily_chart_rows]
-    daily_count_chart = api_chart(
-        "Solinger per dag",
-        daily_x,
-        [{"name": "Solinger", "data": [int_or_zero(row.get("sessions_count")) for row in daily_chart_rows], "type": "bar"}],
-        "Siste 120 dager fra enkeltimer.",
-        "bar",
-        300,
-    )
-    daily_revenue_chart = api_chart(
-        "Omsetning per dag",
-        daily_x,
-        [{"name": "Kr", "data": [round(float_or_zero(row.get("paid_amount_kr")), 2) for row in daily_chart_rows], "type": "bar"}],
-        "Siste 120 dager fra enkeltimer.",
-        "bar",
-        300,
-    )
-    hourly_lookup = {int_or_zero(row.get("hour")): row for row in hourly_rows}
-    hourly_points = [
-        {
-            "hour": hour,
-            "hour_label": f"{hour:02d}",
-            "sessions_count": int_or_zero((hourly_lookup.get(hour) or {}).get("sessions_count")),
-            "duration_hours": round(float_or_zero((hourly_lookup.get(hour) or {}).get("duration_minutes")) / 60, 2),
-            "paid_amount_kr": round(float_or_zero((hourly_lookup.get(hour) or {}).get("paid_amount_kr")), 2),
-        }
-        for hour in range(24)
-    ]
-    hourly_chart = api_chart(
-        "Fordeling per time",
-        [item["hour_label"] for item in hourly_points],
-        [{"name": "Solinger", "data": [item["sessions_count"] for item in hourly_points], "type": "bar"}],
-        "Siste 120 dager fra enkeltimer.",
-        "bar",
-        300,
-    )
-    room_chart = api_chart(
-        "Mest brukte rom",
-        [row["room_label"] for row in top_rooms],
-        [{"name": "Solinger", "data": [row["sessions_count"] for row in top_rooms], "type": "bar"}],
-        "Siste 120 dager.",
-        "bar",
-        320,
-    )
-    bed_chart_rows = [
-        {
-            "room_label": sun2_room_label(item.get("room_id"), item.get("room_id")),
-            "sessions_count": int_or_zero(item.get("sessions_count")),
-        }
-        for item in sorted(bed_totals_rows, key=lambda row: int_or_zero(row.get("sessions_count")), reverse=True)
-        if item.get("room_id")
-    ][:15]
-    bed_chart = api_chart(
-        "Sengebruk",
-        [row["room_label"] for row in bed_chart_rows],
-        [{"name": "Solinger", "data": [row["sessions_count"] for row in bed_chart_rows], "type": "bar"}],
-        "Alle registrerte enkeltimer.",
-        "bar",
-        320,
-    )
-    user_chart = api_chart(
-        "Mest aktive medlemmer",
-        [row.get("user_name") or row.get("sun2_user_id") or "-" for row in top_users],
-        [{"name": "Solinger", "data": [row["sessions_count"] for row in top_users], "type": "bar"}],
-        "Siste 120 dager.",
-        "bar",
-        320,
-    )
-
-    total_sessions = int_or_zero(database_total.get("sessions_count"))
-    total_paid = float_or_zero(database_total.get("paid_amount_kr"))
-    total_hours = float_or_zero(database_total.get("duration_minutes")) / 60
-    cards = [
-        api_card("Solinger i dag", today_sun.sessions, "stk", f"{format_short_number(today_sun.paid)} kr", "sun2", href="/soling/dagslinje"),
-        api_card("I går", yesterday_sun.sessions, "stk", f"{format_short_number(yesterday_sun.paid)} kr", "sun2", href="/soling/enkeltimer"),
-        api_card("Måned", month_sun.sessions, "stk", f"{format_short_number(month_sun.paid)} kr", "revenue", href="/omsetning/manedsoversikt"),
-        api_card("Totalt", format_short_number(total_paid), "kr", f"{format_short_number(total_sessions)} solinger", "revenue", href="/soling/statistikk"),
-    ]
-    subtitle = "SUN2 soling samlet i egne visninger for oversikt, detaljer, enkeltimer, dagslinje, senger, medlemmer og prognose."
-    charts = []
-    tables = []
-    actions = []
-    filters = []
-    timeline = None
-
-    if view == "statistikk":
-        charts = [api_sun2_weekly_chart(sun2_summaries, "revenue"), daily_count_chart, daily_revenue_chart]
-        cards = [
-            api_card("Totalt omsetning", format_short_number(total_paid), "kr", f"{format_short_number(total_sessions)} solinger", "revenue", href="/omsetning/oversikt"),
-            api_card("Totalt timer", format_short_number(total_hours, 1), "t", "Fra enkeltimer", "sun2", href="/soling/enkeltimer"),
-            api_card("Dager med data", sun2_summaries.get("total", {}).get("days_count", 0), "stk", "Dags- og romgrunnlag", "status", href="/soling/detaljer"),
-            api_card("Rom brukt", sun2_summaries.get("total", {}).get("rooms_count", 0), "stk", "Fra dagsstatistikk", "status", href="/soling/senger"),
-        ]
-        tables = [
-            api_table("Dager", ["period_label", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "rooms_count"], [api_sun2_summary_row(row) for row in sun2_summaries.get("daily", [])[:120]]),
-            api_table("Måneder", ["period", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "days_count"], [api_sun2_summary_row(row) for row in sun2_summaries.get("monthly", [])[:60]]),
-            api_table("År", ["period", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "days_count"], [api_sun2_summary_row(row) for row in sun2_summaries.get("yearly", [])]),
-        ]
-    elif view == "detaljer":
-        charts = [api_sun2_weekly_chart(sun2_summaries, "revenue"), room_chart]
-        tables = [
-            api_table("Romstatistikk", ["stat_date", "room", "room_id", "total_soletid_minutter", "totalt_antall_solinger", "totalt_inntjent_kr", "solinger_medlemmer", "solinger_ikke_medlemmer"], [api_pick(row, SUN2_ROOM_COLUMNS) for row in room_rows]),
-            api_table("Måneder", ["period", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "days_count", "rooms_count"], [api_sun2_summary_row(row) for row in sun2_summaries.get("monthly", [])[:80]]),
-            api_table("År", ["period", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "days_count", "rooms_count"], [api_sun2_summary_row(row) for row in sun2_summaries.get("yearly", [])]),
-            api_table("Romimporter", ["timestamp", "ok", "stat_date", "rows_count", "inserted_count", "updated_count", "message"], [api_pick(row, SUN2_IMPORT_COLUMNS) for row in imports]),
-        ]
-    elif view == "dagslinje":
-        timeline = await api_sun2_day_timeline(session, selected_day or today)
-        timeline_totals = timeline["totals"]
-        session_count = int_or_zero(timeline_totals.get("sessionsCount"))
-        duration_minutes = float_or_zero(timeline_totals.get("durationMinutes"))
-        paid_amount = float_or_zero(timeline_totals.get("paidAmountKr"))
-        average_minutes_per_session = (duration_minutes / session_count) if session_count else 0
-        average_paid_per_session = (paid_amount / session_count) if session_count else 0
-        top_revenue_room = timeline.get("topRevenueRoom")
-        energy_summary = timeline["energySummary"]
-        elvia_kwh = float_or_zero(energy_summary.get("totalKwh"))
-        internal_kwh = float_or_zero(energy_summary.get("internalTotalKwh"))
-        has_elvia_energy = int_or_zero(energy_summary.get("hoursCount")) > 0
-        has_internal_energy = int_or_zero(energy_summary.get("internalHoursCount")) > 0
-        energy_card_value = elvia_kwh if has_elvia_energy else internal_kwh if has_internal_energy else None
-        energy_detail_parts = []
-        if has_elvia_energy:
-            energy_detail_parts.append(f"Elvia {format_short_number(elvia_kwh, 1)} kWh")
-        if has_internal_energy:
-            energy_detail_parts.append(
-                f"Egen {format_short_number(internal_kwh, 1)} kWh / {format_short_number(energy_summary.get('internalSamples'))} samples"
-            )
-        charts = []
-        cards = [
-            api_card("Solinger", session_count, "stk", timeline["selectedDayLabel"], "sun2", href="/soling/enkeltimer"),
-            api_card(
-                "Soltid",
-                format_short_number(timeline_totals.get("durationHours"), 1),
-                "t",
-                f"{format_short_number(duration_minutes, 0)} min · snitt {format_short_number(average_minutes_per_session, 0)} min/time",
-                "sun2",
-                href="/soling/enkeltimer",
-            ),
-            api_card(
-                "Omsetning",
-                format_short_number(paid_amount),
-                "kr",
-                f"Snitt {format_short_number(average_paid_per_session)} kr pr soling",
-                "revenue",
-                href="/omsetning/oversikt",
-            ),
-            api_card(
-                "Mest brukt",
-                timeline["busiestRoom"]["label"] if timeline.get("busiestRoom") else "-",
-                "",
-                (
-                    f"{timeline['busiestRoom']['count']} solinger"
-                    + (
-                        f" · Mest inntekt {top_revenue_room['label']} {format_short_number(top_revenue_room['paid'])} kr"
-                        if top_revenue_room
-                        else ""
-                    )
-                    if timeline.get("busiestRoom")
-                    else "Ingen solinger"
-                ),
-                "sun2",
-                href="/soling/senger",
-            ),
-            api_card(
-                "Strømforbruk",
-                format_short_number(energy_card_value, 1) if energy_card_value is not None else "-",
-                "kWh",
-                " · ".join(energy_detail_parts) if energy_detail_parts else "Ingen energidata for valgt dag",
-                "energy",
-                href="/energi/elvia",
-            ),
-        ]
-        tables = []
-    elif view == "senger":
-        charts = [bed_chart]
-        cards = [
-            api_card("Senger", len(beds), "stk", "Importert fra SUN2", "status", href="/soling/senger"),
-            api_card("Rom med bruk", len([row for row in bed_totals_rows if int_or_zero(row.get("sessions_count"))]), "stk", "Har enkeltimer", "sun2", href="/soling/senger"),
-            api_card("Solinger totalt", format_short_number(total_sessions), "stk", "Alle senger/rom", "sun2", href="/soling/enkeltimer"),
-            api_card("Omsetning totalt", format_short_number(total_paid), "kr", "Alle enkeltimer", "revenue", href="/omsetning/oversikt"),
-        ]
-        tables = [
-            api_table("Senger", ["physical_room_number", "room_label", "room_id", "name", "bed_model", "max_minutes", "current_price_per_min", "status", "lamp_status", "sessions_count", "duration_hours", "paid_amount_kr", "last_session_at", "imported_at"], [api_sun2_bed_row(row, bed_totals) for row in beds]),
-        ]
-    elif view == "medlemmer":
-        q_value = api_filter_value(params, "q")
-        customer_type_value = api_filter_value(params, "customer_type")
-        status_value = api_filter_value(params, "status")
-        limit_value = api_filter_int(params, "limit", 150, 25, 1000)
-        page_value = api_filter_int(params, "page", 1, 1, 100000)
-        offset_value = (page_value - 1) * limit_value
-        member_conditions = []
-        if q_value:
-            like = f"%{q_value.lower()}%"
-            member_conditions.append(
-                or_(
-                    func.lower(func.coalesce(Sun2Member.sun2_user_id, "")).like(like),
-                    func.lower(func.coalesce(Sun2Member.name, "")).like(like),
-                    func.lower(func.coalesce(Sun2Member.display_name, "")).like(like),
-                    func.lower(func.coalesce(Sun2Member.initials, "")).like(like),
-                    func.lower(func.coalesce(Sun2Member.email, "")).like(like),
-                    func.lower(func.coalesce(Sun2Member.phone, "")).like(like),
-                )
-            )
-        if customer_type_value:
-            member_conditions.append(Sun2Member.customer_type == customer_type_value)
-        if status_value:
-            member_conditions.append(Sun2Member.status == status_value)
-        member_stmt = (
-            select(Sun2Member)
-            .order_by(Sun2Member.last_seen_at.desc().nullslast(), Sun2Member.name.asc(), Sun2Member.sun2_user_id.asc())
-            .offset(offset_value)
-            .limit(limit_value)
-        )
-        member_count_stmt = select(func.count()).select_from(Sun2Member)
-        if member_conditions:
-            member_stmt = member_stmt.where(*member_conditions)
-            member_count_stmt = member_count_stmt.where(*member_conditions)
-        member_rows = (await session.execute(member_stmt)).scalars().all()
-        member_count = (await session.execute(member_count_stmt)).scalar_one()
-        member_ids = [member.sun2_user_id for member in member_rows if member.sun2_user_id]
-        member_stats = {}
-        if member_ids:
-            member_stats_rows = (
-                await session.execute(
-                    select(
-                        Sun2TanningSession.sun2_user_id.label("sun2_user_id"),
-                        func.count(Sun2TanningSession.id).label("sessions_count"),
-                        func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                        func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                        func.max(Sun2TanningSession.started_at).label("last_session_at"),
-                        func.max(Sun2TanningSession.user_name).label("session_name"),
-                    )
-                    .where(Sun2TanningSession.sun2_user_id.in_(member_ids))
-                    .group_by(Sun2TanningSession.sun2_user_id)
-                )
-            ).mappings().all()
-            member_stats = {item["sun2_user_id"]: item for item in member_stats_rows}
-        filters = [
-            api_filter("q", "Søk", "text", q_value, "Navn, SUN2-id, telefon eller e-post"),
-            api_filter(
-                "customer_type",
-                "Kundetype",
-                "select",
-                customer_type_value,
-                options=api_filter_options(
-                    (await session.execute(select(Sun2Member.customer_type).distinct().order_by(Sun2Member.customer_type.asc()))).scalars().all()
-                ),
-            ),
-            api_filter(
-                "status",
-                "Status",
-                "select",
-                status_value,
-                options=api_filter_options((await session.execute(select(Sun2Member.status).distinct().order_by(Sun2Member.status.asc()))).scalars().all()),
-            ),
-            api_filter("limit", "Antall", "number", limit_value),
-            api_filter("page", "Side", "number", page_value),
-        ]
-        charts = [user_chart]
-        cards = [
-            api_card("Treff", member_count, "stk", f"Viser {offset_value + 1 if member_rows else 0}-{min(offset_value + len(member_rows), member_count)}", "status", href="/soling/medlemmer"),
-            api_card("Kjent fra soling", known_members, "stk", "Unike bruker-ID-er i enkeltimer", "sun2", href="/soling/enkeltimer"),
-            api_card("Aktive i lista", len([row for row in member_rows if (member_stats.get(row.sun2_user_id) or {}).get("sessions_count")]), "stk", "Blant viste medlemmer", "sun2", href="/soling/medlemmer"),
-            api_card("Sist importert", member_rows[0].imported_at if member_rows else "-", "", "Medlemsliste", "status", href="/soling/medlemmer"),
-        ]
-        tables = [
-            api_table(
-                "Medlemmer",
-                ["sun2_user_id", "name", "customer_type", "age", "gender", "last_seen_at", "visits_count", "total_spent_kr", "balance_kr", "sessions_count", "duration_hours", "paid_amount_kr", "last_session_at", "session_name"],
-                [api_sun2_member_row(row, member_stats) for row in member_rows],
-                meta=api_table_meta(member_count, page_value, limit_value, len(member_rows)),
-            ),
-            api_table("Topp brukere", ["sun2_user_id", "user_name", "sessions_count", "duration_hours", "paid_amount_kr", "last_at"], top_users),
-        ]
-    elif view == "prognose":
-        forecast = await build_sun2_forecast(session, today, datetime.now(LOCAL_TZ))
-        saved_forecasts = await saved_forecast_table(session, "sun2")
-        forecast_table_rows = api_sun2_forecast_rows(forecast)
-        charts = [
-            api_chart(
-                "Prognose mot faktisk",
-                [row["period"] for row in forecast_table_rows],
-                [
-                    {"name": "Faktisk solinger", "data": [row["actual_sessions"] for row in forecast_table_rows], "type": "bar"},
-                    {"name": "Prognose solinger", "data": [row["forecast_sessions"] for row in forecast_table_rows], "type": "bar"},
-                ],
-                "Faktisk verdi nå og beregnet sluttverdi.",
-                "bar",
-                300,
-            )
-        ]
-        cards = [
-            api_card("Dagsprognose", forecast_table_rows[0]["forecast_sessions"], "stk", f"{format_short_number(forecast_table_rows[0]['forecast_paid'])} kr", "sun2", href="/soling/prognose"),
-            api_card("Månedsprognose", forecast_table_rows[1]["forecast_sessions"], "stk", f"{format_short_number(forecast_table_rows[1]['forecast_paid'])} kr", "revenue", href="/soling/prognose"),
-            api_card("Årsprognose", forecast_table_rows[2]["forecast_sessions"], "stk", f"{format_short_number(forecast_table_rows[2]['forecast_paid'])} kr", "revenue", href="/soling/prognose"),
-            api_card("Lagrede", len(saved_forecasts), "stk", "Prognosesnapshots", "status", href="/soling/prognose"),
-        ]
-        tables = [
-            api_table("Nåværende prognose", ["period", "label", "actual_sessions", "forecast_sessions", "actual_paid", "forecast_paid", "actual_hours", "forecast_hours", "tempo", "remaining_days"], forecast_table_rows),
-            api_table("Lagrede prognoser", ["created_at", "period_type", "period_label", "actual_sessions", "forecast_sessions", "delta_sessions", "actual_paid", "forecast_paid", "delta_paid", "period_done"], api_saved_forecast_rows(saved_forecasts)),
-        ]
-        actions = [
-            {
-                "key": "sun2-save-forecast",
-                "label": "Lagre solingprognose",
-                "method": "POST",
-                "path": "/api/actions/soling/save-forecast",
-                "confirm": "Lagre prognosesnapshot for soling nå?",
-                "tone": "primary",
-            }
-        ]
-
-    return {
-        "title": v2_module_title("soling", view),
-        "subtitle": subtitle,
-        "cards": cards,
-        "charts": charts,
-        "tables": tables,
-        "actions": actions,
-        "filters": filters,
-        "sunTimeline": timeline,
-    }
 
 
-def api_config_value_rows(values: Dict[str, Any]) -> list[Dict[str, Any]]:
-    return [{"key": key, "value": value} for key, value in sorted(values.items())]
 
 
-def api_config_field_rows(key: str, values: Dict[str, Any]) -> list[Dict[str, Any]]:
-    definition = config_definition(key)
-    if not definition:
-        return api_config_value_rows(values)
-    rows: list[Dict[str, Any]] = []
-    for group in definition["groups"]:
-        for field in group["fields"]:
-            rows.append(
-                {
-                    "group": group["title"],
-                    "key": field["key"],
-                    "label": field["label"],
-                    "value": values.get(field["key"]),
-                    "unit": field.get("unit") or "",
-                    "help": field.get("help") or "",
-                }
-            )
-    return rows
 
 
-def api_rule_rows(rules: list[str]) -> list[Dict[str, Any]]:
-    return [{"rule": index + 1, "description": rule} for index, rule in enumerate(rules)]
 
 
-def api_config_history_rows(rows: list[ControlConfigHistory]) -> list[Dict[str, Any]]:
-    return [
-        row_to_dict(row, ["config_key", "version", "changed_at", "changed_by", "reason"])
-        for row in rows
-    ]
 
 
-def api_access_key_row(row: AccessKey) -> Dict[str, Any]:
-    return {
-        "id": row.id,
-        "name": row.name,
-        "role": row.role,
-        "active": bool(row.active),
-        "is_master": bool(row.is_master),
-        "key_prefix": row.key_prefix,
-        "password_status": "Kan settes på nytt, kan ikke vises" if row.is_master else "Kan endres",
-        "created_at": row.created_at.isoformat() if row.created_at else None,
-        "last_seen_at": row.last_seen_at.isoformat() if row.last_seen_at else None,
-        "uses_count": row.uses_count,
-    }
 
 
 MAINTENANCE_TAG_OPTIONS = [
@@ -16802,2048 +2872,126 @@ MAINTENANCE_ACTION_OPTIONS = [
 MAINTENANCE_PRIORITY_OPTIONS = ["Normal", "Lav", "Høy", "Kritisk"]
 
 
-def normalize_maintenance_tags(value: Any) -> list[str]:
-    if value is None:
-        return []
-    if isinstance(value, str):
-        items = re.split(r"[,;\n]+", value)
-    elif isinstance(value, list):
-        items = value
-    else:
-        items = [value]
-    tags: list[str] = []
-    seen: set[str] = set()
-    for item in items:
-        tag = str(item or "").strip()
-        if not tag:
-            continue
-        normalized = tag.casefold()
-        if normalized in seen:
-            continue
-        seen.add(normalized)
-        tags.append(tag[:60])
-    return tags[:20]
 
 
-def maintenance_datetime_value(value: Optional[str]) -> datetime:
-    parsed = normalize_local_naive(parse_datetime(value)) if value else None
-    return parsed or local_now_naive().replace(second=0, microsecond=0)
 
 
-def clean_maintenance_option(value: Any, options: list[str], default: str = "") -> Optional[str]:
-    text = str(value or default or "").strip()
-    return text if text in options else (default or None)
 
 
-def maintenance_room_value(value: Any) -> Optional[str]:
-    return normalize_room_id(value)
 
 
-def maintenance_target_name(target_type: Optional[str], room_id: Optional[str], value: Any) -> Optional[str]:
-    text = str(value or "").strip()
-    if text:
-        return text[:160]
-    if target_type == "Seng" and room_id:
-        return f"Seng {sun2_room_label(room_id)}"
-    if target_type == "Rom" and room_id:
-        return sun2_room_label(room_id)
-    return None
 
 
-def site_visit_duration_label(seconds: Optional[int], started_at: Optional[datetime] = None, ended_at: Optional[datetime] = None) -> str:
-    value = seconds
-    if value is None and started_at:
-        end_value = ended_at or local_now_naive()
-        value = max(0, int((end_value - started_at).total_seconds()))
-    if value is None:
-        return "-"
-    value = max(0, int(value))
-    hours = value // 3600
-    minutes = (value % 3600) // 60
-    if hours:
-        return f"{hours}t {minutes:02d}m"
-    if minutes:
-        return f"{minutes}m"
-    return f"{value}s"
 
 
-def owntracks_iso_to_local_naive(value: Any) -> Optional[datetime]:
-    if not value:
-        return None
-    try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except (TypeError, ValueError):
-        return None
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(LOCAL_TZ).replace(tzinfo=None, microsecond=0)
 
 
-def owntracks_visit_request(waypoint_name: str) -> Dict[str, Any]:
-    params = {
-        "hours": OWNTRACKS_VISIT_SYNC_LOOKBACK_HOURS,
-        "limit": 1000,
-        "include_short": "false",
-    }
-    if waypoint_name:
-        params["waypointName"] = waypoint_name
-    url = f"{OWNTRACKS_SERVICE_URL}/api/owntracks/visits?{urlencode(params)}"
-    request = urllib.request.Request(url, headers={"Accept": "application/json"})
-    with urllib.request.urlopen(request, timeout=OWNTRACKS_VISIT_SYNC_TIMEOUT_SECONDS) as response:
-        return json.loads(response.read().decode("utf-8"))
 
 
-async def fetch_owntracks_lilletorget_visits() -> list[Dict[str, Any]]:
-    waypoint_names = OWNTRACKS_LILLETORGET_WAYPOINTS or [""]
-    visits_by_key: Dict[str, Dict[str, Any]] = {}
-    for waypoint_name in waypoint_names:
-        payload = await asyncio.to_thread(owntracks_visit_request, waypoint_name)
-        for row in payload.get("visits") or []:
-            if not isinstance(row, dict):
-                continue
-            key = str(row.get("id") or "").strip()
-            if not key:
-                continue
-            visits_by_key[key] = row
-    return sorted(
-        visits_by_key.values(),
-        key=lambda row: str(row.get("startedAt") or ""),
-        reverse=True,
-    )
 
 
-def site_visit_status_label(row: SiteVisit) -> str:
-    if site_visit_is_stale(row):
-        return "Mangler avslutning"
-    return "Aktiv" if row.status == "open" else "Avsluttet"
 
 
-def site_visit_is_stale(row: SiteVisit, now_value: Optional[datetime] = None) -> bool:
-    if row.status != "open" or not row.started_at:
-        return False
-    return row.started_at < (now_value or local_now_naive()) - timedelta(hours=SITE_VISIT_ACTIVE_MAX_HOURS)
 
 
-def site_visit_is_current(row: SiteVisit, now_value: Optional[datetime] = None) -> bool:
-    return row.status == "open" and not site_visit_is_stale(row, now_value)
 
 
-def site_visit_display_duration(row: SiteVisit) -> str:
-    if site_visit_is_stale(row):
-        return "Ukjent"
-    return site_visit_duration_label(row.duration_seconds, row.started_at, row.ended_at)
 
 
-def site_visit_confidence_percent(value: Any) -> Optional[float]:
-    if value is None:
-        return None
-    try:
-        numeric = float(value)
-    except (TypeError, ValueError):
-        return None
-    return round(numeric * 100 if 0 <= numeric <= 1 else numeric, 1)
 
 
-def site_visit_label(row: Optional[SiteVisit]) -> Optional[str]:
-    if not row:
-        return None
-    started = format_source_datetime_short(row.started_at) if row.started_at else "-"
-    duration = site_visit_display_duration(row)
-    return f"{row.location_name} {started} ({duration})"
 
 
-def site_visit_row(row: SiteVisit, tasks_count: int = 0) -> Dict[str, Any]:
-    path = f"/vedlikehold/besok/{row.id}" if row.id else None
-    return {
-        "id": row.id,
-        "path": path,
-        "started_at_url": path,
-        "source": row.source,
-        "source_visit_id": row.source_visit_id,
-        "location_key": row.location_key,
-        "location_name": row.location_name,
-        "started_at": row.started_at.isoformat(timespec="minutes") if row.started_at else None,
-        "ended_at": row.ended_at.isoformat(timespec="minutes") if row.ended_at else None,
-        "duration": site_visit_display_duration(row),
-        "duration_seconds": row.duration_seconds,
-        "status": site_visit_status_label(row),
-        "tasks_count": tasks_count,
-        "topic": row.topic,
-        "username": row.username,
-        "device": row.device,
-        "confidence": site_visit_confidence_percent(row.confidence),
-        "enter_source": row.enter_source,
-        "leave_source": row.leave_source,
-        "notes": row.notes,
-        "last_synced_at": row.last_synced_at.isoformat(timespec="minutes") if row.last_synced_at else None,
-        "created_at": row.created_at.isoformat(timespec="minutes") if row.created_at else None,
-        "updated_at": row.updated_at.isoformat(timespec="minutes") if row.updated_at else None,
-    }
 
 
-async def find_site_visit_for_maintenance(
-    session,
-    performed_at: Optional[datetime],
-    explicit_site_visit_id: Optional[int] = None,
-) -> Optional[SiteVisit]:
-    if explicit_site_visit_id is not None:
-        try:
-            visit_id = int(explicit_site_visit_id)
-        except (TypeError, ValueError):
-            visit_id = 0
-        if visit_id <= 0:
-            return None
-        return await session.get(SiteVisit, visit_id)
-    if not performed_at:
-        return None
-    margin = timedelta(minutes=SITE_VISIT_MAINTENANCE_LINK_MARGIN_MINUTES)
-    open_visit_max_age = timedelta(hours=max(24, OWNTRACKS_VISIT_SYNC_LOOKBACK_HOURS))
-    stmt = (
-        select(SiteVisit)
-        .where(SiteVisit.location_key == OWNTRACKS_SITE_VISIT_LOCATION_KEY)
-        .where(SiteVisit.started_at <= performed_at + margin)
-        .where(
-            or_(
-                and_(SiteVisit.ended_at.isnot(None), SiteVisit.ended_at >= performed_at - margin),
-                and_(SiteVisit.ended_at.is_(None), SiteVisit.started_at >= performed_at - open_visit_max_age),
-            )
-        )
-        .order_by(SiteVisit.started_at.desc(), SiteVisit.id.desc())
-        .limit(1)
-    )
-    return (await session.execute(stmt)).scalars().first()
 
 
-async def link_unassigned_maintenance_logs_to_site_visits(session, since: Optional[datetime] = None, limit: int = 500) -> int:
-    stmt = (
-        select(MaintenanceLogEntry)
-        .where(MaintenanceLogEntry.site_visit_id.is_(None))
-        .where(MaintenanceLogEntry.performed_at.isnot(None))
-        .order_by(MaintenanceLogEntry.performed_at.desc(), MaintenanceLogEntry.id.desc())
-        .limit(limit)
-    )
-    if since:
-        stmt = stmt.where(MaintenanceLogEntry.performed_at >= since)
-    logs = (await session.execute(stmt)).scalars().all()
-    linked = 0
-    for log_row in logs:
-        visit = await find_site_visit_for_maintenance(session, log_row.performed_at)
-        if visit:
-            log_row.site_visit_id = visit.id
-            linked += 1
-    return linked
 
 
-async def sync_owntracks_site_visits_once(reason: str = "manual") -> Dict[str, Any]:
-    if not OWNTRACKS_VISIT_SYNC_ENABLED:
-        return {"status": "disabled", "message": "OwnTracks-besøkssynk er deaktivert."}
-    job_started_at = local_now_naive().replace(microsecond=0)
-    visits = await fetch_owntracks_lilletorget_visits()
-    now_value = local_now_naive().replace(microsecond=0)
-    created = 0
-    updated = 0
-    skipped = 0
-    async with async_session() as session:
-        for raw in visits:
-            source_visit_id = str(raw.get("id") or "").strip()
-            visit_started_at = owntracks_iso_to_local_naive(raw.get("startedAt"))
-            if not source_visit_id or not visit_started_at:
-                skipped += 1
-                continue
-            existing = (
-                await session.execute(
-                    select(SiteVisit)
-                    .where(SiteVisit.source == "owntracks")
-                    .where(SiteVisit.source_visit_id == source_visit_id)
-                    .limit(1)
-                )
-            ).scalars().first()
-            if existing:
-                row = existing
-                updated += 1
-            else:
-                row = SiteVisit(source="owntracks", source_visit_id=source_visit_id, created_at=now_value)
-                session.add(row)
-                created += 1
-            row.location_key = OWNTRACKS_SITE_VISIT_LOCATION_KEY
-            row.location_name = OWNTRACKS_SITE_VISIT_LOCATION_NAME
-            row.topic = str(raw.get("topic") or "").strip() or None
-            row.username = str(raw.get("username") or "").strip() or None
-            row.device = str(raw.get("device") or "").strip() or None
-            row.started_at = visit_started_at
-            row.ended_at = owntracks_iso_to_local_naive(raw.get("endedAt"))
-            row.duration_seconds = int(raw.get("durationSeconds")) if raw.get("durationSeconds") is not None else None
-            row.status = "open" if str(raw.get("status") or "").strip().lower() == "open" else "closed"
-            row.confidence = float_value(raw.get("confidence"))
-            row.enter_source = str(raw.get("enterSource") or "").strip() or None
-            row.leave_source = str(raw.get("leaveSource") or "").strip() or None
-            row.raw = raw
-            row.last_synced_at = now_value
-            row.updated_at = now_value
-        since = now_value - timedelta(hours=OWNTRACKS_VISIT_SYNC_LOOKBACK_HOURS + 24)
-        linked = await link_unassigned_maintenance_logs_to_site_visits(session, since=since)
-        await record_import_job(
-            session,
-            "owntracks_site_visits",
-            ok=True,
-            started_at=job_started_at,
-            finished_at=now_value,
-            records_imported=created + updated,
-            records_total=len(visits),
-            duration_seconds=max(0.0, (now_value - job_started_at).total_seconds()),
-            message=f"Hentet {len(visits)} Lilletorget-besøk fra OwnTracks. Opprettet {created}, oppdatert {updated}, koblet {linked} vedlikehold.",
-            raw={
-                "reason": reason,
-                "created": created,
-                "updated": updated,
-                "skipped": skipped,
-                "maintenanceLinked": linked,
-                "waypoints": OWNTRACKS_LILLETORGET_WAYPOINTS,
-            },
-        )
-        await session.commit()
-    return {
-        "status": "ok",
-        "reason": reason,
-        "fetched": len(visits),
-        "created": created,
-        "updated": updated,
-        "skipped": skipped,
-        "maintenanceLinked": linked,
-        "syncedAt": now_value.isoformat(timespec="seconds"),
-        "waypoints": OWNTRACKS_LILLETORGET_WAYPOINTS,
-    }
 
 
-async def record_owntracks_site_visit_sync_failure(message: str) -> None:
-    try:
-        now_value = local_now_naive().replace(microsecond=0)
-        async with async_session() as session:
-            await record_import_job(
-                session,
-                "owntracks_site_visits",
-                ok=False,
-                started_at=now_value,
-                finished_at=now_value,
-                records_imported=0,
-                records_total=0,
-                duration_seconds=0,
-                message=message[:1000],
-                raw={
-                    "error": message[:4000],
-                    "waypoints": OWNTRACKS_LILLETORGET_WAYPOINTS,
-                },
-            )
-            await session.commit()
-    except Exception as exc:
-        logger.warning("Could not record OwnTracks site visit sync failure: %s", exc, exc_info=True)
 
 
-async def run_owntracks_site_visit_sync(reason: str = "manual") -> Dict[str, Any]:
-    global owntracks_visit_sync_lock
-    if owntracks_visit_sync_lock is None:
-        owntracks_visit_sync_lock = asyncio.Lock()
-    if owntracks_visit_sync_lock.locked():
-        return {"status": "busy", "message": "OwnTracks-besøkssynk kjører allerede."}
-    async with owntracks_visit_sync_lock:
-        try:
-            return await sync_owntracks_site_visits_once(reason=reason)
-        except Exception as exc:
-            await record_owntracks_site_visit_sync_failure(str(exc))
-            raise
 
 
-async def owntracks_site_visit_sync_worker() -> None:
-    await asyncio.sleep(10)
-    while True:
-        try:
-            result = await run_owntracks_site_visit_sync(reason="worker")
-            if result.get("status") == "ok":
-                logger.info("OwnTracks site visit sync: %s", result)
-        except Exception as exc:
-            logger.warning("OwnTracks site visit sync failed: %s", exc, exc_info=True)
-        await asyncio.sleep(OWNTRACKS_VISIT_SYNC_INTERVAL_SECONDS)
 
 
-def maintenance_log_row(row: MaintenanceLogEntry, site_visit: Optional[SiteVisit] = None) -> Dict[str, Any]:
-    tags = normalize_maintenance_tags(row.tags)
-    return {
-        "id": row.id,
-        "site_visit_id": row.site_visit_id,
-        "site_visit": site_visit_label(site_visit),
-        "performed_at": row.performed_at.isoformat(timespec="minutes") if row.performed_at else None,
-        "performed_by": row.performed_by,
-        "presence_type": row.presence_type,
-        "target_type": row.target_type,
-        "room_id": row.room_id,
-        "target_name": row.target_name,
-        "action_type": row.action_type,
-        "priority": row.priority,
-        "summary": row.summary,
-        "tags": ", ".join(tags),
-        "status": row.status,
-        "duration_minutes": row.duration_minutes,
-        "follow_up_needed": bool(row.follow_up_needed),
-        "follow_up_text": row.follow_up_text,
-        "created_at": row.created_at.isoformat(timespec="minutes") if row.created_at else None,
-        "updated_at": row.updated_at.isoformat(timespec="minutes") if row.updated_at else None,
-    }
 
 
-def api_maintenance_log_edit(default_performed_at: datetime) -> Dict[str, Any]:
-    tag_options = [{"label": label, "value": label} for label in MAINTENANCE_TAG_OPTIONS]
-    status_options = [{"label": label, "value": label} for label in MAINTENANCE_STATUS_OPTIONS]
-    presence_options = [{"label": label, "value": label} for label in MAINTENANCE_PRESENCE_OPTIONS]
-    target_options = [{"label": label, "value": label} for label in MAINTENANCE_TARGET_OPTIONS]
-    action_options = [{"label": label, "value": label} for label in MAINTENANCE_ACTION_OPTIONS]
-    priority_options = [{"label": label, "value": label} for label in MAINTENANCE_PRIORITY_OPTIONS]
-    room_options = [{"label": option["label"], "value": option["value"]} for option in SUN2_ROOM_OPTIONS]
-    fields = [
-        {
-            "key": "performed_at",
-            "label": "Tidspunkt",
-            "type": "datetime",
-            "required": True,
-            "defaultValue": default_performed_at.isoformat(timespec="minutes"),
-            "section": "meta",
-        },
-        {"key": "performed_by", "label": "Utført av", "type": "text", "placeholder": "Navn eller bruker", "section": "meta"},
-        {"key": "site_visit_id", "label": "Besøks-ID", "type": "number", "placeholder": "Fylles automatisk fra OwnTracks", "section": "meta"},
-        {"key": "presence_type", "label": "Type", "type": "select", "options": presence_options, "defaultValue": "Tilstede Sun2", "section": "meta"},
-        {"key": "target_type", "label": "Objekt", "type": "select", "options": target_options, "defaultValue": "Seng", "section": "meta"},
-        {"key": "room_id", "label": "Seng / rom", "type": "select", "options": room_options, "placeholder": "Velg rom ved seng/rom", "section": "meta"},
-        {"key": "target_name", "label": "Objektnavn", "type": "text", "placeholder": "Blankt gir f.eks. Seng Rom 12", "section": "meta"},
-        {"key": "action_type", "label": "Tiltak", "type": "select", "options": action_options, "defaultValue": "Kontroll", "section": "meta"},
-        {"key": "priority", "label": "Prioritet", "type": "select", "options": priority_options, "defaultValue": "Normal", "section": "meta"},
-        {"key": "status", "label": "Status", "type": "select", "options": status_options, "defaultValue": "Utført", "section": "meta"},
-        {"key": "duration_minutes", "label": "Varighet min", "type": "number", "section": "meta"},
-        {"key": "summary", "label": "Hva ble gjort", "type": "textarea", "required": True, "rows": 8, "section": "main"},
-        {"key": "tags", "label": "Tagger", "type": "tags", "options": tag_options, "placeholder": "Velg eller skriv tagger", "section": "main"},
-        {"key": "follow_up_needed", "label": "Må følges opp", "type": "boolean", "section": "main"},
-        {"key": "follow_up_text", "label": "Oppfølging", "type": "textarea", "rows": 4, "section": "main"},
-    ]
-    return {
-        "kind": "maintenance-log",
-        "title": "vedlikeholdslogg",
-        "layout": "split",
-        "width": 980,
-        "idField": "id",
-        "endpoint": "/api/maintenance/logs/{id}",
-        "method": "PATCH",
-        "createEndpoint": "/api/maintenance/logs",
-        "fields": fields,
-    }
 
 
-def api_energy_circuit_edit() -> Dict[str, Any]:
-    return {
-        "kind": "energy-circuit",
-        "title": "kurs",
-        "idField": "circuit_no",
-        "endpoint": "/api/energy/circuits/{circuit_no}",
-        "method": "PATCH",
-        "fields": [
-            {"key": "description", "label": "Beskrivelse", "type": "textarea", "required": True},
-            {"key": "breaker_type", "label": "Vern/type", "type": "text"},
-            {"key": "breaker_rating_a", "label": "Ampere", "type": "number"},
-            {"key": "breaker_characteristic", "label": "Karakteristikk", "type": "text"},
-            {"key": "cable_spec", "label": "Kabel", "type": "text"},
-            {"key": "cable_length_m", "label": "Kabellengde m", "type": "number"},
-            {"key": "install_method", "label": "Forlegning", "type": "text"},
-            {"key": "terminal_ref", "label": "Terminal/ref", "type": "text"},
-            {"key": "rcd_ma", "label": "Jordfeilvern mA", "type": "number"},
-            {"key": "is_sunbed", "label": "Solsengkurs", "type": "boolean"},
-            {"key": "status", "label": "Status", "type": "text"},
-            {"key": "note", "label": "Notat", "type": "textarea"},
-        ],
-    }
 
 
-def api_energy_load_edit() -> Dict[str, Any]:
-    return {
-        "kind": "energy-load",
-        "title": "last",
-        "idField": "id",
-        "endpoint": "/api/energy/loads/{id}",
-        "method": "PATCH",
-        "createEndpoint": "/api/energy/loads",
-        "fields": [
-            {"key": "name", "label": "Navn", "type": "text", "required": True},
-            {"key": "load_type", "label": "Type", "type": "text"},
-            {"key": "area", "label": "Område", "type": "text"},
-            {"key": "circuit_no", "label": "Kurs", "type": "number"},
-            {
-                "key": "power_profile",
-                "label": "Effektprofil",
-                "type": "select",
-                "options": [
-                    {"label": "Ikke kjent", "value": "unknown"},
-                    {"label": "Fast effekt", "value": "fixed"},
-                    {"label": "Variabel effekt", "value": "variable"},
-                ],
-            },
-            {"key": "min_power_w", "label": "Minimum W", "type": "number"},
-            {"key": "expected_power_w", "label": "Normal/fast W", "type": "number"},
-            {"key": "max_power_w", "label": "Maksimum W", "type": "number"},
-            {"key": "measured_direct", "label": "Direktemålt", "type": "boolean"},
-            {"key": "fibaro_device_id", "label": "HC3 enhet", "type": "number"},
-            {"key": "fibaro_meter_id", "label": "HC3 måler", "type": "number"},
-            {"key": "zwave_switch_id", "label": "Z-Wave bryter", "type": "number"},
-            {"key": "controllable", "label": "Styrbar", "type": "boolean"},
-            {"key": "critical", "label": "Kritisk", "type": "boolean"},
-            {"key": "active", "label": "Aktiv", "type": "boolean"},
-            {"key": "note", "label": "Notat", "type": "textarea"},
-        ],
-    }
 
 
-def api_access_key_edit() -> Dict[str, Any]:
-    role_options = [
-        {"label": "Viewer", "value": "viewer"},
-        {"label": "Settings", "value": "settings"},
-    ]
-    return {
-        "kind": "access-key",
-        "title": "bruker",
-        "idField": "id",
-        "endpoint": "/api/admin/users/{id}",
-        "method": "PATCH",
-        "createEndpoint": "/api/admin/users",
-        "fields": [
-            {"key": "role", "label": "Rolle", "type": "select", "options": role_options, "required": True},
-            {"key": "active", "label": "Aktiv", "type": "boolean"},
-            {"key": "password", "label": "Nytt passord", "type": "password", "placeholder": "Fyll ut bare hvis passord skal endres"},
-        ],
-        "createFields": [
-            {"key": "username", "label": "Brukernavn", "type": "text", "required": True},
-            {"key": "password", "label": "Passord", "type": "password", "required": True},
-            {"key": "role", "label": "Rolle", "type": "select", "options": role_options, "required": True},
-        ],
-    }
 
 
 from fibaro_core.services.presentation import api_card
 
 
-def api_pick(row: Any, columns: list[str]) -> Dict[str, Any]:
-    payload = row_to_dict(row, columns)
-    if "extra" not in columns:
-        payload.pop("extra", None)
-    return payload
 
 
 from fibaro_core.services.presentation import api_iso_value
 
 
-def api_energy_summary_item(item: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    item = item or empty_fast_energy_summary("-")
-    return {
-        "period": item.get("period"),
-        "period_label": item.get("period_label"),
-        "consumption_kwh": float_or_zero(item.get("consumption_kwh")),
-        "production_kwh": float_or_zero(item.get("production_kwh")),
-        "hours_count": int_or_zero(item.get("hours_count")),
-        "estimated_hours_count": int_or_zero(item.get("estimated_hours_count")),
-        "days_count": int_or_zero(item.get("days_count")),
-    }
-
-
-def api_import_job_status(row: Optional[ImportJobStatus]) -> Optional[Dict[str, Any]]:
-    if not row:
-        return None
-    return {
-        "jobName": row.job_name,
-        "title": row.title,
-        "status": row.status,
-        "statusText": row.status_text,
-        "source": row.source,
-        "message": row.message,
-        "lastRunAt": api_local_iso(row.last_run_at),
-        "lastStartedAt": api_local_iso(row.last_started_at),
-        "lastSuccessAt": api_local_iso(row.last_success_at),
-        "lastFailedAt": api_local_iso(row.last_failed_at),
-        "recordsImported": row.records_imported,
-        "recordsTotal": row.records_total,
-        "durationSeconds": row.duration_seconds,
-    }
-
-
-def api_energy_elvia_payload(
-    summaries: Dict[str, Any],
-    imports: list[EnergyImportRun],
-    rows: list[EnergyHourlyConsumption],
-    status: Optional[ImportJobStatus],
-) -> Dict[str, Any]:
-    latest_import = imports[0] if imports else None
-    return {
-        "summary": {
-            "total": api_energy_summary_item(summaries.get("total")),
-            "firstAt": api_iso_value(summaries.get("first_at")),
-            "lastAt": api_iso_value(summaries.get("last_at")),
-        },
-        "yearly": [api_energy_summary_item(item) for item in summaries.get("yearly", [])],
-        "topDays": [api_energy_summary_item(item) for item in summaries.get("top_days", [])],
-        "topMonths": [api_energy_summary_item(item) for item in summaries.get("top_months", [])],
-        "imports": [api_pick(row, ENERGY_IMPORT_COLUMNS) for row in imports],
-        "rows": [api_pick(row, ENERGY_HOURLY_COLUMNS) for row in rows],
-        "latestImport": api_pick(latest_import, ENERGY_IMPORT_COLUMNS) if latest_import else None,
-        "status": api_import_job_status(status),
-        "uploadEndpoint": "/api/energy/elvia/upload",
-    }
-
-
-def parking_row_api(
-    row: ParkingSession,
-    vehicle: Optional[ParkingVehicle] = None,
-    details: Optional[ParkingVehicleDetails] = None,
-    previous_stats: Optional[Dict[str, Any]] = None,
-    unifi_before_seconds: Optional[int] = None,
-) -> Dict[str, Any]:
-    owner_warning = parking_current_ownership_warning(vehicle, row.start_time)
-    vehicle_make = first_value(details.merke if details else None, car_info_field_value(vehicle.car_info_data if vehicle else None, "make", "brand"))
-    vehicle_type = first_value(
-        details.typebetegnelse if details else None,
-        details.modell if details else None,
-        car_info_field_value(vehicle.car_info_data if vehicle else None, "vehicle_type", "model", "classification"),
-    )
-    vehicle_color = first_value(details.farge if details else None, car_info_field_value(vehicle.car_info_data if vehicle else None, "color"))
-    vehicle_title = parking_vehicle_summary(details, vehicle.car_info_data if vehicle else None)
-    if not vehicle_title:
-        vehicle_parts = [str(part).strip() for part in [vehicle_make, vehicle_type] if str(part or "").strip()]
-        vehicle_title = " ".join(vehicle_parts) or None
-        if vehicle_title and vehicle_color:
-            vehicle_title = f"{vehicle_title} - {vehicle_color}"
-    data = {
-        "id": row.id,
-        "start_time": row.start_time.isoformat() if row.start_time else None,
-        "end_time": row.end_time.isoformat() if row.end_time else None,
-        "end_delta_min": parking_departure_slot_delta_minutes(row),
-        "parking_time_min": row.parking_time_min,
-        "fee_inc_vat": row.fee_inc_vat,
-        "car_license_number": row.car_license_number,
-        "owner_warning": owner_warning["text"] if owner_warning else "",
-        "parking_area": row.parking_area,
-        "source_system": row.source_system,
-        "user_interface": row.user_interface,
-        "subtype": row.subtype,
-        "status": row.status,
-        "vehicle_title": vehicle_title,
-        "path": (
-            f"/parkering/kjoretoy/{quote(compact_plate(row.car_license_number), safe='')}"
-            if compact_plate(row.car_license_number)
-            else ""
-        ),
-        "unifi_start_url": unifi_protect_parking_timelapse_url(row.start_time, unifi_before_seconds),
-        "unifi_end_url": unifi_protect_parking_timelapse_url(row.end_time, unifi_before_seconds),
-    }
-    if previous_stats:
-        data.update(
-            {
-                "previous_parking_count": int_or_zero(previous_stats.get("count")),
-                "previous_paid_total": round(float_or_zero(previous_stats.get("paid")), 2),
-            }
-        )
-    if vehicle:
-        data.update(
-            {
-                "navn": vehicle.navn,
-                "vehicle_owner": vehicle.navn,
-                "omrade": vehicle.omrade,
-                "path": f"/parkering/kjoretoy/{quote(vehicle.plate or '', safe='')}",
-            }
-        )
-    data.update(
-        {
-            "vehicle_make": vehicle_make,
-            "vehicle_type": vehicle_type,
-            "vehicle_color": vehicle_color,
-        }
-    )
-    return data
-
-
-async def parking_previous_stats_for_rows(session, rows: list[ParkingSession]) -> Dict[int, Dict[str, Any]]:
-    candidates = [
-        row
-        for row in rows
-        if row.id is not None and row.start_time is not None and compact_plate(row.car_license_number)
-    ]
-    if not candidates:
-        return {}
-
-    selected_ids = {row.id for row in candidates}
-    selected_plates = {compact_plate(row.car_license_number) for row in candidates}
-    latest_start = max(row.start_time for row in candidates if row.start_time is not None)
-    plate_expr = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
-    history_rows = (
-        await session.execute(
-            select(ParkingSession.id, ParkingSession.car_license_number, ParkingSession.fee_inc_vat)
-            .where(plate_expr.in_(selected_plates))
-            .where(ParkingSession.start_time <= latest_start)
-            .order_by(plate_expr.asc(), ParkingSession.start_time.asc(), ParkingSession.id.asc())
-        )
-    ).all()
-
-    running: Dict[str, Dict[str, Any]] = defaultdict(lambda: {"count": 0, "paid": 0.0})
-    previous_by_id: Dict[int, Dict[str, Any]] = {}
-    for session_id, plate, paid in history_rows:
-        compact = compact_plate(plate)
-        if not compact:
-            continue
-        current = running[compact]
-        if session_id in selected_ids:
-            previous_by_id[int(session_id)] = {"count": current["count"], "paid": current["paid"]}
-        current["count"] += 1
-        current["paid"] += float_or_zero(paid)
-    return previous_by_id
-
-
-def parking_vehicle_row_api(vehicle: ParkingVehicle, details: Optional[ParkingVehicleDetails]) -> Dict[str, Any]:
-    ownership_at = svv_current_ownership_at(vehicle.svv_data)
-    return {
-        "plate": vehicle.plate,
-        "vehicle_title": parking_vehicle_summary(details, vehicle.car_info_data),
-        "navn": vehicle.navn,
-        "omrade": vehicle.omrade,
-        "sun2_id": vehicle.sun2_id,
-        "current_ownership_at": api_local_iso(ownership_at),
-        "parkering_count": vehicle.parkering_count,
-        "paid_total": vehicle.paid_total,
-        "first_seen": api_local_iso(vehicle.first_seen),
-        "last_seen": api_local_iso(vehicle.last_seen),
-        "svv_status": vehicle.svv_status,
-        "car_info_status": vehicle.car_info_status,
-        "car_info_confirmed_swedish": car_info_confirmed_swedish(vehicle.car_info_data),
-        "car_info_confirmed_foreign": car_info_confirmed_foreign(vehicle.car_info_data),
-        "car_info_country_code": car_info_country_code(vehicle.car_info_data) or None,
-        "notat": vehicle.notat,
-        "path": f"/parkering/kjoretoy/{quote(vehicle.plate or '', safe='')}",
-    }
-
-
-def exact_search_text(query: Optional[str]) -> Optional[str]:
-    text_value = (query or "").strip()
-    if len(text_value) >= 2 and text_value[0] == text_value[-1] and text_value[0] in {'"', "'"}:
-        exact_value = text_value[1:-1].strip()
-        return exact_value or None
-    return None
-
-
-def normalized_exact_search_text(value: str) -> str:
-    return re.sub(r"[^0-9A-Za-zÆØÅæøå_]+", " ", value).strip().lower()
-
-
-def exact_word_match(column, value: str):
-    normalized_value = normalized_exact_search_text(value)
-    if not normalized_value:
-        return False
-    normalized_column = func.lower(
-        func.concat(
-            " ",
-            func.regexp_replace(func.coalesce(column, ""), r"[^[:alnum:]_]+", " ", "g"),
-            " ",
-        )
-    )
-    return normalized_column.like(f"% {normalized_value} %")
-
-
-def parking_vehicle_search_condition(query: Optional[str]):
-    text_value = (query or "").strip()
-    if not text_value:
-        return None
-    exact_value = exact_search_text(text_value)
-    if exact_value:
-        plate_value = compact_plate(exact_value)
-        return or_(
-            func.upper(func.coalesce(ParkingVehicle.plate, "")) == plate_value if plate_value else False,
-            exact_word_match(ParkingVehicle.navn, exact_value),
-            exact_word_match(ParkingVehicle.omrade, exact_value),
-            exact_word_match(ParkingVehicle.sun2_id, exact_value),
-            exact_word_match(ParkingVehicle.notat, exact_value),
-            exact_word_match(ParkingVehicleDetails.merke, exact_value),
-            exact_word_match(ParkingVehicleDetails.modell, exact_value),
-            exact_word_match(ParkingVehicleDetails.typebetegnelse, exact_value),
-            exact_word_match(ParkingVehicleDetails.farge, exact_value),
-            exact_word_match(ParkingVehicleDetails.kjoretoyklasse_navn, exact_value),
-        )
-    like = f"%{text_value.upper()}%"
-    plate_like = f"%{compact_plate(text_value)}%" if compact_plate(text_value) else like
-    return or_(
-        func.upper(func.coalesce(ParkingVehicle.plate, "")).like(plate_like),
-        func.upper(func.coalesce(ParkingVehicle.navn, "")).like(like),
-        func.upper(func.coalesce(ParkingVehicle.omrade, "")).like(like),
-        func.upper(func.coalesce(ParkingVehicle.sun2_id, "")).like(like),
-        func.upper(func.coalesce(ParkingVehicle.notat, "")).like(like),
-        func.upper(func.coalesce(ParkingVehicleDetails.merke, "")).like(like),
-        func.upper(func.coalesce(ParkingVehicleDetails.modell, "")).like(like),
-        func.upper(func.coalesce(ParkingVehicleDetails.typebetegnelse, "")).like(like),
-        func.upper(func.coalesce(ParkingVehicleDetails.farge, "")).like(like),
-        func.upper(func.coalesce(ParkingVehicleDetails.kjoretoyklasse_navn, "")).like(like),
-    )
-
-
-def parking_valid_vehicle_area_condition():
-    normalized = func.lower(func.trim(func.coalesce(ParkingVehicle.omrade, "")))
-    return and_(normalized != "", normalized != "ikke funnet")
-
-
-def parking_area_period(date_from_value: str = "", date_to_value: str = "") -> Dict[str, Any]:
-    from_value = (date_from_value or "").strip()
-    to_value = (date_to_value or "").strip()
-    if not from_value and not to_value:
-        return {
-            "date_from": "",
-            "date_to": "",
-            "start_at": None,
-            "end_at": None,
-            "label": "Hele historikken",
-            "detail": "Alle importerte parkeringer",
-            "is_all": True,
-        }
-
-    from_day = parse_day(from_value) if from_value else None
-    to_day = parse_day(to_value) if to_value else None
-    if from_day and not to_day:
-        to_day = from_day
-    if from_day and to_day and to_day < from_day:
-        from_day, to_day = to_day, from_day
-
-    start_at = datetime.combine(from_day, time.min) if from_day else None
-    end_at = datetime.combine(to_day + timedelta(days=1), time.min) if to_day else None
-    if from_day and to_day and from_day == to_day:
-        label = from_day.strftime("%d.%m.%Y")
-        detail = "Valgt dato"
-    elif from_day and to_day:
-        label = f"{from_day:%d.%m.%Y} - {to_day:%d.%m.%Y}"
-        detail = "Valgt tidsrom"
-    elif to_day:
-        label = f"Til og med {to_day:%d.%m.%Y}"
-        detail = "Fra første import til valgt dato"
-    else:
-        label = "Hele historikken"
-        detail = "Alle importerte parkeringer"
-
-    return {
-        "date_from": from_day.isoformat() if from_day else "",
-        "date_to": "" if from_day and to_day and from_day == to_day else (to_day.isoformat() if to_day else ""),
-        "start_at": start_at,
-        "end_at": end_at,
-        "label": label,
-        "detail": detail,
-        "is_all": False,
-    }
-
-
-def parking_area_period_conditions(period: Dict[str, Any]) -> list[Any]:
-    conditions = []
-    if period.get("start_at"):
-        conditions.append(ParkingSession.start_time >= period["start_at"])
-    if period.get("end_at"):
-        conditions.append(ParkingSession.start_time < period["end_at"])
-    return conditions
-
-
-def parking_area_row_api(row: Any, vehicle_with_area: int, parking_with_area: int) -> Dict[str, Any]:
-    vehicle_count = int_or_zero(getattr(row, "vehicle_count", 0))
-    parking_count = int_or_zero(getattr(row, "parking_count", 0))
-    paid_total = float_or_zero(getattr(row, "paid_total", 0))
-    vehicle_share = round((vehicle_count / vehicle_with_area) * 100, 1) if vehicle_with_area else 0
-    parking_share = round((parking_count / parking_with_area) * 100, 1) if parking_with_area else 0
-    return {
-        "omrade": getattr(row, "omrade", None),
-        "vehicle_count": vehicle_count,
-        "vehicles": vehicle_count,
-        "vehicle_share": vehicle_share,
-        "parking_count": parking_count,
-        "parkeringer": parking_count,
-        "parking_share": parking_share,
-        "paid_total": paid_total,
-        "paid": paid_total,
-        "last_seen": getattr(row, "last_seen", None),
-    }
-
-
-async def parking_area_overview_data(session, date_from_value: str = "", date_to_value: str = "") -> Dict[str, Any]:
-    period = parking_area_period(date_from_value, date_to_value)
-    valid_area_condition = parking_valid_vehicle_area_condition()
-    area_expr = func.trim(ParkingVehicle.omrade)
-    normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
-    period_conditions = parking_area_period_conditions(period)
-
-    if period["is_all"]:
-        raw_rows = (
-            await session.execute(
-                select(
-                    area_expr.label("omrade"),
-                    func.count(func.distinct(ParkingVehicle.plate)).label("vehicle_count"),
-                    func.coalesce(func.sum(ParkingVehicle.parkering_count), 0).label("parking_count"),
-                    func.coalesce(func.sum(ParkingVehicle.paid_total), 0).label("paid_total"),
-                    func.max(ParkingVehicle.last_seen).label("last_seen"),
-                )
-                .where(valid_area_condition)
-                .group_by(area_expr)
-                .order_by(func.count(func.distinct(ParkingVehicle.plate)).desc(), area_expr.asc())
-            )
-        ).all()
-        vehicle_total = (
-            await session.execute(select(func.count(func.distinct(ParkingVehicle.plate))))
-        ).scalar_one()
-        vehicle_with_area = (
-            await session.execute(select(func.count(func.distinct(ParkingVehicle.plate))).where(valid_area_condition))
-        ).scalar_one()
-        totals = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id).label("parking_total"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid_total"),
-                )
-            )
-        ).one()
-    else:
-        raw_rows = (
-            await session.execute(
-                select(
-                    area_expr.label("omrade"),
-                    func.count(func.distinct(ParkingVehicle.plate)).label("vehicle_count"),
-                    func.count(ParkingSession.id).label("parking_count"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid_total"),
-                    func.max(ParkingSession.start_time).label("last_seen"),
-                )
-                .select_from(ParkingSession)
-                .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
-                .where(*period_conditions, valid_area_condition)
-                .group_by(area_expr)
-                .order_by(func.count(ParkingSession.id).desc(), area_expr.asc())
-            )
-        ).all()
-        vehicle_total = (
-            await session.execute(
-                select(func.count(func.distinct(normalized_session_plate)))
-                .select_from(ParkingSession)
-                .where(*period_conditions, normalized_session_plate != "")
-            )
-        ).scalar_one()
-        vehicle_with_area = (
-            await session.execute(
-                select(func.count(func.distinct(ParkingVehicle.plate)))
-                .select_from(ParkingSession)
-                .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
-                .where(*period_conditions, valid_area_condition)
-            )
-        ).scalar_one()
-        totals = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id).label("parking_total"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid_total"),
-                ).where(*period_conditions)
-            )
-        ).one()
-
-    parking_with_area = sum(int_or_zero(getattr(row, "parking_count", 0)) for row in raw_rows)
-    vehicle_total = int_or_zero(vehicle_total)
-    vehicle_with_area = int_or_zero(vehicle_with_area)
-    return {
-        "period": period,
-        "rows": [parking_area_row_api(row, vehicle_with_area, parking_with_area) for row in raw_rows],
-        "vehicle_total": vehicle_total,
-        "vehicle_with_area": vehicle_with_area,
-        "missing_area": max(vehicle_total - vehicle_with_area, 0),
-        "parking_total": int_or_zero(getattr(totals, "parking_total", 0)),
-        "parking_with_area": parking_with_area,
-        "paid_total": float_or_zero(getattr(totals, "paid_total", 0)),
-        "coverage_percent": round((vehicle_with_area / vehicle_total) * 100, 1) if vehicle_total else 0,
-    }
-
-
-async def parking_area_missing_rows_for_period(session, period: Dict[str, Any], limit: int = 100) -> list[Dict[str, Any]]:
-    normalized_area = func.lower(func.trim(func.coalesce(ParkingVehicle.omrade, "")))
-    missing_vehicle_area = or_(normalized_area == "", normalized_area == "ikke funnet")
-    if period.get("is_all"):
-        rows = (
-            await session.execute(
-                select(
-                    ParkingVehicle.plate.label("plate"),
-                    ParkingVehicle.navn.label("navn"),
-                    ParkingVehicle.parkering_count.label("parkering_count"),
-                    ParkingVehicle.paid_total.label("paid_total"),
-                    ParkingVehicle.last_seen.label("last_seen"),
-                )
-                .where(missing_vehicle_area)
-                .order_by(ParkingVehicle.last_seen.desc().nullslast(), ParkingVehicle.plate.asc())
-                .limit(limit)
-            )
-        ).all()
-        return [
-            {
-                "plate": row.plate,
-                "navn": row.navn,
-                "parkering_count": int_or_zero(row.parkering_count),
-                "paid_total": float_or_zero(row.paid_total),
-                "last_seen": row.last_seen,
-            }
-            for row in rows
-        ]
-
-    normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
-    period_conditions = parking_area_period_conditions(period)
-    rows = (
-        await session.execute(
-            select(
-                normalized_session_plate.label("plate"),
-                func.max(ParkingVehicle.navn).label("navn"),
-                func.count(ParkingSession.id).label("parkering_count"),
-                func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid_total"),
-                func.max(ParkingSession.start_time).label("last_seen"),
-            )
-            .select_from(ParkingSession)
-            .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
-            .where(
-                *period_conditions,
-                normalized_session_plate != "",
-                or_(ParkingVehicle.plate.is_(None), missing_vehicle_area),
-            )
-            .group_by(normalized_session_plate)
-            .order_by(func.count(ParkingSession.id).desc(), normalized_session_plate.asc())
-            .limit(limit)
-        )
-    ).all()
-    return [
-        {
-            "plate": row.plate,
-            "navn": row.navn,
-            "parkering_count": int_or_zero(row.parkering_count),
-            "paid_total": float_or_zero(row.paid_total),
-            "last_seen": row.last_seen,
-        }
-        for row in rows
-    ]
-
-
-def circuit_row_api(row: EnergyCircuit) -> Dict[str, Any]:
-    return {
-        "id": row.id,
-        "circuit_no": row.circuit_no,
-        "description": row.description,
-        "breaker": f"{row.breaker_rating_a:g} A" if row.breaker_rating_a is not None else None,
-        "breaker_type": row.breaker_type,
-        "breaker_rating_a": row.breaker_rating_a,
-        "breaker_characteristic": row.breaker_characteristic,
-        "cable_spec": row.cable_spec,
-        "cable_length_m": row.cable_length_m,
-        "install_method": row.install_method,
-        "terminal_ref": row.terminal_ref,
-        "rcd_ma": row.rcd_ma,
-        "is_sunbed": bool(row.is_sunbed),
-        "status": row.status,
-        "note": row.note,
-    }
-
-
-def load_row_api(row: EnergyLoad) -> Dict[str, Any]:
-    return {
-        "id": row.id,
-        "name": row.name,
-        "load_type": row.load_type,
-        "area": row.area,
-        "circuit_no": row.circuit_no,
-        "power_profile": row.power_profile,
-        "expected_power_w": row.expected_power_w,
-        "min_power_w": row.min_power_w,
-        "max_power_w": row.max_power_w,
-        "measured_direct": row.measured_direct,
-        "energy_node_id": row.energy_node_id,
-        "fibaro_device_id": row.fibaro_device_id,
-        "fibaro_meter_id": row.fibaro_meter_id,
-        "zwave_switch_id": row.zwave_switch_id,
-        "controllable": row.controllable,
-        "critical": row.critical,
-        "active": row.active,
-        "note": row.note,
-    }
-
-
-def parking_weekly_average_period(params: Any, today: date) -> Dict[str, Any]:
-    requested = api_filter_value(params, "period", "this_year")
-    valid_periods = {item["key"] for item in PARKING_WEEKLY_AVERAGE_PERIOD_OPTIONS}
-    period_key = requested if requested in valid_periods else "this_year"
-    custom_from = parse_optional_date(api_filter_value(params, "date_from"))
-    custom_to = parse_optional_date(api_filter_value(params, "date_to"))
-
-    if period_key == "last_12_months":
-        start_day = today - timedelta(days=364)
-        end_day = today
-        label = "Siste 12 måneder"
-    elif period_key == "last_24_months":
-        start_day = today - timedelta(days=729)
-        end_day = today
-        label = "Siste 24 måneder"
-    elif period_key == "last_year":
-        start_day = date(today.year - 1, 1, 1)
-        end_day = date(today.year - 1, 12, 31)
-        label = str(today.year - 1)
-    elif period_key == "custom" and custom_from and custom_to:
-        start_day, end_day = sorted([custom_from, custom_to])
-        label = f"{start_day:%d.%m.%Y} - {end_day:%d.%m.%Y}"
-    else:
-        period_key = "this_year"
-        start_day = date(today.year, 1, 1)
-        end_day = today
-        label = str(today.year)
-
-    return {
-        "key": period_key,
-        "label": label,
-        "dateFrom": start_day.isoformat(),
-        "dateTo": end_day.isoformat(),
-        "start": datetime.combine(start_day, time.min),
-        "end": datetime.combine(end_day + timedelta(days=1), time.min),
-        "options": PARKING_WEEKLY_AVERAGE_PERIOD_OPTIONS,
-    }
-
-
-def parking_weekly_average_payload(rows: Any, period: Dict[str, Any], now_dt: datetime) -> Dict[str, Any]:
-    start_day = date.fromisoformat(period["dateFrom"])
-    end_day = date.fromisoformat(period["dateTo"])
-    first_week = start_day - timedelta(days=start_day.weekday())
-    last_week = end_day - timedelta(days=end_day.weekday())
-    buckets: Dict[date, Dict[str, Any]] = {}
-    cursor = first_week
-    while cursor <= last_week:
-        iso_year, iso_week, _ = cursor.isocalendar()
-        buckets[cursor] = {
-            "weekStart": cursor,
-            "weekEnd": cursor + timedelta(days=6),
-            "isoYear": iso_year,
-            "isoWeek": iso_week,
-            "sessions": 0,
-            "paid": 0.0,
-            "minutes": 0.0,
-            "durationSessions": 0,
-        }
-        cursor += timedelta(days=7)
-
-    for start_time, end_time, parking_time_min, fee_inc_vat in rows:
-        start_at = normalize_local_naive(start_time)
-        if not start_at:
-            continue
-        week_start = start_at.date() - timedelta(days=start_at.weekday())
-        bucket = buckets.get(week_start)
-        if not bucket:
-            continue
-        bucket["sessions"] += 1
-        bucket["paid"] += float_or_zero(fee_inc_vat)
-        minutes = float_or_zero(parking_time_min)
-        if minutes <= 0:
-            end_at = normalize_local_naive(end_time)
-            if end_at and end_at > start_at:
-                minutes = (end_at - start_at).total_seconds() / 60
-        if minutes > 0:
-            bucket["minutes"] += minutes
-            bucket["durationSessions"] += 1
-
-    def format_week_range(week_start: date, week_end: date) -> str:
-        if week_start.year == week_end.year:
-            return f"{week_start:%d.%m}–{week_end:%d.%m.%Y}"
-        return f"{week_start:%d.%m.%Y}–{week_end:%d.%m.%Y}"
-
-    points = []
-    for bucket in buckets.values():
-        sessions = int_or_zero(bucket["sessions"])
-        duration_sessions = int_or_zero(bucket["durationSessions"])
-        paid = round(float_or_zero(bucket["paid"]), 2)
-        minutes = round(float_or_zero(bucket["minutes"]), 1)
-        week_start = bucket["weekStart"]
-        week_end = bucket["weekEnd"]
-        is_partial = week_start < start_day or week_end > end_day or week_end >= now_dt.date()
-        points.append(
-            {
-                "key": f"{bucket['isoYear']}-W{bucket['isoWeek']:02d}",
-                "label": f"Uke {bucket['isoWeek']}",
-                "shortLabel": f"U{bucket['isoWeek']}",
-                "rangeLabel": format_week_range(week_start, week_end),
-                "weekStart": week_start.isoformat(),
-                "weekEnd": week_end.isoformat(),
-                "isoYear": bucket["isoYear"],
-                "isoWeek": bucket["isoWeek"],
-                "sessions": sessions,
-                "paid": paid,
-                "minutes": minutes,
-                "durationSessions": duration_sessions,
-                "durationCoveragePct": round(duration_sessions * 100 / sessions, 1) if sessions else 0.0,
-                "avgPaidPerSession": round(paid / sessions, 2) if sessions else None,
-                "avgMinutesPerSession": round(minutes / duration_sessions, 1) if duration_sessions else None,
-                "isPartial": is_partial,
-            }
-        )
-
-    points_with_data = [item for item in points if item["sessions"] > 0]
-    latest = points_with_data[-1] if points_with_data else None
-    previous = points_with_data[-2] if len(points_with_data) > 1 else None
-    total_sessions = sum(int_or_zero(item["sessions"]) for item in points)
-    total_paid = round(sum(float_or_zero(item["paid"]) for item in points), 2)
-    duration_sessions = sum(int_or_zero(item["durationSessions"]) for item in points)
-    total_minutes = round(sum(float_or_zero(item["minutes"]) for item in points), 1)
-
-    def delta_pct(current: Any, reference: Any) -> Optional[float]:
-        reference_value = float_or_zero(reference)
-        if reference_value == 0:
-            return None
-        return round((float_or_zero(current) - reference_value) * 100 / reference_value, 1)
-
-    return {
-        "generatedAt": api_local_iso(now_dt),
-        "period": {
-            **{key: value for key, value in period.items() if key not in {"start", "end"}},
-            "detail": f"{len(points_with_data)} uker med parkeringer",
-        },
-        "summary": {
-            "sessions": total_sessions,
-            "paid": total_paid,
-            "minutes": total_minutes,
-            "durationSessions": duration_sessions,
-            "durationCoveragePct": round(duration_sessions * 100 / total_sessions, 1) if total_sessions else 0.0,
-            "avgPaidPerSession": round(total_paid / total_sessions, 2) if total_sessions else 0.0,
-            "avgMinutesPerSession": round(total_minutes / duration_sessions, 1) if duration_sessions else 0.0,
-            "weeksWithData": len(points_with_data),
-        },
-        "latest": latest,
-        "previous": previous,
-        "delta": {
-            "paidPct": delta_pct(
-                latest.get("avgPaidPerSession") if latest else None,
-                previous.get("avgPaidPerSession") if previous else None,
-            ),
-            "minutesPct": delta_pct(
-                latest.get("avgMinutesPerSession") if latest else None,
-                previous.get("avgMinutesPerSession") if previous else None,
-            ),
-        },
-        "weeks": points,
-    }
-
-
-def parking_weekly_selected_years(
-    requested: Optional[str],
-    available_years: list[int],
-    current_iso_year: int,
-) -> list[int]:
-    available = sorted({int_or_zero(value) for value in available_years if int_or_zero(value) > 0}, reverse=True)
-    available_set = set(available)
-    selected = []
-    for value in str(requested or "").split(","):
-        parsed = int_or_zero(value.strip())
-        if parsed in available_set and parsed not in selected:
-            selected.append(parsed)
-    if selected:
-        return selected
-
-    anchor = current_iso_year if current_iso_year in available_set else (available[0] if available else current_iso_year)
-    previous = next((year for year in available if year < anchor), None)
-    return [year for year in (anchor, previous) if year is not None]
-
-
-def parking_calendar_comparison_week(day_value: date) -> int:
-    return ((day_value.timetuple().tm_yday - 1) // 7) + 1
-
-
-def parking_calendar_comparison_week_ranges(year_value: int) -> Dict[int, tuple[date, date]]:
-    dates_by_week: Dict[int, list[date]] = defaultdict(list)
-    cursor = date(year_value, 1, 1)
-    end_day = date(year_value, 12, 31)
-    while cursor <= end_day:
-        dates_by_week[parking_calendar_comparison_week(cursor)].append(cursor)
-        cursor += timedelta(days=1)
-    return {week: (days[0], days[-1]) for week, days in dates_by_week.items()}
-
-
-def parking_weekly_year_comparison_payload(
-    rows: Any,
-    available_years: list[int],
-    selected_years: list[int],
-    now_dt: datetime,
-) -> Dict[str, Any]:
-    current_year = now_dt.year
-    current_week = parking_calendar_comparison_week(now_dt.date())
-    grouped: Dict[tuple[int, int], Dict[str, Any]] = {}
-    for iso_year, iso_week, sessions, paid, minutes, duration_sessions in rows:
-        year_value = int_or_zero(iso_year)
-        week_value = int_or_zero(iso_week)
-        if year_value <= 0 or week_value <= 0:
-            continue
-        grouped[(year_value, week_value)] = {
-            "sessions": int_or_zero(sessions),
-            "paid": round(float_or_zero(paid), 2),
-            "minutes": round(float_or_zero(minutes), 1),
-            "durationSessions": int_or_zero(duration_sessions),
-        }
-
-    colors = ["#2563eb", "#64748b", "#0f766e", "#7c3aed", "#be123c", "#0891b2", "#ea580c", "#f59e0b"]
-    series = []
-    for index, year_value in enumerate(selected_years):
-        week_ranges = parking_calendar_comparison_week_ranges(year_value)
-        points = []
-        for week_value in range(1, 54):
-            bucket = grouped.get((year_value, week_value), {})
-            sessions = int_or_zero(bucket.get("sessions"))
-            duration_sessions = int_or_zero(bucket.get("durationSessions"))
-            paid = round(float_or_zero(bucket.get("paid")), 2)
-            minutes = round(float_or_zero(bucket.get("minutes")), 1)
-            week_range = week_ranges.get(week_value)
-            week_start = week_range[0] if week_range else None
-            week_end = week_range[1] if week_range else None
-            points.append(
-                {
-                    "week": week_value,
-                    "label": f"U{week_value}",
-                    "rangeLabel": f"{week_start:%d.%m.%Y} - {week_end:%d.%m.%Y}" if week_start and week_end else "",
-                    "sessions": sessions,
-                    "paid": paid,
-                    "minutes": minutes,
-                    "durationSessions": duration_sessions,
-                    "durationCoveragePct": round(duration_sessions * 100 / sessions, 1) if sessions else 0.0,
-                    "avgPaidPerSession": round(paid / sessions, 2) if sessions else None,
-                    "avgMinutesPerSession": round(minutes / duration_sessions, 1) if duration_sessions else None,
-                    "isPartial": year_value == current_year and week_value == current_week,
-                    "isAvailable": week_range is not None,
-                }
-            )
-
-        year_sessions = sum(int_or_zero(point["sessions"]) for point in points)
-        year_paid = round(sum(float_or_zero(point["paid"]) for point in points), 2)
-        year_duration_sessions = sum(int_or_zero(point["durationSessions"]) for point in points)
-        year_minutes = round(sum(float_or_zero(point["minutes"]) for point in points), 1)
-        series.append(
-            {
-                "year": year_value,
-                "label": str(year_value),
-                "color": colors[index % len(colors)],
-                "sessions": year_sessions,
-                "weeksWithData": sum(1 for point in points if point["sessions"] > 0),
-                "durationCoveragePct": round(year_duration_sessions * 100 / year_sessions, 1) if year_sessions else 0.0,
-                "avgPaidPerSession": round(year_paid / year_sessions, 2) if year_sessions else 0.0,
-                "avgMinutesPerSession": round(year_minutes / year_duration_sessions, 1) if year_duration_sessions else 0.0,
-                "points": points,
-            }
-        )
-
-    default_years = parking_weekly_selected_years(None, available_years, current_year)
-    return {
-        "generatedAt": api_local_iso(now_dt),
-        "currentYear": current_year,
-        "currentWeek": current_week,
-        "availableYears": sorted({int_or_zero(value) for value in available_years if int_or_zero(value) > 0}, reverse=True),
-        "defaultYears": default_years,
-        "selectedYears": selected_years,
-        "series": series,
-    }
-
-
-def energy_load_hierarchy_item(row: EnergyLoad) -> Dict[str, Any]:
-    return {
-        "id": row.id,
-        "name": row.name,
-        "loadType": row.load_type,
-        "area": row.area,
-        "powerProfile": row.power_profile or ("fixed" if row.expected_power_w is not None else "unknown"),
-        "expectedPowerW": row.expected_power_w,
-        "minPowerW": row.min_power_w,
-        "maxPowerW": row.max_power_w,
-        "measuredDirect": row.measured_direct,
-        "energyNodeId": row.energy_node_id,
-        "fibaroDeviceId": row.fibaro_device_id,
-        "fibaroMeterId": row.fibaro_meter_id,
-        "zwaveSwitchId": row.zwave_switch_id,
-        "controllable": row.controllable,
-        "critical": row.critical,
-        "active": row.active,
-        "note": row.note,
-    }
-
-
-def _legacy_energy_circuit_loads_payload(circuits: list[EnergyCircuit], loads: list[EnergyLoad]) -> Dict[str, Any]:
-    loads_by_circuit: Dict[Optional[int], list[EnergyLoad]] = defaultdict(list)
-    for load in loads:
-        loads_by_circuit[load.circuit_no].append(load)
-
-    known_circuit_numbers = {row.circuit_no for row in circuits if row.circuit_no is not None}
-    circuit_rows: list[Dict[str, Any]] = []
-    summary = {
-        "circuits": len(circuits),
-        "loads": len(loads),
-        "activeLoads": sum(1 for row in loads if row.active is not False),
-        "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in loads if row.active is not False),
-        "circuitMeterCount": 0,
-        "sharedMeterCount": 0,
-        "directMeterLoadCount": 0,
-        "unmeteredLoadCount": 0,
-    }
-
-    def make_groups(circuit_loads: list[EnergyLoad]) -> tuple[list[Dict[str, Any]], str, str, int, int, float]:
-        active_loads = [row for row in circuit_loads if row.active is not False]
-        expected_power = sum(float_or_zero(row.expected_power_w) for row in active_loads)
-        measured_load_count = sum(1 for row in active_loads if row.fibaro_meter_id is not None or row.measured_direct)
-        unmeasured_loads = [row for row in active_loads if row.fibaro_meter_id is None and not row.measured_direct]
-        unmeasured_load_count = len(unmeasured_loads)
-
-        meter_groups: Dict[int, list[EnergyLoad]] = defaultdict(list)
-        for load in active_loads:
-            if load.fibaro_meter_id is not None:
-                meter_groups[int(load.fibaro_meter_id)].append(load)
-
-        groups: list[Dict[str, Any]] = []
-        if active_loads and len(meter_groups) == 1 and len(next(iter(meter_groups.values()))) == len(active_loads):
-            meter_id, group_loads = next(iter(meter_groups.items()))
-            summary["circuitMeterCount"] += 1
-            groups.append(
-                {
-                    "key": f"meter-{meter_id}",
-                    "label": "Kursmåler - dekker hele kursen",
-                    "type": "circuit_meter",
-                    "meterId": meter_id,
-                    "loadCount": len(group_loads),
-                    "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in group_loads),
-                    "loads": [energy_load_hierarchy_item(row) for row in sorted(group_loads, key=lambda item: item.name or "")],
-                }
-            )
-            return groups, "Kursmålt", "Kurs -> måler -> alle aktive laster.", measured_load_count, unmeasured_load_count, expected_power
-
-        for meter_id, group_loads in sorted(meter_groups.items(), key=lambda item: (len(item[1]) == 1, item[0])):
-            is_shared = len(group_loads) > 1
-            if is_shared:
-                summary["sharedMeterCount"] += 1
-            else:
-                summary["directMeterLoadCount"] += 1
-            groups.append(
-                {
-                    "key": f"meter-{meter_id}",
-                    "label": "Undermåler - flere laster" if is_shared else "Egen lastmåler",
-                    "type": "shared_meter" if is_shared else "direct_meter",
-                    "meterId": meter_id,
-                    "loadCount": len(group_loads),
-                    "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in group_loads),
-                    "loads": [energy_load_hierarchy_item(row) for row in sorted(group_loads, key=lambda item: item.name or "")],
-                }
-            )
-
-        direct_without_meter = [row for row in active_loads if row.fibaro_meter_id is None and row.measured_direct]
-        if direct_without_meter:
-            summary["directMeterLoadCount"] += len(direct_without_meter)
-            groups.append(
-                {
-                    "key": "direct-without-meter-id",
-                    "label": "Direktemålt last uten måler-ID",
-                    "type": "direct_meter",
-                    "meterId": None,
-                    "loadCount": len(direct_without_meter),
-                    "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in direct_without_meter),
-                    "loads": [energy_load_hierarchy_item(row) for row in sorted(direct_without_meter, key=lambda item: item.name or "")],
-                }
-            )
-
-        if unmeasured_loads:
-            summary["unmeteredLoadCount"] += len(unmeasured_loads)
-            groups.append(
-                {
-                    "key": "unmetered",
-                    "label": "Direkte på kurs uten måler",
-                    "type": "unmetered",
-                    "meterId": None,
-                    "loadCount": len(unmeasured_loads),
-                    "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in unmeasured_loads),
-                    "loads": [energy_load_hierarchy_item(row) for row in sorted(unmeasured_loads, key=lambda item: item.name or "")],
-                }
-            )
-
-        if not active_loads:
-            return groups, "Ingen aktive laster", "Kurset har ingen aktive laster registrert.", measured_load_count, unmeasured_load_count, expected_power
-        if unmeasured_load_count and measured_load_count:
-            return groups, "Delvis målt", "Kurs -> en eller flere målere -> laster, pluss laster direkte på kurs.", measured_load_count, unmeasured_load_count, expected_power
-        if measured_load_count:
-            return groups, "Lastmålt", "Kurs -> målere/undermålere -> laster.", measured_load_count, unmeasured_load_count, expected_power
-        return groups, "Ikke målt", "Kurs -> laster direkte på kurs uten registrert energimåler.", measured_load_count, unmeasured_load_count, expected_power
-
-    for circuit in circuits:
-        circuit_loads = loads_by_circuit.get(circuit.circuit_no, [])
-        groups, mode, detail, measured_count, unmeasured_count, expected_power = make_groups(circuit_loads)
-        circuit_rows.append(
-            {
-                "key": f"circuit-{circuit.circuit_no}",
-                "circuitNo": circuit.circuit_no,
-                "description": circuit.description,
-                "breaker": f"{circuit.breaker_rating_a:g} A" if circuit.breaker_rating_a is not None else None,
-                "breakerType": circuit.breaker_type,
-                "status": circuit.status,
-                "isSunbed": bool(circuit.is_sunbed),
-                "note": circuit.note,
-                "loadCount": len(circuit_loads),
-                "activeLoadCount": sum(1 for row in circuit_loads if row.active is not False),
-                "expectedPowerW": expected_power,
-                "measuredLoadCount": measured_count,
-                "unmeasuredLoadCount": unmeasured_count,
-                "measurementMode": mode,
-                "measurementDetail": detail,
-                "measurementGroups": groups,
-            }
-        )
-
-    unassigned_loads = [
-        row for circuit_no, grouped_loads in loads_by_circuit.items()
-        if circuit_no is None or circuit_no not in known_circuit_numbers
-        for row in grouped_loads
-    ]
-    if unassigned_loads:
-        groups, mode, detail, measured_count, unmeasured_count, expected_power = make_groups(unassigned_loads)
-        circuit_rows.append(
-            {
-                "key": "unassigned",
-                "circuitNo": None,
-                "description": "Uten gyldig kurs",
-                "breaker": None,
-                "breakerType": None,
-                "status": "Mangler kurskobling",
-                "isSunbed": False,
-                "note": "Laster som mangler kursnummer eller peker på en kurs som ikke finnes.",
-                "loadCount": len(unassigned_loads),
-                "activeLoadCount": sum(1 for row in unassigned_loads if row.active is not False),
-                "expectedPowerW": expected_power,
-                "measuredLoadCount": measured_count,
-                "unmeasuredLoadCount": unmeasured_count,
-                "measurementMode": mode,
-                "measurementDetail": detail,
-                "measurementGroups": groups,
-            }
-        )
-
-    circuit_rows.sort(key=lambda row: (row["circuitNo"] is None, row["circuitNo"] or 9999))
-    return {"summary": summary, "circuits": circuit_rows}
-
-
-def _meter_based_energy_circuit_loads_payload(
-    circuits: list[EnergyCircuit],
-    loads: list[EnergyLoad],
-    meters: Optional[list[Any]] = None,
-) -> Dict[str, Any]:
-    meters = meters or []
-    loads_by_circuit: Dict[Optional[int], list[EnergyLoad]] = defaultdict(list)
-    for load in loads:
-        loads_by_circuit[load.circuit_no].append(load)
-
-    meters_by_circuit: Dict[Optional[int], list[Any]] = defaultdict(list)
-    for meter in meters:
-        meters_by_circuit[meter.circuit_no].append(meter)
-
-    known_circuit_numbers = {row.circuit_no for row in circuits if row.circuit_no is not None}
-    circuit_rows: list[Dict[str, Any]] = []
-    summary = {
-        "circuits": len(circuits),
-        "loads": len(loads),
-        "activeLoads": sum(1 for row in loads if row.active is not False),
-        "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in loads if row.active is not False),
-        "meterCount": sum(1 for row in meters if row.active is not False),
-        "circuitMeterCount": 0,
-        "sharedMeterCount": 0,
-        "directMeterLoadCount": 0,
-        "unmeteredLoadCount": 0,
-    }
-
-    def meter_display_name(meter: Any) -> str:
-        if meter.name:
-            return meter.name
-        if meter.fibaro_meter_id is not None:
-            return f"Måler HC3 {meter.fibaro_meter_id}"
-        return "Måler uten HC3-ID"
-
-    def meter_group_type(meter: Any, group_loads: list[EnergyLoad], active_loads: list[EnergyLoad]) -> str:
-        explicit = (meter.meter_type or "").strip().lower()
-        if explicit in {"circuit", "kurs", "kursmåler", "kursmaler"}:
-            return "circuit_meter"
-        if active_loads and group_loads and len(group_loads) == len(active_loads):
-            return "circuit_meter"
-        return "meter"
-
-    def meter_group_label(group_type: str, group_loads: list[EnergyLoad]) -> str:
-        if group_type == "circuit_meter":
-            return "Kursmåler"
-        if len(group_loads) > 1:
-            return "Undermåler"
-        return "Måler"
-
-    def make_groups(
-        circuit_no: Optional[int],
-        circuit_loads: list[EnergyLoad],
-        circuit_meters: list[Any],
-    ) -> tuple[list[Dict[str, Any]], str, str, int, int, float]:
-        active_loads = [row for row in circuit_loads if row.active is not False]
-        active_meters = [row for row in circuit_meters if row.active is not False]
-        expected_power = sum(float_or_zero(row.expected_power_w) for row in active_loads)
-        loads_by_meter_id: Dict[int, list[EnergyLoad]] = defaultdict(list)
-        legacy_meter_groups: Dict[int, list[EnergyLoad]] = defaultdict(list)
-        direct_without_meter: list[EnergyLoad] = []
-        unmeasured_loads: list[EnergyLoad] = []
-        for load in active_loads:
-            if load.energy_meter_id is not None:
-                loads_by_meter_id[int(load.energy_meter_id)].append(load)
-            elif load.fibaro_meter_id is not None:
-                legacy_meter_groups[int(load.fibaro_meter_id)].append(load)
-            elif load.measured_direct:
-                direct_without_meter.append(load)
-            else:
-                unmeasured_loads.append(load)
-
-        groups: list[Dict[str, Any]] = []
-        used_legacy_meter_ids: set[int] = set()
-        for meter in sorted(active_meters, key=lambda item: (item.fibaro_meter_id is None, item.fibaro_meter_id or 0, item.name or "")):
-            group_loads = list(loads_by_meter_id.get(int(meter.id or 0), []))
-            if meter.fibaro_meter_id is not None and int(meter.fibaro_meter_id) in legacy_meter_groups:
-                group_loads.extend(legacy_meter_groups[int(meter.fibaro_meter_id)])
-                used_legacy_meter_ids.add(int(meter.fibaro_meter_id))
-            group_type = meter_group_type(meter, group_loads, active_loads)
-            if group_type == "circuit_meter":
-                summary["circuitMeterCount"] += 1
-            elif len(group_loads) > 1:
-                summary["sharedMeterCount"] += 1
-            else:
-                summary["directMeterLoadCount"] += len(group_loads)
-            groups.append(
-                {
-                    "key": f"meter-db-{meter.id}",
-                    "label": meter_display_name(meter),
-                    "type": group_type,
-                    "meterLabel": meter_group_label(group_type, group_loads),
-                    "meterDbId": meter.id,
-                    "meterId": meter.id,
-                    "fibaroMeterId": meter.fibaro_meter_id,
-                    "meterType": meter.meter_type,
-                    "area": meter.area,
-                    "active": meter.active,
-                    "note": meter.note,
-                    "loadCount": len(group_loads),
-                    "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in group_loads),
-                    "loads": [energy_load_hierarchy_item(row) for row in sorted(group_loads, key=lambda item: item.name or "")],
-                }
-            )
-
-        for meter_id, group_loads in sorted(legacy_meter_groups.items(), key=lambda item: (len(item[1]) == 1, item[0])):
-            if meter_id in used_legacy_meter_ids:
-                continue
-            group_type = "circuit_meter" if active_loads and len(group_loads) == len(active_loads) else "meter"
-            if group_type == "circuit_meter":
-                summary["circuitMeterCount"] += 1
-            elif len(group_loads) > 1:
-                summary["sharedMeterCount"] += 1
-            else:
-                summary["directMeterLoadCount"] += len(group_loads)
-            groups.append(
-                {
-                    "key": f"legacy-meter-{circuit_no}-{meter_id}",
-                    "label": f"Måler HC3 {meter_id}",
-                    "type": group_type,
-                    "meterLabel": "Måler fra eldre lastdata",
-                    "meterDbId": None,
-                    "meterId": None,
-                    "fibaroMeterId": meter_id,
-                    "meterType": None,
-                    "area": None,
-                    "active": True,
-                    "note": "Automatisk gruppert fra fibaro_meter_id på last.",
-                    "loadCount": len(group_loads),
-                    "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in group_loads),
-                    "loads": [energy_load_hierarchy_item(row) for row in sorted(group_loads, key=lambda item: item.name or "")],
-                }
-            )
-
-        if direct_without_meter:
-            summary["directMeterLoadCount"] += len(direct_without_meter)
-            groups.append(
-                {
-                    "key": "direct-without-meter-id",
-                    "label": "Målt uten registrert målepunkt",
-                    "type": "direct_meter",
-                    "meterLabel": "Direktemålt",
-                    "meterId": None,
-                    "meterDbId": None,
-                    "fibaroMeterId": None,
-                    "loadCount": len(direct_without_meter),
-                    "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in direct_without_meter),
-                    "loads": [energy_load_hierarchy_item(row) for row in sorted(direct_without_meter, key=lambda item: item.name or "")],
-                }
-            )
-
-        if unmeasured_loads:
-            summary["unmeteredLoadCount"] += len(unmeasured_loads)
-            groups.append(
-                {
-                    "key": "unmetered",
-                    "label": "Direkte på kurs",
-                    "type": "unmetered",
-                    "meterLabel": "Ingen måler",
-                    "meterId": None,
-                    "meterDbId": None,
-                    "fibaroMeterId": None,
-                    "loadCount": len(unmeasured_loads),
-                    "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in unmeasured_loads),
-                    "loads": [energy_load_hierarchy_item(row) for row in sorted(unmeasured_loads, key=lambda item: item.name or "")],
-                }
-            )
-
-        measured_load_count = sum(len(group["loads"]) for group in groups if group["type"] != "unmetered")
-        unmeasured_load_count = len(unmeasured_loads)
-        if not active_loads:
-            if active_meters:
-                return groups, "Måler klar", "Kurs -> måler. Legg laster under måleren når de er kartlagt.", measured_load_count, unmeasured_load_count, expected_power
-            return groups, "Ingen aktive laster", "Kurset har ingen aktive laster registrert.", measured_load_count, unmeasured_load_count, expected_power
-        if unmeasured_load_count and measured_load_count:
-            return groups, "Delvis målt", "Kurs -> målere -> laster, pluss laster direkte på kurs uten måler.", measured_load_count, unmeasured_load_count, expected_power
-        if measured_load_count:
-            return groups, "Målt", "Kurs -> måler(e) -> laster.", measured_load_count, unmeasured_load_count, expected_power
-        return groups, "Ikke målt", "Kurs -> laster direkte på kurs uten registrert energimåler.", measured_load_count, unmeasured_load_count, expected_power
-
-    for circuit in circuits:
-        circuit_loads = loads_by_circuit.get(circuit.circuit_no, [])
-        circuit_meters = meters_by_circuit.get(circuit.circuit_no, [])
-        groups, mode, detail, measured_count, unmeasured_count, expected_power = make_groups(circuit.circuit_no, circuit_loads, circuit_meters)
-        circuit_rows.append(
-            {
-                "key": f"circuit-{circuit.circuit_no}",
-                "circuitNo": circuit.circuit_no,
-                "description": circuit.description,
-                "breaker": f"{circuit.breaker_rating_a:g} A" if circuit.breaker_rating_a is not None else None,
-                "breakerType": circuit.breaker_type,
-                "status": circuit.status,
-                "isSunbed": bool(circuit.is_sunbed),
-                "note": circuit.note,
-                "loadCount": len(circuit_loads),
-                "activeLoadCount": sum(1 for row in circuit_loads if row.active is not False),
-                "expectedPowerW": expected_power,
-                "measuredLoadCount": measured_count,
-                "unmeasuredLoadCount": unmeasured_count,
-                "measurementMode": mode,
-                "measurementDetail": detail,
-                "measurementGroups": groups,
-            }
-        )
-
-    unassigned_loads = [
-        row for circuit_no, grouped_loads in loads_by_circuit.items()
-        if circuit_no is None or circuit_no not in known_circuit_numbers
-        for row in grouped_loads
-    ]
-    unassigned_meters = [
-        row for circuit_no, grouped_meters in meters_by_circuit.items()
-        if circuit_no is None or circuit_no not in known_circuit_numbers
-        for row in grouped_meters
-    ]
-    if unassigned_loads or unassigned_meters:
-        groups, mode, detail, measured_count, unmeasured_count, expected_power = make_groups(None, unassigned_loads, unassigned_meters)
-        circuit_rows.append(
-            {
-                "key": "unassigned",
-                "circuitNo": None,
-                "description": "Uten gyldig kurs",
-                "breaker": None,
-                "breakerType": None,
-                "status": "Mangler kurskobling",
-                "isSunbed": False,
-                "note": "Laster og målere som mangler kursnummer eller peker på en kurs som ikke finnes.",
-                "loadCount": len(unassigned_loads),
-                "activeLoadCount": sum(1 for row in unassigned_loads if row.active is not False),
-                "expectedPowerW": expected_power,
-                "measuredLoadCount": measured_count,
-                "unmeasuredLoadCount": unmeasured_count,
-                "measurementMode": mode,
-                "measurementDetail": detail,
-                "measurementGroups": groups,
-            }
-        )
-
-    circuit_rows.sort(key=lambda row: (row["circuitNo"] is None, row["circuitNo"] or 9999))
-    return {"summary": summary, "circuits": circuit_rows}
-
-
-def default_energy_node_name(circuit_no: Optional[int], hc3_power_device_id: Optional[int], loads: list[EnergyLoad]) -> str:
-    prefix = f"K{circuit_no} " if circuit_no is not None else ""
-    if hc3_power_device_id is not None:
-        if len(loads) == 1 and loads[0].name:
-            return f"{prefix}HC3 {hc3_power_device_id} - {loads[0].name}"
-        return f"{prefix}HC3 {hc3_power_device_id}"
-    return f"{prefix}Tilkoblingspunkt".strip()
-
-
-async def ensure_energy_node_backfill(session) -> Dict[str, int]:
-    nodes = (await session.execute(select(EnergyNode))).scalars().all()
-    now_value = datetime.utcnow()
-    updated = 0
-    for node in nodes:
-        changed = False
-        if node.circuit_no == 29 and node.hc3_power_device_id == 398:
-            node.hc3_power_device_id = 399
-            changed = True
-        if node.circuit_no == 29 and node.hc3_power_device_id == 399:
-            if node.hc3_switch_device_id == 84:
-                node.hc3_switch_device_id = None
-                node.has_switch = False
-                changed = True
-            if node.source == "backfill" and node.name and "HC3 398" in node.name:
-                node.name = node.name.replace("HC3 398", "HC3 399")
-                changed = True
-        power_id = int(node.hc3_power_device_id) if node.hc3_power_device_id is not None else None
-        if power_id is not None:
-            expected_energy_id = ENERGY_ACCUMULATED_ID_BY_POWER_ID.get(power_id)
-            expected_group_key = ENERGY_AGGREGATE_GROUP_BY_POWER_ID.get(power_id)
-            if node.hc3_energy_device_id is None and expected_energy_id is not None:
-                node.hc3_energy_device_id = expected_energy_id
-                changed = True
-            if node.aggregate_group_key is None and expected_group_key is not None:
-                node.aggregate_group_key = expected_group_key
-                changed = True
-        if changed:
-            node.updated_at = now_value
-            updated += 1
-    node_by_id = {row.id: row for row in nodes if row.id is not None}
-    node_by_key = {
-        (row.circuit_no, int(row.hc3_power_device_id)): row
-        for row in nodes
-        if row.hc3_power_device_id is not None
-    }
-    loads = (
-        await session.execute(
-            select(EnergyLoad)
-            .where(or_(EnergyLoad.fibaro_meter_id.isnot(None), EnergyLoad.energy_node_id.isnot(None)))
-            .order_by(EnergyLoad.circuit_no.asc(), EnergyLoad.name.asc())
-        )
-    ).scalars().all()
-    created = 0
-    linked = 0
-    grouped: Dict[tuple[Optional[int], int], list[EnergyLoad]] = defaultdict(list)
-    for load in loads:
-        if load.energy_node_id is not None and load.energy_node_id in node_by_id:
-            node = node_by_id[load.energy_node_id]
-            if load.fibaro_meter_id is None and node.hc3_power_device_id is not None:
-                load.fibaro_meter_id = node.hc3_power_device_id
-            elif node.circuit_no == 29 and node.hc3_power_device_id == 399 and load.fibaro_meter_id == 398:
-                load.fibaro_meter_id = 399
-            continue
-        if load.fibaro_meter_id is not None:
-            grouped[(load.circuit_no, int(load.fibaro_meter_id))].append(load)
-
-    for key, group_loads in grouped.items():
-        circuit_no, hc3_power_device_id = key
-        node = node_by_key.get(key)
-        if node is None:
-            device_ids = {row.fibaro_device_id for row in group_loads if row.fibaro_device_id is not None}
-            switch_ids = {row.zwave_switch_id for row in group_loads if row.zwave_switch_id is not None}
-            node = EnergyNode(
-                name=default_energy_node_name(circuit_no, hc3_power_device_id, group_loads),
-                circuit_no=circuit_no,
-                node_type="zwave_device",
-                hc3_device_id=next(iter(device_ids)) if len(device_ids) == 1 else None,
-                hc3_power_device_id=hc3_power_device_id,
-                hc3_energy_device_id=ENERGY_ACCUMULATED_ID_BY_POWER_ID.get(hc3_power_device_id),
-                hc3_switch_device_id=next(iter(switch_ids)) if len(switch_ids) == 1 else None,
-                aggregate_group_key=ENERGY_AGGREGATE_GROUP_BY_POWER_ID.get(hc3_power_device_id),
-                has_meter=True,
-                has_switch=bool(switch_ids),
-                active=True,
-                source="backfill",
-                created_at=now_value,
-                updated_at=now_value,
-            )
-            session.add(node)
-            await session.flush()
-            node_by_key[key] = node
-            node_by_id[node.id] = node
-            created += 1
-        for load in group_loads:
-            if load.energy_node_id != node.id:
-                load.energy_node_id = node.id
-                linked += 1
-    return {"created": created, "linked": linked, "updated": updated}
-
-
-def build_energy_circuit_loads_payload(
-    circuits: list[EnergyCircuit],
-    loads: list[EnergyLoad],
-    nodes: Optional[list[EnergyNode]] = None,
-) -> Dict[str, Any]:
-    nodes = nodes or []
-    aggregate_counts = {
-        group["key"]: sum(
-            1
-            for node in nodes
-            if node.active is not False and node.aggregate_group_key == group["key"]
-        )
-        for group in ENERGY_AGGREGATE_METERS
-    }
-    aggregate_meters = [
-        {
-            **group,
-            "mappedNodeCount": aggregate_counts[group["key"]],
-            "memberPowerIds": list(ENERGY_AGGREGATE_HC3_MEMBERS.get(group["key"], ())),
-        }
-        for group in ENERGY_AGGREGATE_METERS
-    ]
-    loads_by_circuit: Dict[Optional[int], list[EnergyLoad]] = defaultdict(list)
-    nodes_by_circuit: Dict[Optional[int], list[EnergyNode]] = defaultdict(list)
-    for load in loads:
-        loads_by_circuit[load.circuit_no].append(load)
-    for node in nodes:
-        nodes_by_circuit[node.circuit_no].append(node)
-
-    known_circuit_numbers = {row.circuit_no for row in circuits if row.circuit_no is not None}
-
-    def circuit_payload(circuit: Optional[EnergyCircuit], circuit_no: Optional[int]) -> Dict[str, Any]:
-        circuit_loads = loads_by_circuit.get(circuit_no, [])
-        circuit_nodes = nodes_by_circuit.get(circuit_no, [])
-        node_by_id = {row.id: row for row in circuit_nodes if row.id is not None}
-        loads_by_node: Dict[int, list[EnergyLoad]] = defaultdict(list)
-        direct_loads: list[EnergyLoad] = []
-        for load in circuit_loads:
-            if load.energy_node_id is not None and load.energy_node_id in node_by_id:
-                loads_by_node[int(load.energy_node_id)].append(load)
-            else:
-                direct_loads.append(load)
-
-        children_by_parent: Dict[int, list[EnergyNode]] = defaultdict(list)
-        roots: list[EnergyNode] = []
-        for node in circuit_nodes:
-            if node.parent_node_id is not None and node.parent_node_id in node_by_id and node.parent_node_id != node.id:
-                children_by_parent[int(node.parent_node_id)].append(node)
-            else:
-                roots.append(node)
-
-        def node_has_measurement(node_id: Optional[int]) -> bool:
-            seen: set[int] = set()
-            current_id = node_id
-            while current_id is not None and current_id in node_by_id and current_id not in seen:
-                seen.add(current_id)
-                current = node_by_id[current_id]
-                if current.active is not False and (current.has_meter or current.hc3_power_device_id is not None):
-                    return True
-                current_id = current.parent_node_id
-            return False
-
-        def serialize_node(node: EnergyNode, ancestors: Optional[set[int]] = None) -> Dict[str, Any]:
-            ancestors = set(ancestors or set())
-            node_id = int(node.id or 0)
-            cycle = node_id in ancestors
-            ancestors.add(node_id)
-            own_loads = sorted(loads_by_node.get(node_id, []), key=lambda item: (item.active is False, item.name or ""))
-            child_rows = [] if cycle else [
-                serialize_node(child, ancestors)
-                for child in sorted(children_by_parent.get(node_id, []), key=lambda item: (item.name or "", item.id or 0))
-            ]
-            own_expected = sum(float_or_zero(row.expected_power_w) for row in own_loads if row.active is not False)
-            total_expected = own_expected + sum(float_or_zero(row.get("expectedPowerW")) for row in child_rows)
-            active_own_loads = sum(1 for row in own_loads if row.active is not False)
-            total_active_loads = active_own_loads + sum(int(row.get("activeLoadCount") or 0) for row in child_rows)
-            return {
-                "id": node.id,
-                "name": node.name,
-                "circuitNo": node.circuit_no,
-                "parentNodeId": node.parent_node_id,
-                "nodeType": node.node_type or "zwave_device",
-                "manufacturer": node.manufacturer,
-                "model": node.model,
-                "deviceType": node.device_type,
-                "hc3DeviceId": node.hc3_device_id,
-                "hc3PowerDeviceId": node.hc3_power_device_id,
-                "hc3EnergyDeviceId": node.hc3_energy_device_id,
-                "hc3SwitchDeviceId": node.hc3_switch_device_id,
-                "aggregateGroupKey": node.aggregate_group_key,
-                "aggregateMeter": ENERGY_AGGREGATE_METERS_BY_KEY.get(node.aggregate_group_key),
-                "endpointKey": node.endpoint_key,
-                "hasMeter": bool(node.has_meter or node.hc3_power_device_id is not None),
-                "hasSwitch": bool(node.has_switch or node.hc3_switch_device_id is not None),
-                "area": node.area,
-                "active": node.active is not False,
-                "note": node.note,
-                "loadCount": len(own_loads),
-                "activeLoadCount": total_active_loads,
-                "expectedPowerW": total_expected,
-                "currentPowerW": None,
-                "switchState": None,
-                "liveStatus": "pending" if node.active is not False else "inactive",
-                "liveCheckedAt": None,
-                "topologyWarning": "Syklus i tilkoblingsstrukturen" if cycle else None,
-                "loads": [energy_load_hierarchy_item(row) for row in own_loads],
-                "children": child_rows,
-            }
-
-        active_loads = [row for row in circuit_loads if row.active is not False]
-        measured_load_count = sum(
-            1
-            for row in active_loads
-            if node_has_measurement(row.energy_node_id) or row.fibaro_meter_id is not None or bool(row.measured_direct)
-        )
-        unmeasured_load_count = max(0, len(active_loads) - measured_load_count)
-        expected_power = sum(float_or_zero(row.expected_power_w) for row in active_loads)
-        node_rows = [serialize_node(row) for row in sorted(roots, key=lambda item: (item.name or "", item.id or 0))]
-        if not active_loads and circuit_nodes:
-            measurement_mode = "Enheter klare"
-            measurement_detail = "Kurset har registrerte enheter, men ingen aktive laster."
-        elif not active_loads:
-            measurement_mode = "Ikke kartlagt"
-            measurement_detail = "Kurset har ingen registrerte enheter eller aktive laster."
-        elif measured_load_count == len(active_loads):
-            measurement_mode = "Målt"
-            measurement_detail = "Alle aktive laster ligger på eller under et målepunkt."
-        elif measured_load_count:
-            measurement_mode = "Delvis målt"
-            measurement_detail = f"{measured_load_count} av {len(active_loads)} aktive laster har måledekning."
-        else:
-            measurement_mode = "Ikke målt"
-            measurement_detail = "Aktive laster mangler målepunkt i strukturen."
-        return {
-            "key": f"circuit-{circuit_no}" if circuit_no is not None else "unassigned",
-            "circuitNo": circuit_no,
-            "description": circuit.description if circuit else "Uten gyldig kurs",
-            "breaker": f"{circuit.breaker_rating_a:g} A" if circuit and circuit.breaker_rating_a is not None else None,
-            "breakerType": circuit.breaker_type if circuit else None,
-            "status": circuit.status if circuit else "Mangler kurskobling",
-            "isSunbed": bool(circuit.is_sunbed) if circuit else False,
-            "note": circuit.note if circuit else "Laster eller enheter mangler gyldig kurskobling.",
-            "loadCount": len(circuit_loads),
-            "activeLoadCount": len(active_loads),
-            "nodeCount": len(circuit_nodes),
-            "expectedPowerW": expected_power,
-            "currentPowerW": None,
-            "measuredLoadCount": measured_load_count,
-            "unmeasuredLoadCount": unmeasured_load_count,
-            "measurementMode": measurement_mode,
-            "measurementDetail": measurement_detail,
-            "directLoads": [energy_load_hierarchy_item(row) for row in sorted(direct_loads, key=lambda item: (item.active is False, item.name or ""))],
-            "nodes": node_rows,
-        }
-
-    circuit_rows = [circuit_payload(row, row.circuit_no) for row in circuits]
-    has_unassigned = any(key is None or key not in known_circuit_numbers for key in set(loads_by_circuit) | set(nodes_by_circuit))
-    if has_unassigned:
-        orphan_loads = [row for key, values in loads_by_circuit.items() if key is None or key not in known_circuit_numbers for row in values]
-        orphan_nodes = [row for key, values in nodes_by_circuit.items() if key is None or key not in known_circuit_numbers for row in values]
-        loads_by_circuit[None] = orphan_loads
-        nodes_by_circuit[None] = orphan_nodes
-        circuit_rows.append(circuit_payload(None, None))
-
-    circuit_rows.sort(key=lambda row: (row["circuitNo"] is None, row["circuitNo"] or 9999))
-    active_load_count = sum(1 for row in loads if row.active is not False)
-    measured_load_count = sum(int(row["measuredLoadCount"]) for row in circuit_rows)
-    return {
-        "summary": {
-            "circuits": len(circuits),
-            "loads": len(loads),
-            "activeLoads": active_load_count,
-            "nodes": len(nodes),
-            "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in loads if row.active is not False),
-            "measuredLoadCount": measured_load_count,
-            "unmeteredLoadCount": max(0, active_load_count - measured_load_count),
-            "circuitMeterCount": sum(1 for row in circuit_rows if row["activeLoadCount"] and row["unmeasuredLoadCount"] == 0),
-            "sharedMeterCount": sum(1 for row in nodes if row.active is not False and row.has_meter),
-            "directMeterLoadCount": sum(1 for row in loads if row.active is not False and row.measured_direct),
-        },
-        "aggregateMeters": aggregate_meters,
-        "circuits": circuit_rows,
-    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ADMIN_TASK_SEVERITY_SORT = {
@@ -18854,770 +3002,28 @@ ADMIN_TASK_SEVERITY_SORT = {
 }
 
 
-def api_admin_task_row(
-    task_key: str,
-    severity: str,
-    domain: str,
-    item: str,
-    problem: str,
-    detail: str,
-    count: Optional[int],
-    path: str,
-    recommended_action: str,
-) -> Dict[str, Any]:
-    return {
-        "task_key": task_key,
-        "severity": severity,
-        "domain": domain,
-        "item": item,
-        "problem": problem,
-        "detail": detail,
-        "count": count,
-        "path": path,
-        "recommended_action": recommended_action,
-        "_sort": ADMIN_TASK_SEVERITY_SORT.get(severity, 9),
-    }
 
 
-def admin_task_import_severity(status: str) -> str:
-    if status == "bad":
-        return "Kritisk"
-    if status == "warn":
-        return "Høy"
-    return "Medium"
 
 
-async def build_admin_task_rows(session, import_rows: list[Dict[str, Any]], now_dt: datetime) -> list[Dict[str, Any]]:
-    task_rows: list[Dict[str, Any]] = []
-
-    for row in import_rows:
-        status = str(row.get("status") or "")
-        if status not in {"bad", "warn"}:
-            continue
-        task_rows.append(
-            api_admin_task_row(
-                f"import:{row.get('job_name') or row.get('title') or 'unknown'}",
-                admin_task_import_severity(status),
-                "Datakilde",
-                str(row.get("title") or row.get("job_name") or "-"),
-                str(row.get("status_text") or status),
-                f"{row.get('age') or 'Ingen alder'} - {row.get('message') or row.get('description') or 'Ingen melding'}",
-                int_or_zero(row.get("records_total")) if row.get("records_total") is not None else None,
-                "/admin/datakilder",
-                "Sjekk siste kjøring, feilmelding og planlagt oppdatering.",
-            )
-        )
-
-    vehicle_blank_name_count = int_or_zero(
-        (await session.execute(select(func.count(ParkingVehicle.plate)).where(vehicle_blank_name_condition()))).scalar_one()
-    )
-    vehicle_name_not_found_count = int_or_zero(
-        (await session.execute(select(func.count(ParkingVehicle.plate)).where(vehicle_name_not_found_condition()))).scalar_one()
-    )
-    vehicle_blank_area_count = int_or_zero(
-        (await session.execute(select(func.count(ParkingVehicle.plate)).where(vehicle_blank_area_condition()))).scalar_one()
-    )
-    vehicle_area_not_found_count = int_or_zero(
-        (await session.execute(select(func.count(ParkingVehicle.plate)).where(vehicle_area_not_found_condition()))).scalar_one()
-    )
-    if vehicle_blank_name_count:
-        task_rows.append(
-            api_admin_task_row(
-                "parking:vehicle-name-blank",
-                "Medium",
-                "Parkering",
-                "Kjøretøy uten navn",
-                "Mangler eiernavn",
-                "Blankt navn i kjøretøytabellen.",
-                vehicle_blank_name_count,
-                "/parkering/oppslag",
-                "Kjør SVV-sync eller oppdater kjøretøy manuelt.",
-            )
-        )
-    if vehicle_name_not_found_count:
-        task_rows.append(
-            api_admin_task_row(
-                "parking:vehicle-name-not-found",
-                "Lav",
-                "Parkering",
-                "Kjøretøy med navn ikke funnet",
-                "SVV fant ikke navn",
-                "Disse inngår i hovedtallet mangler navn, men vises separat.",
-                vehicle_name_not_found_count,
-                "/parkering/oppslag",
-                "Kontroller om registreringsnummeret er korrekt eller la posten stå som ikke funnet.",
-            )
-        )
-    if vehicle_blank_area_count:
-        task_rows.append(
-            api_admin_task_row(
-                "parking:vehicle-area-blank",
-                "Medium",
-                "Parkering",
-                "Kjøretøy uten område",
-                "Mangler område",
-                "Blankt område i kjøretøytabellen.",
-                vehicle_blank_area_count,
-                "/parkering/omrade",
-                "Bruk områdeoversikten for å sette område eller rydde grunnlaget.",
-            )
-        )
-    if vehicle_area_not_found_count:
-        task_rows.append(
-            api_admin_task_row(
-                "parking:vehicle-area-not-found",
-                "Medium",
-                "Parkering",
-                "Kjøretøy med område ikke funnet",
-                "Områdeoppslag ga ikke treff",
-                "Kan gi svakere områdestatistikk og rapportering.",
-                vehicle_area_not_found_count,
-                "/parkering/oppslag",
-                "Rydd ikke funnet-verdier eller legg inn område manuelt.",
-            )
-        )
-
-    sun_image_cutoff = now_dt - timedelta(days=14)
-    sun_sessions_without_images = int_or_zero(
-        (
-            await session.execute(
-                select(func.count(Sun2TanningSession.id))
-                .outerjoin(Sun2TanningSessionImage, Sun2TanningSessionImage.session_id == Sun2TanningSession.id)
-                .where(Sun2TanningSession.started_at >= sun_image_cutoff)
-                .where(Sun2TanningSessionImage.id.is_(None))
-            )
-        ).scalar_one()
-    )
-    if sun_sessions_without_images:
-        task_rows.append(
-            api_admin_task_row(
-                "sun2:sessions-without-image",
-                "Høy",
-                "Soling",
-                "Solinger uten bilde",
-                "Mangler Axis-bilde",
-                "Gjelder soltimer siste 14 dager.",
-                sun_sessions_without_images,
-                "/soling/enkeltimer",
-                "Kontroller bildeinnlesing og koble riktig bilde til timen.",
-            )
-        )
-
-    latest_energy = (
-        await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))
-    ).scalars().first()
-    energy_age_minutes = minutes_since(latest_energy.bucket_start if latest_energy else None, now_dt)
-    if energy_age_minutes is None or energy_age_minutes > 3:
-        task_rows.append(
-            api_admin_task_row(
-                "energy:realtime-stale",
-                "Kritisk" if energy_age_minutes is None or energy_age_minutes > 10 else "Høy",
-                "Energi",
-                "Realtime energilogging",
-                "Siste sample er for gammel",
-                age_label(energy_age_minutes),
-                None,
-                "/energi/status",
-                "Kontroller HC3-logging, scheduler og Fibaro API.",
-            )
-        )
-    if latest_energy and abs(float_or_zero(latest_energy.differanse_beregnet_w)) >= 1000:
-        task_rows.append(
-            api_admin_task_row(
-                "energy:diff-over-1000w",
-                "Medium",
-                "Energi",
-                "Uforklart effektdifferanse",
-                "Diff over 1000 W",
-                f"{format_short_number(latest_energy.differanse_beregnet_w)} W ved {latest_energy.bucket_start.strftime('%H:%M')}",
-                None,
-                "/energi/status",
-                "Sjekk umålte laster, takvifte, kursgrunnlag og aktive solsenger.",
-            )
-        )
-
-    task_rows.sort(key=lambda item: (item.get("_sort", 9), item.get("domain") or "", item.get("item") or ""))
-    for row in task_rows:
-        row.pop("_sort", None)
-    return task_rows
 
 
-def quality_percent(ok_count: int, total_count: int) -> Optional[float]:
-    if total_count <= 0:
-        return None
-    return round(max(0.0, min(100.0, (ok_count / total_count) * 100.0)), 1)
 
 
-def quality_status_from_percent(value: Optional[float], warn_below: float = 98.0, bad_below: float = 90.0) -> str:
-    if value is None:
-        return "bad"
-    if value < bad_below:
-        return "bad"
-    if value < warn_below:
-        return "warn"
-    return "ok"
 
 
-def quality_status_from_age(minutes: Optional[int], warn_after: int, bad_after: int) -> str:
-    if minutes is None:
-        return "bad"
-    if minutes > bad_after:
-        return "bad"
-    if minutes > warn_after:
-        return "warn"
-    return "ok"
 
 
-def api_data_quality_row(
-    domain: str,
-    metric: str,
-    status: str,
-    value: Any,
-    target: str,
-    coverage_percent: Optional[float],
-    missing_count: Optional[int],
-    sample_count: Optional[int],
-    detail: str,
-    path: str,
-    recommended_action: str,
-) -> Dict[str, Any]:
-    return {
-        "domain": domain,
-        "metric": metric,
-        "status": status,
-        "value": value,
-        "target": target,
-        "coverage_percent": coverage_percent,
-        "missing_count": missing_count,
-        "sample_count": sample_count,
-        "detail": detail,
-        "path": path,
-        "recommended_action": recommended_action,
-    }
 
 
-async def build_admin_data_quality(session, import_rows: list[Dict[str, Any]], now_dt: datetime) -> Dict[str, Any]:
-    today_start = datetime.combine(now_dt.date(), time.min)
-    import_total = len(import_rows)
-    import_ok = sum(1 for row in import_rows if row.get("status") == "ok")
-    import_coverage = quality_percent(import_ok, import_total)
-
-    vehicle_count = int_or_zero((await session.execute(select(func.count(ParkingVehicle.plate)))).scalar_one())
-    vehicle_missing_name = int_or_zero(
-        (await session.execute(select(func.count(ParkingVehicle.plate)).where(vehicle_missing_name_condition()))).scalar_one()
-    )
-    vehicle_missing_area = int_or_zero(
-        (await session.execute(select(func.count(ParkingVehicle.plate)).where(vehicle_missing_area_condition()))).scalar_one()
-    )
-    vehicle_name_coverage = quality_percent(max(0, vehicle_count - vehicle_missing_name), vehicle_count)
-    vehicle_area_coverage = quality_percent(max(0, vehicle_count - vehicle_missing_area), vehicle_count)
-
-    parking_count = int_or_zero((await session.execute(select(func.count(ParkingSession.id)))).scalar_one())
-    parking_missing_plate = int_or_zero(
-        (
-            await session.execute(
-                select(func.count(ParkingSession.id)).where(
-                    func.trim(func.coalesce(ParkingSession.car_license_number, "")) == ""
-                )
-            )
-        ).scalar_one()
-    )
-    parking_plate_coverage = quality_percent(max(0, parking_count - parking_missing_plate), parking_count)
-
-    sun_cutoff = now_dt - timedelta(days=14)
-    sun_recent_count = int_or_zero(
-        (
-            await session.execute(
-                select(func.count(Sun2TanningSession.id)).where(Sun2TanningSession.started_at >= sun_cutoff)
-            )
-        ).scalar_one()
-    )
-    sun_without_image = int_or_zero(
-        (
-            await session.execute(
-                select(func.count(Sun2TanningSession.id))
-                .outerjoin(Sun2TanningSessionImage, Sun2TanningSessionImage.session_id == Sun2TanningSession.id)
-                .where(Sun2TanningSession.started_at >= sun_cutoff)
-                .where(Sun2TanningSessionImage.id.is_(None))
-            )
-        ).scalar_one()
-    )
-    sun_image_coverage = quality_percent(max(0, sun_recent_count - sun_without_image), sun_recent_count)
-
-    sun_missing_room = int_or_zero(
-        (
-            await session.execute(
-                select(func.count(Sun2TanningSession.id)).where(
-                    and_(
-                        func.trim(func.coalesce(Sun2TanningSession.room_id, "")) == "",
-                        func.trim(func.coalesce(Sun2TanningSession.room, "")) == "",
-                    )
-                )
-            )
-        ).scalar_one()
-    )
-    sun_total_count = int_or_zero((await session.execute(select(func.count(Sun2TanningSession.id)))).scalar_one())
-    sun_room_coverage = quality_percent(max(0, sun_total_count - sun_missing_room), sun_total_count)
-
-    latest_energy = (
-        await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))
-    ).scalars().first()
-    energy_age = minutes_since(latest_energy.bucket_start if latest_energy else None, now_dt)
-    energy_today_count = int_or_zero(
-        (
-            await session.execute(
-                select(func.count(EnergyFibaroSample.id)).where(EnergyFibaroSample.bucket_start >= today_start)
-            )
-        ).scalar_one()
-    )
-    expected_energy_samples = max(1, int(max(60, (now_dt - today_start).total_seconds()) // 30))
-    energy_sample_coverage = round(min(100.0, (energy_today_count / expected_energy_samples) * 100.0), 1)
-
-    latest_ventilation = (
-        await session.execute(select(VentilationSample).order_by(VentilationSample.bucket_start.desc()).limit(1))
-    ).scalars().first()
-    latest_yr = (
-        await session.execute(select(YrForecastSample).order_by(YrForecastSample.bucket_start.desc()).limit(1))
-    ).scalars().first()
-    latest_light = (
-        await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.bucket_start.desc()).limit(1))
-    ).scalars().first()
-    ventilation_age = minutes_since(latest_ventilation.bucket_start if latest_ventilation else None, now_dt)
-    yr_age = minutes_since(latest_yr.bucket_start if latest_yr else None, now_dt)
-    light_age = minutes_since(latest_light.bucket_start if latest_light else None, now_dt)
-
-    rows = [
-        api_data_quality_row(
-            "Datakilder",
-            "Importstatus",
-            quality_status_from_percent(import_coverage, warn_below=100.0, bad_below=90.0),
-            f"{import_ok}/{import_total}",
-            "Alle kilder OK",
-            import_coverage,
-            import_total - import_ok,
-            import_total,
-            "Basert på import_job_status og fallback-kilder.",
-            "/admin/datakilder",
-            "Sjekk kilder med advarsel eller feil.",
-        ),
-        api_data_quality_row(
-            "Parkering",
-            "Kjøretøy med eiernavn",
-            quality_status_from_percent(vehicle_name_coverage, warn_below=98.0, bad_below=90.0),
-            f"{max(0, vehicle_count - vehicle_missing_name)}/{vehicle_count}",
-            "Minst 98 % dekning",
-            vehicle_name_coverage,
-            vehicle_missing_name,
-            vehicle_count,
-            "Blankt navn og 'ikke funnet' regnes som mangler.",
-            "/parkering/oppslag",
-            "Kjør SVV-sync og behandle kjøretøy som fortsatt mangler navn.",
-        ),
-        api_data_quality_row(
-            "Parkering",
-            "Kjøretøy med område",
-            quality_status_from_percent(vehicle_area_coverage, warn_below=98.0, bad_below=90.0),
-            f"{max(0, vehicle_count - vehicle_missing_area)}/{vehicle_count}",
-            "Minst 98 % dekning",
-            vehicle_area_coverage,
-            vehicle_missing_area,
-            vehicle_count,
-            "Blankt område og 'ikke funnet' regnes som mangler.",
-            "/parkering/omrade",
-            "Sett område eller nullstill 'ikke funnet' for ny behandling.",
-        ),
-        api_data_quality_row(
-            "Parkering",
-            "Parkeringer med reg.nr",
-            quality_status_from_percent(parking_plate_coverage, warn_below=99.5, bad_below=98.0),
-            f"{max(0, parking_count - parking_missing_plate)}/{parking_count}",
-            "Minst 99,5 % dekning",
-            parking_plate_coverage,
-            parking_missing_plate,
-            parking_count,
-            "Kontrollerer at EasyPark-rader har registreringsnummer.",
-            "/parkering/parkeringer",
-            "Sjekk importgrunnlaget hvis det finnes parkeringer uten reg.nr.",
-        ),
-        api_data_quality_row(
-            "Soling",
-            "Soltimer med bilde siste 14 dager",
-            quality_status_from_percent(sun_image_coverage, warn_below=98.0, bad_below=90.0),
-            f"{max(0, sun_recent_count - sun_without_image)}/{sun_recent_count}",
-            "Minst 98 % dekning",
-            sun_image_coverage,
-            sun_without_image,
-            sun_recent_count,
-            "Måler Axis-bilder koblet til soltimer siste 14 dager.",
-            "/soling/enkeltimer",
-            "Kjør bildekobling og kontroller Axis-arkivet ved manglende treff.",
-        ),
-        api_data_quality_row(
-            "Soling",
-            "Soltimer med rom",
-            quality_status_from_percent(sun_room_coverage, warn_below=99.5, bad_below=98.0),
-            f"{max(0, sun_total_count - sun_missing_room)}/{sun_total_count}",
-            "Minst 99,5 % dekning",
-            sun_room_coverage,
-            sun_missing_room,
-            sun_total_count,
-            "Rom-ID eller romnavn må finnes for analyse per seng.",
-            "/soling/enkeltimer",
-            "Sjekk SUN2-import hvis rom mangler.",
-        ),
-        api_data_quality_row(
-            "Energi",
-            "Realtime samples i dag",
-            quality_status_from_percent(energy_sample_coverage, warn_below=95.0, bad_below=85.0),
-            f"{energy_today_count}/{expected_energy_samples}",
-            "Minst 95 % av forventet 30-sek logging",
-            energy_sample_coverage,
-            max(0, expected_energy_samples - energy_today_count),
-            energy_today_count,
-            f"Siste sample: {age_label(energy_age)}.",
-            "/energi/status",
-            "Kontroller HC3-logger og scheduler hvis dekningen faller.",
-        ),
-        api_data_quality_row(
-            "Energi",
-            "Realtime ferskhet",
-            quality_status_from_age(energy_age, warn_after=3, bad_after=10),
-            age_label(energy_age),
-            "Maks 3 min gammel",
-            None,
-            None,
-            energy_today_count,
-            f"Siste bucket: {latest_energy.bucket_start.strftime('%d.%m %H:%M') if latest_energy else '-'}",
-            "/energi/status",
-            "Sjekk energilogging hvis siste sample er for gammel.",
-        ),
-        api_data_quality_row(
-            "Ventilasjon",
-            "Ventilasjon ferskhet",
-            quality_status_from_age(ventilation_age, warn_after=3, bad_after=10),
-            age_label(ventilation_age),
-            "Maks 3 min gammel",
-            None,
-            None,
-            None,
-            f"Siste sample: {latest_ventilation.bucket_start.strftime('%d.%m %H:%M') if latest_ventilation else '-'}",
-            "/ventilasjon/dagslogg",
-            "Kontroller HC3 ventilasjonslogger hvis sample stopper.",
-        ),
-        api_data_quality_row(
-            "Vær",
-            "Yr ferskhet",
-            quality_status_from_age(yr_age, warn_after=90, bad_after=180),
-            age_label(yr_age),
-            "Maks 90 min gammel",
-            None,
-            None,
-            None,
-            f"Siste vær: {latest_yr.weather_text if latest_yr else '-'}",
-            "/ventilasjon/yr-logg",
-            "Sjekk Yr API og importstatus ved gammel værdata.",
-        ),
-        api_data_quality_row(
-            "Lys",
-            "Lys/lux ferskhet",
-            quality_status_from_age(light_age, warn_after=3, bad_after=10),
-            age_label(light_age),
-            "Maks 3 min gammel",
-            None,
-            None,
-            None,
-            f"Siste lux: {format_short_number(latest_light.lux) if latest_light and latest_light.lux is not None else '-'}",
-            "/lys/dagslogg",
-            "Kontroller lyslogger hvis sample stopper.",
-        ),
-    ]
-    bad_count = sum(1 for row in rows if row["status"] == "bad")
-    warn_count = sum(1 for row in rows if row["status"] == "warn")
-    ok_count = sum(1 for row in rows if row["status"] == "ok")
-    score = round(((ok_count + warn_count * 0.6) / len(rows)) * 100.0, 0) if rows else 0
-    issue_rows = [row for row in rows if row["status"] != "ok"]
-    return {
-        "score": score,
-        "ok_count": ok_count,
-        "warn_count": warn_count,
-        "bad_count": bad_count,
-        "rows": rows,
-        "issue_rows": issue_rows,
-    }
 
 
-def pearson_correlation(pairs: list[tuple[float, float]]) -> Optional[float]:
-    if len(pairs) < 7:
-        return None
-    xs = [pair[0] for pair in pairs]
-    ys = [pair[1] for pair in pairs]
-    mean_x = sum(xs) / len(xs)
-    mean_y = sum(ys) / len(ys)
-    numerator = sum((x - mean_x) * (y - mean_y) for x, y in pairs)
-    denom_x = math.sqrt(sum((x - mean_x) ** 2 for x in xs))
-    denom_y = math.sqrt(sum((y - mean_y) ** 2 for y in ys))
-    denominator = denom_x * denom_y
-    if denominator == 0:
-        return None
-    return numerator / denominator
 
 
-def correlation_strength(value: Optional[float]) -> str:
-    if value is None:
-        return "For lite data"
-    absolute = abs(value)
-    if absolute >= 0.7:
-        return "Sterk"
-    if absolute >= 0.4:
-        return "Moderat"
-    if absolute >= 0.2:
-        return "Svak"
-    return "Lav"
 
 
-def correlation_direction(value: Optional[float]) -> str:
-    if value is None:
-        return "-"
-    if value > 0.05:
-        return "Positiv"
-    if value < -0.05:
-        return "Negativ"
-    return "Nøytral"
 
 
-async def build_admin_relation_analysis(session, now_dt: datetime) -> Dict[str, Any]:
-    end_day = now_dt.date()
-    start_day = end_day - timedelta(days=89)
-    start_dt = datetime.combine(start_day, time.min)
-    end_dt = datetime.combine(end_day + timedelta(days=1), time.min)
-
-    sun_rows = (
-        await session.execute(
-            select(
-                Sun2TanningSession.stat_date.label("day"),
-                func.count(Sun2TanningSession.id).label("sun_count"),
-                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("sun_paid"),
-                func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("sun_minutes"),
-            )
-            .where(Sun2TanningSession.stat_date >= start_day)
-            .where(Sun2TanningSession.stat_date <= end_day)
-            .group_by(Sun2TanningSession.stat_date)
-        )
-    ).mappings().all()
-    parking_day = cast(ParkingSession.start_time, Date)
-    parking_rows = (
-        await session.execute(
-            select(
-                parking_day.label("day"),
-                func.count(ParkingSession.id).label("parking_count"),
-                func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("parking_paid"),
-                func.coalesce(func.sum(ParkingSession.parking_time_min), 0).label("parking_minutes"),
-            )
-            .where(ParkingSession.start_time >= start_dt)
-            .where(ParkingSession.start_time < end_dt)
-            .group_by(parking_day)
-        )
-    ).mappings().all()
-    yr_day = cast(YrForecastSample.bucket_start, Date)
-    yr_rows = (
-        await session.execute(
-            select(
-                yr_day.label("day"),
-                func.avg(YrForecastSample.air_temperature).label("air_temperature"),
-                func.avg(YrForecastSample.relative_humidity).label("relative_humidity"),
-                func.avg(YrForecastSample.wind_speed).label("wind_speed"),
-                func.avg(YrForecastSample.cloud_area_fraction).label("cloud_area_fraction"),
-                func.count(YrForecastSample.id).label("weather_samples"),
-            )
-            .where(YrForecastSample.bucket_start >= start_dt)
-            .where(YrForecastSample.bucket_start < end_dt)
-            .group_by(yr_day)
-        )
-    ).mappings().all()
-    energy_day = cast(EnergyFibaroSample.bucket_start, Date)
-    energy_rows = (
-        await session.execute(
-            select(
-                energy_day.label("day"),
-                func.avg(EnergyFibaroSample.inntak_w).label("avg_inntak_w"),
-                func.avg(EnergyFibaroSample.differanse_beregnet_w).label("avg_diff_w"),
-                func.count(EnergyFibaroSample.id).label("energy_samples"),
-            )
-            .where(EnergyFibaroSample.bucket_start >= start_dt)
-            .where(EnergyFibaroSample.bucket_start < end_dt)
-            .group_by(energy_day)
-        )
-    ).mappings().all()
-
-    days: Dict[date, Dict[str, Any]] = {}
-    weekday_labels = ["Man", "Tir", "Ons", "Tor", "Fre", "Lør", "Søn"]
-    for offset in range((end_day - start_day).days + 1):
-        current_day = start_day + timedelta(days=offset)
-        days[current_day] = {
-            "day": current_day.isoformat(),
-            "weekday": weekday_labels[current_day.weekday()],
-            "weekday_index": current_day.weekday() + 1,
-            "is_weekend": 1 if current_day.weekday() >= 5 else 0,
-            "sun_count": 0,
-            "sun_paid": 0.0,
-            "sun_minutes": 0.0,
-            "parking_count": 0,
-            "parking_paid": 0.0,
-            "parking_minutes": 0.0,
-            "air_temperature": None,
-            "relative_humidity": None,
-            "wind_speed": None,
-            "cloud_area_fraction": None,
-            "avg_inntak_w": None,
-            "avg_diff_w": None,
-            "weather_samples": 0,
-            "energy_samples": 0,
-        }
-    for row in sun_rows:
-        item = days.get(row["day"])
-        if item is not None:
-            item["sun_count"] = int_or_zero(row["sun_count"])
-            item["sun_paid"] = round(float_or_zero(row["sun_paid"]), 2)
-            item["sun_minutes"] = round(float_or_zero(row["sun_minutes"]), 1)
-    for row in parking_rows:
-        item = days.get(row["day"])
-        if item is not None:
-            item["parking_count"] = int_or_zero(row["parking_count"])
-            item["parking_paid"] = round(float_or_zero(row["parking_paid"]), 2)
-            item["parking_minutes"] = round(float_or_zero(row["parking_minutes"]), 1)
-    for row in yr_rows:
-        item = days.get(row["day"])
-        if item is not None:
-            item["air_temperature"] = round(float_or_zero(row["air_temperature"]), 2) if row["air_temperature"] is not None else None
-            item["relative_humidity"] = round(float_or_zero(row["relative_humidity"]), 2) if row["relative_humidity"] is not None else None
-            item["wind_speed"] = round(float_or_zero(row["wind_speed"]), 2) if row["wind_speed"] is not None else None
-            item["cloud_area_fraction"] = round(float_or_zero(row["cloud_area_fraction"]), 2) if row["cloud_area_fraction"] is not None else None
-            item["weather_samples"] = int_or_zero(row["weather_samples"])
-    for row in energy_rows:
-        item = days.get(row["day"])
-        if item is not None:
-            item["avg_inntak_w"] = round(float_or_zero(row["avg_inntak_w"]), 2) if row["avg_inntak_w"] is not None else None
-            item["avg_diff_w"] = round(float_or_zero(row["avg_diff_w"]), 2) if row["avg_diff_w"] is not None else None
-            item["energy_samples"] = int_or_zero(row["energy_samples"])
-
-    day_rows = []
-    for item in days.values():
-        total_paid = float_or_zero(item["sun_paid"]) + float_or_zero(item["parking_paid"])
-        day_rows.append({**item, "total_paid": round(total_paid, 2)})
-
-    target_defs = [
-        ("sun_count", "Solinger"),
-        ("sun_paid", "Soling omsetning"),
-        ("parking_count", "Parkeringer"),
-        ("parking_paid", "Parkering omsetning"),
-        ("total_paid", "Total omsetning"),
-    ]
-    factor_defs = [
-        ("weekday_index", "Ukedag"),
-        ("is_weekend", "Helg"),
-        ("air_temperature", "Ute temperatur"),
-        ("relative_humidity", "Relativ fuktighet"),
-        ("wind_speed", "Vind"),
-        ("cloud_area_fraction", "Skydekke"),
-        ("avg_inntak_w", "Snitt strømforbruk"),
-        ("avg_diff_w", "Snitt uforklart diff"),
-    ]
-    correlation_rows = []
-    for target_key, target_label in target_defs:
-        for factor_key, factor_label in factor_defs:
-            pairs = []
-            for row in day_rows:
-                target_value = row.get(target_key)
-                factor_value = row.get(factor_key)
-                if target_value is None or factor_value is None:
-                    continue
-                pairs.append((float(target_value), float(factor_value)))
-            corr = pearson_correlation(pairs)
-            if corr is None:
-                continue
-            correlation_rows.append(
-                {
-                    "target": target_label,
-                    "factor": factor_label,
-                    "correlation": round(corr, 3),
-                    "strength": correlation_strength(corr),
-                    "direction": correlation_direction(corr),
-                    "sample_days": len(pairs),
-                    "detail": "Korrelasjon er indikasjon, ikke årsaksbevis.",
-                }
-            )
-    correlation_rows.sort(key=lambda row: abs(float_or_zero(row.get("correlation"))), reverse=True)
-
-    def strongest_for(target: str) -> Optional[Dict[str, Any]]:
-        for row in correlation_rows:
-            if row["target"] == target:
-                return row
-        return None
-
-    strongest_sun = strongest_for("Solinger")
-    strongest_parking = strongest_for("Parkeringer")
-    strongest_revenue = strongest_for("Total omsetning")
-    chart_days = day_rows[-45:]
-    chart = api_chart(
-        "Daglig utvikling og analysegrunnlag",
-        [row["day"] for row in chart_days],
-        [
-            {"name": "Solinger", "type": "bar", "data": [row["sun_count"] for row in chart_days], "color": "#f59e0b"},
-            {"name": "Parkeringer", "type": "bar", "data": [row["parking_count"] for row in chart_days], "color": "#2563eb"},
-        ],
-        subtitle="Siste 45 dager. Bruk tabellene under for korrelasjoner.",
-        chart_type="bar",
-        height=320,
-        metrics=[
-            {
-                "key": "count",
-                "label": "Antall",
-                "unit": "stk",
-                "series": [
-                    {"name": "Solinger", "type": "bar", "data": [row["sun_count"] for row in chart_days], "color": "#f59e0b"},
-                    {"name": "Parkeringer", "type": "bar", "data": [row["parking_count"] for row in chart_days], "color": "#2563eb"},
-                ],
-            },
-            {
-                "key": "revenue",
-                "label": "Omsetning",
-                "unit": "kr",
-                "series": [
-                    {"name": "Soling", "type": "line", "data": [row["sun_paid"] for row in chart_days], "color": "#f59e0b"},
-                    {"name": "Parkering", "type": "line", "data": [row["parking_paid"] for row in chart_days], "color": "#2563eb"},
-                    {"name": "Sum", "type": "line", "data": [row["total_paid"] for row in chart_days], "color": "#dc2626"},
-                ],
-            },
-            {
-                "key": "weather",
-                "label": "Vær",
-                "unit": "",
-                "series": [
-                    {"name": "Temp", "type": "line", "data": [row["air_temperature"] for row in chart_days], "color": "#0ea5e9"},
-                    {"name": "Skydekke", "type": "line", "data": [row["cloud_area_fraction"] for row in chart_days], "color": "#64748b"},
-                    {"name": "Vind", "type": "line", "data": [row["wind_speed"] for row in chart_days], "color": "#14b8a6"},
-                ],
-            },
-        ],
-        default_metric="count",
-        disable_zoom=True,
-    )
-    analysed_days = len([row for row in day_rows if row["sun_count"] or row["parking_count"]])
-    weather_days = len([row for row in day_rows if row["weather_samples"]])
-    energy_days = len([row for row in day_rows if row["energy_samples"]])
-    return {
-        "start_day": start_day,
-        "end_day": end_day,
-        "analysed_days": analysed_days,
-        "weather_days": weather_days,
-        "energy_days": energy_days,
-        "strongest_sun": strongest_sun,
-        "strongest_parking": strongest_parking,
-        "strongest_revenue": strongest_revenue,
-        "correlation_rows": correlation_rows,
-        "day_rows": list(reversed(day_rows)),
-        "chart": chart,
-    }
 
 
 from fibaro_core.services.settlements.parsing import PARKING_SETTLEMENT_PROVIDER
@@ -19832,805 +3238,82 @@ from fibaro_core.services.settlements.reconciliation import settlement_amount_su
 from fibaro_core.services.settlements.reconciliation import revenue_settlement_reconciliation_rows
 
 
-async def latest_energy_reconciliation_check(session) -> Dict[str, Any]:
-    latest_day = (
-        await session.execute(select(func.max(EnergyHourlyConsumption.stat_date)))
-    ).scalar_one_or_none()
-    if not latest_day:
-        return evaluate_reconciliation(
-            check_id="energy-elvia-hc3-missing",
-            domain="Energi",
-            title="Elvia mot HC3",
-            actual_label="HC3 realtime",
-            actual_value=None,
-            reference_label="Elvia",
-            reference_value=None,
-            unit="kWh",
-            detail="Ingen Elvia-timer er importert.",
-            path="/energi/elvia-kontroll",
-        )
-
-    day_start = datetime.combine(latest_day, time.min)
-    day_end = day_start + timedelta(days=1)
-    compare_start = day_start + ENERGY_HC3_HOURLY_DISPLAY_OFFSET
-    compare_end = day_end + ENERGY_HC3_HOURLY_DISPLAY_OFFSET
-    elvia_result = (
-        await session.execute(
-            select(
-                func.sum(EnergyHourlyConsumption.consumption_kwh),
-                func.count(func.distinct(EnergyHourlyConsumption.hour)),
-                func.max(EnergyHourlyConsumption.measured_at),
-            ).where(EnergyHourlyConsumption.stat_date == latest_day)
-        )
-    ).one()
-    hc3_result = (
-        await session.execute(
-            select(
-                func.sum(EnergyFibaroSample.inntak_delta_kwh),
-                func.count(EnergyFibaroSample.id),
-                func.max(EnergyFibaroSample.bucket_start),
-            )
-            .where(EnergyFibaroSample.bucket_start >= compare_start)
-            .where(EnergyFibaroSample.bucket_start < compare_end)
-        )
-    ).one()
-    elvia_total = parse_settlement_number(elvia_result[0])
-    hc3_total = parse_settlement_number(hc3_result[0])
-    elvia_hours = int_or_zero(elvia_result[1])
-    hc3_samples = int_or_zero(hc3_result[1])
-    confidence = min(100.0, round((elvia_hours / 24) * 100, 1)) if elvia_hours else 0.0
-    return evaluate_reconciliation(
-        check_id=f"energy-elvia-hc3-{latest_day.isoformat()}",
-        domain="Energi",
-        title="Elvia mot HC3",
-        actual_label="HC3 realtime",
-        actual_value=hc3_total,
-        reference_label="Elvia",
-        reference_value=elvia_total,
-        unit="kWh",
-        period=latest_day.isoformat(),
-        absolute_tolerance=1.0,
-        percent_tolerance=2.0,
-        critical_multiplier=3.0,
-        confidence=confidence,
-        detail=f"{elvia_hours}/24 Elvia-timer og {hc3_samples} HC3-samples. HC3-delta er tidsjustert -1 time.",
-        path=f"/energi/elvia-kontroll?day={latest_day.isoformat()}",
-        updated_at=max(
-            [value for value in (elvia_result[2], hc3_result[2]) if value is not None],
-            default=None,
-        ),
-    )
-
-
-async def build_reconciliation_control(session, now_dt: datetime) -> Dict[str, Any]:
-    settlement_rows = await revenue_settlement_reconciliation_rows(session, limit=6)
-    settlement_checks: list[Dict[str, Any]] = []
-    for row in settlement_rows:
-        period_label = str(row.get("period_label") or row.get("period_start") or "Ukjent periode")
-        parking_id = row.get("parking_settlement_id")
-        sun_id = row.get("sun_settlement_id")
-        settlement_checks.append(
-            evaluate_reconciliation(
-                check_id=f"parking-settlement-{row.get('period_start')}",
-                domain="Parkering",
-                title="Parkeringsoppgjør",
-                actual_label="EasyPark + Flowbird",
-                actual_value=row.get("parking_system_ex_vat"),
-                reference_label="ParkNordic-oppgjør",
-                reference_value=row.get("parking_settlement_ex_vat"),
-                unit="kr eks. mva",
-                period=period_label,
-                absolute_tolerance=1.0,
-                critical_multiplier=3.0,
-                confidence=100 if parking_id else None,
-                detail="Kontrollerer månedssum i Fibaro10 mot brutto mynt/kort og EasyPark i originalbilaget.",
-                path=f"/parkering/oppgjor/{parking_id}" if parking_id else "/parkering/oppgjor",
-                updated_at=row.get("parking_settlement_imported_at"),
-            )
-        )
-        settlement_checks.append(
-            evaluate_reconciliation(
-                check_id=f"sun-settlement-{row.get('period_start')}",
-                domain="Soling",
-                title="Solingsoppgjør",
-                actual_label="SUN2 solomsetning",
-                actual_value=row.get("sun_system_ex_vat"),
-                reference_label="Altera-oppgjør",
-                reference_value=row.get("sun_settlement_ex_vat"),
-                unit="kr eks. mva",
-                period=period_label,
-                absolute_tolerance=1.0,
-                critical_multiplier=3.0,
-                confidence=100 if sun_id else None,
-                detail="Kontrollerer intern SUN2-omsetning mot solomsetning lest fra kreditnotaen.",
-                path=f"/soling/oppgjor/{sun_id}" if sun_id else "/soling/oppgjor",
-                updated_at=row.get("sun_settlement_imported_at"),
-            )
-        )
-
-    energy_check = await latest_energy_reconciliation_check(session)
-    door_payload = await sunroom_door_alarm_payload(session, history_limit=50)
-    door_summary = dict(door_payload.get("summary") or {})
-    active_door_alarms = int_or_zero(door_summary.get("alarm"))
-    watched_doors = int_or_zero(door_summary.get("watch"))
-    door_status = "critical" if active_door_alarms else "warning" if watched_doors else "ok"
-    door_check = state_reconciliation(
-        check_id="doors-sun-session-control",
-        domain="Dører",
-        title="Solromdør mot soltime",
-        status=door_status,
-        value_label="Aktive alarmer",
-        value=active_door_alarms,
-        unit="stk",
-        period="Nå",
-        detail=f"{watched_doors} rom venter på soltime; {int_or_zero(door_summary.get('historyActive'))} aktive historikkposter.",
-        path="/dorer/alarm",
-        updated_at=door_payload.get("generatedAt"),
-        confidence=100,
-    )
-
-    link_state = await get_parking_sun_link_state(session)
-    worker_age_seconds = (
-        max(0.0, (now_dt - normalize_local_naive(link_state.last_worker_seen_at)).total_seconds())
-        if link_state.last_worker_seen_at
-        else None
-    )
-    if link_state.last_error:
-        link_status = "critical"
-    elif not link_state.enabled or worker_age_seconds is None or worker_age_seconds > 180:
-        link_status = "warning"
-    else:
-        link_status = "ok"
-    link_check = state_reconciliation(
-        check_id="parking-sun-link-worker",
-        domain="Koble",
-        title="Parkering mot SUN2",
-        status=link_status,
-        value_label="Sterke kandidater",
-        value=int_or_zero(link_state.strong_candidate_count),
-        unit="stk",
-        period=f"Generasjon {int_or_zero(link_state.generation)}",
-        detail=(
-            link_state.last_error
-            or f"{int_or_zero(link_state.processed_count)} parkeringer kontrollert; "
-            f"{int_or_zero(link_state.candidate_count)} kandidater. {link_state.status_text or ''}".strip()
-        ),
-        path="/koble/oversikt",
-        updated_at=link_state.last_worker_seen_at or link_state.updated_at,
-        confidence=100 if link_status == "ok" else 70,
-    )
-
-    groups = [
-        reconciliation_group(
-            "settlements",
-            "Oppgjør",
-            "De seks nyeste periodene, sammenlignet mot originalbilag.",
-            settlement_checks,
-        ),
-        reconciliation_group(
-            "operations",
-            "Løpende kontroller",
-            "Energi, solrom og koblingsmotor vurdert med samme statusmodell.",
-            [energy_check, door_check, link_check],
-        ),
-    ]
-    checks = [check for group in groups for check in group["checks"]]
-    return {
-        "generated_at": api_local_iso(now_dt),
-        "summary": reconciliation_summary(checks),
-        "groups": groups,
-    }
-
-
-async def energy_elvia_control_module_payload(session, selected_day: date, today: date) -> Dict[str, Any]:
-    day_start = datetime.combine(selected_day, time.min)
-    day_end = day_start + timedelta(days=1)
-    compare_start = day_start + ENERGY_HC3_HOURLY_DISPLAY_OFFSET
-    compare_end = day_end + ENERGY_HC3_HOURLY_DISPLAY_OFFSET
-
-    latest_hc3 = (
-        await session.execute(
-            select(EnergyFibaroSample)
-            .order_by(EnergyFibaroSample.bucket_start.desc())
-            .limit(1)
-        )
-    ).scalars().first()
-    compare_rows = (
-        await session.execute(
-            select(EnergyFibaroSample)
-            .where(EnergyFibaroSample.bucket_start >= compare_start)
-            .where(EnergyFibaroSample.bucket_start < compare_end)
-            .order_by(EnergyFibaroSample.bucket_start.asc())
-        )
-    ).scalars().all()
-    elvia_rows = (
-        await session.execute(
-            select(EnergyHourlyConsumption)
-            .where(EnergyHourlyConsumption.stat_date == selected_day)
-            .order_by(EnergyHourlyConsumption.hour.asc(), EnergyHourlyConsumption.measured_at.asc())
-        )
-    ).scalars().all()
-    latest_elvia = (
-        await session.execute(
-            select(EnergyHourlyConsumption)
-            .order_by(EnergyHourlyConsumption.measured_at.desc())
-            .limit(1)
-        )
-    ).scalars().first()
-
-    hc3_by_hour = {hour: 0.0 for hour in range(24)}
-    hc3_samples_by_hour = {hour: 0 for hour in range(24)}
-    hc3_valid_samples_by_hour = {hour: 0 for hour in range(24)}
-    for row in compare_rows:
-        if row.bucket_start is None:
-            continue
-        display_time = row.bucket_start - ENERGY_HC3_HOURLY_DISPLAY_OFFSET
-        if display_time.date() != selected_day:
-            continue
-        hour = display_time.hour
-        delta_value = row.inntak_delta_kwh
-        hc3_samples_by_hour[hour] += 1
-        if delta_value is not None:
-            hc3_valid_samples_by_hour[hour] += 1
-            hc3_by_hour[hour] += float_or_zero(delta_value)
-
-    elvia_by_hour = {hour: 0.0 for hour in range(24)}
-    elvia_status_by_hour: dict[int, set[str]] = defaultdict(set)
-    elvia_present = set()
-    for row in elvia_rows:
-        if row.hour is None:
-            continue
-        hour = int(row.hour)
-        if hour < 0 or hour > 23:
-            continue
-        elvia_present.add(hour)
-        elvia_by_hour[hour] += float_or_zero(row.consumption_kwh)
-        if row.status:
-            elvia_status_by_hour[hour].add(str(row.status))
-        if row.is_estimated:
-            elvia_status_by_hour[hour].add("estimert")
-
-    hourly_rows = []
-    hour_labels = []
-    hc3_values = []
-    elvia_values = []
-    diff_values = []
-    hc3_cumulative = []
-    elvia_cumulative = []
-    diff_cumulative = []
-    hc3_total = 0.0
-    elvia_total = 0.0
-    for hour in range(24):
-        hour_label = f"{hour:02d}:00"
-        hc3_kwh = round(hc3_by_hour[hour], 3)
-        elvia_kwh = round(elvia_by_hour[hour], 3)
-        diff_kwh = round(hc3_kwh - elvia_kwh, 3)
-        diff_percent = round((diff_kwh / elvia_kwh) * 100, 1) if elvia_kwh else None
-        hc3_total += hc3_kwh
-        elvia_total += elvia_kwh
-        hour_labels.append(hour_label)
-        hc3_values.append(hc3_kwh)
-        elvia_values.append(elvia_kwh if hour in elvia_present else None)
-        diff_values.append(diff_kwh if hour in elvia_present or hc3_kwh else None)
-        hc3_cumulative.append(round(hc3_total, 3))
-        elvia_cumulative.append(round(elvia_total, 3) if hour in elvia_present or elvia_total else None)
-        diff_cumulative.append(round(hc3_total - elvia_total, 3) if hour in elvia_present or hc3_total else None)
-        status_text = " / ".join(sorted(elvia_status_by_hour[hour])) if hour in elvia_present else "Mangler"
-        hourly_rows.append(
-            {
-                "hour_label": f"{hour:02d}:00-{(hour + 1) % 24:02d}:00",
-                "hc3_kwh": hc3_kwh,
-                "elvia_kwh": elvia_kwh if hour in elvia_present else None,
-                "diff_kwh": diff_kwh if hour in elvia_present or hc3_kwh else None,
-                "diff_percent": diff_percent,
-                "hc3_samples": hc3_samples_by_hour[hour],
-                "hc3_delta_samples": hc3_valid_samples_by_hour[hour],
-                "elvia_status": status_text,
-            }
-        )
-
-    hc3_total = round(hc3_total, 3)
-    elvia_total = round(elvia_total, 3)
-    diff_total = round(hc3_total - elvia_total, 3)
-    diff_percent_total = round((diff_total / elvia_total) * 100, 1) if elvia_total else None
-    abs_diff = abs(diff_total)
-    ok_limit = max(1.0, elvia_total * 0.02)
-    has_elvia = bool(elvia_present)
-    control_status = "OK" if has_elvia and abs_diff <= ok_limit else "Avvik" if has_elvia else "Mangler Elvia"
-    diff_detail = (
-        f"{format_signed_short_number(diff_percent_total, 1)} % mot Elvia"
-        if diff_percent_total is not None
-        else "Mangler Elvia-grunnlag"
-    )
-    sample_detail = f"{sum(hc3_valid_samples_by_hour.values())}/{sum(hc3_samples_by_hour.values())} samples med delta"
-    latest_elvia_detail = (
-        f"Siste Elvia-time {format_source_datetime(latest_elvia.measured_at)}"
-        if latest_elvia and latest_elvia.measured_at
-        else "Ingen Elvia-time importert"
-    )
-
-    chart = api_chart(
-        f"Elvia mot HC3 {selected_day.strftime('%d.%m.%Y')}",
-        hour_labels,
-        [
-            {"name": "HC3", "data": hc3_values, "type": "bar", "color": "#15803d", "unit": "kWh"},
-            {"name": "Elvia", "data": elvia_values, "type": "bar", "color": "#5b6b84", "unit": "kWh"},
-            {"name": "Avvik", "data": diff_values, "type": "line", "color": "#dc2626", "unit": "kWh", "smooth": False},
-        ],
-        "HC3 er realtime-basert delta forskjøvet én time bakover for å matche Elvia-timen.",
-        "bar",
-        430,
-        metrics=[
-            {
-                "key": "hourly",
-                "label": "Per time",
-                "unit": "kWh",
-                "series": [
-                    {"name": "HC3", "data": hc3_values, "type": "bar", "color": "#15803d", "unit": "kWh"},
-                    {"name": "Elvia", "data": elvia_values, "type": "bar", "color": "#5b6b84", "unit": "kWh"},
-                    {"name": "Avvik", "data": diff_values, "type": "line", "color": "#dc2626", "unit": "kWh", "smooth": False},
-                ],
-            },
-            {
-                "key": "cumulative",
-                "label": "Akkumulert",
-                "unit": "kWh",
-                "series": [
-                    {"name": "HC3 akk.", "data": hc3_cumulative, "type": "line", "color": "#15803d", "unit": "kWh", "smooth": False},
-                    {"name": "Elvia akk.", "data": elvia_cumulative, "type": "line", "color": "#5b6b84", "unit": "kWh", "smooth": False},
-                    {"name": "Avvik akk.", "data": diff_cumulative, "type": "line", "color": "#dc2626", "unit": "kWh", "smooth": False},
-                ],
-            },
-        ],
-        default_metric="hourly",
-        disable_zoom=True,
-    )
-
-    return {
-        "title": v2_module_title("energi", "elvia-kontroll"),
-        "subtitle": "Kontroll av Elvia-timesforbruk mot HC3/Fibaro10 realtime-basert energilogging.",
-        "cards": [
-            api_card("HC3 valgt dag", format_short_number(hc3_total, 1), "kWh", sample_detail, "energy", href="/energi/status"),
-            api_card("Elvia valgt dag", format_short_number(elvia_total, 1), "kWh", f"{len(elvia_present)}/24 timer importert", "status", href="/energi/elvia"),
-            api_card("Avvik", format_signed_short_number(diff_total, 1), "kWh", diff_detail, "energy" if control_status == "OK" else "status", href="/energi/elvia-kontroll"),
-            api_card("Status", control_status, "", latest_elvia_detail, "energy" if control_status == "OK" else "status", href="/energi/elvia-kontroll"),
-            api_card("Tidsjustering", "-1", "time", "HC3-delta er endestemplet", "status", href="/energi/elvia-kontroll"),
-        ],
-        "charts": [chart],
-        "tables": [
-            api_table(
-                "Timekontroll",
-                ["hour_label", "hc3_kwh", "elvia_kwh", "diff_kwh", "diff_percent", "hc3_samples", "hc3_delta_samples", "elvia_status"],
-                hourly_rows,
-            ),
-            api_table(
-                "Kontrollgrunnlag",
-                ["key", "value"],
-                api_config_value_rows(
-                    {
-                        "valgt_dag": selected_day.isoformat(),
-                        "hc3_periode_fra": compare_start,
-                        "hc3_periode_til": compare_end,
-                        "elvia_dato": selected_day.isoformat(),
-                        "delta_kilde": "realtime_w",
-                        "maks_intervall_sek": ENERGY_REALTIME_MAX_DELTA_SECONDS,
-                        "timeforskyvning": "-1 time i visning",
-                        "siste_hc3_sample": latest_hc3.bucket_start if latest_hc3 else None,
-                        "siste_elvia_time": latest_elvia.measured_at if latest_elvia else None,
-                    }
-                ),
-            ),
-        ],
-        "filters": [],
-        "dayNavigation": api_day_navigation(selected_day, today),
-        "energyElvia": None,
-        "energySunbeds": None,
-    }
-
-
-async def energy_elvia_module_payload(session) -> Dict[str, Any]:
-    elvia_rows = (
-        await session.execute(
-            select(EnergyHourlyConsumption)
-            .order_by(EnergyHourlyConsumption.measured_at.desc())
-            .limit(120)
-        )
-    ).scalars().all()
-    elvia_imports = (
-        await session.execute(
-            select(EnergyImportRun)
-            .order_by(EnergyImportRun.timestamp.desc())
-            .limit(80)
-        )
-    ).scalars().all()
-    summaries = await get_energy_summaries(session)
-    elvia_status = (
-        await session.execute(
-            select(ImportJobStatus)
-            .where(ImportJobStatus.job_name == "elvia_monthly_import")
-        )
-    ).scalars().first()
-    energy_elvia_data = api_energy_elvia_payload(
-        summaries,
-        elvia_imports,
-        elvia_rows,
-        elvia_status,
-    )
-    total = summaries.get("total") or {}
-    latest_import = elvia_imports[0] if elvia_imports else None
-    period_detail = "-"
-    if summaries.get("first_at") and summaries.get("last_at"):
-        period_detail = (
-            f"{format_local_datetime(summaries['first_at'])} - "
-            f"{format_local_datetime(summaries['last_at'])}"
-        )
-    latest_detail = "Ingen import ennå"
-    if latest_import:
-        latest_period = format_source_datetime(latest_import.period_last) if latest_import.period_last else "-"
-        latest_detail = f"Data til {latest_period}"
-    return {
-        "title": v2_module_title("energi", "elvia"),
-        "subtitle": "Elvia-timesdata, importhistorikk og kontrollgrunnlag.",
-        "cards": [
-            api_card("Totalt forbruk", format_short_number(total.get("consumption_kwh")), "kWh", f"{int_or_zero(total.get('hours_count'))} timer", "energy", href="/energi/elvia"),
-            api_card("Periode", int_or_zero(total.get("days_count")), "dager", period_detail, "energy", href="/energi/elvia"),
-            api_card("Estimerte timer", int_or_zero(total.get("estimated_hours_count")), "stk", "Elvia-status ulik OK", "status", href="/energi/elvia"),
-            api_card("Siste import", format_local_datetime(latest_import.timestamp) if latest_import else "-", "", latest_detail, "status", href="/energi/elvia"),
-        ],
-        "charts": [],
-        "tables": [],
-        "filters": [],
-        "energyElvia": energy_elvia_data,
-        "energySunbeds": None,
-    }
-
-
-
-
-def api_detail_field(label: str, value: Any, detail: str = "") -> Dict[str, Any]:
-    if isinstance(value, datetime):
-        value = api_local_iso(value)
-    elif isinstance(value, date):
-        value = value.isoformat()
-    return {"label": label, "value": value if value not in (None, "") else "-", "detail": detail}
-
-
-def is_not_found_marker(value: Optional[str]) -> bool:
-    return (value or "").strip().lower() == "ikke funnet"
-
-
-def parking_vehicle_not_found_field_labels(vehicle: ParkingVehicle) -> list[str]:
-    labels = []
-    if is_not_found_marker(vehicle.navn):
-        labels.append("navn")
-    if is_not_found_marker(vehicle.omrade):
-        labels.append("område")
-    return labels
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-async def validate_energy_node_parent(
-    session,
-    circuit_no: Optional[int],
-    parent_node_id: Optional[int],
-    node_id: Optional[int] = None,
-) -> Optional[EnergyNode]:
-    if parent_node_id is None:
-        return None
-    parent = await session.get(EnergyNode, int(parent_node_id))
-    if not parent:
-        raise HTTPException(status_code=404, detail="Overordnet enhet finnes ikke.")
-    if parent.circuit_no != circuit_no:
-        raise HTTPException(status_code=400, detail="Overordnet enhet må ligge på samme kurs.")
-    seen: set[int] = set()
-    current = parent
-    while current is not None and current.id is not None and current.id not in seen:
-        if node_id is not None and int(current.id) == int(node_id):
-            raise HTTPException(status_code=400, detail="En enhet kan ikke ligge under seg selv eller en av sine underenheter.")
-        seen.add(int(current.id))
-        current = await session.get(EnergyNode, int(current.parent_node_id)) if current.parent_node_id is not None else None
-    return parent
-
-
-def clean_energy_node_values(values: Dict[str, Any]) -> Dict[str, Any]:
-    cleaned = dict(values)
-    text_fields = {
-        "name", "node_type", "manufacturer", "model", "device_type",
-        "endpoint_key", "aggregate_group_key", "area", "note",
-    }
-    number_fields = {
-        "circuit_no", "parent_node_id", "hc3_device_id", "hc3_power_device_id",
-        "hc3_energy_device_id", "hc3_switch_device_id",
-    }
-    for key in text_fields:
-        if key in cleaned:
-            cleaned[key] = str(cleaned.get(key) or "").strip() or None
-    for key in number_fields:
-        if cleaned.get(key) is not None:
-            cleaned[key] = int(cleaned[key])
-    if "node_type" in cleaned and cleaned.get("node_type") is not None:
-        node_type = str(cleaned["node_type"]).strip().lower()
-        node_type = {"zwave_point": "zwave_device"}.get(node_type, node_type)
-        if node_type not in ENERGY_NODE_TYPES:
-            raise HTTPException(status_code=400, detail="Ugyldig type tilkoblingspunkt.")
-        cleaned["node_type"] = node_type
-    if cleaned.get("hc3_power_device_id") is not None and "has_meter" not in cleaned:
-        cleaned["has_meter"] = True
-    if cleaned.get("hc3_switch_device_id") is not None and "has_switch" not in cleaned:
-        cleaned["has_switch"] = True
-    aggregate_group_key = cleaned.get("aggregate_group_key")
-    if aggregate_group_key is not None and aggregate_group_key not in ENERGY_AGGREGATE_METERS_BY_KEY:
-        raise HTTPException(status_code=400, detail="Ugyldig HC3-samlemåler.")
-    return cleaned
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ENERGY_NODE_TYPES = {"zwave_device", "output", "child_device", "meter", "logical"}
 ENERGY_LOAD_POWER_PROFILES = {"unknown", "fixed", "variable"}
 
 
-def validate_energy_node_profile_values(values: Dict[str, Any]) -> None:
-    node_type = str(values.get("node_type") or "zwave_device")
-    if node_type in {"output", "child_device"} and values.get("parent_node_id") is None:
-        label = "Utgang" if node_type == "output" else "Underenhet"
-        raise HTTPException(status_code=400, detail=f"{label} må ha en overordnet enhet.")
-    if node_type == "output" and not str(values.get("endpoint_key") or "").strip():
-        raise HTTPException(status_code=400, detail="Utgang må ha kanal eller utgangsnummer.")
-    if node_type == "meter" and values.get("hc3_power_device_id") is None:
-        raise HTTPException(status_code=400, detail="Målepunkt må kobles til en HC3-enhet som rapporterer watt.")
 
 
-def clean_energy_load_values(values: Dict[str, Any]) -> Dict[str, Any]:
-    cleaned = dict(values)
-    for key in ("name", "load_type", "area", "note"):
-        if key in cleaned:
-            cleaned[key] = str(cleaned.get(key) or "").strip() or None
-    if "power_profile" in cleaned:
-        profile = str(cleaned.get("power_profile") or "unknown").strip().lower()
-        if profile not in ENERGY_LOAD_POWER_PROFILES:
-            raise HTTPException(status_code=400, detail="Effektprofil må være ukjent, fast eller variabel.")
-        cleaned["power_profile"] = profile
-    for key in ("expected_power_w", "min_power_w", "max_power_w"):
-        if key not in cleaned or cleaned.get(key) is None:
-            continue
-        value = float(cleaned[key])
-        if value < 0:
-            raise HTTPException(status_code=400, detail="Effektverdier kan ikke være negative.")
-        cleaned[key] = value
-    return cleaned
 
 
-def validate_energy_load_power_values(values: Dict[str, Any], existing: Optional[EnergyLoad] = None) -> Dict[str, Any]:
-    profile_was_provided = "power_profile" in values
-    profile = values.get("power_profile", existing.power_profile if existing else None)
-    expected = values.get("expected_power_w", existing.expected_power_w if existing else None)
-    minimum = values.get("min_power_w", existing.min_power_w if existing else None)
-    maximum = values.get("max_power_w", existing.max_power_w if existing else None)
-    if not profile or (
-        not profile_was_provided
-        and profile == "unknown"
-        and "expected_power_w" in values
-        and expected is not None
-        and minimum is None
-        and maximum is None
-    ):
-        profile = "fixed" if expected is not None else "unknown"
-        values["power_profile"] = profile
-    if profile == "unknown" and profile_was_provided:
-        expected = minimum = maximum = None
-        values.update(expected_power_w=None, min_power_w=None, max_power_w=None)
-    elif profile == "fixed" and profile_was_provided:
-        minimum = maximum = None
-        values.update(min_power_w=None, max_power_w=None)
-    if minimum is not None and maximum is not None and minimum > maximum:
-        raise HTTPException(status_code=400, detail="Minimum effekt kan ikke være høyere enn maksimum effekt.")
-    if profile == "fixed" and expected is None:
-        raise HTTPException(status_code=400, detail="Fast last må ha en registrert effekt.")
-    if profile == "variable" and minimum is None and expected is None and maximum is None:
-        raise HTTPException(status_code=400, detail="Variabel last må ha minst én effektverdi.")
-    if expected is not None and minimum is not None and expected < minimum:
-        raise HTTPException(status_code=400, detail="Normal effekt kan ikke være lavere enn minimum effekt.")
-    if expected is not None and maximum is not None and expected > maximum:
-        raise HTTPException(status_code=400, detail="Normal effekt kan ikke være høyere enn maksimum effekt.")
-    return values
 
 
-def energy_node_branch_ids(nodes: Iterable[EnergyNode], root_id: int) -> set[int]:
-    children_by_parent: Dict[int, list[int]] = defaultdict(list)
-    for candidate in nodes:
-        if candidate.id is None or candidate.parent_node_id is None:
-            continue
-        children_by_parent[int(candidate.parent_node_id)].append(int(candidate.id))
-    branch_ids = {int(root_id)}
-    pending = [int(root_id)]
-    while pending:
-        current_id = pending.pop()
-        for child_id in children_by_parent.get(current_id, []):
-            if child_id in branch_ids:
-                continue
-            branch_ids.add(child_id)
-            pending.append(child_id)
-    return branch_ids
 
 
-def energy_node_from_values(values: Dict[str, Any], name: str, now_value: datetime) -> EnergyNode:
-    power_id = values.get("hc3_power_device_id")
-    switch_id = values.get("hc3_switch_device_id")
-    return EnergyNode(
-        name=name,
-        circuit_no=values.get("circuit_no"),
-        parent_node_id=values.get("parent_node_id"),
-        node_type=str(values.get("node_type") or "zwave_device").strip() or "zwave_device",
-        manufacturer=values.get("manufacturer"),
-        model=values.get("model"),
-        device_type=values.get("device_type"),
-        hc3_device_id=values.get("hc3_device_id"),
-        hc3_power_device_id=power_id,
-        hc3_energy_device_id=values.get("hc3_energy_device_id"),
-        hc3_switch_device_id=switch_id,
-        aggregate_group_key=values.get("aggregate_group_key"),
-        endpoint_key=values.get("endpoint_key"),
-        has_meter=values.get("has_meter") if values.get("has_meter") is not None else power_id is not None,
-        has_switch=values.get("has_switch") if values.get("has_switch") is not None else switch_id is not None,
-        area=values.get("area"),
-        active=values.get("active") is not False,
-        note=values.get("note"),
-        source="manual",
-        created_at=now_value,
-        updated_at=now_value,
-    )
 
 
-async def validate_energy_node_link_uniqueness(
-    session,
-    power_id: Optional[int],
-    energy_id: Optional[int],
-    switch_id: Optional[int],
-    node_id: Optional[int] = None,
-) -> None:
-    checks = (
-        (EnergyNode.hc3_power_device_id, power_id, "effekt-ID-en"),
-        (EnergyNode.hc3_energy_device_id, energy_id, "energi-ID-en"),
-        (EnergyNode.hc3_switch_device_id, switch_id, "bryter-ID-en"),
-    )
-    for column, device_id, label in checks:
-        if device_id is None:
-            continue
-        query = select(EnergyNode).where(column == int(device_id))
-        if node_id is not None:
-            query = query.where(EnergyNode.id != int(node_id))
-        duplicate = (await session.execute(query.limit(1))).scalars().first()
-        if duplicate:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Tilkoblingspunktet {duplicate.name} bruker allerede denne HC3-{label}.",
-            )
 
 
-async def validate_energy_node_hc3_values(values: Dict[str, Any]) -> None:
-    configured = {
-        "hc3_device_id": ("hovedenhet", False, False, False),
-        "hc3_power_device_id": ("effektmåler", True, False, False),
-        "hc3_energy_device_id": ("energimåler", False, True, False),
-        "hc3_switch_device_id": ("bryter", False, False, True),
-    }
-    selected = {key: int(values[key]) for key in configured if values.get(key) is not None}
-    if values.get("has_meter") and values.get("hc3_power_device_id") is None:
-        raise HTTPException(status_code=400, detail="Enhet med måling må kobles til en HC3-enhet som rapporterer watt.")
-    if values.get("has_switch") and values.get("hc3_switch_device_id") is None:
-        raise HTTPException(status_code=400, detail="Enhet med bryter må kobles til en HC3-enhet som rapporterer av/på-status.")
-    if not selected:
-        return
-    if not hc3_api_is_configured():
-        raise HTTPException(status_code=503, detail="HC3-tilgang er ikke konfigurert. Koblingen kan ikke kontrolleres.")
-    summaries: Dict[int, Dict[str, Any]] = {}
-    for device_id in sorted(set(selected.values())):
-        try:
-            device = await asyncio.to_thread(hc3_cached_device_request, device_id, HC3_ENERGY_LIVE_TIMEOUT_SECONDS)
-        except Exception as exc:
-            raise HTTPException(status_code=400, detail=f"HC3-enhet {device_id} kunne ikke kontrolleres: {exc}") from exc
-        summaries[device_id] = hc3_energy_device_summary(device)
-    for key, device_id in selected.items():
-        label, requires_power, requires_energy, requires_switch = configured[key]
-        summary = summaries[device_id]
-        if requires_power and not summary.get("hasPower"):
-            raise HTTPException(status_code=400, detail=f"HC3-enhet {device_id} kan ikke brukes som effektmåler fordi den ikke rapporterer watt.")
-        if requires_energy and not summary.get("hasEnergy"):
-            raise HTTPException(status_code=400, detail=f"HC3-enhet {device_id} kan ikke brukes som energimåler fordi den ikke rapporterer akkumulert kWh.")
-        if requires_switch and not summary.get("hasSwitch"):
-            raise HTTPException(status_code=400, detail=f"HC3-enhet {device_id} kan ikke brukes som bryter fordi den ikke rapporterer av/på-status.")
-        if summary.get("dead") is True:
-            raise HTTPException(status_code=400, detail=f"Valgt HC3-{label} {device_id} er markert som utilgjengelig.")
-        if summary.get("enabled") is False:
-            raise HTTPException(status_code=400, detail=f"Valgt HC3-{label} {device_id} er deaktivert.")
 
 
-async def find_or_create_energy_node_for_load(session, values: Dict[str, Any]) -> Optional[EnergyNode]:
-    if "energy_node_id" in values:
-        energy_node_id = values.get("energy_node_id")
-        if energy_node_id is None:
-            return None
-        node = await session.get(EnergyNode, int(energy_node_id))
-        if not node:
-            raise HTTPException(status_code=404, detail="Tilkoblingspunkt ikke funnet.")
-        if values.get("circuit_no") is not None and node.circuit_no is not None and int(values["circuit_no"]) != int(node.circuit_no):
-            raise HTTPException(status_code=400, detail="Last og tilkoblingspunkt må ligge på samme kurs.")
-        values["circuit_no"] = node.circuit_no
-        values["measured_direct"] = False
-        return node
-
-    legacy_power_id = values.get("fibaro_meter_id")
-    if legacy_power_id is None:
-        return None
-    circuit_no = values.get("circuit_no")
-    existing = (
-        await session.execute(
-            select(EnergyNode)
-            .where(EnergyNode.circuit_no == circuit_no)
-            .where(EnergyNode.hc3_power_device_id == int(legacy_power_id))
-            .limit(1)
-        )
-    ).scalars().first()
-    if existing:
-        values["energy_node_id"] = existing.id
-        values["measured_direct"] = False
-        return existing
-    now_value = datetime.utcnow()
-    node = EnergyNode(
-        name=default_energy_node_name(circuit_no, int(legacy_power_id), []),
-        circuit_no=circuit_no,
-        node_type="zwave_device",
-        hc3_device_id=values.get("fibaro_device_id"),
-        hc3_power_device_id=int(legacy_power_id),
-        hc3_switch_device_id=values.get("zwave_switch_id"),
-        has_meter=True,
-        has_switch=values.get("zwave_switch_id") is not None,
-        active=True,
-        source="load-api-backfill",
-        created_at=now_value,
-        updated_at=now_value,
-    )
-    session.add(node)
-    await session.flush()
-    values["energy_node_id"] = node.id
-    values["measured_direct"] = False
-    return node
 
 
 
@@ -20722,481 +3405,42 @@ EASYPARK_REQUIRED_COLUMNS = {
 }
 
 
-def decode_easypark_csv(content: bytes) -> str:
-    if not content:
-        return ""
-    if content.startswith(b"\xff\xfe") or content.startswith(b"\xfe\xff"):
-        return content.decode("utf-16", errors="replace")
-    if len(content) > 2 and content[1] == 0:
-        return content.decode("utf-16le", errors="replace")
-    for encoding in ("utf-8-sig", "utf-16", "cp1252", "latin-1"):
-        try:
-            return content.decode(encoding)
-        except UnicodeDecodeError:
-            continue
-    return content.decode("utf-8", errors="replace")
-
-
-def clean_easypark_value(value: Any) -> str:
-    return str(value or "").replace("\x00", "").strip().strip('"').strip()
-
-
-def easypark_float(value: Any) -> Optional[float]:
-    text_value = clean_easypark_value(value).replace("\xa0", " ").replace(" ", "")
-    if not text_value:
-        return None
-    text_value = text_value.replace(",", ".")
-    try:
-        return float(text_value)
-    except ValueError:
-        return None
-
-
-def easypark_int(value: Any) -> Optional[int]:
-    number = easypark_float(value)
-    if number is None:
-        text_value = re.sub(r"\D+", "", clean_easypark_value(value))
-        return int(text_value) if text_value else None
-    return int(number)
-
-
-def easypark_timestamp(value: Any) -> Optional[datetime]:
-    text_value = clean_easypark_value(value)
-    if not text_value:
-        return None
-    parsed = dtparser.parse(text_value)
-    if parsed.tzinfo is not None:
-        return parsed.astimezone(LOCAL_TZ).replace(tzinfo=None)
-    return parsed.replace(tzinfo=None)
-
-
-def easypark_minutes(value: Any, start_at: Optional[datetime], end_at: Optional[datetime]) -> Optional[float]:
-    explicit = easypark_float(value)
-    if explicit is not None:
-        return explicit
-    if start_at and end_at:
-        return round((end_at - start_at).total_seconds() / 60, 2)
-    return None
-
-
-def parse_easypark_csv(content: bytes, filename: str) -> Dict[str, Any]:
-    text_value = decode_easypark_csv(content)
-    sample = text_value[:4096]
-    try:
-        dialect = csv.Sniffer().sniff(sample, delimiters=";,")
-    except csv.Error:
-        dialect = csv.excel()
-        dialect.delimiter = ";"
-    reader = csv.DictReader(StringIO(text_value), dialect=dialect)
-    fieldnames = [clean_easypark_value(name) for name in (reader.fieldnames or [])]
-    missing = sorted(EASYPARK_REQUIRED_COLUMNS - set(fieldnames))
-    if missing:
-        raise ValueError(f"EasyPark-filen mangler kolonner: {', '.join(missing)}")
-
-    rows: list[Dict[str, Any]] = []
-    skipped = 0
-    for raw_row in reader:
-        row = {clean_easypark_value(key): clean_easypark_value(value) for key, value in raw_row.items() if key is not None}
-        parking_id = easypark_int(row.get("Parking ID"))
-        area_number = easypark_int(row.get("Area number"))
-        start_at = easypark_timestamp(row.get("Start date"))
-        if not parking_id or not area_number or not start_at:
-            skipped += 1
-            continue
-        end_at = easypark_timestamp(row.get("End date"))
-        rows.append(
-            {
-                "parking_area": row.get("Parking area") or "",
-                "source_system": row.get("Source parking system") or "EasyPark",
-                "area_number": area_number,
-                "parking_id": parking_id,
-                "start_time": start_at,
-                "end_time": end_at,
-                "parking_time_min": easypark_minutes(row.get("Parking time"), start_at, end_at),
-                "fee_ex_vat": easypark_float(row.get("Parking fee excluding VAT")),
-                "fee_inc_vat": easypark_float(row.get("Parking fee including VAT")),
-                "fee_vat": easypark_float(row.get("Parking fee VAT")),
-                "car_license_number": normalize_plate(row.get("Car license number")) or None,
-                "user_interface": row.get("User interface") or None,
-                "subtype": row.get("SubType") or None,
-                "status": row.get("Status") or "Ukjent",
-                "imported_at": datetime.utcnow(),
-                "raw_filename": filename,
-            }
-        )
-    return {"rows": rows, "skipped": skipped, "filename": filename}
-
-
-async def ingest_easypark_csv(session, content: bytes, filename: str) -> Dict[str, Any]:
-    parsed = parse_easypark_csv(content, filename)
-    rows = parsed["rows"]
-    if not rows:
-        return {"total": 0, "inserted": 0, "updated": 0, "unchanged": 0, "skipped": parsed["skipped"], "first_at": None, "last_at": None}
-
-    inserted_count = 0
-    updated_count = 0
-    for start in range(0, len(rows), 1000):
-        chunk = rows[start:start + 1000]
-        keys = [(row["source_system"], row["parking_id"]) for row in chunk]
-        existing_keys = {
-            tuple(row)
-            for row in (
-                await session.execute(
-                    select(ParkingSession.source_system, ParkingSession.parking_id).where(
-                        tuple_(ParkingSession.source_system, ParkingSession.parking_id).in_(keys)
-                    )
-                )
-            ).all()
-        }
-        insert_stmt = pg_insert(ParkingSession).values(chunk)
-        excluded = insert_stmt.excluded
-        update_where = or_(
-            ParkingSession.end_time.is_(None),
-            func.lower(func.coalesce(ParkingSession.status, "")).in_(["ongoing", "active", "started"]),
-            ParkingSession.parking_area.is_distinct_from(excluded.parking_area),
-            ParkingSession.area_number.is_distinct_from(excluded.area_number),
-            ParkingSession.start_time.is_distinct_from(excluded.start_time),
-            ParkingSession.end_time.is_distinct_from(excluded.end_time),
-            ParkingSession.parking_time_min.is_distinct_from(excluded.parking_time_min),
-            ParkingSession.fee_ex_vat.is_distinct_from(excluded.fee_ex_vat),
-            ParkingSession.fee_inc_vat.is_distinct_from(excluded.fee_inc_vat),
-            ParkingSession.fee_vat.is_distinct_from(excluded.fee_vat),
-            ParkingSession.car_license_number.is_distinct_from(excluded.car_license_number),
-            ParkingSession.user_interface.is_distinct_from(excluded.user_interface),
-            ParkingSession.subtype.is_distinct_from(excluded.subtype),
-            ParkingSession.status.is_distinct_from(excluded.status),
-        )
-        stmt = (
-            insert_stmt
-            .on_conflict_do_update(
-                index_elements=["source_system", "parking_id"],
-                set_={
-                    "parking_area": excluded.parking_area,
-                    "area_number": excluded.area_number,
-                    "start_time": excluded.start_time,
-                    "end_time": excluded.end_time,
-                    "parking_time_min": excluded.parking_time_min,
-                    "fee_ex_vat": excluded.fee_ex_vat,
-                    "fee_inc_vat": excluded.fee_inc_vat,
-                    "fee_vat": excluded.fee_vat,
-                    "car_license_number": excluded.car_license_number,
-                    "user_interface": excluded.user_interface,
-                    "subtype": excluded.subtype,
-                    "status": excluded.status,
-                    "imported_at": excluded.imported_at,
-                    "raw_filename": excluded.raw_filename,
-                },
-                where=update_where,
-            )
-            .returning(ParkingSession.source_system, ParkingSession.parking_id)
-        )
-        affected_keys = {tuple(row) for row in (await session.execute(stmt)).all()}
-        inserted_count += len(affected_keys - existing_keys)
-        updated_count += len(affected_keys & existing_keys)
-    first_at = min(row["start_time"] for row in rows)
-    last_at = max(row["start_time"] for row in rows)
-    return {
-        "total": len(rows),
-        "inserted": inserted_count,
-        "updated": updated_count,
-        "unchanged": len(rows) - inserted_count - updated_count,
-        "skipped": parsed["skipped"],
-        "first_at": first_at,
-        "last_at": last_at,
-    }
-
-
-async def refresh_parking_vehicle_summary(session) -> int:
-    result = await session.execute(
-        sql_text(
-            """
-            INSERT INTO kjoretoy (plate, first_seen, last_seen, parkering_count, paid_total, updated_at)
-            SELECT
-                upper(regexp_replace(car_license_number, '\\s+', '', 'g')) AS plate,
-                min(start_time) AS first_seen,
-                max(start_time) AS last_seen,
-                count(*) AS parkering_count,
-                round(sum(coalesce(fee_inc_vat, 0))::numeric, 2)::float AS paid_total,
-                now() AS updated_at
-            FROM parkering
-            WHERE car_license_number IS NOT NULL AND btrim(car_license_number) <> ''
-            GROUP BY 1
-            ON CONFLICT (plate) DO UPDATE SET
-                first_seen = coalesce(least(kjoretoy.first_seen, EXCLUDED.first_seen), kjoretoy.first_seen, EXCLUDED.first_seen),
-                last_seen = coalesce(greatest(kjoretoy.last_seen, EXCLUDED.last_seen), kjoretoy.last_seen, EXCLUDED.last_seen),
-                parkering_count = EXCLUDED.parkering_count,
-                paid_total = EXCLUDED.paid_total,
-                updated_at = now()
-            RETURNING plate
-            """
-        )
-    )
-    return len(result.fetchall())
-
-
-def import_counts_for_json(counts: Dict[str, Any]) -> Dict[str, Any]:
-    return {
-        key: (value.isoformat() if isinstance(value, datetime) else value)
-        for key, value in counts.items()
-    }
-
-
-def svv_api_lookup_sync(plate: str) -> Dict[str, Any]:
-    if not SVV_API_KEY:
-        raise RuntimeError("SVV_API_KEY mangler.")
-    params = urlencode({"kjennemerke": compact_plate(plate)})
-    url = f"{SVV_API_URL}?{params}"
-    auth_value = " ".join(part for part in [SVV_API_AUTH_PREFIX, SVV_API_KEY] if part).strip()
-    request = urllib.request.Request(
-        url,
-        headers={
-            "Accept": "application/json",
-            SVV_API_AUTH_HEADER: auth_value,
-            "User-Agent": "fibaro10/1.0",
-        },
-        method="GET",
-    )
-    with urllib.request.urlopen(request, timeout=30) as response:
-        status_code = response.getcode()
-        payload = response.read().decode("utf-8", errors="replace")
-    if status_code == 204 or not payload.strip():
-        raise LookupError("Ingen kjøretøydata fra SVV")
-    return json.loads(payload)
-
-
-async def svv_candidate_plates(session, limit: int) -> list[str]:
-    retry_before = datetime.utcnow() - timedelta(hours=SVV_RETRY_AFTER_HOURS)
-    transient_retry_before = datetime.utcnow() - timedelta(minutes=SVV_TRANSIENT_RETRY_AFTER_MINUTES)
-    permanent_no_data = list(SVV_PERMANENT_NO_DATA_STATUSES)
-    transient_statuses = list(SVV_TRANSIENT_STATUSES)
-    rows = (
-        await session.execute(
-            select(ParkingVehicle.plate)
-            .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-            .where(ParkingVehicle.plate.isnot(None))
-            .where(ParkingVehicle.plate != "")
-            .where(
-                or_(
-                    ParkingVehicle.svv_status.is_(None),
-                    ParkingVehicle.svv_fetched_at.is_(None),
-                    and_(
-                        ParkingVehicleDetails.plate.is_(None),
-                        ParkingVehicle.svv_status.notin_(permanent_no_data),
-                        ParkingVehicle.svv_status.notin_(transient_statuses),
-                    ),
-                    and_(
-                        ParkingVehicle.svv_status.notin_([200, *permanent_no_data]),
-                        ParkingVehicle.svv_status.notin_(transient_statuses),
-                        ParkingVehicle.svv_fetched_at < retry_before,
-                    ),
-                    and_(
-                        ParkingVehicle.svv_status.in_(transient_statuses),
-                        ParkingVehicle.svv_fetched_at < transient_retry_before,
-                    ),
-                )
-            )
-            .order_by(
-                case((ParkingVehicleDetails.plate.is_(None), 0), else_=1),
-                ParkingVehicle.svv_fetched_at.asc().nullsfirst(),
-                ParkingVehicle.last_seen.desc().nullslast(),
-            )
-            .limit(limit)
-        )
-    ).scalars().all()
-    return [plate for plate in rows if compact_plate(plate)]
-
-
-async def parking_vehicle_by_plate_or_compact(session, plate: str) -> Optional[ParkingVehicle]:
-    plate_value = compact_plate(plate)
-    if not plate_value:
-        return None
-    vehicle = (
-        await session.execute(
-            select(ParkingVehicle).where(ParkingVehicle.plate == plate_value)
-        )
-    ).scalars().first()
-    if vehicle:
-        return vehicle
-    return (
-        await session.execute(
-            select(ParkingVehicle)
-            .where(compact_plate_sql(ParkingVehicle.plate) == plate_value)
-            .order_by(ParkingVehicle.last_seen.desc().nullslast(), ParkingVehicle.plate.asc())
-            .limit(1)
-        )
-    ).scalars().first()
-
-
-async def upsert_vehicle_svv_data(session, plate: str, raw: Dict[str, Any], status_code: int = 200, error: Optional[str] = None) -> bool:
-    plate_value = compact_plate(plate)
-    vehicle = await parking_vehicle_by_plate_or_compact(session, plate_value)
-    if not vehicle:
-        return False
-    now = datetime.utcnow()
-    vehicle.svv_fetched_at = now
-    vehicle.svv_status = status_code
-    vehicle.svv_error = error
-    vehicle.svv_data = raw if raw else None
-    vehicle.updated_at = now
-    if status_code != 200 or not raw:
-        return False
-    values = svv_detail_values(plate_value, raw)
-    values["plate"] = vehicle.plate
-    detail = (await session.execute(select(ParkingVehicleDetails).where(ParkingVehicleDetails.plate == vehicle.plate))).scalars().first()
-    if not detail:
-        detail = ParkingVehicleDetails(plate=vehicle.plate)
-        session.add(detail)
-    for key, value in values.items():
-        setattr(detail, key, value)
-    return True
-
-
-async def run_vehicle_svv_sync(limit: int = SVV_SYNC_BATCH_SIZE, source: str = "background") -> Dict[str, Any]:
-    started_at = local_now_naive()
-    if not SVV_API_KEY:
-        async with async_session() as session:
-            await record_import_job(
-                session,
-                "parking_vehicle_svv_sync",
-                ok=False,
-                source=source,
-                started_at=started_at,
-                records_imported=0,
-                records_total=0,
-                message="SVV_API_KEY mangler.",
-            )
-            await session.commit()
-        return {"ok": False, "processed": 0, "updated": 0, "failed": 0, "message": "SVV_API_KEY mangler."}
-    processed = updated = no_data = failed = 0
-    errors: list[str] = []
-    foreign_no_data_plates: list[str] = []
-    async with async_session() as session:
-        plates = await svv_candidate_plates(session, limit)
-        if not plates:
-            transient_retry_before = datetime.utcnow() - timedelta(minutes=SVV_TRANSIENT_RETRY_AFTER_MINUTES)
-            transient_waiting = (
-                await session.execute(
-                    select(func.count())
-                    .select_from(ParkingVehicle)
-                    .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-                    .where(ParkingVehicleDetails.plate.is_(None))
-                    .where(ParkingVehicle.svv_status.in_(list(SVV_TRANSIENT_STATUSES)))
-                    .where(ParkingVehicle.svv_fetched_at >= transient_retry_before)
-                )
-            ).scalar_one()
-            if transient_waiting:
-                message = f"SVV svarte midlertidig feil sist. {transient_waiting} kj\u00f8ret\u00f8y venter p\u00e5 ny pr\u00f8ve."
-                await record_import_job(
-                    session,
-                    "parking_vehicle_svv_sync",
-                    ok=False,
-                    source=source,
-                    started_at=started_at,
-                    records_imported=0,
-                    records_total=transient_waiting,
-                    message=message,
-                    raw={"transient_waiting": transient_waiting},
-                )
-                await session.commit()
-                return {"ok": False, "processed": 0, "updated": 0, "no_data": 0, "failed": transient_waiting, "errors": [message]}
-        for plate in plates:
-            processed += 1
-            try:
-                raw = await asyncio.to_thread(svv_api_lookup_sync, plate)
-                if await upsert_vehicle_svv_data(session, plate, raw, 200, None):
-                    updated += 1
-            except LookupError as exc:
-                no_data += 1
-                if is_supported_foreign_license_plate(plate):
-                    foreign_no_data_plates.append(compact_plate(plate))
-                message = str(exc)[:240] or "Ingen kjøretøydata fra SVV"
-                await upsert_vehicle_svv_data(session, plate, {}, 204, message)
-            except urllib.error.HTTPError as exc:
-                message = "Ikke funnet eller ugyldig kjennemerke hos SVV" if exc.code in SVV_PERMANENT_NO_DATA_STATUSES else f"HTTP {exc.code}"
-                if exc.code not in SVV_PERMANENT_NO_DATA_STATUSES:
-                    body = exc.read().decode("utf-8", errors="replace").strip()[:160]
-                    if body:
-                        message = f"{message}: {body}"
-                if exc.code in SVV_PERMANENT_NO_DATA_STATUSES:
-                    no_data += 1
-                    if is_supported_foreign_license_plate(plate):
-                        foreign_no_data_plates.append(compact_plate(plate))
-                else:
-                    failed += 1
-                    errors.append(f"{plate}: {message}")
-                await upsert_vehicle_svv_data(session, plate, {}, exc.code, message)
-                if exc.code in SVV_TRANSIENT_STATUSES:
-                    await session.commit()
-                    break
-            except json.JSONDecodeError:
-                no_data += 1
-                if is_supported_foreign_license_plate(plate):
-                    foreign_no_data_plates.append(compact_plate(plate))
-                message = "Tomt eller uleselig svar fra SVV"
-                await upsert_vehicle_svv_data(session, plate, {}, 204, message)
-            except Exception as exc:
-                failed += 1
-                message = str(exc)[:240]
-                errors.append(f"{plate}: {message}")
-                await upsert_vehicle_svv_data(session, plate, {}, 0, message)
-            await session.commit()
-        job_ok = failed == 0
-        await record_import_job(
-            session,
-            "parking_vehicle_svv_sync",
-            ok=job_ok,
-            source=source,
-            started_at=started_at,
-            records_imported=updated,
-            records_total=processed,
-            message=f"{updated} oppdatert, {no_data} uten treff, {failed} feilet, {processed} behandlet.",
-            raw={"errors": errors[:20], "no_data": no_data},
-        )
-        await session.commit()
-    result_payload = {
-        "ok": failed == 0,
-        "processed": processed,
-        "updated": updated,
-        "no_data": no_data,
-        "failed": failed,
-        "errors": errors[:20],
-        "foreign_no_data": foreign_no_data_plates[:20],
-        "swedish_no_data": [plate for plate in foreign_no_data_plates if is_swedish_license_plate(plate)][:20],
-        "danish_no_data": [plate for plate in foreign_no_data_plates if is_danish_license_plate(plate)][:20],
-    }
-    car_info_auto = await trigger_car_info_after_svv_no_data(foreign_no_data_plates, source)
-    if car_info_auto:
-        result_payload["car_info_auto_trigger"] = car_info_auto
-    return result_payload
-
-
-async def parking_vehicle_svv_worker() -> None:
-    await asyncio.sleep(30)
-    while True:
-        try:
-            await run_vehicle_svv_sync(SVV_SYNC_BATCH_SIZE, "SVV bakgrunn")
-        except Exception:
-            pass
-        await asyncio.sleep(SVV_SYNC_INTERVAL_MINUTES * 60)
 
 
 
 
 
 
-async def parking_period_summary(session, label: str, start_at: datetime, end_at: datetime) -> Dict[str, Any]:
-    row = (
-        await session.execute(
-            select(
-                func.count(ParkingSession.id),
-                func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0),
-            ).where(
-                ParkingSession.start_time >= start_at,
-                ParkingSession.start_time < end_at,
-            )
-        )
-    ).first()
-    return {"label": label, "count": row[0] or 0, "paid": row[1] or 0}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 from fibaro_core.services.settlements.source_queries import parking_source_control_key
@@ -21205,92 +3449,18 @@ from fibaro_core.services.settlements.source_queries import parking_source_contr
 from fibaro_core.services.settlements.source_queries import parking_period_source_summaries
 
 
-def easypark_recent_period() -> tuple[date, date]:
-    today = local_now_naive().date()
-    return today - timedelta(days=1), today
 
 
-def easypark_downloader_request(path: str, params: Dict[str, Any], timeout_seconds: int = 180) -> Dict[str, Any]:
-    query = urlencode({key: value for key, value in params.items() if value is not None})
-    url = f"{EASYPARK_DOWNLOADER_URL}{path}"
-    if query:
-        url = f"{url}?{query}"
-    request = urllib.request.Request(url, method="POST")
-    with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
-        payload = response.read().decode("utf-8", errors="replace")
-    try:
-        return json.loads(payload)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError(f"Ugyldig svar fra EasyPark-downloader: {payload[:240]}") from exc
 
 
-def easypark_downloader_status() -> Dict[str, Any]:
-    try:
-        with urllib.request.urlopen(f"{EASYPARK_DOWNLOADER_URL}/status", timeout=2) as response:
-            payload = response.read().decode("utf-8", errors="replace")
-        return json.loads(payload)
-    except Exception:
-        return {}
 
 
-def easypark_next_run_at_from_status(status: Dict[str, Any]) -> Optional[datetime]:
-    schedule = status.get("schedule") if isinstance(status, dict) else None
-    next_run_at = schedule.get("next_run_at") if isinstance(schedule, dict) else status.get("next_run_at")
-    parsed = parse_datetime(next_run_at) if next_run_at else None
-    if not parsed:
-        return None
-    if parsed.tzinfo is not None:
-        return parsed.astimezone(LOCAL_TZ).replace(tzinfo=None)
-    return parsed
 
 
-def car_info_lookup_request(path: str, params: Dict[str, Any]) -> Dict[str, Any]:
-    query = urlencode({key: value for key, value in params.items() if value is not None})
-    url = f"{CAR_INFO_LOOKUP_URL}{path}"
-    if query:
-        url = f"{url}?{query}"
-    request = urllib.request.Request(url, method="POST", headers={"Accept": "application/json"})
-    if CAR_INFO_APP_TOKEN:
-        request.add_header("x-car-info-token", CAR_INFO_APP_TOKEN)
-    with urllib.request.urlopen(request, timeout=CAR_INFO_LOOKUP_TIMEOUT_SECONDS) as response:
-        payload = response.read().decode("utf-8", errors="replace")
-    try:
-        return json.loads(payload)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError(f"Ugyldig svar fra nordisk biloppslag: {payload[:240]}") from exc
 
 
-async def trigger_car_info_after_svv_no_data(plates: list[str], source: str) -> Optional[Dict[str, Any]]:
-    if not CAR_INFO_AUTO_TRIGGER_ENABLED or CAR_INFO_AUTO_TRIGGER_MAX_PER_SVV_RUN <= 0:
-        return None
-    candidates: list[str] = []
-    seen: set[str] = set()
-    for plate in plates:
-        compact = compact_plate(plate)
-        if compact and compact not in seen and is_supported_foreign_license_plate(compact):
-            candidates.append(compact)
-            seen.add(compact)
-    if not candidates:
-        return None
 
-    selected = candidates[:CAR_INFO_AUTO_TRIGGER_MAX_PER_SVV_RUN]
-    results: list[Dict[str, Any]] = []
-    errors: list[str] = []
-    for plate in selected:
-        try:
-            result = await asyncio.to_thread(car_info_lookup_request, f"/api/run-plate/{plate}", {})
-            results.append(result)
-            if result.get("status") == "error":
-                errors.append(f"{plate}: {str(result.get('message') or 'nordisk biloppslag-feil')[:240]}")
-                break
-            if result.get("status") in {"backoff", "busy"} or result.get("rate_limited"):
-                break
-        except Exception as exc:
-            errors.append(f"{plate}: {str(exc)[:240]}")
-            break
 
-    ok = not errors
-    return {"ok": ok, "candidates": candidates, "triggered": selected, "results": results, "errors": errors}
 
 
 
@@ -21313,238 +3483,14 @@ async def trigger_car_info_after_svv_no_data(plates: list[str], source: str) -> 
 
 
 
-async def clear_parking_vehicle_not_found_area(session) -> int:
-    result = await session.execute(
-        update(ParkingVehicle)
-        .where(func.lower(func.trim(func.coalesce(ParkingVehicle.omrade, ""))) == "ikke funnet")
-        .values(
-            omrade=None,
-            omrade_kilde=None,
-            omrade_oppdatert=None,
-        )
-    )
-    return int_or_zero(result.rowcount)
-
-
-async def clear_parking_vehicle_not_found_fields(session, plate_value: str) -> Optional[list[str]]:
-    vehicle = (await session.execute(select(ParkingVehicle).where(ParkingVehicle.plate == plate_value))).scalars().first()
-    if not vehicle:
-        return None
-    cleared_fields = []
-    if is_not_found_marker(vehicle.navn):
-        vehicle.navn = None
-        cleared_fields.append("navn")
-    if is_not_found_marker(vehicle.omrade):
-        vehicle.omrade = None
-        vehicle.omrade_kilde = None
-        vehicle.omrade_oppdatert = None
-        cleared_fields.append("område")
-    if cleared_fields:
-        vehicle.updated_at = datetime.utcnow()
-    return cleared_fields
-
-
-def vehicle_blank_name_condition():
-    normalized = func.lower(func.trim(func.coalesce(ParkingVehicle.navn, "")))
-    return normalized == ""
-
-
-def vehicle_name_not_found_condition():
-    normalized = func.lower(func.trim(func.coalesce(ParkingVehicle.navn, "")))
-    return normalized == "ikke funnet"
-
-
-def vehicle_missing_name_condition():
-    return or_(vehicle_blank_name_condition(), vehicle_name_not_found_condition())
-
-
-def vehicle_blank_area_condition():
-    normalized = func.lower(func.trim(func.coalesce(ParkingVehicle.omrade, "")))
-    return normalized == ""
-
-
-def vehicle_area_not_found_condition():
-    normalized = func.lower(func.trim(func.coalesce(ParkingVehicle.omrade, "")))
-    return normalized == "ikke funnet"
-
-
-def vehicle_missing_area_condition():
-    return or_(vehicle_blank_area_condition(), vehicle_area_not_found_condition())
-
-
-async def parking_vehicle_count_stats(session) -> Dict[str, int]:
-    row = (
-        await session.execute(
-            select(
-                func.count(ParkingVehicle.plate).label("vehicle_count"),
-                func.coalesce(func.sum(case((vehicle_blank_name_condition(), 1), else_=0)), 0).label("blank_name"),
-                func.coalesce(func.sum(case((vehicle_name_not_found_condition(), 1), else_=0)), 0).label("name_not_found"),
-                func.coalesce(func.sum(case((vehicle_blank_area_condition(), 1), else_=0)), 0).label("blank_area"),
-                func.coalesce(func.sum(case((vehicle_area_not_found_condition(), 1), else_=0)), 0).label("area_not_found"),
-            )
-        )
-    ).mappings().one()
-    blank_name = int_or_zero(row["blank_name"])
-    name_not_found = int_or_zero(row["name_not_found"])
-    blank_area = int_or_zero(row["blank_area"])
-    area_not_found = int_or_zero(row["area_not_found"])
-    return {
-        "vehicle_count": int_or_zero(row["vehicle_count"]),
-        "vehicle_blank_name_count": blank_name,
-        "vehicle_name_not_found_count": name_not_found,
-        "vehicle_missing_name_count": blank_name + name_not_found,
-        "vehicle_blank_area_count": blank_area,
-        "vehicle_area_not_found_count": area_not_found,
-        "vehicle_missing_area_count": blank_area + area_not_found,
-    }
-
-
-def api_parking_default_actions() -> list[Dict[str, Any]]:
-    return [
-        {
-            "key": "easypark-refresh",
-            "label": "Oppdater EasyPark",
-            "method": "POST",
-            "path": "/api/actions/parkering/refresh",
-            "confirm": "Starte EasyPark-oppdatering for siste periode?",
-            "tone": "primary",
-        },
-        {
-            "key": "svv-sync",
-            "label": "Kj\u00f8r SVV-sync",
-            "method": "POST",
-            "path": "/api/actions/parkering/svv-sync",
-            "confirm": "Starte SVV-synk for kj\u00f8ret\u00f8y?",
-            "tone": "default",
-        },
-    ]
-
-
-def api_parking_clear_area_not_found_action(vehicle_area_not_found_count: int) -> Dict[str, Any]:
-    return {
-        "key": "clear-area-not-found",
-        "label": "Fjern omr\u00e5de 'ikke funnet'",
-        "method": "POST",
-        "path": "/api/actions/parkering/clear-area-not-found",
-        "confirm": (
-            f"Nullstille omr\u00e5de p\u00e5 {format_short_number(vehicle_area_not_found_count)} kj\u00f8ret\u00f8y "
-            "der omr\u00e5de er satt til 'ikke funnet'? De blir liggende som blanke og kan sl\u00e5s opp p\u00e5 nytt."
-        ),
-        "tone": "default",
-    }
-
-
-def vehicle_car_info_due_condition():
-    retry_before = datetime.utcnow() - timedelta(hours=CAR_INFO_CANDIDATE_RETRY_HOURS)
-    transient_retry_before = datetime.utcnow() - timedelta(minutes=CAR_INFO_CANDIDATE_TRANSIENT_RETRY_MINUTES)
-    return or_(
-        ParkingVehicle.car_info_fetched_at.is_(None),
-        ParkingVehicle.car_info_status.is_(None),
-        and_(
-            ParkingVehicle.car_info_status.in_([0, 429, 500, 502, 503, 504]),
-            ParkingVehicle.car_info_fetched_at < transient_retry_before,
-        ),
-        and_(
-            ParkingVehicle.car_info_status.notin_([200]),
-            ParkingVehicle.car_info_fetched_at < retry_before,
-        ),
-    )
-
-
-def vehicle_car_info_candidate_condition():
-    compact = compact_plate_sql(ParkingVehicle.plate)
-    return and_(
-        ParkingVehicle.svv_fetched_at.isnot(None),
-        ParkingVehicleDetails.plate.is_(None),
-        or_(
-            compact.op("~")(SWEDISH_LICENSE_PLATE_SQL_REGEX),
-            compact.op("~")(DANISH_LICENSE_PLATE_SQL_REGEX),
-        ),
-        vehicle_car_info_due_condition(),
-    )
-
-
-def vehicle_car_info_country_condition(country: Optional[str]):
-    key = (country or "").strip().upper()
-    compact = compact_plate_sql(ParkingVehicle.plate)
-    if key in {"S", "SE", "SWE", "SVERIGE", "SWEDEN"}:
-        return compact.op("~")(SWEDISH_LICENSE_PLATE_SQL_REGEX)
-    if key in {"DK", "DANMARK", "DENMARK"}:
-        return compact.op("~")(DANISH_LICENSE_PLATE_SQL_REGEX)
-    return None
 
 
-async def parking_car_info_candidate_rows(session, limit: int, offset: int = 0, country: Optional[str] = None):
-    condition = vehicle_car_info_candidate_condition()
-    country_condition = vehicle_car_info_country_condition(country)
-    if country_condition is not None:
-        condition = and_(condition, country_condition)
-    return (
-        await session.execute(
-            select(ParkingVehicle, ParkingVehicleDetails)
-            .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-            .where(condition)
-            .order_by(
-                ParkingVehicle.car_info_fetched_at.asc().nullsfirst(),
-                ParkingVehicle.last_seen.desc().nullslast(),
-                ParkingVehicle.plate.asc(),
-            )
-            .offset(offset)
-            .limit(limit)
-        )
-    ).all()
 
 
-async def parking_missing_name_rows(session, limit: int, offset: int = 0, include_not_found: bool = True):
-    condition = vehicle_missing_name_condition() if include_not_found else vehicle_blank_name_condition()
-    return (
-        await session.execute(
-            select(ParkingVehicle, ParkingVehicleDetails)
-            .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-            .where(condition)
-            .order_by(ParkingVehicle.last_seen.desc().nullslast(), ParkingVehicle.plate.asc())
-            .offset(offset)
-            .limit(limit)
-        )
-    ).all()
 
 
-async def parking_missing_area_rows(session, limit: int, offset: int = 0, include_not_found: bool = True):
-    condition = vehicle_missing_area_condition() if include_not_found else vehicle_blank_area_condition()
-    return (
-        await session.execute(
-            select(ParkingVehicle, ParkingVehicleDetails)
-            .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-            .where(condition)
-            .order_by(ParkingVehicle.last_seen.desc().nullslast(), ParkingVehicle.plate.asc())
-            .offset(offset)
-            .limit(limit)
-        )
-    ).all()
 
 
-def parking_vehicle_lookup_payload(vehicle: ParkingVehicle, details: Optional[ParkingVehicleDetails] = None) -> Dict[str, Any]:
-    return {
-        "plate": vehicle.plate,
-        "navn": vehicle.navn,
-        "omrade": vehicle.omrade,
-        "sun2_id": vehicle.sun2_id,
-        "notat": vehicle.notat,
-        "last_seen": vehicle.last_seen.isoformat() if vehicle.last_seen else None,
-        "parkering_count": vehicle.parkering_count,
-        "vehicle": parking_vehicle_summary(details, vehicle.car_info_data),
-        "make": details.merke if details else None,
-        "model": details.modell if details else None,
-        "year": parking_vehicle_display_year(details, vehicle.car_info_data),
-        "svv_status": vehicle.svv_status,
-        "svv_fetched_at": vehicle.svv_fetched_at.isoformat() if vehicle.svv_fetched_at else None,
-        "car_info_status": vehicle.car_info_status,
-        "car_info_fetched_at": vehicle.car_info_fetched_at.isoformat() if vehicle.car_info_fetched_at else None,
-        "car_info_url": vehicle.car_info_url,
-        "car_info_confirmed_swedish": car_info_confirmed_swedish(vehicle.car_info_data),
-        "car_info_confirmed_foreign": car_info_confirmed_foreign(vehicle.car_info_data),
-        "car_info_country_code": car_info_country_code(vehicle.car_info_data) or None,
-    }
 
 
 
@@ -21607,75 +3553,11 @@ def parking_vehicle_lookup_payload(vehicle: ParkingVehicle, details: Optional[Pa
 
 
 
-async def get_sun2_session_options(session) -> Dict[str, list[str]]:
-    cache_key = "sun2_session_options"
-    now_value = datetime.utcnow()
-    cached = SUMMARY_CACHE.get(cache_key)
-    if cached and cached.get("expires", datetime.min) > now_value:
-        return cached["value"]
 
-    def distinct_text(column):
-        return (
-            select(column)
-            .where(column.is_not(None))
-            .where(column != "")
-            .distinct()
-            .order_by(column)
-        )
 
-    bed_rows = (
-        await session.execute(
-            select(Sun2Bed)
-            .where(Sun2Bed.room_id.is_not(None))
-            .order_by(Sun2Bed.physical_room_number, Sun2Bed.room_id)
-        )
-    ).scalars().all()
-    room_ids = [
-        {
-            "value": bed.room_id,
-            "label": sun2_room_label(bed.room_id, bed.name),
-        }
-        for bed in bed_rows
-        if bed.room_id
-    ] or list(SUN2_ROOM_OPTIONS)
-    seen_room_ids = set()
-    deduped_room_ids = []
-    for item in room_ids:
-        if item["value"] in seen_room_ids:
-            continue
-        seen_room_ids.add(item["value"])
-        deduped_room_ids.append(item)
 
-    value = {
-        "room_ids": deduped_room_ids,
-        "rooms": (await session.execute(distinct_text(Sun2TanningSession.room))).scalars().all(),
-        "payments": (await session.execute(distinct_text(Sun2TanningSession.payment_method))).scalars().all(),
-        "statuses": (await session.execute(distinct_text(Sun2TanningSession.status))).scalars().all(),
-        "customers": (await session.execute(distinct_text(Sun2TanningSession.customer_type))).scalars().all(),
-    }
-    SUMMARY_CACHE[cache_key] = {"expires": now_value + timedelta(minutes=30), "value": value}
-    return value
 
 
-async def get_sun2_session_database_total(session) -> Dict[str, Any]:
-    cache_key = "sun2_session_database_total"
-    now_value = datetime.utcnow()
-    cached = SUMMARY_CACHE.get(cache_key)
-    if cached and cached.get("expires", datetime.min) > now_value:
-        return cached["value"]
-    value = (
-        await session.execute(
-            select(
-                func.count(Sun2TanningSession.id).label("sessions_count"),
-                func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                func.count(func.distinct(Sun2TanningSession.sun2_user_id)).label("unique_users_count"),
-            )
-        )
-    ).mappings().first() or {}
-    value = dict(value)
-    SUMMARY_CACHE[cache_key] = {"expires": now_value + timedelta(minutes=5), "value": value}
-    return value
 
 
 
@@ -21706,383 +3588,49 @@ async def get_sun2_session_database_total(session) -> Dict[str, Any]:
 
 
 
-async def roborock_door_automation_payload(
-    session,
-    automation: RoborockDoorAutomation,
-    now: Optional[datetime] = None,
-) -> tuple[Dict[str, Any], Optional[Dict[str, Any]]]:
-    now = normalize_local_naive(now) or local_now_naive()
-    ventilation_config = (
-        await session.execute(select(ControlConfig).where(ControlConfig.key == "ventilation"))
-    ).scalars().first()
-    ventilation_values = merge_config_values(
-        "ventilation",
-        ventilation_config.values if ventilation_config else config_defaults("ventilation"),
-    )
-    open_at, close_at = opening_window(
-        now.date(),
-        ventilation_values.get("open_from"),
-        ventilation_values.get("close_at"),
-    )
-    counter_start = automation_counter_start(
-        open_at,
-        normalize_local_naive(automation.last_started_at),
-        normalize_local_naive(automation.counter_reset_at),
-    )
-    previous_event = (
-        await session.execute(
-            select(DoorEvent)
-            .where(
-                DoorEvent.device_id == automation.door_device_id,
-                DoorEvent.timestamp < counter_start,
-            )
-            .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
-            .limit(1)
-        )
-    ).scalars().first()
-    period_events = (
-        await session.execute(
-            select(DoorEvent)
-            .where(
-                DoorEvent.device_id == automation.door_device_id,
-                DoorEvent.timestamp >= counter_start,
-                DoorEvent.timestamp <= now,
-            )
-            .order_by(DoorEvent.timestamp, DoorEvent.id)
-        )
-    ).scalars().all()
-    current_event = (
-        await session.execute(
-            select(DoorEvent)
-            .where(
-                DoorEvent.device_id == automation.door_device_id,
-                DoorEvent.timestamp <= now,
-            )
-            .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
-            .limit(1)
-        )
-    ).scalars().first()
-    change_events = door_change_rows(([previous_event] if previous_event else []) + list(period_events))
-    opening_events = [
-        row
-        for row in change_events
-        if door_event_state_bool(row) is True
-        and (normalize_local_naive(row.timestamp) or datetime.min) >= counter_start
-    ]
-    last_opening_at = (
-        normalize_local_naive(opening_events[-1].timestamp) if opening_events else None
-    )
 
-    selected_zone_numbers = unique_ints(automation.zone_numbers or [])
-    mapping_pairs = (
-        await session.execute(
-            select(RoborockCleaningZoneMapping, CleaningZone)
-            .join(CleaningZone, CleaningZone.id == RoborockCleaningZoneMapping.zone_id)
-            .where(
-                RoborockCleaningZoneMapping.robot_duid == automation.robot_duid,
-                CleaningZone.zone_number.in_(selected_zone_numbers or [-1]),
-            )
-            .order_by(CleaningZone.zone_number)
-        )
-    ).all()
-    mappings_by_zone = {zone.zone_number: (mapping, zone) for mapping, zone in mapping_pairs}
-    configured_zones = []
-    segment_ids: list[int] = []
-    validation_issues: list[str] = []
-    if not selected_zone_numbers:
-        validation_issues.append("Velg minst én sone")
-    for zone_number in selected_zone_numbers:
-        pair = mappings_by_zone.get(zone_number)
-        if not pair:
-            configured_zones.append(
-                {"zoneNumber": zone_number, "name": f"Sone {zone_number}", "segmentId": None, "mapped": False}
-            )
-            validation_issues.append(f"Sone {zone_number} er ikke kartlagt for roboten")
-            continue
-        mapping, zone = pair
-        try:
-            segment_id = int(mapping.segment_id)
-        except (TypeError, ValueError):
-            segment_id = 0
-        configured_zones.append(
-            {
-                "zoneNumber": zone.zone_number,
-                "name": zone.name,
-                "segmentId": segment_id or None,
-                "mapped": segment_id > 0,
-            }
-        )
-        if segment_id > 0:
-            segment_ids.append(segment_id)
-        else:
-            validation_issues.append(f"{zone.name} har ugyldig robotsegment")
 
-    profile = await session.get(RoborockCleaningProfile, automation.profile_id)
-    profile_payload = roborock_cleaning_profile_payload(profile) if profile else None
-    if not profile or not profile.active:
-        validation_issues.append("Valgt rengjøringsprofil finnes ikke eller er deaktivert")
-    elif profile.cleaning_type != "vacuum":
-        validation_issues.append("Dørstyringen krever en ren støvsugingsprofil")
-    if not ROBOROCK_CONTROL_TOKEN:
-        validation_issues.append("Robotstyring er ikke konfigurert")
 
-    decision = automation_decision(
-        now=now,
-        enabled=bool(automation.enabled),
-        open_at=open_at,
-        close_at=close_at,
-        opening_count=len(opening_events),
-        opening_threshold=automation.opening_threshold,
-        minimum_interval_minutes=automation.minimum_interval_minutes,
-        last_started_at=normalize_local_naive(automation.last_started_at),
-        door_is_open=door_event_state_bool(current_event),
-        validation_issues=validation_issues,
-        status=automation.status,
-        last_attempt_at=normalize_local_naive(automation.last_attempt_at),
-    )
-    public_payload = {
-        "enabled": bool(automation.enabled),
-        "doorDeviceId": automation.door_device_id,
-        "openingThreshold": automation.opening_threshold,
-        "minimumIntervalMinutes": automation.minimum_interval_minutes,
-        "zoneNumbers": selected_zone_numbers,
-        "profileId": automation.profile_id,
-        "profile": profile_payload,
-        "configuredZones": configured_zones,
-        "openingCount": len(opening_events),
-        "counterStartedAt": api_local_iso(counter_start),
-        "lastOpeningAt": api_local_iso(last_opening_at),
-        "doorIsOpen": door_event_state_bool(current_event),
-        "openingHours": {
-            "openAt": api_local_iso(open_at),
-            "closeAt": api_local_iso(close_at),
-            "openFrom": open_at.strftime("%H:%M"),
-            "closeAtLabel": close_at.strftime("%H:%M"),
-        },
-        "status": decision["key"],
-        "statusLabel": decision["label"],
-        "statusDetail": decision["detail"],
-        "eligible": decision["eligible"],
-        "pendingStart": decision["pending"],
-        "nextAllowedAt": api_local_iso(decision["next_allowed_at"]),
-        "remainingIntervalSeconds": decision["remaining_interval_seconds"],
-        "validationIssues": validation_issues,
-        "lastAttemptAt": api_local_iso(normalize_local_naive(automation.last_attempt_at)),
-        "lastStartedAt": api_local_iso(normalize_local_naive(automation.last_started_at)),
-        "lastRequestId": automation.last_request_id,
-        "lastError": automation.last_error,
-        "updatedAt": api_local_iso(normalize_local_naive(automation.updated_at)),
-    }
-    command_payload = None
-    if (
-        not validation_issues
-        and selected_zone_numbers
-        and len(segment_ids) == len(selected_zone_numbers)
-        and profile_payload
-    ):
-        command_payload = {
-            "zone_numbers": selected_zone_numbers,
-            "segment_ids": segment_ids,
-            "zone_names": [row["name"] for row in configured_zones],
-            "profile": profile_command_payload(profile_payload),
-        }
-    return public_payload, command_payload
-
-
-
-
-
-
-
-
-
-
-
-
-def post_roborock_control(duid: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    control_request = urllib.request.Request(
-        f"{ROBOROCK_LOGGER_URL}/api/control/{quote(duid, safe='')}",
-        data=body,
-        method="POST",
-        headers={
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "x-roborock-control-token": ROBOROCK_CONTROL_TOKEN,
-        },
-    )
-    try:
-        with urllib.request.urlopen(control_request, timeout=40) as response:
-            data = json.loads(response.read().decode("utf-8") or "{}")
-            return data if isinstance(data, dict) else {"result": data}
-    except urllib.error.HTTPError as exc:
-        raw = exc.read().decode("utf-8", errors="replace")
-        try:
-            error_data = json.loads(raw or "{}")
-        except json.JSONDecodeError:
-            error_data = {}
-        detail = error_data.get("detail") if isinstance(error_data, dict) else None
-        raise RuntimeError(str(detail or raw or f"Roborock_logger svarte {exc.code}")) from exc
-
-
-def post_dreame_control(external_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-    body = json.dumps(
-        {"action": payload.get("action"), "request_id": payload.get("request_id")},
-        ensure_ascii=False,
-    ).encode("utf-8")
-    control_request = urllib.request.Request(
-        f"{DREAME_LOGGER_URL}/robots/{quote(external_id, safe='')}/control",
-        data=body,
-        method="POST",
-        headers={
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "x-dreame-control-token": DREAME_CONTROL_TOKEN,
-        },
-    )
-    try:
-        with urllib.request.urlopen(control_request, timeout=40) as response:
-            data = json.loads(response.read().decode("utf-8") or "{}")
-            return data if isinstance(data, dict) else {"result": data}
-    except urllib.error.HTTPError as exc:
-        raw = exc.read().decode("utf-8", errors="replace")
-        try:
-            error_data = json.loads(raw or "{}")
-        except json.JSONDecodeError:
-            error_data = {}
-        detail = error_data.get("detail") if isinstance(error_data, dict) else None
-        raise RuntimeError(str(detail or raw or f"Dreame_logger svarte {exc.code}")) from exc
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ROBOROCK_DOOR_AUTOMATION_POLL_SECONDS = 30
 _roborock_door_automation_lock = asyncio.Lock()
 
 
-async def run_roborock_door_automation_once(now: Optional[datetime] = None) -> Dict[str, Any]:
-    async with _roborock_door_automation_lock:
-        now = normalize_local_naive(now) or local_now_naive()
-        async with async_session() as session:
-            automations = (
-                await session.execute(
-                    select(RoborockDoorAutomation).order_by(RoborockDoorAutomation.id)
-                )
-            ).scalars().all()
-            results: list[Dict[str, Any]] = []
-            for automation in automations:
-                public_payload, command_payload = await roborock_door_automation_payload(
-                    session, automation, now
-                )
-                current_status = str(public_payload["status"])
-                if automation.status != current_status and current_status != "ready":
-                    automation.status = current_status
-                    automation.updated_at = now
-                if not public_payload["eligible"] or not command_payload:
-                    results.append(
-                        {
-                            "robotDuid": automation.robot_duid,
-                            "status": current_status,
-                            "started": False,
-                        }
-                    )
-                    continue
-
-                request_id = f"door-auto-{secrets.token_hex(12)}"
-                automation.status = "starting"
-                automation.last_attempt_at = now
-                automation.last_request_id = request_id
-                automation.last_error = None
-                automation.updated_at = now
-                command_run = RoborockCommandRun(
-                    request_id=request_id,
-                    robot_duid=automation.robot_duid,
-                    action="clean_zone",
-                    requested_at=datetime.utcnow(),
-                    requested_by="door_automation",
-                    status="running",
-                    message=(
-                        f"Automatisk støvsuging etter {automation.opening_threshold} inngangsdøråpninger"
-                    ),
-                )
-                session.add(command_run)
-                await session.commit()
-                command_id = command_run.id
-
-                try:
-                    result = await asyncio.to_thread(
-                        post_roborock_control,
-                        automation.robot_duid,
-                        {
-                            "action": "clean_zone",
-                            "request_id": request_id,
-                            "actor": "door_automation",
-                            "confirmation": f"CONFIRM:{automation.robot_duid}:clean_zone",
-                            "zone_numbers": command_payload["zone_numbers"],
-                            "segment_ids": command_payload["segment_ids"],
-                            "zone_number": command_payload["zone_numbers"][0],
-                            "segment_id": command_payload["segment_ids"][0],
-                            "profile": command_payload["profile"],
-                        },
-                    )
-                    command_status = str(result.get("status") or "ok")
-                    if command_status != "ok":
-                        raise RuntimeError(str(result.get("message") or "Robotkommandoen feilet"))
-                    message = (
-                        f"{command_payload['profile']['name']} startet i "
-                        f"{', '.join(command_payload['zone_names'])}"
-                    )
-                    before_state = result.get("before")
-                    after_state = result.get("after")
-                    error_message = None
-                except Exception as exc:
-                    result = {"error": str(exc), "target": command_payload}
-                    command_status = "error"
-                    message = str(exc)
-                    before_state = None
-                    after_state = None
-                    error_message = str(exc)
-
-                automation = await session.get(RoborockDoorAutomation, automation.id)
-                command_run = await session.get(RoborockCommandRun, command_id)
-                finished_at = local_now_naive()
-                if command_run:
-                    command_run.finished_at = datetime.utcnow()
-                    command_run.status = command_status
-                    command_run.message = message
-                    command_run.before_state = before_state
-                    command_run.after_state = after_state
-                    command_run.result = result
-                if automation:
-                    automation.updated_at = finished_at
-                    if command_status == "ok":
-                        automation.status = "counting"
-                        automation.last_started_at = finished_at
-                        automation.last_error = None
-                    else:
-                        automation.status = "error"
-                        automation.last_error = error_message
-                await session.commit()
-                results.append(
-                    {
-                        "robotDuid": command_run.robot_duid if command_run else None,
-                        "status": command_status,
-                        "started": command_status == "ok",
-                        "message": message,
-                    }
-                )
-            await session.commit()
-            return {"checkedAt": api_local_iso(now), "automations": results}
 
 
-async def roborock_door_automation_worker() -> None:
-    await asyncio.sleep(10)
-    while True:
-        try:
-            await run_roborock_door_automation_once()
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            logger.exception("Feil i inngangsstyrt Roborock-automatikk")
-        await asyncio.sleep(ROBOROCK_DOOR_AUTOMATION_POLL_SECONDS)
 
 
 
@@ -22091,23 +3639,6 @@ async def roborock_door_automation_worker() -> None:
 
 
 
-def apply_roborock_cleaning_profile_values(
-    profile: RoborockCleaningProfile,
-    values: RoborockCleaningProfileIn,
-) -> None:
-    try:
-        settings = validate_cleaning_profile(values.model_dump())
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    profile.name = values.name.strip()
-    profile.description = values.description.strip()
-    profile.cleaning_type = settings["cleaning_type"]
-    profile.fan_power = settings["fan_power"]
-    profile.water_box_mode = settings["water_box_mode"]
-    profile.mop_mode = settings["mop_mode"]
-    profile.repeat = settings["repeat"]
-    profile.active = values.active
-    profile.updated_at = datetime.utcnow()
 
 
 
@@ -22188,6 +3719,1026 @@ def apply_roborock_cleaning_profile_values(
 
 
 
+
+
+# Domain service composition. Deferred callbacks break cross-domain construction cycles.
+from fibaro_core.services.runtime import common as common_services
+common_dependencies = common_services.Dependencies(
+)
+common_service = common_services.create_service(common_dependencies)
+average_value = common_service["average_value"]
+exact_search_text = common_service["exact_search_text"]
+exact_word_match = common_service["exact_word_match"]
+is_not_found_marker = common_service["is_not_found_marker"]
+json_safe_model_payload = common_service["json_safe_model_payload"]
+json_value = common_service["json_value"]
+latest_timestamp_from = common_service["latest_timestamp_from"]
+minute_bucket = common_service["minute_bucket"]
+nested_extra_value = common_service["nested_extra_value"]
+normalized_exact_search_text = common_service["normalized_exact_search_text"]
+parse_boolish = common_service["parse_boolish"]
+parse_optional_date = common_service["parse_optional_date"]
+time_minutes = common_service["time_minutes"]
+value_from_payload = common_service["value_from_payload"]
+from fibaro_core.services.runtime import access as access_services
+access_dependencies = access_services.Dependencies(
+    ACCESS_FAILED_DISABLE_THRESHOLD=ACCESS_FAILED_DISABLE_THRESHOLD,
+    AUTH_SESSION_HEADER_NAME=AUTH_SESSION_HEADER_NAME,
+    AUTH_SESSION_MAX_AGE_SECONDS=AUTH_SESSION_MAX_AGE_SECONDS,
+    NTFY_ACCESS_COOLDOWN_MINUTES=NTFY_ACCESS_COOLDOWN_MINUTES,
+    NTFY_ACCESS_TOPIC=NTFY_ACCESS_TOPIC,
+    PUBLIC_PATHS=PUBLIC_PATHS,
+    PUBLIC_PREFIXES=PUBLIC_PREFIXES,
+    async_session=async_session,
+    enqueue_ntfy_message=lambda *args, **kwargs: enqueue_ntfy_message(*args, **kwargs),
+    logger=logger,
+    mobile_preview_can_view_money=lambda *args, **kwargs: mobile_preview_can_view_money(*args, **kwargs),
+)
+access_service = access_services.create_service(access_dependencies)
+access_key_prefix = access_service["access_key_prefix"]
+access_password_hash = access_service["access_password_hash"]
+access_role = access_service["access_role"]
+access_role_label = access_service["access_role_label"]
+api_access_key_edit = access_service["api_access_key_edit"]
+api_access_key_row = access_service["api_access_key_row"]
+client_ip = access_service["client_ip"]
+create_auth_session = access_service["create_auth_session"]
+credential_hash = access_service["credential_hash"]
+credential_prefix = access_service["credential_prefix"]
+find_access_key = access_service["find_access_key"]
+find_auth_session = access_service["find_auth_session"]
+hash_access_key = access_service["hash_access_key"]
+hash_auth_session_token = access_service["hash_auth_session_token"]
+is_public_request = access_service["is_public_request"]
+log_access_attempt = access_service["log_access_attempt"]
+mobile_preview_access_key = access_service["mobile_preview_access_key"]
+normalize_username = access_service["normalize_username"]
+parse_form_body = access_service["parse_form_body"]
+presented_credentials = access_service["presented_credentials"]
+presented_session_token = access_service["presented_session_token"]
+publish_access_ntfy = access_service["publish_access_ntfy"]
+require_master = access_service["require_master"]
+require_settings_access = access_service["require_settings_access"]
+revoke_auth_session = access_service["revoke_auth_session"]
+should_publish_access_ntfy = access_service["should_publish_access_ntfy"]
+should_use_secure_cookie = access_service["should_use_secure_cookie"]
+wants_html = access_service["wants_html"]
+from fibaro_core.services.runtime import sun as sun_services
+sun_dependencies = sun_services.Dependencies(
+    AXIS_SNAPSHOT_FILENAME_RE=AXIS_SNAPSHOT_FILENAME_RE,
+    AXIS_SNAPSHOT_ID_RE=AXIS_SNAPSHOT_ID_RE,
+    SUMMARY_CACHE=SUMMARY_CACHE,
+    SUN2_AXIS_SNAPSHOT_DAY_CACHE_ARCHIVE_SECONDS=SUN2_AXIS_SNAPSHOT_DAY_CACHE_ARCHIVE_SECONDS,
+    SUN2_AXIS_SNAPSHOT_DAY_CACHE_CURRENT_SECONDS=SUN2_AXIS_SNAPSHOT_DAY_CACHE_CURRENT_SECONDS,
+    SUN2_AXIS_SNAPSHOT_LINK_DAYS=SUN2_AXIS_SNAPSHOT_LINK_DAYS,
+    SUN2_AXIS_SNAPSHOT_LINK_ENABLED=SUN2_AXIS_SNAPSHOT_LINK_ENABLED,
+    SUN2_AXIS_SNAPSHOT_LINK_INITIAL_DELAY_SECONDS=SUN2_AXIS_SNAPSHOT_LINK_INITIAL_DELAY_SECONDS,
+    SUN2_AXIS_SNAPSHOT_LINK_INTERVAL_SECONDS=SUN2_AXIS_SNAPSHOT_LINK_INTERVAL_SECONDS,
+    SUN2_AXIS_SNAPSHOT_LINK_LIMIT=SUN2_AXIS_SNAPSHOT_LINK_LIMIT,
+    SUN2_AXIS_SNAPSHOT_MINUTE_ASSUMED_SECOND=SUN2_AXIS_SNAPSHOT_MINUTE_ASSUMED_SECOND,
+    SUN2_AXIS_SNAPSHOT_ROOT=SUN2_AXIS_SNAPSHOT_ROOT,
+    SUN2_AXIS_SNAPSHOT_SERIES_OFFSETS_SECONDS=SUN2_AXIS_SNAPSHOT_SERIES_OFFSETS_SECONDS,
+    SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS=SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS,
+    SUN2_SESSIONS_QUIET_END_HOUR=SUN2_SESSIONS_QUIET_END_HOUR,
+    SUN2_SESSION_SCRAPER_URL=SUN2_SESSION_SCRAPER_URL,
+    SUNROOM_DOOR_SYNC_TIMEOUT_SECONDS=SUNROOM_DOOR_SYNC_TIMEOUT_SECONDS,
+    api_filter=lambda *args, **kwargs: api_filter(*args, **kwargs),
+    api_filter_int=lambda *args, **kwargs: api_filter_int(*args, **kwargs),
+    api_filter_options=lambda *args, **kwargs: api_filter_options(*args, **kwargs),
+    api_filter_value=lambda *args, **kwargs: api_filter_value(*args, **kwargs),
+    api_pick=lambda *args, **kwargs: api_pick(*args, **kwargs),
+    async_session=async_session,
+    axis_snapshot_day_cache=axis_snapshot_day_cache,
+    cleanup_sunroom_door_verifications=lambda *args, **kwargs: cleanup_sunroom_door_verifications(*args, **kwargs),
+    get_sun2_summaries=lambda *args, **kwargs: get_sun2_summaries(*args, **kwargs),
+    import_job_age=lambda *args, **kwargs: import_job_age(*args, **kwargs),
+    logger=logger,
+    parse_day=lambda *args, **kwargs: parse_day(*args, **kwargs),
+    process_locks=process_locks,
+    sunroom_door_period_key=lambda *args, **kwargs: sunroom_door_period_key(*args, **kwargs),
+    sunroom_door_verifications=sunroom_door_verifications,
+    sunroom_force_sync_candidates=lambda *args, **kwargs: sunroom_force_sync_candidates(*args, **kwargs),
+    sunroom_sync_candidate_is_due=lambda *args, **kwargs: sunroom_sync_candidate_is_due(*args, **kwargs),
+)
+sun_service = sun_services.create_service(sun_dependencies)
+api_sun2_bed_row = sun_service["api_sun2_bed_row"]
+api_sun2_day_timeline = sun_service["api_sun2_day_timeline"]
+api_sun2_forecast_rows = sun_service["api_sun2_forecast_rows"]
+api_sun2_member_row = sun_service["api_sun2_member_row"]
+api_sun2_overview_tables = sun_service["api_sun2_overview_tables"]
+api_sun2_product_sale_row = sun_service["api_sun2_product_sale_row"]
+api_sun2_session_row = sun_service["api_sun2_session_row"]
+api_sun2_summary_row = sun_service["api_sun2_summary_row"]
+api_sun2_weekly_chart = sun_service["api_sun2_weekly_chart"]
+axis_snapshot_archive_days = sun_service["axis_snapshot_archive_days"]
+axis_snapshot_browser_payload = sun_service["axis_snapshot_browser_payload"]
+axis_snapshot_candidates = sun_service["axis_snapshot_candidates"]
+axis_snapshot_day_candidates = sun_service["axis_snapshot_day_candidates"]
+axis_snapshot_id = sun_service["axis_snapshot_id"]
+axis_snapshot_path_for_id = sun_service["axis_snapshot_path_for_id"]
+axis_snapshot_series_around = sun_service["axis_snapshot_series_around"]
+backfill_sun2_room_identity = sun_service["backfill_sun2_room_identity"]
+build_sun2_forecast = sun_service["build_sun2_forecast"]
+closest_axis_snapshot_index = sun_service["closest_axis_snapshot_index"]
+fetch_sun2_scraper_runtime = sun_service["fetch_sun2_scraper_runtime"]
+force_sun2_sync_for_closed_rooms = sun_service["force_sun2_sync_for_closed_rooms"]
+get_sun2_axis_snapshot_link_lock = sun_service["get_sun2_axis_snapshot_link_lock"]
+get_sun2_session_database_total = sun_service["get_sun2_session_database_total"]
+get_sun2_session_options = sun_service["get_sun2_session_options"]
+ingest_sun2_beds = sun_service["ingest_sun2_beds"]
+ingest_sun2_finance_settlements = sun_service["ingest_sun2_finance_settlements"]
+ingest_sun2_members = sun_service["ingest_sun2_members"]
+ingest_sun2_product_sales = sun_service["ingest_sun2_product_sales"]
+ingest_sun2_room_stats = sun_service["ingest_sun2_room_stats"]
+ingest_sun2_tanning_sessions = sun_service["ingest_sun2_tanning_sessions"]
+link_axis_snapshots_to_sun2_sessions = sun_service["link_axis_snapshots_to_sun2_sessions"]
+nearest_axis_snapshot = sun_service["nearest_axis_snapshot"]
+parse_axis_snapshot_id = sun_service["parse_axis_snapshot_id"]
+parse_axis_snapshot_time = sun_service["parse_axis_snapshot_time"]
+primary_sun2_session_image = sun_service["primary_sun2_session_image"]
+replace_sun2_session_image_with_axis_snapshot = sun_service["replace_sun2_session_image_with_axis_snapshot"]
+request_sun2_today_sync = sun_service["request_sun2_today_sync"]
+run_sun2_axis_snapshot_link_once = sun_service["run_sun2_axis_snapshot_link_once"]
+schedule_sun2_axis_snapshot_link = sun_service["schedule_sun2_axis_snapshot_link"]
+set_sun2_session_primary_image = sun_service["set_sun2_session_primary_image"]
+sun2_axis_snapshot_link_worker = sun_service["sun2_axis_snapshot_link_worker"]
+sun2_duplicate_session_id_payload = sun_service["sun2_duplicate_session_id_payload"]
+sun2_product_module_payload = sun_service["sun2_product_module_payload"]
+sun2_product_sales_month_rows = sun_service["sun2_product_sales_month_rows"]
+sun2_product_sales_range_summary = sun_service["sun2_product_sales_range_summary"]
+sun2_product_summary_row = sun_service["sun2_product_summary_row"]
+sun2_session_axis_start_at = sun_service["sun2_session_axis_start_at"]
+sun2_session_axis_target_at = sun_service["sun2_session_axis_target_at"]
+sun2_session_axis_target_series = sun_service["sun2_session_axis_target_series"]
+sun2_session_image_meta_options = sun_service["sun2_session_image_meta_options"]
+sun2_session_image_payload = sun_service["sun2_session_image_payload"]
+sun2_sessions_active_minutes_since = sun_service["sun2_sessions_active_minutes_since"]
+sun2_sessions_module_payload = sun_service["sun2_sessions_module_payload"]
+from fibaro_core.services.runtime import energy as energy_services
+energy_dependencies = energy_services.Dependencies(
+    ENERGY_ACCUMULATED_ID_BY_POWER_ID=ENERGY_ACCUMULATED_ID_BY_POWER_ID,
+    ENERGY_ACCUMULATED_KEYS=ENERGY_ACCUMULATED_KEYS,
+    ENERGY_AGGREGATE_GROUP_BY_POWER_ID=ENERGY_AGGREGATE_GROUP_BY_POWER_ID,
+    ENERGY_AGGREGATE_HC3_MEMBERS=ENERGY_AGGREGATE_HC3_MEMBERS,
+    ENERGY_AGGREGATE_METERS=ENERGY_AGGREGATE_METERS,
+    ENERGY_AGGREGATE_METERS_BY_KEY=ENERGY_AGGREGATE_METERS_BY_KEY,
+    ENERGY_CIRCUIT_SEED_ROWS=ENERGY_CIRCUIT_SEED_ROWS,
+    ENERGY_CIRCUIT_SEED_SOURCE=ENERGY_CIRCUIT_SEED_SOURCE,
+    ENERGY_FIBARO_AREAS=ENERGY_FIBARO_AREAS,
+    ENERGY_HC3_HOURLY_DISPLAY_OFFSET=ENERGY_HC3_HOURLY_DISPLAY_OFFSET,
+    ENERGY_HOURLY_COMPARE_FIELDS=ENERGY_HOURLY_COMPARE_FIELDS,
+    ENERGY_LOAD_POWER_PROFILES=ENERGY_LOAD_POWER_PROFILES,
+    ENERGY_NODE_TYPES=ENERGY_NODE_TYPES,
+    ENERGY_REALTIME_MAX_DELTA_SECONDS=ENERGY_REALTIME_MAX_DELTA_SECONDS,
+    ENERGY_SUB_KEYS=ENERGY_SUB_KEYS,
+    HC3_ENERGY_LIVE_TIMEOUT_SECONDS=HC3_ENERGY_LIVE_TIMEOUT_SECONDS,
+    ROOF_EXHAUST_UNMETERED_W=ROOF_EXHAUST_UNMETERED_W,
+    SUMMARY_CACHE=SUMMARY_CACHE,
+    SUNBED_ANALYSIS_VENTILATION_MATCH_SECONDS=SUNBED_ANALYSIS_VENTILATION_MATCH_SECONDS,
+    SUNBED_POWER_ANALYSIS_CACHE_TTL=SUNBED_POWER_ANALYSIS_CACHE_TTL,
+    api_config_value_rows=lambda *args, **kwargs: api_config_value_rows(*args, **kwargs),
+    api_day_navigation=lambda *args, **kwargs: api_day_navigation(*args, **kwargs),
+    api_import_job_status=lambda *args, **kwargs: api_import_job_status(*args, **kwargs),
+    api_pick=lambda *args, **kwargs: api_pick(*args, **kwargs),
+    async_session=async_session,
+    get_energy_summaries=lambda *args, **kwargs: get_energy_summaries(*args, **kwargs),
+    hc3_api_is_configured=lambda *args, **kwargs: hc3_api_is_configured(*args, **kwargs),
+    hc3_cached_device_request=lambda *args, **kwargs: hc3_cached_device_request(*args, **kwargs),
+    hc3_first_present=lambda *args, **kwargs: hc3_first_present(*args, **kwargs),
+    logger=logger,
+    nested_extra_value=lambda *args, **kwargs: nested_extra_value(*args, **kwargs),
+    parse_boolish=lambda *args, **kwargs: parse_boolish(*args, **kwargs),
+    parse_day=lambda *args, **kwargs: parse_day(*args, **kwargs),
+)
+energy_service = energy_services.create_service(energy_dependencies)
+_legacy_energy_circuit_loads_payload = energy_service["_legacy_energy_circuit_loads_payload"]
+_meter_based_energy_circuit_loads_payload = energy_service["_meter_based_energy_circuit_loads_payload"]
+accumulated_delta = energy_service["accumulated_delta"]
+api_energy_circuit_edit = energy_service["api_energy_circuit_edit"]
+api_energy_elvia_payload = energy_service["api_energy_elvia_payload"]
+api_energy_load_edit = energy_service["api_energy_load_edit"]
+api_energy_summary_item = energy_service["api_energy_summary_item"]
+api_revenue_accumulated_year_chart = energy_service["api_revenue_accumulated_year_chart"]
+build_energy_circuit_loads_payload = energy_service["build_energy_circuit_loads_payload"]
+build_sunbed_power_analysis = energy_service["build_sunbed_power_analysis"]
+calculated_difference = energy_service["calculated_difference"]
+circuit_row_api = energy_service["circuit_row_api"]
+clean_energy_load_values = energy_service["clean_energy_load_values"]
+clean_energy_node_values = energy_service["clean_energy_node_values"]
+cumulative_energy_points = energy_service["cumulative_energy_points"]
+cumulative_energy_series = energy_service["cumulative_energy_series"]
+default_energy_node_name = energy_service["default_energy_node_name"]
+energy_area_cards = energy_service["energy_area_cards"]
+energy_elvia_control_module_payload = energy_service["energy_elvia_control_module_payload"]
+energy_elvia_module_payload = energy_service["energy_elvia_module_payload"]
+energy_fibaro_sample_payload = energy_service["energy_fibaro_sample_payload"]
+energy_hour_has_changed = energy_service["energy_hour_has_changed"]
+energy_load_hierarchy_item = energy_service["energy_load_hierarchy_item"]
+energy_node_branch_ids = energy_service["energy_node_branch_ids"]
+energy_node_from_values = energy_service["energy_node_from_values"]
+energy_sample_bucket = energy_service["energy_sample_bucket"]
+ensure_energy_node_backfill = energy_service["ensure_energy_node_backfill"]
+find_or_create_energy_node_for_load = energy_service["find_or_create_energy_node_for_load"]
+hc3_energy_device_summary = energy_service["hc3_energy_device_summary"]
+hc3_energy_nodes_live = energy_service["hc3_energy_nodes_live"]
+ingest_elvia_hours = energy_service["ingest_elvia_hours"]
+latest_energy_reconciliation_check = energy_service["latest_energy_reconciliation_check"]
+load_row_api = energy_service["load_row_api"]
+load_sunbed_power_analysis = energy_service["load_sunbed_power_analysis"]
+manual_energy_quickapp_report = energy_service["manual_energy_quickapp_report"]
+payload_weather_symbol = energy_service["payload_weather_symbol"]
+payload_weather_text = energy_service["payload_weather_text"]
+percentile = energy_service["percentile"]
+realtime_power_delta_kwh = energy_service["realtime_power_delta_kwh"]
+seed_energy_circuits = energy_service["seed_energy_circuits"]
+sum_optional = energy_service["sum_optional"]
+sunbed_analysis_date_range = energy_service["sunbed_analysis_date_range"]
+sunbed_power_cache_warm_worker = energy_service["sunbed_power_cache_warm_worker"]
+sunbed_session_bounds = energy_service["sunbed_session_bounds"]
+upsert_energy_fibaro_sample = energy_service["upsert_energy_fibaro_sample"]
+validate_energy_load_power_values = energy_service["validate_energy_load_power_values"]
+validate_energy_node_hc3_values = energy_service["validate_energy_node_hc3_values"]
+validate_energy_node_link_uniqueness = energy_service["validate_energy_node_link_uniqueness"]
+validate_energy_node_parent = energy_service["validate_energy_node_parent"]
+validate_energy_node_profile_values = energy_service["validate_energy_node_profile_values"]
+from fibaro_core.services.runtime import parking as parking_services
+parking_dependencies = parking_services.Dependencies(
+    CAR_INFO_APP_TOKEN=CAR_INFO_APP_TOKEN,
+    CAR_INFO_AUTO_TRIGGER_ENABLED=CAR_INFO_AUTO_TRIGGER_ENABLED,
+    CAR_INFO_AUTO_TRIGGER_MAX_PER_SVV_RUN=CAR_INFO_AUTO_TRIGGER_MAX_PER_SVV_RUN,
+    CAR_INFO_CANDIDATE_RETRY_HOURS=CAR_INFO_CANDIDATE_RETRY_HOURS,
+    CAR_INFO_CANDIDATE_TRANSIENT_RETRY_MINUTES=CAR_INFO_CANDIDATE_TRANSIENT_RETRY_MINUTES,
+    CAR_INFO_LOOKUP_TIMEOUT_SECONDS=CAR_INFO_LOOKUP_TIMEOUT_SECONDS,
+    CAR_INFO_LOOKUP_URL=CAR_INFO_LOOKUP_URL,
+    EASYPARK_DOWNLOADER_URL=EASYPARK_DOWNLOADER_URL,
+    EASYPARK_REQUIRED_COLUMNS=EASYPARK_REQUIRED_COLUMNS,
+    PARKING_OCCUPANCY_SCALE_MAX=PARKING_OCCUPANCY_SCALE_MAX,
+    PARKING_TIMELINE_CAPACITY=PARKING_TIMELINE_CAPACITY,
+    PARKING_TIMELINE_ROWS=PARKING_TIMELINE_ROWS,
+    PARKING_TIME_PERIOD_OPTIONS=PARKING_TIME_PERIOD_OPTIONS,
+    PARKING_TIME_WEEKDAYS=PARKING_TIME_WEEKDAYS,
+    PARKING_WEEKLY_AVERAGE_PERIOD_OPTIONS=PARKING_WEEKLY_AVERAGE_PERIOD_OPTIONS,
+    SUMMARY_CACHE=SUMMARY_CACHE,
+    SVV_API_AUTH_HEADER=SVV_API_AUTH_HEADER,
+    SVV_API_AUTH_PREFIX=SVV_API_AUTH_PREFIX,
+    SVV_API_KEY=SVV_API_KEY,
+    SVV_API_URL=SVV_API_URL,
+    SVV_PERMANENT_NO_DATA_STATUSES=SVV_PERMANENT_NO_DATA_STATUSES,
+    SVV_RETRY_AFTER_HOURS=SVV_RETRY_AFTER_HOURS,
+    SVV_SYNC_BATCH_SIZE=SVV_SYNC_BATCH_SIZE,
+    SVV_SYNC_INTERVAL_MINUTES=SVV_SYNC_INTERVAL_MINUTES,
+    SVV_TRANSIENT_RETRY_AFTER_MINUTES=SVV_TRANSIENT_RETRY_AFTER_MINUTES,
+    SVV_TRANSIENT_STATUSES=SVV_TRANSIENT_STATUSES,
+    api_filter_value=lambda *args, **kwargs: api_filter_value(*args, **kwargs),
+    async_session=async_session,
+    clear_summary_cache=lambda *args, **kwargs: clear_summary_cache(*args, **kwargs),
+    exact_search_text=lambda *args, **kwargs: exact_search_text(*args, **kwargs),
+    exact_word_match=lambda *args, **kwargs: exact_word_match(*args, **kwargs),
+    get_parking_summaries=lambda *args, **kwargs: get_parking_summaries(*args, **kwargs),
+    is_not_found_marker=lambda *args, **kwargs: is_not_found_marker(*args, **kwargs),
+    parse_day=lambda *args, **kwargs: parse_day(*args, **kwargs),
+    parse_optional_date=lambda *args, **kwargs: parse_optional_date(*args, **kwargs),
+    record_import_job=lambda *args, **kwargs: record_import_job(*args, **kwargs),
+    require_settings_access=lambda *args, **kwargs: require_settings_access(*args, **kwargs),
+)
+parking_service = parking_services.create_service(parking_dependencies)
+api_parking_clear_area_not_found_action = parking_service["api_parking_clear_area_not_found_action"]
+api_parking_day_timeline = parking_service["api_parking_day_timeline"]
+api_parking_default_actions = parking_service["api_parking_default_actions"]
+api_parking_forecast_evolution_chart = parking_service["api_parking_forecast_evolution_chart"]
+api_parking_forecast_rows = parking_service["api_parking_forecast_rows"]
+api_parking_overview_tables = parking_service["api_parking_overview_tables"]
+api_parking_saved_forecast_rows = parking_service["api_parking_saved_forecast_rows"]
+api_parking_summary_row = parking_service["api_parking_summary_row"]
+api_parking_time_distribution = parking_service["api_parking_time_distribution"]
+api_parking_weekly_chart = parking_service["api_parking_weekly_chart"]
+build_parking_forecast = parking_service["build_parking_forecast"]
+car_info_lookup_request = parking_service["car_info_lookup_request"]
+clean_easypark_value = parking_service["clean_easypark_value"]
+clear_parking_vehicle_not_found_area = parking_service["clear_parking_vehicle_not_found_area"]
+clear_parking_vehicle_not_found_fields = parking_service["clear_parking_vehicle_not_found_fields"]
+decode_easypark_csv = parking_service["decode_easypark_csv"]
+easypark_downloader_request = parking_service["easypark_downloader_request"]
+easypark_downloader_status = parking_service["easypark_downloader_status"]
+easypark_float = parking_service["easypark_float"]
+easypark_int = parking_service["easypark_int"]
+easypark_minutes = parking_service["easypark_minutes"]
+easypark_next_run_at_from_status = parking_service["easypark_next_run_at_from_status"]
+easypark_recent_period = parking_service["easypark_recent_period"]
+easypark_timestamp = parking_service["easypark_timestamp"]
+fallback_car_info_import_status = parking_service["fallback_car_info_import_status"]
+has_car_info_app_access = parking_service["has_car_info_app_access"]
+ingest_easypark_csv = parking_service["ingest_easypark_csv"]
+is_car_info_app_request_path = parking_service["is_car_info_app_request_path"]
+parking_area_missing_rows_for_period = parking_service["parking_area_missing_rows_for_period"]
+parking_area_overview_data = parking_service["parking_area_overview_data"]
+parking_area_period = parking_service["parking_area_period"]
+parking_area_period_conditions = parking_service["parking_area_period_conditions"]
+parking_area_row_api = parking_service["parking_area_row_api"]
+parking_calendar_comparison_week = parking_service["parking_calendar_comparison_week"]
+parking_calendar_comparison_week_ranges = parking_service["parking_calendar_comparison_week_ranges"]
+parking_car_info_candidate_rows = parking_service["parking_car_info_candidate_rows"]
+parking_departure_slot_delta_minutes = parking_service["parking_departure_slot_delta_minutes"]
+parking_missing_area_rows = parking_service["parking_missing_area_rows"]
+parking_missing_name_rows = parking_service["parking_missing_name_rows"]
+parking_period_summary = parking_service["parking_period_summary"]
+parking_previous_stats_for_rows = parking_service["parking_previous_stats_for_rows"]
+parking_row_api = parking_service["parking_row_api"]
+parking_time_distribution_period = parking_service["parking_time_distribution_period"]
+parking_time_weekday_day_counts = parking_service["parking_time_weekday_day_counts"]
+parking_timeline_end = parking_service["parking_timeline_end"]
+parking_valid_vehicle_area_condition = parking_service["parking_valid_vehicle_area_condition"]
+parking_vehicle_by_plate_or_compact = parking_service["parking_vehicle_by_plate_or_compact"]
+parking_vehicle_count_stats = parking_service["parking_vehicle_count_stats"]
+parking_vehicle_lookup_payload = parking_service["parking_vehicle_lookup_payload"]
+parking_vehicle_not_found_field_labels = parking_service["parking_vehicle_not_found_field_labels"]
+parking_vehicle_row_api = parking_service["parking_vehicle_row_api"]
+parking_vehicle_search_condition = parking_service["parking_vehicle_search_condition"]
+parking_vehicle_svv_worker = parking_service["parking_vehicle_svv_worker"]
+parking_weekly_average_payload = parking_service["parking_weekly_average_payload"]
+parking_weekly_average_period = parking_service["parking_weekly_average_period"]
+parking_weekly_selected_years = parking_service["parking_weekly_selected_years"]
+parking_weekly_year_comparison_payload = parking_service["parking_weekly_year_comparison_payload"]
+parse_easypark_csv = parking_service["parse_easypark_csv"]
+refresh_parking_vehicle_summary = parking_service["refresh_parking_vehicle_summary"]
+require_settings_or_car_info_access = parking_service["require_settings_or_car_info_access"]
+run_vehicle_svv_sync = parking_service["run_vehicle_svv_sync"]
+save_parking_forecast_after_import = parking_service["save_parking_forecast_after_import"]
+status_parking_timeline_event = parking_service["status_parking_timeline_event"]
+svv_api_lookup_sync = parking_service["svv_api_lookup_sync"]
+svv_candidate_plates = parking_service["svv_candidate_plates"]
+trigger_car_info_after_svv_no_data = parking_service["trigger_car_info_after_svv_no_data"]
+unpaid_registered_vehicle_stays_payload = parking_service["unpaid_registered_vehicle_stays_payload"]
+upsert_vehicle_svv_data = parking_service["upsert_vehicle_svv_data"]
+vehicle_area_not_found_condition = parking_service["vehicle_area_not_found_condition"]
+vehicle_blank_area_condition = parking_service["vehicle_blank_area_condition"]
+vehicle_blank_name_condition = parking_service["vehicle_blank_name_condition"]
+vehicle_car_info_candidate_condition = parking_service["vehicle_car_info_candidate_condition"]
+vehicle_car_info_country_condition = parking_service["vehicle_car_info_country_condition"]
+vehicle_car_info_due_condition = parking_service["vehicle_car_info_due_condition"]
+vehicle_missing_area_condition = parking_service["vehicle_missing_area_condition"]
+vehicle_missing_name_condition = parking_service["vehicle_missing_name_condition"]
+vehicle_name_not_found_condition = parking_service["vehicle_name_not_found_condition"]
+from fibaro_core.services.runtime import building as building_services
+building_dependencies = building_services.Dependencies(
+    CONFIG_DEFINITIONS=CONFIG_DEFINITIONS,
+    CONTROL_DEVICES=CONTROL_DEVICES,
+    HC3_BASE_URL=HC3_BASE_URL,
+    HC3_DOOR_POLL_TIMEOUT_SECONDS=HC3_DOOR_POLL_TIMEOUT_SECONDS,
+    HC3_DOOR_UNEXPECTED_RECHECK_MINUTES=HC3_DOOR_UNEXPECTED_RECHECK_MINUTES,
+    HC3_ENERGY_DEVICE_LIST_CACHE_SECONDS=HC3_ENERGY_DEVICE_LIST_CACHE_SECONDS,
+    HC3_ENERGY_LIVE_TIMEOUT_SECONDS=HC3_ENERGY_LIVE_TIMEOUT_SECONDS,
+    HC3_PASS=HC3_PASS,
+    HC3_SWITCH_POLL_TIMEOUT_SECONDS=HC3_SWITCH_POLL_TIMEOUT_SECONDS,
+    HC3_SWITCH_STATUS_CACHE_SECONDS=HC3_SWITCH_STATUS_CACHE_SECONDS,
+    HC3_USER=HC3_USER,
+    LIGHT_TIMELINE_DEVICES=LIGHT_TIMELINE_DEVICES,
+    MET_LAT=MET_LAT,
+    MET_LON=MET_LON,
+    NTFY_LIGHTS_TOPIC=NTFY_LIGHTS_TOPIC,
+    NTFY_VENTILATION_TOPIC=NTFY_VENTILATION_TOPIC,
+    VENT_TIMELINE_DEVICES=VENT_TIMELINE_DEVICES,
+    add_segment=lambda *args, **kwargs: add_segment(*args, **kwargs),
+    api_bool_state=lambda *args, **kwargs: api_bool_state(*args, **kwargs),
+    async_session=async_session,
+    clean_display_text=lambda *args, **kwargs: clean_display_text(*args, **kwargs),
+    display_action=lambda *args, **kwargs: display_action(*args, **kwargs),
+    display_segments=lambda *args, **kwargs: display_segments(*args, **kwargs),
+    enqueue_ntfy_message=lambda *args, **kwargs: enqueue_ntfy_message(*args, **kwargs),
+    hc3_door_unexpected_verified_until=hc3_door_unexpected_verified_until,
+    hc3_energy_device_list_cache=hc3_energy_device_list_cache,
+    hc3_switch_status_cache=hc3_switch_status_cache,
+    logger=logger,
+    parse_boolish=lambda *args, **kwargs: parse_boolish(*args, **kwargs),
+    payload_weather_symbol=lambda *args, **kwargs: payload_weather_symbol(*args, **kwargs),
+    payload_weather_text=lambda *args, **kwargs: payload_weather_text(*args, **kwargs),
+    percent_between=lambda *args, **kwargs: percent_between(*args, **kwargs),
+    row_to_dict=lambda *args, **kwargs: row_to_dict(*args, **kwargs),
+    status_parking_timeline_event=lambda *args, **kwargs: status_parking_timeline_event(*args, **kwargs),
+    sunbed_session_bounds=lambda *args, **kwargs: sunbed_session_bounds(*args, **kwargs),
+    time_minutes=lambda *args, **kwargs: time_minutes(*args, **kwargs),
+    total_from_segments=lambda *args, **kwargs: total_from_segments(*args, **kwargs),
+    value_from_payload=lambda *args, **kwargs: value_from_payload(*args, **kwargs),
+    weather_label=lambda *args, **kwargs: weather_label(*args, **kwargs),
+)
+building_service = building_services.create_service(building_dependencies)
+alarm_event_payload = building_service["alarm_event_payload"]
+api_config_field_rows = building_service["api_config_field_rows"]
+api_config_history_rows = building_service["api_config_history_rows"]
+api_config_value_rows = building_service["api_config_value_rows"]
+attach_hc3_alarm_verification = building_service["attach_hc3_alarm_verification"]
+build_light_chart_markers = building_service["build_light_chart_markers"]
+build_light_timeline_group = building_service["build_light_timeline_group"]
+build_lux_day = building_service["build_lux_day"]
+build_lux_sparkline = building_service["build_lux_sparkline"]
+build_solar_elevation_samples = building_service["build_solar_elevation_samples"]
+build_temp_day = building_service["build_temp_day"]
+build_timeline_group = building_service["build_timeline_group"]
+build_timeline_item = building_service["build_timeline_item"]
+config_context = building_service["config_context"]
+config_defaults = building_service["config_defaults"]
+config_definition = building_service["config_definition"]
+config_devices = building_service["config_devices"]
+config_operational_notes = building_service["config_operational_notes"]
+config_payload = building_service["config_payload"]
+config_rules = building_service["config_rules"]
+config_stat_cards = building_service["config_stat_cards"]
+config_summary_rows = building_service["config_summary_rows"]
+config_values_from_form = building_service["config_values_from_form"]
+config_values_from_payload = building_service["config_values_from_payload"]
+control_settings_payload = building_service["control_settings_payload"]
+dedupe_samples_by_bucket = building_service["dedupe_samples_by_bucket"]
+empty_ventilation_day_payload = building_service["empty_ventilation_day_payload"]
+event_detail = building_service["event_detail"]
+event_device_key = building_service["event_device_key"]
+event_extra_key = building_service["event_extra_key"]
+event_matches_device = building_service["event_matches_device"]
+fetch_lux_samples = building_service["fetch_lux_samples"]
+generic_from_payload = building_service["generic_from_payload"]
+get_or_create_config = building_service["get_or_create_config"]
+hc3_api_is_configured = building_service["hc3_api_is_configured"]
+hc3_basic_auth_header = building_service["hc3_basic_auth_header"]
+hc3_cached_device_request = building_service["hc3_cached_device_request"]
+hc3_control_device_id = building_service["hc3_control_device_id"]
+hc3_device_request = building_service["hc3_device_request"]
+hc3_devices_request = building_service["hc3_devices_request"]
+hc3_fetch_switch_status = building_service["hc3_fetch_switch_status"]
+hc3_fetch_switch_statuses = building_service["hc3_fetch_switch_statuses"]
+hc3_first_present = building_service["hc3_first_present"]
+hc3_switch_config_for_timeline_device = building_service["hc3_switch_config_for_timeline_device"]
+hc3_switch_status_from_device = building_service["hc3_switch_status_from_device"]
+hc3_unexpected_poll_cooldown_active = building_service["hc3_unexpected_poll_cooldown_active"]
+light_from_payload = building_service["light_from_payload"]
+light_ntfy_payload = building_service["light_ntfy_payload"]
+light_rules = building_service["light_rules"]
+light_sample_from_payload = building_service["light_sample_from_payload"]
+light_sample_state = building_service["light_sample_state"]
+light_status_text = building_service["light_status_text"]
+lux_scale = building_service["lux_scale"]
+lux_tick_label = building_service["lux_tick_label"]
+lux_tick_values = building_service["lux_tick_values"]
+lux_y = building_service["lux_y"]
+mark_hc3_unexpected_poll_verified = building_service["mark_hc3_unexpected_poll_verified"]
+merge_config_values = building_service["merge_config_values"]
+merged_extra = building_service["merged_extra"]
+parse_config_value = building_service["parse_config_value"]
+point_from_row = building_service["point_from_row"]
+publish_light_ntfy = building_service["publish_light_ntfy"]
+publish_ventilation_ntfy = building_service["publish_ventilation_ntfy"]
+sample_state = building_service["sample_state"]
+state_from_event = building_service["state_from_event"]
+status_sun_timeline_event = building_service["status_sun_timeline_event"]
+status_timeline_lane = building_service["status_timeline_lane"]
+temp_axis = building_service["temp_axis"]
+temp_label = building_service["temp_label"]
+temp_y = building_service["temp_y"]
+upsert_kjeller_measurement_sample = building_service["upsert_kjeller_measurement_sample"]
+validate_config_values = building_service["validate_config_values"]
+vent_from_payload = building_service["vent_from_payload"]
+vent_sample_from_payload = building_service["vent_sample_from_payload"]
+ventilation_day_payload = building_service["ventilation_day_payload"]
+ventilation_latest_payload = building_service["ventilation_latest_payload"]
+ventilation_ntfy_payload = building_service["ventilation_ntfy_payload"]
+ventilation_rules = building_service["ventilation_rules"]
+ventilation_settings_payload = building_service["ventilation_settings_payload"]
+ventilation_status_payload = building_service["ventilation_status_payload"]
+from fibaro_core.services.runtime import cleaning as cleaning_services
+cleaning_dependencies = cleaning_services.Dependencies(
+    DREAME_CONTROL_TOKEN=DREAME_CONTROL_TOKEN,
+    DREAME_LOGGER_URL=DREAME_LOGGER_URL,
+    ROBOROCK_CONTROL_TOKEN=ROBOROCK_CONTROL_TOKEN,
+    ROBOROCK_DOOR_AUTOMATION_POLL_SECONDS=ROBOROCK_DOOR_AUTOMATION_POLL_SECONDS,
+    ROBOROCK_LOGGER_URL=ROBOROCK_LOGGER_URL,
+    _roborock_door_automation_lock=_roborock_door_automation_lock,
+    async_session=async_session,
+    config_defaults=lambda *args, **kwargs: config_defaults(*args, **kwargs),
+    door_change_rows=lambda *args, **kwargs: door_change_rows(*args, **kwargs),
+    door_event_state_bool=lambda *args, **kwargs: door_event_state_bool(*args, **kwargs),
+    logger=logger,
+    merge_config_values=lambda *args, **kwargs: merge_config_values(*args, **kwargs),
+    row_to_dict=lambda *args, **kwargs: row_to_dict(*args, **kwargs),
+)
+cleaning_service = cleaning_services.create_service(cleaning_dependencies)
+api_roborock_active_cycle = cleaning_service["api_roborock_active_cycle"]
+apply_roborock_cleaning_profile_values = cleaning_service["apply_roborock_cleaning_profile_values"]
+ensure_default_roborock_cleaning_profiles = cleaning_service["ensure_default_roborock_cleaning_profiles"]
+ensure_default_roborock_door_automation = cleaning_service["ensure_default_roborock_door_automation"]
+ensure_roborock_schedule_snapshot_backfill = cleaning_service["ensure_roborock_schedule_snapshot_backfill"]
+import_roborock_cleaning_zones = cleaning_service["import_roborock_cleaning_zones"]
+ingest_roborock_robot = cleaning_service["ingest_roborock_robot"]
+ingest_roborock_telemetry_robot = cleaning_service["ingest_roborock_telemetry_robot"]
+latest_cleaning_robot_sample = cleaning_service["latest_cleaning_robot_sample"]
+post_dreame_control = cleaning_service["post_dreame_control"]
+post_roborock_control = cleaning_service["post_roborock_control"]
+record_roborock_schedule_snapshot = cleaning_service["record_roborock_schedule_snapshot"]
+roborock_cleaning_profile_payload = cleaning_service["roborock_cleaning_profile_payload"]
+roborock_door_automation_payload = cleaning_service["roborock_door_automation_payload"]
+roborock_door_automation_worker = cleaning_service["roborock_door_automation_worker"]
+roborock_schedule_params = cleaning_service["roborock_schedule_params"]
+roborock_schedule_snapshot_fingerprint = cleaning_service["roborock_schedule_snapshot_fingerprint"]
+roborock_schedule_snapshot_rows = cleaning_service["roborock_schedule_snapshot_rows"]
+roborock_telemetry_sample_values = cleaning_service["roborock_telemetry_sample_values"]
+roborock_water_interlock_from_sample = cleaning_service["roborock_water_interlock_from_sample"]
+run_roborock_door_automation_once = cleaning_service["run_roborock_door_automation_once"]
+from fibaro_core.services.runtime import sunroom as sunroom_services
+sunroom_dependencies = sunroom_services.Dependencies(
+    ALARM_APP_URL=ALARM_APP_URL,
+    DOOR_SENSOR_CONFIG=DOOR_SENSOR_CONFIG,
+    DOOR_SENSOR_IDS=DOOR_SENSOR_IDS,
+    HC3_DOOR_DEBOUNCE_SECONDS=HC3_DOOR_DEBOUNCE_SECONDS,
+    HC3_DOOR_OTHER_OPEN_VERIFY_MINUTES=HC3_DOOR_OTHER_OPEN_VERIFY_MINUTES,
+    HC3_DOOR_SOLROOM_CLOSED_VERIFY_MINUTES=HC3_DOOR_SOLROOM_CLOSED_VERIFY_MINUTES,
+    HC3_DOOR_UNEXPECTED_CHECK_INITIAL_DELAY_SECONDS=HC3_DOOR_UNEXPECTED_CHECK_INITIAL_DELAY_SECONDS,
+    HC3_DOOR_UNEXPECTED_CHECK_INTERVAL_SECONDS=HC3_DOOR_UNEXPECTED_CHECK_INTERVAL_SECONDS,
+    NTFY_DOORS_TOPIC=NTFY_DOORS_TOPIC,
+    SUNROOM_DOOR_ALERT_AFTER_END_MINUTES=SUNROOM_DOOR_ALERT_AFTER_END_MINUTES,
+    SUNROOM_DOOR_CRITICAL_MINUTES=SUNROOM_DOOR_CRITICAL_MINUTES,
+    SUNROOM_DOOR_EXIT_GRACE_MINUTES=SUNROOM_DOOR_EXIT_GRACE_MINUTES,
+    SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES=SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES,
+    SUNROOM_DOOR_FORCED_SYNC_MINUTES=SUNROOM_DOOR_FORCED_SYNC_MINUTES,
+    SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS=SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS,
+    SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS=SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS,
+    SUNROOM_DOOR_NEW_SESSION_GRACE_MINUTES=SUNROOM_DOOR_NEW_SESSION_GRACE_MINUTES,
+    SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES=SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES,
+    SUNROOM_DOOR_PAYMENT_DELAY_MINUTES=SUNROOM_DOOR_PAYMENT_DELAY_MINUTES,
+    SUNROOM_DOOR_SESSION_GRACE_MINUTES=SUNROOM_DOOR_SESSION_GRACE_MINUTES,
+    SUNROOM_DOOR_SESSION_LOOKBACK_HOURS=SUNROOM_DOOR_SESSION_LOOKBACK_HOURS,
+    SUNROOM_DOOR_SYNC_FAILURE_ALARM_MINUTES=SUNROOM_DOOR_SYNC_FAILURE_ALARM_MINUTES,
+    SUNROOM_DOOR_SYNC_MAX_ATTEMPTS=SUNROOM_DOOR_SYNC_MAX_ATTEMPTS,
+    SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS=SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS,
+    SUNROOM_DOOR_WARN_AFTER_END_MINUTES=SUNROOM_DOOR_WARN_AFTER_END_MINUTES,
+    alarm_event_payload=lambda *args, **kwargs: alarm_event_payload(*args, **kwargs),
+    async_session=async_session,
+    attach_hc3_alarm_verification=lambda *args, **kwargs: attach_hc3_alarm_verification(*args, **kwargs),
+    enqueue_ntfy_message=lambda *args, **kwargs: enqueue_ntfy_message(*args, **kwargs),
+    fetch_sun2_scraper_runtime=lambda *args, **kwargs: fetch_sun2_scraper_runtime(*args, **kwargs),
+    force_sun2_sync_for_closed_rooms=lambda *args, **kwargs: force_sun2_sync_for_closed_rooms(*args, **kwargs),
+    hc3_api_is_configured=lambda *args, **kwargs: hc3_api_is_configured(*args, **kwargs),
+    hc3_device_request=lambda *args, **kwargs: hc3_device_request(*args, **kwargs),
+    hc3_first_present=lambda *args, **kwargs: hc3_first_present(*args, **kwargs),
+    hc3_unexpected_poll_cooldown_active=lambda *args, **kwargs: hc3_unexpected_poll_cooldown_active(*args, **kwargs),
+    logger=logger,
+    mark_hc3_unexpected_poll_verified=lambda *args, **kwargs: mark_hc3_unexpected_poll_verified(*args, **kwargs),
+    ntfy_subscribe_url=lambda *args, **kwargs: ntfy_subscribe_url(*args, **kwargs),
+    ntfy_topic_url=lambda *args, **kwargs: ntfy_topic_url(*args, **kwargs),
+    parse_boolish=lambda *args, **kwargs: parse_boolish(*args, **kwargs),
+    parse_day=lambda *args, **kwargs: parse_day(*args, **kwargs),
+    record_import_job=lambda *args, **kwargs: record_import_job(*args, **kwargs),
+    sunroom_door_verifications=sunroom_door_verifications,
+)
+sunroom_service = sunroom_services.create_service(sunroom_dependencies)
+apply_sunroom_alarm_verification = sunroom_service["apply_sunroom_alarm_verification"]
+cleanup_sunroom_door_verifications = sunroom_service["cleanup_sunroom_door_verifications"]
+door_action_from_state = sunroom_service["door_action_from_state"]
+door_age_label = sunroom_service["door_age_label"]
+door_change_rows = sunroom_service["door_change_rows"]
+door_change_text = sunroom_service["door_change_text"]
+door_closed_period_payload = sunroom_service["door_closed_period_payload"]
+door_closed_periods = sunroom_service["door_closed_periods"]
+door_config_device_key = sunroom_service["door_config_device_key"]
+door_duration_label = sunroom_service["door_duration_label"]
+door_event_device_key = sunroom_service["door_event_device_key"]
+door_event_from_payload = sunroom_service["door_event_from_payload"]
+door_event_payload = sunroom_service["door_event_payload"]
+door_event_state_bool = sunroom_service["door_event_state_bool"]
+door_open_periods = sunroom_service["door_open_periods"]
+door_period_device_key = sunroom_service["door_period_device_key"]
+door_period_payload = sunroom_service["door_period_payload"]
+door_poll_sync_payload = sunroom_service["door_poll_sync_payload"]
+door_state_age_minutes = sunroom_service["door_state_age_minutes"]
+door_state_from_event = sunroom_service["door_state_from_event"]
+door_status_payload = sunroom_service["door_status_payload"]
+door_title_for_row = sunroom_service["door_title_for_row"]
+door_unexpected_reason = sunroom_service["door_unexpected_reason"]
+hc3_door_poll_is_configured = sunroom_service["hc3_door_poll_is_configured"]
+hc3_door_poll_worker = sunroom_service["hc3_door_poll_worker"]
+hc3_door_status_from_device = sunroom_service["hc3_door_status_from_device"]
+hc3_door_unexpected_targets = sunroom_service["hc3_door_unexpected_targets"]
+hc3_fetch_all_door_statuses = sunroom_service["hc3_fetch_all_door_statuses"]
+hc3_fetch_door_status = sunroom_service["hc3_fetch_door_status"]
+hc3_fetch_door_statuses = sunroom_service["hc3_fetch_door_statuses"]
+latest_door_changes_by_device = sunroom_service["latest_door_changes_by_device"]
+latest_door_event_by_device = sunroom_service["latest_door_event_by_device"]
+operations_recent_door_items = sunroom_service["operations_recent_door_items"]
+publish_door_ntfy = sunroom_service["publish_door_ntfy"]
+publish_sunroom_door_alerts = sunroom_service["publish_sunroom_door_alerts"]
+run_hc3_door_poll_once = sunroom_service["run_hc3_door_poll_once"]
+run_hc3_door_unexpected_check_once = sunroom_service["run_hc3_door_unexpected_check_once"]
+sunroom_alarm_detected_at = sunroom_service["sunroom_alarm_detected_at"]
+sunroom_alarm_event_key = sunroom_service["sunroom_alarm_event_key"]
+sunroom_alarm_message = sunroom_service["sunroom_alarm_message"]
+sunroom_alert_key = sunroom_service["sunroom_alert_key"]
+sunroom_bed_id_for_config = sunroom_service["sunroom_bed_id_for_config"]
+sunroom_best_session_for_door = sunroom_service["sunroom_best_session_for_door"]
+sunroom_canonical_room_id = sunroom_service["sunroom_canonical_room_id"]
+sunroom_config_for_room_id = sunroom_service["sunroom_config_for_room_id"]
+sunroom_day_event = sunroom_service["sunroom_day_event"]
+sunroom_display_number = sunroom_service["sunroom_display_number"]
+sunroom_door_alarm_payload = sunroom_service["sunroom_door_alarm_payload"]
+sunroom_door_event_marker = sunroom_service["sunroom_door_event_marker"]
+sunroom_door_monitor_worker = sunroom_service["sunroom_door_monitor_worker"]
+sunroom_door_period_key = sunroom_service["sunroom_door_period_key"]
+sunroom_door_session_payload = sunroom_service["sunroom_door_session_payload"]
+sunroom_duration_label = sunroom_service["sunroom_duration_label"]
+sunroom_energy_sample_items = sunroom_service["sunroom_energy_sample_items"]
+sunroom_energy_sample_window = sunroom_service["sunroom_energy_sample_window"]
+sunroom_entrance_config = sunroom_service["sunroom_entrance_config"]
+sunroom_entrance_markers = sunroom_service["sunroom_entrance_markers"]
+sunroom_expected_exit_at = sunroom_service["sunroom_expected_exit_at"]
+sunroom_force_sync_candidates = sunroom_service["sunroom_force_sync_candidates"]
+sunroom_identity_for_config = sunroom_service["sunroom_identity_for_config"]
+sunroom_item_may_have_new_session = sunroom_service["sunroom_item_may_have_new_session"]
+sunroom_logic_event = sunroom_service["sunroom_logic_event"]
+sunroom_logic_for_room = sunroom_service["sunroom_logic_for_room"]
+sunroom_logic_payload = sunroom_service["sunroom_logic_payload"]
+sunroom_marker_day_event = sunroom_service["sunroom_marker_day_event"]
+sunroom_match_session_for_period = sunroom_service["sunroom_match_session_for_period"]
+sunroom_median_float = sunroom_service["sunroom_median_float"]
+sunroom_money_label = sunroom_service["sunroom_money_label"]
+sunroom_parse_time_value = sunroom_service["sunroom_parse_time_value"]
+sunroom_period_day_events = sunroom_service["sunroom_period_day_events"]
+sunroom_period_payload = sunroom_service["sunroom_period_payload"]
+sunroom_period_status = sunroom_service["sunroom_period_status"]
+sunroom_power_marker = sunroom_service["sunroom_power_marker"]
+sunroom_power_markers = sunroom_service["sunroom_power_markers"]
+sunroom_room_detail_payload = sunroom_service["sunroom_room_detail_payload"]
+sunroom_room_id_for_config = sunroom_service["sunroom_room_id_for_config"]
+sunroom_room_overview_payload = sunroom_service["sunroom_room_overview_payload"]
+sunroom_session_day_events = sunroom_service["sunroom_session_day_events"]
+sunroom_session_end_at = sunroom_service["sunroom_session_end_at"]
+sunroom_session_energy_evidence = sunroom_service["sunroom_session_energy_evidence"]
+sunroom_session_energy_window = sunroom_service["sunroom_session_energy_window"]
+sunroom_session_matches_closed_period = sunroom_service["sunroom_session_matches_closed_period"]
+sunroom_session_matches_period = sunroom_service["sunroom_session_matches_period"]
+sunroom_session_payload = sunroom_service["sunroom_session_payload"]
+sunroom_session_period_score = sunroom_service["sunroom_session_period_score"]
+sunroom_session_sun_start_at = sunroom_service["sunroom_session_sun_start_at"]
+sunroom_status_item = sunroom_service["sunroom_status_item"]
+sunroom_sync_candidate_is_due = sunroom_service["sunroom_sync_candidate_is_due"]
+sunroom_sync_reason_label = sunroom_service["sunroom_sync_reason_label"]
+sunroom_watt_label = sunroom_service["sunroom_watt_label"]
+sync_sunroom_alarm_history = sunroom_service["sync_sunroom_alarm_history"]
+verify_sunroom_alert_doors_with_hc3 = sunroom_service["verify_sunroom_alert_doors_with_hc3"]
+from fibaro_core.services.runtime import linking as linking_services
+linking_dependencies = linking_services.Dependencies(
+    CAR_INFO_APP_TOKEN=CAR_INFO_APP_TOKEN,
+    KOBLE_WORKER_TOKEN=KOBLE_WORKER_TOKEN,
+    PARKING_SUN_LINK_CONFIRMED=PARKING_SUN_LINK_CONFIRMED,
+    PARKING_SUN_LINK_PENDING=PARKING_SUN_LINK_PENDING,
+    PARKING_SUN_LINK_REJECTED=PARKING_SUN_LINK_REJECTED,
+    PARKING_SUN_LINK_STATUSES=PARKING_SUN_LINK_STATUSES,
+    import_job_definition=lambda *args, **kwargs: import_job_definition(*args, **kwargs),
+)
+linking_service = linking_services.create_service(linking_dependencies)
+api_parking_sun_link_candidate_row = linking_service["api_parking_sun_link_candidate_row"]
+api_parking_sun_link_match_row = linking_service["api_parking_sun_link_match_row"]
+api_parking_sun_link_state_row = linking_service["api_parking_sun_link_state_row"]
+get_parking_sun_link_state = linking_service["get_parking_sun_link_state"]
+has_koble_worker_access = linking_service["has_koble_worker_access"]
+is_koble_worker_request_path = linking_service["is_koble_worker_request_path"]
+parking_sun_link_assessment = linking_service["parking_sun_link_assessment"]
+parking_sun_link_candidate_edit = linking_service["parking_sun_link_candidate_edit"]
+parking_sun_link_candidates = linking_service["parking_sun_link_candidates"]
+parking_sun_link_matched_paid_totals = linking_service["parking_sun_link_matched_paid_totals"]
+parking_sun_link_probability = linking_service["parking_sun_link_probability"]
+parking_sun_link_qualified_distinct_matched_paid_total = linking_service["parking_sun_link_qualified_distinct_matched_paid_total"]
+parking_sun_link_settings_edit = linking_service["parking_sun_link_settings_edit"]
+parking_sun_link_status_value = linking_service["parking_sun_link_status_value"]
+refresh_parking_sun_link_candidate_pairs = linking_service["refresh_parking_sun_link_candidate_pairs"]
+refresh_parking_sun_link_state_counts = linking_service["refresh_parking_sun_link_state_counts"]
+reset_parking_sun_link_data = linking_service["reset_parking_sun_link_data"]
+update_parking_sun_link_import_status = linking_service["update_parking_sun_link_import_status"]
+from fibaro_core.services.runtime import presentation as presentation_services
+presentation_dependencies = presentation_services.Dependencies(
+    DAY_ZOOM_OPTIONS=DAY_ZOOM_OPTIONS,
+    api_sun2_bed_row=lambda *args, **kwargs: api_sun2_bed_row(*args, **kwargs),
+    api_sun2_day_timeline=lambda *args, **kwargs: api_sun2_day_timeline(*args, **kwargs),
+    api_sun2_forecast_rows=lambda *args, **kwargs: api_sun2_forecast_rows(*args, **kwargs),
+    api_sun2_member_row=lambda *args, **kwargs: api_sun2_member_row(*args, **kwargs),
+    api_sun2_overview_tables=lambda *args, **kwargs: api_sun2_overview_tables(*args, **kwargs),
+    api_sun2_session_row=lambda *args, **kwargs: api_sun2_session_row(*args, **kwargs),
+    api_sun2_summary_row=lambda *args, **kwargs: api_sun2_summary_row(*args, **kwargs),
+    api_sun2_weekly_chart=lambda *args, **kwargs: api_sun2_weekly_chart(*args, **kwargs),
+    async_session=async_session,
+    build_sun2_forecast=lambda *args, **kwargs: build_sun2_forecast(*args, **kwargs),
+    get_sun2_session_database_total=lambda *args, **kwargs: get_sun2_session_database_total(*args, **kwargs),
+    get_sun2_summaries=lambda *args, **kwargs: get_sun2_summaries(*args, **kwargs),
+    json_value=lambda *args, **kwargs: json_value(*args, **kwargs),
+    sun2_product_module_payload=lambda *args, **kwargs: sun2_product_module_payload(*args, **kwargs),
+    sun2_sessions_module_payload=lambda *args, **kwargs: sun2_sessions_module_payload(*args, **kwargs),
+)
+presentation_service = presentation_services.create_service(presentation_dependencies)
+add_segment = presentation_service["add_segment"]
+age_label = presentation_service["age_label"]
+api_bool_state = presentation_service["api_bool_state"]
+api_data_quality_row = presentation_service["api_data_quality_row"]
+api_day_navigation = presentation_service["api_day_navigation"]
+api_detail_field = presentation_service["api_detail_field"]
+api_filter = presentation_service["api_filter"]
+api_filter_int = presentation_service["api_filter_int"]
+api_filter_options = presentation_service["api_filter_options"]
+api_filter_value = presentation_service["api_filter_value"]
+api_pick = presentation_service["api_pick"]
+api_rule_rows = presentation_service["api_rule_rows"]
+api_saved_forecast_rows = presentation_service["api_saved_forecast_rows"]
+api_tool_row = presentation_service["api_tool_row"]
+api_v2_soling_module = presentation_service["api_v2_soling_module"]
+apply_common_filters = presentation_service["apply_common_filters"]
+clean_display_text = presentation_service["clean_display_text"]
+csv_response = presentation_service["csv_response"]
+day_zoom_config = presentation_service["day_zoom_config"]
+day_zoom_window = presentation_service["day_zoom_window"]
+decimate_rows = presentation_service["decimate_rows"]
+display_action = presentation_service["display_action"]
+display_control_mode = presentation_service["display_control_mode"]
+display_segments = presentation_service["display_segments"]
+fetch_rows = presentation_service["fetch_rows"]
+normalize_month = presentation_service["normalize_month"]
+parse_day = presentation_service["parse_day"]
+percent_between = presentation_service["percent_between"]
+redirect_keep_query = presentation_service["redirect_keep_query"]
+redirect_with_query_params = presentation_service["redirect_with_query_params"]
+row_to_dict = presentation_service["row_to_dict"]
+span_width = presentation_service["span_width"]
+total_from_segments = presentation_service["total_from_segments"]
+from fibaro_core.services.runtime import notifications as notifications_services
+notifications_dependencies = notifications_services.Dependencies(
+    NTFY_ACCESS_COOLDOWN_MINUTES=NTFY_ACCESS_COOLDOWN_MINUTES,
+    NTFY_ACCESS_TOPIC=NTFY_ACCESS_TOPIC,
+    NTFY_BASE_URL=NTFY_BASE_URL,
+    NTFY_BOLLARDS_TOPIC=NTFY_BOLLARDS_TOPIC,
+    NTFY_DOORS_TOPIC=NTFY_DOORS_TOPIC,
+    NTFY_LIGHTS_TOPIC=NTFY_LIGHTS_TOPIC,
+    NTFY_OUTBOX_POLL_SECONDS=NTFY_OUTBOX_POLL_SECONDS,
+    NTFY_OUTBOX_RETRY_BASE_SECONDS=NTFY_OUTBOX_RETRY_BASE_SECONDS,
+    NTFY_OUTBOX_RETRY_MAX_SECONDS=NTFY_OUTBOX_RETRY_MAX_SECONDS,
+    NTFY_OUTBOX_STALE_LOCK_SECONDS=NTFY_OUTBOX_STALE_LOCK_SECONDS,
+    NTFY_TIMEOUT_SECONDS=NTFY_TIMEOUT_SECONDS,
+    NTFY_VENTILATION_TOPIC=NTFY_VENTILATION_TOPIC,
+    async_session=async_session,
+    logger=logger,
+)
+notifications_service = notifications_services.create_service(notifications_dependencies)
+bollard_mobile_notification_payload = notifications_service["bollard_mobile_notification_payload"]
+claim_notification_outbox_row = notifications_service["claim_notification_outbox_row"]
+enqueue_ntfy_message = notifications_service["enqueue_ntfy_message"]
+finish_notification_outbox_row = notifications_service["finish_notification_outbox_row"]
+notification_outbox_row = notifications_service["notification_outbox_row"]
+notification_outbox_status = notifications_service["notification_outbox_status"]
+notification_outbox_worker = notifications_service["notification_outbox_worker"]
+notification_retry_delay_seconds = notifications_service["notification_retry_delay_seconds"]
+ntfy_host = notifications_service["ntfy_host"]
+ntfy_subscribe_url = notifications_service["ntfy_subscribe_url"]
+ntfy_subscription_rows = notifications_service["ntfy_subscription_rows"]
+ntfy_topic_url = notifications_service["ntfy_topic_url"]
+publish_ntfy_message = notifications_service["publish_ntfy_message"]
+save_record = notifications_service["save_record"]
+from fibaro_core.services.runtime import system as system_services
+system_dependencies = system_services.Dependencies(
+    ADMIN_TASK_SEVERITY_SORT=ADMIN_TASK_SEVERITY_SORT,
+    FULL_BACKUP_STATUS_PATH=FULL_BACKUP_STATUS_PATH,
+    NIGHTLY_BACKUP_STATUS_PATH=NIGHTLY_BACKUP_STATUS_PATH,
+    NTFY_ACCESS_COOLDOWN_MINUTES=NTFY_ACCESS_COOLDOWN_MINUTES,
+    NTFY_ACCESS_TOPIC=NTFY_ACCESS_TOPIC,
+    OPERATIONAL_RETENTION_INITIAL_DELAY_SECONDS=OPERATIONAL_RETENTION_INITIAL_DELAY_SECONDS,
+    OPERATIONAL_RETENTION_INTERVAL_HOURS=OPERATIONAL_RETENTION_INTERVAL_HOURS,
+    OPERATIONAL_RETENTION_POLICY=OPERATIONAL_RETENTION_POLICY,
+    OPERATIONAL_RETENTION_STATE=OPERATIONAL_RETENTION_STATE,
+    SUN2_SESSIONS_QUIET_END_HOUR=SUN2_SESSIONS_QUIET_END_HOUR,
+    age_label=lambda *args, **kwargs: age_label(*args, **kwargs),
+    api_data_quality_row=lambda *args, **kwargs: api_data_quality_row(*args, **kwargs),
+    async_session=async_session,
+    clear_summary_cache=lambda *args, **kwargs: clear_summary_cache(*args, **kwargs),
+    easypark_downloader_status=lambda *args, **kwargs: easypark_downloader_status(*args, **kwargs),
+    easypark_next_run_at_from_status=lambda *args, **kwargs: easypark_next_run_at_from_status(*args, **kwargs),
+    fallback_car_info_import_status=lambda *args, **kwargs: fallback_car_info_import_status(*args, **kwargs),
+    get_parking_sun_link_state=lambda *args, **kwargs: get_parking_sun_link_state(*args, **kwargs),
+    ingest_elvia_hours=lambda *args, **kwargs: ingest_elvia_hours(*args, **kwargs),
+    latest_energy_reconciliation_check=lambda *args, **kwargs: latest_energy_reconciliation_check(*args, **kwargs),
+    logger=logger,
+    manual_energy_quickapp_report=lambda *args, **kwargs: manual_energy_quickapp_report(*args, **kwargs),
+    minutes_since=lambda *args, **kwargs: minutes_since(*args, **kwargs),
+    notification_outbox_status=lambda *args, **kwargs: notification_outbox_status(*args, **kwargs),
+    ntfy_subscribe_url=lambda *args, **kwargs: ntfy_subscribe_url(*args, **kwargs),
+    ntfy_topic_url=lambda *args, **kwargs: ntfy_topic_url(*args, **kwargs),
+    sun2_sessions_active_minutes_since=lambda *args, **kwargs: sun2_sessions_active_minutes_since(*args, **kwargs),
+    sunroom_door_alarm_payload=lambda *args, **kwargs: sunroom_door_alarm_payload(*args, **kwargs),
+    vehicle_area_not_found_condition=lambda *args, **kwargs: vehicle_area_not_found_condition(*args, **kwargs),
+    vehicle_blank_area_condition=lambda *args, **kwargs: vehicle_blank_area_condition(*args, **kwargs),
+    vehicle_blank_name_condition=lambda *args, **kwargs: vehicle_blank_name_condition(*args, **kwargs),
+    vehicle_missing_area_condition=lambda *args, **kwargs: vehicle_missing_area_condition(*args, **kwargs),
+    vehicle_missing_name_condition=lambda *args, **kwargs: vehicle_missing_name_condition(*args, **kwargs),
+    vehicle_name_not_found_condition=lambda *args, **kwargs: vehicle_name_not_found_condition(*args, **kwargs),
+)
+system_service = system_services.create_service(system_dependencies)
+admin_keys_context = system_service["admin_keys_context"]
+admin_manual_payload = system_service["admin_manual_payload"]
+admin_task_import_severity = system_service["admin_task_import_severity"]
+api_admin_manual_payload = system_service["api_admin_manual_payload"]
+api_admin_task_row = system_service["api_admin_task_row"]
+api_import_job_run_row = system_service["api_import_job_run_row"]
+api_import_job_status = system_service["api_import_job_status"]
+api_import_status_row = system_service["api_import_status_row"]
+api_import_status_rows = system_service["api_import_status_rows"]
+backup_incident_from_control = system_service["backup_incident_from_control"]
+build_admin_data_quality = system_service["build_admin_data_quality"]
+build_admin_relation_analysis = system_service["build_admin_relation_analysis"]
+build_admin_task_rows = system_service["build_admin_task_rows"]
+build_operational_incident_center = system_service["build_operational_incident_center"]
+build_reconciliation_control = system_service["build_reconciliation_control"]
+cleanup_operational_history_once = system_service["cleanup_operational_history_once"]
+correlation_direction = system_service["correlation_direction"]
+correlation_strength = system_service["correlation_strength"]
+fallback_import_job_status = system_service["fallback_import_job_status"]
+import_counts_for_json = system_service["import_counts_for_json"]
+import_incident_recommended_action = system_service["import_incident_recommended_action"]
+import_job_age = system_service["import_job_age"]
+import_job_definition = system_service["import_job_definition"]
+import_job_interval_text = system_service["import_job_interval_text"]
+import_job_schedule_text = system_service["import_job_schedule_text"]
+import_job_status_from_age = system_service["import_job_status_from_age"]
+import_job_status_from_minutes = system_service["import_job_status_from_minutes"]
+import_job_updated_ago = system_service["import_job_updated_ago"]
+import_status_rows = system_service["import_status_rows"]
+mark_import_job_running = system_service["mark_import_job_running"]
+operational_incident_review_payload = system_service["operational_incident_review_payload"]
+operational_retention_worker = system_service["operational_retention_worker"]
+pearson_correlation = system_service["pearson_correlation"]
+quality_percent = system_service["quality_percent"]
+quality_status_from_age = system_service["quality_status_from_age"]
+quality_status_from_percent = system_service["quality_status_from_percent"]
+read_operational_status_file = system_service["read_operational_status_file"]
+record_import_job = system_service["record_import_job"]
+run_elvia_import_background = system_service["run_elvia_import_background"]
+from fibaro_core.services.runtime import dashboard as dashboard_services
+dashboard_dependencies = dashboard_services.Dependencies(
+    age_label=lambda *args, **kwargs: age_label(*args, **kwargs),
+    async_session=async_session,
+    average_value=lambda *args, **kwargs: average_value(*args, **kwargs),
+    latest_timestamp_from=lambda *args, **kwargs: latest_timestamp_from(*args, **kwargs),
+    normalize_month=lambda *args, **kwargs: normalize_month(*args, **kwargs),
+    weather_from_rows=lambda *args, **kwargs: weather_from_rows(*args, **kwargs),
+)
+dashboard_service = dashboard_services.create_service(dashboard_dependencies)
+api_revenue_day = dashboard_service["api_revenue_day"]
+api_revenue_overview_tables = dashboard_service["api_revenue_overview_tables"]
+api_revenue_summary_row = dashboard_service["api_revenue_summary_row"]
+api_revenue_weekly_chart = dashboard_service["api_revenue_weekly_chart"]
+build_now_status = dashboard_service["build_now_status"]
+build_revenue_month_context = dashboard_service["build_revenue_month_context"]
+dashboard_alert = dashboard_service["dashboard_alert"]
+dashboard_compare_detail = dashboard_service["dashboard_compare_detail"]
+dashboard_compare_value = dashboard_service["dashboard_compare_value"]
+dashboard_money_compare = dashboard_service["dashboard_money_compare"]
+freshness_item = dashboard_service["freshness_item"]
+minutes_since = dashboard_service["minutes_since"]
+operating_window = dashboard_service["operating_window"]
+operations_area_status = dashboard_service["operations_area_status"]
+operations_metric = dashboard_service["operations_metric"]
+operations_switch_item = dashboard_service["operations_switch_item"]
+from fibaro_core.services.runtime import weather as weather_services
+weather_dependencies = weather_services.Dependencies(
+    MET_LAT=MET_LAT,
+    MET_LON=MET_LON,
+    MET_USER_AGENT=MET_USER_AGENT,
+    MET_WEATHER_CACHE=MET_WEATHER_CACHE,
+    WEATHER_LABELS=WEATHER_LABELS,
+    YR_FORECAST_ASSIGNMENTS=YR_FORECAST_ASSIGNMENTS,
+    async_session=async_session,
+    dedupe_samples_by_bucket=lambda *args, **kwargs: dedupe_samples_by_bucket(*args, **kwargs),
+    json_value=lambda *args, **kwargs: json_value(*args, **kwargs),
+    logger=logger,
+    nested_extra_value=lambda *args, **kwargs: nested_extra_value(*args, **kwargs),
+    process_locks=process_locks,
+    record_import_job=lambda *args, **kwargs: record_import_job(*args, **kwargs),
+)
+weather_service = weather_services.create_service(weather_dependencies)
+fetch_met_weather = weather_service["fetch_met_weather"]
+fetch_yr_cloud_samples = weather_service["fetch_yr_cloud_samples"]
+http_header_time = weather_service["http_header_time"]
+met_age_seconds = weather_service["met_age_seconds"]
+met_details = weather_service["met_details"]
+met_entry_at = weather_service["met_entry_at"]
+met_forecast_from_payload = weather_service["met_forecast_from_payload"]
+met_next_fetch_after = weather_service["met_next_fetch_after"]
+met_period_details = weather_service["met_period_details"]
+met_period_symbol = weather_service["met_period_symbol"]
+met_time = weather_service["met_time"]
+met_value = weather_service["met_value"]
+met_weather_cached = weather_service["met_weather_cached"]
+save_yr_sample_for_payload = weather_service["save_yr_sample_for_payload"]
+update_yr_sample_from_forecast = weather_service["update_yr_sample_from_forecast"]
+weather_from_rows = weather_service["weather_from_rows"]
+weather_label = weather_service["weather_label"]
+yr_sample_extra = weather_service["yr_sample_extra"]
+yr_sample_from_forecast = weather_service["yr_sample_from_forecast"]
+yr_sample_raw = weather_service["yr_sample_raw"]
+from fibaro_core.services.runtime import ai as ai_services
+ai_dependencies = ai_services.Dependencies(
+    AI_CONFIG_KEY=AI_CONFIG_KEY,
+    OPENAI_MODEL=OPENAI_MODEL,
+    async_session=async_session,
+)
+ai_service = ai_services.create_service(ai_dependencies)
+ai_dataset_overview = ai_service["ai_dataset_overview"]
+ai_dataset_schema = ai_service["ai_dataset_schema"]
+ai_jsonable = ai_service["ai_jsonable"]
+ai_tools_definition = ai_service["ai_tools_definition"]
+ask_ai = ai_service["ask_ai"]
+effective_openai_settings = ai_service["effective_openai_settings"]
+get_ai_config = ai_service["get_ai_config"]
+mask_secret = ai_service["mask_secret"]
+openai_env_api_key = ai_service["openai_env_api_key"]
+openai_responses_request = ai_service["openai_responses_request"]
+recent_ai_logs = ai_service["recent_ai_logs"]
+response_function_calls = ai_service["response_function_calls"]
+response_output_text = ai_service["response_output_text"]
+run_ai_tool = ai_service["run_ai_tool"]
+run_safe_ai_sql = ai_service["run_safe_ai_sql"]
+validate_ai_sql = ai_service["validate_ai_sql"]
+from fibaro_core.services.runtime import maintenance as maintenance_services
+maintenance_dependencies = maintenance_services.Dependencies(
+    MAINTENANCE_ACTION_OPTIONS=MAINTENANCE_ACTION_OPTIONS,
+    MAINTENANCE_PRESENCE_OPTIONS=MAINTENANCE_PRESENCE_OPTIONS,
+    MAINTENANCE_PRIORITY_OPTIONS=MAINTENANCE_PRIORITY_OPTIONS,
+    MAINTENANCE_STATUS_OPTIONS=MAINTENANCE_STATUS_OPTIONS,
+    MAINTENANCE_TAG_OPTIONS=MAINTENANCE_TAG_OPTIONS,
+    MAINTENANCE_TARGET_OPTIONS=MAINTENANCE_TARGET_OPTIONS,
+    OWNTRACKS_LILLETORGET_WAYPOINTS=OWNTRACKS_LILLETORGET_WAYPOINTS,
+    OWNTRACKS_SERVICE_URL=OWNTRACKS_SERVICE_URL,
+    OWNTRACKS_SITE_VISIT_LOCATION_KEY=OWNTRACKS_SITE_VISIT_LOCATION_KEY,
+    OWNTRACKS_SITE_VISIT_LOCATION_NAME=OWNTRACKS_SITE_VISIT_LOCATION_NAME,
+    OWNTRACKS_VISIT_SYNC_ENABLED=OWNTRACKS_VISIT_SYNC_ENABLED,
+    OWNTRACKS_VISIT_SYNC_INTERVAL_SECONDS=OWNTRACKS_VISIT_SYNC_INTERVAL_SECONDS,
+    OWNTRACKS_VISIT_SYNC_LOOKBACK_HOURS=OWNTRACKS_VISIT_SYNC_LOOKBACK_HOURS,
+    OWNTRACKS_VISIT_SYNC_TIMEOUT_SECONDS=OWNTRACKS_VISIT_SYNC_TIMEOUT_SECONDS,
+    SITE_VISIT_ACTIVE_MAX_HOURS=SITE_VISIT_ACTIVE_MAX_HOURS,
+    SITE_VISIT_MAINTENANCE_LINK_MARGIN_MINUTES=SITE_VISIT_MAINTENANCE_LINK_MARGIN_MINUTES,
+    async_session=async_session,
+    logger=logger,
+    process_locks=process_locks,
+    record_import_job=lambda *args, **kwargs: record_import_job(*args, **kwargs),
+)
+maintenance_service = maintenance_services.create_service(maintenance_dependencies)
+api_maintenance_log_edit = maintenance_service["api_maintenance_log_edit"]
+clean_maintenance_option = maintenance_service["clean_maintenance_option"]
+fetch_owntracks_lilletorget_visits = maintenance_service["fetch_owntracks_lilletorget_visits"]
+find_site_visit_for_maintenance = maintenance_service["find_site_visit_for_maintenance"]
+link_unassigned_maintenance_logs_to_site_visits = maintenance_service["link_unassigned_maintenance_logs_to_site_visits"]
+maintenance_datetime_value = maintenance_service["maintenance_datetime_value"]
+maintenance_log_row = maintenance_service["maintenance_log_row"]
+maintenance_room_value = maintenance_service["maintenance_room_value"]
+maintenance_target_name = maintenance_service["maintenance_target_name"]
+normalize_maintenance_tags = maintenance_service["normalize_maintenance_tags"]
+owntracks_iso_to_local_naive = maintenance_service["owntracks_iso_to_local_naive"]
+owntracks_site_visit_sync_worker = maintenance_service["owntracks_site_visit_sync_worker"]
+owntracks_visit_request = maintenance_service["owntracks_visit_request"]
+record_owntracks_site_visit_sync_failure = maintenance_service["record_owntracks_site_visit_sync_failure"]
+run_owntracks_site_visit_sync = maintenance_service["run_owntracks_site_visit_sync"]
+site_visit_confidence_percent = maintenance_service["site_visit_confidence_percent"]
+site_visit_display_duration = maintenance_service["site_visit_display_duration"]
+site_visit_duration_label = maintenance_service["site_visit_duration_label"]
+site_visit_is_current = maintenance_service["site_visit_is_current"]
+site_visit_is_stale = maintenance_service["site_visit_is_stale"]
+site_visit_label = maintenance_service["site_visit_label"]
+site_visit_row = maintenance_service["site_visit_row"]
+site_visit_status_label = maintenance_service["site_visit_status_label"]
+sync_owntracks_site_visits_once = maintenance_service["sync_owntracks_site_visits_once"]
+from fibaro_core.services.runtime import control as control_services
+control_dependencies = control_services.Dependencies(
+    UNIFI_PROTECT_API_TIMEOUT_SECONDS=UNIFI_PROTECT_API_TIMEOUT_SECONDS,
+    UNIFI_PROTECT_EVENTS_URL=UNIFI_PROTECT_EVENTS_URL,
+    UNIFI_PROTECT_READ_API_TOKEN=UNIFI_PROTECT_READ_API_TOKEN,
+)
+control_service = control_services.create_service(control_dependencies)
+bollard_image_cache_control = control_service["bollard_image_cache_control"]
+protect_ledger_client = control_service["protect_ledger_client"]
+protect_ledger_json = control_service["protect_ledger_json"]
+from fibaro_core.services.runtime import mobile_preview as mobile_preview_services
+mobile_preview_dependencies = mobile_preview_services.Dependencies(
+    MOBILE_PREVIEW_MONEY_KEYS=MOBILE_PREVIEW_MONEY_KEYS,
+    MOBILE_PREVIEW_REFRESH_SECONDS=MOBILE_PREVIEW_REFRESH_SECONDS,
+    MOBILE_PREVIEW_SCREENS=MOBILE_PREVIEW_SCREENS,
+    mobile_preview_access_key=lambda *args, **kwargs: mobile_preview_access_key(*args, **kwargs),
+)
+mobile_preview_service = mobile_preview_services.create_service(mobile_preview_dependencies)
+mobile_preview_can_view_money = mobile_preview_service["mobile_preview_can_view_money"]
+mobile_preview_html = mobile_preview_service["mobile_preview_html"]
+mobile_preview_injected_head = mobile_preview_service["mobile_preview_injected_head"]
+mobile_preview_screen_payload = mobile_preview_service["mobile_preview_screen_payload"]
+mobile_preview_screens_for_request = mobile_preview_service["mobile_preview_screens_for_request"]
+render_mobile_preview_screen = mobile_preview_service["render_mobile_preview_screen"]
+from fibaro_core.services.runtime import cache as cache_services
+cache_dependencies = cache_services.Dependencies(
+    SUMMARY_CACHE=SUMMARY_CACHE,
+    SUMMARY_CACHE_TTL=SUMMARY_CACHE_TTL,
+)
+cache_service = cache_services.create_service(cache_dependencies)
+cached_summaries = cache_service["cached_summaries"]
+clear_summary_cache = cache_service["clear_summary_cache"]
+get_energy_summaries = cache_service["get_energy_summaries"]
+get_parking_summaries = cache_service["get_parking_summaries"]
+get_sun2_summaries = cache_service["get_sun2_summaries"]
 
 
 # HTTP composition. Route order is part of the public contract.

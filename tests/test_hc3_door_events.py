@@ -44,7 +44,7 @@ def test_alarm_history_schema_and_backfill_are_present():
 
 
 def test_hc3_door_poll_worker_is_configured():
-    source = Path("main.py").read_text(encoding="utf-8")
+    source = Path("fibaro_core/services/runtime/sunroom.py").read_text(encoding="utf-8")
 
     assert "HC3_DOOR_UNEXPECTED_CHECK_INTERVAL_SECONDS" in source
     assert "hc3_door_poll_worker" in source
