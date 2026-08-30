@@ -281,6 +281,7 @@ def create_router(dependencies: Dependencies) -> RouterBundle:
 
     @router.get("/api/import-status/{job_name}")
     async def import_status_detail(job_name: str):
+        from fibaro_core.services.source_evidence import source_data_evidence
         api_import_job_run_row = dependencies.api_import_job_run_row
         api_import_status_row = dependencies.api_import_status_row
         async_session = dependencies.async_session
@@ -290,6 +291,7 @@ def create_router(dependencies: Dependencies) -> RouterBundle:
             row = next((item for item in rows if item.get("job_name") == job_name), None)
             if not row:
                 raise HTTPException(status_code=404, detail="Datakilde ikke funnet")
+            evidence = await source_data_evidence(session, job_name)
             runs = (
                 await session.execute(
                     select(ImportJobRun)
@@ -304,6 +306,7 @@ def create_router(dependencies: Dependencies) -> RouterBundle:
         failed_runs = sum(1 for run in runs if run.ok is False)
         return {
             "source": api_row,
+            "evidence": evidence,
             "runs": [api_import_job_run_row(run) for run in runs],
             "summary": {
                 "runs": total_runs,

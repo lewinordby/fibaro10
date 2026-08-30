@@ -32,7 +32,7 @@ def normalize_local_naive(value: Optional[datetime]) -> Optional[datetime]:
         return None
     if value.tzinfo is not None:
         return value.astimezone(LOCAL_TZ).replace(tzinfo=None)
-    return value.replace(tzinfo=None)
+    return value
 
 
 def utc_naive_to_local_naive(value: Optional[datetime]) -> Optional[datetime]:

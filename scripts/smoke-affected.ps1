@@ -7,6 +7,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "script-runtime.ps1")
 $hostAddress = "192.168.20.218"
 $healthUrls = @{
     fibaro10 = "http://${hostAddress}:8110/health"
@@ -56,8 +57,7 @@ $appIds = @{
 }
 $affectedApps = @($Services | ForEach-Object { $appIds[$_] } | Where-Object { $_ })
 if (-not $SkipRoutes -and $affectedApps.Count -gt 0) {
-    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "smoke-domain-apps.ps1") -AppIds $affectedApps
-    if ($LASTEXITCODE -ne 0) { throw "Rutekontroll av berørte apper feilet" }
+    Invoke-ProjectScript "smoke-domain-apps.ps1" @{ AppIds=$affectedApps }
 }
 
 Write-Host "Avgrenset produksjonskontroll OK: $($Services -join ', ')"

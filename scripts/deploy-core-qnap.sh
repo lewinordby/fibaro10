@@ -22,12 +22,12 @@ is_healthy() {
 wait_healthy() {
     wait_name=$1
     wait_count=0
-    while [ "$wait_count" -lt 90 ]; do
+    while [ "$wait_count" -lt "${DEPLOY_HEALTH_ATTEMPTS:-90}" ]; do
         if is_running "$wait_name" && is_healthy "$wait_name"; then
             return 0
         fi
         wait_count=$((wait_count + 1))
-        sleep 2
+        sleep "${DEPLOY_POLL_SECONDS:-2}"
     done
     "$DOCKER" logs --tail=120 "$wait_name" || true
     echo "$wait_name did not become healthy" >&2
@@ -43,14 +43,14 @@ verify_core() {
 
 wait_gateway_build() {
     gateway_count=0
-    while [ "$gateway_count" -lt 60 ]; do
+    while [ "$gateway_count" -lt "${DEPLOY_HEALTH_ATTEMPTS:-60}" ]; do
         gateway_build=$(curl -fsS --max-time 5 http://192.168.20.218:8110/health 2>/dev/null \
             | sed -n 's/.*"build":"\([^"]*\)".*/\1/p' || true)
         if [ "$gateway_build" = "$EXPECTED_BUILD" ]; then
             return 0
         fi
         gateway_count=$((gateway_count + 1))
-        sleep 1
+        sleep "${DEPLOY_POLL_SECONDS:-1}"
     done
     echo "Fibaro10 gateway did not switch to build $EXPECTED_BUILD" >&2
     return 1
@@ -88,9 +88,38 @@ if [ -n "$active" ]; then
     active_name="fibaro10_$active"
 fi
 
+if [ -z "$active_name" ]; then
+    echo 'No healthy existing core: use the documented bootstrap procedure, not a rolling deploy.' >&2
+    exit 1
+fi
+previous_image=$("$DOCKER" inspect --format '{{.Image}}' "$active_name")
+previous_build=$("$DOCKER" exec "$active_name" python -c "import json,urllib.request; print(json.load(urllib.request.urlopen('http://127.0.0.1:8110/health',timeout=5))['app']['build'])")
+"$DOCKER" tag "$previous_image" "fibaro10-core:rollback-$previous_build"
+candidate_touched=0
+worker_touched=0
+rollback() {
+    result=$?
+    trap - EXIT
+    if [ "$result" -ne 0 ]; then
+        echo "Core rollout failed; restoring $active_name / build $previous_build" >&2
+        if [ "$candidate_touched" = 1 ]; then compose stop "$candidate_name" || true; fi
+        "$DOCKER" start "$active_name" || true
+        if [ "$worker_touched" = 1 ]; then
+            "$DOCKER" tag "$previous_image" fibaro10-core:local
+            APP_BUILD="$previous_build" compose up -d --no-build --no-deps --force-recreate fibaro10_worker || true
+        fi
+        wait_healthy "$active_name" || true
+        wait_healthy fibaro10_worker || true
+        printf '%s\n' "$active" > "$STATE_FILE"
+    fi
+    exit "$result"
+}
+trap rollback EXIT
+
 echo "Core rollout: active=${active:-legacy}, candidate=$candidate, build=$EXPECTED_BUILD"
 compose build "$candidate_name"
-compose up -d --no-deps --force-recreate "$candidate_name"
+candidate_touched=1
+compose up -d --no-build --no-deps --force-recreate "$candidate_name"
 wait_healthy "$candidate_name"
 verify_core "$candidate_name" "web-$candidate"
 
@@ -101,10 +130,8 @@ case "$gateway_image" in
         "$DOCKER" exec fibaro10 caddy reload --config /etc/caddy/Caddyfile
         ;;
     *)
-        "$DOCKER" rm -f fibaro10 >/dev/null 2>&1 || true
-        compose up -d --no-deps fibaro10
-        wait_healthy fibaro10
-        ;;
+        echo 'Expected the existing Caddy gateway; refusing an implicit migration.' >&2
+        exit 1 ;;
 esac
 
 if [ "$active" = "blue" ]; then
@@ -115,9 +142,11 @@ if [ "$active" = "green" ]; then
     compose stop "$active_name"
 fi
 
-compose up -d --no-deps --force-recreate fibaro10_worker
+worker_touched=1
+compose up -d --no-build --no-deps --force-recreate fibaro10_worker
 wait_healthy fibaro10_worker
 verify_core fibaro10_worker worker
 
-printf '%s\n' "$candidate" > "$STATE_FILE"
+printf '%s\n' "$candidate" > "$STATE_FILE.tmp"
+mv "$STATE_FILE.tmp" "$STATE_FILE"
 echo "Core rollout complete: active=$candidate, build=$EXPECTED_BUILD"

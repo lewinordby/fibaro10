@@ -380,11 +380,11 @@ def create_service(dependencies: Dependencies):
             if bucket is not None:
                 sample_items.append((bucket, diff_w))
         sample_items.sort(key=lambda item: item[0])
-        sample_interval_candidates = [
-            (right[0] - left[0]).total_seconds()
-            for left, right in zip(sample_items, sample_items[1:])
-            if 5 <= (right[0] - left[0]).total_seconds() <= 300
-        ]
+        sample_interval_candidates = []
+        for left, right in zip(sample_items, sample_items[1:]):
+            seconds = (right[0] - left[0]).total_seconds()
+            if 5 <= seconds <= 300:
+                sample_interval_candidates.append(seconds)
         sample_interval_seconds = float(median(sample_interval_candidates)) if sample_interval_candidates else 30.0
 
         active: set[int] = set()
@@ -403,17 +403,17 @@ def create_service(dependencies: Dependencies):
                 and ventilation_items[ventilation_index][0] < sample_time
             ):
                 ventilation_index += 1
-            ventilation_candidates = []
+            nearest = None
             if ventilation_index < len(ventilation_items):
-                ventilation_candidates.append(ventilation_items[ventilation_index])
+                nearest = ventilation_items[ventilation_index]
             if ventilation_index > 0:
-                ventilation_candidates.append(ventilation_items[ventilation_index - 1])
+                previous = ventilation_items[ventilation_index - 1]
+                # Prefer the following sample on an exact tie, as before.
+                if nearest is None or sample_time - previous[0] < nearest[0] - sample_time:
+                    nearest = previous
             adjustment_w = 0.0
-            if ventilation_candidates:
-                nearest_time, nearest_fan_tak = min(
-                    ventilation_candidates,
-                    key=lambda item: abs((sample_time - item[0]).total_seconds()),
-                )
+            if nearest is not None:
+                nearest_time, nearest_fan_tak = nearest
                 if (
                     nearest_fan_tak
                     and abs((sample_time - nearest_time).total_seconds()) <= SUNBED_ANALYSIS_VENTILATION_MATCH_SECONDS

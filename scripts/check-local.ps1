@@ -1,4 +1,5 @@
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "script-runtime.ps1")
 
 function Run($exe, [string[]]$arguments, [string]$WorkingDirectory = "") {
     $original = (Get-Location).Path
@@ -38,21 +39,16 @@ Write-Host "Python dependency security audit"
 Run "python" @("scripts/audit_python_dependencies.py") $repoRoot
 
 Write-Host "Python unit tests"
-Run "python" @("-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py") $repoRoot
-Run "python" @("-m", "pytest", "tests/test_core_architecture.py", "tests/test_core_contracts.py", "tests/test_core_routers.py", "tests/test_operational_workspaces.py", "-q") $repoRoot
-Run "python" @("-m", "pytest", "tests/test_summary_calculations.py", "tests/test_summary_runtime.py", "tests/test_overview_batch_queries.py", "tests/test_revenue_top_weeks.py", "tests/test_domain_top_weeks.py", "-q") $repoRoot
-Run "python" @("-m", "pytest", "tests/test_comparison_contracts.py", "tests/test_comparison_windows.py", "tests/test_comparison_runtime.py", "-q") $repoRoot
-Run "python" @("-m", "pytest", "tests/test_forecast_services.py", "tests/test_extraction_integrity.py", "tests/test_runtime_composition.py", "-q") $repoRoot
+Run "python" @("-m", "pytest", "tests", "-q") $repoRoot
 Run "python" @("-m", "unittest", "revenue_app.tests.test_main") $repoRoot
 Run "python" @("-m", "unittest", "parking_app.tests.test_main") $repoRoot
-Run "python" @("-m", "pytest", "tests/test_domain_microapps.py", "tests/test_system_inventory.py", "-q") $repoRoot
 Run "python" @("-m", "pytest", "maintenance_mobile/tests", "-q") $repoRoot
 Run "python" @("-m", "pytest", "alarm_mobile/tests", "-q") $repoRoot
 Run "python" @("-m", "pytest", "tests", "-q") (Join-Path $repoRoot "unifi_protect_events")
 Run "python" @("-m", "pytest", "tests/test_profiles.py", "-q") (Join-Path $repoRoot "visual_anomaly_service")
 
 Write-Host "QNAP deploy plan tests"
-Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "test-deploy-plan.ps1")) $repoRoot
+Invoke-ProjectScript "test-deploy-plan.ps1"
 
 Write-Host "Mobile JavaScript syntax"
 Run "node" @("--check", "maintenance_mobile/app/static/maintenance-mobile.js") $repoRoot

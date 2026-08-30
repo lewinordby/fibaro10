@@ -37,6 +37,7 @@ forretningsregler, bakgrunnsjobber og integrasjoner.
 | `docs/utviklingsoppsett.md` | Test, deploy, backup og restore. |
 | `docs/api-kontrakter.md` | Kontrakten mellom kjerne, adaptere og Mantis. |
 | [docs/core-modules.md](core-modules.md) | Modulgrenser, kontrakttester og videre oppsplitting av main.py. |
+| [docs/quality-release-1837.md](quality-release-1837.md) | Avgrenset deploy, tilbakeføring, testkrav og presis datakildestatus. |
 
 Fagdokumentene for OwnTracks, kamera, kjøretøy, HC3, energi, SUN2, Roborock
 og Dreame ligger i samme katalog. Tjenester med egen drift har også README ved

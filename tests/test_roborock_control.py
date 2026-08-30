@@ -1,5 +1,6 @@
 from pathlib import Path
 import asyncio
+import importlib
 
 import pytest
 from fastapi import HTTPException
@@ -99,7 +100,7 @@ def test_logger_profile_rejects_conflicting_cleaning_settings():
 
 
 def test_logger_applies_and_verifies_every_profile_setting(monkeypatch):
-    pytest.importorskip("roborock.roborock_typing")
+    importlib.import_module("roborock.roborock_typing")
     calls = []
 
     class Rpc:
@@ -144,7 +145,7 @@ def test_mop_wash_settings_accept_only_supported_modes_and_intervals():
 
 
 def test_logger_applies_and_reads_back_mop_wash_settings(monkeypatch):
-    pytest.importorskip("roborock.roborock_typing")
+    importlib.import_module("roborock.roborock_typing")
     calls = []
     state = {"wash_mode": 1, "smart_wash": 0, "wash_interval": 600}
 

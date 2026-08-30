@@ -46,6 +46,12 @@ def test_all_relocated_function_bodies_preserve_original_behavior():
     # Dispatcher branches and the intentionally repaired classic redirect have
     # their own contracts below instead of exempting the rest of the code.
     special = {'build_sun2_forecast', 'build_parking_forecast', 'api_v2_module', 'classic_light_settings_view'}
+    # Post-extraction changes: concurrency/invalidation tests and differential
+    # energy analysis tests compare actual behavior with the frozen old body.
+    special.update({'cached_summaries', 'clear_summary_cache', 'build_sunbed_power_analysis'})
+    # Additive measurement evidence is covered by the data-source endpoint tests.
+    special.add('import_status_detail')
+    special.add('import_status_rows')  # Additive provenance; times/thresholds preserved.
     differences = [name for name, digest in expected.items() if name not in special and digest not in candidates[name]]
     assert not differences, differences
 

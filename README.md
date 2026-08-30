@@ -37,6 +37,8 @@ Prognoser og oppgjør har egne moduler. Importorkestrering, alarmer og arbeidere
 ligger under `services/runtime/`, med eksplisitte avhengigheter til ressurser
 opprettet én gang i `main.py`. Oppstart og nedstenging ligger i `lifecycle.py`.
 Se [modulgrensene](docs/core-modules.md) før videre backendendringer.
+Se også [kvalitetsrunde 1837](docs/quality-release-1837.md) for deploy,
+tilbakeføring, cache, frontendstruktur og skillet mellom import- og datatid.
 
 ## Dokumentasjon
 

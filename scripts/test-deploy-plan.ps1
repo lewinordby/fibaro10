@@ -6,11 +6,16 @@ if ($core.All -or ($core.Services -join ",") -ne "fibaro10" -or $core.EasyPark -
     throw "Core deploy plan is wrong: $($core | ConvertTo-Json -Compress)"
 }
 
-foreach ($coreModule in @("fibaro_core/models/sun.py", "fibaro_core/schemas/parking.py", "fibaro_core/routers/assets.py", "fibaro_core/database.py", "fibaro_core/services/summaries/parking.py", "fibaro_core/services/comparisons/overview.py", "value_parsing.py")) {
+foreach ($coreModule in @("fibaro_core/models/sun.py", "fibaro_core/schemas/parking.py", "fibaro_core/routers/assets.py", "fibaro_core/database.py", "fibaro_core/services/summaries/parking.py", "fibaro_core/services/comparisons/overview.py", "value_parsing.py", "build_history/entries.json", "Dockerfile.dockerignore")) {
     $plan = Get-DeployPlan -ChangedFiles @($coreModule)
     if ($plan.All -or ($plan.Services -join ",") -ne "fibaro10" -or $plan.EasyPark -or $plan.Roborock -or $plan.Dreame) {
         throw "Core module must only deploy Fibaro10: $coreModule"
     }
+}
+
+$testsOnly = Get-DeployPlan -ChangedFiles @("requirements-dev.txt", "tests/test_deploy_safety.py", "scripts/check-affected.ps1")
+if ($testsOnly.All -or $testsOnly.Services.Count -or $testsOnly.EasyPark -or $testsOnly.Roborock -or $testsOnly.Dreame) {
+    throw "Test dependencies and test tools must not restart production services"
 }
 
 foreach ($adapter in @(
@@ -56,13 +61,19 @@ if ($multiple.All -or ($multiple.Services -join ",") -ne "fibaro10,unifi_protect
 }
 
 $deployScript = Get-Content -LiteralPath (Join-Path $PSScriptRoot "deploy-qnap.ps1") -Raw
-foreach ($required in @("deploy-core-qnap.sh", "check-affected.ps1", "smoke-affected.ps1", '$broadValidation')) {
+foreach ($required in @("deploy-release.sh", "check-affected.ps1", "smoke-affected.ps1", '$broadValidation')) {
     if ($deployScript -notmatch [regex]::Escape($required)) {
         throw "Deploy script is missing $required."
     }
 }
-if ($deployScript -notmatch 'DOCKER_BIN="\$Docker" sh scripts/renew-internal-https\.sh') {
-    throw "Deploy script must issue the active internal certificate before reloading Caddy."
+$releaseScript = Get-Content -LiteralPath (Join-Path $PSScriptRoot "deploy-release.sh") -Raw
+foreach ($forbidden in @('git reset --hard', 'git clean', '/sync-now', 'set_env_value', 'compose down')) {
+    if (($deployScript + $releaseScript) -match [regex]::Escape($forbidden)) {
+        throw "Deployment contains unrelated/destructive action: $forbidden"
+    }
+}
+foreach ($required in @('git merge --ff-only', 'deploy-core-qnap.sh', '--no-deps', 'deploy.lock')) {
+    if ($releaseScript -notmatch [regex]::Escape($required)) { throw "Missing release guard: $required" }
 }
 
 $coreGateway = Get-DeployPlan -ChangedFiles @("Caddyfile.core")

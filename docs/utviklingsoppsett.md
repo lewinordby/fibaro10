@@ -1,6 +1,6 @@
 # Utviklingsoppsett
 
-Oppdatert 29.08.2026.
+Oppdatert 30.08.2026.
 
 ## Repoer
 
@@ -18,7 +18,9 @@ eller frontendkode tilbake til Fibaro10-adapterne.
 Fra Fibaro10-repoet:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-local-dev.ps1
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements-dev.txt
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-local.ps1
 ```
 
@@ -43,8 +45,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-qnap.ps1
 
 Mantis deployes fra Mantis-repoet med dets `scripts/deploy-qnap.ps1`. Kiosk
 deployes fra kiosk-repoet. Standard backenddeploy bruker blå/grønn kjerneswitch,
-starter worker på ny versjon, bygger bare berørte tjenester og kjører health og
-smoke før den gamle kjernen stoppes.
+starter worker på ny versjon og bygger bare berørte tjenester. Kandidaten må
+bestå health før trafikken flyttes; smoke kjøres etterpå. Ved oppstartsfeil
+tilbakeføres berørt tjeneste. Se [deploy- og rollbackreglene](quality-release-1837.md).
+Bruk `-PlanOnly` før utrulling. På Linux brukes `pwsh`; aktiver venv med
+`source .venv/bin/activate`. Deploy- og testscript kaller hverandre i samme
+PowerShell-prosess slik at lister og parametere bevares.
 
 Nyttige kontroller:
 
