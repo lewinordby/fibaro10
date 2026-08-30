@@ -12,6 +12,37 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1831",
+        "date": "30.08.2026",
+        "headline": "Beregninger og rangering har fått egne fagmoduler",
+        "title": "Andre etappe av oppsplittingen av main.py bevarer summer, perioder og datatidspunkt",
+        "description": (
+            "Beregninger for soling, parkering, omsetning og energi er flyttet til egne moduler. "
+            "Dette omfatter summer, topplister, rangering, periodeoppslag og akkumulerte årskurver. "
+            "To overstyrte kalenderfunksjoner er fjernet, mens de aktive variantene er bevart. "
+            "main.py er redusert med ytterligere 1 212 linjer, til 39 128."
+        ),
+        "applications": [
+            "Fibaro10 kjerne/API: egne beregningsmoduler med eksplisitte databasesesjoner.",
+            "Omsetning, Parkering, Soling og Energi: uendrede tall, API-er og presentasjon.",
+            "Test og dokumentasjon: beregningskontrakter, kalendergrenser, cache og importtidspunkt.",
+            "Datainnsamlere og frontend: ingen kode-, tidsplan- eller designendringer.",
+        ],
+        "request": "kjør på",
+        "work_duration": "ca. 45 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Flyttet 52 aktive funksjoner og SUN2-feltdefinisjonen til fagmoduler og felles verdiparsing.",
+            "Låst beregningsresultater og SQL mot kontrollgrunnlag registrert før flyttingen.",
+            "Kontrollert at dagsimport og enkelttimer ikke dobbelttelles for samme dag.",
+            "Bevart separate datatidspunkt for soling og parkering, også ved mislykket nyere import.",
+            "Bevart batchspørringer, cachelevetid, tvungen oppdatering og avgrenset cachetømming.",
+            "Fjernet overstyrte kalenderfunksjoner og lagt til kontroll mot nye doble definisjoner.",
+            "Utvidet CI-kontrollen og dokumentert modulgrenser og gjenstående oppsplitting.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1830",
         "date": "30.08.2026",
         "headline": "Første del av main.py er skilt ut i egne moduler",

@@ -1,16 +1,17 @@
 # Fibaro10 core modules
 
-Updated 2026-08-30, build 1830.
+Updated 2026-08-30, build 1831.
 
 ## Scope
 
-This is the first stage of splitting `main.py`, not a rewrite or a new
+The first two stages of splitting `main.py` are complete, not a rewrite or a new
 microservice. The web and worker processes still run the same application,
 use the same PostgreSQL database and expose the same public endpoints.
 Frontend, collectors, schedules, authentication policy and database schema
 are unchanged.
 
-The entry point has decreased from 43,580 to 40,340 physical lines. The goal
+The entry point has decreased from 43,580 to 40,340 lines in build 1830 and
+to 39,128 physical lines in build 1831. The goal
 is clearer ownership and isolated testing; this change does not claim faster
 SQL queries or a measured reduction in user-facing response time.
 
@@ -27,6 +28,12 @@ SQL queries or a measured reduction in user-facing response time.
 | `fibaro_core/export_definitions.py` | Static export columns and dataset descriptions. |
 | `fibaro_core/services/assets.py` | Asset input mapping and output serialization. |
 | `fibaro_core/services/automations.py` | Automation-workbench input mapping and output serialization. Does not execute rules. |
+| `fibaro_core/services/summaries/sun.py` | Daily-import precedence, live-session fallback, batch period queries, totals, top lists and year curves. |
+| `fibaro_core/services/summaries/parking.py` | Parking aggregates, batch cutoff queries, top lists and year curves. |
+| `fibaro_core/services/summaries/energy.py` | Daily, monthly and yearly energy aggregates and estimated-hour counts. |
+| `fibaro_core/services/summaries/revenue.py` | Combined revenue, day/week/month rankings and accumulated year curves. |
+| `fibaro_core/services/summaries/periods.py` | Calendar normalization, ISO week identity, year navigation and the effective month helpers. |
+| `value_parsing.py` | Existing value parsers plus the extracted int_or_zero / float_or_zero conversions. |
 | `fibaro_core/routers/assets.py` | Four existing asset endpoints: list, create, update and discover. |
 | `fibaro_core/routers/automations.py` | Three existing workbench endpoints: list, create and update. |
 | `time_formatting.py` | Existing time helpers, including the extracted `api_local_iso`. Naive local timestamps retain their original meaning. |
@@ -56,6 +63,35 @@ tests still import them there. These are aliases to the same definitions,
 not duplicate implementations. New domain code should import the owning
 module directly.
 
+## Calculation boundaries
+
+Summary builders receive a session from the caller and only execute reads.
+They do not create engines, retrieve credentials, start imports or own caches.
+The existing `SUMMARY_CACHE`, five-minute lifetime, forced refresh and prefix
+invalidation remain in main. Selection of last-successful import timestamps
+and comparison windows also remains there; sun and parking retain independent
+cutoffs instead of using the wall clock.
+
+The migration preserves these rules:
+
+- SUN2 daily reports take precedence over individual sessions for the same
+  day, including a daily report with zero sales. Sessions fill missing days.
+- Period boundaries are start-inclusive and end-exclusive. Time snapshots
+  use the exact supplied timestamp, including seconds.
+- Batch time snapshots still execute one query for all requested periods;
+  SUN2 date snapshots execute three. Aggregate builders retain their query counts.
+- Weeks use ISO week-years. Calendar-year curves keep the existing ordinal
+  day alignment and leap-year behavior.
+- Existing room/vehicle rollups retain their maximum-daily-count semantics;
+  they have not been changed into distinct counts across the whole period.
+- Ranking still excludes the current/future period and nonpositive historical
+  totals, with ties receiving the same rank.
+
+The two shadowed definitions of `add_months` and `month_label` were removed.
+Only their previously effective implementations remain, now in periods.py.
+In particular, `add_months` returns the first day of the destination month;
+this release does not silently switch to preserving the input day number.
+
 ## Verification
 
 ```powershell
@@ -75,10 +111,17 @@ The focused core tests are also included in `scripts/check-local.ps1`:
   forbidden access, missing records, discovery deduplication and commit failures
   with injected test sessions. These tests never write to production.
 - Existing operational workspace tests import their domain services directly.
+- `test_summary_calculations.py` runs independently of main, with explicit
+  assertions and output/SQL fingerprints captured from build 1830 before
+  moving code. Cases cover mixed source history, refunds, missing values,
+  ISO boundaries, leap years, top-20 lists and exact timestamp limits.
+- `test_summary_runtime.py` verifies re-exports, source-specific cutoffs,
+  cache behavior and the absence of shadowed top-level function definitions.
 
 Do not regenerate `tests/fixtures/core_contracts.json` just to make a refactor
 pass. Only intentionally accepted public-contract changes justify a new
 snapshot; review the changed sections first.
+The same restriction applies to `tests/fixtures/summary_contracts.json`.
 
 ## Deployment
 
@@ -98,7 +141,7 @@ container start times before/after rollout.
 Most of main still needs modularization. Continue with one bounded domain at
 a time, not by blindly moving endpoint decorators:
 
-1. Summary calculations and queries for sun, parking, energy and revenue.
+1. Remaining comparison-window assembly, forecasts and settlement calculations.
 2. Read-oriented domain endpoints using explicit sessions and cache ownership.
 3. Import orchestration, alarm evaluation and background workers, preserving
    locks, schedules, transaction boundaries and lifecycle ownership.

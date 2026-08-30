@@ -28,6 +28,8 @@ kjernen, fagadapterne, integrasjonene, mobilflatene og driftsverktøyene.
 
 `main.py` er inngangspunktet til kjernen. `fibaro_core/` eier nå felles
 databasemodeller, valideringsmodeller og de første isolerte API-routerne.
+Summer, rangering og årskurver ligger i egne fagmoduler under
+`fibaro_core/services/summaries/`.
 Dette er interne moduler i samme tjeneste, ikke nye mikroapper.
 Se [modulgrensene](docs/core-modules.md) før videre oppsplitting.
 

@@ -76,3 +76,17 @@ def first_dict(value: Any) -> Dict[str, Any]:
     if isinstance(value, dict):
         return value
     return {}
+
+
+def int_or_zero(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def float_or_zero(value: Any) -> float:
+    try:
+        return float(value or 0)
+    except (TypeError, ValueError):
+        return 0.0
