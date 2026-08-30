@@ -1,6 +1,6 @@
 # Dokumentasjonsoversikt
 
-Oppdatert 29.08.2026.
+Oppdatert 30.08.2026.
 
 Dette er inngangen til dokumentasjonen for Lilletorget. Den eneste ordinære
 PC-flaten er Mantis på `https://app.lilletorget.net`. Mobilflatene beholdes som
@@ -36,6 +36,7 @@ forretningsregler, bakgrunnsjobber og integrasjoner.
 | `docs/intern-https.md` | DNS, TLS, intern tilgang og PWA. |
 | `docs/utviklingsoppsett.md` | Test, deploy, backup og restore. |
 | `docs/api-kontrakter.md` | Kontrakten mellom kjerne, adaptere og Mantis. |
+| [docs/core-modules.md](core-modules.md) | Modulgrenser, kontrakttester og videre oppsplitting av main.py. |
 
 Fagdokumentene for OwnTracks, kamera, kjøretøy, HC3, energi, SUN2, Roborock
 og Dreame ligger i samme katalog. Tjenester med egen drift har også README ved

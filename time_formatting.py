@@ -6,6 +6,14 @@ from zoneinfo import ZoneInfo
 LOCAL_TZ = ZoneInfo("Europe/Oslo")
 
 
+def api_local_iso(value: Optional[datetime]) -> Optional[str]:
+    if not value:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=LOCAL_TZ).isoformat()
+    return value.astimezone(LOCAL_TZ).isoformat()
+
+
 def local_now_naive() -> datetime:
     return datetime.now(LOCAL_TZ).replace(tzinfo=None)
 

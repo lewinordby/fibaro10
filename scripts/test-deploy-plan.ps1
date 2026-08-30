@@ -6,6 +6,13 @@ if ($core.All -or ($core.Services -join ",") -ne "fibaro10" -or $core.EasyPark -
     throw "Core deploy plan is wrong: $($core | ConvertTo-Json -Compress)"
 }
 
+foreach ($coreModule in @("fibaro_core/models/sun.py", "fibaro_core/schemas/parking.py", "fibaro_core/routers/assets.py", "fibaro_core/database.py")) {
+    $plan = Get-DeployPlan -ChangedFiles @($coreModule)
+    if ($plan.All -or ($plan.Services -join ",") -ne "fibaro10" -or $plan.EasyPark -or $plan.Roborock -or $plan.Dreame) {
+        throw "Core module must only deploy Fibaro10: $coreModule"
+    }
+}
+
 foreach ($adapter in @(
     "revenue_app", "parking_app", "sun_app", "energy_app",
     "operations_app", "maintenance_app", "system_app", "link_app"

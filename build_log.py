@@ -12,6 +12,36 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1830",
+        "date": "30.08.2026",
+        "headline": "Første del av main.py er skilt ut i egne moduler",
+        "title": "Felles modeller og to API-områder er isolert med uendrede kontrakter",
+        "description": (
+            "Kjernen har fått en tydelig intern modulstruktur. Alle 63 databasemodeller og 41 "
+            "valideringsmodeller er flyttet til fagmoduler, og Eiendeler og Automatisering har egne "
+            "routere med eksplisitte database- og tilgangsavhengigheter. main.py er redusert med "
+            "3 240 linjer. Dette er første del av oppsplittingen; øvrig forretningslogikk er bevart."
+        ),
+        "applications": [
+            "Fibaro10 kjerne/API: modeller, eksportdefinisjoner og databaseoppsett er skilt ut.",
+            "Eiendeler og Operasjon: eksisterende API-er har egne routere og tjenester.",
+            "Test og deploy: kontraktssikring og avgrenset utrulling av kjernepakken.",
+            "Mantis, mobilapper og datainnsamlere: ingen kode- eller designendringer.",
+        ],
+        "request": "da er det bare å sette igang med å fikse main.py",
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Samlet alle modeller i én felles metadataregistrering, uten endring av tabeller eller felt.",
+            "Bevart API-adresser, operasjonsskjemaer, ruteprioritet og validering mot kontraktskopi fra build 1829.",
+            "Isolert Eiendeler og Automatisering med injiserte avhengigheter og HTTP-tester.",
+            "Lagt til tester for tilgang, validering, databasefeil, importisolasjon og tidsformat.",
+            "Endret deploy-kartlegging slik at fibaro_core bare bygger kjernen.",
+            "Dokumentert modulgrenser, testkrav og hva som gjenstår i videre oppsplitting.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1829",
         "date": "29.08.2026",
         "headline": "Alle fagappene bytter nå side pålitelig",

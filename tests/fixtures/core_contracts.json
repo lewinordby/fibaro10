@@ -1,0 +1,2290 @@
+{
+  "definitions": {
+    "AI_DATASETS": "43128b81cc8b286d50932bd76528f29fc840dc09b51d239c37d0760674c2e8d1",
+    "AI_QUERY_COLUMNS": "34f3696d0933645c338dbecbc5ea63aab7d59253155feec4572613999252dec3",
+    "DOOR_EVENT_COLUMNS": "864c7d79e1f2216a8287b85542000993f5431d57cd42c5559e0e432762d89a7f",
+    "EASYPARK_REQUIRED_COLUMNS": "23a5513c4cb00c44a3ce23b128cbc9edf6a5724fa07e329da90846fa753b3eec",
+    "ENERGY_FIBARO_COLUMNS": "5ab0e25c9bc36a7588171e2dd9bd78de7b0de52fb973ddb16f8dd7740c8a17fa",
+    "ENERGY_HOURLY_COLUMNS": "b2c55d58ca43d7ca35abcf9bb0e3718014e8f43ac4469d4edd557bb2d0c5de59",
+    "ENERGY_IMPORT_COLUMNS": "d1c678956b7952cec962c575ed8ba7d699445e142fface98312438811484ee93",
+    "GENERIC_COLUMNS": "f3a095710530e04a6f4df11b4bc182cb5fa65fc2e46b5dce90dddaa8d915bea3",
+    "LIGHT_COLUMNS": "4252204f9b8d7f337f48585f115bff5919b13e9a0ba62509f12c4ae160603b2d",
+    "LIGHT_SAMPLE_COLUMNS": "d82828f6d7458477f338afa491e80d4b63e611fbbf38dbf43fef8173e0923d79",
+    "PERFORMANCE_INDEXES": "67cf67f4195e892c622ae21e068ce49efb351fe4b1188be849962cbc6da1ddce",
+    "ROBOROCK_JOB_COLUMNS": "bf141d189025d130a100ec8913daaa33b116de91629bbf38888c0a55d6a63f90",
+    "ROBOROCK_MAP_COLUMNS": "88391bbd7450efdf53565ffce006050a1bb30e4f6743f0fedf24bd1b00c8381c",
+    "ROBOROCK_ROBOT_COLUMNS": "58fd20fba3fe0246659348269d0760abe7649b92c1cc5487d51758a1bda97635",
+    "ROBOROCK_SCHEDULE_COLUMNS": "7359d3f26c272c0504060ead4b266fc0b42b13e16bb863eced93e6c7400d847e",
+    "ROBOROCK_STATUS_COLUMNS": "7439232e6413aaacb88814790fc88109df32547a431e95ef1bde3db6a0776d95",
+    "ROBOROCK_TELEMETRY_COLUMNS": "c745799e99493767f1f2935c936044b61d0698adeab81e3c8a2e2c91f2d64185",
+    "ROBOROCK_TELEMETRY_DISPLAY_FIELDS": "bb3fabeab8f0c1a12b2714499cc39e13ae2fbbd54c02f03d483c668982fef422",
+    "ROBOROCK_TELEMETRY_EVENT_COLUMNS": "c62d5e966c813e9d4023744c131e59775a767d830a0d2d49c51f42fbcb0f225f",
+    "STARTUP_COLUMNS": "89527230ab15dacaff44b160c8b6982690ff38da96584803cd5f3488fdd510cd",
+    "SUN2_BED_COLUMNS": "d90477daba2097623ea7bab1ae8713b21833f8eb80f4b5475d4d8431173b3c33",
+    "SUN2_FINANCE_SETTLEMENT_COLUMNS": "962540e4cdfcd7b4918ac58b28ca592cff85a716a8721da8ddf91bdba65c1535",
+    "SUN2_IMPORT_COLUMNS": "18fdf44ab10dab5b56b4f0190319112ce7a7e6dcb57fb76c5ae4ae78bb914624",
+    "SUN2_MEMBER_COLUMNS": "d6b8eb7671d1bf7e6baef72dc20021e4f13807179b1c17e2e33c420d8464cf4a",
+    "SUN2_PRODUCT_SALE_COLUMNS": "f13bf2fa2ca322e5c98533a713add56ec5e776f1c4b4cae895f12270dbea99cf",
+    "SUN2_ROOM_COLUMNS": "a48a15bc16a61cca954271227e129d39b8afb52d21648550e75ace4fe4ba487f",
+    "SUN2_SESSION_COLUMNS": "ae5ef629ccc0ae2eb5e473b4d1df84be2a4ee272093e885a1b0c05f63d33c4a8",
+    "SUN2_SESSION_IMAGE_COLUMNS": "031849e9d774ffe26f93357b5568bb6999493fe17784b543480dac328d674561",
+    "SUN2_SESSION_IMPORT_COLUMNS": "2d9d29366d01827fe185ebe28d2654d0a94ad4b9cc1dab7acc692f471f1682b6",
+    "VENT_COLUMNS": "959527b57991924d63afdf63e398096e90c25537293046924fee5282ec9229de",
+    "VENT_SAMPLE_COLUMNS": "ea1878a5fb6699c6711bb3cc544d0e9d099c886571653dcc36a71ac058b27e58",
+    "YR_LOG_TABLE_COLUMNS": "caadf73efba1c8e3234bd9f30982ca6366685855229cba458c670a2c4a74e655",
+    "YR_SAMPLE_COLUMNS": "76be956debfa0bbe39e47dc7e366b036d29e3db6c1a9733420d32e056353a858"
+  },
+  "operations": {
+    "DELETE /api/auth/session": "7c68f8111bed8f216dc003bea4837fbc729fa26ccc2e7920898c31ad1ff189c1",
+    "DELETE /api/renhold/cleaning-profiles/{profile_id}": "7b987a4570490a409f28d7bfe3f0d1e4ff716b573753e26c1add2c97c08d3d27",
+    "GET /": "301a3f7e95aa9bd53774dec1cca546aae57ac01427a2fc48ecacb645ff8c1a16",
+    "GET /ai": "e149acc4aad25e9e2e127e347e3d929cb1af92969de6c645bfd6a1d15b6b61ac",
+    "GET /ai/innstillinger": "c919411f0fd623e2bcd298bcdb0e41ff53dca784b0390338330ca251ec867cf9",
+    "GET /ai/sok": "2f1cbdc89af05998fe2471ed998ecbba1f46830d439242af299e4fff6a8d321b",
+    "GET /api/admin/builds": "ae55e6f97aa86ef2263541eed92514a58839a768c5914a54abec809732941f8d",
+    "GET /api/admin/builds/{build}": "df34133d070d8d1262bdd3d5dd01fe4375432435b53093d6163b759dec25d872",
+    "GET /api/admin/manual": "a949ee8529fe772f9a5ffdc8ae2840dd2d7ae325964ce0bd6eb48cde5f27632f",
+    "GET /api/ai/datasets/json": "d6d78f6de918c1e66767b428a2ba29cd3c3e05fd0d82d655bbe3cbd256b18100",
+    "GET /api/ai/logs/json": "2ac5f120d1386b1ace29bd132f17eb74e31d2a11f0d48529e5935c9589645e5c",
+    "GET /api/auth/me": "113d6eb213454dd73146714c8c75fb08b6b2b34c8a960db7975ab182ab433f3b",
+    "GET /api/cars/day": "33684865673b72cd46bdf3a2ee227f764b3bd70d7f2677827c4593e99da2b3e2",
+    "GET /api/cars/day/{plate}/detections": "8586e62fc0ccc137e62b7785bed5572bb8b5162be8418daaf30dc240db8a3da8",
+    "GET /api/cars/parking-control-report": "bf7b464042ff966a84fed842a6946f2893dd165bdd6fff12790c6c0948674011",
+    "GET /api/config": "7b0b18762b90bf6f4e8fb5766664a2fa8550dd80aeee5627b9c1f892ffb4f731",
+    "GET /api/config/{config_key}": "753e1680c4e2dd05e783bd82d57b7ae12ae54885b8b6a99bebba264ad34c5598",
+    "GET /api/energi/elvia/json": "e5792a5e2daf40bb71a9cf9cf52fe1f2c64133c3c6b85b73cb06dbda3b6522d8",
+    "GET /api/energi/fibaro/json": "cbc30e6384171d56234abca460d96e0d373fad79bc1f51c6a5468660812dc118",
+    "GET /api/energy/hc3-devices": "20a96275132fb7a02fcba11caa7d3181f61ee029cc87599470c1b58492ee83cf",
+    "GET /api/energy/nodes/live": "ed458e0b8d896a5ed6773636a11113ecae1a44cd4dbbe9ea3dec32da81efcee8",
+    "GET /api/hc3/door-events/json": "7a96ff8e399f239e7ff1f6cbc7876c0a7d1f246917595daa17d25afd15d336ec",
+    "GET /api/hc3/doors/alarm": "4a3f39ae23a4b64341a0de3742d11aa6b1c1acaf718dc2010ad249b4bdfa8a8c",
+    "GET /api/hc3/doors/status": "779864ae8cd5fc34698a050a36ee55cbab407313cde6c8bcdd2a5784281e5aaf",
+    "GET /api/hc3/doors/sunroom-logic": "e5d28aff250b389be64e1549772e57d2947fd57dc4158c9a8cfb2cb557e0d47e",
+    "GET /api/hc3/doors/sunroom-overview": "9141907ef0299038268183619d6d1d7c4fa7206ff53adb2340b2e63227889d87",
+    "GET /api/hc3/doors/sunroom-sessions": "57ca54b1fa8afa842733fb248537e6326db2f4977bfe800721305cd9118e3b9b",
+    "GET /api/hc3/doors/sunroom-sessions/{room_id}": "2b4b5b9ccb03b2288f560ea46f40e0669802c3f2e725e0d433aab1fbc55cf4a3",
+    "GET /api/import-status/json": "9e1c6e29ac1cfe0867f5ed67f3d9615d9e7e89b60e8b104c685c043879868b13",
+    "GET /api/import-status/{job_name}": "856acd92ada0489f8833bc562fc729c5833d39416ee25f6da87c7d82fa663591",
+    "GET /api/koble/worker/config": "3ada9bd90c4c31b40794fee778921844e929db2c48c42076f5dc4bf72927c18e",
+    "GET /api/maintenance/site-visits": "b6ea00a5c0a1595e226006a60901bd04cde3077485cd4d2e5b055a62ac027ae3",
+    "GET /api/maintenance/site-visits/{visit_id}": "a679ea35bf333c49bc1149d78c2f1e0b212010776f08dcdeaf8667826a84527a",
+    "GET /api/manual": "e8339daf992dc5762fba6cf50f75ec63b33ba337718343cc4d8a1af8549f634f",
+    "GET /api/mobile-preview/frame/{screen_key}": "1eb348a09ffdcbdd052fc6a9a6de5ada4bb100ae32db147e04ac982283f61fbc",
+    "GET /api/mobile-preview/screens": "10f874e9a702f21259f79c2514b49d426977127a08aa76578681c10ff154e017",
+    "GET /api/modules/{module}": "5f1477a1a2365daf8d2e008137687cd5208a0a13d898ed66132d0dc44070ab8d",
+    "GET /api/omsetning/year-comparison": "a73869283b93d53df6875e56943b42f163c3244be767106096eb2e2b3325eec0",
+    "GET /api/operations/overview": "55fe3f0434b15d718a2b8e417d8c1cb81335218223a9e7b523822d57e88dd384",
+    "GET /api/overview": "7adf90296da61dad6bb183f2f52c1321d0f56ee204523e630d1adc8a9e512aff",
+    "GET /api/parkering/kjoretoy/car-info-kandidater": "d15965488884624593cae8f52b822f7d43c338161352e95478a582ae8a14531f",
+    "GET /api/parkering/kjoretoy/mangler-navn": "cd4016428a6fcf0442528771d338b40da25089ca1335d65e71af9cc79cf4c55a",
+    "GET /api/parkering/kjoretoy/mangler-omrade": "d45eff4435d19c2306df6f3a2a27a2b3dc2c98a8c60b46ce31ddefa765d017cf",
+    "GET /api/parkering/time-distribution": "769d22c1bcd19aa7e2c3d3b6198e51e448ea4ce79aa1c748c4f02934ad888967",
+    "GET /api/parkering/weekly-averages": "45a24d52ad0e822570470cd7b591270712f161ec49bf9828fdd328414b21b8fa",
+    "GET /api/parkering/weekly-averages/years": "fd8b23f71355d1efdb8fb77bc19d4081eeb0ffa93e5d54a228df39680dca6764",
+    "GET /api/parkering/year-comparison": "cad15950663f72c95e5c9368870119fca2ad3549a6f47c51e292902dc755fa74",
+    "GET /api/parking/vehicles/{plate}": "68cde0b4ebb872eca1c982c68d2d52077a9828782ff7b1133769ea38a28c194c",
+    "GET /api/renhold/night-report": "c456aed5d576243ff0d6da38b0efeebfadf181c1cf3c3be32a159651a458bcc9",
+    "GET /api/renhold/refill-log": "88a0bc43e34b3309e8cc99bba9a33062c1c50fe6e85e2c4750f6d425f2b8017c",
+    "GET /api/renhold/robots/{duid}": "38ff3418154be8696230fbae8a08a33ccfd1937a646ae5a8f41cae7fcda5e68c",
+    "GET /api/renhold/water-report": "60798f8b4dc0d37c68ceba4982023cec65f8e21a87d1fbd5a3f723a8465949bc",
+    "GET /api/renhold/weekly-jobs": "5a099885ba527cd2f4ffe18319d763657b88505ef15c66a17e4af7b1cf688feb",
+    "GET /api/revenue/month": "3c2ece983dc8aa103a7e94534e0d082414f64b7436166759608e81ad3f95279b",
+    "GET /api/settlements/{settlement_id}": "c39e1e4ef10945422ecd39c74cef078e9056302b717c8f6d4f38940105eca21f",
+    "GET /api/settlements/{settlement_id}/attachment": "010f58771f1e21b4d52f752cb5b82c8e89ff78c6782ddd5833addedd63d2b05d",
+    "GET /api/soling/axis-snapshots/{snapshot_id}/image": "222fb8cd7d0a6284e6483b36ccae9c500d8fa28cb2348ad859f162e98b51a8f6",
+    "GET /api/soling/enkeltimer/{session_id}/image-browser": "e7da8cd49a61e88707057b1f517f99b801adeb947720e7a16cc9de0799ca3655",
+    "GET /api/soling/settlements/{settlement_id}": "b1258c007205bf246efde53864b6b67f0cb51cfcf0781ba6ccc7c5ceefe05f60",
+    "GET /api/soling/settlements/{settlement_id}/attachment": "8e83a4c5598e66ef88008bda224a90c99c7e47baeeddfdaf18fcb5e8c9cbd0c4",
+    "GET /api/soling/year-comparison": "4e817f85165d9e068ecc278b1876562c917b1758ee02674afa307d142373e374",
+    "GET /api/status/comparison": "a5325270fcf3d0ee53a52978e8cc6282b00cc2e23f46168e96962a0fb45c3089",
+    "GET /api/sun2/beds/json": "af8e635230aee4f0354bfe4bc6794b7ae6d10d4309949c1ef62020a254d0d6d8",
+    "GET /api/sun2/members/json": "76bc72d5f376c6523e6786161b53308aecfd624fcda452e0359d6629c401c0b9",
+    "GET /api/sun2/room-stats/json": "692c48dc6c242b4253f031aee7d19b8fde443b8543beb6af66c392e738a7e3e6",
+    "GET /api/sun2/sessions/json": "7305a76feb11343164186af11fdcfdba955fcc1ef494be1dcb74b94f49cd6f8a",
+    "GET /api/system/assets": "ebcb08e294a5aff7e4b79612ca288160fc924a978320354e810887c05d3a26dd",
+    "GET /api/system/automations": "4008073db416e4edeaa3a5ed3ab2fc3d1786f99bf2ac7367ab14ed241bea7e0c",
+    "GET /api/system/health": "b691c24aa01a46ff177178300961b2243ea562a09e15ef05445d67f017651a68",
+    "GET /api/system/notifications": "fd983c6adc08b0addcb16a55ef2fc0a8bf1dc5348c3c8eb766eb39955c4b280c",
+    "GET /api/system/resources/events/download": "cf9dd3997c803ce9710f01e22bbd7a9b906af40cafe76004bbe312616fb651b3",
+    "GET /api/system/resources/events/json": "8a7139a29eecbc92c4a8edf4100a3445a19d651605539a822202193c3663c830",
+    "GET /api/system/resources/lights/samples/download": "cf847ac69c1e0625c68731611ec07f72ee36d1aa7caf68ff366126f1d11a68a9",
+    "GET /api/system/resources/ventilation/samples/download": "02d25fcd8112889eba3902204a44d413cc577ca1616e547b758be75f1adde644",
+    "GET /api/system/resources/yr/samples/download": "7f5c8a6dba40c25bac6b94067fd492c9a37d397e23b83b50e7e5b79849609cd3",
+    "GET /api/system/search": "4d1fbdc4afb7194a51968e147aa1665d75a1b9b86ba832def2138e5e55f8b153",
+    "GET /api/system/subsystems": "301356eb68e9a1eea53ee153fe6dba65746896f2b3108f6ae1d052e77ab83aec",
+    "GET /api/unifi-protect/bollards": "c679668acda40121da21b7282a018342cf7ca3a8859b262f1f1106eea247b665",
+    "GET /api/unifi-protect/bollards/assets/{asset_key}/{kind}": "e40a3158df7b14d8cac26f785ef01a592ff1a2cbac2ad8aa559b27a6974473d0",
+    "GET /api/unifi-protect/bollards/cameras/{camera_id}/{kind}": "cb990c5cc1beaad102ea6aac031e6da7e09ca347a0d3355f96d6b7ec250d2831",
+    "GET /api/unifi-protect/bollards/cameras/{camera_id}/{kind}/crop": "c578ae827df618814d0486e7a0dbd4fec9e73ffa0b1f5e7531a31ae2145121ca",
+    "GET /api/unifi-protect/bollards/incidents/{incident_id}/images/{camera_id}/{kind}": "8b35267c62b2bd6d88c0f3252fa8b056e6409fa36e2e4f13db17249ecc52535f",
+    "GET /api/unifi-protect/bollards/mobile-notifications": "952074dff9a9252e95e8609b97ef2174a5867e51fef117d4ec30d21b48fddca1",
+    "GET /api/unifi-protect/bollards/regions/{region_id}/baseline": "67e17cef63b056fd1c8d7665c3c85c4e14521949d2df45fb723d7ea321019316",
+    "GET /api/unifi-protect/cameras": "524fcb763ee72049fe9232ca67f1cbabb7f516ba938927408686ef79f9d7709f",
+    "GET /api/unifi-protect/capabilities": "ced51179878681a286b8e23835a0729b1dbbb4e72096a8d06805c1e7ff62156b",
+    "GET /api/unifi-protect/events": "ab0cd82bd6f75e8a8e0887f41ec07d20d96e201d7a52f9bfd0cb0142cbe96fc5",
+    "GET /api/unifi-protect/events/{source_event_id}/snapshot": "fbfb84319490d03698d2d74441d68f711e0964f372206d9a87d61d864518720b",
+    "GET /api/unifi-protect/license-plates/daily": "e766f9ac3a92acb07fa21feb7c6f98337d9150c0b846a6cfe9daa26d408449cb",
+    "GET /api/unifi-protect/recognitions": "a423576e7b4e9dafae1293bc6c17d8000930e782175b0b8ee48d036c00eeaa86",
+    "GET /api/unifi-protect/recognitions/{recognition_id}": "6128805bb38338604d17b643b3ecfc22b30a526e807ca6c387008c6261dfedf5",
+    "GET /api/unifi-protect/recognitions/{recognition_id}/snapshot": "933436cb7984bcbd943e4a0d4291f93de3ccd92b8b3c31e0bff421f7fdd7a683",
+    "GET /api/unifi-protect/stats": "ab9b9ad7a7a80a5f7cbca7b3d4e7d2d9e9d9b55ade1b6e4a828d1a04d19fd80e",
+    "GET /api/unifi-protect/status": "1d3deb8ec6eb54079fe20c3c3bcae5635a3607f7a354a1f5831131489ac1b536",
+    "GET /auth/login": "b73db6e7f0f3a52da98b9632eb28a81f2aab354745a65e82a9fba899316d40d6",
+    "GET /classic/energi/forbruk-per-seng": "e8ea8ff0ff6f1b2b387904e33eb00cd9d83ee39bf51d07bbeda33062a10900ab",
+    "GET /classic/energi/kurser/pdf": "7ef4673858291807d393f2438b0acb7f32a12c5e7eace1d36393725fbb03009a",
+    "GET /classic/energi/laster/pdf": "ffdb92c0b4c0e00b8b33ad8f1903b7777d056c0c1b6b03c7e46ae3087f5501fc",
+    "GET /classic/lys/innstillinger": "7c0388e925e5d1843d651cf258f9283eb32fe983b0afe9037554ab2d93f44f47",
+    "GET /classic/parkering/kjoretoy": "5ba0cb466125159cfe7f35027885c6d2bf340624876ddecedcfde3c08877ba9f",
+    "GET /classic/parkering/kjoretoy/{plate}": "9b9c89e108dbbe5ff53276c5a2703450ff08a9f99d8f5d018ba54dd5d8ea3852",
+    "GET /classic/parkering/navn-oppslag": "af43b4cc67e896334ef50b1bc88ef98047aed8ea9b6733e5f478bbd3b3f494ce",
+    "GET /classic/parkering/omrade-oppslag": "aa2d954fd2b217b8989439420f224ac2a91effed538eb6430e05ef0a1bba62b8",
+    "GET /classic/renhold/json": "76ec7613aeddaafedd83864b5921be6c76a8e577c77896da15ad2458a0d3f577",
+    "GET /classic/renhold/oversikt": "b0a7ffd34b219b7c5ea5885b7aed2280f4b1ce5cf0a371941949080467395668",
+    "GET /classic/renhold/robot/{duid}": "47ceaf1f3f8715eb6763b601762fb9df170ac2dba48fdefc343e156330e2980a",
+    "GET /download": "f86b814a311bb14f52eb2bd832cd1395e87335946053f00b84b3120526d4357d",
+    "GET /energi": "065a8b45ffc6f156b9e4f914ed741989890d1d6bd9e867488da18b38d4b68d58",
+    "GET /energi/elvia": "6fc7ba87d4507423af0f9b96bbcbfc25b3401612927b8439bc586f9f1e688663",
+    "GET /energi/forbruk-per-seng": "4b45167ef9fbe8eba33f184e3a84979e25266d37963e6ab710d41908914cf269",
+    "GET /energi/kurser": "3602be31f37f8378e805168867d943e83bc4ecdc7929db890c9695b2b2482922",
+    "GET /energi/kurser/pdf": "0c4685a2bdae6055b7a7a7aef2a614e6b887c18c2f4a6016c517f4a16b058f59",
+    "GET /energi/laster": "174f7dcf7f40ed9f931eb73a9f6b278c205c8dc8f85ff3abb38941f4872c773e",
+    "GET /energi/laster/pdf": "bbc046c29294debec010494d2308cb874d46fce3e8dcdaa86583f58240a5f6fc",
+    "GET /energi/oversikt": "23a3126505905b63b3ad44183b48321a709176c8717eb072e3a308cfcde5ea2e",
+    "GET /energi/soling": "fcb6ff7561a1d4b7fde8bade8d529d7233aef75b386cba80c4a2419760c4e543",
+    "GET /energi/status": "825f30fa4ed05e7e7468fb37df5c2d5fccca3d90926729d15edb19339f543c0e",
+    "GET /energi/testside": "bac6db36de2e08ae135efc64212d750e5dde9437a98fbe3060b0d58aa014c16f",
+    "GET /events/download": "4a3f5a05c0151862eb4a64f56dcc0479b09bd77f839ea9baf24277fc7b45c861",
+    "GET /events/json": "d6d2f082b026e6d40fa589be5b37806e6ad212fc684e701eb68d49147e2c69e6",
+    "GET /favicon.ico": "ad552f6aa497496bfa01e2df8f6a630d51eb8ba39f61682ee816edbb2622a427",
+    "GET /health": "7b53b2b342e69b29ff86657265034653d77e20b8d85ff42f6af7c5fac9846866",
+    "GET /konto/brukere-og-tilgang": "fdf15c8883b8059061472c2e5f7f25f34c728e0005e022aa1906adee188c7944",
+    "GET /konto/build": "732d27d9f297e43c2f969872f733f3fec724def1e62c340a7a78d86ca41b9178",
+    "GET /konto/manual": "5a88b8560ef16a8ef2569991617d9857aea08d887ff2707a99d21ee5d3fa5215",
+    "GET /konto/oversikt": "61d4f3d5c9a532404d4dbe57c1f1376f2743ac3191353d800d65e2bbe646d3b6",
+    "GET /konto/teknisk": "9b5201396f86703aa51914fcf41baa42e77a4b7506dfce543f769652c638a049",
+    "GET /lights/download": "eb67f26dcc881a1cd82ec6d92808a31c2295a2a8d03bb41c9c77f2d5f0029338",
+    "GET /lights/json": "1cb989fd47323f391ae3e246b7ae79700d23dac3a71a0b56f02a764bebb7db3e",
+    "GET /lights/samples/download": "78e554b46f623a8e757a2731e55193d98879edd2a9016cce09cfb9301b757f43",
+    "GET /lights/samples/json": "4c88200f8bef04e43e38750687743d696b849a3d6b04ad071744ba0cf254123a",
+    "GET /lys": "4ccfd922dec815be464045d8ba0aedc30afe2d4120f3dc3ccda243b57303106e",
+    "GET /lys/dagslogg-lux": "152981c9af6a6356f2b5ed52baaa5da381f90f764b092cf78e492563fa8f4e99",
+    "GET /lys/hendelser": "bbfdfd5fc9efe2d3ffd3bcb7a7a6f988edbbab10aefd89dff49a47c4b3860822",
+    "GET /lys/lux-logging": "9f399de06614f81ace830494e53a8973bd73799991e4369bd514ee3e4589ee5e",
+    "GET /parkering": "501f00afcebf3711470097bd7be505ff233f7debdcd7ab86f353f3ca5dfc9cff",
+    "GET /parkering/bilstatistikk": "9692bd9b1413304abc6c44b41b45b2b52137e90e7c46227f435831b175ba328d",
+    "GET /parkering/kjoretoy": "f42562e03f52ddd167ed31f5d44ed59076be9f737250184df72fadfddf1406d7",
+    "GET /parkering/kjoretoy/{plate}": "f62689c8ea31f0b579c72328f6c3e8a025727dde2947fa7c09485bb1a5b7f4f1",
+    "GET /parkering/navn-oppslag": "8479e25b2371a3b8ca636dac574509fa633dc141f0e05ac9e1f4582699f9d6fd",
+    "GET /parkering/omrade": "17be8c1e0d585d99a165f4066ff4c1a6315ce4ec0560f74e6658fcdc48c49261",
+    "GET /parkering/omrade-oppslag": "334bf12f52c38999f5ee11a86a53ee4ef9391f8bb09486bc5f74145ce5c77f61",
+    "GET /parkering/oversikt": "121badde6dc52f9943878f2f3939e871235a45314795c5e6c076ce21636adc6b",
+    "GET /parkering/parkeringer": "a87827d893bbb832428e1adf74245422ffcee04f8ee674981adf86c664fd4aea",
+    "GET /parkering/prognose": "0e88c73183b31019f2bc12aba6ea43db49cc20d0017ba345a2bc41acb1a71156",
+    "GET /parkering/statistikk": "03df15e85605cbe72cdcc41cd28333936b0c3448746c667a2b59be0fdd64dbb4",
+    "GET /renhold/json": "124e937eed392fbe59a31e3df267b572454693bbec05bd242aa5c84aeff7e8bc",
+    "GET /renhold/oversikt": "ae9be6398c128c0e40594752a9b5a5a737e932830068203543badff8013820e5",
+    "GET /renhold/robot/{duid}": "a8dba4a407644a726d8120031b8fd978112026cc9c79aa1240d77d009057d7e9",
+    "GET /soling": "1cfe1e80071c8bd60a266be585f937a1a2115d391d41c63c02b6588517a127e0",
+    "GET /soling/dagslinje": "ac8fa1d1e0c0663815a628ff23ffdbef82ea024f694e45944944e285e722c4cb",
+    "GET /soling/detaljer": "4c1116663c5ab020b8f1cd63b0f9b736b0cb65a0f519fac8ec82cc57d3bbb125",
+    "GET /soling/enkeltimer": "7e5b68762acc40fdf7638f71c73aeb399c44942bf94141beeb8a9e855aeebf47",
+    "GET /soling/enkeltimer/{session_id}/bilde.jpg": "607dad7ecaaf3c83a8b8688ba02c711dd8ad7504cf4b4d4382fd7e36abb7d729",
+    "GET /soling/enkeltimer/{session_id}/bilder/{image_id}.jpg": "dec69d16f1cdd9436d9ace48e7d84afa91c2d6ec7bae7bec0c076a36f10e2d62",
+    "GET /soling/medlemmer": "c88eb7255a33d3133d75804744f80afb700742ab81c18d8c7d3d77d8e207291d",
+    "GET /soling/oversikt": "dfff4dc587a069c0242ca8029f371b103f0c41559068fd82ce83149e4f9791c3",
+    "GET /soling/prognose": "1236b237795569a6e426f23f7eaf9976e7e8bbc084c7fb1a5082037e82215387",
+    "GET /soling/senger": "baa0a4f336e10f07eadddf78eaf25bff074f2a9160367de1884abd877a04ac31",
+    "GET /status/dagslinje": "f5ec47ab3c0ab1057efa1523209e95c63c67e285429191916e6194e08704649f",
+    "GET /status/dashboard": "f03949f154d2c259f4e14b58244cea7c76f3c73050adf539a1172dfea6d8efe4",
+    "GET /status/datakilder": "0713b36f34ae0d9e74f6921347088d1dac7ca00c5cf237fcab24ed46e58d325e",
+    "GET /status/nokkeltall": "3a7c084f5e85827fb10a02dc3a60286ed6e9526f0a30603ccbb1b934e1a1d4e4",
+    "GET /status/omsetning": "7ca7535ceaeeef522aa09a6b8456ff47f46d79b9e9d50924c2d67df3435e80bb",
+    "GET /status/statistikk": "2c3e8536b458716ad1978e9645b8a37362f98174aadd0eef81f688cd992f9849",
+    "GET /sun2/room-stats": "9deeca980167c7c5294a7a47612fda61f074c79f7a86e5ee00461841f650362b",
+    "GET /sun2/room-stats/json": "8e46c0eb995dc9a9326589289b9728f5332c9d58323b81ebb7efa4b092ccedd4",
+    "GET /ventilasjon": "307afeed8d1809b27a3e1afa73fad0e317ad1c897d2e45953e3c58dc08b2f64b",
+    "GET /ventilasjon/dagslogg-temp": "04a441af5ba365edff658fceea9d274a4ccbbee613148e73ef859f8c6217b14c",
+    "GET /ventilasjon/hendelser": "4558e99d95bde7435150b9bbb05b722931d4964d122435a836dc7cf35843aedb",
+    "GET /ventilasjon/temp-logg": "ecfbd404c8128b9990648c8a83e17530d322e59c3fb73a3f7e1fd33dec5c06e7",
+    "GET /ventilasjon/yr-logg": "0b213f90606d8ee715c06ea4b1c3d708acfd5bb1c34440e2b9473d0cf14f781d",
+    "GET /ventilation/download": "670642fa90f83980eccc3f650cc48413ade319a217c0beaa4eaf337105dcb630",
+    "GET /ventilation/json": "dd93b759dc9140b84b26f5001e9a256773261f88d300a4406941ba821a4086b7",
+    "GET /ventilation/samples/download": "dea0c009a91251037432b00306d288a97a6d54392be93078daeac791f339961b",
+    "GET /ventilation/samples/json": "a12ccaad0432f3d29c1bd32a05a7322980dd3d224e7b4c032090cddb51af7739",
+    "GET /yr/samples/download": "9f04640326b64a54395ce343f184379263aab66f779bd4de5e783174d139ea25",
+    "GET /yr/samples/json": "a9750b075424f5a2f071e8ab6d605b49b02ae73da2e88fba548070e230f79023",
+    "PATCH /api/admin/users/{key_id}": "38f0c3689e23a62ba985ed01dd6c25902e66353875a2dc31c6c2db4c9bd6a0f4",
+    "PATCH /api/config/{config_key}": "13bb2b47d558e3dc465656404db1dc18d3b464ee411d06726468c0e252224fee",
+    "PATCH /api/energy/circuits/{circuit_no}": "0f69c79b306d7af4ca3bdab338145af27fca3062c3d18c2929e8c5f6a5c1b7ba",
+    "PATCH /api/energy/loads/{load_id}": "d570688cb53868b80a80635ebf05d5aa51837ac0579af668ef5aa0af2272ebf5",
+    "PATCH /api/energy/nodes/{node_id}": "acc1151b4cb4f1a00db24c421efb7321a6602ea3dd2238c760de2e6a7f9dfb1b",
+    "PATCH /api/koble/candidates/{candidate_id}": "28b79c73d9e190a29a7f666f5f42eace8da53a07fe0aade2ecc5857520daace7",
+    "PATCH /api/koble/settings/{state_id}": "b47b9d6332e10e7d2a502bc7a2cb1f425c512f4e98408a7143f24f28de363800",
+    "PATCH /api/maintenance/logs/{log_id}": "21b4a2de8625a885baf1611be206c6ce5a2b3052233ca2845d2ddc955e12c967",
+    "PATCH /api/maintenance/site-visits/{visit_id}": "2b85c3fcf5de10cdb13630972cef400cdf355cbb7f0858725ba2d2c1f08056f5",
+    "PATCH /api/system/assets/{asset_id}": "9c3c297f7c023720d3d4aa0a2bbc8e7814c8569e2da3b8f85f9c770c55689170",
+    "PATCH /api/system/automations/{automation_id}": "e70e8f27d3ca08e94d5193e0f3f7a07f1cc199bec475d9b12ac83a98a0175504",
+    "POST /ai/innstillinger": "2c35f9d89560c9ea0dfc269d979d41a606efb8915adad9fb741f914bae43586c",
+    "POST /ai/sok": "3007f88b1d4216ad6aad619e611f882c2a7334d365ce368ec5deff22761e5d92",
+    "POST /api/actions/koble/restart": "4a2b6868773ddf35b447b55dea642870e61dcb6c549efff976855b89c05d3eb1",
+    "POST /api/actions/koble/start": "efa5956c37f4c2470644adc299883ae0cf89cadb6ff2bbeb1c6f2685e73bfc17",
+    "POST /api/actions/koble/stop": "a8d40690b6b7b20f45988edb61b4b203b44d02a86d728ff62c64677df4fef871",
+    "POST /api/actions/parkering/car-info-sync": "155788c381cc2cbab03fa30faa70a3f8d239381217883eb5db93890e6ebc1b54",
+    "POST /api/actions/parkering/clear-area-not-found": "8b3a766d5a4eebba84fcc77724019a7477fab5ba25edfb7e932880976c7a90f2",
+    "POST /api/actions/parkering/fetch-settlements": "4e690a2ce9e49d6502fd3ec14de4ed258e013235e452c4ec2e7f16a52bb8f214",
+    "POST /api/actions/parkering/refresh": "d44da4d768ca08afdb5144c1dcf43e4071ec9f78525f65c89f74c923d79d2746",
+    "POST /api/actions/parkering/save-forecast": "1e3887ddaf4fc4d4effeea216a2c4023fd02c25091b2437605139d14680b7da7",
+    "POST /api/actions/parkering/svv-sync": "d1e79997bff7a841810ed092453cb0adf212c1a0d0aaef40687cb9b00bb63ef8",
+    "POST /api/actions/soling/link-snapshot-images": "904adc1a2252a8f525574a9e6949d77b6f2eb4eed1370b9efce483879d7702e9",
+    "POST /api/actions/soling/save-forecast": "9b086904bfd608b1e04fc89d9e97923f2d1fed0f74b93dd9dd2edb44467e5573",
+    "POST /api/actions/soling/upload-settlement": "6fcc82e414dffa745eb2d3a9c0c87cf519cc93a4db9216ff3c10e25a1fcca10e",
+    "POST /api/admin/users": "e4500b4fd339bb137de73220b670e61fa49e17c3ba62ad9f9319efee17910764",
+    "POST /api/auth/session": "54fb79e7b9ef6977dd2d3cc9903aac3647ba39c99f92ef34153cc46b39619c01",
+    "POST /api/energi/fibaro": "2b6c9b15e5f86a7d440830e8820d2f4d703b35d75cab6712d0a4dba7034fe188",
+    "POST /api/energy/elvia/upload": "dc7d64fc289c38c2b95d2d771ab9fb77675a42be07ed0bfca61259ed37a25b78",
+    "POST /api/energy/loads": "332ae90fdb574b7ebc019e8fb09c55d7f00721613b0ae9c802b40bc6f917100a",
+    "POST /api/energy/nodes": "71a314e9dd7524f28b77cdc080ea32e8964da0f4a8baeefd64264fe557a364b5",
+    "POST /api/hc3/door-events": "fa7b75b821954777bfffb369d32a72b9c2518688f5e22eb62a3c358138c8244b",
+    "POST /api/hc3/doors/poll-sync": "d0608d45e6876dd6483b6acd6ce70e5d9b909e16c1c35ba7d34273671f6dee32",
+    "POST /api/hc3/measurements/log": "3442fb41225cbfdc3cf9d4e2e4d033c823a5c48a38074dcc85d0a2f9fd33513b",
+    "POST /api/import-status/report": "cf7d21b32cb20e129a52662b421341a3b649e5a001333258a6c9af41c8773c9b",
+    "POST /api/koble/worker/results": "df1593fa283a8a8bdf90fe694b2e71da21d57b5305d8991e6aa687b439bdf04a",
+    "POST /api/koble/worker/status": "80d08e9327045c49e99860a922dc76696051c0a9379a798a856f5bf4013630b9",
+    "POST /api/maintenance/logs": "2e74015d6453ad717c9adc35526e21a7db24fce347c7dd81f63c245610182f99",
+    "POST /api/maintenance/site-visits/sync": "6188cafe3c96466d41381f61b3467f7556afb2d67be03c7ee61d8e4825f626e8",
+    "POST /api/parkering/import-csv": "2809a0f26f41d314964c244e59f5d2799be9e06000be591cdc1abb2c8fa3e9a6",
+    "POST /api/parkering/kjoretoy/{plate}/car-info": "991940c9e64178a4ee1171d4df83148730cee621c97d32261d91ec151ed31d1d",
+    "POST /api/parkering/kjoretoy/{plate}/navn": "411df09bd0ffa35caa861502a5e65c42534e354cdad75f0babf8250878b3b5da",
+    "POST /api/parkering/kjoretoy/{plate}/omrade": "879e61c50f649618aa39d2e523fe157192551a0ef51642069e9d738fe27f83b9",
+    "POST /api/parkering/svv-sync": "e8844d17c763450ebaa9b821321b2ca2ee5e7f64e40af47b017728ae255c3543",
+    "POST /api/parking/vehicles/{plate}/clear-not-found": "9eb081dfb527b31614f07a00b7ec3abcaa598b1db449fac1b880a498845d1317",
+    "POST /api/renhold/cleaning-profiles": "c659138dfa1025dcb7b8f01b0ed8ed0c469b8ffb4b4d540b300b4b6b744e160a",
+    "POST /api/renhold/ingest": "77a8e704a9e31b72d1c614e910ce97b111d2e535e724a7015f3d0b6eb05faddc",
+    "POST /api/renhold/robots/{duid}/cleaning-zones/import-test-schedules": "b73a1a14cce413cf025fff43de368a4674292172ef4dbe01bc173453b453402f",
+    "POST /api/renhold/robots/{duid}/control": "6bebfb3288d2f3ccf9b8454b86ef20f310263fa8a10d8ed86bd0aad1a9489e1f",
+    "POST /api/renhold/robots/{duid}/door-automation/reset-counter": "7eda0ac6c12cc177fd8fa89572cb540bb0496c2615dfcd0e830d8ec14fcc62d3",
+    "POST /api/renhold/telemetry/ingest": "0a1bc9d6395749a12b7f03568eafbe967f14bc671ad3ed5b0c62618d29747b42",
+    "POST /api/soling/enkeltimer/{session_id}/bilder/{image_id}/primary": "f5594a3fcebbedeb07f58f8168515fa708a11d9c937e7155f4a92e4ccdff0d3e",
+    "POST /api/soling/enkeltimer/{session_id}/image": "b6dd048ac53005fcca9b9c18bafce61afd2d4812afe5512ff44f551a59de1bb7",
+    "POST /api/sun2/backfill-room-identity": "75c5d4da44710a49a37e1e64c28fe5af87fb4f5a80953ed0d52f330d0b3115ed",
+    "POST /api/sun2/beds/ingest": "de1772198be488afe88234a65fab17c941b2ce6f6e9fd92450ec538d3b0c3fe6",
+    "POST /api/sun2/finance-settlements/ingest": "641aedf0759fd274bf508fde73ef1ec0a370a2bbafe9f582bbf60c5672b2f05c",
+    "POST /api/sun2/members/ingest": "9ebc1bc6c65db2f7958c8830d81c6074cd8ca69f0031cd767a0b1ddb8cf2a170",
+    "POST /api/sun2/product-sales/ingest": "dc66c2b65fad73f7131dc5dd8912fa4bb28c33254e1247440b9622efca3b5357",
+    "POST /api/sun2/room-stats/ingest": "66248fac768abe566b67af7f1f3518f13f0b9f2a8f8392ffe7a6bc991a881183",
+    "POST /api/sun2/sessions/ingest": "1303071773a6921b4cecd3002b69a54cc01722e3294c51cc3cf53c13a6472e2c",
+    "POST /api/system/assets": "f079b96271b1c2dbfa8792379e3b5050e8c5a129f3815021d4c5d6ca515ac112",
+    "POST /api/system/assets/discover": "1a882842a6c41847b41186209e6fb29f30df095e6aead3a084edeba3d7c94881",
+    "POST /api/system/automations": "53e3e7f79c28a2fe8bb616c98589eb7700d04859deef72a546155d97a4fc30d7",
+    "POST /api/system/incidents/{incident_key}/review": "cd4a831d91b6324919624583b9146165698db36294c104f25c345e534da9ccc1",
+    "POST /api/unifi-protect/bollards/mobile-notifications/test": "d92df6c77f35b30a46768ade150752bde6ab4de2db34b70bc3ff5b632a90fc60",
+    "POST /auth/login": "4f1f8de79de46dd5c79b0217696c0190ccc143cf20f4914740895da4c12caa60",
+    "POST /energi/elvia": "b44eef754d70022e060a47cc479a702eb733796bed8eb57101255f406787eac1",
+    "POST /energi/kurser/{circuit_no}": "d0a7ed5de77e47afc88daa53c91230ea96257541c340578092a332bba765f8a2",
+    "POST /energi/laster": "df12fc5a348ae85ec94ec4b9931d8fa3702ff64a9b6e567ab83ffe7d8640bced",
+    "POST /energi/laster/{load_id}/aktiv": "568662353e66d8e7fa0c4f13d049336bc6d8c086a5e29ef389d6f84b24f134c1",
+    "POST /events": "44f2bf4f5a5136c731693f1a64ffcc3482071c64cefa4090302a998e37116918",
+    "POST /konto/brukere-og-tilgang": "f9b5831f413840f9131d6b681cd2afe350937d2311a35175cad5119dd24bd2f3",
+    "POST /konto/brukere-og-tilgang/aktiver": "2c3bc9e178904b92c48285b1a36675d736a4e54c4986b590fe04e2d47b2bc3ed",
+    "POST /konto/brukere-og-tilgang/deaktiver": "e98258dd36d511b4d6e4bd308839905d89f4262a37ce8a27bfc7f4bcf607a79e",
+    "POST /konto/brukere-og-tilgang/rolle": "7a3dfb971a97cfab2bc6301f3cba2eb857a923f6f1fe48ae9a04eaaf2d1c00b6",
+    "POST /konto/logg-ut": "775c5cf09c09a94fca879e4bf19d0097901138c48833815a458a38a3db830263",
+    "POST /log": "0a231d757af425947359ed8eff2e90ada9a32abad80b2502f0ef7a7cb8bd1157",
+    "POST /parkering/kjoretoy/rydd-ikke-funnet": "50e30c2adc6bad179dc9f0341a1ffc371418027ca0d7664d1d298b02b4103b77",
+    "POST /parkering/kjoretoy/{plate}": "41bdb37001a156ef0e295dfb59ab00e4d50a56195d0cb04f3bf91020c1629096",
+    "POST /parkering/prognose/lagre": "c8d96e97d6becc2dfd15dd52d1e738be31c74a7405861a68519d6f0c336c952f",
+    "POST /parkering/refresh": "c6099564884a485a06ab8028ff53ac1ba2f8c19684c9d5b1a668a1e07d26ec5d",
+    "POST /soling/enkeltimer/koble-bilder": "8c7cfa4f036ec4faa0765b0c832cee40e2fff7d52052853368a03a95ae77cea6",
+    "POST /soling/prognose/lagre": "c3d0475e435bd0bebe3d7a858cb323bceb5490e859fd250fcc30ce2b815d722b",
+    "PUT /api/renhold/cleaning-profiles/{profile_id}": "4a810f39e7932aab3a02df1ebb929163b5ded6442cbb09bd7bfcb9c3c5809ae1",
+    "PUT /api/renhold/robots/{duid}/door-automation": "284d85ae094f61bd82c183b1b8ccc3d6fdd78392770d8d51a8a697d9c7280834"
+  },
+  "route_order": [
+    [
+      "/manifest.webmanifest",
+      [
+        "GET"
+      ],
+      "pwa_manifest"
+    ],
+    [
+      "/pwa-icon-192.png",
+      [
+        "GET"
+      ],
+      "icon_192"
+    ],
+    [
+      "/pwa-icon-512.png",
+      [
+        "GET"
+      ],
+      "icon_512"
+    ],
+    [
+      "/pwa-icon-maskable-512.png",
+      [
+        "GET"
+      ],
+      "icon_maskable"
+    ],
+    [
+      "/apple-touch-icon.png",
+      [
+        "GET"
+      ],
+      "icon_512"
+    ],
+    [
+      "/api/unifi-protect/status",
+      [
+        "GET"
+      ],
+      "api_unifi_protect_status"
+    ],
+    [
+      "/api/unifi-protect/cameras",
+      [
+        "GET"
+      ],
+      "api_unifi_protect_cameras"
+    ],
+    [
+      "/api/unifi-protect/capabilities",
+      [
+        "GET"
+      ],
+      "api_unifi_protect_capabilities"
+    ],
+    [
+      "/api/unifi-protect/stats",
+      [
+        "GET"
+      ],
+      "api_unifi_protect_stats"
+    ],
+    [
+      "/api/unifi-protect/events",
+      [
+        "GET"
+      ],
+      "api_unifi_protect_events"
+    ],
+    [
+      "/api/unifi-protect/recognitions",
+      [
+        "GET"
+      ],
+      "api_unifi_protect_recognitions"
+    ],
+    [
+      "/api/unifi-protect/recognitions/{recognition_id}",
+      [
+        "GET"
+      ],
+      "api_unifi_protect_recognition_detail"
+    ],
+    [
+      "/api/unifi-protect/license-plates/daily",
+      [
+        "GET"
+      ],
+      "api_unifi_protect_daily_license_plates"
+    ],
+    [
+      "/api/cars/parking-control-report",
+      [
+        "GET"
+      ],
+      "api_parking_control_report"
+    ],
+    [
+      "/api/unifi-protect/bollards",
+      [
+        "GET"
+      ],
+      "api_unifi_protect_bollards"
+    ],
+    [
+      "/api/unifi-protect/bollards/mobile-notifications",
+      [
+        "GET"
+      ],
+      "api_unifi_protect_bollard_mobile_notifications"
+    ],
+    [
+      "/api/unifi-protect/bollards/mobile-notifications/test",
+      [
+        "POST"
+      ],
+      "api_test_unifi_protect_bollard_mobile_notification"
+    ],
+    [
+      "/api/cars/day",
+      [
+        "GET"
+      ],
+      "api_cars_day"
+    ],
+    [
+      "/api/cars/day/{plate}/detections",
+      [
+        "GET"
+      ],
+      "api_cars_day_detections"
+    ],
+    [
+      "/api/unifi-protect/events/{source_event_id}/snapshot",
+      [
+        "GET"
+      ],
+      "api_unifi_protect_snapshot"
+    ],
+    [
+      "/api/unifi-protect/recognitions/{recognition_id}/snapshot",
+      [
+        "GET"
+      ],
+      "api_unifi_protect_recognition_snapshot"
+    ],
+    [
+      "/api/unifi-protect/bollards/regions/{region_id}/baseline",
+      [
+        "GET"
+      ],
+      "api_unifi_protect_bollard_baseline"
+    ],
+    [
+      "/api/unifi-protect/bollards/cameras/{camera_id}/{kind}",
+      [
+        "GET"
+      ],
+      "api_unifi_protect_bollard_camera_image"
+    ],
+    [
+      "/api/unifi-protect/bollards/cameras/{camera_id}/{kind}/crop",
+      [
+        "GET"
+      ],
+      "api_unifi_protect_bollard_camera_crop"
+    ],
+    [
+      "/api/unifi-protect/bollards/assets/{asset_key}/{kind}",
+      [
+        "GET"
+      ],
+      "api_unifi_protect_bollard_asset_image"
+    ],
+    [
+      "/api/unifi-protect/bollards/incidents/{incident_id}/images/{camera_id}/{kind}",
+      [
+        "GET"
+      ],
+      "api_unifi_protect_bollard_incident_image"
+    ],
+    [
+      "/api/system/health",
+      [
+        "GET"
+      ],
+      "health"
+    ],
+    [
+      "/health",
+      [
+        "GET"
+      ],
+      "health"
+    ],
+    [
+      "/favicon.ico",
+      [
+        "GET"
+      ],
+      "favicon"
+    ],
+    [
+      "/auth/login",
+      [
+        "GET"
+      ],
+      "login_view"
+    ],
+    [
+      "/auth/login",
+      [
+        "POST"
+      ],
+      "login_submit"
+    ],
+    [
+      "/konto/logg-ut",
+      [
+        "POST"
+      ],
+      "logout"
+    ],
+    [
+      "/api/auth/session",
+      [
+        "POST"
+      ],
+      "api_auth_session_create"
+    ],
+    [
+      "/api/auth/session",
+      [
+        "DELETE"
+      ],
+      "api_auth_session_delete"
+    ],
+    [
+      "/api/auth/me",
+      [
+        "GET"
+      ],
+      "api_auth_me"
+    ],
+    [
+      "/api/admin/builds",
+      [
+        "GET"
+      ],
+      "api_admin_builds"
+    ],
+    [
+      "/api/manual",
+      [
+        "GET"
+      ],
+      "api_manual"
+    ],
+    [
+      "/api/admin/manual",
+      [
+        "GET"
+      ],
+      "api_admin_manual"
+    ],
+    [
+      "/api/system/notifications",
+      [
+        "GET"
+      ],
+      "api_system_notifications"
+    ],
+    [
+      "/api/system/incidents/{incident_key}/review",
+      [
+        "POST"
+      ],
+      "api_system_incident_review"
+    ],
+    [
+      "/api/system/assets",
+      [
+        "GET"
+      ],
+      "api_system_assets"
+    ],
+    [
+      "/api/system/assets",
+      [
+        "POST"
+      ],
+      "api_system_asset_create"
+    ],
+    [
+      "/api/system/assets/{asset_id}",
+      [
+        "PATCH"
+      ],
+      "api_system_asset_update"
+    ],
+    [
+      "/api/system/assets/discover",
+      [
+        "POST"
+      ],
+      "api_system_assets_discover"
+    ],
+    [
+      "/api/system/automations",
+      [
+        "GET"
+      ],
+      "api_system_automations"
+    ],
+    [
+      "/api/system/automations",
+      [
+        "POST"
+      ],
+      "api_system_automation_create"
+    ],
+    [
+      "/api/system/automations/{automation_id}",
+      [
+        "PATCH"
+      ],
+      "api_system_automation_update"
+    ],
+    [
+      "/api/system/search",
+      [
+        "GET"
+      ],
+      "api_system_search"
+    ],
+    [
+      "/api/system/subsystems",
+      [
+        "GET"
+      ],
+      "api_system_subsystems"
+    ],
+    [
+      "/api/admin/builds/{build}",
+      [
+        "GET"
+      ],
+      "api_admin_build"
+    ],
+    [
+      "/ai",
+      [
+        "GET"
+      ],
+      "ai_redirect"
+    ],
+    [
+      "/lys",
+      [
+        "GET"
+      ],
+      "lights_redirect"
+    ],
+    [
+      "/ventilasjon",
+      [
+        "GET"
+      ],
+      "ventilation_redirect"
+    ],
+    [
+      "/ai/sok",
+      [
+        "GET"
+      ],
+      "ai_search_view"
+    ],
+    [
+      "/ai/sok",
+      [
+        "POST"
+      ],
+      "ai_search_submit"
+    ],
+    [
+      "/ai/innstillinger",
+      [
+        "GET"
+      ],
+      "ai_settings_view"
+    ],
+    [
+      "/ai/innstillinger",
+      [
+        "POST"
+      ],
+      "ai_settings_update"
+    ],
+    [
+      "/api/ai/datasets/json",
+      [
+        "GET"
+      ],
+      "ai_datasets_json"
+    ],
+    [
+      "/api/ai/logs/json",
+      [
+        "GET"
+      ],
+      "ai_logs_json"
+    ],
+    [
+      "/konto/oversikt",
+      [
+        "GET"
+      ],
+      "account_view"
+    ],
+    [
+      "/konto/build",
+      [
+        "GET"
+      ],
+      "account_build_view"
+    ],
+    [
+      "/konto/teknisk",
+      [
+        "GET"
+      ],
+      "account_technical_view"
+    ],
+    [
+      "/konto/manual",
+      [
+        "GET"
+      ],
+      "account_manual_view"
+    ],
+    [
+      "/energi/testside",
+      [
+        "GET"
+      ],
+      "energy_view"
+    ],
+    [
+      "/konto/brukere-og-tilgang",
+      [
+        "GET"
+      ],
+      "keys_view"
+    ],
+    [
+      "/konto/brukere-og-tilgang",
+      [
+        "POST"
+      ],
+      "keys_create"
+    ],
+    [
+      "/konto/brukere-og-tilgang/deaktiver",
+      [
+        "POST"
+      ],
+      "keys_disable"
+    ],
+    [
+      "/konto/brukere-og-tilgang/aktiver",
+      [
+        "POST"
+      ],
+      "keys_enable"
+    ],
+    [
+      "/konto/brukere-og-tilgang/rolle",
+      [
+        "POST"
+      ],
+      "keys_role_update"
+    ],
+    [
+      "/api/config",
+      [
+        "GET"
+      ],
+      "api_control_configs"
+    ],
+    [
+      "/api/config/{config_key}",
+      [
+        "GET"
+      ],
+      "api_control_config"
+    ],
+    [
+      "/api/config/{config_key}",
+      [
+        "PATCH"
+      ],
+      "api_control_config_update"
+    ],
+    [
+      "/",
+      [
+        "GET"
+      ],
+      "root_service_info"
+    ],
+    [
+      "/api/mobile-preview/screens",
+      [
+        "GET"
+      ],
+      "api_mobile_preview_screens"
+    ],
+    [
+      "/api/mobile-preview/frame/{screen_key}",
+      [
+        "GET"
+      ],
+      "api_mobile_preview_frame"
+    ],
+    [
+      "/soling/enkeltimer/{session_id:int}/bilde.jpg",
+      [
+        "GET"
+      ],
+      "sun2_session_image"
+    ],
+    [
+      "/soling/enkeltimer/{session_id:int}/bilder/{image_id:int}.jpg",
+      [
+        "GET"
+      ],
+      "sun2_session_image_item"
+    ],
+    [
+      "/api/soling/axis-snapshots/{snapshot_id}/image",
+      [
+        "GET"
+      ],
+      "api_sun2_axis_snapshot_image"
+    ],
+    [
+      "/api/soling/enkeltimer/{session_id:int}/image-browser",
+      [
+        "GET"
+      ],
+      "api_sun2_session_image_browser"
+    ],
+    [
+      "/api/soling/enkeltimer/{session_id:int}/image",
+      [
+        "POST"
+      ],
+      "api_sun2_session_select_image"
+    ],
+    [
+      "/api/soling/enkeltimer/{session_id:int}/bilder/{image_id:int}/primary",
+      [
+        "POST"
+      ],
+      "api_sun2_session_set_primary_image"
+    ],
+    [
+      "/status/dashboard",
+      [
+        "GET"
+      ],
+      "index"
+    ],
+    [
+      "/status/nokkeltall",
+      [
+        "GET"
+      ],
+      "status_key_metrics_view"
+    ],
+    [
+      "/api/status/comparison",
+      [
+        "GET"
+      ],
+      "api_v2_status_comparison"
+    ],
+    [
+      "/api/soling/year-comparison",
+      [
+        "GET"
+      ],
+      "api_v2_sun2_year_comparison"
+    ],
+    [
+      "/api/parkering/year-comparison",
+      [
+        "GET"
+      ],
+      "api_v2_parking_year_comparison"
+    ],
+    [
+      "/api/parkering/time-distribution",
+      [
+        "GET"
+      ],
+      "api_v2_parking_time_distribution"
+    ],
+    [
+      "/api/parkering/weekly-averages",
+      [
+        "GET"
+      ],
+      "api_v2_parking_weekly_averages"
+    ],
+    [
+      "/api/parkering/weekly-averages/years",
+      [
+        "GET"
+      ],
+      "api_v2_parking_weekly_average_years"
+    ],
+    [
+      "/api/omsetning/year-comparison",
+      [
+        "GET"
+      ],
+      "api_v2_revenue_year_comparison"
+    ],
+    [
+      "/api/operations/overview",
+      [
+        "GET"
+      ],
+      "api_operations_overview"
+    ],
+    [
+      "/api/overview",
+      [
+        "GET"
+      ],
+      "api_v2_overview"
+    ],
+    [
+      "/api/revenue/month",
+      [
+        "GET"
+      ],
+      "api_v2_revenue_month"
+    ],
+    [
+      "/api/settlements/{settlement_id}",
+      [
+        "GET"
+      ],
+      "api_v2_settlement_detail"
+    ],
+    [
+      "/api/settlements/{settlement_id}/attachment",
+      [
+        "GET"
+      ],
+      "api_v2_settlement_attachment"
+    ],
+    [
+      "/api/soling/settlements/{settlement_id}",
+      [
+        "GET"
+      ],
+      "api_v2_sun_settlement_detail"
+    ],
+    [
+      "/api/soling/settlements/{settlement_id}/attachment",
+      [
+        "GET"
+      ],
+      "api_v2_sun_settlement_attachment"
+    ],
+    [
+      "/api/modules/{module}",
+      [
+        "GET"
+      ],
+      "api_v2_module"
+    ],
+    [
+      "/api/parking/vehicles/{plate}",
+      [
+        "GET"
+      ],
+      "api_v2_parking_vehicle_detail"
+    ],
+    [
+      "/api/actions/soling/save-forecast",
+      [
+        "POST"
+      ],
+      "api_v2_sun2_save_forecast"
+    ],
+    [
+      "/api/actions/soling/upload-settlement",
+      [
+        "POST"
+      ],
+      "api_v2_upload_sun_settlement"
+    ],
+    [
+      "/api/actions/parkering/fetch-settlements",
+      [
+        "POST"
+      ],
+      "api_v2_fetch_parking_settlements"
+    ],
+    [
+      "/api/actions/parkering/save-forecast",
+      [
+        "POST"
+      ],
+      "api_v2_parking_save_forecast"
+    ],
+    [
+      "/api/actions/parkering/refresh",
+      [
+        "POST"
+      ],
+      "api_v2_parking_refresh"
+    ],
+    [
+      "/api/actions/parkering/svv-sync",
+      [
+        "POST"
+      ],
+      "api_v2_parking_svv_sync"
+    ],
+    [
+      "/api/actions/parkering/car-info-sync",
+      [
+        "POST"
+      ],
+      "api_v2_parking_car_info_sync"
+    ],
+    [
+      "/api/actions/parkering/clear-area-not-found",
+      [
+        "POST"
+      ],
+      "api_v2_parking_clear_area_not_found"
+    ],
+    [
+      "/api/parking/vehicles/{plate}/clear-not-found",
+      [
+        "POST"
+      ],
+      "api_v2_parking_vehicle_clear_not_found"
+    ],
+    [
+      "/api/actions/koble/start",
+      [
+        "POST"
+      ],
+      "api_v2_koble_start"
+    ],
+    [
+      "/api/actions/koble/stop",
+      [
+        "POST"
+      ],
+      "api_v2_koble_stop"
+    ],
+    [
+      "/api/actions/koble/restart",
+      [
+        "POST"
+      ],
+      "api_v2_koble_restart"
+    ],
+    [
+      "/api/koble/settings/{state_id}",
+      [
+        "PATCH"
+      ],
+      "api_v2_koble_settings_update"
+    ],
+    [
+      "/api/koble/candidates/{candidate_id}",
+      [
+        "PATCH"
+      ],
+      "api_v2_koble_candidate_update"
+    ],
+    [
+      "/api/koble/worker/config",
+      [
+        "GET"
+      ],
+      "api_v2_koble_worker_config"
+    ],
+    [
+      "/api/koble/worker/status",
+      [
+        "POST"
+      ],
+      "api_v2_koble_worker_status"
+    ],
+    [
+      "/api/koble/worker/results",
+      [
+        "POST"
+      ],
+      "api_v2_koble_worker_results"
+    ],
+    [
+      "/api/energy/circuits/{circuit_no}",
+      [
+        "PATCH"
+      ],
+      "api_v2_energy_circuit_update"
+    ],
+    [
+      "/api/energy/nodes",
+      [
+        "POST"
+      ],
+      "api_v2_energy_node_create"
+    ],
+    [
+      "/api/energy/nodes/{node_id}",
+      [
+        "PATCH"
+      ],
+      "api_v2_energy_node_update"
+    ],
+    [
+      "/api/energy/hc3-devices",
+      [
+        "GET"
+      ],
+      "api_v2_energy_hc3_devices"
+    ],
+    [
+      "/api/energy/nodes/live",
+      [
+        "GET"
+      ],
+      "api_v2_energy_nodes_live"
+    ],
+    [
+      "/api/energy/loads",
+      [
+        "POST"
+      ],
+      "api_v2_energy_load_create"
+    ],
+    [
+      "/api/energy/loads/{load_id}",
+      [
+        "PATCH"
+      ],
+      "api_v2_energy_load_update"
+    ],
+    [
+      "/api/maintenance/logs",
+      [
+        "POST"
+      ],
+      "api_v2_maintenance_log_create"
+    ],
+    [
+      "/api/maintenance/logs/{log_id}",
+      [
+        "PATCH"
+      ],
+      "api_v2_maintenance_log_update"
+    ],
+    [
+      "/api/maintenance/site-visits/{visit_id:int}",
+      [
+        "GET"
+      ],
+      "api_v2_maintenance_site_visit_detail"
+    ],
+    [
+      "/api/maintenance/site-visits/{visit_id:int}",
+      [
+        "PATCH"
+      ],
+      "api_v2_maintenance_site_visit_update"
+    ],
+    [
+      "/api/maintenance/site-visits",
+      [
+        "GET"
+      ],
+      "api_v2_maintenance_site_visits"
+    ],
+    [
+      "/api/maintenance/site-visits/sync",
+      [
+        "POST"
+      ],
+      "api_v2_maintenance_site_visits_sync"
+    ],
+    [
+      "/api/admin/users",
+      [
+        "POST"
+      ],
+      "api_v2_admin_user_create"
+    ],
+    [
+      "/api/admin/users/{key_id}",
+      [
+        "PATCH"
+      ],
+      "api_v2_admin_user_update"
+    ],
+    [
+      "/status/omsetning",
+      [
+        "GET"
+      ],
+      "status_revenue_month_view"
+    ],
+    [
+      "/status/statistikk",
+      [
+        "GET"
+      ],
+      "status_statistics_view"
+    ],
+    [
+      "/status/datakilder",
+      [
+        "GET"
+      ],
+      "import_status_view"
+    ],
+    [
+      "/status/dagslinje",
+      [
+        "GET"
+      ],
+      "day_view"
+    ],
+    [
+      "/lys/dagslogg-lux",
+      [
+        "GET"
+      ],
+      "day_lux_view"
+    ],
+    [
+      "/ventilasjon/dagslogg-temp",
+      [
+        "GET"
+      ],
+      "day_temp_view"
+    ],
+    [
+      "/log",
+      [
+        "POST"
+      ],
+      "legacy_log_data"
+    ],
+    [
+      "/api/hc3/measurements/log",
+      [
+        "POST"
+      ],
+      "hc3_meter_reading_log"
+    ],
+    [
+      "/events",
+      [
+        "POST"
+      ],
+      "log_event"
+    ],
+    [
+      "/api/hc3/door-events",
+      [
+        "POST"
+      ],
+      "api_hc3_door_event"
+    ],
+    [
+      "/api/hc3/doors/poll-sync",
+      [
+        "POST"
+      ],
+      "api_hc3_doors_poll_sync"
+    ],
+    [
+      "/api/import-status/report",
+      [
+        "POST"
+      ],
+      "import_status_report"
+    ],
+    [
+      "/api/import-status/json",
+      [
+        "GET"
+      ],
+      "import_status_json"
+    ],
+    [
+      "/api/import-status/{job_name}",
+      [
+        "GET"
+      ],
+      "import_status_detail"
+    ],
+    [
+      "/api/renhold/ingest",
+      [
+        "POST"
+      ],
+      "roborock_ingest"
+    ],
+    [
+      "/api/renhold/telemetry/ingest",
+      [
+        "POST"
+      ],
+      "roborock_telemetry_ingest"
+    ],
+    [
+      "/api/sun2/room-stats/ingest",
+      [
+        "POST"
+      ],
+      "sun2_room_stats_ingest"
+    ],
+    [
+      "/api/sun2/sessions/ingest",
+      [
+        "POST"
+      ],
+      "sun2_sessions_ingest"
+    ],
+    [
+      "/api/sun2/beds/ingest",
+      [
+        "POST"
+      ],
+      "sun2_beds_ingest"
+    ],
+    [
+      "/api/sun2/members/ingest",
+      [
+        "POST"
+      ],
+      "sun2_members_ingest"
+    ],
+    [
+      "/api/sun2/product-sales/ingest",
+      [
+        "POST"
+      ],
+      "sun2_product_sales_ingest"
+    ],
+    [
+      "/api/sun2/finance-settlements/ingest",
+      [
+        "POST"
+      ],
+      "sun2_finance_settlements_ingest"
+    ],
+    [
+      "/api/sun2/backfill-room-identity",
+      [
+        "POST"
+      ],
+      "sun2_backfill_room_identity"
+    ],
+    [
+      "/sun2/room-stats",
+      [
+        "GET"
+      ],
+      "sun2_room_stats_legacy_redirect"
+    ],
+    [
+      "/sun2/room-stats/json",
+      [
+        "GET"
+      ],
+      "sun2_room_stats_json_legacy_redirect"
+    ],
+    [
+      "/parkering",
+      [
+        "GET"
+      ],
+      "parking_redirect"
+    ],
+    [
+      "/api/parkering/import-csv",
+      [
+        "POST"
+      ],
+      "parking_easypark_import_csv"
+    ],
+    [
+      "/api/parkering/svv-sync",
+      [
+        "POST"
+      ],
+      "parking_vehicle_svv_sync_api"
+    ],
+    [
+      "/parkering/refresh",
+      [
+        "POST"
+      ],
+      "parking_refresh"
+    ],
+    [
+      "/parkering/oversikt",
+      [
+        "GET"
+      ],
+      "parking_overview_view"
+    ],
+    [
+      "/parkering/statistikk",
+      [
+        "GET"
+      ],
+      "parking_statistics_view"
+    ],
+    [
+      "/parkering/prognose",
+      [
+        "GET"
+      ],
+      "parking_forecast_view"
+    ],
+    [
+      "/parkering/prognose/lagre",
+      [
+        "POST"
+      ],
+      "parking_forecast_save"
+    ],
+    [
+      "/parkering/bilstatistikk",
+      [
+        "GET"
+      ],
+      "parking_vehicle_statistics_view"
+    ],
+    [
+      "/parkering/omrade",
+      [
+        "GET"
+      ],
+      "parking_area_overview_view"
+    ],
+    [
+      "/parkering/parkeringer",
+      [
+        "GET"
+      ],
+      "parking_sessions_view"
+    ],
+    [
+      "/parkering/kjoretoy",
+      [
+        "GET"
+      ],
+      "parking_vehicles_view"
+    ],
+    [
+      "/parkering/kjoretoy/rydd-ikke-funnet",
+      [
+        "POST"
+      ],
+      "parking_vehicle_clear_not_found_area"
+    ],
+    [
+      "/parkering/navn-oppslag",
+      [
+        "GET"
+      ],
+      "parking_name_lookup_view"
+    ],
+    [
+      "/parkering/omrade-oppslag",
+      [
+        "GET"
+      ],
+      "parking_area_lookup_view"
+    ],
+    [
+      "/api/parkering/kjoretoy/car-info-kandidater",
+      [
+        "GET"
+      ],
+      "parking_car_info_candidates_api"
+    ],
+    [
+      "/api/parkering/kjoretoy/mangler-navn",
+      [
+        "GET"
+      ],
+      "parking_missing_names_api"
+    ],
+    [
+      "/api/parkering/kjoretoy/mangler-omrade",
+      [
+        "GET"
+      ],
+      "parking_missing_areas_api"
+    ],
+    [
+      "/api/parkering/kjoretoy/{plate}/navn",
+      [
+        "POST"
+      ],
+      "parking_vehicle_name_api"
+    ],
+    [
+      "/api/parkering/kjoretoy/{plate}/omrade",
+      [
+        "POST"
+      ],
+      "parking_vehicle_area_api"
+    ],
+    [
+      "/api/parkering/kjoretoy/{plate}/car-info",
+      [
+        "POST"
+      ],
+      "parking_vehicle_car_info_api"
+    ],
+    [
+      "/parkering/kjoretoy/{plate}",
+      [
+        "GET"
+      ],
+      "parking_vehicle_detail_view"
+    ],
+    [
+      "/parkering/kjoretoy/{plate}",
+      [
+        "POST"
+      ],
+      "parking_vehicle_detail_save"
+    ],
+    [
+      "/energi",
+      [
+        "GET"
+      ],
+      "energy_redirect"
+    ],
+    [
+      "/energi/oversikt",
+      [
+        "GET"
+      ],
+      "energy_overview_legacy_redirect"
+    ],
+    [
+      "/energi/soling",
+      [
+        "GET"
+      ],
+      "energy_soling_legacy_redirect"
+    ],
+    [
+      "/api/energi/fibaro",
+      [
+        "POST"
+      ],
+      "energy_fibaro_ingest"
+    ],
+    [
+      "/api/energy/elvia/upload",
+      [
+        "POST"
+      ],
+      "api_energy_elvia_upload"
+    ],
+    [
+      "/energi/status",
+      [
+        "GET"
+      ],
+      "energy_status_view"
+    ],
+    [
+      "/energi/kurser",
+      [
+        "GET"
+      ],
+      "energy_circuits_view"
+    ],
+    [
+      "/energi/kurser/{circuit_no}",
+      [
+        "POST"
+      ],
+      "energy_circuit_save"
+    ],
+    [
+      "/energi/kurser/pdf",
+      [
+        "GET"
+      ],
+      "energy_circuits_pdf"
+    ],
+    [
+      "/energi/laster",
+      [
+        "GET"
+      ],
+      "energy_loads_view"
+    ],
+    [
+      "/energi/laster/pdf",
+      [
+        "GET"
+      ],
+      "energy_loads_pdf"
+    ],
+    [
+      "/energi/laster",
+      [
+        "POST"
+      ],
+      "energy_load_save"
+    ],
+    [
+      "/energi/laster/{load_id}/aktiv",
+      [
+        "POST"
+      ],
+      "energy_load_toggle_active"
+    ],
+    [
+      "/api/energi/fibaro/json",
+      [
+        "GET"
+      ],
+      "energy_fibaro_json"
+    ],
+    [
+      "/energi/forbruk-per-seng",
+      [
+        "GET"
+      ],
+      "energy_sunbed_consumption_view"
+    ],
+    [
+      "/classic/energi/forbruk-per-seng",
+      [
+        "GET"
+      ],
+      "energy_sunbed_consumption_view"
+    ],
+    [
+      "/soling",
+      [
+        "GET"
+      ],
+      "sun2_redirect"
+    ],
+    [
+      "/soling/oversikt",
+      [
+        "GET"
+      ],
+      "sun2_overview_view"
+    ],
+    [
+      "/soling/prognose",
+      [
+        "GET"
+      ],
+      "sun2_forecast_view"
+    ],
+    [
+      "/soling/prognose/lagre",
+      [
+        "POST"
+      ],
+      "sun2_forecast_save"
+    ],
+    [
+      "/soling/detaljer",
+      [
+        "GET"
+      ],
+      "sun2_room_stats_view"
+    ],
+    [
+      "/soling/enkeltimer",
+      [
+        "GET"
+      ],
+      "sun2_sessions_view"
+    ],
+    [
+      "/soling/enkeltimer/koble-bilder",
+      [
+        "POST"
+      ],
+      "sun2_sessions_link_images"
+    ],
+    [
+      "/api/actions/soling/link-snapshot-images",
+      [
+        "POST"
+      ],
+      "api_v2_sun2_link_snapshot_images"
+    ],
+    [
+      "/soling/dagslinje",
+      [
+        "GET"
+      ],
+      "sun2_day_timeline_view"
+    ],
+    [
+      "/soling/senger",
+      [
+        "GET"
+      ],
+      "sun2_beds_view"
+    ],
+    [
+      "/soling/medlemmer",
+      [
+        "GET"
+      ],
+      "sun2_members_view"
+    ],
+    [
+      "/api/sun2/room-stats/json",
+      [
+        "GET"
+      ],
+      "sun2_room_stats_json"
+    ],
+    [
+      "/api/sun2/beds/json",
+      [
+        "GET"
+      ],
+      "sun2_beds_json"
+    ],
+    [
+      "/api/sun2/members/json",
+      [
+        "GET"
+      ],
+      "sun2_members_json"
+    ],
+    [
+      "/api/sun2/sessions/json",
+      [
+        "GET"
+      ],
+      "sun2_sessions_json"
+    ],
+    [
+      "/energi/elvia",
+      [
+        "GET"
+      ],
+      "energy_elvia_view"
+    ],
+    [
+      "/energi/elvia",
+      [
+        "POST"
+      ],
+      "energy_elvia_upload"
+    ],
+    [
+      "/api/energi/elvia/json",
+      [
+        "GET"
+      ],
+      "energy_elvia_json"
+    ],
+    [
+      "/renhold/oversikt",
+      [
+        "GET"
+      ],
+      "cleaning_overview"
+    ],
+    [
+      "/api/renhold/night-report",
+      [
+        "GET"
+      ],
+      "api_cleaning_night_report"
+    ],
+    [
+      "/api/renhold/weekly-jobs",
+      [
+        "GET"
+      ],
+      "api_cleaning_weekly_jobs"
+    ],
+    [
+      "/api/renhold/water-report",
+      [
+        "GET"
+      ],
+      "api_cleaning_water_report"
+    ],
+    [
+      "/api/renhold/refill-log",
+      [
+        "GET"
+      ],
+      "api_cleaning_refill_log"
+    ],
+    [
+      "/api/renhold/robots/{duid}",
+      [
+        "GET"
+      ],
+      "api_cleaning_robot_detail"
+    ],
+    [
+      "/api/renhold/robots/{duid}/door-automation",
+      [
+        "PUT"
+      ],
+      "api_update_roborock_door_automation"
+    ],
+    [
+      "/api/renhold/robots/{duid}/door-automation/reset-counter",
+      [
+        "POST"
+      ],
+      "api_reset_roborock_door_automation_counter"
+    ],
+    [
+      "/api/renhold/robots/{duid}/cleaning-zones/import-test-schedules",
+      [
+        "POST"
+      ],
+      "api_import_roborock_cleaning_zones"
+    ],
+    [
+      "/api/renhold/cleaning-profiles",
+      [
+        "POST"
+      ],
+      "api_create_roborock_cleaning_profile"
+    ],
+    [
+      "/api/renhold/cleaning-profiles/{profile_id}",
+      [
+        "PUT"
+      ],
+      "api_update_roborock_cleaning_profile"
+    ],
+    [
+      "/api/renhold/cleaning-profiles/{profile_id}",
+      [
+        "DELETE"
+      ],
+      "api_delete_roborock_cleaning_profile"
+    ],
+    [
+      "/api/renhold/robots/{duid}/control",
+      [
+        "POST"
+      ],
+      "api_cleaning_robot_control"
+    ],
+    [
+      "/renhold/robot/{duid}",
+      [
+        "GET"
+      ],
+      "cleaning_robot_detail"
+    ],
+    [
+      "/renhold/json",
+      [
+        "GET"
+      ],
+      "cleaning_json"
+    ],
+    [
+      "/lys/hendelser",
+      [
+        "GET"
+      ],
+      "lights_view"
+    ],
+    [
+      "/lights/json",
+      [
+        "GET"
+      ],
+      "lights_json"
+    ],
+    [
+      "/lights/download",
+      [
+        "GET"
+      ],
+      "lights_download"
+    ],
+    [
+      "/lights/samples/json",
+      [
+        "GET"
+      ],
+      "light_samples_json"
+    ],
+    [
+      "/lys/lux-logging",
+      [
+        "GET"
+      ],
+      "light_samples_view"
+    ],
+    [
+      "/api/system/resources/lights/samples/download",
+      [
+        "GET"
+      ],
+      "light_samples_download"
+    ],
+    [
+      "/lights/samples/download",
+      [
+        "GET"
+      ],
+      "light_samples_download"
+    ],
+    [
+      "/ventilasjon/hendelser",
+      [
+        "GET"
+      ],
+      "ventilation_view"
+    ],
+    [
+      "/ventilation/json",
+      [
+        "GET"
+      ],
+      "ventilation_json"
+    ],
+    [
+      "/ventilation/download",
+      [
+        "GET"
+      ],
+      "ventilation_download"
+    ],
+    [
+      "/ventilasjon/temp-logg",
+      [
+        "GET"
+      ],
+      "ventilation_samples_view"
+    ],
+    [
+      "/ventilation/samples/json",
+      [
+        "GET"
+      ],
+      "ventilation_samples_json"
+    ],
+    [
+      "/api/system/resources/ventilation/samples/download",
+      [
+        "GET"
+      ],
+      "ventilation_samples_download"
+    ],
+    [
+      "/ventilation/samples/download",
+      [
+        "GET"
+      ],
+      "ventilation_samples_download"
+    ],
+    [
+      "/ventilasjon/yr-logg",
+      [
+        "GET"
+      ],
+      "yr_samples_view"
+    ],
+    [
+      "/yr/samples/json",
+      [
+        "GET"
+      ],
+      "yr_samples_json"
+    ],
+    [
+      "/api/system/resources/yr/samples/download",
+      [
+        "GET"
+      ],
+      "yr_samples_download"
+    ],
+    [
+      "/yr/samples/download",
+      [
+        "GET"
+      ],
+      "yr_samples_download"
+    ],
+    [
+      "/api/system/resources/events/download",
+      [
+        "GET"
+      ],
+      "generic_download"
+    ],
+    [
+      "/events/download",
+      [
+        "GET"
+      ],
+      "generic_download"
+    ],
+    [
+      "/download",
+      [
+        "GET"
+      ],
+      "generic_download"
+    ],
+    [
+      "/api/system/resources/events/json",
+      [
+        "GET"
+      ],
+      "events_json"
+    ],
+    [
+      "/events/json",
+      [
+        "GET"
+      ],
+      "events_json"
+    ],
+    [
+      "/api/hc3/door-events/json",
+      [
+        "GET"
+      ],
+      "api_hc3_door_events_json"
+    ],
+    [
+      "/api/hc3/doors/status",
+      [
+        "GET"
+      ],
+      "api_hc3_doors_status"
+    ],
+    [
+      "/api/hc3/doors/sunroom-sessions",
+      [
+        "GET"
+      ],
+      "api_hc3_doors_sunroom_sessions"
+    ],
+    [
+      "/api/hc3/doors/sunroom-logic",
+      [
+        "GET"
+      ],
+      "api_hc3_doors_sunroom_logic"
+    ],
+    [
+      "/api/hc3/doors/alarm",
+      [
+        "GET"
+      ],
+      "api_hc3_doors_alarm"
+    ],
+    [
+      "/api/hc3/doors/sunroom-overview",
+      [
+        "GET"
+      ],
+      "api_hc3_doors_sunroom_overview"
+    ],
+    [
+      "/api/hc3/doors/sunroom-sessions/{room_id}",
+      [
+        "GET"
+      ],
+      "api_hc3_doors_sunroom_room_detail"
+    ],
+    [
+      "/classic/parkering/kjoretoy",
+      [
+        "GET"
+      ],
+      "classic_parking_vehicles_view"
+    ],
+    [
+      "/classic/parkering/navn-oppslag",
+      [
+        "GET"
+      ],
+      "classic_parking_name_lookup_view"
+    ],
+    [
+      "/classic/parkering/omrade-oppslag",
+      [
+        "GET"
+      ],
+      "classic_parking_area_lookup_view"
+    ],
+    [
+      "/classic/parkering/kjoretoy/{plate}",
+      [
+        "GET"
+      ],
+      "classic_parking_vehicle_detail_view"
+    ],
+    [
+      "/classic/energi/kurser/pdf",
+      [
+        "GET"
+      ],
+      "classic_energy_circuits_pdf"
+    ],
+    [
+      "/classic/energi/laster/pdf",
+      [
+        "GET"
+      ],
+      "classic_energy_loads_pdf"
+    ],
+    [
+      "/classic/lys/innstillinger",
+      [
+        "GET"
+      ],
+      "classic_light_settings_view"
+    ],
+    [
+      "/classic/renhold/oversikt",
+      [
+        "GET"
+      ],
+      "classic_cleaning_overview"
+    ],
+    [
+      "/classic/renhold/robot/{duid}",
+      [
+        "GET"
+      ],
+      "classic_cleaning_robot_detail"
+    ],
+    [
+      "/classic/renhold/json",
+      [
+        "GET"
+      ],
+      "classic_cleaning_json"
+    ]
+  ],
+  "schemas": {
+    "AssetRegistryInput": "c4ceefed23aa0f0b8d2e4e512eaf55313d7739aa43b3df8d580dcc18d522acb2",
+    "AutomationWorkbenchInput": "b2a20cd98b3c665010a1c1a4bc702b77aca7e4a8a401041e9c63f6c7a9934700",
+    "DoorEventIn": "aefa3206109c9e5990f408f75a469f1a233899ee4c42ae0f2ffdedf3b7aad6f3",
+    "EnergyFibaroIn": "5f1854fdcee3142d68e81a050aa2165977b3a6256b5fb0d81c6caaad912b02e9",
+    "EventDataIn": "8b023a05bcaa667dce30540e53842c27dd35a01725460036e5bd5ab2ee239156",
+    "HTTPValidationError": "8066e2a0c5a412d69c50851c85d5b9329034080fac2286b3a0bb71e7bb19a7f3",
+    "Hc3MeterReadingIn": "6b9414c4e64e74adecfedbb00e3bb8e00e71fae386801075aab10ef3dd6e03fd",
+    "ImportStatusReportIn": "538a07ef507dac7b4da7fb891d5907f8129c3235bcedf8a7e6ee6e1f48e65fa2",
+    "LegacyLogIn": "309841e18309b8dc34a3b1b89aada65496b265d2bb0188348488e3b5c822b3ff",
+    "MaintenanceLogInput": "0515b00fe28e6b79c1e66584db84ee6a751382eec185476624e06a588f578558",
+    "MaintenanceSiteVisitInput": "bf755a4cfd1472bfacdaa8fcdfdd377861a76ccdebc67445350b3e2514970ec3",
+    "ParkingSunLinkCandidateUpdate": "45338241d1a9e55b2754a11e4c8ff1952f6bf7457d67ff848e99a69940355e4a",
+    "ParkingSunLinkMatchIn": "fed099d7b04290b3bd7b9fb4ff317e731b90cfccb9b5a5325e817fc08533be8e",
+    "ParkingSunLinkProcessedIn": "14da4b3a8bde00d7be3525d008f1fd9b016b223d46f74ac37f739941b95c0366",
+    "ParkingSunLinkSettingsUpdate": "c26835795dc0383c854cd418f69c7fa0500ff9ab87c29f7caf60ddce3c1b8894",
+    "ParkingSunLinkWorkerResultsIn": "46d65d6ffcf99b4de2c51beca379b467a47dbd513cf72da6231c9bade43a9661",
+    "ParkingSunLinkWorkerStatusIn": "626476995f3e33c311da484316c9e8160f2d688bc492460631d159fc8e52ca22",
+    "ParkingVehicleAreaUpdate": "d75030d845ba6a26d15ef7a8a540562b7432907fb564a679bef5bfb9ae3c0779",
+    "ParkingVehicleCarInfoUpdate": "9d647ab8ba75787d759110046dfbbc3f4a835666aac2a32910667e343ff3f3b7",
+    "ParkingVehicleNameUpdate": "a0308a3e83cc6a7f6c4d5d9ad28320a5732095444c1f9dcb8c0e27e550f96017",
+    "RoborockCleaningProfileIn": "82280a84aa0eabfed18587ecf72cae6383c369238c54502762b6cc22f2380f99",
+    "RoborockControlIn": "b4a5a6083c514f6e78cb7b90b41d4331f988d70cec3ab049e1e6a37ec774d21b",
+    "RoborockDoorAutomationIn": "aefce2b7fcb6fcd6f9dfe64c49cbbd50eb4af5e562b917f55753f627b45aeaec",
+    "RoborockIngestIn": "1203a3693d9441ec77a90dcfbbe1d53d94e3bd8dde501cf410a1607fc33880eb",
+    "RoborockTelemetryIn": "cc5d0f331ef35b2993f8c5286f2808d9d0d02a0bc246c624ab88f3074124d465",
+    "Sun2BedIn": "6f2e6f89ba8ff08b8c0f15fc26653c03fcc85e56336d16260321a9fd704cc076",
+    "Sun2BedsIngestIn": "066849b4272dc46ed34e3f7a351f50e46386a4da86450d7615227a9a46410049",
+    "Sun2FinanceSettlementIn": "34bede7493b2fc5b513be2ab1213831787afbc17e7c525d9d9f0f4dcbf5dc095",
+    "Sun2FinanceSettlementsIngestIn": "556a4bb754aa14d144dc25c0021a92a8612ac417adc6662b884788f7a83e7fe0",
+    "Sun2MemberIn": "f23e2c3a30d2016ff1a8b868f6b4266cdf4f2dd63b51aa04d802039136388e6a",
+    "Sun2MembersIngestIn": "5edd78a3c9275ed581fc6a97f816d927f2900bc217c9fc05294b69fedc54bb3e",
+    "Sun2ProductSaleIn": "df329d6fed692578d6b83a38ea12a4827e170995f54ac199caf8bd1e1e06ae3f",
+    "Sun2ProductSalesIngestIn": "223707af8e076eff2c6da783b45b5aba845c6cc8e5bb64ff293961f54b507c31",
+    "Sun2RoomStatIn": "c21ccf1831d35778a190fb551787f2ae0daf1cbd0400d39cb42185ea4a8010de",
+    "Sun2RoomStatsIngestIn": "4a1b91e19ff6beb90c9094db91b65bfb00df0c60032ef9e67c94a6edaa6a0f04",
+    "Sun2TanningSessionIn": "2e00cdcb92c7e19c3b08d8829fb7f760ba4c635ee1152e1a1ffc3ae2bb626edb",
+    "Sun2TanningSessionsIngestIn": "452421caaa204e68addfdd74dda4cc1effe3a92783fd2b65bc36bc13c3873d62",
+    "V2AccessUserCreate": "874315cb66263bda6bbf845406306e9dea1e0b61e63f54c2f860437ce66fb0e8",
+    "V2AccessUserUpdate": "a6abbeb3c54da9b05d01b281daebdddc040c9c6fe89156302047634d2a381133",
+    "V2EnergyCircuitUpdate": "1ad3cb9ec7e00f6a45379a5c46c3eb115d473ffb671155ae54853d25291d256f",
+    "V2EnergyLoadIn": "4a288afef4000b382018fe3278a1e896cc0ba828ea751d452b5888d3660354a2",
+    "V2EnergyNodeIn": "f6968a1ff42e73819426acf4dcd7c5c9ec0adfa319e2ee37795368f2449bb551",
+    "ValidationError": "e8f81b97d8f99e0c85b6223743404a3a2a5367f671ee38a5dce9b87b4f1f0193"
+  },
+  "tables": {
+    "access_keys": "1e7b2f2fbd810fca30961c29f68432928b2539ff13de39283708be5002e25da2",
+    "access_logs": "2ed1be2ba0341cf12870d58a0df9549edda6febf9b67f50d8ec172b0785f1110",
+    "ai_query_logs": "d4b6cd713726380a523e2701423b8cf3fccd0862f48106cd8b4eb2c9801d48c9",
+    "alarm_events": "d39624e2b98a9d6c2f0a8d0d81a2d9839010d52d2612626d5cfb805c33f96e9c",
+    "asset_registry_items": "ea1c12f6c99dc1d5592eadf1ff9bf8c049f29eac8f321a3d62f7fea7517a85b4",
+    "auth_sessions": "6d7e687923ae390386f157024cc7bd7493db0b4fc4b2d59b6987d9973f62cb0c",
+    "automation_workbench_rules": "9af677fb460d75c179d2292112d2d237e337c678b6b57ff38951ac0270585b2b",
+    "cleaning_zones": "9fed2b1bf5e80b1b7c299f2329ac9c025cc0fde0193952aa7277398a57720056",
+    "control_config_history": "7c15e299cf3f16a08e95f6048bb9286556f0be75743fb8a83f4e4deeb0603057",
+    "control_configs": "2380686988d6f9325ddcf0fabd3cfe09b404a4421d470d1e4b24af91517ef06b",
+    "door_events": "60472b04d180127dd1e99a95c6ae62e6e45661205871dd2f1fb167ee4918e425",
+    "energy_circuits": "ec7c262e9aa415fc3940d007bdb6e2cfc2091760c81cef6a6171b50957c53d03",
+    "energy_fibaro_samples": "9b29e302e18ab3a0e911c35b4e10e6d99ef3b68979c57436365e2696bd8f5598",
+    "energy_hourly_consumption": "46f858b27a68efb4d609e823d91fccdba583d2a706cea361c8fbc5f2f464bd2e",
+    "energy_import_runs": "717e9421f18e4441e58b78263689feb8edfa7052cf05994cd0ea76620c938aa7",
+    "energy_loads": "1ea106a9d9c551dae81739601229fe82a370aaee570f4d96c98a05952ec4f9ac",
+    "energy_nodes": "e0c94392f85586e82af4e071997467db9abd5c3dec9d276c03b7c1f69e946080",
+    "event_data": "f38559ae9fc4d291fad05ff1e0ffc5472909faa4482161f8c7875291867513f4",
+    "forecast_snapshots": "c12753fcea65ae9706dd376116fb411f544485db3012caeeaa2d832d0483cfa7",
+    "hc3_meter_readings": "1328195663206a90bc3609e3fa47cb631d7f2fbe98c9f96e80aeea65fa26b24d",
+    "import_job_runs": "5fc0f339b2a3f8f182edbbd991d3b631814795392759332aafee45bc95a640c0",
+    "import_job_status": "45329fe69450f1c2e415978cbf7172b51d595ac648ce22327d775486d41bb027",
+    "kjoretoy": "2893153659b45005a4a1829a030ecd3db0adf14e56a49ea28fbc2bd48039806a",
+    "kjoretoy_nokkeldata": "945b0e950e97094def83abeb488d0b82782e25d404d0ede67ef1898623c78011",
+    "maintenance_log_entries": "11a5cf3e443828d8e6b40dbf4563c7eec52698f44d09aa6affc178efb74f74f9",
+    "notification_outbox": "012817ea443684633f3b4c133e70ff7e75515bab8dcc748c19466b42f14e7076",
+    "operational_incident_reviews": "0b0e8f404407772b62a9cbd8bef61e7ca0e747c16a1d720531df5cb03ee9313c",
+    "parkering": "ca4f6e8e0202bca89a51ed5a52586a2779b49f9e3c6bb0a2dc798cdd638fa227",
+    "parking_sun_link_candidates": "746a0f7152db97eb2466b37e4593881f288b6e1f28f7d23084883e761af0a7a9",
+    "parking_sun_link_job_state": "54c859cffb217e46304f8d3e9d536ddc0d70a657a2ffbf8022d4f8a8abb3f4aa",
+    "parking_sun_link_matches": "f5a38cac71c4eef20ceb63c3d515d404b41b54b3676d8e56ccf2ca40934a03e6",
+    "parking_sun_link_processed": "d52c468f88f3894ec80b1a52120c4287f71b4c3e03e27a3b50b2550d97a372f1",
+    "roborock_clean_jobs": "736d533b1268458de5033582b4712549120c77200a8773f80ab2e751be807142",
+    "roborock_cleaning_profiles": "42d804b0eaeb832eb692b446307e91be748b55b329ad33b897f8f94a062ffaeb",
+    "roborock_cleaning_zone_mappings": "9635f6079b56f11af9be5b48e7292f8492b60d3d0ed33c1b8a8df874be98057d",
+    "roborock_command_runs": "5859b9829c926f376ba140a841df724b54cdffdbbb31f053ac96f809386b9a04",
+    "roborock_consumables": "08171277ddf7f6c6586681c9368a679f905790c3480c68adcc845f31c3254e12",
+    "roborock_door_automations": "ca27223025d52fe873a08ef75ca2bca80235005916872be2d991a9542e21e202",
+    "roborock_maps": "37b428668a849079569bfd27013ad9982fc1e8ea6ed7208e18bb4e7b1a721bde",
+    "roborock_probe_results": "73719d648f4cee76be1064a65d51e3284c4aba8b98ee30a2fff2432cff4a49b7",
+    "roborock_robots": "23896a5b7a6d8c71840f67628e0c2c00a966298a845e57f67c633957a16af394",
+    "roborock_schedule_snapshots": "e285ab7afda2eecaf176dce69b82e960138f05fbb2243895ae2938f353899b32",
+    "roborock_schedules": "d17f92e8fbf090bca372be0358c9c768ae3bef84d9fc887561a2abe4f6ae6a30",
+    "roborock_status_samples": "2db7a93a5c5c82f72565c6a59be79641498a671e35390d5555ba53103be8b691",
+    "roborock_sync_runs": "22e41e17d78f150ab204fb86beeb2393a8f96b027de337d301d30c5886ff47d3",
+    "roborock_telemetry_events": "8063b376cc6e4f9415d1aedab3c215687f3fed86ed6cdb148e7f539134c8741b",
+    "roborock_telemetry_samples": "2e111dcd307dfe5d379962d9041179194e13fb550c15ad0c662379d4550e2e3c",
+    "settlement_imports": "1b9f6a0cd61b727e595ff387a9d08f340123b7d85177d245508cf1c8b1e04292",
+    "site_visits": "53be6ec451c0bc908aab729394b8cf30a3bcaf119fb8cf15a3a9aeac67fcebe3",
+    "sun2_beds": "7760ebcd012b00b3dd676f977ee4c225c6e300d223b543a5b17efdba5b9b9329",
+    "sun2_finance_settlements": "1311b97d611b65eda7ab8979b288495a4855f746e742de0b2c4ae8a3d80181e7",
+    "sun2_import_runs": "c8e62cd013f303c02a653ca44433456209d166c89ed7c7d5822e637169539179",
+    "sun2_members": "c8a64f75212147318ba72ee14a95de7a4b77daab5e420f0c713cb4360f76eb01",
+    "sun2_product_sales": "c256ebb984c5cc7e2f77a7ce2427a79999fe80ae0d4c98b888cadee41e364a94",
+    "sun2_room_daily_stats": "d868bd7ebd8ecf7c117ab8fc85e68ca91d02396c195c661e1ef44a5a6c29af60",
+    "sun2_session_import_runs": "10445f469e1f9c5f3a011f0cafe0e0890e1a23f0e4bda754f3f405d0139f8165",
+    "sun2_tanning_session_images": "3f917175c2a384f5b944b9c5cca2252ac2f0735c5930ffa12de64c4add364f08",
+    "sun2_tanning_sessions": "5eca4acde2c306d80c96e9204adba7d116232b9f9b8344925cc0b231dbdbae78",
+    "utelys_events": "d938e509b8d1a631e04a7bd36029152454f16f6a5dba8fd9e1abf9b4ab56085c",
+    "utelys_samples": "b2b2f7841c91b40d879b3b091839d31803d379e1beb8cf2f1d329652c58f9bf3",
+    "ventilasjon_events": "da5eb9913c172f088cdd383b94f96a5ee5dfb63fd04661bf7a5a357300eb8508",
+    "ventilasjon_samples": "a3140ce41036903304dd4a66cbecd8650ccc024c0f8b5288f69a07aea49950cf",
+    "yr_forecast_samples": "bb9bc2c9ac363d6e449d290c172d2a77e3edc413a320e6991bcfad71a200bdec"
+  }
+}

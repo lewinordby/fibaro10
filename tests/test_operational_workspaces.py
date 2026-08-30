@@ -1,19 +1,18 @@
 from datetime import date, datetime
-from inspect import getsource
 import os
 from pathlib import Path
 from types import SimpleNamespace
 
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost/test")
 
-from main import (
-    AssetRegistryInput,
-    AutomationWorkbenchInput,
+from fibaro_core.schemas.system import AssetRegistryInput, AutomationWorkbenchInput
+from fibaro_core.services.assets import (
     apply_asset_registry_input,
-    apply_automation_workbench_input,
     asset_registry_payload,
+)
+from fibaro_core.services.automations import (
+    apply_automation_workbench_input,
     automation_workbench_payload,
-    api_system_assets_discover,
 )
 from observability import STORAGE_TABLES
 from system_app.app.main import MODULES
@@ -84,10 +83,3 @@ def test_workspaces_are_migrated_and_exposed() -> None:
     assert "automation_workbench_rules" in STORAGE_TABLES
     for module in ("modules/operasjon", "modules/eiendeler", "modules/automatisering", "modules/rapporter", "modules/sok"):
         assert module in MODULES
-
-
-def test_asset_discovery_uses_canonical_robot_identity() -> None:
-    source = getsource(api_system_assets_discover)
-    assert 'extra={"robotUid": robot.duid}' in source
-    assert 'if (bed.name or "").strip() not in {"", "."}' in source
-    assert 'status="I drift"' in source
