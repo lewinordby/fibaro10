@@ -366,8 +366,8 @@ class CarsDayApiTests(unittest.IsolatedAsyncioTestCase):
             else parking_payload
         )
         unpaid_builder = AsyncMock(return_value=unpaid_registered_payload)
-        with patch.object(main, "protect_ledger_json", new=ledger), patch.object(
-            main, "unpaid_registered_vehicle_stays_payload", new=unpaid_builder
+        with patch.object(main.parking_http.dependencies, "protect_ledger_json", new=ledger), patch.object(
+            main.parking_http.dependencies, "unpaid_registered_vehicle_stays_payload", new=unpaid_builder
         ):
             payload = await main.api_parking_control_report(
                 response=main.Response(), period="month", month="2026-08", week=None, gap_minutes=60
@@ -479,7 +479,7 @@ class CarsDayApiTests(unittest.IsolatedAsyncioTestCase):
                 "days": [],
             }
         )
-        with patch.object(main, "protect_ledger_json", new=ledger):
+        with patch.object(main.parking_http.dependencies, "protect_ledger_json", new=ledger):
             payload = await main.api_parking_control_report(
                 response=main.Response(), period="week", month=None, week="2026-W35", gap_minutes=60
             )
@@ -496,7 +496,7 @@ class CarsDayApiTests(unittest.IsolatedAsyncioTestCase):
         main.clear_summary_cache("cars_day")
         ledger = AsyncMock(return_value={"items": []})
         try:
-            with patch.object(main, "protect_ledger_json", new=ledger):
+            with patch.object(main.parking_http.dependencies, "protect_ledger_json", new=ledger):
                 first_response = main.Response()
                 first = await main.api_cars_day(response=first_response, day="2026-07-21")
                 second_response = main.Response()
@@ -517,7 +517,7 @@ class CarsDayApiTests(unittest.IsolatedAsyncioTestCase):
         main.clear_summary_cache("cars_day")
         ledger = AsyncMock(return_value={"items": []})
         try:
-            with patch.object(main, "protect_ledger_json", new=ledger):
+            with patch.object(main.parking_http.dependencies, "protect_ledger_json", new=ledger):
                 await main.api_cars_day(response=main.Response(), day="2026-07-20")
         finally:
             main.clear_summary_cache("cars_day")
@@ -544,7 +544,7 @@ class CarsDayApiTests(unittest.IsolatedAsyncioTestCase):
             }
         )
         try:
-            with patch.object(main, "protect_ledger_json", new=ledger):
+            with patch.object(main.parking_http.dependencies, "protect_ledger_json", new=ledger):
                 payload = await main.api_cars_day_detections("AB12345", day="2026-07-21")
         finally:
             main.clear_summary_cache("cars_day_detections")

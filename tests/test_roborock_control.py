@@ -191,17 +191,18 @@ def test_control_start_rejects_active_error_and_low_battery():
 
 
 def test_core_control_route_is_master_protected_and_audited():
-    source = (Path(__file__).resolve().parents[1] / "main.py").read_text(encoding="utf-8")
-    route = source[source.index('@app.post("/api/renhold/robots/{duid}/control")'):]
-    assert "require_master(request)" in route[:1200]
-    assert "RoborockCleaningZoneMapping.robot_duid == duid" in route[:3000]
-    assert "RoborockCommandRun(" in route[:4000]
-    assert '"confirmation": f"CONFIRM:{duid}:{action}"' in route[:6000]
-    assert '"segment_id": segment_id' in route[:6000]
-    assert '"profile": {' in route[:7000]
-    assert '"set_mop_wash"' in route[:2000]
-    assert '"wash_interval_minutes": values.wash_interval_minutes' in route[:7000]
-    assert 'source="local-telemetry"' in route[:11000]
+    import inspect
+    import main
+    route = inspect.getsource(main.api_cleaning_robot_control)
+    assert "require_master(request)" in route
+    assert "RoborockCleaningZoneMapping.robot_duid == duid" in route
+    assert "RoborockCommandRun(" in route
+    assert '"confirmation": f"CONFIRM:{duid}:{action}"' in route
+    assert '"segment_id": segment_id' in route
+    assert '"profile": {' in route
+    assert '"set_mop_wash"' in route
+    assert '"wash_interval_minutes": values.wash_interval_minutes' in route
+    assert 'source="local-telemetry"' in route
 
 
 def test_logger_control_route_requires_shared_token():

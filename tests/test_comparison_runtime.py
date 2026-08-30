@@ -30,7 +30,7 @@ def test_unknown_comparison_is_404_and_closes_session(period, compare, expected)
 def test_invalid_anchor_fails_before_opening_session(monkeypatch):
     def no_session():
         raise AssertionError("session should not open")
-    monkeypatch.setattr(main, "async_session", no_session)
+    monkeypatch.setattr(main.revenue_http.dependencies, "async_session", no_session)
     app = FastAPI()
     app.add_api_route("/comparison", main.api_v2_status_comparison)
     response = TestClient(app).get("/comparison?anchor=not-a-date")

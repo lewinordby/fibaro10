@@ -98,9 +98,9 @@ class BrowserSessionTests(unittest.IsolatedAsyncioTestCase):
         access_key = main.AccessKey(id=7, name="test", key_hash="credential-hash", key_prefix="key_test", active=True)
         request = form_request("/auth/login", b"username=test&password=secret-value")
         with (
-            patch("main.find_access_key", new=AsyncMock(return_value=access_key)),
-            patch("main.create_auth_session", new=AsyncMock(return_value="opaque-session-token")),
-            patch("main.log_access_attempt", new=AsyncMock()),
+            patch.object(main.access_http.dependencies, "find_access_key", new=AsyncMock(return_value=access_key)),
+            patch.object(main.access_http.dependencies, "create_auth_session", new=AsyncMock(return_value="opaque-session-token")),
+            patch.object(main.access_http.dependencies, "log_access_attempt", new=AsyncMock()),
         ):
             response = await main.login_submit(request)
 
@@ -122,9 +122,9 @@ class BrowserSessionTests(unittest.IsolatedAsyncioTestCase):
             public_host="app.lilletorget.net",
         )
         with (
-            patch("main.find_access_key", new=AsyncMock(return_value=access_key)),
-            patch("main.create_auth_session", new=AsyncMock(return_value="shared-session-token")),
-            patch("main.log_access_attempt", new=AsyncMock()),
+            patch.object(main.access_http.dependencies, "find_access_key", new=AsyncMock(return_value=access_key)),
+            patch.object(main.access_http.dependencies, "create_auth_session", new=AsyncMock(return_value="shared-session-token")),
+            patch.object(main.access_http.dependencies, "log_access_attempt", new=AsyncMock()),
         ):
             response = await main.login_submit(request)
 

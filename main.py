@@ -47,6 +47,7 @@ from sqlalchemy.orm import load_only
 from dateutil import parser as dtparser
 load_dotenv()
 from fibaro_core.database import Base, create_database
+from fibaro_core.runtime_state import IncidentState
 from fibaro_core.services.comparisons.overview import overview_comparison_plan, load_overview_comparisons, build_overview_cards
 from fibaro_core.services.comparisons.windows import (
     import_row_stamp,
@@ -755,7 +756,7 @@ NIGHTLY_BACKUP_STATUS_PATH = Path(
 FULL_BACKUP_STATUS_PATH = Path(
     os.getenv("FULL_BACKUP_STATUS_PATH", "/system_backup_status/full/BACKUP_STATUS.txt")
 )
-bollard_incident_failure_started_at: Optional[datetime] = None
+incident_state = IncidentState()
 OWNTRACKS_VISIT_SYNC_ENABLED = os.getenv("OWNTRACKS_VISIT_SYNC_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
 OWNTRACKS_VISIT_SYNC_INTERVAL_SECONDS = max(30, int(os.getenv("OWNTRACKS_VISIT_SYNC_INTERVAL_SECONDS", "60")))
 OWNTRACKS_VISIT_SYNC_LOOKBACK_HOURS = max(1, int(os.getenv("OWNTRACKS_VISIT_SYNC_LOOKBACK_HOURS", str(24 * 14))))
@@ -11688,92 +11689,20 @@ async def protect_ledger_json(method: str, **params: Any) -> dict[str, Any]:
         raise HTTPException(status_code=error.status_code, detail=error.message) from error
 
 
-@app.get("/api/unifi-protect/status")
-async def api_unifi_protect_status() -> dict[str, Any]:
-    return await protect_ledger_json("status")
 
 
-@app.get("/api/unifi-protect/cameras")
-async def api_unifi_protect_cameras() -> dict[str, Any]:
-    return await protect_ledger_json("cameras")
 
 
-@app.get("/api/unifi-protect/capabilities")
-async def api_unifi_protect_capabilities() -> dict[str, Any]:
-    return await protect_ledger_json("capabilities")
 
 
-@app.get("/api/unifi-protect/stats")
-async def api_unifi_protect_stats() -> dict[str, Any]:
-    return await protect_ledger_json("stats")
 
 
-@app.get("/api/unifi-protect/events")
-async def api_unifi_protect_events(
-    event_type: str = "",
-    camera_id: str = "",
-    detection_type: str = "",
-    from_at: Optional[datetime] = Query(default=None, alias="from"),
-    to_at: Optional[datetime] = Query(default=None, alias="to"),
-    has_snapshot: Optional[bool] = None,
-    limit: int = Query(default=100, ge=1, le=500),
-    cursor: str = "",
-) -> dict[str, Any]:
-    return await protect_ledger_json(
-        "events",
-        event_type=event_type,
-        camera_id=camera_id,
-        detection_type=detection_type,
-        **{
-            "from": from_at.isoformat() if from_at else None,
-            "to": to_at.isoformat() if to_at else None,
-            "has_snapshot": has_snapshot,
-            "limit": limit,
-            "cursor": cursor,
-        },
-    )
 
 
-@app.get("/api/unifi-protect/recognitions")
-async def api_unifi_protect_recognitions(
-    kind: str = "",
-    value: str = "",
-    camera_id: str = "",
-    is_known: Optional[bool] = None,
-    from_at: Optional[datetime] = Query(default=None, alias="from"),
-    to_at: Optional[datetime] = Query(default=None, alias="to"),
-    limit: int = Query(default=100, ge=1, le=500),
-    cursor: str = "",
-) -> dict[str, Any]:
-    return await protect_ledger_json(
-        "recognitions",
-        kind=kind,
-        value=value,
-        camera_id=camera_id,
-        is_known=is_known,
-        **{
-            "from": from_at.isoformat() if from_at else None,
-            "to": to_at.isoformat() if to_at else None,
-            "limit": limit,
-            "cursor": cursor,
-        },
-    )
 
 
-@app.get("/api/unifi-protect/recognitions/{recognition_id}")
-async def api_unifi_protect_recognition_detail(recognition_id: int) -> dict[str, Any]:
-    return await protect_ledger_json("recognition_detail", recognition_id=recognition_id)
 
 
-@app.get("/api/unifi-protect/license-plates/daily")
-async def api_unifi_protect_daily_license_plates(
-    from_at: datetime = Query(alias="from"),
-    to_at: datetime = Query(alias="to"),
-) -> dict[str, Any]:
-    return await protect_ledger_json(
-        "daily_license_plates",
-        **{"from": from_at.isoformat(), "to": to_at.isoformat()},
-    )
 
 
 async def unpaid_registered_vehicle_stays_payload(
@@ -11928,601 +11857,20 @@ async def unpaid_registered_vehicle_stays_payload(
     }
 
 
-@app.get("/api/cars/parking-control-report")
-async def api_parking_control_report(
-    response: Response,
-    period: str = Query(default="month", pattern="^(week|month)$"),
-    month: Optional[str] = None,
-    week: Optional[str] = None,
-    gap_minutes: int = Query(default=60, ge=5, le=180),
-) -> dict[str, Any]:
-    response.headers["Cache-Control"] = "no-store, max-age=0"
-    today = datetime.now(LOCAL_TZ).date()
-    current_week_start = today - timedelta(days=today.weekday())
-    if period == "week":
-        period_start = current_week_start
-        if week:
-            try:
-                parsed_week = datetime.strptime(f"{week}-1", "%G-W%V-%u").date()
-                if parsed_week.strftime("%G-W%V") == week:
-                    period_start = parsed_week
-            except (TypeError, ValueError):
-                pass
-        period_end = period_start + timedelta(days=7)
-        period_value = period_start.strftime("%G-W%V")
-        previous_period = (period_start - timedelta(days=7)).strftime("%G-W%V")
-        next_period = period_end.strftime("%G-W%V")
-        current_period = current_week_start.strftime("%G-W%V")
-        period_label_value = (
-            f"Uke {period_start.isocalendar().week} · "
-            f"{period_start.strftime('%d.%m')}-{(period_end - timedelta(days=1)).strftime('%d.%m.%Y')}"
-        )
-    else:
-        period_start = normalize_month(month, today)
-        period_end = add_months(period_start, 1)
-        period_value = period_start.strftime("%Y-%m")
-        previous_period = add_months(period_start, -1).strftime("%Y-%m")
-        next_period = period_end.strftime("%Y-%m")
-        current_period = today.strftime("%Y-%m")
-        period_label_value = month_label(period_start)
-    from_at = datetime.combine(period_start, time.min).replace(tzinfo=LOCAL_TZ)
-    to_at = datetime.combine(period_end, time.min).replace(tzinfo=LOCAL_TZ)
-    ledger, known_stays, registered_stays = await asyncio.gather(
-        protect_ledger_json(
-            "known_vehicle_report",
-            identity="PARKNORDIC",
-            **{
-                "from": from_at.isoformat(),
-                "to": to_at.isoformat(),
-                "gap_minutes": gap_minutes,
-                "timezone": "Europe/Oslo",
-            },
-        ),
-        protect_ledger_json(
-            "known_vehicle_stays_report",
-            **{
-                "from": from_at.isoformat(),
-                "to": to_at.isoformat(),
-                "min_duration_minutes": 10,
-                "timezone": "Europe/Oslo",
-            },
-        ),
-        protect_ledger_json(
-            "registered_vehicle_stays_report",
-            **{
-                "from": from_at.isoformat(),
-                "to": to_at.isoformat(),
-                "min_duration_minutes": 10,
-                "timezone": "Europe/Oslo",
-            },
-        ),
-    )
-    unpaid_registered_vehicles = await unpaid_registered_vehicle_stays_payload(
-        registered_stays,
-        period_start,
-        period_end,
-    )
-
-    def visit_payload(item: Mapping[str, Any]) -> dict[str, Any]:
-        return {
-            "id": item.get("id"),
-            "startAt": item.get("start_at"),
-            "endAt": item.get("end_at"),
-            "durationMinutes": float_or_zero(item.get("duration_minutes")),
-            "observationCount": int_or_zero(item.get("observation_count")),
-            "cameraNames": list(item.get("camera_names") or []),
-            "isSingleObservation": bool(item.get("is_single_observation")),
-            "observations": [
-                {
-                    "recognitionId": observation.get("recognition_id"),
-                    "occurredAt": observation.get("occurred_at"),
-                    "cameraId": observation.get("camera_id"),
-                    "cameraName": observation.get("camera_name") or observation.get("camera_id") or "Ukjent kamera",
-                }
-                for observation in item.get("observations") or []
-                if isinstance(observation, Mapping)
-            ],
-        }
-
-    source_summary = ledger.get("summary") if isinstance(ledger.get("summary"), Mapping) else {}
-    source_policy = ledger.get("policy") if isinstance(ledger.get("policy"), Mapping) else {}
-    known_summary = known_stays.get("summary") if isinstance(known_stays.get("summary"), Mapping) else {}
-    known_policy = known_stays.get("policy") if isinstance(known_stays.get("policy"), Mapping) else {}
-    days = []
-    for source_day in ledger.get("days") or []:
-        if not isinstance(source_day, Mapping):
-            continue
-        day_value = date.fromisoformat(str(source_day.get("date")))
-        days.append(
-            {
-                "date": day_value.isoformat(),
-                "label": day_value.strftime("%d.%m"),
-                "weekdayLabel": ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"][day_value.weekday()],
-                "isWeekend": day_value.weekday() >= 5,
-                "visitCount": int_or_zero(source_day.get("visit_count")),
-                "observationCount": int_or_zero(source_day.get("observation_count")),
-                "observedMinutes": float_or_zero(source_day.get("observed_minutes")),
-                "visits": [
-                    visit_payload(item)
-                    for item in source_day.get("visits") or []
-                    if isinstance(item, Mapping)
-                ],
-            }
-        )
-    known_vehicle_days = []
-    for source_day in known_stays.get("days") or []:
-        if not isinstance(source_day, Mapping):
-            continue
-        day_value = date.fromisoformat(str(source_day.get("date")))
-        vehicles = []
-        for source_vehicle in source_day.get("vehicles") or []:
-            if not isinstance(source_vehicle, Mapping):
-                continue
-            vehicles.append(
-                {
-                    "id": source_vehicle.get("id"),
-                    "identity": source_vehicle.get("identity"),
-                    "displayName": source_vehicle.get("display_name") or source_vehicle.get("identity") or "Kjent kjøretøy",
-                    "firstObservedAt": source_vehicle.get("first_observed_at"),
-                    "lastObservedAt": source_vehicle.get("last_observed_at"),
-                    "durationMinutes": float_or_zero(source_vehicle.get("duration_minutes")),
-                    "observationCount": int_or_zero(source_vehicle.get("observation_count")),
-                    "cameraNames": list(source_vehicle.get("camera_names") or []),
-                }
-            )
-        known_vehicle_days.append(
-            {
-                "date": day_value.isoformat(),
-                "label": day_value.strftime("%d.%m"),
-                "weekdayLabel": ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"][day_value.weekday()],
-                "isWeekend": day_value.weekday() >= 5,
-                "vehicleCount": len(vehicles),
-                "observationCount": int_or_zero(source_day.get("observation_count")),
-                "vehicles": vehicles,
-            }
-        )
-    return {
-        "generatedAt": ledger.get("generated_at"),
-        "identity": ledger.get("identity") or "PARKNORDIC",
-        "displayName": ledger.get("display_name") or "Park Nordic",
-        "periodType": period,
-        "periodValue": period_value,
-        "periodLabel": period_label_value,
-        "previousPeriod": previous_period,
-        "nextPeriod": next_period,
-        "currentPeriod": current_period,
-        "isCurrentPeriod": period_value == current_period,
-        "rangeStart": period_start.isoformat(),
-        "rangeEnd": (period_end - timedelta(days=1)).isoformat(),
-        "month": period_start.strftime("%Y-%m"),
-        "monthLabel": month_label(period_start),
-        "prevMonth": add_months(period_start.replace(day=1), -1).strftime("%Y-%m"),
-        "nextMonth": add_months(period_start.replace(day=1), 1).strftime("%Y-%m"),
-        "isCurrentMonth": period_start.replace(day=1) == today.replace(day=1),
-        "policy": {
-            "gapMinutes": int_or_zero(source_policy.get("gap_minutes")) or gap_minutes,
-            "label": source_policy.get("label") or f"Under {gap_minutes} min mellom observasjoner",
-            "detail": source_policy.get("detail") or "Varighet er estimert fra kameraobservasjonene.",
-        },
-        "summary": {
-            "visitCount": int_or_zero(source_summary.get("visit_count")),
-            "activeDays": int_or_zero(source_summary.get("active_days")),
-            "observationCount": int_or_zero(source_summary.get("observation_count")),
-            "observedMinutes": float_or_zero(source_summary.get("observed_minutes")),
-            "averageVisitMinutes": float_or_zero(source_summary.get("average_visit_minutes")),
-            "firstObservedAt": source_summary.get("first_observed_at"),
-            "lastObservedAt": source_summary.get("last_observed_at"),
-        },
-        "days": days,
-        "knownVehicles": {
-            "policy": {
-                "minDurationMinutes": int_or_zero(known_policy.get("min_duration_minutes")) or 10,
-                "label": known_policy.get("label") or "Mer enn 10 minutter",
-                "detail": known_policy.get("detail") or "Tidsrommet beregnes fra første til siste kameraobservasjon samme dag.",
-            },
-            "summary": {
-                "vehicleDayCount": int_or_zero(known_summary.get("vehicle_day_count")),
-                "activeDays": int_or_zero(known_summary.get("active_days")),
-                "uniqueVehicleCount": int_or_zero(known_summary.get("unique_vehicle_count")),
-                "observationCount": int_or_zero(known_summary.get("observation_count")),
-                "observedMinutes": float_or_zero(known_summary.get("observed_minutes")),
-            },
-            "days": known_vehicle_days,
-        },
-        "unpaidRegisteredVehicles": unpaid_registered_vehicles,
-    }
 
 
-@app.get("/api/unifi-protect/bollards")
-async def api_unifi_protect_bollards() -> dict[str, Any]:
-    payload = await protect_ledger_json("bollards")
-    for monitor in payload.get("camera_monitors", []):
-        for key in (
-            "baseline_url", "latest_url", "overlay_url",
-            "baseline_crop_url", "latest_crop_url", "overlay_crop_url",
-            "ai_heatmap_url",
-        ):
-            if monitor.get(key):
-                monitor[key] = str(monitor[key]).replace(
-                    "/api/v1/bollards/", "/api/unifi-protect/bollards/", 1
-                )
-    for monitor in payload.get("asset_monitors", []):
-        for key in (
-            "baseline_url", "latest_url", "overlay_url",
-            "baseline_crop_url", "latest_crop_url", "overlay_crop_url",
-            "ai_heatmap_url",
-        ):
-            if monitor.get(key):
-                monitor[key] = str(monitor[key]).replace(
-                    "/api/v1/bollards/", "/api/unifi-protect/bollards/", 1
-                )
-    for region in payload.get("regions", []):
-        if region.get("baseline_url"):
-            region["baseline_url"] = str(region["baseline_url"]).replace(
-                "/api/v1/bollards/", "/api/unifi-protect/bollards/", 1
-            )
-    for incident in payload.get("incidents", []):
-        for evidence in (incident.get("evidence") or {}).values():
-            for key in ("before_url", "after_url"):
-                if evidence.get(key):
-                    evidence[key] = str(evidence[key]).replace(
-                        "/api/v1/bollards/", "/api/unifi-protect/bollards/", 1
-                    )
-    return payload
 
 
-@app.get("/api/unifi-protect/bollards/mobile-notifications")
-async def api_unifi_protect_bollard_mobile_notifications() -> dict[str, Any]:
-    status = await protect_ledger_json("bollards")
-    return bollard_mobile_notification_payload(status)
 
 
-@app.post("/api/unifi-protect/bollards/mobile-notifications/test")
-async def api_test_unifi_protect_bollard_mobile_notification() -> dict[str, Any]:
-    if not NTFY_BOLLARDS_TOPIC:
-        raise HTTPException(status_code=503, detail="Varselkanalen er ikke konfigurert")
-    try:
-        await asyncio.to_thread(
-            publish_ntfy_message,
-            NTFY_BOLLARDS_TOPIC,
-            "Testvarsel - pullerter og trapp ved Solstudio",
-            "Test fra Fibaro10: mobilvarsling for pullert- og trappekontrollen virker. Ingen hendelse er registrert.",
-            "white_check_mark,car",
-            "4",
-            f"{ALARM_APP_URL}/?section=pullerter",
-        )
-    except Exception as error:
-        logger.warning("Kunne ikke sende testvarsel for pullerter: %s", error, exc_info=True)
-        raise HTTPException(status_code=502, detail="Testvarselet kunne ikke sendes") from error
-    return {"sent": True}
 
 
-@app.get("/api/cars/day")
-async def api_cars_day(response: Response, day: Optional[str] = None) -> dict[str, Any]:
-    response.headers["Cache-Control"] = "no-store, max-age=0"
-    selected_day = parse_day(day)
-    today = datetime.now(LOCAL_TZ).date()
-    cache_key = f"cars_day:{selected_day.isoformat()}"
-    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
-    cached = SUMMARY_CACHE.get(cache_key)
-    if cached and cached.get("expires", datetime.min) > now_utc:
-        response.headers["X-Data-Cache"] = "hit"
-        return deepcopy(cached["value"])
-    response.headers["X-Data-Cache"] = "miss"
-    day_start = datetime.combine(selected_day, time.min)
-    day_end = day_start + timedelta(days=1)
-    day_start_aware = day_start.replace(tzinfo=LOCAL_TZ)
-    day_end_aware = day_end.replace(tzinfo=LOCAL_TZ)
-    ledger = await protect_ledger_json(
-        "daily_license_plates",
-        **{
-            "from": day_start_aware.isoformat(),
-            "to": day_end_aware.isoformat(),
-            "include_detections": False,
-        },
-    )
-    recognition_items = cars_group_daily_recognitions(list(ledger.get("items") or []))
-    plate_values = sorted(
-        {
-            compact_plate(item.get("plate") or item.get("display_value"))
-            for item in recognition_items
-            if compact_plate(item.get("plate") or item.get("display_value"))
-        }
-    )
-
-    parking_by_plate: Dict[str, list[Dict[str, Any]]] = defaultdict(list)
-    vehicle_by_plate: Dict[str, Dict[str, Any]] = {}
-    if plate_values:
-        normalized_session_plate = compact_plate_sql(ParkingSession.car_license_number)
-        async with async_session() as session:
-            parking_rows = (
-                await session.execute(
-                    select(ParkingSession)
-                    .where(normalized_session_plate.in_(plate_values))
-                    .where(ParkingSession.start_time >= day_start - timedelta(days=7))
-                    .where(ParkingSession.start_time < day_end)
-                    .where(
-                        or_(
-                            ParkingSession.start_time >= day_start,
-                            ParkingSession.end_time.is_(None),
-                            ParkingSession.end_time >= day_start,
-                        )
-                    )
-                    .order_by(ParkingSession.start_time.asc(), ParkingSession.id.asc())
-                )
-            ).scalars().all()
-            vehicle_rows = (
-                await session.execute(
-                    select(ParkingVehicle, ParkingVehicleDetails)
-                    .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-                    .where(compact_plate_sql(ParkingVehicle.plate).in_(plate_values))
-                )
-            ).all()
-
-        timeline_end = min(local_now_naive(), day_end) if selected_day == today else day_end
-        for row in parking_rows:
-            plate_value = compact_plate(row.car_license_number)
-            start_at = normalize_local_naive(row.start_time)
-            end_at = parking_timeline_end(row, timeline_end)
-            if not start_at or end_at <= day_start or start_at >= day_end:
-                continue
-            paid = float_or_zero(row.fee_inc_vat)
-            parking_by_plate[plate_value].append(
-                {
-                    "id": row.id,
-                    "startAt": api_local_iso(start_at),
-                    "endAt": api_local_iso(end_at),
-                    "durationMinutes": round(float_or_zero(parking_duration_minutes(row, timeline_end)), 1),
-                    "amountKr": round(paid, 2),
-                    "isPaid": paid > 0,
-                    "status": row.status,
-                    "source": row.source_system,
-                    "area": row.parking_area,
-                    "_startAt": start_at,
-                    "_endAt": end_at,
-                }
-            )
-        for vehicle, details in vehicle_rows:
-            plate_value = compact_plate(vehicle.plate)
-            vehicle_by_plate[plate_value] = {
-                "name": vehicle.navn,
-                "area": vehicle.omrade,
-                "title": parking_vehicle_summary(details, vehicle.car_info_data),
-                "path": f"/parkering/kjoretoy/{quote(vehicle.plate or plate_value, safe='')}",
-            }
-
-    items: list[Dict[str, Any]] = []
-    for source_item in recognition_items:
-        plate_value = compact_plate(source_item.get("plate") or source_item.get("display_value"))
-        if not plate_value:
-            continue
-        detections = []
-        detection_datetimes = []
-        unifi_scores = []
-        raw_detections = source_item.get("detections") or []
-        if isinstance(raw_detections, str):
-            try:
-                raw_detections = json.loads(raw_detections)
-            except (TypeError, ValueError):
-                raw_detections = []
-        for detection in raw_detections:
-            if not isinstance(detection, dict):
-                continue
-            public_detection = cars_public_detection(detection, plate_value)
-            unifi_score = public_detection["unifiScore"]
-            if unifi_score is not None:
-                unifi_scores.append(unifi_score)
-            detections.append(public_detection)
-
-        detection_datetimes = [
-            value
-            for value in (
-                cars_recognition_local_datetime(raw_value)
-                for raw_value in source_item.get("detection_times") or []
-            )
-            if value
-        ] or [
-            value
-            for value in (cars_recognition_local_datetime(item.get("occurredAt")) for item in detections)
-            if value
-        ]
-
-        parking_sessions = parking_by_plate.get(plate_value, [])
-        paid_sessions = [parking for parking in parking_sessions if parking["isPaid"]]
-        has_paid_session = bool(paid_sessions)
-        payment_metrics = cars_daily_payment_metrics(detection_datetimes, paid_sessions)
-
-        def public_parking_row(row: Dict[str, Any]) -> Dict[str, Any]:
-            return {key: value for key, value in row.items() if not key.startswith("_")}
-
-        first_detected_at = min(detection_datetimes) if detection_datetimes else cars_recognition_local_datetime(source_item.get("first_detected_at"))
-        last_detected_at = max(detection_datetimes) if detection_datetimes else cars_recognition_local_datetime(source_item.get("last_detected_at"))
-        average_unifi_score = cars_unifi_score(source_item.get("average_unifi_score"))
-        if average_unifi_score is None and unifi_scores:
-            average_unifi_score = round(sum(unifi_scores) / len(unifi_scores), 1)
-        minimum_unifi_score = cars_unifi_score(source_item.get("minimum_unifi_score"))
-        maximum_unifi_score = cars_unifi_score(source_item.get("maximum_unifi_score"))
-        registry_validation = source_item.get("validation") if isinstance(source_item.get("validation"), dict) else {
-            "status": "pending",
-            "is_valid": None,
-            "likely_misread": False,
-            "message": "Venter på validering i Protect Ledger",
-            "sources": {},
-        }
-        public_registry_validation = {
-            key: value
-            for key, value in registry_validation.items()
-            if key != "sources"
-        }
-        ledger_variant_candidates = source_item.get("ocr_variant_candidates") or []
-        items.append(
-            {
-                "plate": plate_value,
-                "displayValue": source_item.get("display_value") or plate_value,
-                "detectionCount": int_or_zero(source_item.get("detection_count")) or len(detections),
-                "firstDetectedAt": api_local_iso(first_detected_at),
-                "lastDetectedAt": api_local_iso(last_detected_at),
-                "knownInProtect": bool(source_item.get("known_in_protect")),
-                "cameraNames": list(source_item.get("camera_names") or []),
-                "detections": [],
-                "averageUnifiScore": average_unifi_score,
-                "minimumUnifiScore": minimum_unifi_score if minimum_unifi_score is not None else (min(unifi_scores) if unifi_scores else None),
-                "maximumUnifiScore": maximum_unifi_score if maximum_unifi_score is not None else (max(unifi_scores) if unifi_scores else None),
-                "scoredDetectionCount": int_or_zero(source_item.get("scored_detection_count")) or len(unifi_scores),
-                "confidenceLevel": cars_confidence_level(average_unifi_score),
-                "matchingReadCount": int_or_zero(source_item.get("detection_count")) or len(detections),
-                "observedPlateValues": list(source_item.get("observed_plate_values") or [plate_value]),
-                "mergedVariantCount": int_or_zero(source_item.get("merged_variant_count")),
-                "ocrWarning": bool(ledger_variant_candidates),
-                "isLikelyOcrVariant": bool(source_item.get("is_likely_ocr_variant")),
-                "likelyCanonicalPlate": source_item.get("likely_canonical_plate") or plate_value,
-                "ocrVariantCandidates": [
-                    {
-                        "plate": candidate.get("plate"),
-                        "editDistance": candidate.get("edit_distance"),
-                        "detectionCount": candidate.get("detection_count"),
-                    }
-                    for candidate in ledger_variant_candidates
-                    if isinstance(candidate, dict)
-                ],
-                "registryValidation": public_registry_validation,
-                "likelyMisread": bool(source_item.get("likely_misread")),
-                "presentationStatus": source_item.get("presentation_status") or "pending_review",
-                "requiresReview": bool(source_item.get("requires_review")),
-                "vehicle": vehicle_by_plate.get(plate_value),
-                "hasParkingSession": bool(parking_sessions),
-                "hasPaidSession": has_paid_session,
-                "paidSessionCount": len(paid_sessions),
-                "paidTotalKr": round(sum(float_or_zero(parking["amountKr"]) for parking in paid_sessions), 2),
-                **payment_metrics,
-                "parkingSessions": [public_parking_row(parking) for parking in parking_sessions],
-                "paidSessions": [public_parking_row(parking) for parking in paid_sessions],
-            }
-        )
-
-    items.sort(key=lambda item: (item.get("lastDetectedAt") or "", item["plate"]), reverse=True)
-    covered_count = sum(1 for item in items if item["coveredDetectionCount"] > 0)
-    paid_count = sum(1 for item in items if item["hasPaidSession"])
-    observation_datetimes = [
-        value
-        for item in items
-        for value in (
-            cars_recognition_local_datetime(item.get("firstDetectedAt")),
-            cars_recognition_local_datetime(item.get("lastDetectedAt")),
-        )
-    ]
-    observation_datetimes = [value for value in observation_datetimes if value]
-    observation_start_at = min(observation_datetimes) if observation_datetimes else None
-    observation_end_at = max(observation_datetimes) if observation_datetimes else None
-    value = {
-        "generatedAt": api_local_iso(local_now_naive()),
-        "selectedDay": selected_day.isoformat(),
-        "selectedDayLabel": selected_day.strftime("%d.%m.%Y"),
-        "prevDay": (selected_day - timedelta(days=1)).isoformat(),
-        "nextDay": (selected_day + timedelta(days=1)).isoformat(),
-        "isToday": selected_day == today,
-        "matchPolicy": {
-            "mode": "same_calendar_day",
-            "label": "Samme bil og samme dag",
-            "detail": "Betaling matches mot bilen for hele kalenderdagen, uavhengig av hvor lenge sjåføren ventet før betaling.",
-        },
-        "observationWindow": {
-            "firstDetectedAt": api_local_iso(observation_start_at),
-            "lastDetectedAt": api_local_iso(observation_end_at),
-            "spanMinutes": round((observation_end_at - observation_start_at).total_seconds() / 60, 1)
-            if observation_start_at and observation_end_at
-            else 0,
-        },
-        "summary": {
-            "uniquePlates": len(items),
-            "detections": sum(int_or_zero(item["detectionCount"]) for item in items),
-            "paidPlates": paid_count,
-            "coveredPlates": covered_count,
-            "withoutPayment": len(items) - paid_count,
-            "mergedOcrVariants": sum(int_or_zero(item.get("mergedVariantCount")) for item in items),
-            "scoredDetections": sum(int_or_zero(item["scoredDetectionCount"]) for item in items),
-            "lowConfidencePlates": sum(1 for item in items if item["confidenceLevel"] in {"low", "unscored"}),
-            "ocrWarningPlates": sum(1 for item in items if item["ocrWarning"]),
-            "reviewPlates": sum(1 for item in items if item["requiresReview"]),
-            "validatedPlates": sum(1 for item in items if item["registryValidation"].get("is_valid") is True),
-            "likelyMisreads": sum(1 for item in items if item["likelyMisread"]),
-            "pendingValidation": sum(1 for item in items if item["registryValidation"].get("is_valid") is None),
-        },
-        "items": items,
-    }
-    cache_ttl = CARS_DAY_CACHE_TTL if selected_day == today else CARS_HISTORY_CACHE_TTL
-    SUMMARY_CACHE[cache_key] = {"expires": now_utc + cache_ttl, "value": deepcopy(value)}
-    return value
 
 
-@app.get("/api/cars/day/{plate}/detections")
-async def api_cars_day_detections(plate: str, day: Optional[str] = None) -> dict[str, Any]:
-    selected_day = parse_day(day)
-    plate_value = compact_plate(plate)
-    if not plate_value:
-        raise HTTPException(status_code=400, detail="Registreringsnummer mangler")
-    today = datetime.now(LOCAL_TZ).date()
-    cache_key = f"cars_day_detections:{selected_day.isoformat()}:{plate_value}"
-    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
-    cached = SUMMARY_CACHE.get(cache_key)
-    if cached and cached.get("expires", datetime.min) > now_utc:
-        return deepcopy(cached["value"])
-
-    day_start = datetime.combine(selected_day, time.min).replace(tzinfo=LOCAL_TZ)
-    day_end = (datetime.combine(selected_day, time.min) + timedelta(days=1)).replace(tzinfo=LOCAL_TZ)
-    ledger = await protect_ledger_json(
-        "daily_license_plates",
-        **{
-            "from": day_start.isoformat(),
-            "to": day_end.isoformat(),
-            "include_detections": True,
-            "plate": plate_value,
-        },
-    )
-    grouped = cars_group_daily_recognitions(list(ledger.get("items") or []))
-    source_item = next(
-        (
-            item
-            for item in grouped
-            if compact_plate(item.get("plate") or item.get("display_value")) == plate_value
-        ),
-        None,
-    )
-    raw_detections = list((source_item or {}).get("detections") or [])
-    detections = [
-        cars_public_detection(detection, plate_value)
-        for detection in raw_detections
-        if isinstance(detection, Mapping)
-    ]
-    value = {
-        "plate": plate_value,
-        "selectedDay": selected_day.isoformat(),
-        "detectionCount": int_or_zero((source_item or {}).get("detection_count")) or len(detections),
-        "detections": detections,
-    }
-    cache_ttl = CARS_DAY_CACHE_TTL if selected_day == today else CARS_HISTORY_CACHE_TTL
-    SUMMARY_CACHE[cache_key] = {"expires": now_utc + cache_ttl, "value": deepcopy(value)}
-    return value
 
 
-@app.get("/api/unifi-protect/events/{source_event_id}/snapshot")
-async def api_unifi_protect_snapshot(source_event_id: str) -> Response:
-    client = protect_ledger_client()
-    try:
-        content, content_type = await asyncio.to_thread(client.snapshot, source_event_id)
-    except ProtectLedgerError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.message) from error
-    return Response(content=content, media_type=content_type, headers={"Cache-Control": "private, max-age=3600"})
 
 
-@app.get("/api/unifi-protect/recognitions/{recognition_id}/snapshot")
-async def api_unifi_protect_recognition_snapshot(recognition_id: int) -> Response:
-    client = protect_ledger_client()
-    try:
-        content, content_type = await asyncio.to_thread(client.recognition_snapshot, recognition_id)
-    except ProtectLedgerError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.message) from error
-    return Response(content=content, media_type=content_type, headers={"Cache-Control": "private, max-age=3600"})
 
 
 def bollard_image_cache_control(kind: str, *, historical: bool = False) -> str:
@@ -12533,170 +11881,20 @@ def bollard_image_cache_control(kind: str, *, historical: bool = False) -> str:
     return "private, max-age=15, stale-while-revalidate=30"
 
 
-@app.get("/api/unifi-protect/bollards/regions/{region_id}/baseline")
-async def api_unifi_protect_bollard_baseline(region_id: int) -> Response:
-    client = protect_ledger_client()
-    try:
-        content, content_type = await asyncio.to_thread(client.bollard_region_baseline, region_id)
-    except ProtectLedgerError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.message) from error
-    return Response(content=content, media_type=content_type, headers={"Cache-Control": bollard_image_cache_control("baseline")})
 
 
-@app.get("/api/unifi-protect/bollards/cameras/{camera_id}/{kind}")
-async def api_unifi_protect_bollard_camera_image(camera_id: str, kind: str) -> Response:
-    client = protect_ledger_client()
-    try:
-        content, content_type = await asyncio.to_thread(
-            client.bollard_camera_image,
-            camera_id,
-            kind,
-        )
-    except ProtectLedgerError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.message) from error
-    return Response(content=content, media_type=content_type, headers={"Cache-Control": bollard_image_cache_control(kind)})
 
 
-@app.get("/api/unifi-protect/bollards/cameras/{camera_id}/{kind}/crop")
-async def api_unifi_protect_bollard_camera_crop(camera_id: str, kind: str) -> Response:
-    client = protect_ledger_client()
-    try:
-        content, content_type = await asyncio.to_thread(
-            client.bollard_camera_crop,
-            camera_id,
-            kind,
-        )
-    except ProtectLedgerError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.message) from error
-    return Response(content=content, media_type=content_type, headers={"Cache-Control": bollard_image_cache_control(kind)})
 
 
-@app.get("/api/unifi-protect/bollards/assets/{asset_key}/{kind}")
-async def api_unifi_protect_bollard_asset_image(asset_key: str, kind: str) -> Response:
-    client = protect_ledger_client()
-    try:
-        content, content_type = await asyncio.to_thread(
-            client.bollard_asset_image,
-            asset_key,
-            kind,
-        )
-    except ProtectLedgerError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.message) from error
-    return Response(content=content, media_type=content_type, headers={"Cache-Control": bollard_image_cache_control(kind)})
 
 
-@app.get("/api/unifi-protect/bollards/incidents/{incident_id}/images/{camera_id}/{kind}")
-async def api_unifi_protect_bollard_incident_image(
-    incident_id: int,
-    camera_id: str,
-    kind: str,
-) -> Response:
-    client = protect_ledger_client()
-    try:
-        content, content_type = await asyncio.to_thread(
-            client.bollard_incident_image,
-            incident_id,
-            camera_id,
-            kind,
-        )
-    except ProtectLedgerError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.message) from error
-    return Response(
-        content=content,
-        media_type=content_type,
-        headers={"Cache-Control": bollard_image_cache_control(kind, historical=True)},
-    )
 
 
-@app.get("/health")
-@app.get("/api/system/health")
-async def health(details: bool = Query(False)):
-    database = {"status": "ok", "detail": "SELECT 1 OK"}
-    sources = []
-    notifications = None
-    status_code = 200
-    try:
-        async with async_session() as session:
-            await session.execute(sql_text("SELECT 1"))
-            if details:
-                notifications = await notification_outbox_status(session)
-                rows = await import_status_rows(session)
-                for row in rows:
-                    stamp = row.get("last_success_at") or row.get("last_run_at")
-                    sources.append(
-                        {
-                            "sourceNo": row.get("source_no"),
-                            "jobName": row.get("job_name"),
-                            "title": row.get("title"),
-                            "label": row.get("title"),
-                            "category": row.get("category"),
-                            "source": row.get("source"),
-                            "status": row.get("status"),
-                            "statusText": row.get("status_text"),
-                            "detail": row.get("age") or row.get("status_text") or "",
-                            "lastRunAt": api_local_iso(row.get("last_run_at")),
-                            "lastSuccessAt": api_local_iso(row.get("last_success_at")),
-                            "lastFailedAt": api_local_iso(row.get("last_failed_at")),
-                            "nextExpectedAt": api_local_iso(row.get("next_expected_at")),
-                            "ageMinutes": minutes_since(stamp),
-                            "recordsImported": row.get("records_imported"),
-                            "recordsTotal": row.get("records_total"),
-                            "durationSeconds": row.get("duration_seconds"),
-                            "message": row.get("message") or "",
-                        }
-                    )
-    except Exception as exc:
-        logger.warning("Health database check failed: %s", exc, exc_info=True)
-        database = {"status": "bad", "detail": str(exc)}
-        status_code = 503
-    payload = health_payload(
-        app_version=APP_VERSION,
-        app_build=APP_BUILD,
-        app_commit=APP_COMMIT,
-        started_at=APP_STARTED_AT,
-        database=database,
-        sources=sources,
-    )
-    if notifications is not None:
-        payload["notifications"] = notifications
-    payload["runtime"] = {
-        "role": FIBARO10_PROCESS_ROLE,
-        "backgroundTasksEnabled": FIBARO10_BACKGROUND_TASKS_ENABLED,
-        "backgroundTasks": list(background_tasks.running_names()),
-    }
-    if details:
-        payload["maintenance"] = {
-            "retention": {
-                **OPERATIONAL_RETENTION_STATE,
-                "enabled": OPERATIONAL_RETENTION_ENABLED,
-                "intervalHours": OPERATIONAL_RETENTION_INTERVAL_HOURS,
-                "policyDays": {
-                    "successfulAccessLogs": ACCESS_LOG_SUCCESS_RETENTION_DAYS,
-                    "failedAccessLogs": ACCESS_LOG_FAILURE_RETENTION_DAYS,
-                    "successfulImportRuns": IMPORT_JOB_SUCCESS_RETENTION_DAYS,
-                    "failedImportRuns": IMPORT_JOB_FAILURE_RETENTION_DAYS,
-                    "sentNotifications": NOTIFICATION_SENT_RETENTION_DAYS,
-                    "expiredAuthSessions": AUTH_SESSION_RETENTION_DAYS,
-                },
-            }
-        }
-    if status_code == 200:
-        return payload
-    return JSONResponse(payload, status_code=status_code)
 
 
-@app.get("/favicon.ico")
-async def favicon():
-    return FileResponse(
-        "static/favicon.ico",
-        media_type="image/x-icon",
-        headers={"Cache-Control": "public, max-age=604800, immutable"},
-    )
 
 
-@app.get("/auth/login", response_class=HTMLResponse)
-async def login_view(request: Request):
-    return HTMLResponse(render_login_page(app_name="Fibaro10", build=APP_BUILD, pwa=FIBARO10_PWA))
 
 
 def redirect_keep_query(request: Request, target: str, status_code: int = 307) -> RedirectResponse:
@@ -12720,78 +11918,14 @@ def should_use_secure_cookie(request: Request) -> bool:
     return request_is_secure(request)
 
 
-@app.post("/auth/login")
-async def login_submit(request: Request):
-    form = await parse_form_body(request)
-    username = normalize_username(form.get("username") or "")
-    password = (form.get("password") or "").strip()
-    access_key = await find_access_key(username, password)
-    if not access_key:
-        await log_access_attempt(request, False, "failed_login", attempted_username=username)
-        return HTMLResponse(
-            render_login_page(
-                app_name="Fibaro10",
-                build=APP_BUILD,
-                pwa=FIBARO10_PWA,
-                error="Ugyldig brukernavn eller passord.",
-            ),
-            status_code=401,
-        )
-    response = RedirectResponse("/", status_code=303)
-    session_token = await create_auth_session(access_key, request)
-    set_auth_session_cookie(response, request, session_token, max_age=AUTH_SESSION_MAX_AGE_SECONDS)
-    await log_access_attempt(request, True, "login", access_key)
-    return response
 
 
-@app.post("/konto/logg-ut")
-async def logout(request: Request):
-    await revoke_auth_session(getattr(request.state, "auth_session_id", None))
-    response = RedirectResponse("/auth/login", status_code=303)
-    clear_auth_cookies(response, request)
-    return response
 
 
-@app.post("/api/auth/session")
-async def api_auth_session_create(request: Request):
-    try:
-        payload = await request.json()
-    except (ValueError, json.JSONDecodeError):
-        payload = {}
-    username = normalize_username(str(payload.get("username") or "")) if isinstance(payload, dict) else ""
-    password = str(payload.get("password") or "").strip() if isinstance(payload, dict) else ""
-    access_key = await find_access_key(username, password)
-    if not access_key:
-        await log_access_attempt(request, False, "failed_session_login", attempted_username=username)
-        raise HTTPException(status_code=401, detail="Ugyldig brukernavn eller passord")
-    session_token = await create_auth_session(access_key, request)
-    await log_access_attempt(request, True, "session_login", access_key)
-    return {
-        "sessionToken": session_token,
-        "expiresIn": AUTH_SESSION_MAX_AGE_SECONDS,
-        "username": access_key.name,
-        "role": access_role(access_key),
-    }
 
 
-@app.delete("/api/auth/session")
-async def api_auth_session_delete(request: Request):
-    await revoke_auth_session(getattr(request.state, "auth_session_id", None))
-    return {"ok": True}
 
 
-@app.get("/api/auth/me")
-async def api_auth_me(request: Request):
-    role = getattr(request.state, "auth_role", "viewer")
-    is_master = bool(getattr(request.state, "auth_is_master", False))
-    return {
-        "username": getattr(request.state, "access_key_name", None),
-        "role": role,
-        "roleLabel": access_role_label(role, is_master),
-        "isMaster": is_master,
-        "canSettings": bool(getattr(request.state, "auth_can_settings", False)),
-        "appBuild": APP_BUILD,
-    }
 
 
 def manual_energy_quickapp_report() -> Dict[str, Any]:
@@ -13413,19 +12547,10 @@ def admin_manual_payload() -> Dict[str, Any]:
     }
 
 
-@app.get("/api/admin/builds")
-async def api_admin_builds():
-    return admin_builds_payload()
 
 
-@app.get("/api/manual")
-async def api_manual():
-    return admin_manual_payload()
 
 
-@app.get("/api/admin/manual")
-async def api_admin_manual():
-    return admin_manual_payload()
 
 
 def operational_incident_review_payload(row: OperationalIncidentReview) -> Dict[str, Any]:
@@ -13677,372 +12802,46 @@ async def build_operational_incident_center(
     }
 
 
-@app.get("/api/system/notifications")
-async def api_system_notifications():
-    global bollard_incident_failure_started_at
-
-    now_dt = local_now_naive()
-    bollard_status = None
-    bollard_error = None
-    try:
-        bollard_status = await protect_ledger_json("bollards")
-        bollard_incident_failure_started_at = None
-    except Exception as exc:
-        bollard_error = str(getattr(exc, "detail", None) or exc or "Pullerttjenesten svarer ikke")
-        if bollard_incident_failure_started_at is None:
-            bollard_incident_failure_started_at = now_dt
-        logger.debug("Kunne ikke lese pullertstatus for ntfy-oversikten", exc_info=True)
-    subscriptions = ntfy_subscription_rows(bollard_status)
-    async with async_session() as session:
-        incident_center = await build_operational_incident_center(
-            session,
-            now_dt,
-            bollard_status,
-            bollard_error,
-            bollard_incident_failure_started_at,
-        )
-    return {
-        "generatedAt": api_local_iso(now_dt),
-        "provider": ntfy_host(),
-        "providerUrl": NTFY_BASE_URL,
-        "summary": {
-            "channels": len(subscriptions),
-            "configured": sum(1 for row in subscriptions if row["configured"]),
-            "publishing": sum(1 for row in subscriptions if row["publishingEnabled"]),
-        },
-        "incidentSummary": incident_center["summary"],
-        "controls": incident_center["controls"],
-        "incidents": incident_center["incidents"],
-        "delivery": incident_center["delivery"],
-        "subscriptions": subscriptions,
-        "setup": [
-            "Installer ntfy-appen på telefonen eller nettbrettet.",
-            "Trykk Abonner på kanalene du vil motta.",
-            "Godkjenn varslinger for ntfy i operativsystemet.",
-            "Bruk Åpne kanal for å kontrollere meldingshistorikken i nettleseren.",
-        ],
-        "privacy": "Abonnementslenkene inneholder private kanalnavn. Ikke del dem. Fibaro10 sender bare varseltekst til ntfy; kamera- og analysedata forblir lokale.",
-    }
 
 
-@app.post("/api/system/incidents/{incident_key}/review")
-async def api_system_incident_review(request: Request, incident_key: str):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    try:
-        payload = await request.json()
-    except (ValueError, json.JSONDecodeError):
-        payload = {}
-    state = str(payload.get("state") or "acknowledged").strip().lower() if isinstance(payload, dict) else ""
-    note = str(payload.get("note") or "").strip() if isinstance(payload, dict) else ""
-    if state not in {"acknowledged", "open"}:
-        raise HTTPException(status_code=400, detail="Ugyldig kvitteringsstatus")
-    if len(note) > 2000:
-        raise HTTPException(status_code=400, detail="Kommentaren kan ikke være lengre enn 2000 tegn")
-    normalized_key = str(incident_key or "").strip()
-    if not normalized_key or len(normalized_key) > 500:
-        raise HTTPException(status_code=400, detail="Ugyldig hendelsesnøkkel")
-    now_dt = local_now_naive()
-    username = getattr(request.state, "access_key_name", "") or "master"
-    async with async_session() as session:
-        row = (
-            await session.execute(
-                select(OperationalIncidentReview).where(
-                    OperationalIncidentReview.incident_key == normalized_key
-                )
-            )
-        ).scalars().first()
-        if row is None:
-            row = OperationalIncidentReview(
-                incident_key=normalized_key,
-                created_at=now_dt,
-            )
-            session.add(row)
-        row.status = state
-        row.note = note or None
-        row.reviewed_at = now_dt
-        row.reviewed_by = username
-        row.updated_at = now_dt
-        await session.commit()
-        await session.refresh(row)
-    return {
-        "status": "ok",
-        "message": "Hendelsen er kvittert." if state == "acknowledged" else "Hendelsen er åpnet igjen.",
-        "review": operational_incident_review_payload(row),
-    }
 
 
-app.include_router(create_assets_router(async_session, require_settings_access))
 
 
-app.include_router(create_automations_router(async_session, require_settings_access))
 
 
-@app.get("/api/system/search")
-async def api_system_search(q: str = Query(min_length=2, max_length=120)):
-    needle = q.strip()
-    if len(needle) < 2:
-        raise HTTPException(status_code=400, detail="Søket må inneholde minst to tegn")
-    pattern = f"%{needle}%"
-    results: list[Dict[str, Any]] = []
-    async with async_session() as session:
-        vehicles = (
-            await session.execute(
-                select(ParkingVehicle)
-                .where(or_(ParkingVehicle.plate.ilike(pattern), ParkingVehicle.navn.ilike(pattern), ParkingVehicle.omrade.ilike(pattern)))
-                .order_by(ParkingVehicle.last_seen.desc())
-                .limit(20)
-            )
-        ).scalars().all()
-        sessions = (
-            await session.execute(
-                select(Sun2TanningSession)
-                .where(
-                    or_(
-                        Sun2TanningSession.user_name.ilike(pattern),
-                        Sun2TanningSession.user_identifier.ilike(pattern),
-                        Sun2TanningSession.sun2_user_id.ilike(pattern),
-                        Sun2TanningSession.room.ilike(pattern),
-                    )
-                )
-                .order_by(Sun2TanningSession.started_at.desc())
-                .limit(20)
-            )
-        ).scalars().all()
-        maintenance = (
-            await session.execute(
-                select(MaintenanceLogEntry)
-                .where(
-                    or_(
-                        MaintenanceLogEntry.summary.ilike(pattern),
-                        MaintenanceLogEntry.target_name.ilike(pattern),
-                        MaintenanceLogEntry.follow_up_text.ilike(pattern),
-                    )
-                )
-                .order_by(MaintenanceLogEntry.performed_at.desc())
-                .limit(20)
-            )
-        ).scalars().all()
-        assets = (
-            await session.execute(
-                select(AssetRegistryItem)
-                .where(
-                    or_(
-                        AssetRegistryItem.name.ilike(pattern),
-                        AssetRegistryItem.location.ilike(pattern),
-                        AssetRegistryItem.manufacturer.ilike(pattern),
-                        AssetRegistryItem.model.ilike(pattern),
-                        AssetRegistryItem.serial_no.ilike(pattern),
-                    )
-                )
-                .order_by(AssetRegistryItem.updated_at.desc())
-                .limit(20)
-            )
-        ).scalars().all()
-    results.extend(
-        {"type": "Kjøretøy", "tittel": row.plate, "detalj": " · ".join(filter(None, [row.navn, row.omrade])), "oppdatert": api_local_iso(row.last_seen), "path": f"/parkering/kjoretoy/{quote(row.plate)}"}
-        for row in vehicles
-    )
-    results.extend(
-        {"type": "Soltime", "tittel": row.user_name or row.user_identifier or row.sun2_user_id or "Ukjent bruker", "detalj": f"{row.room or 'Ukjent rom'} · {row.started_at:%d.%m.%Y %H:%M}", "oppdatert": api_local_iso(row.started_at), "path": "/soling/enkeltimer"}
-        for row in sessions
-    )
-    results.extend(
-        {"type": "Vedlikehold", "tittel": row.summary, "detalj": row.target_name or row.action_type or "", "oppdatert": api_local_iso(row.performed_at), "path": f"/vedlikehold/besok/{row.site_visit_id}" if row.site_visit_id else "/vedlikehold/"}
-        for row in maintenance
-    )
-    results.extend(
-        {"type": "Eiendel", "tittel": row.name, "detalj": " · ".join(filter(None, [row.category, row.location, row.model])), "oppdatert": api_local_iso(row.updated_at), "path": "/eiendeler/"}
-        for row in assets
-    )
-    results.sort(key=lambda row: str(row.get("oppdatert") or ""), reverse=True)
-    return {"generatedAt": api_local_iso(local_now_naive()), "query": needle, "count": len(results), "results": results[:60]}
 
 
-@app.get("/api/system/subsystems")
-async def api_system_subsystems():
-    rows = system_subsystem_rows()
-    return {
-        "generatedAt": api_local_iso(local_now_naive()),
-        "summary": system_component_summary(),
-        "subsystems": rows,
-    }
 
 
-@app.get("/api/admin/builds/{build}")
-async def api_admin_build(build: str):
-    payload = admin_build_payload(build)
-    if not payload:
-        raise HTTPException(status_code=404, detail="Build finnes ikke")
-    return payload
 
 
-@app.get("/ai")
-async def ai_redirect(request: Request):
-    return redirect_keep_query(request, "/admin/ai", status_code=303)
 
 
-@app.get("/lys")
-async def lights_redirect(request: Request):
-    return redirect_keep_query(request, "/lys/dagslogg", status_code=307)
 
 
-@app.get("/ventilasjon")
-async def ventilation_redirect(request: Request):
-    return redirect_keep_query(request, "/ventilasjon/dagslogg", status_code=307)
 
 
-@app.get("/ai/sok", response_class=HTMLResponse)
-async def ai_search_view(request: Request):
-    return redirect_keep_query(request, "/admin/ai", status_code=303)
 
 
-@app.post("/ai/sok", response_class=HTMLResponse)
-async def ai_search_submit(request: Request):
-    form = await parse_form_body(request)
-    question = (form.get("question") or "").strip()
-    username = getattr(request.state, "access_key_name", "") or ""
-    try:
-        result = await ask_ai(question, username)
-    except Exception as exc:
-        logger.exception("AI-sok feilet for bruker %s", username or "-")
-        result = {"ok": False, "answer": "", "error": str(exc), "tool_calls": []}
-    async with async_session() as session:
-        session.add(
-            AiQueryLog(
-                username=username,
-                question=question,
-                answer=result.get("answer") or None,
-                ok=bool(result.get("ok")),
-                error=result.get("error") or None,
-                tool_calls_count=len(result.get("tool_calls") or []),
-                raw={"tool_calls": result.get("tool_calls") or []},
-            )
-        )
-        await session.commit()
-    openai_settings = await effective_openai_settings()
-    context = {
-        "question": question,
-        "result": result,
-        "datasets": ai_dataset_overview(),
-        "logs": await recent_ai_logs(),
-        "api_ready": bool(openai_settings["api_key"]),
-        "model": openai_settings["model"],
-    }
-    return templates.TemplateResponse(request, "ai_search.html", context)
 
 
-@app.get("/ai/innstillinger", response_class=HTMLResponse)
-async def ai_settings_view(request: Request):
-    return redirect_keep_query(request, "/admin/ai", status_code=303)
 
 
-@app.post("/ai/innstillinger", response_class=HTMLResponse)
-async def ai_settings_update(request: Request):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    form = await parse_form_body(request)
-    new_key = (form.get("openai_api_key") or "").strip()
-    model = (form.get("openai_model") or OPENAI_MODEL).strip() or OPENAI_MODEL
-    clear_key = form.get("clear_openai_api_key") == "1"
-    if new_key and not new_key.startswith("sk-"):
-        settings = await effective_openai_settings()
-        settings["model"] = model
-        return templates.TemplateResponse(
-            request,
-            "ai_settings.html",
-            {
-                "settings": settings,
-                "saved": False,
-                "error": "Nøkkelen ser ikke ut som en OpenAI API key. Den starter normalt med sk-.",
-                "openai_key_url": "https://platform.openai.com/api-keys",
-            },
-            status_code=400,
-        )
-    changed_by = getattr(request.state, "access_key_name", "") or "master"
-    async with async_session() as session:
-        row = (await session.execute(select(ControlConfig).where(ControlConfig.key == AI_CONFIG_KEY))).scalars().first()
-        if not row:
-            row = ControlConfig(
-                key=AI_CONFIG_KEY,
-                version=1,
-                values={"openai_api_key": "", "openai_model": model},
-                updated_by=changed_by,
-            )
-            session.add(row)
-            await session.flush()
-        values = dict(row.values or {})
-        if clear_key:
-            values["openai_api_key"] = ""
-        elif new_key:
-            values["openai_api_key"] = new_key
-        values["openai_model"] = model
-        row.values = values
-        row.version = (row.version or 1) + 1
-        row.updated_at = datetime.utcnow()
-        row.updated_by = changed_by
-        history_values = dict(values)
-        if history_values.get("openai_api_key"):
-            history_values["openai_api_key"] = mask_secret(history_values["openai_api_key"])
-        session.add(
-            ControlConfigHistory(
-                config_key=AI_CONFIG_KEY,
-                version=row.version,
-                values=history_values,
-                changed_by=changed_by,
-                reason="AI-innstillinger endret",
-            )
-        )
-        await session.commit()
-    settings = await effective_openai_settings()
-    return templates.TemplateResponse(
-        request,
-        "ai_settings.html",
-        {
-            "settings": settings,
-            "saved": True,
-            "error": "",
-            "openai_key_url": "https://platform.openai.com/api-keys",
-        },
-    )
 
 
-@app.get("/api/ai/datasets/json")
-async def ai_datasets_json():
-    return {"datasets": ai_dataset_overview()}
 
 
-@app.get("/api/ai/logs/json")
-async def ai_logs_json(limit: int = Query(25, ge=1, le=200)):
-    logs = await recent_ai_logs(limit)
-    return {"rows": [row_to_dict(row, AI_QUERY_COLUMNS) for row in logs]}
 
 
-@app.get("/konto/oversikt", response_class=HTMLResponse)
-async def account_view(request: Request):
-    return redirect_keep_query(request, "/admin/brukere", status_code=303)
 
 
-@app.get("/konto/build", response_class=HTMLResponse)
-async def account_build_view(request: Request):
-    return redirect_keep_query(request, "/admin/build", status_code=303)
 
 
-@app.get("/konto/teknisk", response_class=HTMLResponse)
-async def account_technical_view(request: Request):
-    return redirect_keep_query(request, "/admin/teknisk", status_code=303)
 
 
-@app.get("/konto/manual", response_class=HTMLResponse)
-async def account_manual_view(request: Request):
-    return redirect_keep_query(request, "/manual/oversikt", status_code=303)
 
 
-@app.get("/energi/testside", response_class=HTMLResponse)
-async def energy_view(request: Request):
-    return redirect_keep_query(request, "/energi/verktoy", status_code=303)
 
 
 async def admin_keys_context(
@@ -14083,158 +12882,14 @@ async def admin_keys_context(
     }
 
 
-@app.get("/konto/brukere-og-tilgang", response_class=HTMLResponse)
-async def keys_view(request: Request):
-    return redirect_keep_query(request, "/admin/brukere", status_code=303)
 
 
-@app.post("/konto/brukere-og-tilgang")
-async def keys_create(request: Request):
-    forbidden = require_master(request)
-    if forbidden:
-        return forbidden
-    form = await parse_form_body(request)
-    username = normalize_username(form.get("username") or form.get("name") or "")[:80]
-    password = (form.get("password") or form.get("access_key") or "").strip()
-    role = (form.get("role") or "viewer").strip().lower()
-    if role not in ["viewer", "settings"]:
-        role = "viewer"
-    if not username:
-        async with async_session() as session:
-            key_rows = (await session.execute(select(AccessKey).order_by(AccessKey.created_at.desc()))).scalars().all()
-            log_rows = (await session.execute(select(AccessLog).order_by(AccessLog.timestamp.desc()).limit(200))).scalars().all()
-        return templates.TemplateResponse(
-            request,
-            "keys.html",
-            {
-                "keys": key_rows,
-                "logs": log_rows,
-                "created_username": "",
-                "created_key": "",
-                "error": "Brukernavn må fylles ut.",
-            },
-            status_code=400,
-        )
-    if len(password) < 5:
-        async with async_session() as session:
-            key_rows = (await session.execute(select(AccessKey).order_by(AccessKey.created_at.desc()))).scalars().all()
-            log_rows = (await session.execute(select(AccessLog).order_by(AccessLog.timestamp.desc()).limit(200))).scalars().all()
-        return templates.TemplateResponse(
-            request,
-            "keys.html",
-            {
-                "keys": key_rows,
-                "logs": log_rows,
-                "created_username": "",
-                "created_key": "",
-                "error": "Passordet må være minst 5 tegn.",
-            },
-            status_code=400,
-        )
-    existing_hash = access_password_hash(username, password, is_master=False)
-    async with async_session() as session:
-        existing = (
-            await session.execute(select(AccessKey).where(AccessKey.key_hash == existing_hash))
-        ).scalars().first()
-        if existing:
-            key_rows = (await session.execute(select(AccessKey).order_by(AccessKey.created_at.desc()))).scalars().all()
-            log_rows = (await session.execute(select(AccessLog).order_by(AccessLog.timestamp.desc()).limit(200))).scalars().all()
-            return templates.TemplateResponse(
-                request,
-                "keys.html",
-                {
-                    "keys": key_rows,
-                    "logs": log_rows,
-                    "created_username": "",
-                    "created_key": "",
-                    "error": "Denne kombinasjonen av brukernavn og passord finnes allerede.",
-                },
-                status_code=400,
-            )
-        record = AccessKey(
-            name=username,
-            key_hash=existing_hash,
-            key_prefix=access_key_prefix(username, password, is_master=False),
-            key_plaintext=password,
-            role=role,
-            is_master=False,
-            active=True,
-        )
-        session.add(record)
-        await session.commit()
-        key_rows = (await session.execute(select(AccessKey).order_by(AccessKey.created_at.desc()))).scalars().all()
-        log_rows = (await session.execute(select(AccessLog).order_by(AccessLog.timestamp.desc()).limit(200))).scalars().all()
-    return templates.TemplateResponse(
-        request,
-        "keys.html",
-        {"keys": key_rows, "logs": log_rows, "created_username": username, "created_key": password, "error": ""},
-    )
 
 
-@app.post("/konto/brukere-og-tilgang/deaktiver")
-async def keys_disable(request: Request):
-    forbidden = require_master(request)
-    if forbidden:
-        return forbidden
-    form = await parse_form_body(request)
-    try:
-        key_id = int(form.get("key_id") or "0")
-    except ValueError:
-        key_id = 0
-    async with async_session() as session:
-        await session.execute(
-            update(AccessKey)
-            .where(AccessKey.id == key_id)
-            .where(AccessKey.is_master == False)
-            .values(active=False)
-        )
-        await session.commit()
-    return RedirectResponse("/konto/brukere-og-tilgang", status_code=303)
 
 
-@app.post("/konto/brukere-og-tilgang/aktiver")
-async def keys_enable(request: Request):
-    forbidden = require_master(request)
-    if forbidden:
-        return forbidden
-    form = await parse_form_body(request)
-    try:
-        key_id = int(form.get("key_id") or "0")
-    except ValueError:
-        key_id = 0
-    async with async_session() as session:
-        await session.execute(
-            update(AccessKey)
-            .where(AccessKey.id == key_id)
-            .where(AccessKey.is_master == False)
-            .values(active=True)
-        )
-        await session.commit()
-    return RedirectResponse("/konto/brukere-og-tilgang", status_code=303)
 
 
-@app.post("/konto/brukere-og-tilgang/rolle")
-async def keys_role_update(request: Request):
-    forbidden = require_master(request)
-    if forbidden:
-        return forbidden
-    form = await parse_form_body(request)
-    try:
-        key_id = int(form.get("key_id") or "0")
-    except ValueError:
-        key_id = 0
-    role = (form.get("role") or "viewer").strip().lower()
-    if role not in ["viewer", "settings"]:
-        role = "viewer"
-    async with async_session() as session:
-        await session.execute(
-            update(AccessKey)
-            .where(AccessKey.id == key_id)
-            .where(AccessKey.is_master == False)
-            .values(role=role)
-        )
-        await session.commit()
-    return RedirectResponse("/konto/brukere-og-tilgang", status_code=303)
 
 
 async def config_context(config_key: str):
@@ -14268,64 +12923,12 @@ async def config_context(config_key: str):
     }
 
 
-@app.get("/api/config")
-async def api_control_configs():
-    async with async_session() as session:
-        rows = [await get_or_create_config(session, config_key) for config_key in CONFIG_DEFINITIONS]
-    return {"configs": [config_payload(row) for row in rows if row]}
 
 
-@app.get("/api/config/{config_key}")
-async def api_control_config(config_key: str):
-    if config_key not in CONFIG_DEFINITIONS:
-        return JSONResponse({"detail": "Ukjent konfigurasjon"}, status_code=404)
-    async with async_session() as session:
-        row = await get_or_create_config(session, config_key)
-    return config_payload(row)
 
 
-@app.patch("/api/config/{config_key}")
-async def api_control_config_update(request: Request, config_key: str):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    if config_key not in CONFIG_DEFINITIONS:
-        return JSONResponse({"detail": "Ukjent konfigurasjon"}, status_code=404)
-    payload = await request.json()
-    values = config_values_from_payload(config_key, payload if isinstance(payload, dict) else {})
-    errors = validate_config_values(config_key, values)
-    if errors:
-        return JSONResponse({"detail": "Ugyldige innstillinger", "errors": errors}, status_code=400)
-    reason = str(payload.get("reason") or "Endret i grensesnittet").strip() if isinstance(payload, dict) else "Endret i grensesnittet"
-    changed_by = getattr(request.state, "access_key_name", "") or "master"
-    async with async_session() as session:
-        row = await get_or_create_config(session, config_key)
-        row.values = values
-        row.version = (row.version or 1) + 1
-        row.updated_at = datetime.utcnow()
-        row.updated_by = changed_by
-        session.add(
-            ControlConfigHistory(
-                config_key=config_key,
-                version=row.version,
-                values=deepcopy(values),
-                changed_by=changed_by,
-                reason=reason,
-            )
-        )
-        await session.commit()
-        await session.refresh(row)
-    return {"status": "ok", "message": "Innstillinger lagret.", "config": config_payload(row)}
 
 
-@app.get("/")
-async def root_service_info():
-    return {
-        "service": "fibaro10",
-        "role": "backend-api",
-        "ui": "https://app.lilletorget.net/",
-        "health": "/health",
-    }
 
 
 def mobile_preview_screen_payload(screen: Dict[str, Any]) -> Dict[str, Any]:
@@ -14451,1251 +13054,24 @@ async def render_mobile_preview_screen(request: Request, screen_key: str) -> HTM
     )
 
 
-@app.get("/api/mobile-preview/screens")
-async def api_mobile_preview_screens(request: Request):
-    return {
-        "refreshSeconds": MOBILE_PREVIEW_REFRESH_SECONDS,
-        "screens": [mobile_preview_screen_payload(screen) for screen in mobile_preview_screens_for_request(request)],
-    }
 
 
-@app.get("/api/mobile-preview/frame/{screen_key}", response_class=HTMLResponse)
-async def api_mobile_preview_frame(request: Request, screen_key: str):
-    return await render_mobile_preview_screen(request, screen_key)
 
 
-@app.get("/soling/enkeltimer/{session_id:int}/bilde.jpg")
-async def sun2_session_image(session_id: int):
-    async with async_session() as session:
-        images = (
-            await session.execute(
-                select(Sun2TanningSessionImage)
-                .where(Sun2TanningSessionImage.session_id == session_id)
-                .order_by(
-                    Sun2TanningSessionImage.is_primary.desc(),
-                    Sun2TanningSessionImage.offset_seconds.desc(),
-                    Sun2TanningSessionImage.created_at.desc(),
-                )
-            )
-        ).scalars().all()
-        image = primary_sun2_session_image(images)
-    if not image:
-        raise HTTPException(status_code=404, detail="Ingen bilde koblet til denne soltimen.")
-    return Response(
-        content=image.image_bytes,
-        media_type=image.content_type or "image/jpeg",
-        headers={"Cache-Control": "private, max-age=3600"},
-    )
 
 
-@app.get("/soling/enkeltimer/{session_id:int}/bilder/{image_id:int}.jpg")
-async def sun2_session_image_item(session_id: int, image_id: int):
-    async with async_session() as session:
-        image = (
-            await session.execute(
-                select(Sun2TanningSessionImage)
-                .where(Sun2TanningSessionImage.session_id == session_id)
-                .where(Sun2TanningSessionImage.id == image_id)
-            )
-        ).scalars().first()
-    if not image:
-        raise HTTPException(status_code=404, detail="Fant ikke bildet.")
-    return Response(
-        content=image.image_bytes,
-        media_type=image.content_type or "image/jpeg",
-        headers={"Cache-Control": "private, max-age=86400, immutable"},
-    )
 
 
-@app.get("/api/soling/axis-snapshots/{snapshot_id}/image")
-async def api_sun2_axis_snapshot_image(snapshot_id: str):
-    snapshot = axis_snapshot_path_for_id(snapshot_id)
-    if snapshot is None:
-        raise HTTPException(status_code=404, detail="Fant ikke Axis-bildet.")
-    _captured_at, path = snapshot
-    return FileResponse(
-        path,
-        media_type="image/jpeg",
-        headers={"Cache-Control": "private, max-age=86400, immutable"},
-    )
 
 
-@app.get("/api/soling/enkeltimer/{session_id:int}/image-browser")
-async def api_sun2_session_image_browser(session_id: int, snapshot_id: Optional[str] = None):
-    if snapshot_id and parse_axis_snapshot_id(snapshot_id) is None:
-        raise HTTPException(status_code=400, detail="Ugyldig bilde-ID.")
-    async with async_session() as session:
-        row = (
-            await session.execute(
-                select(Sun2TanningSession).where(Sun2TanningSession.id == session_id)
-            )
-        ).scalars().first()
-        if not row:
-            raise HTTPException(status_code=404, detail="Fant ikke soltimen.")
-        images = (
-            await session.execute(
-                select(Sun2TanningSessionImage)
-                .options(sun2_session_image_meta_options())
-                .where(Sun2TanningSessionImage.session_id == session_id)
-                .order_by(Sun2TanningSessionImage.offset_seconds.asc(), Sun2TanningSessionImage.captured_at.asc())
-            )
-        ).scalars().all()
-    return axis_snapshot_browser_payload(row, images, snapshot_id)
 
 
-@app.post("/api/soling/enkeltimer/{session_id:int}/image")
-async def api_sun2_session_select_image(
-    request: Request,
-    session_id: int,
-    snapshot_id: str = Query(...),
-):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    if parse_axis_snapshot_id(snapshot_id) is None:
-        raise HTTPException(status_code=400, detail="Ugyldig bilde-ID.")
-    async with async_session() as session:
-        payload = await replace_sun2_session_image_with_axis_snapshot(session, session_id, snapshot_id)
-        await session.commit()
-    return {
-        "status": "ok",
-        "message": "Bildet er byttet.",
-        "browser": payload,
-    }
 
 
-@app.post("/api/soling/enkeltimer/{session_id:int}/bilder/{image_id:int}/primary")
-async def api_sun2_session_set_primary_image(
-    request: Request,
-    session_id: int,
-    image_id: int,
-):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    async with async_session() as session:
-        payload = await set_sun2_session_primary_image(session, session_id, image_id)
-        await session.commit()
-    return {
-        "status": "ok",
-        "message": "Hovedbildet er oppdatert.",
-        "browser": payload,
-    }
 
 
-@app.get("/status/dashboard", response_class=HTMLResponse)
-async def index(request: Request):
-    today = local_now_naive().date()
-    async with async_session() as session:
-        lights = (await session.execute(select(OutdoorLightEvent).order_by(OutdoorLightEvent.timestamp.desc()).limit(200))).scalars().all()
-        light_samples = (await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.timestamp.desc()).limit(1))).scalars().all()
-        ventilation = (await session.execute(select(VentilationEvent).order_by(VentilationEvent.timestamp.desc()).limit(100))).scalars().all()
-        samples = (await session.execute(select(VentilationSample).order_by(VentilationSample.timestamp.desc()).limit(1))).scalars().all()
-        yr_samples = (await session.execute(select(YrForecastSample).order_by(YrForecastSample.timestamp.desc()).limit(1))).scalars().all()
-        import_rows = await import_status_rows(session)
-        today = local_now_naive().date()
-        yesterday = today - timedelta(days=1)
-        week_start = today - timedelta(days=today.weekday())
-        month_start = today.replace(day=1)
-        year_start = today.replace(month=1, day=1)
-        previous_week_start = week_start - timedelta(days=7)
-        previous_month_last = month_start - timedelta(days=1)
-        previous_month_start = previous_month_last.replace(day=1)
-        previous_year_start = date(today.year - 1, 1, 1)
-        today_start = datetime.combine(today, time.min)
-        yesterday_start = today_start - timedelta(days=1)
-        tomorrow_start = today_start + timedelta(days=1)
-        week_start_dt = datetime.combine(week_start, time.min)
-        month_start_dt = datetime.combine(month_start, time.min)
-        year_start_dt = datetime.combine(year_start, time.min)
-        previous_week_start_dt = datetime.combine(previous_week_start, time.min)
-        previous_month_start_dt = datetime.combine(previous_month_start, time.min)
-        previous_year_start_dt = datetime.combine(previous_year_start, time.min)
-        current_week_span = tomorrow_start - week_start_dt
-        current_month_span = tomorrow_start - month_start_dt
-        current_year_span = tomorrow_start - year_start_dt
-        previous_week_end_dt = previous_week_start_dt + current_week_span
-        previous_month_end_dt = min(previous_month_start_dt + current_month_span, month_start_dt)
-        previous_year_end_dt = min(previous_year_start_dt + current_year_span, year_start_dt)
-        now_dt = local_now_naive()
-        lux_spark_rows = (
-            await session.execute(
-                select(OutdoorLightSample)
-                .where(OutdoorLightSample.timestamp >= today_start)
-                .where(OutdoorLightSample.timestamp < min(now_dt, tomorrow_start))
-                .order_by(OutdoorLightSample.timestamp.asc())
-            )
-        ).scalars().all()
-        today_sun = (
-            await session.execute(
-                select(
-                    func.count(Sun2TanningSession.id).label("sessions"),
-                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("minutes"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid"),
-                    func.count(func.distinct(Sun2TanningSession.room_id)).label("rooms"),
-                ).where(Sun2TanningSession.stat_date == today)
-            )
-        ).one()
-        week_sun = (
-            await session.execute(
-                select(
-                    func.count(Sun2TanningSession.id).label("sessions"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid"),
-                ).where(
-                    Sun2TanningSession.stat_date >= week_start,
-                    Sun2TanningSession.stat_date <= today,
-                )
-            )
-        ).one()
-        month_sun = (
-            await session.execute(
-                select(
-                    func.count(Sun2TanningSession.id).label("sessions"),
-                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("minutes"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid"),
-                    func.count(func.distinct(Sun2TanningSession.room_id)).label("rooms"),
-                ).where(
-                    Sun2TanningSession.stat_date >= month_start,
-                    Sun2TanningSession.stat_date <= today,
-                )
-            )
-        ).one()
-        year_sun = (
-            await session.execute(
-                select(
-                    func.count(Sun2TanningSession.id).label("sessions"),
-                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("minutes"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid"),
-                    func.count(func.distinct(Sun2TanningSession.room_id)).label("rooms"),
-                ).where(
-                    Sun2TanningSession.stat_date >= year_start,
-                    Sun2TanningSession.stat_date <= today,
-                )
-            )
-        ).one()
-        yesterday_sun = (
-            await session.execute(
-                select(
-                    func.count(Sun2TanningSession.id).label("sessions"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid"),
-                ).where(Sun2TanningSession.stat_date == yesterday)
-            )
-        ).one()
-        previous_week_sun = (
-            await session.execute(
-                select(
-                    func.count(Sun2TanningSession.id).label("sessions"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid"),
-                ).where(
-                    Sun2TanningSession.stat_date >= previous_week_start,
-                    Sun2TanningSession.stat_date < previous_week_end_dt.date(),
-                )
-            )
-        ).one()
-        previous_month_sun = (
-            await session.execute(
-                select(
-                    func.count(Sun2TanningSession.id).label("sessions"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid"),
-                ).where(
-                    Sun2TanningSession.stat_date >= previous_month_start,
-                    Sun2TanningSession.stat_date < previous_month_end_dt.date(),
-                )
-            )
-        ).one()
-        previous_year_sun = (
-            await session.execute(
-                select(
-                    func.count(Sun2TanningSession.id).label("sessions"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid"),
-                ).where(
-                    Sun2TanningSession.stat_date >= previous_year_start,
-                    Sun2TanningSession.stat_date < previous_year_end_dt.date(),
-                )
-            )
-        ).one()
-        tomorrow = today + timedelta(days=1)
-        today_sun = await sun2_period_snapshot(session, today, tomorrow)
-        yesterday_sun = await sun2_period_snapshot(session, yesterday, today)
-        week_sun = await sun2_period_snapshot(session, week_start, tomorrow)
-        month_sun = await sun2_period_snapshot(session, month_start, tomorrow)
-        year_sun = await sun2_period_snapshot(session, year_start, tomorrow)
-        previous_week_sun = await sun2_period_snapshot(session, previous_week_start, previous_week_end_dt.date())
-        previous_month_sun = await sun2_period_snapshot(session, previous_month_start, previous_month_end_dt.date())
-        previous_year_sun = await sun2_period_snapshot(session, previous_year_start, previous_year_end_dt.date())
-        today_parking = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id).label("sessions"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-                ).where(
-                    ParkingSession.start_time >= today_start,
-                    ParkingSession.start_time < tomorrow_start,
-                )
-            )
-        ).one()
-        week_parking = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id).label("sessions"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-                ).where(
-                    ParkingSession.start_time >= week_start_dt,
-                    ParkingSession.start_time < tomorrow_start,
-                )
-            )
-        ).one()
-        month_parking = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id).label("sessions"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-                ).where(
-                    ParkingSession.start_time >= month_start_dt,
-                    ParkingSession.start_time < tomorrow_start,
-                )
-            )
-        ).one()
-        year_parking = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id).label("sessions"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-                ).where(
-                    ParkingSession.start_time >= year_start_dt,
-                    ParkingSession.start_time < tomorrow_start,
-                )
-            )
-        ).one()
-        yesterday_parking = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id).label("sessions"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-                ).where(
-                    ParkingSession.start_time >= yesterday_start,
-                    ParkingSession.start_time < today_start,
-                )
-            )
-        ).one()
-        previous_week_parking = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id).label("sessions"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-                ).where(
-                    ParkingSession.start_time >= previous_week_start_dt,
-                    ParkingSession.start_time < previous_week_end_dt,
-                )
-            )
-        ).one()
-        previous_month_parking = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id).label("sessions"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-                ).where(
-                    ParkingSession.start_time >= previous_month_start_dt,
-                    ParkingSession.start_time < previous_month_end_dt,
-                )
-            )
-        ).one()
-        previous_year_parking = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id).label("sessions"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-                ).where(
-                    ParkingSession.start_time >= previous_year_start_dt,
-                    ParkingSession.start_time < previous_year_end_dt,
-                )
-            )
-        ).one()
-        active_parking = (
-            await session.execute(
-                select(func.count(ParkingSession.id)).where(
-                    ParkingSession.start_time <= now_dt,
-                    or_(
-                        ParkingSession.end_time.is_(None),
-                        ParkingSession.end_time >= now_dt,
-                        func.lower(func.coalesce(ParkingSession.status, "")) == "ongoing",
-                    ),
-                )
-            )
-        ).scalar_one()
-        today_energy = (
-            await session.execute(
-                select(
-                    func.coalesce(func.sum(EnergyHourlyConsumption.consumption_kwh), 0).label("kwh"),
-                    func.count(EnergyHourlyConsumption.id).label("hours"),
-                    func.max(EnergyHourlyConsumption.measured_at).label("last_at"),
-                ).where(EnergyHourlyConsumption.stat_date == today)
-            )
-        ).one()
-        latest_energy_sample = (
-            await session.execute(
-                select(EnergyFibaroSample)
-                .order_by(EnergyFibaroSample.bucket_start.desc())
-                .limit(1)
-            )
-        ).scalars().first()
-        today_energy_fibaro = (
-            await session.execute(
-                select(
-                    func.coalesce(func.sum(EnergyFibaroSample.inntak_delta_kwh), 0).label("kwh"),
-                    func.count(EnergyFibaroSample.id).label("samples"),
-                )
-                .where(EnergyFibaroSample.bucket_start >= datetime.combine(today, time.min))
-                .where(EnergyFibaroSample.bucket_start < datetime.combine(today, time.min) + timedelta(days=1))
-            )
-        ).one()
-        robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
-        robots.sort(key=cleaning_robot_sort_key)
-        schedules = (
-            await session.execute(
-                select(RoborockSchedule)
-                .where(RoborockSchedule.enabled == True)
-                .where(RoborockSchedule.deleted_at.is_(None))
-                .order_by(RoborockSchedule.cron)
-            )
-        ).scalars().all()
-
-    latest_light_by_key = {}
-    for row in lights:
-        key = event_device_key(row, LIGHT_TIMELINE_DEVICES)
-        if key and key not in latest_light_by_key:
-            latest_light_by_key[key] = row
-
-    latest_vent_by_key = {}
-    for row in ventilation:
-        key = event_device_key(row, VENT_TIMELINE_DEVICES)
-        if key and key not in latest_vent_by_key:
-            latest_vent_by_key[key] = row
-
-    latest_sample = samples[0] if samples else None
-    latest_light_sample = light_samples[0] if light_samples else None
-    latest_yr_sample = yr_samples[0] if yr_samples else None
-    latest_light = lights[0] if lights else None
-    now_status = build_now_status(latest_sample, latest_light_sample, latest_light, latest_yr_sample)
-    lux_sparkline = build_lux_sparkline(lux_spark_rows, today_start, tomorrow_start)
-
-    light_status = []
-    for device in LIGHT_TIMELINE_DEVICES:
-        row = latest_light_by_key.get(device["key"])
-        light_sample_value = light_sample_state(latest_light_sample, device) if latest_light_sample else None
-        event_state = state_from_event(row) if row else None
-        light_status.append(
-            {
-                "id": device["key"],
-                "name": device["name"],
-                "row": row,
-                "state": light_sample_value if light_sample_value is not None else event_state,
-                "sample_time": latest_light_sample.timestamp if light_sample_value is not None else None,
-                "lux": row.lux if row and row.lux is not None else (
-                    latest_light_sample.lux
-                    if latest_light_sample and latest_light_sample.lux is not None
-                    else None
-                ),
-            }
-        )
-    vent_switch_configs = [
-        config for device in VENT_TIMELINE_DEVICES
-        if (config := hc3_switch_config_for_timeline_device(device)) is not None
-    ]
-    vent_hc3_statuses = await hc3_fetch_switch_statuses(vent_switch_configs)
-    vent_status = []
-    for device in VENT_TIMELINE_DEVICES:
-        status_payload = ventilation_status_payload(device, latest_sample, vent_hc3_statuses.get(str(device.get("key"))))
-        vent_status.append(
-            {
-                "id": device["key"],
-                "name": device["name"],
-                "row": latest_vent_by_key.get(device["key"]),
-                "state": status_payload.get("state"),
-                "status_source": status_payload.get("statusSource"),
-                "checked_at": status_payload.get("checkedAt"),
-                "tooltip": status_payload.get("tooltip"),
-            }
-        )
-    vent_status.append(
-        {
-            "id": "loft_recovery",
-            "name": "Loft > 1.etg gjenvinning",
-            "row": None,
-            "state": False,
-            "dummy_reason": "Planlagt varmegjenvinning fra loft til 1.etg. Ikke koblet til styring ennå.",
-        }
-    )
-    freshness_items = [
-        freshness_item("Temperatur og fukt", latest_sample, 7, 15),
-        freshness_item("Lux-logg", latest_light_sample, 7, 15),
-        freshness_item("Yr API", latest_yr_sample, 70, 130),
-        freshness_item("Lys-hendelser", lights[0] if lights else None, 120, 360),
-        freshness_item("Ventilasjonshendelser", ventilation[0] if ventilation else None, 120, 360),
-    ]
-    import_counts = {
-        "ok": sum(1 for row in import_rows if row["status"] == "ok"),
-        "warn": sum(1 for row in import_rows if row["status"] == "warn"),
-        "bad": sum(1 for row in import_rows if row["status"] == "bad"),
-        "total": len(import_rows),
-    }
-    attention_items = []
-    event_freshness_names = {"Lys-hendelser", "Ventilasjonshendelser"}
-    for item in freshness_items:
-        if item["name"] in event_freshness_names:
-            continue
-        if item["status"] in {"warn", "bad"}:
-            attention_items.append(
-                dashboard_alert(
-                    item["status"],
-                    item["name"],
-                    f"{item['status_text']} - sist sett {item['age']}.",
-                    "/admin/datakilder",
-                )
-            )
-    for row in import_rows:
-        if row["status"] in {"warn", "bad"}:
-            attention_items.append(
-                dashboard_alert(
-                    row["status"],
-                    row["title"],
-                    f"{row['status_text']} - {row['age']}.",
-                    "/admin/datakilder",
-                )
-            )
-    missing_light_status = [item["name"] for item in light_status if item["state"] is None]
-    if missing_light_status:
-        attention_items.append(
-            dashboard_alert(
-                "warn",
-                "Lysstatus",
-                f"Mangler sikker status for {len(missing_light_status)} lys.",
-                "/lys/hendelser",
-            )
-        )
-    missing_vent_status = [item["name"] for item in vent_status if item["state"] is None]
-    if missing_vent_status:
-        attention_items.append(
-            dashboard_alert(
-                "warn",
-                "Ventilasjonsstatus",
-                f"Mangler sikker status for {len(missing_vent_status)} vifter.",
-                "/ventilasjon/hendelser",
-            )
-        )
-    attention_items = attention_items[:6]
-
-    recent_robot_cutoff = local_now_naive() - timedelta(minutes=20)
-    active_robots = [
-        robot for robot in robots
-        if robot.last_seen_at and robot.last_seen_at >= recent_robot_cutoff
-    ]
-    next_schedule = sorted(schedules, key=roborock_next_schedule_score)[0] if schedules else None
-    focus_cards = [
-        {
-            "title": "Solinger i dag",
-            "value": dashboard_compare_value(today_sun.sessions, yesterday_sun.sessions),
-            "unit": "stk",
-            "detail": f"{dashboard_money_compare(today_sun.paid, yesterday_sun.paid)} - {format_short_number(today_sun.minutes / 60, 1)} t - {today_sun.rooms or 0} rom",
-            "href": "/soling/prognose",
-            "tone": "sun2",
-            "compare": True,
-        },
-        {
-            "title": "Parkering i dag",
-            "value": dashboard_compare_value(today_parking.sessions, yesterday_parking.sessions),
-            "unit": "stk",
-            "detail": f"{dashboard_money_compare(today_parking.paid, yesterday_parking.paid)} - {active_parking or 0} aktive naa",
-            "href": f"/parkering/parkeringer?day={today.isoformat()}",
-            "tone": "parking",
-            "compare": True,
-        },
-        {
-            "title": "Sol uke",
-            "value": dashboard_compare_value(week_sun.sessions, previous_week_sun.sessions),
-            "unit": "sol",
-            "href": "/soling/prognose",
-            "detail": f"{dashboard_money_compare(week_sun.paid, previous_week_sun.paid)} hittil",
-            "tone": "week",
-            "compare": True,
-        },
-        {
-            "title": "Parkering uke",
-            "value": dashboard_compare_value(week_parking.sessions, previous_week_parking.sessions),
-            "unit": "stk",
-            "detail": f"{dashboard_money_compare(week_parking.paid, previous_week_parking.paid)} - {active_parking or 0} aktive naa",
-            "href": f"/parkering/parkeringer?day={today.isoformat()}",
-            "tone": "parking",
-            "compare": True,
-        },
-        {
-            "title": "Sol hittil mnd",
-            "value": dashboard_compare_value(month_sun.sessions, previous_month_sun.sessions),
-            "unit": "stk",
-            "detail": f"{dashboard_money_compare(month_sun.paid, previous_month_sun.paid)} - {format_short_number(month_sun.minutes / 60, 1)} t - {month_sun.rooms or 0} rom",
-            "href": "/soling/prognose",
-            "tone": "sun2",
-            "compare": True,
-        },
-        {
-            "title": "Parkering hittil mnd",
-            "value": dashboard_compare_value(month_parking.sessions, previous_month_parking.sessions),
-            "unit": "stk",
-            "detail": f"{format_short_number(month_parking.paid)} kr hittil denne måneden",
-            "href": f"/parkering/parkeringer?day={today.isoformat()}",
-            "tone": "parking",
-            "compare": True,
-        },
-        {
-            "title": "Sol hittil år",
-            "value": format_short_number(year_sun.sessions),
-            "unit": "stk",
-            "detail": f"{format_short_number(year_sun.paid)} kr - {format_short_number(year_sun.minutes / 60, 1)} t",
-            "href": "/soling/prognose",
-            "tone": "sun2",
-        },
-        {
-            "title": "Parkering hittil år",
-            "value": format_short_number(year_parking.sessions),
-            "unit": "stk",
-            "detail": f"{format_short_number(year_parking.paid)} kr hittil i år",
-            "href": "/parkering/sammenligning",
-            "tone": "parking",
-        },
-    ]
-    focus_cards[6]["title"] = f"Sol hittil {today.year}"
-    focus_cards[7]["title"] = f"Parkering hittil {today.year}"
-    focus_cards[0]["value"] = dashboard_compare_value(today_sun.sessions, yesterday_sun.sessions)
-    focus_cards[0]["detail"] = f"{dashboard_money_compare(today_sun.paid, yesterday_sun.paid)} - {format_short_number(today_sun.minutes / 60, 1)} t - {today_sun.rooms or 0} rom"
-    focus_cards[1]["value"] = dashboard_compare_value(today_parking.sessions, yesterday_parking.sessions)
-    focus_cards[1]["detail"] = f"{dashboard_money_compare(today_parking.paid, yesterday_parking.paid)} - {active_parking or 0} aktive naa"
-    focus_cards[2]["value"] = dashboard_compare_value(week_sun.sessions, previous_week_sun.sessions)
-    focus_cards[2]["detail"] = f"{dashboard_money_compare(week_sun.paid, previous_week_sun.paid)} hittil"
-    focus_cards[3]["value"] = dashboard_compare_value(week_parking.sessions, previous_week_parking.sessions)
-    focus_cards[3]["detail"] = f"{dashboard_money_compare(week_parking.paid, previous_week_parking.paid)} - {active_parking or 0} aktive naa"
-    focus_cards[4]["value"] = dashboard_compare_value(month_sun.sessions, previous_month_sun.sessions)
-    focus_cards[4]["detail"] = f"{dashboard_money_compare(month_sun.paid, previous_month_sun.paid)} - {format_short_number(month_sun.minutes / 60, 1)} t - {month_sun.rooms or 0} rom"
-    focus_cards[5]["value"] = dashboard_compare_value(month_parking.sessions, previous_month_parking.sessions)
-    focus_cards[5]["detail"] = f"{dashboard_money_compare(month_parking.paid, previous_month_parking.paid)} hittil"
-    focus_cards[6]["value"] = dashboard_compare_value(year_sun.sessions, previous_year_sun.sessions)
-    focus_cards[6]["detail"] = f"{dashboard_money_compare(year_sun.paid, previous_year_sun.paid)} - {format_short_number(year_sun.minutes / 60, 1)} t"
-    focus_cards[7]["value"] = dashboard_compare_value(year_parking.sessions, previous_year_parking.sessions)
-    focus_cards[7]["detail"] = f"{dashboard_money_compare(year_parking.paid, previous_year_parking.paid)} hittil"
-    for card in focus_cards:
-        card["compare"] = True
-    ops_cards = [
-        {
-            "title": "Datakilder",
-            "value": f"{import_counts['ok']}/{import_counts['total']}",
-            "unit": "OK",
-            "detail": f"{import_counts['warn']} treg, {import_counts['bad']} feil/gammel",
-            "href": "/admin/datakilder",
-            "tone": "status",
-        },
-        {
-            "title": "Soling i dag",
-            "value": format_short_number(today_sun.sessions),
-            "unit": "stk",
-            "detail": f"{format_short_number(today_sun.minutes / 60, 1)} t - {format_short_number(today_sun.paid)} kr - {today_sun.rooms or 0} rom",
-            "href": f"/soling/dagslinje?day={today.isoformat()}",
-            "tone": "sun2",
-        },
-        {
-            "title": "Strøm i dag",
-            "value": format_short_number(today_energy_fibaro.kwh if today_energy_fibaro.samples else today_energy.kwh, 1),
-            "unit": "kWh",
-            "detail": (
-                f"Nå {format_short_number(latest_energy_sample.inntak_w)} W - {today_energy_fibaro.samples or 0} 30-sekundersmålinger"
-                if latest_energy_sample
-                else f"{today_energy.hours or 0} timer importert" + (f" - sist {today_energy.last_at.strftime('%H:%M')}" if today_energy.last_at else "")
-            ),
-            "href": "/energi/status",
-            "tone": "energy",
-        },
-        {
-            "title": "Renhold",
-            "value": f"{len(active_robots)}/{len(robots)}",
-            "unit": "aktive",
-            "detail": f"Neste: {roborock_schedule_text(next_schedule)}" if next_schedule else "Ingen aktiv plan funnet",
-            "href": "/renhold/oversikt",
-            "tone": "cleaning",
-        },
-    ]
-
-    return templates.TemplateResponse(
-        request,
-        "index.html",
-        {
-            "latest_light": latest_light,
-            "latest_light_sample": latest_light_sample,
-            "latest_vent": ventilation[0] if ventilation else None,
-            "latest_sample": latest_sample,
-            "latest_yr_sample": latest_yr_sample,
-            "now_status": now_status,
-            "light_status": light_status,
-            "ntfy_lights_subscribe_url": ntfy_subscribe_url(NTFY_LIGHTS_TOPIC, "SUN2 lys"),
-            "ntfy_lights_web_url": ntfy_topic_url(NTFY_LIGHTS_TOPIC),
-            "ntfy_ventilation_subscribe_url": ntfy_subscribe_url(NTFY_VENTILATION_TOPIC, "SUN2 ventilasjon"),
-            "ntfy_ventilation_web_url": ntfy_topic_url(NTFY_VENTILATION_TOPIC),
-            "vent_status": vent_status,
-            "freshness_items": freshness_items,
-            "focus_cards": focus_cards,
-            "ops_cards": ops_cards,
-            "lux_sparkline": lux_sparkline,
-            "attention_items": attention_items,
-        },
-    )
 
 
-@app.get("/status/nokkeltall", response_class=HTMLResponse)
-async def status_key_metrics_view(request: Request):
-    now_dt = local_now_naive()
-    today = now_dt.date()
-    yesterday = today - timedelta(days=1)
-    last_week_same_day = today - timedelta(days=7)
-    two_weeks_same_day = today - timedelta(days=14)
-    week_start = today - timedelta(days=today.weekday())
-    previous_week_start = week_start - timedelta(days=7)
-    previous_week_end = week_start
-    month_start = today.replace(day=1)
-    previous_month_end = month_start
-    previous_month_start = (month_start - timedelta(days=1)).replace(day=1)
-    tomorrow = today + timedelta(days=1)
-    today_start = datetime.combine(today, time.min)
-    tomorrow_start = datetime.combine(tomorrow, time.min)
-    yesterday_start = datetime.combine(yesterday, time.min)
-    last_week_same_day_start = datetime.combine(last_week_same_day, time.min)
-    last_week_same_day_end = last_week_same_day_start + timedelta(days=1)
-    two_weeks_same_day_start = datetime.combine(two_weeks_same_day, time.min)
-    two_weeks_same_day_end = two_weeks_same_day_start + timedelta(days=1)
-    week_start_dt = datetime.combine(week_start, time.min)
-    previous_week_start_dt = datetime.combine(previous_week_start, time.min)
-    previous_week_end_dt = datetime.combine(previous_week_end, time.min)
-    month_start_dt = datetime.combine(month_start, time.min)
-    previous_month_start_dt = datetime.combine(previous_month_start, time.min)
-    previous_month_end_dt = datetime.combine(previous_month_end, time.min)
-    async with async_session() as session:
-        latest_light_sample = (
-            await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.timestamp.desc()).limit(1))
-        ).scalars().first()
-        latest_light = (
-            await session.execute(select(OutdoorLightEvent).order_by(OutdoorLightEvent.timestamp.desc()).limit(1))
-        ).scalars().first()
-        latest_sample = (
-            await session.execute(select(VentilationSample).order_by(VentilationSample.timestamp.desc()).limit(1))
-        ).scalars().first()
-        latest_yr_sample = (
-            await session.execute(select(YrForecastSample).order_by(YrForecastSample.timestamp.desc()).limit(1))
-        ).scalars().first()
-        import_rows = await import_status_rows(session)
-        sun_as_of = source_as_of(import_rows, "sun2_sessions_import", now_dt)
-        parking_as_of = source_as_of(import_rows, "easypark_parking_import", now_dt)
-        sun_today_cutoff = period_cutoff(today_start, tomorrow_start, sun_as_of)
-        sun_week_cutoff = period_cutoff(week_start_dt, tomorrow_start, sun_as_of)
-        sun_month_cutoff = period_cutoff(month_start_dt, tomorrow_start, sun_as_of)
-        sun_last_week_same_cutoff = shifted_period_cutoff(
-            today_start,
-            sun_today_cutoff,
-            last_week_same_day_start,
-            last_week_same_day_end,
-        )
-        parking_today_cutoff = period_cutoff(today_start, tomorrow_start, parking_as_of)
-        parking_week_cutoff = period_cutoff(week_start_dt, tomorrow_start, parking_as_of)
-        parking_month_cutoff = period_cutoff(month_start_dt, tomorrow_start, parking_as_of)
-        parking_last_week_same_cutoff = shifted_period_cutoff(
-            today_start,
-            parking_today_cutoff,
-            last_week_same_day_start,
-            last_week_same_day_end,
-        )
-        today_sun = await sun2_datetime_snapshot(session, today_start, sun_today_cutoff)
-        yesterday_sun = await sun2_period_snapshot(session, yesterday, today)
-        last_week_sun = await sun2_period_snapshot(session, last_week_same_day, last_week_same_day + timedelta(days=1))
-        two_weeks_sun = await sun2_period_snapshot(session, two_weeks_same_day, two_weeks_same_day + timedelta(days=1))
-        week_sun = await sun2_datetime_snapshot(session, week_start_dt, sun_week_cutoff)
-        previous_week_sun = await sun2_period_snapshot(session, previous_week_start, previous_week_end)
-        month_sun = await sun2_datetime_snapshot(session, month_start_dt, sun_month_cutoff)
-        previous_month_sun = await sun2_period_snapshot(session, previous_month_start, previous_month_end)
-        same_time_sun = await sun2_datetime_snapshot(session, last_week_same_day_start, sun_last_week_same_cutoff)
-        latest_soling = (
-            await session.execute(
-                select(Sun2TanningSession)
-                .where(Sun2TanningSession.stat_date == today)
-                .order_by(Sun2TanningSession.started_at.desc())
-                .limit(1)
-            )
-        ).scalars().first()
-        today_parking = await parking_datetime_snapshot(session, today_start, parking_today_cutoff)
-        yesterday_parking = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id).label("sessions"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-                ).where(
-                    ParkingSession.start_time >= yesterday_start,
-                    ParkingSession.start_time < today_start,
-                )
-            )
-        ).one()
-        last_week_parking = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id).label("sessions"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-                ).where(
-                    ParkingSession.start_time >= last_week_same_day_start,
-                    ParkingSession.start_time < last_week_same_day_end,
-                )
-            )
-        ).one()
-        same_time_parking = await parking_datetime_snapshot(
-            session,
-            last_week_same_day_start,
-            parking_last_week_same_cutoff,
-        )
-        two_weeks_parking = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id).label("sessions"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-                ).where(
-                    ParkingSession.start_time >= two_weeks_same_day_start,
-                    ParkingSession.start_time < two_weeks_same_day_end,
-                )
-            )
-        ).one()
-        week_parking = await parking_datetime_snapshot(session, week_start_dt, parking_week_cutoff)
-        previous_week_parking = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id).label("sessions"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-                ).where(
-                    ParkingSession.start_time >= previous_week_start_dt,
-                    ParkingSession.start_time < previous_week_end_dt,
-                )
-            )
-        ).one()
-        month_parking = await parking_datetime_snapshot(session, month_start_dt, parking_month_cutoff)
-        previous_month_parking = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id).label("sessions"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-                ).where(
-                    ParkingSession.start_time >= previous_month_start_dt,
-                    ParkingSession.start_time < previous_month_end_dt,
-                )
-            )
-        ).one()
-        active_parking = (
-            await session.execute(
-                select(func.count(ParkingSession.id)).where(
-                    ParkingSession.start_time <= now_dt,
-                    or_(
-                        ParkingSession.end_time.is_(None),
-                        ParkingSession.end_time >= now_dt,
-                        func.lower(func.coalesce(ParkingSession.status, "")) == "ongoing",
-                    ),
-                )
-            )
-        ).scalar_one()
-        latest_parking = (
-            await session.execute(
-                select(ParkingSession)
-                .where(ParkingSession.start_time >= today_start)
-                .where(ParkingSession.start_time < tomorrow_start)
-                .order_by(ParkingSession.start_time.desc())
-                .limit(1)
-            )
-        ).scalars().first()
-        latest_energy_sample = (
-            await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))
-        ).scalars().first()
-        today_energy_fibaro = (
-            await session.execute(
-                select(
-                    func.coalesce(func.sum(EnergyFibaroSample.inntak_delta_kwh), 0).label("kwh"),
-                    func.count(EnergyFibaroSample.id).label("samples"),
-                )
-                .where(EnergyFibaroSample.bucket_start >= today_start)
-                .where(EnergyFibaroSample.bucket_start < tomorrow_start)
-            )
-        ).one()
-        temp_ranges = (
-            await session.execute(
-                select(
-                    func.min(VentilationSample.temp_avg_inne).label("min_inne"),
-                    func.max(VentilationSample.temp_avg_inne).label("max_inne"),
-                    func.min(VentilationSample.temp_ute).label("min_ute"),
-                    func.max(VentilationSample.temp_ute).label("max_ute"),
-                    func.min(VentilationSample.temp_loft).label("min_loft"),
-                    func.max(VentilationSample.temp_loft).label("max_loft"),
-                )
-                .where(VentilationSample.bucket_start >= today_start)
-                .where(VentilationSample.bucket_start < tomorrow_start)
-            )
-        ).one()
-
-    now_status = build_now_status(latest_sample, latest_light_sample, latest_light, latest_yr_sample)
-    import_counts = {
-        "ok": sum(1 for row in import_rows if row["status"] == "ok"),
-        "warn": sum(1 for row in import_rows if row["status"] == "warn"),
-        "bad": sum(1 for row in import_rows if row["status"] == "bad"),
-        "total": len(import_rows),
-    }
-    light_items = [
-        {"label": device["name"], "state": light_sample_state(latest_light_sample, device) if latest_light_sample else None}
-        for device in LIGHT_TIMELINE_DEVICES
-    ]
-    vent_switch_configs = [
-        config for device in VENT_TIMELINE_DEVICES
-        if (config := hc3_switch_config_for_timeline_device(device)) is not None
-    ]
-    vent_hc3_statuses = await hc3_fetch_switch_statuses(vent_switch_configs)
-    fan_items = [
-        ventilation_status_payload(device, latest_sample, vent_hc3_statuses.get(str(device.get("key"))))
-        for device in VENT_TIMELINE_DEVICES
-    ]
-    revenue_today = float_or_zero(today_sun.paid) + float_or_zero(today_parking.paid)
-    revenue_yesterday = float_or_zero(yesterday_sun.paid) + float_or_zero(yesterday_parking.paid)
-    revenue_last_week = float_or_zero(last_week_sun.paid) + float_or_zero(last_week_parking.paid)
-    revenue_two_weeks = float_or_zero(two_weeks_sun.paid) + float_or_zero(two_weeks_parking.paid)
-    revenue_week = float_or_zero(week_sun.paid) + float_or_zero(week_parking.paid)
-    revenue_previous_week = float_or_zero(previous_week_sun.paid) + float_or_zero(previous_week_parking.paid)
-    revenue_month = float_or_zero(month_sun.paid) + float_or_zero(month_parking.paid)
-    revenue_previous_month = float_or_zero(previous_month_sun.paid) + float_or_zero(previous_month_parking.paid)
-    cards = [
-        {
-            "group": "Drift",
-            "title": "Apning",
-            "value": operating_window(now_dt)["label"],
-            "unit": "",
-            "detail": operating_window(now_dt)["detail"],
-            "href": "/status/omsetning",
-            "tone": "status",
-        },
-        {
-            "group": "Drift",
-            "title": "Datakilder",
-            "value": f"{import_counts['ok']}/{import_counts['total']}",
-            "unit": "OK",
-            "detail": f"{import_counts['warn']} treg, {import_counts['bad']} feil/gammel",
-            "href": "/admin/datakilder",
-            "tone": "status",
-        },
-        {
-            "group": "Omsetning",
-            "title": "Omsetning i dag",
-            "value": dashboard_compare_value(revenue_today, revenue_yesterday),
-            "unit": "kr",
-            "detail": f"Sol {format_short_number(today_sun.paid)} kr - park {format_short_number(today_parking.paid)} kr",
-            "href": "/omsetning/oversikt",
-            "tone": "revenue",
-        },
-        {
-            "group": "Omsetning",
-            "title": "Samme dag forrige uke",
-            "value": format_short_number(revenue_last_week),
-            "unit": "kr",
-            "detail": f"Sol {format_short_number(last_week_sun.paid)} kr - park {format_short_number(last_week_parking.paid)} kr",
-            "href": "/omsetning/oversikt",
-            "tone": "revenue",
-        },
-        {
-            "group": "Omsetning",
-            "title": "Samme to uker siden",
-            "value": format_short_number(revenue_two_weeks),
-            "unit": "kr",
-            "detail": f"Sol {format_short_number(two_weeks_sun.paid)} kr - park {format_short_number(two_weeks_parking.paid)} kr",
-            "href": "/omsetning/oversikt",
-            "tone": "revenue",
-        },
-        {
-            "group": "Omsetning",
-            "title": "Uke",
-            "value": dashboard_compare_value(revenue_week, revenue_previous_week),
-            "unit": "kr",
-            "detail": "Denne / forrige uke",
-            "href": "/omsetning/oversikt",
-            "tone": "revenue",
-        },
-        {
-            "group": "Omsetning",
-            "title": "Maned",
-            "value": dashboard_compare_value(revenue_month, revenue_previous_month),
-            "unit": "kr",
-            "detail": "Denne / forrige maned",
-            "href": "/omsetning/oversikt",
-            "tone": "revenue",
-        },
-        {
-            "group": "Soling",
-            "title": "Soling i dag",
-            "value": dashboard_compare_value(today_sun.sessions, yesterday_sun.sessions),
-            "unit": "stk",
-            "detail": f"{format_short_number(today_sun.minutes / 60, 1)} t - til {cutoff_label(sun_today_cutoff, today)}",
-            "href": f"/soling/dagslinje?day={today.isoformat()}",
-            "tone": "sun2",
-        },
-        {
-            "group": "Soling",
-            "title": "Samme tid forrige uke",
-            "value": format_short_number(same_time_sun.sessions),
-            "unit": "stk",
-            "detail": f"{format_short_number(same_time_sun.paid)} kr til {cutoff_label(sun_last_week_same_cutoff, today)}",
-            "href": "/soling/dagslinje",
-            "tone": "sun2",
-        },
-        {
-            "group": "Soling",
-            "title": "Samme dag forrige uke",
-            "value": format_short_number(last_week_sun.sessions),
-            "unit": "stk",
-            "detail": f"{format_short_number(last_week_sun.paid)} kr - {format_short_number(last_week_sun.minutes / 60, 1)} t",
-            "href": "/soling/dagslinje",
-            "tone": "sun2",
-        },
-        {
-            "group": "Soling",
-            "title": "Samme to uker siden",
-            "value": format_short_number(two_weeks_sun.sessions),
-            "unit": "stk",
-            "detail": f"{format_short_number(two_weeks_sun.paid)} kr - {format_short_number(two_weeks_sun.minutes / 60, 1)} t",
-            "href": "/soling/dagslinje",
-            "tone": "sun2",
-        },
-        {
-            "group": "Soling",
-            "title": "Sol uke",
-            "value": dashboard_compare_value(week_sun.sessions, previous_week_sun.sessions),
-            "unit": "stk",
-            "detail": f"{dashboard_money_compare(week_sun.paid, previous_week_sun.paid)} denne / forrige",
-            "href": "/soling/prognose",
-            "tone": "sun2",
-        },
-        {
-            "group": "Soling",
-            "title": "Sol mnd",
-            "value": dashboard_compare_value(month_sun.sessions, previous_month_sun.sessions),
-            "unit": "stk",
-            "detail": f"{dashboard_money_compare(month_sun.paid, previous_month_sun.paid)} denne / forrige",
-            "href": "/soling/oversikt",
-            "tone": "sun2",
-        },
-        {
-            "group": "Parkering",
-            "title": "Parkering i dag",
-            "value": dashboard_compare_value(today_parking.sessions, yesterday_parking.sessions),
-            "unit": "stk",
-            "detail": f"{format_short_number(today_parking.paid)} kr til {cutoff_label(parking_today_cutoff, today)} - {active_parking or 0} aktive na",
-            "href": f"/parkering/parkeringer?day={today.isoformat()}",
-            "tone": "parking",
-        },
-        {
-            "group": "Parkering",
-            "title": "Samme tid forrige uke",
-            "value": format_short_number(same_time_parking.sessions),
-            "unit": "stk",
-            "detail": f"{format_short_number(same_time_parking.paid)} kr til {cutoff_label(parking_last_week_same_cutoff, today)}",
-            "href": "/parkering/parkeringer",
-            "tone": "parking",
-        },
-        {
-            "group": "Parkering",
-            "title": "Samme dag forrige uke",
-            "value": format_short_number(last_week_parking.sessions),
-            "unit": "stk",
-            "detail": f"{format_short_number(last_week_parking.paid)} kr",
-            "href": "/parkering/sammenligning",
-            "tone": "parking",
-        },
-        {
-            "group": "Parkering",
-            "title": "Samme to uker siden",
-            "value": format_short_number(two_weeks_parking.sessions),
-            "unit": "stk",
-            "detail": f"{format_short_number(two_weeks_parking.paid)} kr",
-            "href": "/parkering/sammenligning",
-            "tone": "parking",
-        },
-        {
-            "group": "Parkering",
-            "title": "Parkering uke",
-            "value": dashboard_compare_value(week_parking.sessions, previous_week_parking.sessions),
-            "unit": "stk",
-            "detail": f"{dashboard_money_compare(week_parking.paid, previous_week_parking.paid)} denne / forrige",
-            "href": "/parkering/sammenligning",
-            "tone": "parking",
-        },
-        {
-            "group": "Parkering",
-            "title": "Parkering mnd",
-            "value": dashboard_compare_value(month_parking.sessions, previous_month_parking.sessions),
-            "unit": "stk",
-            "detail": f"{dashboard_money_compare(month_parking.paid, previous_month_parking.paid)} denne / forrige",
-            "href": "/parkering/sammenligning",
-            "tone": "parking",
-        },
-        {
-            "group": "Energi",
-            "title": "Strom na",
-            "value": format_short_number(latest_energy_sample.inntak_w if latest_energy_sample else 0),
-            "unit": "W",
-            "detail": f"{format_short_number(today_energy_fibaro.kwh, 1)} kWh i dag - {today_energy_fibaro.samples or 0} samples",
-            "href": "/energi/status",
-            "tone": "energy",
-        },
-        {
-            "group": "Energi",
-            "title": "Belysning",
-            "value": format_short_number(latest_energy_sample.belysning_w if latest_energy_sample else 0),
-            "unit": "W",
-            "detail": "Realtime oppsamling",
-            "href": "/energi/status",
-            "tone": "energy",
-        },
-        {
-            "group": "Energi",
-            "title": "Varmepumper",
-            "value": format_short_number(latest_energy_sample.varmepumper_w if latest_energy_sample else 0),
-            "unit": "W",
-            "detail": "Realtime oppsamling",
-            "href": "/energi/status",
-            "tone": "energy",
-        },
-        {
-            "group": "Energi",
-            "title": "Avfukter",
-            "value": format_short_number(latest_energy_sample.avfukter_w if latest_energy_sample else 0),
-            "unit": "W",
-            "detail": "Separat logget og med i Annet",
-            "href": "/energi/status",
-            "tone": "energy",
-        },
-        {
-            "group": "Energi",
-            "title": "Diff",
-            "value": format_short_number(latest_energy_sample.differanse_beregnet_w if latest_energy_sample else 0),
-            "unit": "W",
-            "detail": "Beregnet fra realtime malere",
-            "href": "/energi/status",
-            "tone": "energy",
-        },
-        {
-            "group": "Temperatur",
-            "title": "Innetemp",
-            "value": format_short_number(now_status.get("indoor_avg"), 1),
-            "unit": "grader",
-            "detail": f"I dag {format_short_number(temp_ranges.min_inne, 1)} - {format_short_number(temp_ranges.max_inne, 1)}",
-            "href": "/ventilasjon/temp-logg",
-            "tone": "vent",
-        },
-        {
-            "group": "Temperatur",
-            "title": "Utetemp",
-            "value": format_short_number(now_status.get("outdoor_avg"), 1),
-            "unit": "grader",
-            "detail": f"I dag {format_short_number(temp_ranges.min_ute, 1)} - {format_short_number(temp_ranges.max_ute, 1)}",
-            "href": "/ventilasjon/yr-logg",
-            "tone": "weather",
-        },
-        {
-            "group": "Temperatur",
-            "title": "Loft",
-            "value": format_short_number(latest_sample.temp_loft if latest_sample else None, 1),
-            "unit": "grader",
-            "detail": f"I dag {format_short_number(temp_ranges.min_loft, 1)} - {format_short_number(temp_ranges.max_loft, 1)}",
-            "href": "/ventilasjon/temp-logg",
-            "tone": "vent",
-        },
-        {
-            "group": "Temperatur",
-            "title": "Kjeller",
-            "value": format_short_number(latest_sample.temp_kjeller if latest_sample else None, 1),
-            "unit": "grader",
-            "detail": f"Fukt {format_short_number(latest_sample.humidity_kjeller if latest_sample else None)}%",
-            "href": "/ventilasjon/temp-logg",
-            "tone": "vent",
-        },
-        {
-            "group": "Temperatur",
-            "title": "Fukt inne",
-            "value": format_short_number(latest_sample.humidity_1etg if latest_sample else None),
-            "unit": "%",
-            "detail": f"2.etg {format_short_number(latest_sample.humidity_2etg if latest_sample else None)}% - VIP {format_short_number(latest_sample.humidity_vip if latest_sample else None)}%",
-            "href": "/ventilasjon/temp-logg",
-            "tone": "vent",
-        },
-        {
-            "group": "Temperatur",
-            "title": "Yr",
-            "value": weather_from_rows(latest_yr_sample, latest_light_sample, latest_sample, latest_light) or "-",
-            "unit": "",
-            "detail": f"Vind {format_short_number(latest_yr_sample.wind_speed if latest_yr_sample else None, 1)} m/s - sky {format_short_number(latest_yr_sample.cloud_area_fraction if latest_yr_sample else None)}%",
-            "href": "/ventilasjon/yr-logg",
-            "tone": "weather",
-        },
-        {
-            "group": "Lys",
-            "title": "Lux",
-            "value": format_short_number(now_status.get("lux")),
-            "unit": "",
-            "detail": f"{sum(1 for item in light_items if item['state'] is True)} pa / {sum(1 for item in light_items if item['state'] is False)} av",
-            "href": "/lys/dagslogg-lux",
-            "tone": "light",
-        },
-        {
-            "group": "Ventilasjon",
-            "title": "Vifter",
-            "value": f"{sum(1 for item in fan_items if item['state'] is True)}/{len(fan_items)}",
-            "unit": "pa",
-            "detail": f"Modus {latest_sample.mode if latest_sample and latest_sample.mode else '-'}",
-            "href": "/ventilasjon/dagslogg-temp",
-            "tone": "vent",
-        },
-    ]
-    latest_items = [
-        {
-            "label": "Siste soling",
-            "value": latest_soling.started_at.strftime("%H:%M") if latest_soling and latest_soling.started_at else "-",
-            "detail": f"Rom {latest_soling.room}" if latest_soling and latest_soling.room else "",
-            "href": "/soling/dagslinje",
-        },
-        {
-            "label": "Siste parkering",
-            "value": latest_parking.start_time.strftime("%H:%M") if latest_parking and latest_parking.start_time else "-",
-            "detail": latest_parking.car_license_number if latest_parking and latest_parking.car_license_number else "",
-            "href": "/parkering/parkeringer",
-        },
-        {
-            "label": "Energi sist lest",
-            "value": latest_energy_sample.bucket_start.strftime("%H:%M") if latest_energy_sample and latest_energy_sample.bucket_start else "-",
-            "detail": f"{format_short_number(latest_energy_sample.inntak_w)} W" if latest_energy_sample else "",
-            "href": "/energi/status",
-        },
-        {
-            "label": "Temp sist lest",
-            "value": now_status["timestamp"].strftime("%H:%M") if now_status.get("timestamp") else "-",
-            "detail": now_status.get("weather") or "",
-            "href": "/ventilasjon/temp-logg",
-        },
-    ]
-    grouped_cards = defaultdict(list)
-    for card in cards:
-        grouped_cards[card["group"]].append(card)
-    return templates.TemplateResponse(
-        request,
-        "status_key_metrics.html",
-        {
-            "now": now_dt,
-            "cards_by_group": dict(grouped_cards),
-            "latest_items": latest_items,
-            "light_items": light_items,
-            "fan_items": fan_items,
-            "now_status": now_status,
-        },
-    )
 
 
 def api_roborock_active_cycle(status_rows: list[Any]) -> Optional[Dict[str, Any]]:
@@ -15860,137 +13236,18 @@ async def build_revenue_month_context(month: Optional[str] = None) -> Dict[str, 
     }
 
 
-@app.get("/api/status/comparison")
-async def api_v2_status_comparison(
-    period: str = Query("today"),
-    compare: str = Query("previous"),
-    anchor: Optional[str] = Query(None),
-    references: str = Query("auto"),
-):
-    now_dt = local_now_naive()
-    today = now_dt.date()
-    anchor_day = parse_anchor_day(anchor, today)
-    async with async_session() as session:
-        import_rows = await import_status_rows(session)
-        return await build_status_comparison(
-            session, import_rows, now_dt, period, compare, anchor_day, references,
-            timeline_lane=status_timeline_lane,
-        )
 
 
-@app.get("/api/soling/year-comparison")
-async def api_v2_sun2_year_comparison(year: Optional[str] = Query(None)):
-    now_dt = local_now_naive()
-    anchor_year = parse_anchor_year(year, now_dt.year)
-    async with async_session() as session:
-        summaries = await get_sun2_summaries(session)
-    return build_sun2_year_comparison(summaries, now_dt, anchor_year)
 
 
-@app.get("/api/parkering/year-comparison")
-async def api_v2_parking_year_comparison(year: Optional[str] = Query(None)):
-    now_dt = local_now_naive()
-    anchor_year = parse_anchor_year(year, now_dt.year)
-    async with async_session() as session:
-        summaries = await get_parking_summaries(session)
-    return build_parking_year_comparison(summaries, now_dt, anchor_year)
 
 
-@app.get("/api/parkering/time-distribution")
-async def api_v2_parking_time_distribution(request: Request):
-    now_dt = local_now_naive()
-    async with async_session() as session:
-        return await api_parking_time_distribution(session, request.query_params, now_dt)
 
 
-@app.get("/api/parkering/weekly-averages")
-async def api_v2_parking_weekly_averages(request: Request):
-    now_dt = local_now_naive()
-    period = parking_weekly_average_period(request.query_params, now_dt.date())
-    async with async_session() as session:
-        rows = (
-            await session.execute(
-                select(
-                    ParkingSession.start_time,
-                    ParkingSession.end_time,
-                    ParkingSession.parking_time_min,
-                    ParkingSession.fee_inc_vat,
-                )
-                .where(ParkingSession.start_time >= period["start"])
-                .where(ParkingSession.start_time < period["end"])
-                .order_by(ParkingSession.start_time.asc())
-            )
-        ).all()
-    return parking_weekly_average_payload(rows, period, now_dt)
 
 
-@app.get("/api/parkering/weekly-averages/years")
-async def api_v2_parking_weekly_average_years(years: Optional[str] = Query(None)):
-    now_dt = local_now_naive()
-    calendar_year_expr = cast(func.extract("year", ParkingSession.start_time), Integer)
-    comparison_week_expr = cast(
-        func.floor((func.extract("doy", ParkingSession.start_time) - 1) / 7) + 1,
-        Integer,
-    )
-    duration_expr = case(
-        (ParkingSession.parking_time_min > 0, ParkingSession.parking_time_min),
-        (
-            and_(
-                ParkingSession.end_time.is_not(None),
-                ParkingSession.end_time > ParkingSession.start_time,
-            ),
-            func.extract("epoch", ParkingSession.end_time - ParkingSession.start_time) / 60.0,
-        ),
-        else_=None,
-    )
-
-    async with async_session() as session:
-        available_rows = (
-            await session.execute(
-                select(calendar_year_expr)
-                .where(ParkingSession.start_time.is_not(None))
-                .distinct()
-                .order_by(calendar_year_expr.desc())
-            )
-        ).scalars().all()
-        available_years = sorted({int_or_zero(value) for value in available_rows if int_or_zero(value) > 0}, reverse=True)
-        selected_years = parking_weekly_selected_years(years, available_years, now_dt.year)
-
-        aggregate_rows = []
-        if selected_years:
-            aggregate_rows = (
-                await session.execute(
-                    select(
-                        calendar_year_expr.label("calendar_year"),
-                        comparison_week_expr.label("comparison_week"),
-                        func.count(ParkingSession.id).label("sessions"),
-                        func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-                        func.coalesce(func.sum(duration_expr), 0).label("minutes"),
-                        func.count(duration_expr).label("duration_sessions"),
-                    )
-                    .where(calendar_year_expr.in_(selected_years))
-                    .group_by(calendar_year_expr, comparison_week_expr)
-                    .order_by(calendar_year_expr.desc(), comparison_week_expr.asc())
-                )
-            ).all()
-
-    return parking_weekly_year_comparison_payload(
-        aggregate_rows,
-        available_years,
-        selected_years,
-        now_dt,
-    )
 
 
-@app.get("/api/omsetning/year-comparison")
-async def api_v2_revenue_year_comparison(year: Optional[str] = Query(None)):
-    now_dt = local_now_naive()
-    anchor_year = parse_anchor_year(year, now_dt.year)
-    async with async_session() as session:
-        sun_summaries = await get_sun2_summaries(session)
-        parking_summaries = await get_parking_summaries(session)
-    summaries = combine_business_summaries(sun_summaries, parking_summaries)
-    return build_revenue_year_comparison(summaries, now_dt, anchor_year)
 
 
 def operations_area_status(
@@ -16075,673 +13332,18 @@ def latest_cleaning_robot_sample(status_sample: Any = None, telemetry_sample: An
     )
 
 
-@app.get("/api/operations/overview")
-async def api_operations_overview():
-    now_dt = local_now_naive()
-    today_start = datetime.combine(now_dt.date(), time.min)
-    tomorrow_start = today_start + timedelta(days=1)
-    jobs_from = local_naive_to_utc_naive(today_start)
-    jobs_to = local_naive_to_utc_naive(tomorrow_start)
-
-    door_task = asyncio.create_task(api_hc3_doors_status(history_limit=20, period_limit=20))
-    bollard_task = asyncio.create_task(api_unifi_protect_bollards())
-    vent_switch_configs = [
-        config
-        for device in VENT_TIMELINE_DEVICES
-        if (config := hc3_switch_config_for_timeline_device(device)) is not None
-    ]
-    fan_task = asyncio.create_task(hc3_fetch_switch_statuses(vent_switch_configs))
-
-    async with async_session() as session:
-        latest_light = (
-            await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.bucket_start.desc()).limit(1))
-        ).scalars().first()
-        latest_ventilation = (
-            await session.execute(select(VentilationSample).order_by(VentilationSample.bucket_start.desc()).limit(1))
-        ).scalars().first()
-        robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
-        robots.sort(key=cleaning_robot_sort_key)
-        robot_duids = [robot.duid for robot in robots]
-        latest_statuses: list[RoborockStatusSample] = []
-        latest_telemetry: list[RoborockTelemetrySample] = []
-        jobs: list[RoborockCleanJob] = []
-        recent_jobs: list[RoborockCleanJob] = []
-        if robot_duids:
-            latest_status_subquery = (
-                select(
-                    RoborockStatusSample.robot_duid.label("robot_duid"),
-                    func.max(RoborockStatusSample.id).label("latest_id"),
-                )
-                .where(RoborockStatusSample.robot_duid.in_(robot_duids))
-                .group_by(RoborockStatusSample.robot_duid)
-                .subquery()
-            )
-            latest_statuses = (
-                await session.execute(
-                    select(RoborockStatusSample).join(
-                        latest_status_subquery,
-                        RoborockStatusSample.id == latest_status_subquery.c.latest_id,
-                    )
-                )
-            ).scalars().all()
-            latest_telemetry_subquery = (
-                select(
-                    RoborockTelemetrySample.robot_duid.label("robot_duid"),
-                    func.max(RoborockTelemetrySample.id).label("latest_id"),
-                )
-                .where(RoborockTelemetrySample.robot_duid.in_(robot_duids))
-                .group_by(RoborockTelemetrySample.robot_duid)
-                .subquery()
-            )
-            latest_telemetry = (
-                await session.execute(
-                    select(RoborockTelemetrySample).join(
-                        latest_telemetry_subquery,
-                        RoborockTelemetrySample.id == latest_telemetry_subquery.c.latest_id,
-                    )
-                )
-            ).scalars().all()
-            jobs = (
-                await session.execute(
-                    select(RoborockCleanJob)
-                    .where(
-                        RoborockCleanJob.robot_duid.in_(robot_duids),
-                        RoborockCleanJob.begin_at >= jobs_from,
-                        RoborockCleanJob.begin_at < jobs_to,
-                    )
-                    .order_by(RoborockCleanJob.begin_at.desc())
-                )
-            ).scalars().all()
-            recent_jobs = (
-                await session.execute(
-                    select(RoborockCleanJob)
-                    .where(RoborockCleanJob.robot_duid.in_(robot_duids))
-                    .order_by(
-                        RoborockCleanJob.begin_at.desc().nullslast(),
-                        RoborockCleanJob.id.desc(),
-                    )
-                    .limit(5)
-                )
-            ).scalars().all()
-        active_door_alarms = (
-            await session.execute(
-                select(AlarmEvent)
-                .where(AlarmEvent.domain == "doors", AlarmEvent.status == "active")
-                .order_by(AlarmEvent.detected_at.desc())
-                .limit(10)
-            )
-        ).scalars().all()
-
-    door_result, bollard_result, fan_statuses = await asyncio.gather(
-        door_task,
-        bollard_task,
-        fan_task,
-        return_exceptions=True,
-    )
-
-    areas: list[Dict[str, Any]] = []
-    incidents: list[Dict[str, Any]] = []
-
-    fan_lookup = fan_statuses if isinstance(fan_statuses, dict) else {}
-    fan_items = [
-        ventilation_status_payload(device, latest_ventilation, fan_lookup.get(str(device.get("key"))))
-        for device in VENT_TIMELINE_DEVICES
-    ]
-    fan_unknown = [item for item in fan_items if item.get("state") is None]
-    fan_errors = [item for item in fan_items if item.get("error")]
-    vent_updated = normalize_local_naive(
-        (latest_ventilation.bucket_start or latest_ventilation.timestamp) if latest_ventilation else None
-    )
-    vent_age = minutes_since(vent_updated, now_dt)
-    vent_issues = [str(item.get("error")) for item in fan_errors if item.get("error")]
-    if latest_ventilation is None:
-        vent_status, vent_label = "error", "Ingen data"
-        vent_issues.append("Ventilasjonsloggeren har ikke levert målinger.")
-    elif vent_age is not None and vent_age > 10:
-        vent_status, vent_label = "warning", "Data er forsinket"
-        vent_issues.append(f"Siste ventilasjonsmåling er {vent_age} minutter gammel.")
-    elif fan_errors or fan_unknown:
-        vent_status, vent_label = "warning", "Delvis status"
-        if fan_unknown:
-            vent_issues.append(f"Status mangler for {len(fan_unknown)} vifte(r).")
-    else:
-        vent_status, vent_label = "ok", "Normal drift"
-    for issue in vent_issues:
-        incidents.append({"area": "Ventilasjon", "severity": vent_status, "title": issue, "href": "/ventilasjon"})
-    fan_on = sum(item.get("state") is True for item in fan_items)
-    areas.append(operations_area_status(
-        "ventilation",
-        "Ventilasjon",
-        vent_status,
-        vent_label,
-        latest_ventilation.mode if latest_ventilation and latest_ventilation.mode else "Styringsmodus er ikke rapportert",
-        "/ventilasjon",
-        vent_updated,
-        [
-            operations_metric("Vifter på", f"{fan_on} / {len(fan_items)}"),
-            operations_metric("Inne", f"{latest_ventilation.temp_avg_inne:.1f} °C" if latest_ventilation and latest_ventilation.temp_avg_inne is not None else "-"),
-            operations_metric("Ute", f"{latest_ventilation.temp_ute:.1f} °C" if latest_ventilation and latest_ventilation.temp_ute is not None else "-"),
-            operations_metric("Kjeller", f"{latest_ventilation.humidity_kjeller:.0f} %" if latest_ventilation and latest_ventilation.humidity_kjeller is not None else "-", "luftfuktighet"),
-        ],
-        [
-            {"label": item.get("label"), "value": "På" if item.get("state") is True else "Av" if item.get("state") is False else "Ukjent", "state": "on" if item.get("state") is True else "off" if item.get("state") is False else "unknown"}
-            for item in fan_items
-        ],
-        vent_issues,
-    ))
-
-    light_updated = normalize_local_naive((latest_light.bucket_start or latest_light.timestamp) if latest_light else None)
-    light_age = minutes_since(light_updated, now_dt)
-    light_items = [
-        operations_switch_item(device["name"], light_sample_state(latest_light, device) if latest_light else None)
-        for device in LIGHT_TIMELINE_DEVICES
-    ]
-    light_unknown = sum(item["state"] == "unknown" for item in light_items)
-    light_issues: list[str] = []
-    if latest_light is None:
-        light_status, light_label = "error", "Ingen data"
-        light_issues.append("Lysloggeren har ikke levert målinger.")
-    elif light_age is not None and light_age > 10:
-        light_status, light_label = "warning", "Data er forsinket"
-        light_issues.append(f"Siste lysmåling er {light_age} minutter gammel.")
-    elif light_unknown:
-        light_status, light_label = "warning", "Delvis status"
-        light_issues.append(f"Status mangler for {light_unknown} lyspunkt(er).")
-    else:
-        light_status, light_label = "ok", "Normal drift"
-    for issue in light_issues:
-        incidents.append({"area": "Lys", "severity": light_status, "title": issue, "href": "/lys"})
-    light_on = sum(item["state"] == "on" for item in light_items)
-    areas.append(operations_area_status(
-        "lights",
-        "Lys",
-        light_status,
-        light_label,
-        latest_light.mode if latest_light and latest_light.mode else "Automatisk lysstyring",
-        "/lys",
-        light_updated,
-        [
-            operations_metric("Lyspunkter på", f"{light_on} / {len(light_items)}"),
-            operations_metric("Lux", f"{latest_light.lux:.0f}" if latest_light and latest_light.lux is not None else "-"),
-            operations_metric("Modus", latest_light.mode if latest_light and latest_light.mode else "-"),
-        ],
-        light_items,
-        light_issues,
-    ))
-
-    if isinstance(door_result, Exception):
-        door_summary: Dict[str, Any] = {}
-        door_rows: list[Dict[str, Any]] = []
-        door_status, door_label = "error", "Status utilgjengelig"
-        door_issues = [f"Dørstatus kunne ikke hentes: {door_result}"]
-        door_updated = None
-    else:
-        door_summary = door_result.get("summary") or {}
-        door_rows = door_result.get("doors") or []
-        door_updated = normalize_local_naive(datetime.fromisoformat(door_result["generatedAt"])) if door_result.get("generatedAt") else None
-        unknown_doors = [door for door in door_rows if door.get("isConfigured") and door.get("state") == "unknown"]
-        abnormal_doors = [
-            door for door in door_rows
-            if door.get("isConfigured") and door.get("groupKey") != "solrom" and door.get("state") not in {"unknown", door.get("normalState")}
-        ]
-        door_issues = []
-        if active_door_alarms:
-            door_status, door_label = "error", f"{len(active_door_alarms)} aktiv alarm"
-            door_issues.extend(alarm.title for alarm in active_door_alarms[:3])
-        elif abnormal_doors or unknown_doors:
-            door_status, door_label = "warning", "Krever oppmerksomhet"
-            door_issues.extend(f"{door.get('title')}: {str(door.get('stateLabel') or 'ukjent').lower()}" for door in abnormal_doors[:3])
-            if unknown_doors:
-                door_issues.append(f"{len(unknown_doors)} konfigurert dør har ukjent status.")
-        else:
-            door_status, door_label = "ok", "Normal status"
-    for issue in door_issues:
-        incidents.append({"area": "Dører", "severity": door_status, "title": issue, "href": "/dorer/alarm" if active_door_alarms else "/dorer"})
-    solroom_rows = [door for door in door_rows if door.get("groupKey") == "solrom"]
-    other_rows = [door for door in door_rows if door.get("groupKey") != "solrom" and door.get("isConfigured")]
-    recent_door_items = [] if isinstance(door_result, Exception) else operations_recent_door_items(door_result)
-    areas.append(operations_area_status(
-        "doors",
-        "Dører",
-        door_status,
-        door_label,
-        door_summary.get("latestChangeText") or "Status fra magnetsensorene",
-        "/dorer",
-        door_updated,
-        [
-            operations_metric("Solrom ledige", sum(door.get("state") == "open" for door in solroom_rows), f"av {len(solroom_rows)}"),
-            operations_metric("Solrom i bruk", sum(door.get("state") == "closed" for door in solroom_rows)),
-            operations_metric("Andre åpne", sum(door.get("state") == "open" for door in other_rows), f"av {len(other_rows)}"),
-            operations_metric("Alarmer", len(active_door_alarms)),
-        ],
-        recent_door_items,
-        door_issues,
-    ))
-
-    if isinstance(bollard_result, Exception):
-        bollard_summary: Dict[str, Any] = {}
-        bollard_status, bollard_label = "error", "Kontroll utilgjengelig"
-        bollard_issues = [f"Pullertkontrollen kunne ikke hentes: {bollard_result}"]
-        bollard_updated = None
-        bollard_items: list[Dict[str, Any]] = []
-    else:
-        bollard_summary = bollard_result.get("summary") or {}
-        active_incidents = [row for row in (bollard_result.get("incidents") or []) if str(row.get("status") or "").lower() in {"active", "open", "new"}]
-        active_count = int(bollard_summary.get("active_incidents") or len(active_incidents))
-        bollard_issues = [str(row.get("display_name") or row.get("title") or "Visuelt avvik") for row in active_incidents[:3]]
-        if active_count:
-            bollard_status, bollard_label = "error", f"{active_count} aktivt avvik"
-            if not bollard_issues:
-                bollard_issues.append(f"{active_count} kontrollobjekt krever visuell kontroll.")
-        elif not bollard_result.get("runtime", {}).get("last_success_at"):
-            bollard_status, bollard_label = "warning", "Venter på kontroll"
-            bollard_issues.append("Det finnes ikke et tidspunkt for siste vellykkede bildekontroll.")
-        else:
-            bollard_status, bollard_label = "ok", "Ingen aktive avvik"
-        runtime_at = bollard_result.get("runtime", {}).get("last_success_at")
-        bollard_updated = normalize_local_naive(datetime.fromisoformat(runtime_at)) if runtime_at else None
-        bollard_items = [
-            {"label": row.get("display_name") or row.get("name"), "value": row.get("status") or "Kontrollert", "state": "warning" if row in active_incidents else "ok"}
-            for row in (bollard_result.get("asset_monitors") or bollard_result.get("camera_monitors") or [])[:4]
-        ]
-    for issue in bollard_issues:
-        incidents.append({"area": "Pullerter", "severity": bollard_status, "title": issue, "href": "/pullerter"})
-    areas.append(operations_area_status(
-        "bollards",
-        "Pullerter og fasade",
-        bollard_status,
-        bollard_label,
-        "Lokal bildeanalyse og visuell kontroll",
-        "/pullerter",
-        bollard_updated,
-        [
-            operations_metric("Kontrollobjekter", int(bollard_summary.get("inspection_objects") or 0)),
-            operations_metric("Kameraer", f"{int(bollard_summary.get('connected_cameras') or 0)} / {int(bollard_summary.get('target_cameras') or 0)}"),
-            operations_metric("Aktive avvik", int(bollard_summary.get("active_incidents") or 0)),
-            operations_metric("AI-profiler", f"{int(bollard_summary.get('ai_profiles_ready') or 0)} / {int(bollard_summary.get('ai_profiles_total') or 0)}"),
-        ],
-        bollard_items,
-        bollard_issues,
-    ))
-
-    status_by_robot = {row.robot_duid: row for row in latest_statuses}
-    telemetry_by_robot = {row.robot_duid: row for row in latest_telemetry}
-    robot_name_by_duid = {robot.duid: robot.name for robot in robots}
-    robot_items = []
-    cleaning_issues: list[str] = []
-    cleaning_updated_values: list[datetime] = []
-    for robot in robots:
-        telemetry = telemetry_by_robot.get(robot.duid)
-        status_row = status_by_robot.get(robot.duid)
-        source_row = latest_cleaning_robot_sample(status_row, telemetry)
-        source_at = normalize_local_naive(source_row.timestamp) if source_row and source_row.timestamp else None
-        if source_at:
-            cleaning_updated_values.append(source_at)
-        state_name = source_row.state_name if source_row else None
-        battery = source_row.battery if source_row else None
-        error_code = source_row.error_code if source_row else None
-        active = cleaning_robot_is_active(
-            source_row.in_cleaning if source_row else None,
-            source_row.state_code if source_row else None,
-            robot.provider,
-        )
-        age = minutes_since(source_at, now_dt)
-        state_key, state_label = cleaning_robot_operational_state(
-            integration_status=robot.integration_status,
-            cloud_online=robot.cloud_online,
-            last_error=robot.last_error,
-            error_code=error_code,
-            data_age_minutes=age,
-            active=active,
-            active_label=state_name,
-            ready_label=state_name,
-        )
-        if state_key == "error" and robot.cloud_online is False:
-            cleaning_issues.append(f"{robot.name} er frakoblet.")
-        elif state_key == "error":
-            cleaning_issues.append(f"{robot.name}: {robot.last_error or f'feilkode {error_code}'}")
-        elif state_key == "warning":
-            cleaning_issues.append(f"{robot.name} har ikke levert fersk status.")
-        robot_items.append({
-            "label": robot.name,
-            "value": state_label,
-            "detail": f"{battery} %" if battery is not None else robot.model or "",
-            "state": state_key,
-            "href": f"/renhold/robot/{quote(robot.duid, safe='')}",
-        })
-    if not any(cleaning_provider(robot.provider) == "dreame" for robot in robots):
-        robot_items.append({"label": DREAME_EXPECTED_ROBOT_NAME, "value": "Venter på konto", "detail": "Dreame", "state": "pending", "href": "/renhold/dreame"})
-    cleaning_errors = sum(item["state"] == "error" for item in robot_items)
-    cleaning_warnings = sum(item["state"] == "warning" for item in robot_items)
-    cleaning_active = sum(item["state"] == "active" for item in robot_items)
-    if cleaning_errors:
-        cleaning_status, cleaning_label = "error", f"{cleaning_errors} robot med feil"
-    elif cleaning_warnings:
-        cleaning_status, cleaning_label = "warning", "Krever oppmerksomhet"
-    elif cleaning_active:
-        cleaning_status, cleaning_label = "active", f"{cleaning_active} rengjør nå"
-    else:
-        cleaning_status, cleaning_label = "ok", "Robotparken er klar"
-    for issue in cleaning_issues:
-        incidents.append({"area": "Renhold", "severity": cleaning_status, "title": issue, "href": "/renhold"})
-    recent_cleaning_jobs = []
-    for job in recent_jobs:
-        status_key, status_label = roborock_job_status(job.complete, job.error_code, job.end_at)
-        recent_cleaning_jobs.append({
-            "robotName": robot_name_by_duid.get(job.robot_duid, job.robot_duid),
-            "startedAt": api_local_iso(utc_naive_to_local_naive(job.begin_at)),
-            "endedAt": api_local_iso(utc_naive_to_local_naive(job.end_at)),
-            "durationMinutes": job.duration_minutes,
-            "areaM2": job.cleaned_area_m2 if job.cleaned_area_m2 is not None else job.area_m2,
-            "status": status_key,
-            "statusLabel": status_label,
-            "href": f"/renhold/robot/{quote(job.robot_duid, safe='')}",
-        })
-    areas.append(operations_area_status(
-        "cleaning",
-        "Renhold",
-        cleaning_status,
-        cleaning_label,
-        "Roborock og Dreame samlet",
-        "/renhold",
-        max(cleaning_updated_values, default=None),
-        [
-            operations_metric("Tilkoblet", sum(item["state"] not in {"pending", "error"} for item in robot_items), f"av {len(robot_items)}"),
-            operations_metric("Rengjør nå", cleaning_active),
-            operations_metric("Jobber i dag", len(jobs)),
-            operations_metric("Areal i dag", f"{sum(float(job.cleaned_area_m2 if job.cleaned_area_m2 is not None else job.area_m2 or 0) for job in jobs):.0f} m²"),
-        ],
-        robot_items,
-        cleaning_issues,
-        recent_cleaning_jobs,
-    ))
-
-    critical_count = sum(area["status"] == "error" for area in areas)
-    attention_count = sum(area["status"] in {"warning", "unknown"} for area in areas)
-    normal_count = len(areas) - critical_count - attention_count
-    overall_status = "error" if critical_count else "warning" if attention_count else "ok"
-    overall_label = "Kritiske avvik" if critical_count else "Noe krever oppmerksomhet" if attention_count else "Normal drift"
-    operating = operating_window(now_dt)
-    return {
-        "generatedAt": api_local_iso(now_dt),
-        "operatingWindow": {
-            "label": operating["label"],
-            "detail": operating["detail"],
-            "open": operating["label"] == "Åpent",
-        },
-        "summary": {
-            "status": overall_status,
-            "label": overall_label,
-            "normal": normal_count,
-            "attention": attention_count,
-            "critical": critical_count,
-            "total": len(areas),
-        },
-        "areas": areas,
-        "incidents": incidents,
-    }
 
 
-@app.get("/api/overview")
-async def api_v2_overview(scope: Optional[str] = None):
-    business_only = scope in {"revenue", "parking", "sun"}
-    now_dt = local_now_naive()
-    today = now_dt.date()
-    today_start = datetime.combine(today, time.min)
-    tomorrow_start = today_start + timedelta(days=1)
-    vent_switch_configs = [
-        config
-        for device in VENT_TIMELINE_DEVICES
-        if (config := hc3_switch_config_for_timeline_device(device)) is not None
-    ] if not business_only else []
-    vent_status_task = asyncio.create_task(hc3_fetch_switch_statuses(vent_switch_configs)) if not business_only else None
-    async with async_session() as session:
-        latest_light_sample = None
-        latest_light = None
-        latest_sample = None
-        latest_yr_sample = None
-        if not business_only:
-            latest_light_sample = (
-                await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.timestamp.desc()).limit(1))
-            ).scalars().first()
-            latest_light = (
-                await session.execute(select(OutdoorLightEvent).order_by(OutdoorLightEvent.timestamp.desc()).limit(1))
-            ).scalars().first()
-            latest_sample = (
-                await session.execute(select(VentilationSample).order_by(VentilationSample.timestamp.desc()).limit(1))
-            ).scalars().first()
-            latest_yr_sample = (
-                await session.execute(select(YrForecastSample).order_by(YrForecastSample.timestamp.desc()).limit(1))
-            ).scalars().first()
-        import_rows = await import_status_rows(session)
-        comparison_plan = overview_comparison_plan(import_rows, now_dt)
-        comparison_data = await load_overview_comparisons(session, comparison_plan)
-        active_parking = 0
-        latest_parking = None
-        latest_soling = None
-        latest_energy_sample = None
-        today_energy_fibaro = None
-        if not business_only:
-            active_parking = (
-                await session.execute(
-                    select(func.count(ParkingSession.id)).where(
-                        ParkingSession.start_time <= now_dt,
-                        or_(
-                            ParkingSession.end_time.is_(None),
-                            ParkingSession.end_time >= now_dt,
-                            func.lower(func.coalesce(ParkingSession.status, "")) == "ongoing",
-                        ),
-                    )
-                )
-            ).scalar_one()
-            latest_parking = (
-                await session.execute(
-                    select(ParkingSession)
-                    .where(ParkingSession.start_time >= today_start, ParkingSession.start_time < tomorrow_start)
-                    .order_by(ParkingSession.start_time.desc())
-                    .limit(1)
-                )
-            ).scalars().first()
-            latest_soling = (
-                await session.execute(
-                    select(Sun2TanningSession)
-                    .where(Sun2TanningSession.stat_date == today)
-                    .order_by(Sun2TanningSession.started_at.desc())
-                    .limit(1)
-                )
-            ).scalars().first()
-            latest_energy_sample = (
-                await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))
-            ).scalars().first()
-            today_energy_fibaro = (
-                await session.execute(
-                    select(
-                        func.coalesce(func.sum(EnergyFibaroSample.inntak_delta_kwh), 0).label("kwh"),
-                        func.count(EnergyFibaroSample.id).label("samples"),
-                    ).where(EnergyFibaroSample.bucket_start >= today_start, EnergyFibaroSample.bucket_start < tomorrow_start)
-                )
-            ).one()
-        revenue_sun_summaries = await get_sun2_summaries(session)
-        revenue_parking_summaries = await get_parking_summaries(session)
-
-    now_status = build_now_status(latest_sample, latest_light_sample, latest_light, latest_yr_sample)
-    operating = operating_window(now_dt)
-    import_counts = {
-        "ok": sum(1 for row in import_rows if row["status"] == "ok"),
-        "warn": sum(1 for row in import_rows if row["status"] == "warn"),
-        "bad": sum(1 for row in import_rows if row["status"] == "bad"),
-        "total": len(import_rows),
-    }
-    status_periods = build_overview_cards(comparison_data, revenue_sun_summaries, revenue_parking_summaries, scope)
-    if business_only:
-        services = [
-            {
-                "sourceNo": row["source_no"],
-                "jobName": row["job_name"],
-                "label": row["title"],
-                "status": row["status"] if row["status"] in {"ok", "warn", "bad"} else "unknown",
-                "detail": row["age"] or row["status_text"],
-                "ageMinutes": minutes_since(row["last_success_at"]) if row.get("last_success_at") else None,
-                "lastSuccessAt": api_local_iso(row.get("last_success_at")),
-                "nextExpectedAt": api_local_iso(row.get("next_expected_at")),
-            }
-            for row in import_rows
-        ]
-        return {
-            "generatedAt": api_local_iso(now_dt),
-            "statusPeriods": status_periods,
-            "services": services,
-        }
-
-    today_sun = comparison_data.sun_at_cutoff["today"]
-    yesterday_sun = comparison_data.sun_full["yesterday"]
-    week_sun = comparison_data.sun_at_cutoff["week"]
-    previous_week_sun = comparison_data.sun_full["previous_week"]
-    month_sun = comparison_data.sun_at_cutoff["month"]
-    previous_month_sun = comparison_data.sun_full["previous_month"]
-    today_parking = comparison_data.parking["today"]
-    yesterday_parking = comparison_data.parking["yesterday_full"]
-    last_week_parking = comparison_data.parking["last_week_same_day_full"]
-    revenue_today, revenue_week, revenue_month = (item["total"] for item in status_periods[:3])
-    revenue_yesterday, revenue_previous_week, revenue_previous_month = (item["previousFullTotal"] for item in status_periods[:3])
-    light_items = [
-        {"label": device["name"], "state": api_bool_state(light_sample_state(latest_light_sample, device) if latest_light_sample else None)}
-        for device in LIGHT_TIMELINE_DEVICES
-    ]
-    vent_hc3_statuses = await vent_status_task if vent_status_task is not None else {}
-    fan_items = [
-        ventilation_status_payload(device, latest_sample, vent_hc3_statuses.get(str(device.get("key"))))
-        for device in VENT_TIMELINE_DEVICES
-    ]
-    cards = [
-        {"group": "Drift", "title": "\u00c5pning", "value": operating["label"], "detail": operating["detail"], "href": "/status/drift", "tone": "status"},
-        {"group": "Drift", "title": "Datakilder", "value": f"{import_counts['ok']}/{import_counts['total']}", "unit": "OK", "detail": f"{import_counts['warn']} treg, {import_counts['bad']} feil/gammel", "href": "/admin/drift", "tone": "status"},
-        {"group": "Omsetning", "title": "I dag", "value": dashboard_compare_value(revenue_today, revenue_yesterday), "unit": "kr", "detail": f"Sol {format_short_number(today_sun.paid)} kr - park {format_short_number(today_parking.paid)} kr", "href": "/omsetning/oversikt", "tone": "revenue"},
-        {"group": "Omsetning", "title": "Uke", "value": dashboard_compare_value(revenue_week, revenue_previous_week), "unit": "kr", "detail": "Denne / forrige uke", "href": "/omsetning/oversikt", "tone": "revenue"},
-        {"group": "Omsetning", "title": "M\u00e5ned", "value": dashboard_compare_value(revenue_month, revenue_previous_month), "unit": "kr", "detail": "Denne / forrige m\u00e5ned", "href": "/omsetning/oversikt", "tone": "revenue"},
-        {"group": "Soling", "title": "Soling i dag", "value": dashboard_compare_value(today_sun.sessions, yesterday_sun.sessions), "unit": "stk", "detail": f"{format_short_number(today_sun.minutes / 60, 1)} t - {today_sun.rooms or 0} rom", "href": "/soling", "tone": "sun2"},
-        {"group": "Soling", "title": "Sol uke", "value": dashboard_compare_value(week_sun.sessions, previous_week_sun.sessions), "unit": "stk", "detail": f"{dashboard_money_compare(week_sun.paid, previous_week_sun.paid)}", "href": "/soling", "tone": "sun2"},
-        {"group": "Parkering", "title": "Parkering i dag", "value": dashboard_compare_value(today_parking.sessions, yesterday_parking.sessions), "unit": "stk", "detail": f"{format_short_number(today_parking.paid)} kr - {active_parking or 0} aktive n\u00e5", "href": "/parkering", "tone": "parking"},
-        {"group": "Parkering", "title": "Samme dag forrige uke", "value": format_short_number(last_week_parking.sessions), "unit": "stk", "detail": f"{format_short_number(last_week_parking.paid)} kr", "href": "/parkering", "tone": "parking"},
-        {"group": "Energi", "title": "Str\u00f8m n\u00e5", "value": format_short_number(latest_energy_sample.inntak_w if latest_energy_sample else 0), "unit": "W", "detail": f"{format_short_number(today_energy_fibaro.kwh, 1)} kWh i dag - {today_energy_fibaro.samples or 0} samples", "href": "/energi", "tone": "energy"},
-        {"group": "Energi", "title": "Diff", "value": format_short_number(latest_energy_sample.differanse_beregnet_w if latest_energy_sample else 0), "unit": "W", "detail": "Beregnet fra realtime m\u00e5lere", "href": "/energi", "tone": "energy"},
-        {"group": "Temperatur", "title": "Innetemp", "value": format_short_number(now_status.get("indoor_avg"), 1), "unit": "grader", "detail": f"Ute {format_short_number(now_status.get('outdoor_avg'), 1)} grader", "href": "/ventilasjon", "tone": "vent"},
-        {"group": "Temperatur", "title": "Kjeller", "value": format_short_number(latest_sample.temp_kjeller if latest_sample else None, 1), "unit": "grader", "detail": f"Fukt {format_short_number(latest_sample.humidity_kjeller if latest_sample else None)}%", "href": "/ventilasjon", "tone": "vent"},
-        {"group": "V\u00e6r", "title": "Yr", "value": weather_from_rows(latest_yr_sample, latest_light_sample, latest_sample, latest_light) or "-", "detail": f"Vind {format_short_number(latest_yr_sample.wind_speed if latest_yr_sample else None, 1)} m/s - sky {format_short_number(latest_yr_sample.cloud_area_fraction if latest_yr_sample else None)}%", "href": "/ventilasjon", "tone": "weather"},
-    ]
-    latest_items = [
-        {"label": "Siste soling", "value": latest_soling.started_at.strftime("%H:%M") if latest_soling and latest_soling.started_at else "-", "detail": f"Rom {latest_soling.room}" if latest_soling and latest_soling.room else "", "href": "/soling"},
-        {"label": "Siste parkering", "value": latest_parking.start_time.strftime("%H:%M") if latest_parking and latest_parking.start_time else "-", "detail": latest_parking.car_license_number if latest_parking and latest_parking.car_license_number else "", "href": "/parkering"},
-        {"label": "Energi sist lest", "value": latest_energy_sample.bucket_start.strftime("%H:%M") if latest_energy_sample and latest_energy_sample.bucket_start else "-", "detail": f"{format_short_number(latest_energy_sample.inntak_w)} W" if latest_energy_sample else "", "href": "/energi"},
-        {"label": "Temp sist lest", "value": now_status["timestamp"].strftime("%H:%M") if now_status.get("timestamp") else "-", "detail": now_status.get("weather") or "", "href": "/ventilasjon"},
-    ]
-    services = [
-        {
-            "sourceNo": row["source_no"],
-            "jobName": row["job_name"],
-            "label": row["title"],
-            "status": row["status"] if row["status"] in {"ok", "warn", "bad"} else "unknown",
-            "detail": row["age"] or row["status_text"],
-            "ageMinutes": minutes_since(row["last_success_at"]) if row.get("last_success_at") else None,
-            "lastSuccessAt": api_local_iso(row.get("last_success_at")),
-            "nextExpectedAt": api_local_iso(row.get("next_expected_at")),
-        }
-        for row in import_rows
-    ]
-    return {
-        "generatedAt": api_local_iso(now_dt),
-        "operatingWindow": {"label": operating["label"], "detail": operating["detail"], "open": operating["label"] == "Åpent"},
-        "cards": cards,
-        "statusPeriods": status_periods,
-        "latestItems": latest_items,
-        "services": services,
-        "lightItems": light_items,
-        "fanItems": fan_items,
-    }
 
 
-@app.get("/api/revenue/month")
-async def api_v2_revenue_month(month: Optional[str] = None):
-    context = await build_revenue_month_context(month)
-    summary = context["summary"]
-    return {
-        "summary": {
-            "label": summary["label"],
-            "month": summary["month"],
-            "previousMonth": summary["previous_month"],
-            "nextMonth": summary["next_month"],
-            "currentMonth": summary["current_month"],
-            "total": summary["total"],
-            "sol": summary["sol"],
-            "parking": summary["parking"],
-            "solCount": summary["sol_count"],
-            "parkingCount": summary["parking_count"],
-            "averageDayCount": summary["average_day_count"],
-            "averagePerDay": summary["average_per_day"],
-            "maxTotal": summary["max_total"],
-            "topDay": api_revenue_day(summary["top_day"]) if summary["top_day"] else None,
-            "todayRow": api_revenue_day(summary["today_row"]) if summary["today_row"] else None,
-        },
-        "rows": [api_revenue_day(row) for row in context["rows"]],
-    }
 
 
-@app.get("/api/settlements/{settlement_id}")
-async def api_v2_settlement_detail(settlement_id: int):
-    async with async_session() as session:
-        row = await session.get(SettlementImport, settlement_id)
-        if not row or row.provider != PARKING_SETTLEMENT_PROVIDER:
-            raise HTTPException(status_code=404, detail="Oppgjør ikke funnet")
-        return await settlement_detail_payload(session, row)
 
 
-@app.get("/api/settlements/{settlement_id}/attachment")
-async def api_v2_settlement_attachment(settlement_id: int, download: bool = False):
-    async with async_session() as session:
-        row = await session.get(SettlementImport, settlement_id)
-        if not row or row.provider != PARKING_SETTLEMENT_PROVIDER:
-            raise HTTPException(status_code=404, detail="Oppgjør ikke funnet")
-        filename = row.attachment_filename or f"oppgjor-{row.id}"
-        content_type = row.attachment_content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
-        disposition_type = "attachment" if download else "inline"
-        quoted_filename = quote(filename)
-        return Response(
-            content=row.attachment_bytes,
-            media_type=content_type,
-            headers={
-                "Content-Disposition": f"{disposition_type}; filename*=UTF-8''{quoted_filename}",
-                "Cache-Control": "private, max-age=300",
-            },
-        )
 
 
-@app.get("/api/soling/settlements/{settlement_id}")
-async def api_v2_sun_settlement_detail(settlement_id: int):
-    async with async_session() as session:
-        row = await session.get(SettlementImport, settlement_id)
-        if not row or row.provider != SUN_SETTLEMENT_PROVIDER:
-            raise HTTPException(status_code=404, detail="Oppgjør ikke funnet")
-        return await sun_settlement_detail_payload(session, row)
 
 
-@app.get("/api/soling/settlements/{settlement_id}/attachment")
-async def api_v2_sun_settlement_attachment(settlement_id: int, download: bool = False):
-    async with async_session() as session:
-        row = await session.get(SettlementImport, settlement_id)
-        if not row or row.provider != SUN_SETTLEMENT_PROVIDER:
-            raise HTTPException(status_code=404, detail="Oppgjør ikke funnet")
-        filename = row.attachment_filename or f"soling-oppgjor-{row.id}"
-        content_type = row.attachment_content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
-        disposition_type = "attachment" if download else "inline"
-        quoted_filename = quote(filename)
-        return Response(
-            content=row.attachment_bytes,
-            media_type=content_type,
-            headers={
-                "Content-Disposition": f"{disposition_type}; filename*=UTF-8''{quoted_filename}",
-                "Cache-Control": "private, max-age=300",
-            },
-        )
 
 
 from fibaro_core.services.presentation import api_table
@@ -23683,3186 +20285,6 @@ async def energy_elvia_module_payload(session) -> Dict[str, Any]:
     }
 
 
-@app.get("/api/modules/{module}")
-async def api_v2_module(request: Request, module: str, view: Optional[str] = None, q: Optional[str] = None, day: Optional[str] = None):
-    module = module.strip().lower()
-    view = (view or "").strip().lower()
-    params = request.query_params
-    now_dt = local_now_naive()
-    today = now_dt.date()
-    tomorrow = today + timedelta(days=1)
-    today_start = datetime.combine(today, time.min)
-    tomorrow_start = datetime.combine(tomorrow, time.min)
-    month_start = today.replace(day=1)
-    month_start_dt = datetime.combine(month_start, time.min)
-    previous_month_start = add_months(month_start, -1)
-    previous_month_start_dt = datetime.combine(previous_month_start, time.min)
-    year_start_dt = datetime.combine(date(today.year, 1, 1), time.min)
-
-    async with async_session() as session:
-        if module == "omsetning":
-            sun2_summaries = await get_sun2_summaries(session)
-            parking_summaries = await get_parking_summaries(session)
-            combined_stats = combine_business_summaries(sun2_summaries, parking_summaries)
-            week_start = today - timedelta(days=today.weekday())
-            week_start_dt = datetime.combine(week_start, time.min)
-
-            if view == "akkumulert":
-                current_year = today.year
-
-                def year_summary(year: int) -> Dict[str, Any]:
-                    row = next((item for item in combined_stats.get("weekly_chart", []) if str(item.get("year")) == str(year)), None)
-                    revenue = sum(float_or_zero(value) for value in ((row or {}).get("revenue") or []) if value is not None)
-                    count = sum(int_or_zero(value) for value in ((row or {}).get("count") or []) if value is not None)
-                    return {"period_label": str(year), "total_paid": round(revenue, 2), "total_count": count}
-
-                current_year_summary = year_summary(current_year)
-                previous_year_summary = year_summary(current_year - 1)
-                diff_paid = current_year_summary["total_paid"] - previous_year_summary["total_paid"]
-                year_rows = [
-                    year_summary(int(row["year"]))
-                    for row in sorted(
-                        [item for item in combined_stats.get("weekly_chart", []) if str(item.get("year", "")).isdigit()],
-                        key=lambda item: int(item["year"]),
-                        reverse=True,
-                    )
-                ]
-                return {
-                    "title": v2_module_title("omsetning", "akkumulert"),
-                    "subtitle": "Løpende akkumulert utvikling per uke, bygget på samme grunnlag som Omsetning oversikt.",
-                    "cards": [
-                        api_card("I år", format_short_number(current_year_summary["total_paid"]), "kr", f"{format_short_number(current_year_summary['total_count'])} hendelser", "revenue", href="/omsetning/akkumulert"),
-                        api_card("I fjor", format_short_number(previous_year_summary["total_paid"]), "kr", f"{format_short_number(previous_year_summary['total_count'])} hendelser", "status", href="/omsetning/akkumulert"),
-                        api_card("Differanse", format_short_number(diff_paid), "kr", f"{current_year} mot {current_year - 1}", "revenue" if diff_paid >= 0 else "status", href="/omsetning/akkumulert"),
-                    ],
-                    "charts": [api_revenue_accumulated_year_chart(combined_stats)],
-                    "tables": [
-                        api_table("Årssummer", ["period_label", "total_paid", "total_count"], year_rows),
-                    ],
-                }
-
-            today_sun = await sun2_period_snapshot(session, today, tomorrow)
-            week_sun = await sun2_period_snapshot(session, week_start, tomorrow)
-            month_sun = await sun2_period_snapshot(session, month_start, tomorrow)
-            today_parking = await parking_period_summary(session, "I dag", today_start, tomorrow_start)
-            week_parking = await parking_period_summary(session, "Denne uken", week_start_dt, tomorrow_start)
-            month_parking = await parking_period_summary(session, "Denne måneden", month_start_dt, tomorrow_start)
-
-            current_year_key = str(today.year)
-            current_year_revenue = next(
-                (item for item in combined_stats.get("yearly", []) if str(item.get("period")) == current_year_key),
-                {},
-            )
-            year_sun_paid = float_or_zero(current_year_revenue.get("sun_paid"))
-            year_parking_paid = float_or_zero(current_year_revenue.get("parking_paid"))
-            year_sun_count = int_or_zero(current_year_revenue.get("sun_count"))
-            year_parking_count = int_or_zero(current_year_revenue.get("parking_count"))
-            year_total_paid = year_sun_paid + year_parking_paid
-            elapsed_year_days = max(1, (today - date(today.year, 1, 1)).days + 1)
-            elapsed_week_count = max(1, math.ceil(elapsed_year_days / 7))
-            average_week_paid = year_total_paid / elapsed_week_count
-            average_week_sun_paid = year_sun_paid / elapsed_week_count
-            average_week_parking_paid = year_parking_paid / elapsed_week_count
-
-            cards = [
-                api_card(
-                    "I dag",
-                    format_short_number(float_or_zero(today_sun.paid) + float_or_zero(today_parking["paid"])),
-                    "kr",
-                    f"Sol {format_short_number(today_sun.paid)} kr - parkering {format_short_number(today_parking['paid'])} kr",
-                    "revenue",
-                    href="/omsetning/sammenligning?period=today",
-                ),
-                api_card(
-                    "Uke",
-                    format_short_number(float_or_zero(week_sun.paid) + float_or_zero(week_parking["paid"])),
-                    "kr",
-                    f"Sol {format_short_number(week_sun.paid)} kr - parkering {format_short_number(week_parking['paid'])} kr",
-                    "revenue",
-                    href="/omsetning/sammenligning?period=week",
-                ),
-                api_card(
-                    "Måned",
-                    format_short_number(float_or_zero(month_sun.paid) + float_or_zero(month_parking["paid"])),
-                    "kr",
-                    f"Sol {format_short_number(month_sun.paid)} kr - parkering {format_short_number(month_parking['paid'])} kr",
-                    "revenue",
-                    href="/omsetning/manedsoversikt",
-                ),
-                api_card(
-                    "I år",
-                    format_short_number(year_total_paid),
-                    "kr",
-                    f"Sol {format_short_number(year_sun_paid)} kr - parkering {format_short_number(year_parking_paid)} kr",
-                    "revenue",
-                    href="/omsetning/akkumulert",
-                ),
-                api_card(
-                    "Snitt pr uke",
-                    format_short_number(average_week_paid),
-                    "kr",
-                    f"Sol {format_short_number(average_week_sun_paid)} kr - parkering {format_short_number(average_week_parking_paid)} kr ({elapsed_week_count} uker)",
-                    "revenue",
-                    href="/omsetning/akkumulert",
-                ),
-                api_card(
-                    "Soling i år",
-                    format_short_number(year_sun_paid),
-                    "kr",
-                    f"{format_short_number(year_sun_count)} solinger",
-                    "sun2",
-                    href="/soling/oversikt",
-                ),
-                api_card(
-                    "Parkering i år",
-                    format_short_number(year_parking_paid),
-                    "kr",
-                    f"{format_short_number(year_parking_count)} parkeringer",
-                    "parking",
-                    href="/parkering/sammenligning",
-                ),
-            ]
-
-            return {
-                "title": v2_module_title("omsetning", view),
-                "subtitle": "Samlet omsetning fra soling og parkering.",
-                "cards": cards,
-                "charts": [api_revenue_weekly_chart(combined_stats)],
-                "tables": api_revenue_overview_tables(combined_stats),
-            }
-
-        if module == "koble":
-            limit_value = api_filter_int(params, "limit", 250, 25, 1000)
-            koble_view = view or "oversikt"
-            needs_review_candidates = koble_view == "kandidater"
-            needs_match_table = koble_view == "treffgrunnlag"
-            needs_processed_rows = koble_view == "jobb"
-            needs_qualified_rows = koble_view in {"biltreff", "sun2"}
-            needs_qualified_totals = koble_view in {"oversikt", "biltreff", "sun2"}
-            state = await get_parking_sun_link_state(session)
-            generation = int_or_zero(state.generation)
-            min_required_matches = max(1, int_or_zero(state.min_matches) or 2)
-            await refresh_parking_sun_link_state_counts(session, state)
-            candidates: list[ParkingSunLinkCandidate] = []
-            if needs_review_candidates:
-                candidates = (
-                    await session.execute(
-                        select(ParkingSunLinkCandidate)
-                        .where(ParkingSunLinkCandidate.generation == generation)
-                        .where(ParkingSunLinkCandidate.parking_match_count >= min_required_matches)
-                        .order_by(
-                            case(
-                                (ParkingSunLinkCandidate.status == PARKING_SUN_LINK_PENDING, 0),
-                                (ParkingSunLinkCandidate.status == PARKING_SUN_LINK_CONFIRMED, 1),
-                                else_=2,
-                            ),
-                            ParkingSunLinkCandidate.confidence.desc(),
-                            ParkingSunLinkCandidate.matches_count.desc(),
-                            ParkingSunLinkCandidate.last_match_at.desc(),
-                        )
-                        .limit(limit_value)
-                    )
-                ).scalars().all()
-            matches: list[ParkingSunLinkMatch] = []
-            if needs_match_table:
-                matches = (
-                    await session.execute(
-                        select(ParkingSunLinkMatch)
-                        .where(ParkingSunLinkMatch.generation == generation)
-                        .order_by(ParkingSunLinkMatch.parking_start_at.desc(), ParkingSunLinkMatch.sun_started_at.desc())
-                        .limit(limit_value)
-                    )
-                ).scalars().all()
-            review_pairs = [(row.plate, row.sun2_id) for row in candidates if row.plate and row.sun2_id]
-            review_matches_by_pair: Dict[tuple[str, str], list[ParkingSunLinkMatch]] = defaultdict(list)
-            if review_pairs:
-                review_matches = (
-                    await session.execute(
-                        select(ParkingSunLinkMatch)
-                        .where(ParkingSunLinkMatch.generation == generation)
-                        .where(tuple_(ParkingSunLinkMatch.plate, ParkingSunLinkMatch.sun2_id).in_(review_pairs))
-                        .order_by(ParkingSunLinkMatch.parking_start_at.desc(), ParkingSunLinkMatch.sun_started_at.desc())
-                        .limit(max(300, min(2000, len(review_pairs) * 10)))
-                    )
-                ).scalars().all()
-                for match in review_matches:
-                    pair_key = (str(match.plate or "").strip(), str(match.sun2_id or "").strip())
-                    if len(review_matches_by_pair[pair_key]) < 6:
-                        review_matches_by_pair[pair_key].append(match)
-            review_matched_paid_by_pair = await parking_sun_link_matched_paid_totals(session, generation, review_pairs) if review_pairs else {}
-            processed_rows: list[ParkingSunLinkProcessed] = []
-            if needs_processed_rows:
-                processed_rows = (
-                    await session.execute(
-                        select(ParkingSunLinkProcessed)
-                        .where(ParkingSunLinkProcessed.generation == generation)
-                        .order_by(ParkingSunLinkProcessed.checked_at.desc())
-                        .limit(20)
-                    )
-                ).scalars().all()
-            qualified_filter = [
-                ParkingSunLinkCandidate.generation == generation,
-                ParkingSunLinkCandidate.parking_match_count >= min_required_matches,
-            ]
-            raw_pair_count = int_or_zero(
-                (
-                    await session.execute(
-                        select(func.count(ParkingSunLinkCandidate.id)).where(ParkingSunLinkCandidate.generation == generation)
-                    )
-                ).scalar_one_or_none()
-            )
-            raw_one_off_pair_count = int_or_zero(
-                (
-                    await session.execute(
-                        select(func.count(ParkingSunLinkCandidate.id))
-                        .where(ParkingSunLinkCandidate.generation == generation)
-                        .where(ParkingSunLinkCandidate.parking_match_count < min_required_matches)
-                    )
-                ).scalar_one_or_none()
-            )
-            qualified_plate_count = int_or_zero(
-                (
-                    await session.execute(
-                        select(func.count(func.distinct(func.upper(func.trim(ParkingSunLinkCandidate.plate))))).where(
-                            *qualified_filter
-                        )
-                    )
-                ).scalar_one_or_none()
-            )
-            qualified_pair_count = int_or_zero(
-                (
-                    await session.execute(
-                        select(func.count(ParkingSunLinkCandidate.id)).where(*qualified_filter)
-                    )
-                ).scalar_one_or_none()
-            )
-            qualified_paid_subquery = (
-                select(
-                    func.upper(func.trim(ParkingSunLinkCandidate.plate)).label("plate"),
-                    func.max(ParkingSunLinkCandidate.paid_total).label("paid_total"),
-                )
-                .where(*qualified_filter)
-                .group_by(func.upper(func.trim(ParkingSunLinkCandidate.plate)))
-                .subquery()
-            )
-            qualified_paid_total = float_or_zero(
-                (
-                    await session.execute(
-                        select(func.coalesce(func.sum(qualified_paid_subquery.c.paid_total), 0))
-                    )
-                ).scalar_one_or_none()
-            )
-            qualified_candidate_rows: list[Dict[str, Any]] = []
-            qualified_visible_pairs: list[tuple[str, str]] = []
-            if needs_qualified_rows:
-                qualified_candidates = (
-                    await session.execute(
-                        select(ParkingSunLinkCandidate)
-                        .where(*qualified_filter)
-                        .order_by(
-                            ParkingSunLinkCandidate.matches_count.desc(),
-                            ParkingSunLinkCandidate.parking_match_count.desc(),
-                            ParkingSunLinkCandidate.last_match_at.desc(),
-                        )
-                        .limit(limit_value)
-                    )
-                ).scalars().all()
-                qualified_candidate_rows = [api_parking_sun_link_candidate_row(row) for row in qualified_candidates]
-                qualified_visible_pairs = [(row["plate"], row["sun2_id"]) for row in qualified_candidate_rows if row.get("plate") and row.get("sun2_id")]
-            qualified_matched_paid_by_pair = (
-                await parking_sun_link_matched_paid_totals(session, generation, qualified_visible_pairs)
-                if qualified_candidate_rows and qualified_visible_pairs
-                else {}
-            )
-            for row in qualified_candidate_rows:
-                pair_key = (str(row.get("plate") or "").strip(), str(row.get("sun2_id") or "").strip())
-                row["matched_paid_total"] = round(qualified_matched_paid_by_pair.get(pair_key, float_or_zero(row.get("matched_paid_total"))), 2)
-            qualified_matched_paid_total = (
-                await parking_sun_link_qualified_distinct_matched_paid_total(session, generation, min_required_matches)
-                if needs_qualified_totals
-                else 0.0
-            )
-            qualified_sun2_group_counts: Dict[str, int] = {}
-            qualified_sun2_rows = []
-            if koble_view == "sun2":
-                qualified_sun2_group_counts = {
-                    str(row.sun2_id or "").strip(): int_or_zero(row.vehicle_count)
-                    for row in (
-                        await session.execute(
-                            select(
-                                ParkingSunLinkCandidate.sun2_id.label("sun2_id"),
-                                func.count(ParkingSunLinkCandidate.id).label("vehicle_count"),
-                            )
-                            .where(*qualified_filter)
-                            .group_by(ParkingSunLinkCandidate.sun2_id)
-                        )
-                    ).all()
-                    if row.sun2_id
-                }
-                for row in qualified_candidate_rows:
-                    parking_count = int_or_zero(row.get("parking_count"))
-                    parking_match_count = int_or_zero(row.get("parking_match_count"))
-                    parking_without_sun = max(0, parking_count - parking_match_count)
-                    parking_match_share = (parking_match_count / parking_count * 100.0) if parking_count > 0 else 0.0
-                    sun2_id = str(row.get("sun2_id") or "").strip()
-                    qualified_sun2_rows.append(
-                        {
-                            "id": row["id"],
-                            "sun2Id": sun2_id,
-                            "sun2VehicleCount": qualified_sun2_group_counts.get(sun2_id, 1),
-                            "userName": row["user_name"],
-                            "plate": row["plate"],
-                            "vehicleName": row["navn"],
-                            "vehicleArea": row["omrade"],
-                            "status": row["status"],
-                            "confidence": row["confidence"],
-                            "matchesCount": row["matches_count"],
-                            "parkingMatchCount": parking_match_count,
-                            "parkingCount": parking_count,
-                            "parkingWithoutSunCount": parking_without_sun,
-                            "parkingMatchShare": round(parking_match_share, 1),
-                            "matchDaysCount": row["match_days_count"],
-                            "lastMatchAt": row["last_match_at"],
-                            "avgDeltaMinutes": row["avg_delta_minutes"],
-                            "paidTotal": row["paid_total"],
-                            "matchedPaidTotal": row["matched_paid_total"],
-                            "path": row["path"],
-                        }
-                    )
-                qualified_sun2_rows.sort(
-                    key=lambda item: (
-                        -int_or_zero(item.get("sun2VehicleCount")),
-                        str(item.get("sun2Id") or ""),
-                        -int_or_zero(item.get("matchesCount")),
-                        -int_or_zero(item.get("parkingMatchCount")),
-                        str(item.get("plate") or ""),
-                    )
-                )
-            state_row = api_parking_sun_link_state_row(state)
-            worker_seen = format_source_datetime_short(state.last_worker_seen_at) if state.last_worker_seen_at else "-"
-            worker_detail = state.status_text or ("Jobben er aktiv." if state.enabled else "Jobben er stoppet.")
-            review_candidates = []
-            for candidate in candidates:
-                pair_key = (str(candidate.plate or "").strip(), str(candidate.sun2_id or "").strip())
-                row = api_parking_sun_link_candidate_row(candidate)
-                review_candidates.append(
-                    {
-                        "id": row["id"],
-                        "status": row["status"],
-                        "confidence": row["confidence"],
-                        "assessment": row["assessment"],
-                        "plate": row["plate"],
-                        "sun2Id": row["sun2_id"],
-                        "vehicleName": row["navn"],
-                        "vehicleArea": row["omrade"],
-                        "userName": row["user_name"],
-                        "matchesCount": row["matches_count"],
-                        "parkingMatchCount": row["parking_match_count"],
-                        "matchDaysCount": row["match_days_count"],
-                        "plateCandidateCount": row["plate_candidate_count"],
-                        "sun2CandidateCount": row["sun2_candidate_count"],
-                        "competitorMatchesCount": row["competitor_matches_count"],
-                        "firstMatchAt": row["first_match_at"],
-                        "lastMatchAt": row["last_match_at"],
-                        "avgDeltaMinutes": row["avg_delta_minutes"],
-                        "parkingCount": row["parking_count"],
-                        "paidTotal": row["paid_total"],
-                        "matchedPaidTotal": round(review_matched_paid_by_pair.get(pair_key, float_or_zero(row.get("matched_paid_total"))), 2),
-                        "note": row["note"],
-                        "path": row["path"],
-                        "matches": [
-                            {
-                                "id": match.id,
-                                "parkingStartAt": api_local_iso(match.parking_start_at),
-                                "sunStartedAt": api_local_iso(match.sun_started_at),
-                                "deltaMinutes": round(float_or_zero(match.delta_minutes), 2),
-                                "roomLabel": sun2_room_label(match.room_id, match.room),
-                                "userName": match.user_name,
-                                "durationMinutes": round(float_or_zero(match.duration_minutes), 1),
-                                "paidAmountKr": round(float_or_zero(match.paid_amount_kr), 2),
-                                "feeIncVat": round(float_or_zero(match.fee_inc_vat), 2),
-                                "sourceSystem": match.source_system,
-                                "parkingId": match.parking_id,
-                                "parkingRecordId": match.parking_record_id,
-                                "sunSessionId": match.sun_session_id,
-                            }
-                            for match in review_matches_by_pair.get(pair_key, [])
-                        ],
-                    }
-                )
-            processed_table_rows = [
-                {
-                    "id": row.id,
-                    "checked_at": api_local_iso(row.checked_at),
-                    "plate": row.plate,
-                    "parking_record_id": row.parking_record_id,
-                    "parking_start_at": api_local_iso(row.parking_start_at),
-                    "matches_found": int_or_zero(row.matches_found),
-                }
-                for row in processed_rows
-            ]
-            return {
-                "title": v2_module_title("koble", view),
-                "subtitle": (
-                    "Egen bakgrunnsapp går gjennom parkeringer fra nyeste. Kandidat krever samme bil og samme SUN2-ID "
-                    f"på minst {min_required_matches} ulike parkeringer, med solstart innen {int_or_zero(state.max_minutes)} min etter ankomst."
-                ),
-                "kobleReview": {
-                    "generatedAt": api_local_iso(now_dt),
-                    "workerStatus": state.status or "-",
-                    "workerDetail": worker_detail,
-                    "workerSeenAt": api_local_iso(state.last_worker_seen_at),
-                    "generation": generation,
-                    "minMatches": min_required_matches,
-                    "maxMinutes": int_or_zero(state.max_minutes),
-                    "visibleCandidateCount": len(review_candidates),
-                    "candidateCount": int_or_zero(state.candidate_count),
-                    "strongCandidateCount": int_or_zero(state.strong_candidate_count),
-                    "rawPairCount": raw_pair_count,
-                    "rawOneOffPairCount": raw_one_off_pair_count,
-                    "processedCount": int_or_zero(state.processed_count),
-                    "matchedCount": int_or_zero(state.matched_count),
-                    "qualifiedPlateCount": qualified_plate_count,
-                    "qualifiedPairCount": qualified_pair_count,
-                    "qualifiedPaidTotal": round(qualified_paid_total, 2),
-                    "qualifiedMatchedPaidTotal": round(qualified_matched_paid_total, 2),
-                    "qualifiedSun2Rows": qualified_sun2_rows if koble_view == "sun2" else [],
-                    "qualifiedRows": [
-                        {
-                            "id": row["id"],
-                            "status": row["status"],
-                            "confidence": row["confidence"],
-                            "assessment": row["assessment"],
-                            "plate": row["plate"],
-                            "sun2Id": row["sun2_id"],
-                            "vehicleName": row["navn"],
-                            "vehicleArea": row["omrade"],
-                            "userName": row["user_name"],
-                            "matchesCount": row["matches_count"],
-                            "parkingMatchCount": row["parking_match_count"],
-                            "matchDaysCount": row["match_days_count"],
-                            "firstMatchAt": row["first_match_at"],
-                            "lastMatchAt": row["last_match_at"],
-                            "avgDeltaMinutes": row["avg_delta_minutes"],
-                            "parkingCount": row["parking_count"],
-                            "paidTotal": row["paid_total"],
-                            "matchedPaidTotal": row["matched_paid_total"],
-                            "path": row["path"],
-                        }
-                        for row in qualified_candidate_rows
-                    ] if koble_view == "biltreff" else [],
-                    "candidates": review_candidates,
-                },
-                "cards": [
-                    api_card(
-                        "Jobb",
-                        state.status or "-",
-                        "",
-                        worker_detail,
-                        "status" if state.status != "feil" else "warning",
-                        href="/koble/jobb",
-                    ),
-                    api_card(
-                        "Sterke kandidater",
-                        format_short_number(state.strong_candidate_count),
-                        "",
-                        f"Avventer, minst {min_required_matches} parkeringer og 70 % sannsynlighet",
-                        "parking",
-                        href="/koble/kandidater",
-                    ),
-                    api_card(
-                        "Kvalifiserte kandidater",
-                        format_short_number(state.candidate_count),
-                        "",
-                        f"Samme bil og SUN2-ID på minst {min_required_matches} parkeringer",
-                        "sun2",
-                        href="/koble/kandidater",
-                    ),
-                    api_card(
-                        f"Bilnr {min_required_matches}+ parkeringer",
-                        format_short_number(qualified_plate_count),
-                        "",
-                        f"{format_short_number(qualified_pair_count)} SUN2-koblinger med soltreff innen {int_or_zero(state.max_minutes)} min",
-                        "sun2",
-                        href="/koble/biltreff",
-                    ),
-                    api_card(
-                        "Parkert ved soltreff",
-                        format_short_number(qualified_matched_paid_total),
-                        "kr",
-                        "Unike parkeringer som har soltreff i kvalifisert grunnlag",
-                        "parking",
-                        href="/koble/biltreff",
-                    ),
-                    api_card(
-                        "Parkert totalt",
-                        format_short_number(qualified_paid_total),
-                        "kr",
-                        "Samlet parkering for disse unike bilene",
-                        "parking",
-                        href="/koble/biltreff",
-                    ),
-                    api_card(
-                        "Behandlet",
-                        format_short_number(state.processed_count),
-                        "parkeringer",
-                        f"{format_short_number(state.checked_plate_count)} biler, {format_short_number(state.matched_count)} treff",
-                        "parking",
-                        href="/koble/jobb",
-                    ),
-                    api_card(
-                        "Worker sist sett",
-                        worker_seen,
-                        "",
-                        f"Generasjon {generation}",
-                        "status",
-                        href="/admin/datakilder",
-                    ),
-                ],
-                "charts": [],
-                "actions": [
-                    {
-                        "label": "Start",
-                        "path": "/api/actions/koble/start",
-                        "method": "POST",
-                        "variant": "primary",
-                        "confirm": "Starte koblingsjobben?",
-                    },
-                    {
-                        "label": "Stopp",
-                        "path": "/api/actions/koble/stop",
-                        "method": "POST",
-                        "confirm": "Stoppe koblingsjobben?",
-                    },
-                    {
-                        "label": "Start fra nyeste",
-                        "path": "/api/actions/koble/restart",
-                        "method": "POST",
-                        "confirm": "Tomme koblingsgrunnlag og starte fra nyeste parkering?",
-                    },
-                ],
-                "tables": [
-                    api_table(
-                        "Jobbparametere",
-                        [
-                            "id",
-                            "enabled",
-                            "generation",
-                            "min_matches",
-                            "max_minutes",
-                            "recent_days",
-                            "idle_sleep_seconds",
-                            "status",
-                            "status_text",
-                            "last_worker_seen_at",
-                        ],
-                        [state_row],
-                        edit=parking_sun_link_settings_edit(),
-                    ),
-                    api_table(
-                        "Kvalifiserte koblinger",
-                        [
-                            "status",
-                            "confidence",
-                            "assessment",
-                            "plate",
-                            "sun2_id",
-                            "parking_match_count",
-                            "matches_count",
-                            "match_days_count",
-                            "plate_candidate_count",
-                            "sun2_candidate_count",
-                            "competitor_matches_count",
-                            "first_match_at",
-                            "last_match_at",
-                            "avg_delta_minutes",
-                            "navn",
-                            "omrade",
-                            "user_name",
-                            "parking_count",
-                            "matched_paid_total",
-                            "paid_total",
-                            "note",
-                        ],
-                        [],
-                        edit=parking_sun_link_candidate_edit(),
-                    ),
-                    api_table(
-                        "SUN2 med biltreff",
-                        [
-                            "sun2Id",
-                            "sun2VehicleCount",
-                            "userName",
-                            "plate",
-                            "vehicleName",
-                            "matchesCount",
-                            "parkingMatchCount",
-                            "parkingCount",
-                            "parkingWithoutSunCount",
-                            "parkingMatchShare",
-                            "lastMatchAt",
-                            "confidence",
-                            "status",
-                            "matchedPaidTotal",
-                            "paidTotal",
-                        ],
-                        [],
-                    ),
-                    api_table(
-                        f"Bilnr med {min_required_matches}+ parkeringer",
-                        [
-                            "status",
-                            "plate",
-                            "sun2_id",
-                            "user_name",
-                            "matches_count",
-                            "parking_match_count",
-                            "match_days_count",
-                            "confidence",
-                            "last_match_at",
-                            "avg_delta_minutes",
-                            "navn",
-                            "omrade",
-                            "parking_count",
-                            "matched_paid_total",
-                            "paid_total",
-                        ],
-                        [],
-                    ),
-                    api_table(
-                        "Treffgrunnlag",
-                        [
-                            "parking_start_at",
-                            "sun_started_at",
-                            "delta_minutes",
-                            "plate",
-                            "sun2_id",
-                            "room_label",
-                            "user_name",
-                            "duration_minutes",
-                            "paid_amount_kr",
-                            "fee_inc_vat",
-                            "source_system",
-                            "parking_id",
-                            "sun_session_id",
-                        ],
-                        [api_parking_sun_link_match_row(row) for row in matches],
-                    ),
-                    api_table(
-                        "Sist behandlet",
-                        ["checked_at", "plate", "parking_record_id", "parking_start_at", "matches_found"],
-                        processed_table_rows,
-                    ),
-                ],
-                "filters": [
-                    api_filter("limit", "Antall", "number", limit_value),
-                ],
-            }
-
-        if module == "parkering":
-            if view == "oppgjor":
-                return await parking_settlement_module_payload(session)
-            normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
-            if view == "parkeringer":
-                selected_parking_day = parse_day(api_filter_value(params, "day"))
-                selected_parking_start = datetime.combine(selected_parking_day, time.min)
-                selected_parking_end = selected_parking_start + timedelta(days=1)
-                day_navigation = api_day_navigation(selected_parking_day, today)
-                parking_import_status = (
-                    await session.execute(
-                        select(ImportJobStatus).where(ImportJobStatus.job_name == "easypark_parking_import")
-                    )
-                ).scalars().first()
-                if parking_import_status and parking_import_status.last_success_at:
-                    day_navigation["context"] = {
-                        "label": "Sist oppdatert",
-                        "value": format_source_datetime(parking_import_status.last_success_at),
-                        "detail": import_job_age(parking_import_status),
-                    }
-                plate_value = compact_plate(api_filter_value(params, "plate"))
-                status_value = api_filter_value(params, "status")
-                session_conditions = [
-                    ParkingSession.start_time >= selected_parking_start,
-                    ParkingSession.start_time < selected_parking_end,
-                ]
-                if plate_value:
-                    session_conditions.append(func.upper(func.replace(ParkingSession.car_license_number, " ", "")).like(f"%{plate_value.upper()}%"))
-                if status_value:
-                    session_conditions.append(ParkingSession.status == status_value)
-                session_stmt = (
-                    select(ParkingSession, ParkingVehicle, ParkingVehicleDetails)
-                    .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
-                    .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == normalized_session_plate)
-                    .order_by(ParkingSession.start_time.desc())
-                    .where(*session_conditions)
-                )
-                parking_rows = (await session.execute(session_stmt)).all()
-                previous_stats = await parking_previous_stats_for_rows(session, [row for row, _, _ in parking_rows])
-                status_options = api_filter_options(
-                    (await session.execute(select(ParkingSession.status).distinct().order_by(ParkingSession.status.asc()))).scalars().all()
-                )
-                parking_status_labels = {"ongoing": "Pågående", "ended": "Avsluttet"}
-                status_options = [
-                    {
-                        **option,
-                        "label": parking_status_labels.get(str(option["value"]).casefold(), option["label"]),
-                    }
-                    for option in status_options
-                ]
-                return {
-                    "title": v2_module_title("parkering", view),
-                    "subtitle": "EasyPark, aktive parkeringer og kj\u00f8ret\u00f8ygrunnlag.",
-                    "cards": [],
-                    "charts": [],
-                    "tables": [
-                        api_table(
-                            "Parkeringer",
-                            [
-                                "status",
-                                "start_time",
-                                "end_time",
-                                "end_delta_min",
-                                "car_license_number",
-                                "vehicle_title",
-                                "navn",
-                                "fee_inc_vat",
-                                "parking_time_min",
-                                "previous_parking_count",
-                                "previous_paid_total",
-                            ],
-                            [
-                                parking_row_api(row, vehicle, details, previous_stats=previous_stats.get(row.id), unifi_before_seconds=60)
-                                for row, vehicle, details in parking_rows
-                            ],
-                            meta={
-                                "disablePagination": True,
-                                "totalRows": len(parking_rows),
-                                "rowLinkColumn": "car_license_number",
-                            },
-                        )
-                    ],
-                    "actions": api_parking_default_actions()[:1],
-                    "filters": [
-                        api_filter("plate", "Reg.nr", "text", plate_value, "Hele eller del av reg.nr"),
-                        api_filter("status", "Status", "select", status_value, options=status_options),
-                    ],
-                    "dayNavigation": day_navigation,
-                    "parkingTimeline": None,
-                }
-            if view == "kjoretoy":
-                q_value = q or api_filter_value(params, "q")
-                limit_value = api_filter_int(params, "limit", 250, 25, 1000)
-                page_value = api_filter_int(params, "page", 1, 1, 100000)
-                offset_value = (page_value - 1) * limit_value
-                vehicle_search = parking_vehicle_search_condition(q_value)
-                vehicle_stats = await parking_vehicle_count_stats(session)
-                vehicle_stmt = (
-                    select(ParkingVehicle, ParkingVehicleDetails)
-                    .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-                    .order_by(ParkingVehicle.last_seen.desc().nullslast(), ParkingVehicle.plate.asc())
-                    .offset(offset_value)
-                    .limit(limit_value)
-                )
-                if vehicle_search is not None:
-                    vehicle_stmt = vehicle_stmt.where(vehicle_search)
-                    vehicle_count_stmt = select(func.count(ParkingVehicle.plate)).outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-                    vehicle_count_stmt = vehicle_count_stmt.where(vehicle_search)
-                    vehicle_filtered_count = (await session.execute(vehicle_count_stmt)).scalar_one()
-                else:
-                    vehicle_filtered_count = vehicle_stats["vehicle_count"]
-                vehicle_detail_rows = (await session.execute(vehicle_stmt)).all()
-                actions = api_parking_default_actions()[1:]
-                if int_or_zero(vehicle_stats["vehicle_area_not_found_count"]) > 0:
-                    actions.append(api_parking_clear_area_not_found_action(vehicle_stats["vehicle_area_not_found_count"]))
-                return {
-                    "title": v2_module_title("parkering", view),
-                    "subtitle": "EasyPark, aktive parkeringer og kj\u00f8ret\u00f8ygrunnlag.",
-                    "cards": [
-                        api_card("Treff", vehicle_filtered_count, "stk", f"Viser {offset_value + 1 if vehicle_detail_rows else 0}-{min(offset_value + len(vehicle_detail_rows), vehicle_filtered_count)}", "parking", href="/parkering/kjoretoy"),
-                        api_card("Kj\u00f8ret\u00f8y totalt", vehicle_stats["vehicle_count"], "stk", "Registrert i kj\u00f8ret\u00f8ytabellen", "status", href="/parkering/kjoretoy"),
-                        api_card(
-                            "Mangler navn",
-                            vehicle_stats["vehicle_missing_name_count"],
-                            "stk",
-                            f"{format_short_number(vehicle_stats['vehicle_blank_name_count'])} blanke / {format_short_number(vehicle_stats['vehicle_name_not_found_count'])} ikke funnet",
-                            "status",
-                            href="/parkering/oppslag",
-                        ),
-                        api_card("Ikke funnet navn", vehicle_stats["vehicle_name_not_found_count"], "stk", "Inng\u00e5r i mangler navn", "status", href="/parkering/oppslag"),
-                        api_card(
-                            "Mangler omr\u00e5de",
-                            vehicle_stats["vehicle_missing_area_count"],
-                            "stk",
-                            f"{format_short_number(vehicle_stats['vehicle_blank_area_count'])} blanke / {format_short_number(vehicle_stats['vehicle_area_not_found_count'])} ikke funnet",
-                            "status",
-                            href="/parkering/oppslag?filter=mangler-omrade",
-                        ),
-                        api_card("Ikke funnet omr\u00e5de", vehicle_stats["vehicle_area_not_found_count"], "stk", "Inng\u00e5r i mangler omr\u00e5de", "status", href="/parkering/oppslag?filter=mangler-omrade"),
-                    ],
-                    "charts": [],
-                    "tables": [
-                        api_table(
-                            "Kj\u00f8ret\u00f8y",
-                            ["plate", "vehicle_title", "navn", "omrade", "parkering_count"],
-                            [parking_vehicle_row_api(vehicle, details) for vehicle, details in vehicle_detail_rows],
-                            meta=api_table_meta(vehicle_filtered_count, page_value, limit_value, len(vehicle_detail_rows)),
-                        )
-                    ],
-                    "actions": actions,
-                    "filters": [
-                        api_filter("q", "S\u00f8k", "text", q_value, "Reg.nr, bil, eier eller omr\u00e5de"),
-                        api_filter("page", "Side", "number", page_value),
-                        api_filter("limit", "Antall", "number", limit_value),
-                    ],
-                    "dayNavigation": None,
-                    "parkingTimeline": None,
-                }
-            overview_context = view in ("", "oversikt")
-            parking_summaries = await get_parking_summaries(session) if overview_context else {}
-            latest_rows = []
-            if overview_context:
-                latest_rows = (
-                    await session.execute(
-                        select(ParkingSession, ParkingVehicle, ParkingVehicleDetails)
-                        .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
-                        .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == normalized_session_plate)
-                        .order_by(ParkingSession.start_time.desc())
-                        .limit(120)
-                    )
-                ).all()
-            parking_periods = (
-                await parking_datetime_snapshots(
-                    session,
-                    {
-                        "today": (today_start, tomorrow_start),
-                        "month": (month_start_dt, tomorrow_start),
-                    },
-                )
-                if overview_context
-                else {
-                    "today": SimpleNamespace(sessions=0, paid=0.0),
-                    "month": SimpleNamespace(sessions=0, paid=0.0),
-                }
-            )
-            today_summary = {
-                "label": "I dag",
-                "count": parking_periods["today"].sessions,
-                "paid": parking_periods["today"].paid,
-            }
-            month_summary = {
-                "label": "Denne måneden",
-                "count": parking_periods["month"].sessions,
-                "paid": parking_periods["month"].paid,
-            }
-            parking_import_status = None
-            if overview_context or view == "dagslinje":
-                parking_import_status = (
-                    await session.execute(
-                        select(ImportJobStatus).where(ImportJobStatus.job_name == "easypark_parking_import")
-                    )
-                ).scalars().first()
-            active = 0
-            if overview_context:
-                active = (
-                    await session.execute(
-                        select(func.count(ParkingSession.id)).where(
-                            ParkingSession.start_time <= now_dt,
-                            or_(
-                                ParkingSession.end_time.is_(None),
-                                ParkingSession.end_time >= now_dt,
-                                func.lower(func.coalesce(ParkingSession.status, "")) == "ongoing",
-                            ),
-                        )
-                    )
-                ).scalar_one()
-            vehicle_stats = {
-                "vehicle_count": 0,
-                "vehicle_blank_name_count": 0,
-                "vehicle_name_not_found_count": 0,
-                "vehicle_missing_name_count": 0,
-                "vehicle_blank_area_count": 0,
-                "vehicle_area_not_found_count": 0,
-                "vehicle_missing_area_count": 0,
-            }
-            if overview_context or view in {"omrade", "oppslag", "bilstatistikk"}:
-                vehicle_stats = await parking_vehicle_count_stats(session)
-            vehicle_count = vehicle_stats["vehicle_count"]
-            new_vehicle_counts = {"month": 0, "previous_month": 0, "year": 0}
-            if overview_context:
-                new_vehicle_counts = (
-                    await session.execute(
-                        select(
-                            func.count(
-                                case(
-                                    (
-                                        and_(
-                                            ParkingVehicle.first_seen >= month_start_dt,
-                                            ParkingVehicle.first_seen < tomorrow_start,
-                                        ),
-                                        ParkingVehicle.plate,
-                                    ),
-                                    else_=None,
-                                )
-                            ).label("month"),
-                            func.count(
-                                case(
-                                    (
-                                        and_(
-                                            ParkingVehicle.first_seen >= previous_month_start_dt,
-                                            ParkingVehicle.first_seen < month_start_dt,
-                                        ),
-                                        ParkingVehicle.plate,
-                                    ),
-                                    else_=None,
-                                )
-                            ).label("previous_month"),
-                            func.count(
-                                case(
-                                    (
-                                        and_(
-                                            ParkingVehicle.first_seen >= year_start_dt,
-                                            ParkingVehicle.first_seen < tomorrow_start,
-                                        ),
-                                        ParkingVehicle.plate,
-                                    ),
-                                    else_=None,
-                                )
-                            ).label("year"),
-                        )
-                    )
-                ).mappings().one()
-            new_vehicle_month_count = int_or_zero(new_vehicle_counts.get("month"))
-            new_vehicle_previous_month_count = int_or_zero(new_vehicle_counts.get("previous_month"))
-            new_vehicle_year_count = int_or_zero(new_vehicle_counts.get("year"))
-            vehicle_blank_name_count = vehicle_stats["vehicle_blank_name_count"]
-            vehicle_name_not_found_count = vehicle_stats["vehicle_name_not_found_count"]
-            vehicle_missing_name_count = vehicle_stats["vehicle_missing_name_count"]
-            vehicle_blank_area_count = vehicle_stats["vehicle_blank_area_count"]
-            vehicle_area_not_found_count = vehicle_stats["vehicle_area_not_found_count"]
-            vehicle_missing_area_count = vehicle_stats["vehicle_missing_area_count"]
-            vehicle_rows = []
-            most_used_vehicle = None
-            if view == "bilstatistikk":
-                vehicle_rows = (
-                    await session.execute(
-                        select(ParkingVehicle, ParkingVehicleDetails)
-                        .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-                        .order_by(
-                            ParkingVehicle.paid_total.desc().nullslast(),
-                            ParkingVehicle.parkering_count.desc().nullslast(),
-                            ParkingVehicle.plate.asc(),
-                        )
-                        .limit(250)
-                    )
-                ).all()
-                most_used_vehicle = (
-                    await session.execute(
-                        select(ParkingVehicle)
-                        .order_by(
-                            ParkingVehicle.parkering_count.desc().nullslast(),
-                            ParkingVehicle.paid_total.desc().nullslast(),
-                            ParkingVehicle.plate.asc(),
-                        )
-                        .limit(1)
-                    )
-                ).scalars().first()
-            tables = api_parking_overview_tables(
-                parking_summaries,
-                [parking_row_api(row, vehicle, details, unifi_before_seconds=15) for row, vehicle, details in latest_rows],
-            )
-            cards = [
-                api_card(
-                    "Sist oppdatert",
-                    format_source_datetime(parking_import_status.last_success_at) if parking_import_status and parking_import_status.last_success_at else "-",
-                    "",
-                    f"EasyPark import - {import_job_age(parking_import_status)}" if parking_import_status else "Ingen importstatus",
-                    "status",
-                    href="/admin/datakilder",
-                ),
-                api_card("Parkeringer i dag", today_summary["count"], "stk", f"{format_short_number(today_summary['paid'])} kr", "parking", href="/parkering/dagslinje"),
-                api_card("Pågående", active, "stk", import_job_updated_ago(parking_import_status), "parking", href="/parkering/dagslinje"),
-                api_card("Måned", month_summary["count"], "stk", f"{format_short_number(month_summary['paid'])} kr", "revenue", href="/parkering/periode?period=month"),
-                api_card("Kjøretøy", vehicle_count, "stk", "Registrert i kjøretøytabellen", "status", href="/parkering/kjoretoy"),
-                api_card(
-                    "Nye kj\u00f8ret\u00f8y",
-                    new_vehicle_month_count,
-                    "stk",
-                    f"Forrige mnd {format_short_number(new_vehicle_previous_month_count)} - i \u00e5r {format_short_number(new_vehicle_year_count)} stk",
-                    "parking",
-                    href="/parkering/kjoretoy",
-                ),
-            ]
-            actions = api_parking_default_actions()
-            filters = []
-            charts = [api_parking_weekly_chart(parking_summaries)] if view in ("", "oversikt") else []
-            parking_timeline = None
-            day_navigation = None
-            if view == "dagslinje":
-                actions = api_parking_default_actions()[:1]
-                selected_parking_day = parse_day(day)
-                parking_timeline = await api_parking_day_timeline(session, selected_parking_day, now_dt)
-                summary = parking_timeline["summary"]
-                cards = [
-                    api_card(
-                        "Toppbelegg",
-                        f"{summary['peakCount']}/{parking_timeline['capacity']}",
-                        "plasser",
-                        f"Kl {summary['peakTimeLabel']}" if summary["peakTimeLabel"] else "Ingen registrert topp",
-                        "parking",
-                        href="/parkering/dagslinje",
-                    ),
-                    api_card(
-                        "Parkeringer",
-                        summary["sessionsCount"],
-                        "stk",
-                        f"{format_short_number(summary['paidAmountKr'])} kr",
-                        "parking",
-                        href="/parkering/parkeringer",
-                    ),
-                    api_card(
-                        "Beleggstid",
-                        format_short_number(summary["durationHours"], 1),
-                        "timer",
-                        f"{format_short_number(summary['utilizationPercent'], 1)}% av 23 plasser gjennom døgnet",
-                        "parking",
-                        href="/parkering/dagslinje",
-                    ),
-                    api_card(
-                        "Snittvarighet",
-                        format_short_number(summary["avgMinutes"], 0),
-                        "min",
-                        f"{summary['overflowCount']} over kapasitet" if summary["overflowCount"] else "Alle fikk plass i 23-sporsoppsettet",
-                        "status",
-                        href="/parkering/parkeringer",
-                    ),
-                ]
-                timeline_rows = []
-                for row_group in parking_timeline["spaceRows"]:
-                    for space in row_group["spaces"]:
-                        for item in space["sessions"]:
-                            timeline_rows.append(
-                                {
-                                    "space": space["label"],
-                                    "start": item.get("start"),
-                                    "end": item.get("end"),
-                                    "plate": item.get("plate"),
-                                    "duration_minutes": item.get("durationMinutes"),
-                                    "paid": item.get("paid"),
-                                    "status": item.get("status"),
-                                    "area": item.get("area"),
-                                    "owner": item.get("owner"),
-                                }
-                            )
-                tables = [
-                    api_table(
-                        "Dagslinje parkeringer",
-                        ["space", "start", "end", "plate", "duration_minutes", "paid", "status", "area", "owner"],
-                        timeline_rows,
-                    )
-                ]
-            elif view == "omrade":
-                actions = api_parking_default_actions()[1:]
-                date_from_value = api_filter_value(params, "date_from")
-                date_to_value = api_filter_value(params, "date_to")
-                area_context = await parking_area_overview_data(session, date_from_value, date_to_value)
-                area_period = area_context["period"]
-                missing_area_rows = await parking_area_missing_rows_for_period(session, area_period, 100)
-                filters = [
-                    api_filter("date_from", "Dato / fra", "date", area_period["date_from"], "Tom = hele historikken"),
-                    api_filter("date_to", "Til dato", "date", area_period["date_to"], "Valgfritt tidsrom"),
-                ]
-                cards = [
-                    api_card("Periode", area_period["label"], "", area_period["detail"], "parking", href="/parkering/omrade"),
-                    api_card(
-                        "Unike biler",
-                        area_context["vehicle_total"],
-                        "stk",
-                        f"{format_short_number(area_context['parking_total'])} parkeringer i grunnlaget",
-                        "parking",
-                        href="/parkering/omrade",
-                    ),
-                    api_card(
-                        "Har område",
-                        area_context["vehicle_with_area"],
-                        "stk",
-                        f"{area_context['coverage_percent']} % dekning",
-                        "status",
-                        href="/parkering/omrade",
-                    ),
-                    api_card(
-                        "Mangler område",
-                        area_context["missing_area"],
-                        "stk",
-                        "Blankt, ikke funnet eller mangler kjøretøyrad",
-                        "status",
-                        href="/parkering/oppslag?filter=mangler-omrade",
-                    ),
-                    api_card(
-                        "Beløp",
-                        format_short_number(area_context["paid_total"]),
-                        "kr",
-                        "Parkering i valgt grunnlag",
-                        "revenue",
-                        href="/omsetning/oversikt",
-                    ),
-                ]
-                tables = [
-                    api_table(
-                        "Områder",
-                        ["omrade", "vehicles", "vehicle_share", "parkeringer", "parking_share", "paid", "last_seen"],
-                        area_context["rows"],
-                    ),
-                    api_table(
-                        "Kjøretøy uten område",
-                        ["plate", "navn", "parkering_count", "paid_total", "last_seen"],
-                        missing_area_rows,
-                    ),
-                ]
-            elif view == "bilstatistikk":
-                actions = []
-                revenue_leader = vehicle_rows[0][0] if vehicle_rows else None
-                cards = [
-                    api_card("Kjøretøy", vehicle_count, "stk", "Registrert i kjøretøyregisteret", "status", href="/parkering/kjoretoy"),
-                    api_card(
-                        "Høyest omsetning",
-                        format_short_number(revenue_leader.paid_total if revenue_leader else 0),
-                        "kr",
-                        f"{revenue_leader.plate} · {format_short_number(revenue_leader.parkering_count)} parkeringer" if revenue_leader else "Ingen data",
-                        "revenue",
-                        href=f"/parkering/kjoretoy/{quote(revenue_leader.plate or '', safe='')}" if revenue_leader else "/parkering/kjoretoy",
-                    ),
-                    api_card(
-                        "Flest parkeringer",
-                        most_used_vehicle.parkering_count if most_used_vehicle else 0,
-                        "stk",
-                        f"{most_used_vehicle.plate} · {format_short_number(most_used_vehicle.paid_total)} kr" if most_used_vehicle else "Ingen data",
-                        "parking",
-                        href=f"/parkering/kjoretoy/{quote(most_used_vehicle.plate or '', safe='')}" if most_used_vehicle else "/parkering/kjoretoy",
-                    ),
-                    api_card("Toppliste", len(vehicle_rows), "biler", "Sortert etter samlet parkeringsomsetning", "parking", href="/parkering/bilstatistikk"),
-                ]
-                tables = [
-                    api_table(
-                        "Kjøretøy etter omsetning",
-                        ["plate", "vehicle_title", "navn", "omrade", "parkering_count", "paid_total", "first_seen", "last_seen"],
-                        [parking_vehicle_row_api(vehicle, details) for vehicle, details in vehicle_rows],
-                        meta={"rowLinkColumn": "plate", "totalRows": len(vehicle_rows)},
-                    )
-                ]
-            elif view == "prognose":
-                parking_forecast = await build_parking_forecast(session, today, datetime.now(LOCAL_TZ))
-                saved_forecasts = await saved_forecast_table(session, "parking")
-                forecast_history_rows = await forecast_snapshot_history(session, "parking", 180)
-                forecast_table_rows = api_parking_forecast_rows(parking_forecast)
-                charts = []
-                evolution_chart = api_parking_forecast_evolution_chart(forecast_history_rows)
-                if evolution_chart:
-                    charts.append(evolution_chart)
-                charts.append(
-                    api_chart(
-                        "Nåværende prognose mot faktisk",
-                        [row["period"] for row in forecast_table_rows],
-                        [
-                            {"name": "Faktisk parkeringer", "data": [row["actual_parkeringer"] for row in forecast_table_rows], "type": "bar"},
-                            {"name": "Prognose parkeringer", "data": [row["forecast_parkeringer"] for row in forecast_table_rows], "type": "bar"},
-                        ],
-                        "Siste beregning for dag, måned og år.",
-                        "bar",
-                        300,
-                    )
-                )
-                cards = [
-                    api_card("Dagsprognose", forecast_table_rows[0]["forecast_parkeringer"], "stk", f"{format_short_number(forecast_table_rows[0]['forecast_paid'])} kr", "parking", href="/parkering/prognose"),
-                    api_card("Månedsprognose", forecast_table_rows[1]["forecast_parkeringer"], "stk", f"{format_short_number(forecast_table_rows[1]['forecast_paid'])} kr", "revenue", href="/parkering/prognose"),
-                    api_card("Årsprognose", forecast_table_rows[2]["forecast_parkeringer"], "stk", f"{format_short_number(forecast_table_rows[2]['forecast_paid'])} kr", "revenue", href="/parkering/prognose"),
-                    api_card("Lagrede", len(saved_forecasts), "stk", "Parkeringssnapshots", "status", href="/parkering/prognose"),
-                ]
-                tables = [
-                    api_table(
-                        "Nåværende parkeringsprognose",
-                        ["period", "label", "actual_parkeringer", "forecast_parkeringer", "actual_paid", "forecast_paid", "actual_minutes", "forecast_minutes", "actual_vehicles", "forecast_vehicles", "tempo", "remaining_days"],
-                        forecast_table_rows,
-                    ),
-                    api_table(
-                        "Lagrede parkeringsprognoser",
-                        ["created_at", "period_type", "period_label", "actual_parkeringer", "forecast_parkeringer", "delta_parkeringer", "actual_paid", "forecast_paid", "delta_paid", "actual_vehicles", "forecast_vehicles", "period_done"],
-                        api_parking_saved_forecast_rows(saved_forecasts),
-                    ),
-                ]
-                actions = [
-                    {
-                        "key": "parking-save-forecast",
-                        "label": "Lagre parkeringsprognose",
-                        "method": "POST",
-                        "path": "/api/actions/parkering/save-forecast",
-                        "confirm": "Lagre prognosesnapshot for parkering nå?",
-                        "tone": "primary",
-                    },
-                    {
-                        "key": "easypark-refresh",
-                        "label": "Oppdater EasyPark",
-                        "method": "POST",
-                        "path": "/api/actions/parkering/refresh",
-                        "confirm": "Starte EasyPark-oppdatering for siste periode?",
-                        "tone": "default",
-                    },
-                ]
-            elif view == "oppslag":
-                actions = api_parking_default_actions()[1:]
-                oppslag_filter = api_filter_value(params, "filter").lower()
-                area_only = oppslag_filter in {"mangler-omrade", "mangler-område", "missing-area"}
-                if area_only:
-                    vehicles_missing_area = await parking_missing_area_rows(session, 1000)
-                    cards = [
-                        api_card("Mangler område", vehicle_missing_area_count, "stk", "Blanke og ikke funnet", "status", href="/parkering/oppslag?filter=mangler-omrade"),
-                        api_card("Blanke", vehicle_blank_area_count, "stk", "Kan fylles via områdeoppslag", "status", href="/parkering/oppslag?filter=mangler-omrade"),
-                        api_card("Ikke funnet", vehicle_area_not_found_count, "stk", "Kan nullstilles og slås opp på nytt", "status", href="/parkering/oppslag?filter=mangler-omrade"),
-                        api_card("Viser", len(vehicles_missing_area), "stk", "Maks 1000 i listen", "parking", href="/parkering/oppslag?filter=mangler-omrade"),
-                    ]
-                    tables = [
-                        api_table(
-                            "Kjøretøy uten område",
-                            ["plate", "navn", "omrade", "parkering_count", "paid_total", "last_seen", "path"],
-                            [
-                                {
-                                    **row_to_dict(row, ["plate", "navn", "omrade", "parkering_count", "paid_total", "last_seen"]),
-                                    "path": f"/parkering/kjoretoy/{quote(row.plate or '', safe='')}",
-                                }
-                                for row, _ in vehicles_missing_area
-                            ],
-                        )
-                    ]
-                else:
-                    cards = [
-                        api_card(
-                            "Mangler navn",
-                            vehicle_missing_name_count,
-                            "biler",
-                            f"{format_short_number(vehicle_blank_name_count)} blanke · {format_short_number(vehicle_name_not_found_count)} ikke funnet",
-                            "status",
-                            href="/parkering/navn-oppslag",
-                        ),
-                        api_card(
-                            "Mangler område",
-                            vehicle_missing_area_count,
-                            "biler",
-                            f"{format_short_number(vehicle_blank_area_count)} blanke · {format_short_number(vehicle_area_not_found_count)} ikke funnet",
-                            "status",
-                            href="/parkering/omrade-oppslag",
-                        ),
-                        api_card(
-                            "Navn ikke funnet",
-                            vehicle_name_not_found_count,
-                            "biler",
-                            "Kan kontrolleres i navnearbeidslisten",
-                            "status",
-                            href="/parkering/navn-oppslag",
-                        ),
-                        api_card(
-                            "Område ikke funnet",
-                            vehicle_area_not_found_count,
-                            "biler",
-                            "Kan nullstilles og slås opp på nytt",
-                            "status",
-                            href="/parkering/omrade-oppslag",
-                        ),
-                    ]
-                    tables = [
-                        api_table(
-                            "Arbeidslister",
-                            ["tool", "path", "description", "count"],
-                            [
-                                api_tool_row(
-                                    "Navnoppslag",
-                                    "/parkering/navn-oppslag",
-                                    f"Koble kjøretøy mot navn/SUN2. {format_short_number(vehicle_name_not_found_count)} er ikke funnet.",
-                                    vehicle_missing_name_count,
-                                ),
-                                api_tool_row(
-                                    "Områdeoppslag",
-                                    "/parkering/omrade-oppslag",
-                                    f"Sett område på kjøretøy. {format_short_number(vehicle_area_not_found_count)} er ikke funnet.",
-                                    vehicle_missing_area_count,
-                                ),
-                                api_tool_row("Kjøretøyoversikt", "/parkering/kjoretoy", "Kjøretøyregister med redigering og detaljer.", vehicle_count),
-                            ],
-                        ),
-                    ]
-            if int_or_zero(vehicle_area_not_found_count) > 0 and view in ("", "oversikt", "kjoretoy", "omrade", "oppslag"):
-                actions.append(
-                    {
-                        "key": "clear-area-not-found",
-                        "label": "Fjern område 'ikke funnet'",
-                        "method": "POST",
-                        "path": "/api/actions/parkering/clear-area-not-found",
-                        "confirm": (
-                            f"Nullstille område på {format_short_number(vehicle_area_not_found_count)} kjøretøy "
-                            "der område er satt til 'ikke funnet'? De blir liggende som blanke og kan slås opp på nytt."
-                        ),
-                        "tone": "default",
-                    }
-                )
-            return {
-                "title": v2_module_title("parkering", view),
-                "subtitle": {
-                    "dagslinje": "Kapasitet, toppbelegg og parkeringsforløp gjennom valgt dag.",
-                    "omrade": "Geografisk fordeling av kjøretøy og parkeringer i valgt periode.",
-                    "bilstatistikk": "Kjøretøy rangert etter samlet parkeringsomsetning og antall besøk.",
-                    "prognose": "Forventet parkeringsutvikling sammenlignet med faktisk resultat.",
-                    "oppslag": "Samlet status og arbeidslister for manglende kjøretøyopplysninger.",
-                }.get(view, "EasyPark, aktive parkeringer og kjøretøygrunnlag."),
-                "cards": cards,
-                "charts": charts,
-                "tables": tables,
-                "actions": actions,
-                "filters": filters,
-                "dayNavigation": day_navigation,
-                "parkingTimeline": parking_timeline,
-            }
-
-        if module == "soling":
-            selected_day = None
-            if day:
-                try:
-                    selected_day = date.fromisoformat(day)
-                except ValueError:
-                    selected_day = None
-            return await api_v2_soling_module(session, view, today, tomorrow, month_start, selected_day, params)
-
-        if module == "energi":
-            selected_day = parse_day(day)
-            selected_day_start = datetime.combine(selected_day, time.min)
-            selected_day_end = selected_day_start + timedelta(days=1)
-            energy_q_value = api_filter_value(params, "q")
-            energy_circuit_value = api_filter_value(params, "circuit")
-            energy_load_type_value = api_filter_value(params, "load_type")
-            energy_active_value = api_filter_value(params, "active")
-            energy_sunbeds_value = normalize_energy_sunbed_filter(api_filter_value(params, "sunbeds"))
-            energy_sunbed_date_from = api_filter_value(params, "date_from")
-            energy_sunbed_date_to = api_filter_value(params, "date_to")
-            energy_limit_value = api_filter_int(params, "limit", 500, 25, 1000)
-            if view == "elvia-kontroll":
-                return await energy_elvia_control_module_payload(session, selected_day, today)
-            if view == "elvia":
-                return await energy_elvia_module_payload(session)
-            if view == "forbruk-per-seng":
-                energy_sunbeds_data = await load_sunbed_power_analysis(
-                    session,
-                    energy_sunbed_date_from or None,
-                    energy_sunbed_date_to or None,
-                    today,
-                )
-                sunbed_summary = energy_sunbeds_data["summary"]
-                filters = [
-                    api_filter("date_from", "Fra", "date", energy_sunbeds_data["dateFrom"]),
-                    api_filter("date_to", "Til", "date", energy_sunbeds_data["dateTo"]),
-                ]
-                energy_cards = [
-                    api_card("Senger med estimat", sunbed_summary.get("rooms_count"), "stk", "Rom med rene målepunkter", "sun2", href="/energi/forbruk-per-seng"),
-                    api_card("Rene målepunkter", sunbed_summary.get("single_samples"), "stk", f"Intervall {format_short_number(sunbed_summary.get('sample_interval_seconds'))} sek", "energy", href="/energi/forbruk-per-seng"),
-                    api_card("Baseline", format_short_number(sunbed_summary.get("global_baseline_w")), "W", "Median uten aktiv solseng", "energy", href="/energi/forbruk-per-seng"),
-                    api_card("Takvifte korrigert", sunbed_summary.get("roof_exhaust_adjusted_samples"), "stk", f"-{format_short_number(sunbed_summary.get('roof_exhaust_adjustment_w'))} W ved på", "vent", href="/energi/forbruk-per-seng"),
-                ]
-                return {
-                    "title": v2_module_title("energi", "forbruk-per-seng"),
-                    "subtitle": "Estimert forbruk per solseng beregnet fra realtime differanseforbruk.",
-                    "cards": energy_cards,
-                    "charts": [],
-                    "tables": [],
-                    "filters": filters,
-                    "energyElvia": None,
-                    "energySunbeds": energy_sunbeds_data,
-                }
-            if view in {"kurs-last", "kurser", "laster", "verktoy"}:
-                all_circuits = (
-                    await session.execute(select(EnergyCircuit).order_by(EnergyCircuit.circuit_no.asc()))
-                ).scalars().all()
-                circuits = filter_energy_circuits_by_sunbed(all_circuits, energy_sunbeds_value if view == "kurser" else None)
-                sunbed_circuit_numbers = [row.circuit_no for row in all_circuits if energy_circuit_is_sunbed(row)]
-                sunbed_filter_options = [
-                    {"label": "Skjul solsenger", "value": "hide"},
-                    {"label": "Kun solsenger", "value": "only"},
-                ]
-                circuit_options = [
-                    {
-                        "label": f"{row.circuit_no} - {row.description}" if row.description else str(row.circuit_no),
-                        "value": str(row.circuit_no),
-                    }
-                    for row in all_circuits
-                    if row.circuit_no is not None
-                ]
-
-                energy_circuit_no = None
-                if energy_circuit_value:
-                    try:
-                        energy_circuit_no = int(energy_circuit_value)
-                    except ValueError:
-                        energy_circuit_no = None
-                load_conditions = []
-                if energy_q_value:
-                    pattern = f"%{energy_q_value}%"
-                    load_conditions.append(
-                        or_(
-                            EnergyLoad.name.ilike(pattern),
-                            EnergyLoad.area.ilike(pattern),
-                            EnergyLoad.note.ilike(pattern),
-                            EnergyLoad.load_type.ilike(pattern),
-                        )
-                    )
-                if energy_circuit_no is not None:
-                    load_conditions.append(EnergyLoad.circuit_no == energy_circuit_no)
-                if energy_load_type_value:
-                    load_conditions.append(EnergyLoad.load_type == energy_load_type_value)
-                if energy_active_value == "1":
-                    load_conditions.append(EnergyLoad.active.is_(True))
-                elif energy_active_value == "0":
-                    load_conditions.append(EnergyLoad.active.is_(False))
-                if energy_sunbeds_value == "hide":
-                    load_conditions.append(or_(EnergyLoad.circuit_no.is_(None), ~EnergyLoad.circuit_no.in_(sunbed_circuit_numbers)))
-                elif energy_sunbeds_value == "only":
-                    load_conditions.append(EnergyLoad.circuit_no.in_(sunbed_circuit_numbers))
-
-                load_stmt = select(EnergyLoad).order_by(EnergyLoad.active.desc(), EnergyLoad.circuit_no.asc(), EnergyLoad.name.asc()).limit(energy_limit_value)
-                load_count_stmt = select(func.count(EnergyLoad.id))
-                if load_conditions:
-                    load_stmt = load_stmt.where(*load_conditions)
-                    load_count_stmt = load_count_stmt.where(*load_conditions)
-                loads = (await session.execute(load_stmt)).scalars().all()
-                filtered_load_count = (await session.execute(load_count_stmt)).scalar_one()
-
-                if view == "kurs-last":
-                    hierarchy_loads = (
-                        await session.execute(
-                            select(EnergyLoad).order_by(EnergyLoad.active.desc(), EnergyLoad.circuit_no.asc(), EnergyLoad.name.asc())
-                        )
-                    ).scalars().all()
-                    hierarchy_nodes = (
-                        await session.execute(
-                            select(EnergyNode).order_by(EnergyNode.active.desc(), EnergyNode.circuit_no.asc(), EnergyNode.parent_node_id.asc(), EnergyNode.name.asc())
-                        )
-                    ).scalars().all()
-                    circuit_loads = build_energy_circuit_loads_payload(all_circuits, hierarchy_loads, hierarchy_nodes)
-                    circuit_loads["canManage"] = bool(getattr(request.state, "auth_can_settings", False))
-                    circuit_summary = circuit_loads["summary"]
-                    return {
-                        "title": "Energi · kurs/last",
-                        "subtitle": "Hierarki over elektriske kurser, laster og hvordan energimålere dekker dem.",
-                        "cards": [
-                            api_card("Kurser", circuit_summary.get("circuits"), "stk", "Registrert i kursregisteret", "energy", href="/energi/kurs-last"),
-                            api_card("Laster", circuit_summary.get("activeLoads"), "aktive", f"{circuit_summary.get('loads')} totalt", "status", href="/energi/laster"),
-                            api_card("Kursmålt", circuit_summary.get("circuitMeterCount"), "kurs", "Alle aktive laster på samme måler", "energy", href="/energi/kurs-last"),
-                            api_card("Uten måler", circuit_summary.get("unmeteredLoadCount"), "laster", "Mangler egen energimåler", "status", href="/energi/kurs-last"),
-                            api_card("Forventet effekt", format_short_number(circuit_summary.get("expectedPowerW")), "W", "Aktive registrerte laster", "energy", href="/energi/kurs-last"),
-                        ],
-                        "charts": [],
-                        "tables": [],
-                        "filters": [],
-                        "energyElvia": None,
-                        "energySunbeds": None,
-                        "energyCircuitLoads": circuit_loads,
-                    }
-
-                if view == "kurser":
-                    return {
-                        "title": v2_module_title("energi", "kurser"),
-                        "subtitle": "Kursregister med tekniske data og solsengmerking.",
-                        "cards": [
-                            api_card("Kurser", len(circuits), "stk", "Valgt kursfilter", "energy", href="/energi/kurser"),
-                            api_card("Solsengkurser", sum(1 for row in circuits if energy_circuit_is_sunbed(row)), "stk", "Blant viste", "sun2", href="/energi/forbruk-per-seng"),
-                            api_card("Med vern", sum(1 for row in circuits if row.breaker_rating_a is not None), "stk", "Registrert", "status", href="/energi/kurser"),
-                            api_card("Uten vern", sum(1 for row in circuits if row.breaker_rating_a is None), "stk", "Mangler data", "status", href="/energi/kurser"),
-                        ],
-                        "charts": [],
-                        "tables": [api_table("Kurser", ["circuit_no", "description", "breaker", "breaker_type", "is_sunbed", "status", "note"], [circuit_row_api(row) for row in circuits], edit=api_energy_circuit_edit())],
-                        "filters": [api_filter("sunbeds", "Solsenger", "select", energy_sunbeds_value, options=sunbed_filter_options)],
-                        "energyElvia": None,
-                        "energySunbeds": None,
-                    }
-
-                load_type_options = api_filter_options(
-                    (
-                        await session.execute(
-                            select(EnergyLoad.load_type)
-                            .where(EnergyLoad.load_type.is_not(None))
-                            .where(func.trim(EnergyLoad.load_type) != "")
-                            .distinct()
-                            .order_by(EnergyLoad.load_type.asc())
-                        )
-                    ).scalars().all()
-                )
-                if view == "laster":
-                    return {
-                        "title": "Energi · laster",
-                        "subtitle": "Lastregister med målere, kurser og forventet effekt.",
-                        "cards": [
-                            api_card("Treff", filtered_load_count, "stk", f"Viser {len(loads)} laster", "energy", href="/energi/laster"),
-                            api_card("Aktive vist", sum(1 for row in loads if row.active), "stk", "I tabellen", "status", href="/energi/laster"),
-                            api_card("Direktemålt", sum(1 for row in loads if row.measured_direct), "stk", "I tabellen", "energy", href="/energi/laster"),
-                            api_card("Effekt vist", format_short_number(sum(float_or_zero(row.expected_power_w) for row in loads)), "W", "For viste rader", "energy", href="/energi/laster"),
-                        ],
-                        "charts": [],
-                        "tables": [api_table("Laster", ["name", "load_type", "area", "circuit_no", "power_profile", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads], edit=api_energy_load_edit())],
-                        "filters": [
-                            api_filter("q", "Søk", "text", energy_q_value, "Navn, område, type eller notat"),
-                            api_filter("circuit", "Kurs", "select", energy_circuit_value, options=circuit_options),
-                            api_filter("load_type", "Type", "select", energy_load_type_value, options=load_type_options),
-                            api_filter("active", "Aktiv", "select", energy_active_value, options=[{"label": "Aktive", "value": "1"}, {"label": "Inaktive", "value": "0"}]),
-                            api_filter("sunbeds", "Solsenger", "select", energy_sunbeds_value, options=sunbed_filter_options),
-                            api_filter("limit", "Antall", "number", energy_limit_value),
-                        ],
-                        "energyElvia": None,
-                        "energySunbeds": None,
-                    }
-
-                latest = (
-                    await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))
-                ).scalars().first()
-                today_sample_count = (
-                    await session.execute(
-                        select(func.count(EnergyFibaroSample.id))
-                        .where(EnergyFibaroSample.bucket_start >= today_start)
-                        .where(EnergyFibaroSample.bucket_start < tomorrow_start)
-                    )
-                ).scalar_one()
-                elvia_import_count = (
-                    await session.execute(select(func.count(EnergyImportRun.id)))
-                ).scalar_one()
-                return {
-                    "title": "Energi · verktøy",
-                    "subtitle": "Snarveier og teknisk datagrunnlag for energi.",
-                    "cards": [
-                        api_card("Inntak nå", format_short_number(latest.inntak_w if latest else None), "W", "Realtime", "energy", href="/energi/status"),
-                        api_card("Samples i dag", today_sample_count, "stk", "Realtime energilogging", "energy", href="/energi/status"),
-                        api_card("Diff nå", format_short_number(latest.differanse_beregnet_w if latest else None), "W", "Beregnet fra realtime", "energy", href="/energi/status"),
-                        api_card("Laster", filtered_load_count, "stk", "Aktive og registrerte", "status", href="/energi/laster"),
-                    ],
-                    "charts": [],
-                    "tables": [
-                        api_table(
-                            "Energiverktøy",
-                            ["tool", "path", "description", "count"],
-                            [
-                                api_tool_row("Energi status", "/energi/status", "Realtime energiside med Elvia-sammenligning.", today_sample_count),
-                                api_tool_row("Kurser", "/energi/kurser", "Kursregister med redigering og tekniske data.", len(circuits)),
-                                api_tool_row("Laster", "/energi/laster", "Lastregister med målere, kurser og forventet effekt.", len(loads)),
-                                api_tool_row("Elvia", "/energi/elvia", "Import og kontroll av Elvia-timesdata.", elvia_import_count),
-                                api_tool_row("Kurs-PDF", "/classic/energi/kurser/pdf", "Eksporter kurslisten som PDF.", len(circuits)),
-                                api_tool_row("Last-PDF", "/classic/energi/laster/pdf", "Eksporter lastlisten som PDF.", len(loads)),
-                            ],
-                        ),
-                        api_table(
-                            "Datagrunnlag",
-                            ["key", "value"],
-                            api_config_value_rows(
-                                {
-                                    "samples_i_dag": today_sample_count,
-                                    "siste_sample": latest.bucket_start if latest else None,
-                                    "inntak_na_w": latest.inntak_w if latest else None,
-                                    "differanse_na_w": latest.differanse_beregnet_w if latest else None,
-                                    "aktive_laster": sum(1 for row in loads if row.active),
-                                    "direktemalte_laster": sum(1 for row in loads if row.measured_direct),
-                                }
-                            ),
-                        ),
-                    ],
-                    "filters": [],
-                    "energyElvia": None,
-                    "energySunbeds": None,
-                }
-            latest = (
-                await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))
-            ).scalars().first()
-            selected_energy_rows = (
-                await session.execute(
-                    select(EnergyFibaroSample)
-                    .where(EnergyFibaroSample.bucket_start >= selected_day_start)
-                    .where(EnergyFibaroSample.bucket_start < selected_day_end)
-                    .order_by(EnergyFibaroSample.bucket_start.desc())
-                )
-            ).scalars().all()
-            registered_load_count = (
-                await session.execute(select(func.count(EnergyLoad.id)))
-            ).scalar_one()
-            total_kwh = sum(float_or_zero(row.inntak_delta_kwh) for row in selected_energy_rows)
-            chronological_energy_rows = list(reversed(selected_energy_rows))
-            # 720 points cover a full day at two-minute visual resolution and keep the
-            # multi-series response compact enough for quick tablet navigation.
-            energy_chart_rows = decimate_rows(chronological_energy_rows, 720)
-            energy_chart_items = [
-                ("inntak", "Inntak", "#15803d"),
-                ("varmepumper", "Varmepumper", "#0891b2"),
-                ("belysning", "Belysning", "#ca8a04"),
-                ("massasje", "Massasje", "#f59e0b"),
-                ("annet", "Annet", "#64748b"),
-                ("avfukter", "Avfukter", "#14b8a6"),
-            ]
-            power_series = [
-                {
-                    "name": label,
-                    "data": [
-                        [api_local_iso(row.bucket_start), getattr(row, f"{key}_w", None)]
-                        for row in energy_chart_rows
-                        if row.bucket_start
-                    ],
-                    "color": color,
-                }
-                for key, label, color in energy_chart_items
-            ]
-            consumption_series = [
-                {
-                    "name": label,
-                    "data": decimate_rows(
-                        cumulative_energy_points(chronological_energy_rows, f"{key}_delta_kwh"),
-                        720,
-                    ),
-                    "color": color,
-                    "smooth": False,
-                }
-                for key, label, color in energy_chart_items
-            ]
-            charts = [
-                api_chart(
-                    "Energi status",
-                    [],
-                    power_series,
-                    f"{selected_day.strftime('%d.%m.%Y')} vises som helt døgn. Velg realtime effekt eller akkumulert forbruk.",
-                    "line",
-                    360,
-                    metrics=[
-                        {"key": "power", "label": "Effekt", "unit": "W", "series": power_series},
-                        {"key": "consumption", "label": "Forbruk", "unit": "kWh", "series": consumption_series},
-                    ],
-                    default_metric="power",
-                    x_axis_type="time",
-                    x_axis_min=api_local_iso(selected_day_start),
-                    x_axis_max=api_local_iso(selected_day_end),
-                    disable_zoom=True,
-                    day_navigation=api_day_navigation(selected_day, today),
-                )
-            ]
-            energy_table_columns = [
-                "bucket_start", "inntak_w", "varmepumper_w", "belysning_w",
-                "massasje_w", "annet_w", "avfukter_w", "differanse_beregnet_w",
-            ]
-            tables = [
-                api_table(
-                    "Energisamples valgt dag",
-                    energy_table_columns,
-                    [api_pick(row, energy_table_columns) for row in selected_energy_rows[:500]],
-                ),
-            ]
-            filters = []
-            energy_cards = [
-                api_card("Inntak nå", format_short_number(latest.inntak_w if latest else None), "W", "Realtime", "energy", href="/energi/status"),
-                api_card("Forbruk i dag" if selected_day == today else "Forbruk valgt dag", format_short_number(total_kwh, 1), "kWh", f"{len(selected_energy_rows)} samples", "energy", href="/energi/status"),
-                api_card("Diff nå", format_short_number(latest.differanse_beregnet_w if latest else None), "W", "Beregnet fra realtime", "energy", href="/energi/status"),
-                api_card("Laster", registered_load_count, "stk", "Registrert i lastregisteret", "status", href="/energi/laster"),
-            ]
-            return {
-                "title": v2_module_title("energi", view),
-                "subtitle": "Realtime HC3-måling, kursregister og lastregister.",
-                "cards": energy_cards,
-                "charts": charts,
-                "tables": tables,
-                "filters": filters,
-                "energyElvia": None,
-                "energySunbeds": None,
-            }
-
-        if module == "ventilasjon":
-            active_view = view or "dagslogg"
-            log_from_value = api_filter_value(params, "from")
-            log_to_value = api_filter_value(params, "to")
-            log_mode_value = api_filter_value(params, "mode")
-            log_limit_value = api_filter_int(params, "limit", 120, 25, 1000)
-            selected_day = parse_day(day)
-            day_start = datetime.combine(selected_day, time.min)
-            day_end = day_start + timedelta(days=1)
-            is_today = selected_day == today
-            timeline_end = min(now_dt, day_end) if is_today else day_end
-            now_marker = percent_between(now_dt, day_start, day_end) if is_today and day_start <= now_dt <= day_end else None
-            latest = (
-                await session.execute(select(VentilationSample).order_by(VentilationSample.bucket_start.desc()).limit(1))
-            ).scalars().first()
-            latest_yr = (
-                await session.execute(select(YrForecastSample).order_by(YrForecastSample.bucket_start.desc()).limit(1))
-            ).scalars().first()
-            vent_switch_configs = [
-                config for device in VENT_TIMELINE_DEVICES
-                if (config := hc3_switch_config_for_timeline_device(device)) is not None
-            ]
-            vent_hc3_statuses = await hc3_fetch_switch_statuses(vent_switch_configs)
-            fan_status_items = [
-                ventilation_status_payload(device, latest, vent_hc3_statuses.get(str(device.get("key"))))
-                for device in VENT_TIMELINE_DEVICES
-            ]
-            samples = []
-            yr_rows = []
-            events = []
-            if active_view == "temp-logg":
-                samples, _ = await fetch_rows(VentilationSample, None, None, None, None, log_mode_value or None, None, log_from_value, log_to_value, log_limit_value)
-            if active_view == "yr-logg":
-                yr_rows, _ = await fetch_rows(YrForecastSample, None, None, None, None, None, None, log_from_value, log_to_value, log_limit_value, time_basis="utc")
-            if active_view in {"dagslogg", "hendelser"}:
-                events, _ = await fetch_rows(VentilationEvent, "fan_change", None, None, None, log_mode_value or None, None, log_from_value, log_to_value, log_limit_value)
-            fan_on = sum(1 for item in fan_status_items if item.get("state") is True)
-            temp_day = await build_temp_day(day_start, day_end, timeline_end) if active_view in {"dagslogg", "hendelser"} else None
-            ventilation_data: Dict[str, Any] = {
-                "view": active_view,
-                "latest": ventilation_latest_payload(latest, latest_yr, fan_status_items),
-                "day": ventilation_day_payload(temp_day, selected_day, is_today, now_marker) if temp_day else empty_ventilation_day_payload(selected_day, is_today, now_marker),
-            }
-            charts: list[Dict[str, Any]] = []
-            sample_columns = [
-                "bucket_start", "mode",
-                "temp_1etg", "humidity_1etg", "temp_2etg", "humidity_2etg", "temp_vip", "humidity_vip",
-                "temp_ute", "temp_ute_netatmo", "temp_yr", "humidity_ute", "humidity_yr",
-                "temp_loft", "humidity_loft", "temp_luftinntak", "humidity_luftinntak",
-                "temp_passiv", "humidity_passiv", "temp_kjeller", "humidity_kjeller",
-                "fan_vip", "fan_2etg", "fan_tak", "fan_avfukter",
-            ]
-            day_sample_rows = [
-                {
-                    "time": row.get("time"),
-                    "mode": display_control_mode(row.get("mode")),
-                    **{key: row.get(key) for key in sample_columns if key not in {"bucket_start", "mode"}},
-                }
-                for row in ventilation_data["day"]["samples"]
-            ]
-            event_table_rows = []
-            for row in events:
-                event_row = api_pick(row, VENT_COLUMNS)
-                event_row["action"] = display_action(event_row.get("action"))
-                event_row["mode"] = display_control_mode(event_row.get("mode"))
-                event_row["reason"] = clean_display_text(event_row.get("reason"))
-                event_table_rows.append(event_row)
-            tables = [
-                api_table("Dagsmålinger", ["time", "mode", "temp_1etg", "humidity_1etg", "temp_2etg", "humidity_2etg", "temp_vip", "humidity_vip", "temp_ute", "temp_loft", "temp_kjeller", "humidity_kjeller", "fan_vip", "fan_2etg", "fan_tak", "fan_avfukter"], day_sample_rows),
-                api_table("Temperatur og fukt", sample_columns, [api_pick(row, sample_columns) for row in samples]),
-                api_table("Yr", YR_LOG_TABLE_COLUMNS, [api_pick(row, YR_LOG_TABLE_COLUMNS) for row in yr_rows]),
-                api_table("Hendelser", ["timestamp", "action", "device_name", "mode", "reason", "state"], event_table_rows),
-            ]
-            if active_view == "dagslogg":
-                tables = [tables[0], tables[3]]
-            elif active_view == "temp-logg":
-                tables = [tables[1]]
-            elif active_view == "yr-logg":
-                tables = [tables[2]]
-            elif active_view == "hendelser":
-                tables = [tables[3]]
-            elif active_view == "innstillinger":
-                config = await get_or_create_config(session, "ventilation")
-                values = merge_config_values("ventilation", config.values if config else {})
-                history = (
-                    await session.execute(
-                        select(ControlConfigHistory)
-                        .where(ControlConfigHistory.config_key == "ventilation")
-                        .order_by(ControlConfigHistory.changed_at.desc())
-                        .limit(25)
-                    )
-                ).scalars().all()
-                ventilation_data["settings"] = ventilation_settings_payload(config, values, history)
-                tables = [
-                    api_table(
-                        "Ventilasjonsverktøy",
-                        ["tool", "path", "description", "count"],
-                        [
-                            api_tool_row("Rediger innstillinger", "/ventilasjon/innstillinger", "Rediger ventilasjonsgrenser i innstillingene.", config.version if config else None),
-                            api_tool_row("Konfig API", "/api/config/ventilation", "JSON som HC3-runneren henter.", config.version if config else None),
-                        ],
-                    ),
-                    api_table("Aktive regler", ["rule", "description"], api_rule_rows(config_rules("ventilation", values))),
-                    api_table("Grenseverdier", ["group", "label", "value", "unit", "help"], api_config_field_rows("ventilation", values)),
-                    api_table("Endringshistorikk", ["config_key", "version", "changed_at", "changed_by", "reason"], api_config_history_rows(history)),
-                ]
-            return {
-                "title": v2_module_title("ventilasjon", active_view),
-                "subtitle": "Temperatur, fukt, Yr og viftestatus.",
-                "cards": [
-                    api_card("Innetemp", format_short_number(latest.temp_avg_inne if latest else None, 1), "grader", "Snitt inne", "vent", href="/ventilasjon/temp-logg"),
-                    api_card("Kjeller", format_short_number(latest.temp_kjeller if latest else None, 1), "grader", f"Fukt {format_short_number(latest.humidity_kjeller if latest else None)}%", "vent", href="/ventilasjon/temp-logg"),
-                    api_card("Vifter", f"{fan_on}/{len(VENT_TIMELINE_DEVICES)}", "på", latest.mode if latest and latest.mode else "", "vent", href="/ventilasjon/dagslogg"),
-                    api_card("Yr", latest_yr.weather_text if latest_yr else "-", "", f"Vind {format_short_number(latest_yr.wind_speed if latest_yr else None, 1)} m/s", "weather", href="/ventilasjon/yr-logg"),
-                ],
-                "charts": charts,
-                "tables": tables,
-                "filters": [
-                    api_filter("from", "Fra", "datetime", log_from_value),
-                    api_filter("to", "Til", "datetime", log_to_value),
-                    api_filter("mode", "Modus", "text", log_mode_value),
-                    api_filter("limit", "Antall", "number", log_limit_value),
-                ]
-                if active_view in {"temp-logg", "yr-logg", "hendelser"}
-                else [],
-                "ventilation": ventilation_data,
-            }
-
-        if module == "lys":
-            control_settings = None
-            log_from_value = api_filter_value(params, "from")
-            log_to_value = api_filter_value(params, "to")
-            log_mode_value = api_filter_value(params, "mode")
-            log_limit_value = api_filter_int(params, "limit", 120, 25, 1000)
-            selected_day = parse_day(day)
-            selected_day_start = datetime.combine(selected_day, time.min)
-            selected_day_end = selected_day_start + timedelta(days=1)
-            selected_day_limit = 10000
-            selected_day_from = selected_day_start.isoformat(timespec="minutes")
-            selected_day_to = selected_day_end.isoformat(timespec="minutes")
-            use_selected_day_rows = view in {"", "dagslogg"}
-            sample_from_value = selected_day_from if use_selected_day_rows else log_from_value
-            sample_to_value = selected_day_to if use_selected_day_rows else log_to_value
-            sample_limit_value = selected_day_limit if use_selected_day_rows else log_limit_value
-            latest = (
-                await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.bucket_start.desc()).limit(1))
-            ).scalars().first()
-            samples, _ = await fetch_rows(OutdoorLightSample, None, None, None, None, log_mode_value or None, None, sample_from_value, sample_to_value, sample_limit_value)
-            events, _ = await fetch_rows(OutdoorLightEvent, None, None, None, None, log_mode_value or None, None, sample_from_value, sample_to_value, sample_limit_value)
-            light_on = sum(1 for device in LIGHT_TIMELINE_DEVICES if latest and light_sample_state(latest, device) is True)
-            selected_timeline_end = min(now_dt, selected_day_end) if selected_day == today else selected_day_end
-            lux_day = await build_lux_day(selected_day_start, selected_day_end, selected_timeline_end)
-            cloud_samples = await fetch_yr_cloud_samples(selected_day_start, selected_day_end)
-            solar_samples = build_solar_elevation_samples(selected_day_start, selected_day_end)
-            lux_series = [
-                {
-                    "name": "Lux",
-                    "data": [[api_local_iso(row["time_dt"]), row["lux"]] for row in lux_day["points"] if row.get("time_dt")],
-                    "color": "#ca8a04",
-                    "unit": "lux",
-                }
-            ]
-            cloud_series = [
-                {
-                    "name": "Skydekke",
-                    "data": [[api_local_iso(row["time_dt"]), row["cloud_area_fraction"]] for row in cloud_samples if row.get("time_dt")],
-                    "color": "#64748b",
-                    "unit": "%",
-                    "yAxisIndex": 1,
-                    "smooth": True,
-                }
-            ]
-            solar_series = [
-                {
-                    "name": "Solhøyde",
-                    "data": [[api_local_iso(row["time_dt"]), row["solar_elevation"]] for row in solar_samples if row.get("time_dt")],
-                    "color": "#ea580c",
-                    "unit": "grader",
-                    "yAxisIndex": 1,
-                    "smooth": True,
-                }
-            ]
-            charts = [
-                api_chart(
-                    "Dagslogg lys",
-                    [],
-                    lux_series + cloud_series + solar_series,
-                    f"{selected_day.strftime('%d.%m.%Y')} vises som helt døgn. Slå Lux, Skydekke og Solhøyde av/på i grafen.",
-                    "line",
-                    340,
-                    default_visible_series=["Lux", "Skydekke", "Solhøyde"],
-                    x_axis_type="time",
-                    x_axis_min=api_local_iso(selected_day_start),
-                    x_axis_max=api_local_iso(selected_day_end),
-                    disable_zoom=True,
-                    day_navigation=api_day_navigation(selected_day, today),
-                )
-            ]
-            light_sample_table_columns = [
-                "bucket_start", "mode", "lux", "light_lyslist", "light_reklame",
-                "light_spot_glass_275", "light_spot_glass_299", "light_spot_inngang",
-                "light_parkering", "weather_text",
-            ]
-            light_event_table_columns = ["timestamp", "action", "device_name", "mode", "reason", "lux", "state"]
-            tables = [
-                api_table("Lux-samples", light_sample_table_columns, [api_pick(row, light_sample_table_columns) for row in samples]),
-                api_table("Hendelser", light_event_table_columns, [api_pick(row, light_event_table_columns) for row in events]),
-            ]
-            if view == "hendelser":
-                tables = [tables[1]]
-            elif view in {"lux-logging", "dagslogg"}:
-                tables = [tables[0]]
-            elif view == "innstillinger":
-                config = await get_or_create_config(session, "lights")
-                values = merge_config_values("lights", config.values if config else {})
-                history = (
-                    await session.execute(
-                        select(ControlConfigHistory)
-                        .where(ControlConfigHistory.config_key == "lights")
-                        .order_by(ControlConfigHistory.changed_at.desc())
-                        .limit(25)
-                    )
-                ).scalars().all()
-                control_settings = control_settings_payload("lights", config, values, history) if config else None
-                charts = []
-                tables = []
-            return {
-                "title": v2_module_title("lys", view),
-                "subtitle": "Utelys, lux, modus og hendelser.",
-                "cards": [
-                    api_card("Lux", format_short_number(latest.lux if latest else None), "", latest.mode if latest and latest.mode else "", "light", href="/lys/lux-logging"),
-                    api_card("Lys på", f"{light_on}/{len(LIGHT_TIMELINE_DEVICES)}", "stk", "Fra siste sample", "light", href="/lys/dagslogg"),
-                    api_card("Siste sample", latest.bucket_start.strftime("%H:%M") if latest and latest.bucket_start else "-", "", "Dagslogg", "status", href="/lys/dagslogg"),
-                    api_card("Hendelser", len(events), "siste", "Siste loggede lysendringer", "status", href="/lys/hendelser"),
-                ],
-                "charts": charts,
-                "tables": tables,
-                "filters": [
-                    api_filter("from", "Fra", "datetime", log_from_value),
-                    api_filter("to", "Til", "datetime", log_to_value),
-                    api_filter("mode", "Modus", "text", log_mode_value),
-                    api_filter("limit", "Antall", "number", log_limit_value),
-                ]
-                if view in {"lux-logging", "hendelser"}
-                else [],
-                "controlSettings": control_settings,
-            }
-
-        if module == "renhold":
-            robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
-            robots.sort(key=cleaning_robot_sort_key)
-            robot_duids = [robot.duid for robot in robots]
-            today_local = datetime.now(LOCAL_TZ).date()
-            yesterday_local = today_local - timedelta(days=1)
-            tomorrow_local = today_local + timedelta(days=1)
-            jobs_from = local_naive_to_utc_naive(datetime.combine(yesterday_local, time.min))
-            jobs_to = local_naive_to_utc_naive(datetime.combine(tomorrow_local, time.min))
-            jobs = (
-                await session.execute(
-                    select(RoborockCleanJob)
-                    .where(RoborockCleanJob.robot_duid.in_(robot_duids or [""]))
-                    .where(RoborockCleanJob.begin_at >= jobs_from)
-                    .where(RoborockCleanJob.begin_at < jobs_to)
-                    .order_by(RoborockCleanJob.begin_at.desc(), RoborockCleanJob.id.desc())
-                )
-            ).scalars().all()
-
-            latest_status_subq = (
-                select(
-                    RoborockStatusSample.robot_duid.label("robot_duid"),
-                    func.max(RoborockStatusSample.id).label("latest_id"),
-                )
-                .where(RoborockStatusSample.robot_duid.in_(robot_duids or [""]))
-                .group_by(RoborockStatusSample.robot_duid)
-                .subquery()
-            )
-            statuses = (
-                await session.execute(
-                    select(RoborockStatusSample)
-                    .join(latest_status_subq, RoborockStatusSample.id == latest_status_subq.c.latest_id)
-                    .order_by(RoborockStatusSample.timestamp.desc())
-                )
-            ).scalars().all()
-
-            latest_telemetry_subq = (
-                select(
-                    RoborockTelemetrySample.robot_duid.label("robot_duid"),
-                    func.max(RoborockTelemetrySample.id).label("latest_id"),
-                )
-                .where(RoborockTelemetrySample.robot_duid.in_(robot_duids or [""]))
-                .group_by(RoborockTelemetrySample.robot_duid)
-                .subquery()
-            )
-            telemetry_samples = (
-                await session.execute(
-                    select(RoborockTelemetrySample)
-                    .join(latest_telemetry_subq, RoborockTelemetrySample.id == latest_telemetry_subq.c.latest_id)
-                    .order_by(RoborockTelemetrySample.timestamp.desc())
-                )
-            ).scalars().all()
-
-            latest_consumable_subq = (
-                select(
-                    RoborockConsumableSnapshot.robot_duid.label("robot_duid"),
-                    func.max(RoborockConsumableSnapshot.id).label("latest_id"),
-                )
-                .where(RoborockConsumableSnapshot.robot_duid.in_(robot_duids or [""]))
-                .group_by(RoborockConsumableSnapshot.robot_duid)
-                .subquery()
-            )
-            consumables = (
-                await session.execute(
-                    select(RoborockConsumableSnapshot)
-                    .join(latest_consumable_subq, RoborockConsumableSnapshot.id == latest_consumable_subq.c.latest_id)
-                    .order_by(RoborockConsumableSnapshot.timestamp.desc())
-                )
-            ).scalars().all()
-            schedules = (
-                await session.execute(
-                    select(RoborockSchedule)
-                    .where(RoborockSchedule.enabled == True)
-                    .where(RoborockSchedule.deleted_at.is_(None))
-                    .order_by(RoborockSchedule.robot_duid, RoborockSchedule.schedule_id)
-                )
-            ).scalars().all()
-            online = sum(1 for row in robots if row.cloud_online is not False)
-            latest_status_by_robot: Dict[str, RoborockStatusSample] = {}
-            for status in statuses:
-                if status.robot_duid not in latest_status_by_robot:
-                    latest_status_by_robot[status.robot_duid] = status
-            latest_telemetry_by_robot: Dict[str, RoborockTelemetrySample] = {}
-            for telemetry_sample in telemetry_samples:
-                latest_telemetry_by_robot.setdefault(telemetry_sample.robot_duid, telemetry_sample)
-            active_robot_duids = [
-                robot.duid
-                for robot in robots
-                if (
-                    latest_telemetry_by_robot.get(robot.duid)
-                    and latest_telemetry_by_robot[robot.duid].in_cleaning is True
-                )
-                or (
-                    (
-                        latest_telemetry_by_robot.get(robot.duid) is None
-                        or latest_telemetry_by_robot[robot.duid].in_cleaning is None
-                    )
-                    and latest_status_by_robot.get(robot.duid)
-                    and latest_status_by_robot[robot.duid].in_cleaning is True
-                )
-            ]
-            status_history = statuses
-            if active_robot_duids:
-                status_history = (
-                    await session.execute(
-                        select(RoborockStatusSample)
-                        .where(RoborockStatusSample.robot_duid.in_(active_robot_duids))
-                        .where(RoborockStatusSample.timestamp >= local_now_naive() - timedelta(hours=36))
-                        .order_by(RoborockStatusSample.timestamp.desc())
-                    )
-                ).scalars().all()
-            statuses_by_robot: Dict[str, list[RoborockStatusSample]] = defaultdict(list)
-            for status in status_history:
-                statuses_by_robot[status.robot_duid].append(status)
-            latest_consumables_by_robot: Dict[str, RoborockConsumableSnapshot] = {}
-            for consumable in consumables:
-                latest_consumables_by_robot.setdefault(consumable.robot_duid, consumable)
-            schedules_by_robot: Dict[str, list[RoborockSchedule]] = defaultdict(list)
-            for schedule in schedules:
-                schedules_by_robot[schedule.robot_duid].append(schedule)
-            latest_job_by_robot_day: Dict[tuple[str, date], RoborockCleanJob] = {}
-            jobs_by_robot_day: Dict[tuple[str, date], list[RoborockCleanJob]] = defaultdict(list)
-            for job in jobs:
-                local_begin = utc_naive_to_local_naive(job.begin_at)
-                if not local_begin or local_begin.date() not in {today_local, yesterday_local}:
-                    continue
-                jobs_by_robot_day[(job.robot_duid, local_begin.date())].append(job)
-                latest_job_by_robot_day.setdefault((job.robot_duid, local_begin.date()), job)
-
-            def overview_job(job: Optional[RoborockCleanJob]) -> Optional[Dict[str, Any]]:
-                if not job:
-                    return None
-                status_key, status_label = roborock_job_status(job.complete, job.error_code, job.end_at)
-                return {
-                    "begin_at": api_local_iso(utc_naive_to_local_naive(job.begin_at)),
-                    "end_at": api_local_iso(utc_naive_to_local_naive(job.end_at)),
-                    "duration_minutes": job.duration_minutes,
-                    "cleaned_area_m2": job.cleaned_area_m2 if job.cleaned_area_m2 is not None else job.area_m2,
-                    "status": status_key,
-                    "status_label": status_label,
-                    "error_label": roborock_error_label(job.error_code) if status_key == "error" else None,
-                }
-
-            def overview_consumables(robot_duid: str) -> Optional[Dict[str, Any]]:
-                consumable = latest_consumables_by_robot.get(robot_duid)
-                if not consumable:
-                    return None
-                raw = consumable.raw if isinstance(consumable.raw, dict) else {}
-                if raw.get("unit") == "percent_remaining":
-                    def percent_label(value: Any) -> Optional[str]:
-                        normalized = int_value(value)
-                        return f"{normalized} % igjen" if normalized is not None else None
-                    return {
-                        "main_brush": percent_label(raw.get("main_brush_percent")),
-                        "side_brush": percent_label(raw.get("side_brush_percent")),
-                        "filter": percent_label(raw.get("filter_percent")),
-                        "sensor": percent_label(raw.get("sensor_percent")),
-                        "mop": percent_label(raw.get("mop_percent")),
-                        "detergent": percent_label(raw.get("detergent_percent")),
-                        "captured_at": api_local_iso(consumable.timestamp),
-                    }
-                return {
-                    "main_brush": format_seconds_as_hours(consumable.main_brush_work_time),
-                    "side_brush": format_seconds_as_hours(consumable.side_brush_work_time),
-                    "filter": format_seconds_as_hours(consumable.filter_work_time),
-                    "sensor": format_seconds_as_hours(consumable.sensor_dirty_time),
-                    "captured_at": api_local_iso(consumable.timestamp),
-                }
-
-            def overview_day(
-                robot_duid: str,
-                selected_day: date,
-                active_cycle: Optional[Dict[str, Any]] = None,
-            ) -> Dict[str, Any]:
-                day_jobs = jobs_by_robot_day.get((robot_duid, selected_day), [])
-                statuses_for_day = [roborock_job_status(row.complete, row.error_code, row.end_at)[0] for row in day_jobs]
-                include_active = bool(
-                    active_cycle
-                    and active_cycle.get("started_at")
-                    and active_cycle["started_at"].date() == selected_day
-                    and "running" not in statuses_for_day
-                )
-                return {
-                    "job_count": len(day_jobs) + int(include_active),
-                    "completed_count": statuses_for_day.count("complete"),
-                    "running_count": statuses_for_day.count("running") + int(include_active),
-                    "error_count": statuses_for_day.count("error"),
-                    "duration_minutes": round(
-                        sum(float(row.duration_minutes or 0) for row in day_jobs)
-                        + (float(active_cycle.get("active_minutes") or 0) if include_active and active_cycle else 0),
-                        1,
-                    ),
-                    "cleaned_area_m2": round(
-                        sum(float(row.cleaned_area_m2 if row.cleaned_area_m2 is not None else row.area_m2 or 0) for row in day_jobs)
-                        + (float(active_cycle.get("cleaned_area_m2") or 0) if include_active and active_cycle else 0),
-                        1,
-                    ),
-                }
-
-            def overview_readiness(
-                robot: RoborockRobot,
-                status: Optional[RoborockStatusSample],
-                telemetry: Optional[RoborockTelemetrySample],
-                active_cycle: Optional[Dict[str, Any]],
-            ) -> Dict[str, Any]:
-                source = latest_cleaning_robot_sample(status, telemetry)
-                error_code = source.error_code if source else None
-                dock_error = roborock_dock_error_label(telemetry.dock_error_status) if telemetry else "Ikke støttet"
-                clear_water = roborock_telemetry_value_label(
-                    "clear_water_status", telemetry.clear_water_status, telemetry.clear_water_status_name
-                ) if telemetry else "Ikke støttet"
-                dirty_water = roborock_telemetry_value_label(
-                    "dirty_water_status", telemetry.dirty_water_status, telemetry.dirty_water_status_name
-                ) if telemetry else "Ikke støttet"
-                dust_bag = roborock_telemetry_value_label(
-                    "dust_bag_status", telemetry.dust_bag_status, telemetry.dust_bag_status_name
-                ) if telemetry else "Ikke støttet"
-                robot_water = roborock_telemetry_value_label(
-                    "water_shortage_status",
-                    telemetry.water_shortage_status,
-                    provider=robot.provider,
-                ) if telemetry else "Ikke støttet"
-                water_box = roborock_telemetry_value_label(
-                    "water_box_status", telemetry.water_box_status
-                ) if telemetry else "Ikke støttet"
-                mop_attached = roborock_telemetry_value_label(
-                    "water_box_carriage_status", telemetry.water_box_carriage_status
-                ) if telemetry else "Ikke støttet"
-                water_filter = roborock_telemetry_value_label(
-                    "water_box_filter_status", telemetry.water_box_filter_status
-                ) if telemetry else "Ikke støttet"
-                water_interlock = roborock_water_interlock_from_sample(telemetry) if telemetry else {}
-                active = cleaning_robot_is_active(
-                    source.in_cleaning if source else None,
-                    source.state_code if source else None,
-                    robot.provider,
-                )
-                telemetry_at = normalize_local_naive(telemetry.timestamp) if telemetry and telemetry.timestamp else None
-                telemetry_age_minutes = (
-                    max(0, round((local_now_naive() - telemetry_at).total_seconds() / 60))
-                    if telemetry_at
-                    else None
-                )
-                readiness = roborock_operational_readiness(
-                    cloud_online=robot.cloud_online,
-                    last_error=robot.last_error,
-                    error_code=error_code,
-                    dock_error=dock_error,
-                    clear_water=clear_water,
-                    dirty_water=dirty_water,
-                    dust_bag=dust_bag,
-                    active=active,
-                    data_age_minutes=telemetry_age_minutes,
-                    robot_water=robot_water,
-                    robot_water_title="Vannvarsel" if cleaning_provider(robot.provider) == "dreame" else "Vann i robot",
-                    stale_after_minutes=CLEANING_ROBOT_STATUS_STALE_AFTER_MINUTES,
-                )
-                if readiness["status"] == "active" and active_cycle and active_cycle.get("phase") == "charging_pause":
-                    readiness["label"] = "Pågår – lader"
-                if water_interlock.get("status") == "error":
-                    readiness["status"] = "attention"
-                    readiness["label"] = "Krever tilsyn"
-                    readiness["issues"] = list(
-                        dict.fromkeys([*readiness["issues"], "Automatisk vannsperre har feil"])
-                    )
-                return {
-                    **readiness,
-                    "telemetry_at": api_local_iso(telemetry.timestamp) if telemetry else None,
-                    "data_age_minutes": telemetry_age_minutes,
-                    "charge_label": roborock_telemetry_value_label("is_charging", telemetry.is_charging) if telemetry else "Ikke støttet",
-                    "clear_water_label": clear_water,
-                    "dirty_water_label": dirty_water,
-                    "dust_bag_label": dust_bag,
-                    "dock_error_label": dock_error,
-                    "robot_water_label": robot_water,
-                    "water_box_label": water_box,
-                    "mop_attached_label": mop_attached,
-                    "water_filter_label": water_filter,
-                    "water_interlock": water_interlock or None,
-                    "signal_label": roborock_signal_label(telemetry.rssi) if telemetry else "-",
-                }
-
-            def overview_schedules(
-                robot_duid: str,
-                water_interlock: Optional[Dict[str, Any]] = None,
-            ) -> Dict[str, Any]:
-                configured = schedules_by_robot.get(robot_duid, [])
-                paused_rows = (
-                    water_interlock.get("paused_schedules")
-                    if isinstance(water_interlock, dict)
-                    and isinstance(water_interlock.get("paused_schedules"), list)
-                    else []
-                )
-                paused_ids = {
-                    str(row.get("schedule_id"))
-                    for row in paused_rows
-                    if isinstance(row, dict) and row.get("schedule_id") is not None
-                }
-                active = [
-                    schedule
-                    for schedule in configured
-                    if str(schedule.schedule_id) not in paused_ids
-                ]
-                next_schedule = min(active, key=roborock_next_schedule_score) if active else None
-                return {
-                    "active_count": len(active),
-                    "configured_count": len(configured),
-                    "paused_count": len(paused_rows),
-                    "paused_schedules": paused_rows,
-                    "next_label": roborock_next_schedule_text(next_schedule) if next_schedule else None,
-                    "schedule_label": roborock_schedule_text(next_schedule) if next_schedule else None,
-                    "rounds_label": roborock_rounds_label(next_schedule.repeat) if next_schedule else None,
-                }
-            robot_summaries = []
-            for robot in robots:
-                status = latest_status_by_robot.get(robot.duid)
-                telemetry = latest_telemetry_by_robot.get(robot.duid)
-                source = latest_cleaning_robot_sample(status, telemetry)
-                cycle_history: list[Any] = list(statuses_by_robot.get(robot.duid, []))
-                if telemetry and telemetry.in_cleaning is not None:
-                    cycle_history.append(telemetry)
-                active_cycle = roborock_active_cycle_summary(cycle_history)
-                overview_readiness_data = overview_readiness(robot, status, telemetry, active_cycle)
-                water_interlock = overview_readiness_data.get("water_interlock") or {}
-                overview_schedules_data = overview_schedules(robot.duid, water_interlock)
-                paused_schedules = (
-                    water_interlock.get("paused_schedules")
-                    if isinstance(water_interlock.get("paused_schedules"), list)
-                    else []
-                )
-                overview_schedules_data["paused_count"] = max(
-                    int_or_zero(water_interlock.get("paused_count")),
-                    len(paused_schedules),
-                )
-                robot_summaries.append(
-                    {
-                        "duid": robot.duid,
-                        "provider": cleaning_provider(robot.provider),
-                        "provider_label": cleaning_provider_label(robot.provider),
-                        "external_id": robot.external_id,
-                        "integration_status": robot.integration_status or "active",
-                        "name": robot.name,
-                        "model": robot.model,
-                        "cloud_online": robot.cloud_online,
-                        "local_ip": robot.local_ip,
-                        "last_seen_at": robot.last_seen_at,
-                        "last_error": robot.last_error,
-                        "state_name": active_cycle.get("phase_label") if active_cycle else source.state_name if source else None,
-                        "battery": source.battery if source else None,
-                        "error_code": source.error_code if source else None,
-                        "status_at": api_local_iso(source.timestamp if source else None),
-                        "latest_job_today": overview_job(latest_job_by_robot_day.get((robot.duid, today_local))),
-                        "latest_job_yesterday": overview_job(latest_job_by_robot_day.get((robot.duid, yesterday_local))),
-                        "today": overview_day(robot.duid, today_local, active_cycle),
-                        "yesterday": overview_day(robot.duid, yesterday_local, active_cycle),
-                        "active_cycle": api_roborock_active_cycle(cycle_history),
-                        "readiness": overview_readiness_data,
-                        "consumables": overview_consumables(robot.duid),
-                        "schedules": overview_schedules_data,
-                    }
-                )
-            if not any(cleaning_provider(robot.provider) == "dreame" for robot in robots):
-                robot_summaries.append(expected_dreame_summary(DREAME_EXPECTED_ROBOT_NAME))
-            timeline_now = local_now_naive()
-            ventilation_config = (
-                await session.execute(select(ControlConfig).where(ControlConfig.key == "ventilation"))
-            ).scalars().first()
-            ventilation_values = merge_config_values(
-                "ventilation",
-                ventilation_config.values if ventilation_config else config_defaults("ventilation"),
-            )
-            timeline_open_at, timeline_close_at = opening_window(
-                today_local,
-                ventilation_values.get("open_from"),
-                ventilation_values.get("close_at"),
-            )
-            timeline_window = {
-                "start": timeline_open_at,
-                "end": timeline_close_at,
-                "ready_by": timeline_close_at,
-            }
-            timeline_robot = next(
-                (robot for robot in robots if (robot.name or "").strip().casefold() == "1.etg b"),
-                None,
-            )
-            timeline_robots = []
-            for robot in [timeline_robot] if timeline_robot else []:
-                day_jobs = sorted(
-                    (
-                        job
-                        for job in jobs_by_robot_day.get((robot.duid, today_local), [])
-                        if (
-                            (local_begin := utc_naive_to_local_naive(job.begin_at)) is not None
-                            and local_begin < timeline_window["end"]
-                            and (
-                                utc_naive_to_local_naive(job.end_at)
-                                or timeline_now
-                            ) >= timeline_window["start"]
-                        )
-                    ),
-                    key=lambda row: row.begin_at or datetime.min,
-                )
-                schedule_check = build_schedule_check(
-                    schedules_by_robot.get(robot.duid, []),
-                    day_jobs,
-                    [],
-                    timeline_window,
-                    timeline_now,
-                )
-                plan_by_record = {
-                    row["actualRecordId"]: row
-                    for row in schedule_check["jobs"]
-                    if row.get("actualRecordId")
-                }
-                actual_jobs = []
-                for job in day_jobs:
-                    record_id = str(job.record_id or job.id or "")
-                    plan = plan_by_record.get(record_id)
-                    status_key, status_label = roborock_job_status(job.complete, job.error_code, job.end_at)
-                    actual_jobs.append(
-                        {
-                            "recordId": record_id,
-                            "startedAt": api_local_iso(utc_naive_to_local_naive(job.begin_at)),
-                            "endedAt": api_local_iso(utc_naive_to_local_naive(job.end_at)),
-                            "cleaningType": plan["cleaningType"] if plan else "cleaning",
-                            "cleaningTypeLabel": plan["cleaningTypeLabel"] if plan else "Rengjøring",
-                            "status": status_key,
-                            "statusLabel": status_label,
-                            "planned": bool(plan),
-                            "areaM2": round(float(job.cleaned_area_m2 if job.cleaned_area_m2 is not None else job.area_m2 or 0), 1),
-                        }
-                    )
-                timeline_robots.append(
-                    {
-                        "duid": robot.duid,
-                        "name": robot.name,
-                        "planned": schedule_check["jobs"],
-                        "jobs": actual_jobs,
-                    }
-                )
-            timeline_summary = {
-                "planned": sum(len(row["planned"]) for row in timeline_robots),
-                "plannedCompleted": sum(
-                    planned["status"] in {"completed", "delayed"}
-                    for row in timeline_robots
-                    for planned in row["planned"]
-                ),
-                "missing": sum(
-                    planned["status"] == "missing"
-                    for row in timeline_robots
-                    for planned in row["planned"]
-                ),
-                "pending": sum(
-                    planned["status"] == "pending"
-                    for row in timeline_robots
-                    for planned in row["planned"]
-                ),
-                "actual": sum(len(row["jobs"]) for row in timeline_robots),
-            }
-            overview_updates = [
-                row["readiness"]["telemetry_at"] or row["status_at"]
-                for row in robot_summaries
-                if row["readiness"]["telemetry_at"] or row["status_at"]
-            ]
-            overview_summary = {
-                "robot_count": len(robot_summaries),
-                "connected_count": sum(1 for row in robot_summaries if row.get("integration_status") == "active"),
-                "pending_count": sum(1 for row in robot_summaries if row.get("integration_status") == "pending"),
-                "ready_count": sum(1 for row in robot_summaries if row["readiness"]["status"] == "ready"),
-                "active_count": sum(1 for row in robot_summaries if row["readiness"]["status"] == "active"),
-                "attention_count": sum(1 for row in robot_summaries if row["readiness"]["status"] == "attention"),
-                "offline_count": sum(1 for row in robot_summaries if row["readiness"]["status"] == "offline"),
-                "jobs_today": sum(int(row["today"]["job_count"]) for row in robot_summaries),
-                "duration_today": round(sum(float(row["today"]["duration_minutes"]) for row in robot_summaries), 1),
-                "area_today": round(sum(float(row["today"]["cleaned_area_m2"]) for row in robot_summaries), 1),
-                "paused_plan_count": sum(
-                    int_or_zero((row.get("schedules") or {}).get("paused_count"))
-                    for row in robot_summaries
-                ),
-                "water_blocked_count": sum(
-                    ((row.get("readiness") or {}).get("water_interlock") or {}).get("status") == "blocked"
-                    for row in robot_summaries
-                ),
-                "water_interlock_error_count": sum(
-                    ((row.get("readiness") or {}).get("water_interlock") or {}).get("status") == "error"
-                    for row in robot_summaries
-                ),
-                "updated_at": max(overview_updates, default=None),
-            }
-            robot_table_columns = ["name", "model", "cloud_online", "local_ip", "battery", "last_seen_at", "last_error"]
-            job_table_columns = ["begin_at", "end_at", "duration_minutes", "cleaned_area_m2", "complete", "error_code", "finish_reason"]
-            status_table_columns = ["timestamp", "robot_duid", "state_name", "battery", "error_code", "clean_area_m2", "rssi"]
-            robot_table_rows = []
-            for robot in robots:
-                latest_status = latest_status_by_robot.get(robot.duid)
-                robot_table_rows.append(
-                    {
-                        "name": robot.name,
-                        "model": robot.model,
-                        "cloud_online": robot.cloud_online,
-                        "local_ip": robot.local_ip,
-                        "battery": latest_status.battery if latest_status else None,
-                        "last_seen_at": robot.last_seen_at,
-                        "last_error": robot.last_error,
-                    }
-                )
-            tables = [
-                api_table("Roboter", robot_table_columns, robot_table_rows),
-                api_table("Siste vasker", job_table_columns, [api_pick(row, job_table_columns) for row in jobs]),
-                api_table("Siste statuser", status_table_columns, [api_pick(row, status_table_columns) for row in statuses]),
-            ]
-            if view == "roboter":
-                robot_rows = []
-                for robot in robots:
-                    status = latest_status_by_robot.get(robot.duid)
-                    robot_rows.append(
-                        {
-                            "name": robot.name,
-                            "model": robot.model,
-                            "cloud_online": robot.cloud_online,
-                            "local_ip": robot.local_ip,
-                            "battery": status.battery if status else None,
-                            "state_name": status.state_name if status else None,
-                            "last_seen_at": robot.last_seen_at,
-                            "last_error": robot.last_error,
-                            "path": f"/classic/renhold/robot/{quote(robot.duid or '', safe='')}",
-                        }
-                    )
-                tables = [
-                    api_table(
-                        "Robotdetaljer",
-                        ["name", "model", "cloud_online", "local_ip", "battery", "state_name", "last_seen_at", "last_error", "path"],
-                        robot_rows,
-                    ),
-                    api_table(
-                        "Renholdsverktøy",
-                        ["tool", "path", "description", "count"],
-                        [
-                            api_tool_row("Klassisk oversikt", "/classic/renhold/oversikt", "Eksisterende renholdsflate med roboter, jobber og planer.", len(robots)),
-                            api_tool_row("Renhold JSON", "/classic/renhold/json", "Rå JSON for roboter, jobber og statuser.", len(statuses)),
-                        ],
-                    ),
-                ]
-            return {
-                "title": v2_module_title("renhold", view),
-                "subtitle": "Robotvaskere, status, planer og utført renhold.",
-                "cards": [
-                    api_card("Roboter", len(robot_summaries), "stk", f"{len(robots)} tilkoblet", "status", href="/renhold/roboter"),
-                    api_card("Siste jobber", len(jobs), "stk", "Hentet fra robotsystemene", "status", href="/renhold/oversikt"),
-                    api_card("Siste status", statuses[0].state_name if statuses else "-", "", statuses[0].timestamp.strftime("%H:%M") if statuses and statuses[0].timestamp else "", "status", href="/renhold/roboter"),
-                    api_card("Feil", sum(1 for row in statuses[:20] if row.error_code and row.error_code != 0), "siste", "Siste 20 statuser", "status", href="/renhold/roboter"),
-                ],
-                "tables": tables,
-                "roborock": {
-                    "summary": overview_summary,
-                    "robots": robot_summaries,
-                    "timeline": {
-                        "day": today_local.isoformat(),
-                        "generatedAt": api_local_iso(timeline_now),
-                        "window": {
-                            "startAt": api_local_iso(timeline_window["start"]),
-                            "endAt": api_local_iso(timeline_window["end"]),
-                        },
-                        "summary": timeline_summary,
-                        "robots": timeline_robots,
-                    },
-                },
-            }
-
-        if module == "vedlikehold":
-            edit_config = api_maintenance_log_edit(now_dt.replace(second=0, microsecond=0))
-            if view == "besok":
-                site_visits = (
-                    await session.execute(
-                        select(SiteVisit)
-                        .where(SiteVisit.location_key == OWNTRACKS_SITE_VISIT_LOCATION_KEY)
-                        .order_by(SiteVisit.started_at.desc(), SiteVisit.id.desc())
-                        .limit(200)
-                    )
-                ).scalars().all()
-                site_visit_import_status = (
-                    await session.execute(
-                        select(ImportJobStatus)
-                        .where(ImportJobStatus.job_name == "owntracks_site_visits")
-                        .limit(1)
-                    )
-                ).scalars().first()
-                site_visit_counts = {
-                    int(row.visit_id): int(row.tasks_count)
-                    for row in (
-                        await session.execute(
-                            select(
-                                MaintenanceLogEntry.site_visit_id.label("visit_id"),
-                                func.count(MaintenanceLogEntry.id).label("tasks_count"),
-                            )
-                            .where(MaintenanceLogEntry.site_visit_id.isnot(None))
-                            .group_by(MaintenanceLogEntry.site_visit_id)
-                        )
-                    )
-                    if row.visit_id is not None
-                }
-                today_visit_count = sum(
-                    1
-                    for row in site_visits
-                    if row.started_at and today_start <= row.started_at < tomorrow_start
-                )
-                active_visit = next(
-                    (row for row in site_visits if site_visit_is_current(row, now_dt)),
-                    None,
-                )
-                stale_visits = [row for row in site_visits if site_visit_is_stale(row, now_dt)]
-                latest_visit_sync = (
-                    site_visit_import_status.last_success_at
-                    if site_visit_import_status and site_visit_import_status.last_success_at
-                    else max((row.last_synced_at for row in site_visits if row.last_synced_at), default=None)
-                )
-                site_visit_sync_detail = (
-                    site_visit_import_status.message
-                    if site_visit_import_status and site_visit_import_status.message
-                    else "Fra OwnTracks API"
-                )
-                visit_rows = [
-                    site_visit_row(row, site_visit_counts.get(int(row.id or 0), 0))
-                    for row in site_visits
-                ]
-                return {
-                    "title": v2_module_title("vedlikehold", view),
-                    "subtitle": "Lilletorget-besøk fra OwnTracks med oppgaver og besøksnotater.",
-                    "cards": [
-                        api_card("Besøk i dag", today_visit_count, "stk", "Registrert fra OwnTracks", "status", href="/vedlikehold/besok"),
-                        api_card(
-                            "Aktivt besøk",
-                            "Ja" if active_visit else "Nei",
-                            "",
-                            site_visit_label(active_visit) or "Ingen aktivt besøk",
-                            "status",
-                            href="/vedlikehold/besok",
-                        ),
-                        api_card(
-                            "Mangler avslutning",
-                            len(stale_visits),
-                            "stk",
-                            f"Åpne lenger enn {SITE_VISIT_ACTIVE_MAX_HOURS} timer",
-                            "danger" if stale_visits else "status",
-                            href="/vedlikehold/besok",
-                        ),
-                        api_card(
-                            "Sist synket",
-                            format_source_datetime_short(latest_visit_sync) if latest_visit_sync else "-",
-                            "",
-                            site_visit_sync_detail[:120],
-                            "status",
-                            href="/vedlikehold/besok",
-                        ),
-                    ],
-                    "tables": [
-                        api_table(
-                            "Lilletorget-besøk",
-                            ["started_at", "ended_at", "duration", "status", "tasks_count", "notes"],
-                            visit_rows,
-                        ),
-                    ],
-                }
-
-            logs = (
-                await session.execute(
-                    select(MaintenanceLogEntry)
-                    .order_by(MaintenanceLogEntry.performed_at.desc(), MaintenanceLogEntry.id.desc())
-                    .limit(300)
-                )
-            ).scalars().all()
-            linked_visit_ids = sorted({int(row.site_visit_id) for row in logs if row.site_visit_id})
-            site_visit_by_id: Dict[int, SiteVisit] = {}
-            if linked_visit_ids:
-                linked_visits = (
-                    await session.execute(
-                        select(SiteVisit).where(SiteVisit.id.in_(linked_visit_ids))
-                    )
-                ).scalars().all()
-                site_visit_by_id = {int(row.id): row for row in linked_visits if row.id}
-            today_count = sum(
-                1
-                for row in logs
-                if row.performed_at and today_start <= row.performed_at < tomorrow_start
-            )
-            month_count = sum(
-                1
-                for row in logs
-                if row.performed_at and month_start_dt <= row.performed_at < tomorrow_start
-            )
-            follow_up_logs = [
-                row
-                for row in logs
-                if row.follow_up_needed and (row.status or "").strip().casefold() != "lukket"
-            ]
-            sunbed_month_count = sum(
-                1
-                for row in logs
-                if (row.target_type or "").strip().casefold() == "seng"
-                and row.performed_at
-                and month_start_dt <= row.performed_at < tomorrow_start
-            )
-            latest = logs[0] if logs else None
-            log_rows = [
-                maintenance_log_row(row, site_visit_by_id.get(int(row.site_visit_id or 0)))
-                for row in logs
-            ]
-            follow_up_edit = dict(edit_config)
-            follow_up_edit.pop("createEndpoint", None)
-            return {
-                "title": v2_module_title("vedlikehold", view),
-                "subtitle": "Arbeid, observasjoner og oppfølgingspunkter på Lilletorget.",
-                "cards": [
-                    api_card("Må følges opp", len(follow_up_logs), "stk", "Åpne punkter som krever handling", "danger" if follow_up_logs else "status", href="/vedlikehold/oversikt"),
-                    api_card("I dag", today_count, "stk", "Registrerte aktiviteter", "status", href="/vedlikehold/oversikt"),
-                    api_card("Denne måneden", month_count, "stk", f"{sunbed_month_count} gjelder solsenger", "status", href="/vedlikehold/oversikt"),
-                    api_card("Sist logget", format_source_datetime_short(latest.performed_at) if latest else "-", "", latest.summary[:80] if latest and latest.summary else "Ingen registreringer", "status", href="/vedlikehold/oversikt"),
-                ],
-                "tables": [
-                    api_table(
-                        "Krever oppfølging",
-                        ["performed_at", "target_name", "priority", "summary", "follow_up_text", "status"],
-                        [
-                            maintenance_log_row(
-                                row,
-                                site_visit_by_id.get(int(row.site_visit_id or 0)),
-                            )
-                            for row in follow_up_logs
-                        ],
-                        edit=follow_up_edit,
-                    ),
-                    api_table(
-                        "Siste vedlikehold",
-                        ["performed_at", "target_name", "action_type", "summary", "status", "performed_by"],
-                        log_rows,
-                        edit=edit_config,
-                    ),
-                ],
-            }
-
-        if module == "admin":
-            import_rows = []
-            import_api_rows = []
-            admin_task_rows = []
-            ai_logs = []
-            access_keys = []
-            access_logs = []
-            import_views = {"", "drift", "oppgaver", "datakvalitet", "datakilder", "teknisk", "manual"}
-            if view in import_views:
-                import_rows = await import_status_rows(session)
-                import_api_rows = api_import_status_rows(import_rows)
-            if view in {"", "drift", "oppgaver"}:
-                admin_task_rows = await build_admin_task_rows(session, import_rows, now_dt)
-            if view == "ai":
-                ai_logs = (
-                    await session.execute(
-                        select(AiQueryLog)
-                        .order_by(AiQueryLog.timestamp.desc())
-                        .limit(80)
-                    )
-                ).scalars().all()
-            if view in {"brukere", "manual", "verktoy"}:
-                access_keys = (
-                    await session.execute(
-                        select(AccessKey)
-                        .order_by(AccessKey.created_at.desc())
-                        .limit(200)
-                    )
-                ).scalars().all()
-            if view == "brukere":
-                access_logs = (
-                    await session.execute(
-                        select(AccessLog)
-                        .order_by(AccessLog.timestamp.desc())
-                        .limit(120)
-                    )
-                ).scalars().all()
-
-            admin_tools = [
-                api_tool_row("Buildlogg", "/admin/build", "Klikkbar leveransehistorikk med detaljvisning per build.", len(BUILD_LOG)),
-                api_tool_row("Teknisk", "/admin/teknisk", "Teknisk driftsside.", None),
-                api_tool_row("Manual", "/manual/oversikt", "Intern manual og driftsnotater.", None),
-                api_tool_row("Brukere og tilgang", "/admin/brukere", "Administrer brukere, roller og tilgang.", len(access_keys) if access_keys else None),
-                api_tool_row("AI-innstillinger", "/admin/ai", "Sett modell og API-nøkkel for analyseassistent.", len(ai_logs) if ai_logs else None),
-                api_tool_row("Health", "/health", "Rask serverhelse og lagringsliste.", None),
-                api_tool_row("Events JSON", "/events/json", "Generiske hendelser som JSON.", None),
-                api_tool_row("Events CSV", "/download", "Generiske hendelser som CSV.", None),
-            ]
-            build_log_columns = ["date", "build", "headline"]
-            urgent_task_count = sum(
-                1 for row in admin_task_rows if row["severity"] in {"Kritisk", "Høy"}
-            )
-            problem_import_rows = [
-                row for row in import_api_rows if row.get("status") != "ok"
-            ]
-            ok_import_count = len(import_api_rows) - len(problem_import_rows)
-            actions = []
-            charts = []
-            reconciliation = None
-            admin_cards = []
-            tables = []
-            if view in {"", "drift"}:
-                admin_cards = [
-                    api_card("Datakilder", f"{ok_import_count}/{len(import_api_rows)}", "OK", "Alle ferske" if not problem_import_rows else f"{len(problem_import_rows)} krever kontroll", "danger" if problem_import_rows else "status", href="/admin/datakilder"),
-                    api_card("Krever oppfølging", len(admin_task_rows), "stk", "Samlet arbeidsliste", "danger" if urgent_task_count else "status", href="/admin/oppgaver"),
-                    api_card("Kritisk / høy", urgent_task_count, "stk", "Prioriteres først", "danger" if urgent_task_count else "status", href="/admin/oppgaver"),
-                    api_card("Siste build", APP_BUILD, "", BUILD_LOG[0]["title"], "status", href="/admin/build"),
-                ]
-                if problem_import_rows:
-                    tables.append(
-                        api_table(
-                            "Datakilder som krever oppmerksomhet",
-                            ["source_no", "title", "category", "status", "age", "message"],
-                            problem_import_rows,
-                        )
-                    )
-                tables.append(
-                    api_table(
-                        "Siste endringer",
-                        build_log_columns,
-                        [api_build_log_row(row) for row in BUILD_LOG[:8]],
-                    )
-                )
-
-            if view == "oppgaver":
-                actions = [
-                    {
-                        "key": "easypark-refresh",
-                        "label": "Oppdater EasyPark",
-                        "method": "POST",
-                        "path": "/api/actions/parkering/refresh",
-                        "confirm": "Starte EasyPark-import for siste periode og oppdatere parkeringsgrunnlaget?",
-                        "tone": "primary",
-                    },
-                    {
-                        "key": "svv-sync",
-                        "label": "Kjør SVV-sync",
-                        "method": "POST",
-                        "path": "/api/actions/parkering/svv-sync",
-                        "confirm": "Starte nytt oppslag mot Statens vegvesen for kjøretøy som mangler data?",
-                        "tone": "default",
-                    },
-                    {
-                        "key": "link-sun-images",
-                        "label": "Koble solbilder",
-                        "method": "POST",
-                        "path": "/api/actions/soling/link-snapshot-images?days=14",
-                        "confirm": "Koble Axis-bilder mot soltimer siste 14 dager?",
-                        "tone": "default",
-                    },
-                    {
-                        "key": "clear-area-not-found",
-                        "label": "Fjern område ikke funnet",
-                        "method": "POST",
-                        "path": "/api/actions/parkering/clear-area-not-found",
-                        "confirm": "Nullstille område 'ikke funnet' slik at disse kan behandles på nytt?",
-                        "tone": "default",
-                    },
-                ]
-                admin_cards = [
-                    api_card("Åpne oppgaver", len(admin_task_rows), "stk", f"{urgent_task_count} kritisk/høy", "status", href="/admin/oppgaver"),
-                    api_card("Datakilder", sum(1 for row in admin_task_rows if row["domain"] == "Datakilde"), "stk", "Treg eller feil", "status", href="/admin/datakilder"),
-                    api_card("Parkering", sum(1 for row in admin_task_rows if row["domain"] == "Parkering"), "stk", "Navn, område og oppslag", "parking", href="/parkering/oppslag"),
-                    api_card("Sist kontrollert", now_dt.strftime("%H:%M"), "", now_dt.strftime("%d.%m.%Y"), "status", href="/admin/oppgaver"),
-                ]
-                tables = [
-                    api_table(
-                        "Oppgaver og avvik",
-                        ["severity", "domain", "item", "problem", "detail", "count", "recommended_action", "path"],
-                        admin_task_rows,
-                    ),
-                    api_table(
-                        "Kontrollgrunnlag",
-                        ["key", "value"],
-                        api_config_value_rows(
-                            {
-                                "datakilder_totalt": len(import_rows),
-                                "datakilder_ikke_ok": sum(1 for row in import_rows if row["status"] != "ok"),
-                                "oppgaver_kritisk_hoy": urgent_task_count,
-                                "oppgaver_totalt": len(admin_task_rows),
-                            }
-                        ),
-                    ),
-                ]
-            elif view == "kontroll":
-                reconciliation = await build_reconciliation_control(session, now_dt)
-                reconciliation_summary_row = reconciliation["summary"]
-                reconciliation_checks = [
-                    check
-                    for group in reconciliation["groups"]
-                    for check in group["checks"]
-                ]
-                admin_cards = [
-                    api_card(
-                        "Samlet status",
-                        reconciliation_summary_row["overall_label"],
-                        "",
-                        f"{reconciliation_summary_row['total']} kontroller vurdert",
-                        "status",
-                        href="/admin/kontroll",
-                    ),
-                    api_card(
-                        "Stemmer",
-                        reconciliation_summary_row["ok"],
-                        "stk",
-                        "Innenfor definert toleranse",
-                        "status",
-                        href="/admin/kontroll",
-                    ),
-                    api_card(
-                        "Avvik",
-                        reconciliation_summary_row["critical"],
-                        "stk",
-                        "Krever kontroll",
-                        "revenue" if reconciliation_summary_row["critical"] else "status",
-                        href="/admin/kontroll",
-                    ),
-                    api_card(
-                        "Mangler grunnlag",
-                        reconciliation_summary_row["missing"],
-                        "stk",
-                        "Bilag eller systemdata mangler",
-                        "status",
-                        href="/admin/kontroll",
-                    ),
-                ]
-                tables = [
-                    api_table(
-                        "Avstemminger",
-                        [
-                            "status_label",
-                            "domain",
-                            "title",
-                            "period",
-                            "actual_label",
-                            "actual_value",
-                            "reference_label",
-                            "reference_value",
-                            "difference",
-                            "difference_percent",
-                            "unit",
-                            "detail",
-                            "path",
-                        ],
-                        reconciliation_checks,
-                    ),
-                    api_table(
-                        "Kontrollregler",
-                        ["key", "value"],
-                        api_config_value_rows(
-                            {
-                                "oppgjor_toleranse": "1 kr eks. mva",
-                                "energi_toleranse": "maks 1 kWh eller 2 %",
-                                "energi_kritisk": "over 3 ganger toleransen",
-                                "dorkontroll": "ingen aktive alarmer",
-                                "koblingsjobb": "aktiv worker sett siste 3 min",
-                                "generert": reconciliation["generated_at"],
-                            }
-                        ),
-                    ),
-                ]
-            elif view == "datakvalitet":
-                data_quality = await build_admin_data_quality(session, import_rows, now_dt)
-                actions = [
-                    {
-                        "key": "easypark-refresh",
-                        "label": "Oppdater EasyPark",
-                        "method": "POST",
-                        "path": "/api/actions/parkering/refresh",
-                        "confirm": "Starte EasyPark-import for siste periode?",
-                        "tone": "primary",
-                    },
-                    {
-                        "key": "svv-sync",
-                        "label": "Kjør SVV-sync",
-                        "method": "POST",
-                        "path": "/api/actions/parkering/svv-sync",
-                        "confirm": "Starte nytt oppslag mot Statens vegvesen?",
-                        "tone": "default",
-                    },
-                    {
-                        "key": "link-sun-images",
-                        "label": "Koble solbilder",
-                        "method": "POST",
-                        "path": "/api/actions/soling/link-snapshot-images?days=14",
-                        "confirm": "Koble Axis-bilder mot soltimer siste 14 dager?",
-                        "tone": "default",
-                    },
-                ]
-                admin_cards = [
-                    api_card("Datakvalitet", format_short_number(data_quality["score"]), "%", "Vektet score for sentrale datakilder", "status", href="/admin/datakvalitet"),
-                    api_card("OK", data_quality["ok_count"], "stk", "Målepunkter innenfor mål", "status", href="/admin/datakvalitet"),
-                    api_card("Varsel", data_quality["warn_count"], "stk", "Bør følges opp", "status", href="/admin/datakvalitet"),
-                    api_card("Feil", data_quality["bad_count"], "stk", "Krever tiltak", "status", href="/admin/oppgaver"),
-                ]
-                tables = [
-                    api_table(
-                        "Datakvalitet",
-                        ["domain", "metric", "status", "value", "target", "coverage_percent", "missing_count", "sample_count", "detail", "recommended_action", "path"],
-                        data_quality["rows"],
-                    ),
-                    api_table(
-                        "Avvik fra mål",
-                        ["domain", "metric", "status", "value", "target", "missing_count", "detail", "recommended_action", "path"],
-                        data_quality["issue_rows"],
-                    ),
-                ]
-            elif view == "analyse":
-                relation_analysis = await build_admin_relation_analysis(session, now_dt)
-                strongest_sun = relation_analysis["strongest_sun"]
-                strongest_parking = relation_analysis["strongest_parking"]
-                strongest_revenue = relation_analysis["strongest_revenue"]
-                admin_cards = [
-                    api_card(
-                        "Analyserte dager",
-                        relation_analysis["analysed_days"],
-                        "stk",
-                        f"{relation_analysis['start_day'].strftime('%d.%m')} - {relation_analysis['end_day'].strftime('%d.%m')}",
-                        "status",
-                        href="/admin/analyse",
-                    ),
-                    api_card(
-                        "Soling",
-                        strongest_sun["factor"] if strongest_sun else "-",
-                        "",
-                        f"r={strongest_sun['correlation']} · {strongest_sun['direction']}" if strongest_sun else "For lite data",
-                        "sun2",
-                        href="/soling/oversikt",
-                    ),
-                    api_card(
-                        "Parkering",
-                        strongest_parking["factor"] if strongest_parking else "-",
-                        "",
-                        f"r={strongest_parking['correlation']} · {strongest_parking['direction']}" if strongest_parking else "For lite data",
-                        "parking",
-                        href="/parkering/sammenligning",
-                    ),
-                    api_card(
-                        "Omsetning",
-                        strongest_revenue["factor"] if strongest_revenue else "-",
-                        "",
-                        f"r={strongest_revenue['correlation']} · {strongest_revenue['direction']}" if strongest_revenue else "For lite data",
-                        "revenue",
-                        href="/omsetning/oversikt",
-                    ),
-                ]
-                tables = [
-                    api_table(
-                        "Sammenhenger",
-                        ["target", "factor", "correlation", "strength", "direction", "sample_days", "detail"],
-                        relation_analysis["correlation_rows"],
-                    ),
-                    api_table(
-                        "Dagsgrunnlag",
-                        [
-                            "day",
-                            "weekday",
-                            "sun_count",
-                            "sun_paid",
-                            "parking_count",
-                            "parking_paid",
-                            "total_paid",
-                            "air_temperature",
-                            "relative_humidity",
-                            "wind_speed",
-                            "cloud_area_fraction",
-                            "avg_inntak_w",
-                            "avg_diff_w",
-                            "weather_samples",
-                            "energy_samples",
-                        ],
-                        relation_analysis["day_rows"],
-                    ),
-                ]
-                charts = [relation_analysis["chart"]]
-            elif view == "build":
-                current_build_row = BUILD_LOG[0]
-                builds_today = sum(1 for row in BUILD_LOG if row.get("date") == current_build_row.get("date"))
-                admin_cards = [
-                    api_card("Aktiv build", APP_BUILD, "", current_build_row.get("headline"), "status", href="/admin/build"),
-                    api_card("Loggførte builds", len(BUILD_LOG), "stk", "Komplett leveransehistorikk", "status", href="/admin/build"),
-                    api_card("I dag", builds_today, "stk", current_build_row.get("date"), "status", href="/admin/build"),
-                    api_card("Berørte apper", len(current_build_row.get("applications") or []), "stk", "I aktiv build", "status", href="/admin/build"),
-                ]
-                tables = [
-                    api_table(
-                        "Buildlogg",
-                        build_log_columns,
-                        [api_build_log_row(row) for row in BUILD_LOG[:80]],
-                        meta={"rowLinkColumns": ["date", "build", "headline"]},
-                    ),
-                    api_table("Buildverktøy", ["tool", "path", "description", "count"], [admin_tools[0], admin_tools[1], admin_tools[5]]),
-                ]
-            elif view == "datakilder":
-                admin_cards = [
-                    api_card("Datakilder", len(import_api_rows), "stk", "Registrert i systemet", "status", href="/admin/datakilder"),
-                    api_card("OK", ok_import_count, "stk", "Ferske og vellykkede", "status", href="/admin/datakilder"),
-                    api_card("Krever kontroll", len(problem_import_rows), "stk", "Feil eller utdaterte", "danger" if problem_import_rows else "status", href="/admin/datakilder"),
-                    api_card("Områder", len({str(row.get('category') or '') for row in import_api_rows}), "stk", "Fagområder med datakilder", "status", href="/admin/datakilder"),
-                ]
-                tables = [
-                    api_table("Datakilder", ["source_no", "title", "category", "status", "status_text", "age", "last_success_at", "message"], import_api_rows),
-                    api_table(
-                        "Dataverktøy",
-                        ["tool", "path", "description", "count"],
-                        [
-                            api_tool_row("Health", "/health", "Serverhelse og lagringstabeller.", len(import_rows)),
-                            api_tool_row("Yr CSV", "/yr/samples/download", "Last ned Yr-samples.", None),
-                            api_tool_row("Lys CSV", "/lights/samples/download", "Last ned lys-samples.", None),
-                            api_tool_row("Ventilasjon CSV", "/ventilation/samples/download", "Last ned ventilasjonssamples.", None),
-                        ],
-                    ),
-                ]
-            elif view == "systemkart":
-                inventory = system_component_summary()
-                admin_cards = [
-                    api_card("Komponenter", inventory["components"], "stk", "Apper, tjenester og verktøy i løsningen", "status", href="/admin/systemkart"),
-                    api_card("Aktive", inventory["active"], "stk", "Kjører eller brukes i daglig drift", "status", href="/admin/systemkart"),
-                    api_card("Kritiske", inventory["critical"], "stk", "Påvirker drift eller datagrunnlag direkte", "status", href="/admin/systemkart"),
-                    api_card("Webflater", inventory["web_interfaces"], "stk", "Underapper med klikkbart webgrensesnitt", "status", href="/admin/systemkart"),
-                ]
-                tables = [
-                    api_table(
-                        "Underapper med webgrensesnitt",
-                        ["component", "area", "interface", "web_url", "local_url", "health_url", "status"],
-                        system_web_interface_rows(),
-                    ),
-                    api_table(
-                        "Systemkomponenter",
-                        ["component", "area", "role", "runtime", "compose_service", "interface", "web_url", "local_url", "health_url", "health", "status", "criticality"],
-                        system_component_rows(),
-                    ),
-                    api_table("Områder", ["area", "count"], inventory["area_rows"]),
-                    api_table("Status", ["status", "count"], inventory["status_rows"]),
-                ]
-            elif view == "ai":
-                ai_settings = await effective_openai_settings()
-                successful_ai_logs = sum(1 for row in ai_logs if row.ok)
-                admin_cards = [
-                    api_card("Modell", ai_settings["model"], "", "Aktiv modell", "status", href="/admin/ai"),
-                    api_card("API-nøkkel", "Ja" if ai_settings["has_env_key"] or ai_settings["has_stored_key"] else "Nei", "", ai_settings["source"], "status", href="/admin/ai"),
-                    api_card("Spørringer", len(ai_logs), "stk", "I siste loggutvalg", "status", href="/admin/ai"),
-                    api_card("Vellykket", successful_ai_logs, "stk", f"{len(ai_logs) - successful_ai_logs} feilet", "status", href="/admin/ai"),
-                ]
-                tables = [
-                    api_table(
-                        "AI-status",
-                        ["key", "value"],
-                        api_config_value_rows(
-                            {
-                                "modell": ai_settings["model"],
-                                "nokkelkilde": ai_settings["source"],
-                                "miljovariabel": ai_settings["has_env_key"],
-                                "lagret_nokkel": ai_settings["has_stored_key"],
-                            }
-                        ),
-                    ),
-                    api_table("Datasett", ["key", "table", "title", "time_column", "columns_count"], ai_dataset_overview()),
-                    api_table(
-                        "AI-logg",
-                        ["timestamp", "username", "question", "ok", "error"],
-                        [api_pick(row, ["timestamp", "username", "question", "ok", "error"]) for row in ai_logs],
-                    ),
-                    api_table("AI-verktøy", ["tool", "path", "description", "count"], [admin_tools[4], api_tool_row("Datasett JSON", "/api/ai/datasets/json", "AI-godkjente datasett.", len(ai_dataset_overview())), api_tool_row("AI-logg JSON", "/api/ai/logs/json", "Siste AI-spørringer som JSON.", len(ai_logs))]),
-                ]
-            elif view == "teknisk":
-                tables = [
-                    api_table("Tekniske verktøy", ["tool", "path", "description", "count"], admin_tools),
-                    api_table("Datakilder", ["source_no", "title", "category", "status", "status_text", "age", "last_success_at", "message"], import_api_rows),
-                ]
-            elif view == "brukere":
-                active_user_count = sum(1 for row in access_keys if row.active)
-                master_user_count = sum(1 for row in access_keys if row.is_master)
-                admin_cards = [
-                    api_card("Brukere", len(access_keys), "stk", f"{active_user_count} aktive", "status", href="/admin/brukere"),
-                    api_card("Vanlige brukere", max(0, len(access_keys) - master_user_count), "stk", "Kan administreres her", "status", href="/admin/brukere"),
-                    api_card("Master", master_user_count, "stk", "Passord kan settes på nytt av master", "status", href="/admin/brukere"),
-                    api_card("Tilgangslogg", len(access_logs), "rader", "Siste innlogginger og API-kall", "status", href="/admin/brukere"),
-                ]
-                tables = [
-                    api_table("Brukere", ["name", "role", "active", "is_master", "key_prefix", "password_status", "created_at", "last_seen_at", "uses_count"], [api_access_key_row(row) for row in access_keys], edit=api_access_key_edit()),
-                    api_table("Siste tilgangslogg", ["timestamp", "key_name", "path", "method", "success", "reason"], [row_to_dict(row, ["timestamp", "key_name", "path", "method", "success", "reason"]) for row in access_logs]),
-                    api_table(
-                        "Brukerverktøy",
-                        ["tool", "path", "description", "count"],
-                        [
-                            api_tool_row("Ny bruker", "/admin/brukere", "Bruk Ny-knappen over brukertabellen.", len(access_keys)),
-                            api_tool_row("Tilgangslogg", "/admin/brukere", "Se siste autentiseringer og avviste kall i tabellen.", len(access_logs)),
-                        ],
-                    ),
-                ]
-            elif view == "manual":
-                inventory = system_component_summary()
-                admin_cards = [
-                    api_card("Manual", "Aktiv", "", "Lenker og driftsinnganger samlet", "status", href="/manual/oversikt"),
-                    api_card("Systemkart", inventory["components"], "stk", "Komponenter og underapper", "status", href="/admin/systemkart"),
-                    api_card("Datakilder", len(import_rows), "stk", "Status og forklaring per kilde", "status", href="/admin/datakilder"),
-                    api_card("Build", APP_BUILD, "", BUILD_LOG[0]["title"], "status", href="/admin/build"),
-                ]
-                tables = [
-                    api_table(
-                        "Manual og drift",
-                        ["tool", "path", "description", "count"],
-                        [
-                            api_tool_row("Manual", "/manual/oversikt", "Intern manual med driftsrutiner og lenker til dagens flater.", None),
-                            api_tool_row("Systemkart", "/admin/systemkart", "Oversikt over komponenter, underapper, webflater og health-lenker.", len(system_component_rows())),
-                            api_tool_row("Datakilder", "/admin/datakilder", "Status for importjobber og eksterne datakilder.", len(import_rows)),
-                            api_tool_row("Buildlogg", "/admin/build", "Endringshistorikk for løsningen.", len(BUILD_LOG)),
-                            api_tool_row("Teknisk", "/admin/teknisk", "Teknisk driftsflate.", None),
-                            api_tool_row("Brukere", "/admin/brukere", "Brukere, roller og tilgangslogg.", len(access_keys)),
-                        ],
-                    ),
-                    api_table(
-                        "Daglige arbeidsflater",
-                        ["tool", "path", "description", "count"],
-                        [
-                            api_tool_row("Dashboard", "/status/omsetning", "Hoveddashboard for omsetning, parkering og soling.", None),
-                            api_tool_row("Omsetning", "/omsetning/oversikt", "Årsoversikt, toppdager og oppgjørskontroll.", None),
-                            api_tool_row("Parkering", "/parkering/oversikt", "Ukesstatistikk, hovedtall og importkontroll.", None),
-                            api_tool_row("Soling", "/soling/oversikt", "Soling, enkelttimer, produkter og bildegrunnlag.", None),
-                            api_tool_row("Energi", "/energi/status", "Realtime energi, kurs, laster og Elvia-kontroll.", None),
-                            api_tool_row("Ventilasjon", "/ventilasjon/dagslogg", "Temperatur, fukt, vifter og hendelser.", None),
-                            api_tool_row("Vedlikehold", "/vedlikehold/besok", "Besøk og tilknyttede vedlikeholdsoppgaver.", None),
-                            api_tool_row("Koble", "/koble/oversikt", "Koblingsmotor for parkering mot SUN2.", None),
-                        ],
-                    ),
-                    api_table(
-                        "Underapper med webgrensesnitt",
-                        ["component", "area", "interface", "web_url", "local_url", "health_url", "status"],
-                        system_web_interface_rows(),
-                    ),
-                ]
-                admin_cards, tables = api_admin_manual_payload(import_rows, access_keys)
-            elif view == "verktoy":
-                tables = [api_table("Adminverktøy", ["tool", "path", "description", "count"], admin_tools)]
-            return {
-                "title": v2_module_title("admin", view),
-                "subtitle": "Build, datakilder, teknisk drift og AI-logg.",
-                "cards": admin_cards,
-                "charts": charts,
-                "tables": tables,
-                "actions": actions,
-                "reconciliation": reconciliation,
-            }
-
-    raise HTTPException(status_code=404, detail="Ukjent v2-modul")
 
 
 def api_detail_field(label: str, value: Any, detail: str = "") -> Dict[str, Any]:
@@ -26886,674 +20308,42 @@ def parking_vehicle_not_found_field_labels(vehicle: ParkingVehicle) -> list[str]
     return labels
 
 
-@app.get("/api/parking/vehicles/{plate}")
-async def api_v2_parking_vehicle_detail(plate: str):
-    plate_value = normalize_plate(plate)
-    if not plate_value:
-        raise HTTPException(status_code=404, detail="Mangler registreringsnummer")
-
-    normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
-    async with async_session() as session:
-        result = (
-            await session.execute(
-                select(ParkingVehicle, ParkingVehicleDetails)
-                .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-                .where(ParkingVehicle.plate == plate_value)
-            )
-        ).first()
-        if not result:
-            raise HTTPException(status_code=404, detail="Kjøretøy ikke funnet")
-        vehicle, details = result
-        stats = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0),
-                    func.coalesce(func.sum(ParkingSession.parking_time_min), 0),
-                    func.min(ParkingSession.start_time),
-                    func.max(ParkingSession.start_time),
-                ).where(normalized_session_plate == plate_value)
-            )
-        ).first()
-        session_rows = (
-            await session.execute(
-                select(ParkingSession)
-                .where(normalized_session_plate == plate_value)
-                .order_by(ParkingSession.start_time.desc())
-            )
-        ).scalars().all()
-
-    ownership_at = svv_current_ownership_at(vehicle.svv_data)
-    first_seen = stats[3] if stats else None
-    last_seen = stats[4] if stats else None
-    ownership_warning = parking_current_ownership_warning(vehicle, first_seen)
-    fields = [
-        api_detail_field("Eier/navn", vehicle.navn),
-        api_detail_field("Område", vehicle.omrade),
-        api_detail_field("SUN2-ID", vehicle.sun2_id),
-        api_detail_field("Sist eierskifte", ownership_at),
-        api_detail_field("Kjøretøy", parking_vehicle_display_label(details, vehicle.car_info_data), parking_vehicle_display_source(details, vehicle.car_info_data)),
-        api_detail_field("Årsmodell", parking_vehicle_display_year(details, vehicle.car_info_data)),
-        api_detail_field("Farge", parking_vehicle_display_color(details, vehicle.car_info_data)),
-        api_detail_field("Kjøretøyklasse", parking_vehicle_display_class(details, vehicle.car_info_data)),
-        api_detail_field("Registreringsstatus", parking_vehicle_display_registration_status(details, vehicle.car_info_data)),
-        api_detail_field("Førstegangsregistrert Norge", details.forstegangsregistrert_norge if details else None),
-        api_detail_field("PKK/kontrollfrist", parking_vehicle_display_inspection_deadline(details, vehicle.car_info_data)),
-        api_detail_field("SVV hentet", vehicle.svv_fetched_at),
-        api_detail_field("Notat", vehicle.notat),
-    ]
-    if vehicle.car_info_fetched_at or vehicle.car_info_data or vehicle.car_info_status:
-        provider_label = car_info_provider_label(vehicle.car_info_data)
-        area_label = car_info_area_label(vehicle.car_info_data)
-        fields.extend(
-            [
-                api_detail_field("Utenlandsk kilde status", car_info_status_label(vehicle.car_info_status, vehicle.car_info_data), provider_label),
-                api_detail_field("Utenlandsk kilde hentet", vehicle.car_info_fetched_at),
-                api_detail_field("Bekreftet land", area_label if car_info_confirmed_foreign(vehicle.car_info_data) else "Nei"),
-                api_detail_field("Først registrert", car_info_field_value(vehicle.car_info_data, "first_registered", "first_registration")),
-                api_detail_field("Siste eierbytte", car_info_field_value(vehicle.car_info_data, "latest_owner_change")),
-                api_detail_field("Biltype", car_info_field_value(vehicle.car_info_data, "vehicle_type", "body_type", "class")),
-                api_detail_field("Drivstoff/motor", car_info_field_value(vehicle.car_info_data, "fuel", "engine")),
-                api_detail_field("Girkasse", car_info_field_value(vehicle.car_info_data, "transmission")),
-                api_detail_field("Drivlinje", car_info_field_value(vehicle.car_info_data, "drivetrain")),
-                api_detail_field("Effekt", car_info_field_value(vehicle.car_info_data, "power")),
-                api_detail_field("Klassifisering", car_info_field_value(vehicle.car_info_data, "classification")),
-                api_detail_field("Generasjon", car_info_field_value(vehicle.car_info_data, "generation")),
-                api_detail_field("Kilometerstand", car_info_field_value(vehicle.car_info_data, "mileage")),
-                api_detail_field("Kontrollfrist", car_info_field_value(vehicle.car_info_data, "inspection_valid_to", "next_inspection")),
-                api_detail_field("Forbruk blandet", car_info_field_value(vehicle.car_info_data, "fuel_consumption_combined")),
-                api_detail_field("CO2 blandet", car_info_field_value(vehicle.car_info_data, "co2_combined")),
-                api_detail_field("Seter", car_info_field_value(vehicle.car_info_data, "seats")),
-                api_detail_field("Kilde URL", vehicle.car_info_url),
-            ]
-        )
-    not_found_fields = parking_vehicle_not_found_field_labels(vehicle)
-    actions = []
-    if not_found_fields:
-        actions.append(
-            {
-                "key": "clear-not-found",
-                "label": "Fjern 'ikke funnet'",
-                "method": "POST",
-                "path": f"/api/parking/vehicles/{quote(plate_value, safe='')}/clear-not-found",
-                "confirm": f"Nullstille {', '.join(not_found_fields)} for {plate_value}? Feltet blir blankt og kan behandles på nytt.",
-                "tone": "primary",
-            }
-        )
-    return {
-        "plate": plate_value,
-        "title": parking_vehicle_display_label(details, vehicle.car_info_data),
-        "subtitle": "Kjøretøy, eierfelt og komplett parkeringshistorikk.",
-        "cards": [
-            api_card("Parkeringer", stats[0] if stats else 0, "stk", "Alle registrerte", "parking"),
-            api_card("Beløp", format_short_number(stats[1] if stats else 0), "kr", "Totalt EasyPark-beløp", "revenue"),
-            api_card("Tid", format_short_number((stats[2] or 0) / 60 if stats else 0, 1), "t", "Registrert parkeringstid", "status"),
-            api_card("Sist eierskifte", ownership_at.strftime("%d.%m.%Y") if ownership_at else "-", "", "Fra SVV-rådata", "status"),
-        ],
-        "fields": fields,
-        "warnings": [ownership_warning["text"]] if ownership_warning else [],
-        "sessions": [parking_row_api(row, vehicle) for row in session_rows],
-        "actions": actions,
-    }
 
 
-@app.post("/api/actions/soling/save-forecast")
-async def api_v2_sun2_save_forecast(request: Request):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    now_local = datetime.now(LOCAL_TZ)
-    today_value = now_local.date()
-    async with async_session() as session:
-        forecast = await build_sun2_forecast(session, today_value, now_local)
-        await save_forecast_snapshots(session, "sun2", forecast, getattr(request.state, "access_key_name", None))
-        await session.commit()
-    clear_summary_cache("sun2")
-    return {"status": "ok", "message": "Solingprognose lagret."}
 
 
-@app.post("/api/actions/soling/upload-settlement")
-async def api_v2_upload_sun_settlement(request: Request):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    form = await request.form()
-    upload = form.get("file")
-    if upload is None or not hasattr(upload, "read"):
-        raise HTTPException(status_code=400, detail="Mangler fil")
-    filename = Path(getattr(upload, "filename", "") or "").name
-    if not filename:
-        raise HTTPException(status_code=400, detail="Mangler filnavn")
-    content = await upload.read()
-    if not content:
-        raise HTTPException(status_code=400, detail="Tom fil")
-    content_type = getattr(upload, "content_type", None) or mimetypes.guess_type(filename)[0] or "application/octet-stream"
-    if not is_settlement_attachment(filename, content_type):
-        raise HTTPException(status_code=400, detail="Filtypen støttes ikke for oppgjør")
-
-    sha = hashlib.sha256(content).hexdigest()
-    parsed = parse_sun_settlement_attachment(filename, content_type, content)
-    period_start, period_end, period_label = settlement_period_from_parsed_dates(parsed, "delivery_date", "credit_note_date")
-    if not period_start:
-        period_start, period_end, period_label = parse_settlement_period(filename, None)
-    meta = settlement_parsed_meta(parsed)
-    status = "tolket" if float_or_zero(meta.get("confidence")) >= 0.6 else "krever kontroll"
-
-    async with async_session() as session:
-        existing = (
-            await session.execute(
-                select(SettlementImport)
-                .where(SettlementImport.provider == SUN_SETTLEMENT_PROVIDER)
-                .where(SettlementImport.attachment_sha256 == sha)
-                .limit(1)
-            )
-        ).scalars().first()
-        if existing:
-            return {
-                "status": "ok",
-                "message": "Solingsoppgjøret finnes allerede.",
-                "id": existing.id,
-                "path": f"/soling/oppgjor/{existing.id}",
-            }
-        row = SettlementImport(
-            provider=SUN_SETTLEMENT_PROVIDER,
-            source="manual_upload",
-            sender="manual",
-            gmail_message_id=None,
-            gmail_uid=None,
-            email_subject=filename,
-            email_date=None,
-            mailbox=None,
-            period_start=period_start,
-            period_end=period_end,
-            period_label=period_label,
-            attachment_filename=filename,
-            attachment_content_type=content_type,
-            attachment_sha256=sha,
-            attachment_size=len(content),
-            attachment_bytes=content,
-            status=status,
-            parsed=parsed,
-            raw={"settlement_parser": meta, "source": "manual_upload"},
-        )
-        session.add(row)
-        await session.commit()
-        await session.refresh(row)
-    return {
-        "status": "ok",
-        "message": f"Solingsoppgjør importert: {period_label}.",
-        "id": row.id,
-        "path": f"/soling/oppgjor/{row.id}",
-    }
 
 
-@app.post("/api/actions/parkering/fetch-settlements")
-async def api_v2_fetch_parking_settlements(
-    request: Request,
-    since_days: int = Query(370, ge=1, le=2000),
-    limit: int = Query(80, ge=1, le=500),
-):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    async with async_session() as session:
-        try:
-            result = await fetch_parking_settlements_from_gmail(session, since_days=since_days, limit=limit)
-        except RuntimeError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        except imaplib.IMAP4.error as exc:
-            raise HTTPException(status_code=502, detail=f"Gmail IMAP feilet: {exc}") from exc
-        await session.commit()
-    return {
-        "status": "ok",
-        "message": f"Importerte {result['imported']} nye parkeringsoppgjør. {result['skipped']} ble hoppet over.",
-        "result": result,
-    }
 
 
-@app.post("/api/actions/parkering/save-forecast")
-async def api_v2_parking_save_forecast(request: Request):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    now_local = datetime.now(LOCAL_TZ)
-    today_value = now_local.date()
-    async with async_session() as session:
-        forecast = await build_parking_forecast(session, today_value, now_local)
-        await save_forecast_snapshots(session, "parking", forecast, getattr(request.state, "access_key_name", None))
-        await session.commit()
-    clear_summary_cache("parking")
-    return {"status": "ok", "message": "Parkeringsprognose lagret."}
 
 
-@app.post("/api/actions/parkering/refresh")
-async def api_v2_parking_refresh(request: Request):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    from_day, to_day = easypark_recent_period()
-    started_at = local_now_naive()
-    try:
-        result = await asyncio.to_thread(
-            easypark_downloader_request,
-            "/queue-sync-period",
-            {"from_date": from_day.isoformat(), "to_date": to_day.isoformat()},
-            10,
-        )
-        status = result.get("status")
-        if status == "busy":
-            message = "EasyPark-downloader kjører allerede."
-        elif status == "error":
-            raise RuntimeError(str(result.get("detail") or result.get("last_error") or "EasyPark-import feilet"))
-        else:
-            message = "EasyPark-oppdatering er startet. Datakilden oppdateres når importen er ferdig."
-        return {"status": "ok", "message": message, "result": result}
-    except Exception as exc:
-        logger.exception("EasyPark-import feilet for periode %s til %s", from_day.isoformat(), to_day.isoformat())
-        async with async_session() as session:
-            await record_import_job(
-                session,
-                "easypark_parking_import",
-                ok=False,
-                source="EasyPark downloader",
-                started_at=started_at,
-                records_imported=0,
-                records_total=0,
-                message=str(exc),
-                raw={"period": {"from": from_day.isoformat(), "to": to_day.isoformat()}},
-            )
-            await session.commit()
-        return JSONResponse({"status": "error", "message": str(exc)}, status_code=500)
 
 
-@app.post("/api/actions/parkering/svv-sync")
-async def api_v2_parking_svv_sync(request: Request, limit: int = Query(SVV_SYNC_BATCH_SIZE, ge=1, le=500)):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    result = await run_vehicle_svv_sync(limit, "V2")
-    return {"status": "ok", "message": "SVV-sync er kjørt.", "result": result}
 
 
-@app.post("/api/actions/parkering/car-info-sync")
-async def api_v2_parking_car_info_sync(request: Request, limit: int = Query(1, ge=1, le=5)):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    try:
-        result = await asyncio.to_thread(car_info_lookup_request, "/api/run-once", {"limit": limit})
-    except Exception as exc:
-        return JSONResponse({"status": "error", "message": str(exc)}, status_code=502)
-    return {"status": "ok", "message": "Nordisk biloppslag er startet/kjort.", "result": result}
 
 
-@app.post("/api/actions/parkering/clear-area-not-found")
-async def api_v2_parking_clear_area_not_found(request: Request):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    async with async_session() as session:
-        cleared = await clear_parking_vehicle_not_found_area(session)
-        await session.commit()
-    clear_summary_cache("parking")
-    return {
-        "status": "ok",
-        "message": f"{cleared} kjøretøy fikk fjernet område 'ikke funnet'.",
-        "cleared": cleared,
-    }
 
 
-@app.post("/api/parking/vehicles/{plate}/clear-not-found")
-async def api_v2_parking_vehicle_clear_not_found(request: Request, plate: str):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    plate_value = normalize_plate(plate)
-    if not plate_value:
-        raise HTTPException(status_code=400, detail="Mangler registreringsnummer")
-    async with async_session() as session:
-        cleared_fields = await clear_parking_vehicle_not_found_fields(session, plate_value)
-        if cleared_fields is None:
-            raise HTTPException(status_code=404, detail="Kjøretøy ikke funnet")
-        await session.commit()
-    clear_summary_cache("parking")
-    if not cleared_fields:
-        return {"status": "ok", "message": f"{plate_value} hadde ingen felt satt til 'ikke funnet'.", "cleared": []}
-    return {
-        "status": "ok",
-        "message": f"{plate_value}: fjernet 'ikke funnet' fra {', '.join(cleared_fields)}.",
-        "cleared": cleared_fields,
-    }
 
 
-@app.post("/api/actions/koble/start")
-async def api_v2_koble_start(request: Request):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    async with async_session() as session:
-        state = await get_parking_sun_link_state(session)
-        state.enabled = True
-        state.status = "venter"
-        state.status_text = "Koblingsjobben er aktiv og venter på worker."
-        state.last_started_at = local_now_naive()
-        state.last_finished_at = None
-        state.last_error = None
-        state.updated_at = local_now_naive()
-        await update_parking_sun_link_import_status(session, state)
-        await session.commit()
-    return {"status": "ok", "message": "Koblingsjobben er startet."}
 
 
-@app.post("/api/actions/koble/stop")
-async def api_v2_koble_stop(request: Request):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    async with async_session() as session:
-        state = await get_parking_sun_link_state(session)
-        state.enabled = False
-        state.status = "stoppet"
-        state.status_text = "Koblingsjobben er stoppet fra Fibaro10."
-        state.last_finished_at = local_now_naive()
-        state.updated_at = local_now_naive()
-        await update_parking_sun_link_import_status(session, state)
-        await session.commit()
-    return {"status": "ok", "message": "Koblingsjobben er stoppet."}
 
 
-@app.post("/api/actions/koble/restart")
-async def api_v2_koble_restart(request: Request):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    async with async_session() as session:
-        state = await get_parking_sun_link_state(session)
-        await reset_parking_sun_link_data(session, state, enabled=True)
-        await update_parking_sun_link_import_status(session, state)
-        await session.commit()
-    return {"status": "ok", "message": "Koblingsjobben starter fra nyeste parkering."}
 
 
-@app.patch("/api/koble/settings/{state_id}")
-async def api_v2_koble_settings_update(request: Request, state_id: int, data: ParkingSunLinkSettingsUpdate):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    if state_id != 1:
-        raise HTTPException(status_code=404, detail="Koble-innstillinger ikke funnet")
-    values = data.dict(exclude_unset=True)
-    if not values:
-        raise HTTPException(status_code=400, detail="Ingen endringer")
-    async with async_session() as session:
-        state = await get_parking_sun_link_state(session)
-        changed = False
-        for key, value in values.items():
-            if value is None:
-                continue
-            if getattr(state, key) != value:
-                setattr(state, key, value)
-                changed = True
-        if changed:
-            await reset_parking_sun_link_data(session, state, enabled=True)
-            state.status_text = "Parametere er endret. Jobben starter fra nyeste parkering."
-        await update_parking_sun_link_import_status(session, state)
-        await session.commit()
-    return {"status": "ok", "message": "Koble-parametere er lagret."}
 
 
-@app.patch("/api/koble/candidates/{candidate_id}")
-async def api_v2_koble_candidate_update(request: Request, candidate_id: int, data: ParkingSunLinkCandidateUpdate):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    values = data.dict(exclude_unset=True)
-    async with async_session() as session:
-        candidate = await session.get(ParkingSunLinkCandidate, candidate_id)
-        if not candidate:
-            raise HTTPException(status_code=404, detail="Koblingskandidat ikke funnet")
-        actor = getattr(request.state, "access_key_name", None) or getattr(request.state, "auth_username", None) or "Fibaro10"
-        now_value = local_now_naive()
-        if "note" in values:
-            candidate.note = (values.get("note") or "").strip() or None
-        if "status" in values:
-            new_status = parking_sun_link_status_value(values.get("status"))
-            candidate.status = new_status
-            if new_status == PARKING_SUN_LINK_CONFIRMED:
-                candidate.confirmed_at = now_value
-                candidate.confirmed_by = actor
-                candidate.rejected_at = None
-                candidate.rejected_by = None
-                candidate.confidence = 100.0
-                vehicle = await session.get(ParkingVehicle, candidate.plate)
-                if vehicle:
-                    vehicle.sun2_id = candidate.sun2_id
-                    vehicle.updated_at = now_value
-            elif new_status == PARKING_SUN_LINK_REJECTED:
-                candidate.rejected_at = now_value
-                candidate.rejected_by = actor
-                candidate.confirmed_at = None
-                candidate.confirmed_by = None
-            else:
-                candidate.confirmed_at = None
-                candidate.confirmed_by = None
-                candidate.rejected_at = None
-                candidate.rejected_by = None
-                state = await get_parking_sun_link_state(session)
-                candidate.confidence = parking_sun_link_probability(
-                    candidate.matches_count,
-                    candidate.avg_delta_minutes,
-                    min_matches=state.min_matches,
-                    parking_match_count=candidate.parking_match_count,
-                    match_days_count=candidate.match_days_count,
-                    plate_candidate_count=candidate.plate_candidate_count,
-                    sun2_candidate_count=candidate.sun2_candidate_count,
-                    competitor_matches_count=candidate.competitor_matches_count,
-                )
-            state = await get_parking_sun_link_state(session)
-            candidate.assessment = parking_sun_link_assessment(
-                candidate.status,
-                candidate.confidence,
-                min_matches=state.min_matches,
-                parking_match_count=candidate.parking_match_count,
-                plate_candidate_count=candidate.plate_candidate_count,
-                sun2_candidate_count=candidate.sun2_candidate_count,
-                competitor_matches_count=candidate.competitor_matches_count,
-            )
-        candidate.updated_at = now_value
-        await session.commit()
-    clear_summary_cache("parking")
-    return {"status": "ok", "message": f"Kobling {candidate.plate} / {candidate.sun2_id} er oppdatert."}
 
 
-@app.get("/api/koble/worker/config")
-async def api_v2_koble_worker_config(request: Request):
-    if not has_koble_worker_access(request):
-        raise HTTPException(status_code=401, detail="Mangler gyldig koble-token")
-    async with async_session() as session:
-        state = await get_parking_sun_link_state(session)
-        await refresh_parking_sun_link_state_counts(session, state)
-        state.last_worker_seen_at = local_now_naive()
-        await update_parking_sun_link_import_status(session, state)
-        await session.commit()
-    return {
-        "enabled": bool(state.enabled),
-        "generation": int_or_zero(state.generation),
-        "min_matches": int_or_zero(state.min_matches),
-        "max_minutes": int_or_zero(state.max_minutes),
-        "recent_days": int_or_zero(state.recent_days),
-        "idle_sleep_seconds": int_or_zero(state.idle_sleep_seconds),
-    }
 
 
-@app.post("/api/koble/worker/status")
-async def api_v2_koble_worker_status(request: Request, data: ParkingSunLinkWorkerStatusIn):
-    if not has_koble_worker_access(request):
-        raise HTTPException(status_code=401, detail="Mangler gyldig koble-token")
-    now_value = local_now_naive()
-    async with async_session() as session:
-        state = await get_parking_sun_link_state(session)
-        if data.generation != state.generation:
-            return {"status": "stale", "generation": int_or_zero(state.generation)}
-        state.last_worker_seen_at = now_value
-        state.status = (data.status or state.status or "kjorer").strip()[:40]
-        state.status_text = data.status_text or state.status_text
-        state.last_error = data.last_error
-        if data.last_error:
-            state.status = "feil"
-        for key in [
-            "processed_count",
-            "matched_count",
-            "candidate_count",
-            "strong_candidate_count",
-            "checked_plate_count",
-            "last_processed_parking_id",
-            "last_processed_plate",
-        ]:
-            value = getattr(data, key)
-            if value is not None:
-                setattr(state, key, value)
-        if data.last_processed_at:
-            state.last_processed_at = normalize_local_naive(data.last_processed_at)
-        state.raw = data.raw or {}
-        state.updated_at = now_value
-        await update_parking_sun_link_import_status(session, state)
-        await session.commit()
-    return {"status": "ok", "generation": int_or_zero(state.generation)}
 
 
-@app.post("/api/koble/worker/results")
-async def api_v2_koble_worker_results(request: Request, data: ParkingSunLinkWorkerResultsIn):
-    if not has_koble_worker_access(request):
-        raise HTTPException(status_code=401, detail="Mangler gyldig koble-token")
-    now_value = local_now_naive()
-    async with async_session() as session:
-        state = await get_parking_sun_link_state(session)
-        if data.generation != state.generation:
-            return {"status": "stale", "generation": int_or_zero(state.generation)}
-        processed_values = []
-        for row in data.processed:
-            plate_value = normalize_plate(row.plate)
-            if not plate_value or int_or_zero(row.parking_record_id) <= 0:
-                continue
-            processed_values.append(
-                {
-                    "generation": data.generation,
-                    "parking_record_id": int(row.parking_record_id),
-                    "plate": plate_value,
-                    "parking_start_at": normalize_local_naive(row.parking_start_at) if row.parking_start_at else None,
-                    "matches_found": int_or_zero(row.matches_found),
-                    "checked_at": now_value,
-                }
-            )
-        if processed_values:
-            stmt = pg_insert(ParkingSunLinkProcessed).values(processed_values)
-            await session.execute(
-                stmt.on_conflict_do_update(
-                    index_elements=["generation", "parking_record_id"],
-                    set_={
-                        "plate": stmt.excluded.plate,
-                        "parking_start_at": stmt.excluded.parking_start_at,
-                        "matches_found": stmt.excluded.matches_found,
-                        "checked_at": stmt.excluded.checked_at,
-                    },
-                )
-            )
-
-        touched_pairs: set[tuple[str, str]] = set()
-        match_values = []
-        for row in data.matches:
-            plate_value = normalize_plate(row.plate)
-            sun2_id = str(row.sun2_id or "").strip()
-            if not plate_value or not sun2_id or int_or_zero(row.sun_session_id) <= 0:
-                continue
-            touched_pairs.add((plate_value, sun2_id))
-            match_values.append(
-                {
-                    "generation": data.generation,
-                    "plate": plate_value,
-                    "sun2_id": sun2_id,
-                    "parking_record_id": int(row.parking_record_id),
-                    "parking_id": row.parking_id,
-                    "source_system": row.source_system,
-                    "parking_start_at": normalize_local_naive(row.parking_start_at) if row.parking_start_at else None,
-                    "sun_session_id": int(row.sun_session_id),
-                    "source_session_id": row.source_session_id,
-                    "sun_started_at": normalize_local_naive(row.sun_started_at) if row.sun_started_at else None,
-                    "room_id": row.room_id,
-                    "room": row.room,
-                    "user_name": row.user_name,
-                    "duration_minutes": row.duration_minutes,
-                    "paid_amount_kr": row.paid_amount_kr,
-                    "fee_inc_vat": row.fee_inc_vat,
-                    "delta_minutes": row.delta_minutes,
-                    "created_at": now_value,
-                }
-            )
-        if match_values:
-            stmt = pg_insert(ParkingSunLinkMatch).values(match_values)
-            await session.execute(
-                stmt.on_conflict_do_update(
-                    index_elements=["generation", "parking_record_id", "sun_session_id"],
-                    set_={
-                        "plate": stmt.excluded.plate,
-                        "sun2_id": stmt.excluded.sun2_id,
-                        "parking_id": stmt.excluded.parking_id,
-                        "source_system": stmt.excluded.source_system,
-                        "parking_start_at": stmt.excluded.parking_start_at,
-                        "source_session_id": stmt.excluded.source_session_id,
-                        "sun_started_at": stmt.excluded.sun_started_at,
-                        "room_id": stmt.excluded.room_id,
-                        "room": stmt.excluded.room,
-                        "user_name": stmt.excluded.user_name,
-                        "duration_minutes": stmt.excluded.duration_minutes,
-                        "paid_amount_kr": stmt.excluded.paid_amount_kr,
-                        "fee_inc_vat": stmt.excluded.fee_inc_vat,
-                        "delta_minutes": stmt.excluded.delta_minutes,
-                    },
-                )
-            )
-            await refresh_parking_sun_link_candidate_pairs(session, data.generation, touched_pairs, min_matches=state.min_matches)
-        if data.status:
-            state.status = (data.status.status or "kjorer").strip()[:40]
-            state.status_text = data.status.status_text or state.status_text
-            state.last_error = data.status.last_error
-        elif state.enabled:
-            state.status = "kjorer"
-            state.status_text = "Koblingsjobben behandler parkeringer."
-        state.last_worker_seen_at = now_value
-        state.last_processed_at = now_value if processed_values else state.last_processed_at
-        if processed_values:
-            state.last_processed_parking_id = processed_values[-1]["parking_record_id"]
-            state.last_processed_plate = processed_values[-1]["plate"]
-        await refresh_parking_sun_link_state_counts(session, state)
-        await update_parking_sun_link_import_status(session, state)
-        await session.commit()
-    return {"status": "ok", "generation": int_or_zero(state.generation), "matches": len(match_values), "processed": len(processed_values)}
 
 
-@app.patch("/api/energy/circuits/{circuit_no}")
-async def api_v2_energy_circuit_update(request: Request, circuit_no: int, data: V2EnergyCircuitUpdate):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    values = data.dict(exclude_unset=True)
-    text_fields = {"description", "breaker_type", "breaker_characteristic", "cable_spec", "install_method", "terminal_ref", "status", "note"}
-    async with async_session() as session:
-        circuit = (
-            await session.execute(select(EnergyCircuit).where(EnergyCircuit.circuit_no == circuit_no))
-        ).scalars().first()
-        if not circuit:
-            raise HTTPException(status_code=404, detail="Kurs ikke funnet")
-        for key, value in values.items():
-            if key in text_fields and value is not None:
-                value = str(value).strip() or None
-            setattr(circuit, key, value)
-        if not circuit.status:
-            circuit.status = "ukjent"
-        circuit.updated_at = datetime.utcnow()
-        await session.commit()
-    return {"status": "ok", "message": f"Kurs {circuit_no} er lagret."}
 
 
 async def validate_energy_node_parent(
@@ -27843,1235 +20633,84 @@ async def find_or_create_energy_node_for_load(session, values: Dict[str, Any]) -
     return node
 
 
-@app.post("/api/energy/nodes")
-async def api_v2_energy_node_create(request: Request, data: V2EnergyNodeIn):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    values = clean_energy_node_values(data.dict(exclude_unset=True))
-    circuit_no = values.get("circuit_no")
-    if circuit_no is None:
-        raise HTTPException(status_code=400, detail="Kurs må fylles ut.")
-    name = str(values.get("name") or "").strip()
-    if not name:
-        name = default_energy_node_name(circuit_no, values.get("hc3_power_device_id") or values.get("hc3_device_id"), [])
-    if values.get("aggregate_group_key") is not None and values.get("hc3_power_device_id") is None:
-        raise HTTPException(status_code=400, detail="Bare et punkt med sanntidsmåling kan inngå i en HC3-samlemåler.")
-    validate_energy_node_profile_values(values)
-    await validate_energy_node_hc3_values(values)
-    now_value = datetime.utcnow()
-    async with async_session() as session:
-        await validate_energy_node_parent(session, circuit_no, values.get("parent_node_id"))
-        power_id = values.get("hc3_power_device_id")
-        await validate_energy_node_link_uniqueness(
-            session,
-            power_id,
-            values.get("hc3_energy_device_id"),
-            values.get("hc3_switch_device_id"),
-        )
-        node = energy_node_from_values(values, name, now_value)
-        session.add(node)
-        await session.commit()
-        await session.refresh(node)
-    return {"status": "ok", "message": f"{node.name} er opprettet.", "id": node.id}
-
-
-@app.patch("/api/energy/nodes/{node_id}")
-async def api_v2_energy_node_update(request: Request, node_id: int, data: V2EnergyNodeIn):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    values = clean_energy_node_values(data.dict(exclude_unset=True))
-    async with async_session() as session:
-        node = await session.get(EnergyNode, node_id)
-        if not node:
-            raise HTTPException(status_code=404, detail="Tilkoblingspunkt ikke funnet.")
-        circuit_no = values.get("circuit_no", node.circuit_no)
-        if circuit_no is None:
-            raise HTTPException(status_code=400, detail="Kurs må fylles ut.")
-        parent_node_id = values.get("parent_node_id", node.parent_node_id)
-        await validate_energy_node_parent(session, circuit_no, parent_node_id, node_id=node_id)
-        if "name" in values and not values.get("name"):
-            raise HTTPException(status_code=400, detail="Navn må fylles ut.")
-        power_id = values.get("hc3_power_device_id", node.hc3_power_device_id)
-        energy_id = values.get("hc3_energy_device_id", node.hc3_energy_device_id)
-        aggregate_group_key = values.get("aggregate_group_key", node.aggregate_group_key)
-        if aggregate_group_key is not None and power_id is None:
-            raise HTTPException(status_code=400, detail="Bare et punkt med sanntidsmåling kan inngå i en HC3-samlemåler.")
-        effective_hc3_values = {
-            "hc3_device_id": values.get("hc3_device_id", node.hc3_device_id),
-            "hc3_power_device_id": power_id,
-            "hc3_energy_device_id": energy_id,
-            "hc3_switch_device_id": values.get("hc3_switch_device_id", node.hc3_switch_device_id),
-            "has_meter": values.get("has_meter", node.has_meter),
-            "has_switch": values.get("has_switch", node.has_switch),
-        }
-        validate_energy_node_profile_values({
-            "node_type": values.get("node_type", node.node_type),
-            "parent_node_id": parent_node_id,
-            "endpoint_key": values.get("endpoint_key", node.endpoint_key),
-            "hc3_power_device_id": power_id,
-        })
-        await validate_energy_node_hc3_values(effective_hc3_values)
-        await validate_energy_node_link_uniqueness(
-            session,
-            power_id,
-            energy_id,
-            effective_hc3_values.get("hc3_switch_device_id"),
-            node_id=node_id,
-        )
-        now_value = datetime.utcnow()
-        if circuit_no != node.circuit_no:
-            all_nodes = (await session.execute(select(EnergyNode))).scalars().all()
-            branch_ids = energy_node_branch_ids(all_nodes, node_id)
-            for branch_node in all_nodes:
-                if branch_node.id is not None and int(branch_node.id) in branch_ids:
-                    branch_node.circuit_no = circuit_no
-                    branch_node.updated_at = now_value
-            await session.execute(
-                update(EnergyLoad)
-                .where(EnergyLoad.energy_node_id.in_(branch_ids))
-                .values(circuit_no=circuit_no, updated_at=now_value)
-            )
-        for key, value in values.items():
-            setattr(node, key, value)
-        node.updated_at = now_value
-        await session.commit()
-    return {"status": "ok", "message": f"{node.name} er lagret.", "id": node.id}
-
-
-@app.get("/api/energy/hc3-devices")
-async def api_v2_energy_hc3_devices(
-    request: Request,
-    q: Optional[str] = Query(None),
-    limit: int = Query(500, ge=1, le=1000),
-):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    source = "HC3 live"
-    error = None
-    try:
-        devices = await asyncio.to_thread(hc3_devices_request, HC3_ENERGY_LIVE_TIMEOUT_SECONDS)
-        rows = [hc3_energy_device_summary(device) for device in devices]
-    except Exception as exc:
-        source = "Lagret HC3-inventar"
-        error = str(exc)
-        snapshot_path = Path(__file__).resolve().parent / "docs" / "hc3-energy-inventory-current.json"
-        rows = []
-        if snapshot_path.exists():
-            try:
-                snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
-                rows = [hc3_energy_device_summary(device) for device in snapshot.get("all_devices") or [] if isinstance(device, dict)]
-            except Exception as snapshot_exc:
-                error = f"{error} · inventar kunne ikke leses: {snapshot_exc}"
-    query = str(q or "").strip().lower()
-    if query:
-        rows = [
-            row
-            for row in rows
-            if query in " ".join(
-                str(row.get(key) or "").lower()
-                for key in ("id", "name", "type", "baseType", "manufacturer", "model", "parentId")
-            )
-        ]
-    rows.sort(key=lambda row: (row.get("dead") is True, row.get("enabled") is False, str(row.get("name") or ""), row.get("id") or 0))
-    return {"source": source, "error": error, "count": len(rows), "devices": rows[:limit]}
-
-
-@app.get("/api/energy/nodes/live")
-async def api_v2_energy_nodes_live(request: Request):
-    async with async_session() as session:
-        nodes = (
-            await session.execute(
-                select(EnergyNode)
-                .where(EnergyNode.active.isnot(False))
-                .order_by(EnergyNode.circuit_no.asc(), EnergyNode.parent_node_id.asc(), EnergyNode.name.asc())
-            )
-        ).scalars().all()
-    return await hc3_energy_nodes_live(nodes)
-
-
-@app.post("/api/energy/loads")
-async def api_v2_energy_load_create(request: Request, data: V2EnergyLoadIn):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    values = validate_energy_load_power_values(clean_energy_load_values(data.dict(exclude_unset=True)))
-    name = str(values.get("name") or "").strip()
-    if not name:
-        raise HTTPException(status_code=400, detail="Navn må fylles ut.")
-    if values.get("circuit_no") is None and values.get("energy_node_id") is None:
-        raise HTTPException(status_code=400, detail="Lasten må knyttes til en kurs eller en registrert enhet.")
-    now_value = datetime.utcnow()
-    async with async_session() as session:
-        await find_or_create_energy_node_for_load(session, values)
-        load = EnergyLoad(name=name, created_at=now_value, updated_at=now_value, source="manual")
-        for key, value in values.items():
-            if key == "name":
-                continue
-            if isinstance(value, str):
-                value = value.strip() or None
-            setattr(load, key, value)
-        if load.active is None:
-            load.active = True
-        session.add(load)
-        await session.commit()
-        await session.refresh(load)
-    return {"status": "ok", "message": f"Last {load.name} er opprettet.", "id": load.id}
-
-
-@app.patch("/api/energy/loads/{load_id}")
-async def api_v2_energy_load_update(request: Request, load_id: int, data: V2EnergyLoadIn):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    values = clean_energy_load_values(data.dict(exclude_unset=True))
-    async with async_session() as session:
-        load = await session.get(EnergyLoad, load_id)
-        if not load:
-            raise HTTPException(status_code=404, detail="Last ikke funnet")
-        validate_energy_load_power_values(values, existing=load)
-        if "name" in values and not str(values.get("name") or "").strip():
-            raise HTTPException(status_code=400, detail="Navn må fylles ut.")
-        await find_or_create_energy_node_for_load(session, values)
-        for key, value in values.items():
-            if isinstance(value, str):
-                value = value.strip() or None
-            setattr(load, key, value)
-        load.source = load.source or "manual"
-        load.updated_at = datetime.utcnow()
-        await session.commit()
-    return {"status": "ok", "message": f"Last {load.name} er lagret."}
-
-
-@app.post("/api/maintenance/logs")
-async def api_v2_maintenance_log_create(request: Request, data: MaintenanceLogInput):
-    values = data.dict(exclude_unset=True)
-    summary = str(values.get("summary") or "").strip()
-    if not summary:
-        raise HTTPException(status_code=400, detail="Hva ble gjort må fylles ut.")
-    now_value = local_now_naive().replace(second=0, microsecond=0)
-    status = str(values.get("status") or "Utført").strip() or "Utført"
-    if status not in MAINTENANCE_STATUS_OPTIONS:
-        status = "Utført"
-    target_type = clean_maintenance_option(values.get("target_type"), MAINTENANCE_TARGET_OPTIONS, "Seng")
-    room_id = maintenance_room_value(values.get("room_id"))
-    target_name = maintenance_target_name(target_type, room_id, values.get("target_name"))
-    performed_by = str(values.get("performed_by") or getattr(request.state, "access_key_name", "") or "").strip() or None
-    row = MaintenanceLogEntry(
-        performed_at=maintenance_datetime_value(values.get("performed_at")),
-        performed_by=performed_by,
-        presence_type=str(values.get("presence_type") or "Tilstede Sun2").strip() or None,
-        target_type=target_type,
-        room_id=room_id,
-        target_name=target_name,
-        action_type=clean_maintenance_option(values.get("action_type"), MAINTENANCE_ACTION_OPTIONS, "Kontroll"),
-        priority=clean_maintenance_option(values.get("priority"), MAINTENANCE_PRIORITY_OPTIONS, "Normal"),
-        summary=summary,
-        tags=normalize_maintenance_tags(values.get("tags")),
-        status=status,
-        duration_minutes=values.get("duration_minutes"),
-        follow_up_needed=bool(values.get("follow_up_needed")),
-        follow_up_text=str(values.get("follow_up_text") or "").strip() or None,
-        created_by=getattr(request.state, "access_key_name", None),
-        updated_by=getattr(request.state, "access_key_name", None),
-        created_at=now_value,
-        updated_at=now_value,
-    )
-    async with async_session() as session:
-        explicit_site_visit_id = values.get("site_visit_id") if "site_visit_id" in values else None
-        visit = await find_site_visit_for_maintenance(session, row.performed_at, explicit_site_visit_id)
-        if explicit_site_visit_id and not visit:
-            raise HTTPException(status_code=400, detail="Besøket finnes ikke.")
-        row.site_visit_id = visit.id if visit else None
-        session.add(row)
-        await session.commit()
-        await session.refresh(row)
-    return {"status": "ok", "message": "Vedlikeholdslogg er opprettet.", "id": row.id}
-
-
-@app.patch("/api/maintenance/logs/{log_id}")
-async def api_v2_maintenance_log_update(request: Request, log_id: int, data: MaintenanceLogInput):
-    values = data.dict(exclude_unset=True)
-    async with async_session() as session:
-        row = await session.get(MaintenanceLogEntry, log_id)
-        if not row:
-            raise HTTPException(status_code=404, detail="Vedlikeholdslogg ikke funnet")
-        if "performed_at" in values:
-            row.performed_at = maintenance_datetime_value(values.get("performed_at"))
-        if "performed_by" in values:
-            row.performed_by = str(values.get("performed_by") or "").strip() or None
-        if "presence_type" in values:
-            row.presence_type = str(values.get("presence_type") or "").strip() or None
-        if "target_type" in values:
-            row.target_type = clean_maintenance_option(values.get("target_type"), MAINTENANCE_TARGET_OPTIONS, row.target_type or "Generelt")
-        if "room_id" in values:
-            row.room_id = maintenance_room_value(values.get("room_id"))
-        if "target_name" in values:
-            row.target_name = maintenance_target_name(row.target_type, row.room_id, values.get("target_name"))
-        if "action_type" in values:
-            row.action_type = clean_maintenance_option(values.get("action_type"), MAINTENANCE_ACTION_OPTIONS, row.action_type or "Kontroll")
-        if "priority" in values:
-            row.priority = clean_maintenance_option(values.get("priority"), MAINTENANCE_PRIORITY_OPTIONS, row.priority or "Normal")
-        if "summary" in values:
-            summary = str(values.get("summary") or "").strip()
-            if not summary:
-                raise HTTPException(status_code=400, detail="Hva ble gjort må fylles ut.")
-            row.summary = summary
-        if "tags" in values:
-            row.tags = normalize_maintenance_tags(values.get("tags"))
-        if "status" in values:
-            status = str(values.get("status") or "Utført").strip() or "Utført"
-            row.status = status if status in MAINTENANCE_STATUS_OPTIONS else "Utført"
-        if "duration_minutes" in values:
-            row.duration_minutes = values.get("duration_minutes")
-        if "follow_up_needed" in values:
-            row.follow_up_needed = bool(values.get("follow_up_needed"))
-        if "follow_up_text" in values:
-            row.follow_up_text = str(values.get("follow_up_text") or "").strip() or None
-        if "site_visit_id" in values:
-            explicit_site_visit_id = values.get("site_visit_id")
-            if explicit_site_visit_id in (None, 0):
-                row.site_visit_id = None
-            else:
-                visit = await find_site_visit_for_maintenance(session, row.performed_at, explicit_site_visit_id)
-                if not visit:
-                    raise HTTPException(status_code=400, detail="Besøket finnes ikke.")
-                row.site_visit_id = visit.id
-        elif "performed_at" in values and not row.site_visit_id:
-            visit = await find_site_visit_for_maintenance(session, row.performed_at)
-            if visit:
-                row.site_visit_id = visit.id
-        row.updated_by = getattr(request.state, "access_key_name", None)
-        row.updated_at = local_now_naive().replace(second=0, microsecond=0)
-        await session.commit()
-    return {"status": "ok", "message": "Vedlikeholdslogg er lagret."}
-
-
-@app.get("/api/maintenance/site-visits/{visit_id:int}")
-async def api_v2_maintenance_site_visit_detail(visit_id: int):
-    async with async_session() as session:
-        visit = await session.get(SiteVisit, visit_id)
-        if not visit or visit.location_key != OWNTRACKS_SITE_VISIT_LOCATION_KEY:
-            raise HTTPException(status_code=404, detail="Besok ikke funnet")
-        task_rows = (
-            await session.execute(
-                select(MaintenanceLogEntry)
-                .where(MaintenanceLogEntry.site_visit_id == visit.id)
-                .order_by(MaintenanceLogEntry.performed_at.desc(), MaintenanceLogEntry.id.desc())
-            )
-        ).scalars().all()
-    task_edit = api_maintenance_log_edit((visit.started_at or local_now_naive()).replace(second=0, microsecond=0))
-    for field in task_edit.get("fields", []):
-        if field.get("key") == "site_visit_id":
-            field["defaultValue"] = visit.id
-        elif field.get("key") == "presence_type":
-            field["defaultValue"] = "Tilstede Sun2"
-    visit_row = site_visit_row(visit, len(task_rows))
-    task_api_rows = [maintenance_log_row(row, visit) for row in task_rows]
-    title_time = format_source_datetime_short(visit.started_at) if visit.started_at else f"#{visit.id}"
-    confidence_percent = site_visit_confidence_percent(visit.confidence)
-    confidence_label = f"{format_short_number(confidence_percent, 1)} %" if confidence_percent is not None else "-"
-    end_label = (
-        format_source_datetime_short(visit.ended_at)
-        if visit.ended_at
-        else "Mangler avslutning" if site_visit_is_stale(visit) else "Pågående"
-    )
-    return {
-        "status": "ok",
-        "title": f"Lilletorget-besøk {title_time}",
-        "subtitle": site_visit_label(visit) or "OwnTracks-besøk",
-        "visit": visit_row,
-        "cards": [
-            api_card("Start", format_source_datetime_short(visit.started_at) if visit.started_at else "-", "", "Kom inn", "status"),
-            api_card("Slutt", end_label, "", "Dro ut", "status"),
-            api_card("Varighet", site_visit_display_duration(visit), "", site_visit_status_label(visit), "status"),
-            api_card("Oppgaver", len(task_rows), "stk", "Koblet til dette besøket", "status"),
-        ],
-        "fields": [
-            {"label": "Sted", "value": visit.location_name},
-            {"label": "Status", "value": site_visit_status_label(visit)},
-            {"label": "Bruker", "value": visit.username},
-            {"label": "Enhet", "value": visit.device},
-            {"label": "Sikkerhet", "value": confidence_label},
-            {"label": "Sist synket", "value": visit.last_synced_at.isoformat(timespec="minutes") if visit.last_synced_at else None},
-        ],
-        "taskTable": api_table(
-            "Oppgaver",
-            [
-                "performed_at",
-                "target_type",
-                "target_name",
-                "action_type",
-                "priority",
-                "status",
-                "summary",
-                "tags",
-                "follow_up_needed",
-                "follow_up_text",
-            ],
-            task_api_rows,
-            edit=task_edit,
-        ),
-        "taskEdit": task_edit,
-        "visitEdit": {
-            "kind": "site-visit-note",
-            "title": "besøksnotat",
-            "idField": "id",
-            "endpoint": "/api/maintenance/site-visits/{id}",
-            "method": "PATCH",
-            "fields": [
-                {"key": "notes", "label": "Notat for besøket", "type": "textarea", "rows": 8},
-            ],
-        },
-        "raw": visit.raw or {},
-    }
-
-
-@app.patch("/api/maintenance/site-visits/{visit_id:int}")
-async def api_v2_maintenance_site_visit_update(visit_id: int, data: MaintenanceSiteVisitInput):
-    values = data.dict(exclude_unset=True)
-    async with async_session() as session:
-        visit = await session.get(SiteVisit, visit_id)
-        if not visit or visit.location_key != OWNTRACKS_SITE_VISIT_LOCATION_KEY:
-            raise HTTPException(status_code=404, detail="Besok ikke funnet")
-        if "notes" in values:
-            visit.notes = str(values.get("notes") or "").strip() or None
-        visit.updated_at = local_now_naive().replace(second=0, microsecond=0)
-        await session.commit()
-    return {"status": "ok", "message": "Besøksnotat er lagret."}
-
-
-@app.get("/api/maintenance/site-visits")
-async def api_v2_maintenance_site_visits(limit: int = Query(100, ge=1, le=1000)):
-    async with async_session() as session:
-        visits = (
-            await session.execute(
-                select(SiteVisit)
-                .where(SiteVisit.location_key == OWNTRACKS_SITE_VISIT_LOCATION_KEY)
-                .order_by(SiteVisit.started_at.desc(), SiteVisit.id.desc())
-                .limit(limit)
-            )
-        ).scalars().all()
-        counts = {
-            int(row.visit_id): int(row.tasks_count)
-            for row in (
-                await session.execute(
-                    select(MaintenanceLogEntry.site_visit_id.label("visit_id"), func.count(MaintenanceLogEntry.id).label("tasks_count"))
-                    .where(MaintenanceLogEntry.site_visit_id.isnot(None))
-                    .group_by(MaintenanceLogEntry.site_visit_id)
-                )
-            )
-        }
-    return {"status": "ok", "rows": [site_visit_row(row, counts.get(int(row.id or 0), 0)) for row in visits]}
-
-
-@app.post("/api/maintenance/site-visits/sync")
-async def api_v2_maintenance_site_visits_sync(request: Request):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    try:
-        result = await run_owntracks_site_visit_sync(reason="manual")
-    except urllib.error.URLError as exc:
-        raise HTTPException(status_code=502, detail=f"OwnTracks svarte ikke: {exc}") from exc
-    except Exception as exc:
-        logger.warning("Manual OwnTracks site visit sync failed: %s", exc, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-    return result
-
-
-@app.post("/api/admin/users")
-async def api_v2_admin_user_create(request: Request, data: V2AccessUserCreate):
-    forbidden = require_master(request)
-    if forbidden:
-        return forbidden
-    username = normalize_username(data.username)[:80]
-    password = data.password.strip()
-    role = (data.role or "viewer").strip().lower()
-    if role not in ["viewer", "settings"]:
-        role = "viewer"
-    if not username:
-        raise HTTPException(status_code=400, detail="Brukernavn må fylles ut.")
-    if username == "master":
-        raise HTTPException(status_code=400, detail="Brukernavnet master er reservert.")
-    if len(password) < 5:
-        raise HTTPException(status_code=400, detail="Passordet må være minst 5 tegn.")
-    existing_hash = access_password_hash(username, password, is_master=False)
-    async with async_session() as session:
-        existing = (
-            await session.execute(select(AccessKey).where(AccessKey.name == username))
-        ).scalars().first()
-        if existing:
-            raise HTTPException(status_code=409, detail="Brukernavnet finnes allerede.")
-        record = AccessKey(
-            name=username,
-            key_hash=existing_hash,
-            key_prefix=access_key_prefix(username, password, is_master=False),
-            key_plaintext=password,
-            role=role,
-            is_master=False,
-            active=True,
-        )
-        session.add(record)
-        await session.commit()
-        await session.refresh(record)
-    return {"status": "ok", "message": f"Bruker {username} er opprettet.", "id": record.id}
-
-
-@app.patch("/api/admin/users/{key_id}")
-async def api_v2_admin_user_update(request: Request, key_id: int, data: V2AccessUserUpdate):
-    forbidden = require_master(request)
-    if forbidden:
-        return forbidden
-    values = data.dict(exclude_unset=True)
-    async with async_session() as session:
-        row = await session.get(AccessKey, key_id)
-        if not row:
-            raise HTTPException(status_code=404, detail="Bruker ikke funnet")
-        if row.is_master:
-            password = str(values.get("password") or "").strip()
-            if not password:
-                raise HTTPException(status_code=400, detail="Nytt passord må fylles ut for å endre masterbrukeren.")
-            if len(password) < 5:
-                raise HTTPException(status_code=400, detail="Passordet må være minst 5 tegn.")
-            row.name = "master"
-            row.role = "master"
-            row.active = True
-            row.is_master = True
-            row.key_hash = access_password_hash("master", password, is_master=True)
-            row.key_prefix = access_key_prefix("master", password, is_master=True)
-            row.key_plaintext = None
-            await session.commit()
-            response = JSONResponse({"status": "ok", "message": "Masterpassordet er oppdatert."})
-            secure_cookie = should_use_secure_cookie(request)
-            response.set_cookie(
-                AUTH_USER_COOKIE_NAME,
-                "master",
-                max_age=60 * 60 * 24 * 365,
-                httponly=True,
-                secure=secure_cookie,
-                samesite="lax",
-            )
-            response.set_cookie(
-                AUTH_COOKIE_NAME,
-                password,
-                max_age=60 * 60 * 24 * 365,
-                httponly=True,
-                secure=secure_cookie,
-                samesite="lax",
-            )
-            return response
-        if "role" in values:
-            role = (values.get("role") or "viewer").strip().lower()
-            if role not in ["viewer", "settings"]:
-                role = "viewer"
-            row.role = role
-        if "active" in values:
-            row.active = bool(values["active"])
-        if "password" in values:
-            password = str(values.get("password") or "").strip()
-            if password:
-                if len(password) < 5:
-                    raise HTTPException(status_code=400, detail="Passordet må være minst 5 tegn.")
-                row.key_hash = access_password_hash(row.name, password, is_master=False)
-                row.key_prefix = access_key_prefix(row.name, password, is_master=False)
-                row.key_plaintext = password
-        await session.commit()
-    return {"status": "ok", "message": f"Bruker {row.name} er lagret."}
-
-
-@app.get("/status/omsetning", response_class=HTMLResponse)
-async def status_revenue_month_view(request: Request, month: Optional[str] = None):
-    context = await build_revenue_month_context(month)
-    return templates.TemplateResponse(
-        request,
-        "status_revenue_month.html",
-        {
-            "rows": context["rows"],
-            "summary": context["summary"],
-        },
-    )
-
-
-@app.get("/status/statistikk", response_class=HTMLResponse)
-async def status_statistics_view(request: Request):
-    async with async_session() as session:
-        sun_summaries = await get_sun2_summaries(session)
-        parking_summaries = await get_parking_summaries(session)
-    combined_stats = combine_business_summaries(sun_summaries, parking_summaries)
-    return templates.TemplateResponse(
-        request,
-        "status_statistics.html",
-        {"combined_stats": combined_stats},
-    )
-
-
-@app.get("/status/datakilder", response_class=HTMLResponse)
-async def import_status_view(request: Request):
-    async with async_session() as session:
-        rows = await import_status_rows(session)
-        runs = (
-            await session.execute(
-                select(ImportJobRun)
-                .where(ImportJobRun.job_name.in_(list(IMPORT_JOB_DEFINITIONS)))
-                .where(
-                    or_(
-                        ImportJobRun.job_name != "easypark_parking_import",
-                        ImportJobRun.source != "EasyPark downloader",
-                        ImportJobRun.ok.is_(False),
-                    )
-                )
-                .order_by(ImportJobRun.finished_at.desc())
-                .limit(80)
-            )
-        ).scalars().all()
-    counts = {
-        "ok": sum(1 for row in rows if row["status"] == "ok"),
-        "warn": sum(1 for row in rows if row["status"] == "warn"),
-        "bad": sum(1 for row in rows if row["status"] == "bad"),
-        "total": len(rows),
-    }
-    return templates.TemplateResponse(
-        request,
-        "import_status.html",
-        {"rows": rows, "runs": runs, "counts": counts, "source_numbers": IMPORT_JOB_NUMBER_BY_NAME},
-    )
-
-
-@app.get("/status/dagslinje", response_class=HTMLResponse)
-async def day_view(request: Request, day: Optional[str] = None, zoom: Optional[str] = "all"):
-    selected_day = parse_day(day)
-    zoom_config, window_start, window_end, ticks = day_zoom_window(selected_day, zoom)
-    now_local = local_now_naive()
-    is_today = selected_day == now_local.date()
-    if is_today:
-        if now_local < window_start:
-            timeline_end = window_start
-        elif now_local > window_end:
-            timeline_end = window_end
-        else:
-            timeline_end = now_local
-    else:
-        timeline_end = window_end
-    now_marker = percent_between(now_local, window_start, window_end) if is_today and window_start <= now_local <= window_end else None
-    light_items = await build_light_timeline_group(window_start, window_end, timeline_end)
-    vent_items = await build_timeline_group(VentilationEvent, VENT_TIMELINE_DEVICES, "ventilasjon", window_start, window_end, timeline_end)
-    return templates.TemplateResponse(
-        request,
-        "day.html",
-        {
-            "selected_day": selected_day.isoformat(),
-            "prev_day": (selected_day - timedelta(days=1)).isoformat(),
-            "next_day": (selected_day + timedelta(days=1)).isoformat(),
-            "zoom": zoom_config["key"],
-            "zoom_label": zoom_config["label"],
-            "zoom_options": DAY_ZOOM_OPTIONS,
-            "is_today": is_today,
-            "now_marker": now_marker,
-            "now_label": now_local.strftime("%H:%M") if is_today else "",
-            "light_items": light_items,
-            "vent_items": vent_items,
-            "ticks": ticks,
-        },
-    )
-
-
-@app.get("/lys/dagslogg-lux", response_class=HTMLResponse)
-async def day_lux_view(request: Request, day: Optional[str] = None, compare_previous: bool = False):
-    selected_day = parse_day(day)
-    day_start = datetime.combine(selected_day, time.min)
-    day_end = day_start + timedelta(days=1)
-    previous_day_start = day_start - timedelta(days=1)
-    previous_day_end = day_start
-    now_local = local_now_naive()
-    is_today = selected_day == now_local.date()
-    timeline_end = min(now_local, day_end) if is_today else day_end
-    now_marker = percent_between(now_local, day_start, day_end) if is_today else None
-    previous_lux_day = None
-    if compare_previous:
-        _, current_values = await fetch_lux_samples(day_start, timeline_end)
-        _, previous_values = await fetch_lux_samples(previous_day_start, previous_day_end)
-        lux_values = current_values + previous_values
-        lux_day = await build_lux_day(day_start, day_end, timeline_end, lux_values)
-        previous_lux_day = await build_lux_day(previous_day_start, previous_day_end, previous_day_end, lux_values)
-    else:
-        lux_day = await build_lux_day(day_start, day_end, timeline_end)
-    light_chart = await build_light_chart_markers(day_start, day_end, timeline_end)
-    compare_query = "&compare_previous=1" if compare_previous else ""
-    return templates.TemplateResponse(
-        request,
-        "day_lux.html",
-        {
-            "selected_day": selected_day.isoformat(),
-            "prev_day": (selected_day - timedelta(days=1)).isoformat(),
-            "next_day": (selected_day + timedelta(days=1)).isoformat(),
-            "compare_previous": compare_previous,
-            "compare_query": compare_query,
-            "previous_day_label": (selected_day - timedelta(days=1)).strftime("%d.%m.%Y"),
-            "is_today": is_today,
-            "now_marker": now_marker,
-            "now_label": now_local.strftime("%H:%M") if is_today else "",
-            "lux_day": lux_day,
-            "light_chart": light_chart,
-            "previous_lux_day": previous_lux_day,
-            "ticks": [
-                {"label": "00", "x": 0},
-                {"label": "06", "x": 250},
-                {"label": "12", "x": 500},
-                {"label": "18", "x": 750},
-                {"label": "24", "x": 1000},
-            ],
-        },
-    )
-
-
-@app.get("/ventilasjon/dagslogg-temp", response_class=HTMLResponse)
-async def day_temp_view(request: Request, day: Optional[str] = None):
-    selected_day = parse_day(day)
-    day_start = datetime.combine(selected_day, time.min)
-    day_end = day_start + timedelta(days=1)
-    now_local = local_now_naive()
-    is_today = selected_day == now_local.date()
-    timeline_end = min(now_local, day_end) if is_today else day_end
-    now_marker = percent_between(now_local, day_start, day_end) if is_today else None
-    temp_day = await build_temp_day(day_start, day_end, timeline_end)
-    return templates.TemplateResponse(
-        request,
-        "day_temp.html",
-        {
-            "selected_day": selected_day.isoformat(),
-            "prev_day": (selected_day - timedelta(days=1)).isoformat(),
-            "next_day": (selected_day + timedelta(days=1)).isoformat(),
-            "is_today": is_today,
-            "now_marker": now_marker,
-            "now_label": now_local.strftime("%H:%M") if is_today else "",
-            "temp_day": temp_day,
-            "ticks": [
-                {"label": "00", "x": 0},
-                {"label": "06", "x": 250},
-                {"label": "12", "x": 500},
-                {"label": "18", "x": 750},
-                {"label": "24", "x": 1000},
-            ],
-        },
-    )
-
-
-@app.post("/log")
-async def legacy_log_data(data: LegacyLogIn):
-    record = GenericEvent(
-        timestamp=data.timestamp,
-        system="legacy",
-        event_type="legacy_log",
-        source=data.source,
-        value=data.temperature,
-        extra={"temperature": data.temperature, "humidity": data.humidity},
-    )
-    event_id = await save_record(record)
-    return {"status": "ok", "id": event_id, "table": "event_data"}
-
-
-@app.post("/api/hc3/measurements/log")
-async def hc3_meter_reading_log(data: Hc3MeterReadingIn):
-    timestamp = normalize_local_naive(data.ts) or local_now_naive()
-    reading = Hc3MeterReading(
-        timestamp=timestamp,
-        kilde=data.kilde,
-        status=data.status,
-        fibaroid=data.fibaroid,
-        verdi1=data.verdi1,
-        verdi2=data.verdi2,
-        forklaring=data.forklaring,
-        source=data.source or "HC3",
-        raw=json_safe_model_payload(data),
-    )
-    async with async_session() as session:
-        session.add(reading)
-        await session.flush()
-        kjeller_sample_id = await upsert_kjeller_measurement_sample(
-            session,
-            timestamp,
-            data.fibaroid,
-            data.verdi1,
-            data.source or "HC3",
-        )
-        await record_import_job(
-            session,
-            "hc3_meter_readings",
-            source=data.source or "HC3",
-            records_imported=1,
-            records_total=1,
-            message=f"{data.status} {data.kilde} {data.verdi1:g}",
-            raw={
-                "id": reading.id,
-                "fibaroid": data.fibaroid,
-                "kilde": data.kilde,
-                "status": data.status,
-                "kjeller_sample_id": kjeller_sample_id,
-            },
-        )
-        await session.commit()
-        return {"status": "ok", "id": reading.id, "table": "hc3_meter_readings", "kjeller_sample_id": kjeller_sample_id}
-
-
-@app.post("/events")
-async def log_event(data: EventDataIn):
-    system = (data.system or "").lower()
-    if system in {"utelys", "ute_lys", "lys"}:
-        if data.event_type in {"sample", "sample_5min", "learning_sample"}:
-            met_weather = None
-            if not payload_weather_symbol(data) and not payload_weather_text(data):
-                met_weather = await met_weather_cached()
-            yr_sample_id = await save_yr_sample_for_payload(data, met_weather)
-            event_id = await save_record(light_sample_from_payload(data, met_weather))
-            async with async_session() as session:
-                await record_import_job(
-                    session,
-                    "hc3_light_5min",
-                    source=data.source or "HC3",
-                    records_imported=1,
-                    records_total=1,
-                    message=f"Lux {data.lux:.0f}" if data.lux is not None else "5-minutters sample mottatt",
-                    raw={"event_id": event_id, "yr_sample_id": yr_sample_id},
-                )
-                await session.commit()
-            return {"status": "ok", "id": event_id, "table": "utelys_samples", "yr_sample_id": yr_sample_id}
-        event = light_from_payload(data)
-        notification = light_ntfy_payload(event)
-        event_id = await save_record(event, notification=notification)
-        return {
-            "status": "ok",
-            "id": event_id,
-            "table": "utelys_events",
-            "ntfy_queued": notification is not None,
-        }
-    if system in {"ventilasjon", "ventilation", "vent"}:
-        if data.event_type in {"sample", "sample_5min", "sample_15min", "learning_sample"}:
-            yr_sample_id = await save_yr_sample_for_payload(data)
-            event_id = await save_record(vent_sample_from_payload(data))
-            async with async_session() as session:
-                await record_import_job(
-                    session,
-                    "hc3_ventilation_5min",
-                    source=data.source or "HC3",
-                    records_imported=1,
-                    records_total=1,
-                    message=f"Modus {data.mode}" if data.mode else "5-minutters sample mottatt",
-                    raw={"event_id": event_id, "yr_sample_id": yr_sample_id},
-                )
-                await session.commit()
-            return {"status": "ok", "id": event_id, "table": "ventilasjon_samples", "yr_sample_id": yr_sample_id}
-        event = vent_from_payload(data)
-        notification = ventilation_ntfy_payload(event)
-        event_id = await save_record(event, notification=notification)
-        return {
-            "status": "ok",
-            "id": event_id,
-            "table": "ventilasjon_events",
-            "ntfy_queued": notification is not None,
-        }
-    event_id = await save_record(generic_from_payload(data))
-    return {"status": "ok", "id": event_id, "table": "event_data"}
-
-
-@app.post("/api/hc3/door-events")
-async def api_hc3_door_event(data: DoorEventIn):
-    row = door_event_from_payload(data)
-    async with async_session() as session:
-        session.add(row)
-        await session.flush()
-        await record_import_job(
-            session,
-            "hc3_door_events",
-            source=data.source or "HC3",
-            records_imported=1,
-            records_total=1,
-            message=f"{row.device_name or row.device_key or row.device_id or 'Dør'} {row.action}",
-            raw={
-                "id": row.id,
-                "device_id": row.device_id,
-                "device_key": row.device_key,
-                "action": row.action,
-                "state": row.state,
-                "raw_value": row.raw_value,
-            },
-        )
-        await session.commit()
-        await session.refresh(row)
-    return {"status": "ok", "id": row.id, "table": "door_events", "action": row.action, "state": row.state}
-
-
-@app.post("/api/hc3/doors/poll-sync")
-async def api_hc3_doors_poll_sync():
-    result = await run_hc3_door_poll_once("manual_api")
-    return {"status": "ok" if result.get("ok") else "error", **result}
-
-
-@app.post("/api/import-status/report")
-async def import_status_report(data: ImportStatusReportIn):
-    definition = import_job_definition(data.job_name)
-    ok = data.ok if data.ok is not None else (data.status not in {"bad", "failed", "error"})
-    finished_at = data.finished_at or local_now_naive()
-    async with async_session() as session:
-        row = await record_import_job(
-            session,
-            data.job_name,
-            ok=bool(ok),
-            title=data.title or definition["title"],
-            category=data.category or definition["category"],
-            source=data.source or definition.get("source"),
-            started_at=data.started_at,
-            finished_at=finished_at,
-            next_expected_at=data.next_expected_at,
-            expected_interval_minutes=data.expected_interval_minutes,
-            warning_after_minutes=data.warning_after_minutes,
-            records_imported=data.records_imported,
-            records_total=data.records_total,
-            duration_seconds=data.duration_seconds,
-            message=data.message,
-            raw=data.raw,
-        )
-        await session.commit()
-        await session.refresh(row)
-    return {"status": "ok", "job_name": row.job_name, "job_status": row.status, "last_success_at": api_local_iso(row.last_success_at)}
-
-
-@app.get("/api/import-status/json")
-async def import_status_json():
-    async with async_session() as session:
-        rows = await import_status_rows(session)
-    return {"rows": api_import_status_rows(rows)}
-
-
-@app.get("/api/import-status/{job_name}")
-async def import_status_detail(job_name: str):
-    async with async_session() as session:
-        rows = await import_status_rows(session)
-        row = next((item for item in rows if item.get("job_name") == job_name), None)
-        if not row:
-            raise HTTPException(status_code=404, detail="Datakilde ikke funnet")
-        runs = (
-            await session.execute(
-                select(ImportJobRun)
-                .where(ImportJobRun.job_name == job_name)
-                .order_by(ImportJobRun.finished_at.desc().nullslast(), ImportJobRun.id.desc())
-                .limit(50)
-            )
-        ).scalars().all()
-    api_row = api_import_status_row(row)
-    total_runs = len(runs)
-    ok_runs = sum(1 for run in runs if run.ok is True)
-    failed_runs = sum(1 for run in runs if run.ok is False)
-    return {
-        "source": api_row,
-        "runs": [api_import_job_run_row(run) for run in runs],
-        "summary": {
-            "runs": total_runs,
-            "ok": ok_runs,
-            "failed": failed_runs,
-            "unknown": total_runs - ok_runs - failed_runs,
-        },
-    }
-
-
-@app.post("/api/renhold/ingest")
-async def roborock_ingest(data: RoborockIngestIn):
-    batch_time = normalize_local_naive(data.timestamp) or local_now_naive()
-    batch_provider = cleaning_provider(
-        next(
-            (
-                robot.get("provider") if isinstance(robot, dict) else getattr(robot, "provider", None)
-                for robot in data.robots
-                if (robot.get("provider") if isinstance(robot, dict) else getattr(robot, "provider", None))
-            ),
-            None,
-        ),
-        data.source,
-    )
-    import_job_name = "dreame_sync" if batch_provider == "dreame" else "roborock_sync"
-    results = []
-    async with async_session() as session:
-        session.add(
-            RoborockSyncRun(
-                timestamp=batch_time,
-                collector_id=data.collector_id,
-                source=data.source,
-                ok=data.ok,
-                robots_count=len(data.robots),
-                message=data.message,
-                raw={"extra": data.extra},
-            )
-        )
-        for robot in data.robots:
-            results.append(await ingest_roborock_robot(session, robot, batch_time, data.source))
-        await record_import_job(
-            session,
-            import_job_name,
-            ok=data.ok,
-            source=data.source,
-            records_imported=len(data.robots),
-            records_total=len(data.robots),
-            message=data.message or f"{len(data.robots)} roboter synkronisert",
-            raw={"collector_id": data.collector_id, "provider": batch_provider, "extra": data.extra},
-        )
-        await session.commit()
-    return {"status": "ok", "robots": results}
-
-
-@app.post("/api/renhold/telemetry/ingest")
-async def roborock_telemetry_ingest(data: RoborockTelemetryIn):
-    batch_time = normalize_local_naive(data.timestamp) or local_now_naive()
-    results = []
-    async with async_session() as session:
-        for robot in data.robots:
-            results.append(await ingest_roborock_telemetry_robot(session, robot, batch_time, data.source))
-        await session.commit()
-    return {
-        "status": "ok" if data.ok else "partial",
-        "robots": results,
-        "events": sum(int(item.get("events") or 0) for item in results),
-    }
-
-
-@app.post("/api/sun2/room-stats/ingest")
-async def sun2_room_stats_ingest(data: Sun2RoomStatsIngestIn):
-    batch_time = data.timestamp or datetime.utcnow()
-    async with async_session() as session:
-        counts = await ingest_sun2_room_stats(session, data, batch_time)
-        session.add(
-            Sun2ImportRun(
-                timestamp=batch_time,
-                collector_id=data.collector_id,
-                source=data.source,
-                ok=data.ok,
-                stat_date=data.stat_date,
-                source_file=data.source_file,
-                rows_count=len(data.rows),
-                inserted_count=counts["inserted"],
-                updated_count=counts["updated"],
-                message=data.message,
-                raw={"extra": data.extra},
-            )
-        )
-        await record_import_job(
-            session,
-            "sun2_room_daily_import",
-            ok=data.ok,
-            source=data.source,
-            records_imported=counts["inserted"] + counts["updated"],
-            records_total=len(data.rows),
-            message=data.message or f"{len(data.rows)} romrader for {data.stat_date or '-'}",
-            raw={"collector_id": data.collector_id, "source_file": data.source_file, "counts": counts},
-        )
-        await session.commit()
-    clear_summary_cache("sun2")
-    return {"status": "ok", **counts, "rows": len(data.rows)}
-
-
-@app.post("/api/sun2/sessions/ingest")
-async def sun2_sessions_ingest(data: Sun2TanningSessionsIngestIn):
-    batch_time = data.timestamp or datetime.utcnow()
-    period_first = min((row.started_at for row in data.rows if row.started_at), default=None)
-    period_last = max((row.started_at for row in data.rows if row.started_at), default=None)
-    duplicate_source_session_ids = sun2_duplicate_session_id_payload(data.rows)
-    if duplicate_source_session_ids:
-        message = (
-            f"Avvist Sun2 session-import: {len(duplicate_source_session_ids)} duplikat "
-            f"source_session_id i {data.source_file or 'ukjent fil'}"
-        )
-        async with async_session() as session:
-            session.add(
-                Sun2SessionImportRun(
-                    timestamp=batch_time,
-                    collector_id=data.collector_id,
-                    source=data.source,
-                    ok=False,
-                    source_file=data.source_file,
-                    period_first=period_first,
-                    period_last=period_last,
-                    rows_count=len(data.rows),
-                    inserted_count=0,
-                    updated_count=0,
-                    skipped_count=len(data.rows),
-                    message=message,
-                    raw={"extra": data.extra, "duplicate_source_session_ids": duplicate_source_session_ids},
-                )
-            )
-            await record_import_job(
-                session,
-                "sun2_sessions_import",
-                ok=False,
-                source=data.source,
-                records_imported=0,
-                records_total=len(data.rows),
-                message=message,
-                raw={
-                    "collector_id": data.collector_id,
-                    "source_file": data.source_file,
-                    "duplicate_source_session_ids": duplicate_source_session_ids,
-                },
-            )
-            await session.commit()
-        raise HTTPException(status_code=409, detail=message)
-
-    async with async_session() as session:
-        counts = await ingest_sun2_tanning_sessions(session, data, batch_time)
-        session.add(
-            Sun2SessionImportRun(
-                timestamp=batch_time,
-                collector_id=data.collector_id,
-                source=data.source,
-                ok=data.ok,
-                source_file=data.source_file,
-                period_first=period_first,
-                period_last=period_last,
-                rows_count=len(data.rows),
-                inserted_count=counts["inserted"],
-                updated_count=counts["updated"],
-                skipped_count=counts["skipped"],
-                message=data.message,
-                raw={"extra": data.extra},
-            )
-        )
-        await record_import_job(
-            session,
-            "sun2_sessions_import",
-            ok=data.ok,
-            source=data.source,
-            records_imported=counts["inserted"] + counts["updated"],
-            records_total=len(data.rows),
-            message=data.message or f"{len(data.rows)} enkelttimer mottatt",
-            raw={"collector_id": data.collector_id, "source_file": data.source_file, "counts": counts},
-        )
-        await session.commit()
-    clear_summary_cache("sun2", "sun2_sessions", "sun2_session_options", "sun2_session_database_total")
-    if counts["inserted"] or counts["updated"] or counts.get("replaced"):
-        schedule_sun2_axis_snapshot_link("sun2_sessions_ingest")
-    return {"status": "ok", **counts, "rows": len(data.rows)}
-
-
-@app.post("/api/sun2/beds/ingest")
-async def sun2_beds_ingest(data: Sun2BedsIngestIn):
-    batch_time = data.timestamp or datetime.utcnow()
-    async with async_session() as session:
-        counts = await ingest_sun2_beds(session, data, batch_time)
-        await record_import_job(
-            session,
-            "sun2_beds_import",
-            ok=data.ok,
-            source=data.source,
-            records_imported=counts["inserted"] + counts["updated"],
-            records_total=len(data.beds),
-            message=data.message or f"{len(data.beds)} senger mottatt",
-            raw={"collector_id": data.collector_id, "counts": counts},
-        )
-        await session.commit()
-    clear_summary_cache("sun2_session_options")
-    return {"status": "ok", **counts, "beds": len(data.beds)}
-
-
-@app.post("/api/sun2/members/ingest")
-async def sun2_members_ingest(data: Sun2MembersIngestIn):
-    batch_time = data.timestamp or datetime.utcnow()
-    async with async_session() as session:
-        counts = await ingest_sun2_members(session, data, batch_time)
-        await record_import_job(
-            session,
-            "sun2_members_import",
-            ok=data.ok,
-            source=data.source,
-            records_imported=counts["inserted"] + counts["updated"],
-            records_total=len(data.members),
-            message=data.message or f"{len(data.members)} medlemmer mottatt",
-            raw={"collector_id": data.collector_id, "counts": counts},
-        )
-        await session.commit()
-    clear_summary_cache("sun2_members")
-    return {"status": "ok", **counts, "members": len(data.members)}
-
-
-@app.post("/api/sun2/product-sales/ingest")
-async def sun2_product_sales_ingest(data: Sun2ProductSalesIngestIn):
-    batch_time = data.timestamp or datetime.utcnow()
-    row_dates = [row.stat_date or (row.sold_at.date() if row.sold_at else None) for row in data.rows]
-    row_dates = [item for item in row_dates if item is not None]
-    period_first = min(row_dates, default=None)
-    period_last = max(row_dates, default=None)
-    scope = str((data.extra or {}).get("scope") or "").strip().lower()
-    job_name = "sun2_product_sales_monthly_import" if scope == "monthly" else "sun2_product_sales_daily_import"
-    async with async_session() as session:
-        counts = await ingest_sun2_product_sales(session, data, batch_time)
-        await record_import_job(
-            session,
-            job_name,
-            ok=data.ok,
-            source=data.source,
-            records_imported=counts["inserted"] + counts["updated"],
-            records_total=len(data.rows),
-            message=data.message or f"{len(data.rows)} produktsalg mottatt",
-            raw={
-                "collector_id": data.collector_id,
-                "source_file": data.source_file,
-                "scope": scope or "daily",
-                "period_first": period_first.isoformat() if period_first else None,
-                "period_last": period_last.isoformat() if period_last else None,
-                "counts": counts,
-            },
-        )
-        await session.commit()
-    clear_summary_cache("sun2", "sun2_product_sales")
-    return {"status": "ok", **counts, "rows": len(data.rows)}
-
-
-@app.post("/api/sun2/finance-settlements/ingest")
-async def sun2_finance_settlements_ingest(data: Sun2FinanceSettlementsIngestIn):
-    batch_time = data.timestamp or datetime.utcnow()
-    async with async_session() as session:
-        counts = await ingest_sun2_finance_settlements(session, data, batch_time)
-        await record_import_job(
-            session,
-            "sun2_finance_settlement_monthly_import",
-            ok=data.ok,
-            source=data.source,
-            records_imported=counts["inserted"] + counts["updated"],
-            records_total=len(data.rows),
-            message=data.message or f"{len(data.rows)} Sun2 finansoppgjor mottatt",
-            raw={
-                "collector_id": data.collector_id,
-                "source_file": data.source_file,
-                "counts": counts,
-                "extra": data.extra,
-            },
-        )
-        await session.commit()
-    clear_summary_cache("sun2", "sun2_finance_settlements")
-    return {"status": "ok", **counts, "rows": len(data.rows)}
-
-
-@app.post("/api/sun2/backfill-room-identity")
-async def sun2_backfill_room_identity():
-    async with async_session() as session:
-        counts = await backfill_sun2_room_identity(session)
-        await session.commit()
-    clear_summary_cache("sun2", "sun2_sessions", "sun2_session_options", "sun2_session_database_total")
-    return {"status": "ok", **counts}
-
-
-@app.get("/sun2/room-stats")
-async def sun2_room_stats_legacy_redirect(request: Request):
-    return redirect_keep_query(request, "/soling/detaljer", status_code=307)
-
-
-@app.get("/sun2/room-stats/json")
-async def sun2_room_stats_json_legacy_redirect(request: Request):
-    return redirect_keep_query(request, "/api/sun2/room-stats/json", status_code=307)
-
-
-@app.get("/parkering")
-async def parking_redirect(request: Request):
-    return redirect_keep_query(request, "/parkering/oversikt", status_code=307)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 EASYPARK_REQUIRED_COLUMNS = {
@@ -29541,78 +21180,8 @@ async def parking_vehicle_svv_worker() -> None:
         await asyncio.sleep(SVV_SYNC_INTERVAL_MINUTES * 60)
 
 
-@app.post("/api/parkering/import-csv")
-async def parking_easypark_import_csv(request: Request):
-    started_at = local_now_naive()
-    filename = "easypark.csv"
-    try:
-        form = await request.form()
-        upload = form.get("file")
-        if not upload or not hasattr(upload, "read"):
-            raise ValueError("Velg en CSV-fil fra EasyPark.")
-        filename = getattr(upload, "filename", None) or filename
-        content = await upload.read()
-        if not content:
-            raise ValueError("Filen er tom.")
-        async with async_session() as session:
-            counts = await ingest_easypark_csv(session, content, filename)
-            vehicle_count = await refresh_parking_vehicle_summary(session)
-            forecast_raw: Dict[str, Any] = {"saved": False}
-            try:
-                forecast_raw = {"saved": True, **await save_parking_forecast_after_import(session)}
-            except Exception as forecast_exc:
-                forecast_raw = {"saved": False, "error": str(forecast_exc)}
-            message = (
-                f"{counts['inserted']} nye, {counts['updated']} oppdatert, {counts['unchanged']} uendret, "
-                f"{counts['skipped']} hoppet over fra {filename}"
-            )
-            if forecast_raw.get("saved"):
-                message += ", prognose lagret"
-            await record_import_job(
-                session,
-                "easypark_parking_import",
-                ok=True,
-                source="EasyPark CSV",
-                started_at=started_at,
-                records_imported=counts["inserted"] + counts["updated"],
-                records_total=counts["total"],
-                message=message,
-                raw={
-                    "filename": filename,
-                    "counts": import_counts_for_json(counts),
-                    "vehicles_refreshed": vehicle_count,
-                    "forecast": forecast_raw,
-                },
-            )
-            await session.commit()
-        clear_summary_cache("parking")
-        if SVV_IMPORT_SYNC_BATCH_SIZE and SVV_API_KEY and SVV_SYNC_ENABLED:
-            asyncio.create_task(run_vehicle_svv_sync(SVV_IMPORT_SYNC_BATCH_SIZE, "EasyPark import"))
-        return {"status": "ok", **counts, "vehicles_refreshed": vehicle_count, "forecast": forecast_raw}
-    except Exception as exc:
-        async with async_session() as session:
-            await record_import_job(
-                session,
-                "easypark_parking_import",
-                ok=False,
-                source="EasyPark CSV",
-                started_at=started_at,
-                records_imported=0,
-                records_total=0,
-                message=str(exc),
-                raw={"filename": filename},
-            )
-            await session.commit()
-        return JSONResponse({"status": "error", "detail": str(exc)}, status_code=400)
 
 
-@app.post("/api/parkering/svv-sync")
-async def parking_vehicle_svv_sync_api(request: Request, limit: int = Query(SVV_SYNC_BATCH_SIZE, ge=1, le=500)):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    result = await run_vehicle_svv_sync(limit, "Manuell")
-    return result
 
 
 async def parking_period_summary(session, label: str, start_at: datetime, end_at: datetime) -> Dict[str, Any]:
@@ -29724,455 +21293,24 @@ async def trigger_car_info_after_svv_no_data(plates: list[str], source: str) -> 
     return {"ok": ok, "candidates": candidates, "triggered": selected, "results": results, "errors": errors}
 
 
-@app.post("/parkering/refresh")
-async def parking_refresh(request: Request):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    from_day, to_day = easypark_recent_period()
-    started_at = local_now_naive()
-    try:
-        result = await asyncio.to_thread(
-            easypark_downloader_request,
-            "/queue-sync-period",
-            {"from_date": from_day.isoformat(), "to_date": to_day.isoformat()},
-            10,
-        )
-        status = result.get("status")
-        if status == "busy":
-            outcome = "busy"
-        elif status == "error":
-            raise RuntimeError(str(result.get("detail") or result.get("last_error") or "EasyPark-import feilet"))
-        else:
-            outcome = "ok"
-    except Exception as exc:
-        async with async_session() as session:
-            await record_import_job(
-                session,
-                "easypark_parking_import",
-                ok=False,
-                source="EasyPark downloader",
-                started_at=started_at,
-                records_imported=0,
-                records_total=0,
-                message=str(exc),
-                raw={"period": {"from": from_day.isoformat(), "to": to_day.isoformat()}},
-            )
-            await session.commit()
-        outcome = "error"
-    day = request.query_params.get("day")
-    suffix = f"?day={quote(day)}&refresh={outcome}" if day else f"?refresh={outcome}"
-    return RedirectResponse(f"/parkering/oversikt{suffix}", status_code=303)
 
 
-@app.get("/parkering/oversikt", response_class=HTMLResponse)
-async def parking_overview_view(
-    request: Request,
-    refresh: Optional[str] = None,
-    day: Optional[date] = Query(None),
-):
-    now = local_now_naive()
-    today = now.date()
-    selected_day = day or today
-    selected_start = datetime.combine(selected_day, time.min)
-    selected_end = selected_start + timedelta(days=1)
-    today_start = datetime.combine(today, time.min)
-    tomorrow_start = today_start + timedelta(days=1)
-    yesterday_start = today_start - timedelta(days=1)
-    month_start = today.replace(day=1)
-    month_start_dt = datetime.combine(month_start, time.min)
-    previous_month_end = month_start_dt
-    previous_month_start = datetime.combine((month_start - timedelta(days=1)).replace(day=1), time.min)
-    week_start = today_start - timedelta(days=today.weekday())
-    previous_week_start = week_start - timedelta(days=7)
-    normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
-    async with async_session() as session:
-        period_cards = [
-            await parking_period_summary(session, "I dag", today_start, tomorrow_start),
-            await parking_period_summary(session, "I går", yesterday_start, today_start),
-            await parking_period_summary(session, "Denne uken", week_start, tomorrow_start),
-            await parking_period_summary(session, "Forrige uke", previous_week_start, week_start),
-            await parking_period_summary(session, "Denne måneden", month_start_dt, tomorrow_start),
-            await parking_period_summary(session, "Forrige måned", previous_month_start, previous_month_end),
-        ]
-        today_rows = (
-            await session.execute(
-                select(ParkingSession, ParkingVehicle, ParkingVehicleDetails)
-                .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
-                .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == normalized_session_plate)
-                .where(
-                    ParkingSession.start_time < selected_end,
-                    or_(
-                        ParkingSession.end_time.is_(None),
-                        ParkingSession.end_time >= selected_start,
-                        func.lower(func.coalesce(ParkingSession.status, "")) == "ongoing",
-                    ),
-                )
-                .order_by(ParkingSession.start_time.desc())
-            )
-        ).all()
-        ongoing_today = [
-            parking_row_context(row, vehicle, details, now, selected_day)
-            for row, vehicle, details in today_rows
-            if (row.status or "").strip().lower() == "ongoing"
-        ]
-        completed_today = [
-            parking_row_context(row, vehicle, details, now, selected_day)
-            for row, vehicle, details in today_rows
-            if (row.status or "").strip().lower() != "ongoing"
-        ]
-        last_parking_at = (
-            await session.execute(
-                select(func.max(ParkingSession.imported_at))
-            )
-        ).scalar_one()
-        easypark_row = (
-            await session.execute(
-                select(ImportJobStatus).where(ImportJobStatus.job_name == "easypark_parking_import")
-            )
-        ).scalars().first()
-        easypark_status = None
-        if easypark_row:
-            definition = import_job_definition("easypark_parking_import")
-            if easypark_row.status == "running":
-                status, status_text = "running", "Kjører"
-            else:
-                status, status_text = import_job_status_from_age(
-                    easypark_row.last_success_at,
-                    definition.get("expected_interval_minutes"),
-                    definition.get("warning_after_minutes"),
-                )
-            easypark_status = {
-                "status": status,
-                "status_text": status_text,
-                "last_success_at": easypark_row.last_success_at,
-                "records_total": easypark_row.records_total,
-                "message": easypark_row.message,
-            }
-    refresh_messages = {
-        "ok": {"level": "good", "text": "EasyPark er hentet for i går og i dag."},
-        "busy": {"level": "warn", "text": "EasyPark-importen kjører allerede. Prøv igjen litt senere."},
-        "error": {"level": "bad", "text": "EasyPark-importen feilet. Se datakilder for detaljer."},
-    }
-    refresh_from, refresh_to = easypark_recent_period()
-    return templates.TemplateResponse(
-        request,
-        "parking_overview.html",
-        {
-            "today": today,
-            "selected_day": selected_day,
-            "previous_day": selected_day - timedelta(days=1),
-            "next_day": selected_day + timedelta(days=1),
-            "period_cards": period_cards,
-            "ongoing_today": ongoing_today,
-            "completed_today": completed_today,
-            "last_parking_at": last_parking_at,
-            "easypark_status": easypark_status,
-            "refresh_period": {"from_day": refresh_from, "to_day": refresh_to},
-            "refresh_message": refresh_messages.get(refresh or ""),
-            "can_settings": getattr(request.state, "auth_can_settings", False),
-        },
-    )
 
 
-@app.get("/parkering/statistikk", response_class=HTMLResponse)
-async def parking_statistics_view(request: Request):
-    async with async_session() as session:
-        summaries = await get_parking_summaries(session)
-    return templates.TemplateResponse(
-        request,
-        "parking_statistics.html",
-        {
-            "top_days": summaries["top_days"],
-            "top_months": summaries["top_months"],
-            "top_days_by_count": summaries["top_days_by_count"],
-            "top_months_by_count": summaries["top_months_by_count"],
-            "weekly_chart": summaries["weekly_chart"],
-            "grand_total": summaries["total"],
-            "first_date": summaries["first_date"],
-            "last_date": summaries["last_date"],
-        },
-    )
 
 
-@app.get("/parkering/prognose", response_class=HTMLResponse)
-async def parking_forecast_view(request: Request):
-    now_local = datetime.now(LOCAL_TZ)
-    today = now_local.date()
-    async with async_session() as session:
-        forecast = await build_parking_forecast(session, today, now_local)
-        saved_forecasts = await saved_forecast_table(session, "parking")
-    response = templates.TemplateResponse(
-        request,
-        "parking_forecast.html",
-        {
-            "forecast": forecast,
-            "day": forecast["day"],
-            "month": forecast["month"],
-            "year": forecast["year"],
-            "saved_forecasts": saved_forecasts,
-            "saved": request.query_params.get("saved") == "1",
-        },
-    )
-    response.headers["Cache-Control"] = "no-store"
-    return response
 
 
-@app.post("/parkering/prognose/lagre")
-async def parking_forecast_save(request: Request):
-    now_local = datetime.now(LOCAL_TZ)
-    today = now_local.date()
-    async with async_session() as session:
-        forecast = await build_parking_forecast(session, today, now_local)
-        await save_forecast_snapshots(session, "parking", forecast, getattr(request.state, "access_key_name", None))
-        await session.commit()
-    return RedirectResponse("/parkering/prognose?saved=1", status_code=303)
 
 
-@app.get("/parkering/bilstatistikk", response_class=HTMLResponse)
-async def parking_vehicle_statistics_view(request: Request):
-    async with async_session() as session:
-        top_plates = (
-            await session.execute(
-                select(
-                    ParkingVehicle.plate,
-                    ParkingVehicle.parkering_count,
-                    ParkingVehicle.paid_total,
-                    ParkingVehicleDetails.merke,
-                    ParkingVehicleDetails.modell,
-                    ParkingVehicleDetails.kjoretoyklasse_navn,
-                    ParkingVehicle.navn,
-                    ParkingVehicle.omrade,
-                )
-                .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-                .order_by(ParkingVehicle.parkering_count.desc().nullslast(), ParkingVehicle.paid_total.desc().nullslast())
-                .limit(50)
-            )
-        ).all()
-        make_expr = func.coalesce(ParkingVehicleDetails.merke, "Ukjent")
-        top_makes = (
-            await session.execute(
-                select(
-                    make_expr,
-                    func.count(ParkingVehicleDetails.plate),
-                )
-                .group_by(make_expr)
-                .order_by(func.count(ParkingVehicleDetails.plate).desc())
-                .limit(50)
-            )
-        ).all()
-        vehicle_total = (
-            await session.execute(select(func.count(func.distinct(ParkingVehicle.plate))))
-        ).scalar_one()
-        vehicle_with_details = (
-            await session.execute(select(func.count(func.distinct(ParkingVehicleDetails.plate))))
-        ).scalar_one()
-    return templates.TemplateResponse(
-        request,
-        "parking_vehicle_statistics.html",
-        {
-            "top_plates": top_plates,
-            "top_makes": top_makes,
-            "vehicle_total": vehicle_total,
-            "vehicle_with_details": vehicle_with_details,
-        },
-    )
 
 
-@app.get("/parkering/omrade", response_class=HTMLResponse)
-async def parking_area_overview_view(request: Request, date_from: Optional[str] = None, date_to: Optional[str] = None):
-    async with async_session() as session:
-        area_context = await parking_area_overview_data(session, date_from or "", date_to or "")
-    period = area_context["period"]
-    return templates.TemplateResponse(
-        request,
-        "parking_areas.html",
-        {
-            "rows": area_context["rows"],
-            "vehicle_total": area_context["vehicle_total"],
-            "vehicle_with_area": area_context["vehicle_with_area"],
-            "missing_area": area_context["missing_area"],
-            "parking_with_area": area_context["parking_with_area"],
-            "parking_total": area_context["parking_total"],
-            "paid_total": area_context["paid_total"],
-            "coverage_percent": area_context["coverage_percent"],
-            "period": period,
-            "filters": {"date_from": period["date_from"], "date_to": period["date_to"]},
-        },
-    )
 
 
-@app.get("/parkering/parkeringer", response_class=HTMLResponse)
-async def parking_sessions_view(
-    request: Request,
-    plate: Optional[str] = None,
-    date_from: Optional[str] = None,
-    date_to: Optional[str] = None,
-    status: Optional[str] = None,
-    limit: int = Query(100, ge=1, le=500),
-):
-    conditions = []
-    plate_value = normalize_plate(plate)
-    if plate_value:
-        conditions.append(func.upper(func.replace(ParkingSession.car_license_number, " ", "")) == plate_value)
-    from_day = parse_day(date_from) if date_from else None
-    to_day = parse_day(date_to) if date_to else None
-    if from_day:
-        conditions.append(ParkingSession.start_time >= datetime.combine(from_day, time.min))
-    if to_day:
-        conditions.append(ParkingSession.start_time < datetime.combine(to_day + timedelta(days=1), time.min))
-    if status:
-        conditions.append(ParkingSession.status == status)
-
-    normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
-    async with async_session() as session:
-        stmt = (
-            select(ParkingSession, ParkingVehicle, ParkingVehicleDetails)
-            .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
-            .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == normalized_session_plate)
-            .order_by(ParkingSession.start_time.desc())
-            .limit(limit)
-        )
-        count_stmt = select(func.count(ParkingSession.id))
-        if conditions:
-            stmt = stmt.where(*conditions)
-            count_stmt = count_stmt.where(*conditions)
-        result_rows = (await session.execute(stmt)).all()
-        count = (await session.execute(count_stmt)).scalar_one()
-        statuses = (
-            await session.execute(
-                select(ParkingSession.status)
-                .group_by(ParkingSession.status)
-                .order_by(ParkingSession.status)
-            )
-        ).scalars().all()
-    return templates.TemplateResponse(
-        request,
-        "parking_sessions.html",
-        {
-            "rows": [
-                {
-                    "session": row,
-                    "vehicle": vehicle,
-                    "details": details,
-                    "year": parking_vehicle_display_year(details, vehicle.car_info_data if vehicle else None),
-                    "early_minutes": parking_slot_remainder_minutes(row),
-                    "plate": normalize_plate(row.car_license_number),
-                    "owner_warning": parking_current_ownership_warning(vehicle, row.start_time),
-                }
-                for row, vehicle, details in result_rows
-            ],
-            "count": count,
-            "statuses": statuses,
-            "filters": {
-                "plate": plate or "",
-                "date_from": date_from or "",
-                "date_to": date_to or "",
-                "status": status or "",
-                "limit": limit,
-            },
-        },
-    )
 
 
-@app.get("/parkering/kjoretoy", response_class=HTMLResponse)
-async def parking_vehicles_view(
-    request: Request,
-    plate: Optional[str] = None,
-    navn: Optional[str] = None,
-    omrade: Optional[str] = None,
-    sun2_id: Optional[str] = None,
-    merke: Optional[str] = None,
-    modell: Optional[str] = None,
-    ryddet: Optional[int] = None,
-    limit: int = Query(100, ge=1, le=500),
-):
-    conditions = []
-
-    def add_contains(column, value: Optional[str]):
-        query = (value or "").strip()
-        if query:
-            conditions.append(func.upper(func.coalesce(column, "")).like(f"%{query.upper()}%"))
-
-    plate_query = compact_plate(plate or "")
-    if plate_query:
-        conditions.append(func.upper(func.replace(ParkingVehicle.plate, " ", "")).like(f"%{plate_query.upper()}%"))
-
-    add_contains(ParkingVehicle.navn, navn)
-    add_contains(ParkingVehicle.omrade, omrade)
-    add_contains(ParkingVehicle.sun2_id, sun2_id)
-    add_contains(ParkingVehicleDetails.merke, merke)
-
-    model_query = (modell or "").strip()
-    if model_query:
-        like = f"%{model_query.upper()}%"
-        conditions.append(
-            or_(
-                func.upper(func.coalesce(ParkingVehicleDetails.modell, "")).like(like),
-                func.upper(func.coalesce(ParkingVehicleDetails.typebetegnelse, "")).like(like),
-            )
-        )
-
-    async with async_session() as session:
-        stmt = (
-            select(ParkingVehicle, ParkingVehicleDetails)
-            .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-            .order_by(ParkingVehicle.last_seen.desc().nullslast())
-            .limit(limit)
-        )
-        count_stmt = select(func.count(ParkingVehicle.plate)).outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-        if conditions:
-            stmt = stmt.where(*conditions)
-            count_stmt = count_stmt.where(*conditions)
-        rows = (await session.execute(stmt)).all()
-        count = (await session.execute(count_stmt)).scalar_one()
-        valid_area_condition = and_(
-            func.trim(func.coalesce(ParkingVehicle.omrade, "")) != "",
-            func.lower(func.trim(func.coalesce(ParkingVehicle.omrade, ""))) != "ikke funnet",
-        )
-        vehicle_total = (
-            await session.execute(select(func.count(func.distinct(ParkingVehicle.plate))))
-        ).scalar_one()
-        vehicle_with_area = (
-            await session.execute(
-                select(func.count(func.distinct(ParkingVehicle.plate))).where(valid_area_condition)
-            )
-        ).scalar_one()
-    return templates.TemplateResponse(
-        request,
-        "parking_vehicles.html",
-        {
-            "rows": rows,
-            "count": count,
-            "vehicle_area_stats": {
-                "total": vehicle_total,
-                "with_area": vehicle_with_area,
-                "missing_area": max((vehicle_total or 0) - (vehicle_with_area or 0), 0),
-                "coverage_percent": round((vehicle_with_area / vehicle_total) * 100, 1) if vehicle_total else 0,
-            },
-            "filters": {
-                "plate": plate or "",
-                "navn": navn or "",
-                "omrade": omrade or "",
-                "sun2_id": sun2_id or "",
-                "merke": merke or "",
-                "modell": modell or "",
-                "limit": limit,
-            },
-            "cleanup_count": ryddet,
-        },
-    )
 
 
-@app.post("/parkering/kjoretoy/rydd-ikke-funnet")
-async def parking_vehicle_clear_not_found_area(request: Request):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    async with async_session() as session:
-        cleared = await clear_parking_vehicle_not_found_area(session)
-        await session.commit()
-    return redirect_with_query_params(request, "/parkering/kjoretoy", ryddet=cleared)
 
 
 async def clear_parking_vehicle_not_found_area(session) -> int:
@@ -30409,1177 +21547,64 @@ def parking_vehicle_lookup_payload(vehicle: ParkingVehicle, details: Optional[Pa
     }
 
 
-@app.get("/parkering/navn-oppslag", response_class=HTMLResponse)
-async def parking_name_lookup_view(request: Request, limit: int = Query(100, ge=1, le=500), offset: int = Query(0, ge=0)):
-    async with async_session() as session:
-        rows = await parking_missing_name_rows(session, limit, offset, include_not_found=False)
-        count = (
-            await session.execute(
-                select(func.count(ParkingVehicle.plate)).where(vehicle_blank_name_condition())
-            )
-        ).scalar_one()
-    plates = "\n".join(vehicle.plate for vehicle, _ in rows)
-    return templates.TemplateResponse(
-        request,
-        "parking_name_lookup.html",
-        {
-            "rows": rows,
-            "count": count,
-            "plates": plates,
-            "limit": limit,
-            "offset": offset,
-            "next_offset": offset + limit,
-            "prev_offset": max(0, offset - limit),
-        },
-    )
-
-
-@app.get("/parkering/omrade-oppslag", response_class=HTMLResponse)
-async def parking_area_lookup_view(request: Request, limit: int = Query(1000, ge=1, le=1000), offset: int = Query(0, ge=0)):
-    async with async_session() as session:
-        rows = await parking_missing_area_rows(session, limit, offset, include_not_found=False)
-        count = (
-            await session.execute(
-                select(func.count(ParkingVehicle.plate)).where(vehicle_blank_area_condition())
-            )
-        ).scalar_one()
-    plates = "\n".join(vehicle.plate for vehicle, _ in rows)
-    return templates.TemplateResponse(
-        request,
-        "parking_name_lookup.html",
-        {
-            "rows": rows,
-            "count": count,
-            "plates": plates,
-            "limit": limit,
-            "offset": offset,
-            "next_offset": offset + limit,
-            "prev_offset": max(0, offset - limit),
-            "mode": "omrade",
-            "title": "Områdeoppslag",
-            "description": "biler mangler område. Denne siden gir extensionen neste pakke på",
-        },
-    )
-
-
-@app.get("/api/parkering/kjoretoy/car-info-kandidater")
-async def parking_car_info_candidates_api(
-    request: Request,
-    limit: int = Query(1, ge=1, le=10),
-    offset: int = Query(0, ge=0),
-    country: Optional[str] = Query(None),
-    format: str = "json",
-):
-    forbidden = require_settings_or_car_info_access(request)
-    if forbidden:
-        return forbidden
-    condition = vehicle_car_info_candidate_condition()
-    country_condition = vehicle_car_info_country_condition(country)
-    if country_condition is not None:
-        condition = and_(condition, country_condition)
-    async with async_session() as session:
-        rows = await parking_car_info_candidate_rows(session, limit, offset, country)
-        count = (
-            await session.execute(
-                select(func.count(ParkingVehicle.plate))
-                .select_from(ParkingVehicle)
-                .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-                .where(condition)
-            )
-        ).scalar_one()
-    payload = [parking_vehicle_lookup_payload(vehicle, details) for vehicle, details in rows]
-    if format == "txt":
-        text_body = "\n".join(item["plate"] for item in payload) + ("\n" if payload else "")
-        return StreamingResponse(iter([text_body]), media_type="text/plain; charset=utf-8")
-    return {"count": count, "country": country, "limit": limit, "offset": offset, "rows": payload}
-
-
-@app.get("/api/parkering/kjoretoy/mangler-navn")
-async def parking_missing_names_api(
-    request: Request,
-    limit: int = Query(100, ge=1, le=500),
-    offset: int = Query(0, ge=0),
-    include_not_found: bool = False,
-    format: str = "json",
-):
-    condition = vehicle_missing_name_condition() if include_not_found else vehicle_blank_name_condition()
-    async with async_session() as session:
-        rows = await parking_missing_name_rows(session, limit, offset, include_not_found=include_not_found)
-        count = (
-            await session.execute(
-                select(func.count(ParkingVehicle.plate)).where(condition)
-            )
-        ).scalar_one()
-    payload = [parking_vehicle_lookup_payload(vehicle, details) for vehicle, details in rows]
-    if format == "txt":
-        text_body = "\n".join(item["plate"] for item in payload) + ("\n" if payload else "")
-        return StreamingResponse(iter([text_body]), media_type="text/plain; charset=utf-8")
-    return {"count": count, "limit": limit, "offset": offset, "rows": payload}
-
-
-@app.get("/api/parkering/kjoretoy/mangler-omrade")
-async def parking_missing_areas_api(
-    request: Request,
-    limit: int = Query(1000, ge=1, le=1000),
-    offset: int = Query(0, ge=0),
-    include_not_found: bool = False,
-    format: str = "json",
-):
-    condition = vehicle_missing_area_condition() if include_not_found else vehicle_blank_area_condition()
-    async with async_session() as session:
-        rows = await parking_missing_area_rows(session, limit, offset, include_not_found=include_not_found)
-        count = (
-            await session.execute(
-                select(func.count(ParkingVehicle.plate)).where(condition)
-            )
-        ).scalar_one()
-    payload = [parking_vehicle_lookup_payload(vehicle, details) for vehicle, details in rows]
-    if format == "txt":
-        text_body = "\n".join(item["plate"] for item in payload) + ("\n" if payload else "")
-        return StreamingResponse(iter([text_body]), media_type="text/plain; charset=utf-8")
-    return {"count": count, "limit": limit, "offset": offset, "rows": payload}
-
-
-@app.post("/api/parkering/kjoretoy/{plate}/navn")
-async def parking_vehicle_name_api(request: Request, plate: str, data: ParkingVehicleNameUpdate):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    plate_value = normalize_plate(plate)
-    name = (data.navn or "").strip()
-    if not plate_value:
-        return JSONResponse({"detail": "Mangler registreringsnummer"}, status_code=400)
-    if not name:
-        return JSONResponse({"detail": "Navn mangler"}, status_code=400)
-    async with async_session() as session:
-        vehicle = (await session.execute(select(ParkingVehicle).where(ParkingVehicle.plate == plate_value))).scalars().first()
-        if not vehicle:
-            return JSONResponse({"detail": "Kjøretøy ikke funnet"}, status_code=404)
-        vehicle.navn = name
-        if data.sun2_id is not None:
-            vehicle.sun2_id = data.sun2_id.strip() or None
-        if data.notat is not None:
-            vehicle.notat = data.notat.strip() or None
-        note_bits = []
-        if data.source:
-            note_bits.append(f"kilde={data.source.strip()}")
-        if data.raw:
-            note_bits.append(f"raw={json.dumps(data.raw, ensure_ascii=False)[:1000]}")
-        if note_bits:
-            base_note = vehicle.notat.strip() if vehicle.notat else ""
-            auto_note = f"Automatisk navneoppslag {local_now_naive().strftime('%Y-%m-%d %H:%M')}: " + " | ".join(note_bits)
-            vehicle.notat = f"{base_note}\n{auto_note}".strip()
-        vehicle.updated_at = datetime.utcnow()
-        await session.commit()
-    return {"status": "ok", "plate": plate_value, "navn": name}
-
-
-@app.post("/api/parkering/kjoretoy/{plate}/omrade")
-async def parking_vehicle_area_api(request: Request, plate: str, data: ParkingVehicleAreaUpdate):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    plate_value = normalize_plate(plate)
-    area = (data.omrade or "").strip()
-    if not plate_value:
-        return JSONResponse({"detail": "Mangler registreringsnummer"}, status_code=400)
-    if not area:
-        return JSONResponse({"detail": "Område mangler"}, status_code=400)
-    async with async_session() as session:
-        vehicle = (await session.execute(select(ParkingVehicle).where(ParkingVehicle.plate == plate_value))).scalars().first()
-        if not vehicle:
-            return JSONResponse({"detail": "Kjøretøy ikke funnet"}, status_code=404)
-        vehicle.omrade = area
-        vehicle.omrade_kilde = (data.source or "manual-browser-helper").strip() or "manual-browser-helper"
-        vehicle.omrade_oppdatert = datetime.utcnow()
-        vehicle.updated_at = datetime.utcnow()
-        await session.commit()
-    return {"status": "ok", "plate": plate_value, "omrade": area}
-
-
-@app.post("/api/parkering/kjoretoy/{plate}/car-info")
-async def parking_vehicle_car_info_api(request: Request, plate: str, data: ParkingVehicleCarInfoUpdate):
-    forbidden = require_settings_or_car_info_access(request)
-    if forbidden:
-        return forbidden
-    plate_value = normalize_plate(plate)
-    if not plate_value:
-        return JSONResponse({"detail": "Mangler registreringsnummer"}, status_code=400)
-    if not is_supported_foreign_license_plate(plate_value):
-        return JSONResponse({"detail": "Registreringsnummer matcher ikke svensk eller dansk standardformat"}, status_code=400)
-
-    now = datetime.utcnow()
-    async with async_session() as session:
-        vehicle = await parking_vehicle_by_plate_or_compact(session, plate_value)
-        if not vehicle:
-            return JSONResponse({"detail": "Kjøretøy ikke funnet"}, status_code=404)
-        vehicle.car_info_fetched_at = now
-        vehicle.car_info_status = int(data.status or 0)
-        vehicle.car_info_error = (data.error or "").strip()[:1000] or None
-        vehicle.car_info_url = (data.url or "").strip()[:1000] or None
-        vehicle.car_info_data = data.data or None
-        area_updated = False
-        area_label = car_info_area_label(data.data)
-        if data.status == 200 and area_label and car_info_confirmed_foreign(data.data):
-            current_area = (vehicle.omrade or "").strip()
-            if not current_area or is_not_found_marker(current_area):
-                vehicle.omrade = area_label
-                vehicle.omrade_kilde = car_info_source_label(data.data, plate_value)
-                vehicle.omrade_oppdatert = now
-                area_updated = True
-        vehicle.updated_at = now
-        await record_import_job(
-            session,
-            car_info_import_job_name(data.data, plate_value),
-            ok=car_info_import_ok(data.status),
-            source=car_info_source_label(data.data, plate_value),
-            records_imported=1 if data.status == 200 and car_info_confirmed_foreign(data.data) else 0,
-            records_total=1,
-            message=f"{plate_value}: {car_info_status_label(data.status, data.data)}",
-            raw={
-                "plate": vehicle.plate,
-                "lookup_plate": plate_value if vehicle.plate != plate_value else None,
-                "status": data.status,
-                "confirmed_swedish": car_info_confirmed_swedish(data.data),
-                "confirmed_foreign": car_info_confirmed_foreign(data.data),
-                "country_code": car_info_lookup_country_code(data.data, plate_value) or None,
-                "area_updated": area_updated,
-                "error": vehicle.car_info_error,
-            },
-        )
-        await session.commit()
-    clear_summary_cache("parking")
-    return {
-        "status": "ok",
-        "plate": vehicle.plate,
-        "lookup_plate": plate_value if vehicle.plate != plate_value else None,
-        "car_info_status": data.status,
-        "confirmed_swedish": car_info_confirmed_swedish(data.data),
-        "confirmed_foreign": car_info_confirmed_foreign(data.data),
-        "country_code": car_info_lookup_country_code(data.data, plate_value) or None,
-        "omrade": area_label if area_updated else None,
-    }
-
-
-@app.get("/parkering/kjoretoy/{plate}", response_class=HTMLResponse)
-async def parking_vehicle_detail_view(request: Request, plate: str, saved: Optional[str] = None):
-    plate_value = normalize_plate(plate)
-    if not plate_value:
-        raise HTTPException(status_code=404, detail="Mangler registreringsnummer")
-
-    normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
-    async with async_session() as session:
-        result = (
-            await session.execute(
-                select(ParkingVehicle, ParkingVehicleDetails)
-                .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-                .where(ParkingVehicle.plate == plate_value)
-            )
-        ).first()
-        if not result:
-            raise HTTPException(status_code=404, detail="Kjøretøy ikke funnet")
-        vehicle, details = result
-        stats = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0),
-                    func.coalesce(func.sum(ParkingSession.parking_time_min), 0),
-                    func.min(ParkingSession.start_time),
-                    func.max(ParkingSession.start_time),
-                ).where(normalized_session_plate == plate_value)
-            )
-        ).first()
-        recent_sessions_result = (
-            await session.execute(
-                select(ParkingSession)
-                .where(normalized_session_plate == plate_value)
-                .order_by(ParkingSession.start_time.desc())
-                .limit(20)
-            )
-        ).scalars().all()
-
-    current_ownership_at = svv_current_ownership_at(vehicle.svv_data)
-    detail_rows = []
-    if details:
-        detail_rows = [
-            ("Merke", details.merke),
-            ("Modell", details.modell),
-            ("Typebetegnelse", details.typebetegnelse),
-            ("Årsmodell", parking_vehicle_year(details)),
-            ("Farge", details.farge),
-            ("Kjøretøyklasse", details.kjoretoyklasse_navn),
-            ("Registreringsstatus", details.registreringsstatus_tekst),
-            ("Nåværende eierskap fra", current_ownership_at),
-            ("Førstegangsregistrert Norge", details.forstegangsregistrert_norge),
-            ("PKK kontrollfrist", details.pkk_kontrollfrist),
-            ("Egenvekt", f"{details.egenvekt_kg} kg" if details.egenvekt_kg is not None else None),
-            ("Nyttelast", f"{details.nyttelast_kg} kg" if details.nyttelast_kg is not None else None),
-            ("Tillatt totalvekt", f"{details.tillatt_totalvekt_kg} kg" if details.tillatt_totalvekt_kg is not None else None),
-            ("Seter", details.seter_totalt),
-            ("Lengde", f"{details.lengde_mm} mm" if details.lengde_mm is not None else None),
-            ("Bredde", f"{details.bredde_mm} mm" if details.bredde_mm is not None else None),
-            ("Høyde", f"{details.hoyde_mm} mm" if details.hoyde_mm is not None else None),
-            ("Rekkevidde WLTP", f"{details.rekkevidde_wltp_km} km" if details.rekkevidde_wltp_km is not None else None),
-            ("Elforbruk WLTP", f"{details.elforbruk_wltp_wh_km} Wh/km" if details.elforbruk_wltp_wh_km is not None else None),
-            ("Motoreffekt", f"{details.motoreffekt_samlet_kw} kW" if details.motoreffekt_samlet_kw is not None else None),
-            ("SVV teknisk gyldig fra", details.svv_teknisk_gyldig_fra),
-            ("Sist synkronisert", details.sist_synkronisert),
-            ("VIN", details.vin),
-        ]
-    detail_rows = [(label, value) for label, value in detail_rows if value not in (None, "")]
-
-    return templates.TemplateResponse(
-        request,
-        "parking_vehicle_detail.html",
-        {
-            "plate": plate_value,
-            "vehicle": vehicle,
-            "details": details,
-            "title": parking_vehicle_display_label(details, vehicle.car_info_data),
-            "year": parking_vehicle_display_year(details, vehicle.car_info_data),
-            "stats": {
-                "sessions": stats[0] or 0,
-                "paid": stats[1] or 0,
-                "minutes": stats[2] or 0,
-                "first": stats[3],
-                "last": stats[4],
-            },
-            "recent_sessions": [
-                {
-                    "session": row,
-                    "early_minutes": parking_slot_remainder_minutes(row),
-                    "owner_warning": parking_current_ownership_warning(vehicle, row.start_time),
-                }
-                for row in recent_sessions_result
-            ],
-            "detail_rows": detail_rows,
-            "ownership_warning": parking_current_ownership_warning(vehicle, stats[3]),
-            "saved": saved == "1",
-        },
-    )
-
-
-@app.post("/parkering/kjoretoy/{plate}", response_class=HTMLResponse)
-async def parking_vehicle_detail_save(request: Request, plate: str):
-    if not getattr(request.state, "auth_can_settings", False):
-        raise HTTPException(status_code=403, detail="Du må ha innstillingstilgang for å endre kjøretøyfelt.")
-    plate_value = normalize_plate(plate)
-    form = await request.form()
-    async with async_session() as session:
-        vehicle = (await session.execute(select(ParkingVehicle).where(ParkingVehicle.plate == plate_value))).scalars().first()
-        if not vehicle:
-            raise HTTPException(status_code=404, detail="Kjøretøy ikke funnet")
-        vehicle.navn = (form.get("navn") or "").strip() or None
-        previous_area = vehicle.omrade
-        vehicle.omrade = (form.get("omrade") or "").strip() or None
-        if vehicle.omrade and vehicle.omrade != previous_area:
-            vehicle.omrade_kilde = "manuell"
-            vehicle.omrade_oppdatert = datetime.utcnow()
-        vehicle.sun2_id = (form.get("sun2_id") or "").strip() or None
-        vehicle.notat = (form.get("notat") or "").strip() or None
-        vehicle.updated_at = datetime.utcnow()
-        await session.commit()
-    return redirect_keep_query(request, f"/parkering/kjoretoy/{quote(plate_value)}?saved=1", status_code=303)
-
-
-@app.get("/energi")
-async def energy_redirect(request: Request):
-    return redirect_keep_query(request, "/energi/status", status_code=307)
-
-
-@app.get("/energi/oversikt", response_class=HTMLResponse)
-async def energy_overview_legacy_redirect(request: Request):
-    return redirect_keep_query(request, "/energi/status", status_code=307)
-
-
-@app.get("/energi/soling", response_class=HTMLResponse)
-async def energy_soling_legacy_redirect(request: Request):
-    return redirect_keep_query(request, "/soling/detaljer", status_code=307)
-
-
-@app.post("/api/energi/fibaro")
-async def energy_fibaro_ingest(data: EnergyFibaroIn):
-    async with async_session() as session:
-        record = await upsert_energy_fibaro_sample(session, data)
-        await session.flush()
-        await record_import_job(
-            session,
-            "hc3_energy_1min",
-            source=data.source or "HC3",
-            records_imported=1,
-            records_total=1,
-            message=f"Inntak {format_short_number(record.inntak_w)} W" if record.inntak_w is not None else "Energisample mottatt",
-            raw={"sample_id": record.id, "bucket_start": record.bucket_start.isoformat() if record.bucket_start else None},
-        )
-        await session.commit()
-        await session.refresh(record)
-    return {
-        "status": "ok",
-        "id": record.id,
-        "bucket_start": record.bucket_start.isoformat() if record.bucket_start else None,
-        "differanse_beregnet_w": record.differanse_beregnet_w,
-        "resets": {
-            "inntak": record.inntak_reset,
-            "varmepumper": record.varmepumper_reset,
-            "belysning": record.belysning_reset,
-            "massasje": record.massasje_reset,
-            "annet": record.annet_reset,
-            "avfukter": record.avfukter_reset,
-        },
-    }
-
-
-@app.post("/api/energy/elvia/upload")
-async def api_energy_elvia_upload(request: Request, background_tasks: BackgroundTasks):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    try:
-        form = await request.form()
-        upload = form.get("file")
-        filename = Path(getattr(upload, "filename", "") or "").name
-        if not upload or not filename or not hasattr(upload, "read"):
-            return JSONResponse({"detail": "Velg en JSON-fil fra Elvia før du importerer."}, status_code=400)
-        content = await upload.read()
-        if not content:
-            return JSONResponse({"detail": "Filen er tom."}, status_code=400)
-        async with async_session() as session:
-            await mark_import_job_running(
-                session,
-                "elvia_monthly_import",
-                source="Manuell opplasting",
-                message=f"Importerer {filename}",
-                raw={"source_file": filename},
-            )
-            await session.commit()
-        background_tasks.add_task(run_elvia_import_background, content, filename)
-        return {"status": "ok", "message": f"Importen er startet for {filename}.", "filename": filename}
-    except Exception as exc:
-        return JSONResponse({"detail": str(exc)}, status_code=400)
-
-
-@app.get("/energi/status", response_class=HTMLResponse)
-async def energy_status_view(request: Request, day: Optional[str] = None):
-    today = local_now_naive().date()
-    selected_day = parse_day(day)
-    day_start = datetime.combine(selected_day, time.min)
-    day_end = day_start + timedelta(days=1)
-    async with async_session() as session:
-        latest = (
-            await session.execute(
-                select(EnergyFibaroSample)
-                .order_by(EnergyFibaroSample.bucket_start.desc())
-                .limit(1)
-            )
-        ).scalars().first()
-        today_rows = (
-            await session.execute(
-                select(EnergyFibaroSample)
-                .where(EnergyFibaroSample.bucket_start >= day_start)
-                .where(EnergyFibaroSample.bucket_start < day_end)
-                .order_by(EnergyFibaroSample.bucket_start.desc())
-            )
-        ).scalars().all()
-        rows = (
-            await session.execute(
-                select(EnergyFibaroSample)
-                .order_by(EnergyFibaroSample.bucket_start.desc())
-                .limit(120)
-            )
-        ).scalars().all()
-        compare_start = day_start + ENERGY_HC3_HOURLY_DISPLAY_OFFSET
-        compare_end = day_end + ENERGY_HC3_HOURLY_DISPLAY_OFFSET
-        compare_rows = (
-            await session.execute(
-                select(EnergyFibaroSample)
-                .where(EnergyFibaroSample.bucket_start >= compare_start)
-                .where(EnergyFibaroSample.bucket_start < compare_end)
-                .order_by(EnergyFibaroSample.bucket_start.asc())
-            )
-        ).scalars().all()
-        elvia_today = (
-            await session.execute(
-                select(func.coalesce(func.sum(EnergyHourlyConsumption.consumption_kwh), 0))
-                .where(EnergyHourlyConsumption.stat_date == selected_day)
-            )
-        ).scalar_one()
-        elvia_hours = (
-            await session.execute(
-                select(EnergyHourlyConsumption.hour, EnergyHourlyConsumption.consumption_kwh)
-                .where(EnergyHourlyConsumption.stat_date == selected_day)
-                .order_by(EnergyHourlyConsumption.hour)
-            )
-        ).all()
-        latest_elvia = (
-            await session.execute(
-                select(EnergyHourlyConsumption)
-                .order_by(EnergyHourlyConsumption.measured_at.desc())
-                .limit(1)
-            )
-        ).scalars().first()
-        latest_elvia_import = (
-            await session.execute(
-                select(EnergyImportRun)
-                .order_by(EnergyImportRun.timestamp.desc())
-                .limit(1)
-            )
-        ).scalars().first()
-
-    totals = {
-        "inntak_delta_kwh": sum(float_or_zero(row.inntak_delta_kwh) for row in today_rows),
-        "varmepumper_delta_kwh": sum(float_or_zero(row.varmepumper_delta_kwh) for row in today_rows),
-        "belysning_delta_kwh": sum(float_or_zero(row.belysning_delta_kwh) for row in today_rows),
-        "massasje_delta_kwh": sum(float_or_zero(row.massasje_delta_kwh) for row in today_rows),
-        "annet_delta_kwh": sum(float_or_zero(row.annet_delta_kwh) for row in today_rows),
-        "avfukter_delta_kwh": sum(float_or_zero(row.avfukter_delta_kwh) for row in today_rows),
-        "differanse_beregnet_delta_kwh": sum(float_or_zero(row.differanse_beregnet_delta_kwh) for row in today_rows),
-    }
-    reset_counts = {
-        "inntak": sum(1 for row in today_rows if row.inntak_reset),
-        "varmepumper": sum(1 for row in today_rows if row.varmepumper_reset),
-        "belysning": sum(1 for row in today_rows if row.belysning_reset),
-        "massasje": sum(1 for row in today_rows if row.massasje_reset),
-        "annet": sum(1 for row in today_rows if row.annet_reset),
-        "avfukter": sum(1 for row in today_rows if row.avfukter_reset),
-    }
-    measured_by_hour = {hour: 0.0 for hour in range(24)}
-    for row in compare_rows:
-        if row.bucket_start is None:
-            continue
-        display_time = row.bucket_start - ENERGY_HC3_HOURLY_DISPLAY_OFFSET
-        if display_time.date() != selected_day:
-            continue
-        measured_by_hour[display_time.hour] += float_or_zero(row.inntak_delta_kwh)
-
-    elvia_by_hour = {hour: 0.0 for hour in range(24)}
-    elvia_present = set()
-    for hour, consumption_kwh in elvia_hours:
-        if hour is None:
-            continue
-        elvia_by_hour[int(hour)] += float_or_zero(consumption_kwh)
-        elvia_present.add(int(hour))
-
-    hourly_max = max(
-        [0.1]
-        + [measured_by_hour[hour] for hour in range(24)]
-        + [elvia_by_hour[hour] for hour in range(24)]
-    )
-    hourly_energy = []
-    for hour in range(24):
-        measured_kwh = measured_by_hour[hour]
-        elvia_kwh = elvia_by_hour[hour]
-        hourly_energy.append(
-            {
-                "hour": f"{hour:02d}",
-                "measured_kwh": measured_kwh,
-                "elvia_kwh": elvia_kwh,
-                "has_elvia": hour in elvia_present,
-                "measured_height": round((measured_kwh / hourly_max) * 100, 2) if hourly_max else 0,
-                "elvia_height": round((elvia_kwh / hourly_max) * 100, 2) if hourly_max else 0,
-            }
-        )
-    measured_day_kwh = totals["inntak_delta_kwh"]
-    measured_compare_kwh = sum(measured_by_hour.values())
-    elvia_day_kwh = float_or_zero(elvia_today)
-    energy_deviation_kwh = measured_compare_kwh - elvia_day_kwh
-    latest_elvia_day = latest_elvia.stat_date if latest_elvia else None
-    elvia_missing_for_day = latest_elvia_day is None or selected_day > latest_elvia_day
-    return templates.TemplateResponse(
-        request,
-        "energy.html",
-        {
-            "latest": latest,
-            "rows": rows,
-            "area_cards": energy_area_cards(latest, totals, reset_counts),
-            "totals": totals,
-            "sample_count": len(today_rows),
-            "elvia_today_kwh": elvia_day_kwh,
-            "measured_compare_kwh": measured_compare_kwh,
-            "compare_sample_count": len(compare_rows),
-            "hourly_energy": hourly_energy,
-            "hourly_max_kwh": hourly_max,
-            "energy_deviation_kwh": energy_deviation_kwh,
-            "latest_elvia": latest_elvia,
-            "latest_elvia_import": latest_elvia_import,
-            "latest_elvia_day": latest_elvia_day.isoformat() if latest_elvia_day else None,
-            "elvia_missing_for_day": elvia_missing_for_day,
-            "selected_day": selected_day.isoformat(),
-            "selected_day_label": selected_day.strftime("%d.%m.%Y"),
-            "prev_day": (selected_day - timedelta(days=1)).isoformat(),
-            "next_day": (selected_day + timedelta(days=1)).isoformat(),
-            "is_today": selected_day == today,
-            "today": today.isoformat(),
-        },
-    )
-
-
-@app.get("/energi/kurser", response_class=HTMLResponse)
-async def energy_circuits_view(
-    request: Request,
-    edit: Optional[str] = None,
-    sunbeds: Optional[str] = None,
-    view: Optional[str] = None,
-):
-    sunbed_filter = normalize_energy_sunbed_filter(sunbeds)
-    hierarchy_mode = (view or "").strip().lower() in {"hierarki", "hierarchy", "tree"}
-    async with async_session() as session:
-        all_circuits = (
-            await session.execute(
-                select(EnergyCircuit).order_by(EnergyCircuit.circuit_no.asc())
-            )
-        ).scalars().all()
-        circuits = filter_energy_circuits_by_sunbed(all_circuits, sunbed_filter)
-        visible_circuit_numbers = [row.circuit_no for row in circuits]
-        load_rows = (
-            await session.execute(
-                select(
-                    EnergyLoad.circuit_no,
-                    func.count(EnergyLoad.id).label("count"),
-                    func.coalesce(func.sum(EnergyLoad.expected_power_w), 0).label("expected_power_w"),
-                )
-                .where(EnergyLoad.circuit_no.is_not(None))
-                .where(EnergyLoad.circuit_no.in_(visible_circuit_numbers))
-                .group_by(EnergyLoad.circuit_no)
-            )
-        ).all()
-        course_load_rows = (
-            await session.execute(
-                select(EnergyLoad)
-                .where(EnergyLoad.circuit_no.is_not(None))
-                .where(EnergyLoad.circuit_no.in_(visible_circuit_numbers))
-                .order_by(EnergyLoad.circuit_no.asc(), EnergyLoad.active.desc(), EnergyLoad.name.asc())
-            )
-        ).scalars().all()
-    load_lookup = {
-        row.circuit_no: {
-            "count": int(row.count or 0),
-            "expected_power_w": float_or_zero(row.expected_power_w),
-        }
-        for row in load_rows
-    }
-    course_load_lookup = defaultdict(list)
-    for row in course_load_rows:
-        course_load_lookup[row.circuit_no].append(row)
-    summary = {
-        "circuits": len(circuits),
-        "with_breaker": sum(1 for row in circuits if row.breaker_rating_a is not None),
-        "missing_breaker": sum(1 for row in circuits if row.breaker_rating_a is None),
-        "sunbed_circuits": sum(1 for row in circuits if energy_circuit_is_sunbed(row)),
-        "loads": sum(item["count"] for item in load_lookup.values()),
-        "expected_power_w": sum(item["expected_power_w"] for item in load_lookup.values()),
-    }
-    edit_mode = (edit or "").strip().lower() in {"1", "true", "yes", "ja"}
-    view_value = "hierarki" if hierarchy_mode else ""
-    urls = {
-        "all": energy_query_url("/energi/kurser", edit="1" if edit_mode else "", view=view_value),
-        "hide_sunbeds": energy_query_url("/energi/kurser", edit="1" if edit_mode else "", sunbeds="hide", view=view_value),
-        "only_sunbeds": energy_query_url("/energi/kurser", edit="1" if edit_mode else "", sunbeds="only", view=view_value),
-        "hierarchy": energy_query_url("/energi/kurser", edit="1" if edit_mode else "", sunbeds=sunbed_filter, view="hierarki"),
-        "table": energy_query_url("/energi/kurser", edit="1" if edit_mode else "", sunbeds=sunbed_filter),
-        "edit": energy_query_url("/energi/kurser", edit="1", sunbeds=sunbed_filter, view=view_value),
-        "view": energy_query_url("/energi/kurser", sunbeds=sunbed_filter, view=view_value),
-        "pdf": energy_query_url("/energi/kurser/pdf", sunbeds=sunbed_filter),
-    }
-    return templates.TemplateResponse(
-        request,
-        "energy_circuits.html",
-        {
-            "circuits": circuits,
-            "load_lookup": load_lookup,
-            "course_load_lookup": course_load_lookup,
-            "summary": summary,
-            "edit_mode": edit_mode,
-            "hierarchy_mode": hierarchy_mode,
-            "sunbed_filter": sunbed_filter,
-            "urls": urls,
-            "circuit_technical_label": circuit_technical_label,
-            "energy_circuit_is_sunbed": energy_circuit_is_sunbed,
-        },
-    )
-
-
-@app.post("/energi/kurser/{circuit_no}")
-async def energy_circuit_save(request: Request, circuit_no: int):
-    form = await request.form()
-    async with async_session() as session:
-        circuit = (
-            await session.execute(
-                select(EnergyCircuit).where(EnergyCircuit.circuit_no == circuit_no)
-            )
-        ).scalars().first()
-        if not circuit:
-            raise HTTPException(status_code=404, detail="Kurs ikke funnet")
-        if "description" in form:
-            circuit.description = form_text(form, "description")
-        if "breaker_type" in form:
-            circuit.breaker_type = form_text(form, "breaker_type")
-        if "breaker_rating_a" in form:
-            circuit.breaker_rating_a = form_float(form, "breaker_rating_a")
-        if "breaker_characteristic" in form:
-            circuit.breaker_characteristic = form_text(form, "breaker_characteristic")
-        if "cable_spec" in form:
-            circuit.cable_spec = form_text(form, "cable_spec")
-        if "cable_length_m" in form:
-            circuit.cable_length_m = form_float(form, "cable_length_m")
-        if "install_method" in form:
-            circuit.install_method = form_text(form, "install_method")
-        if "terminal_ref" in form:
-            circuit.terminal_ref = form_text(form, "terminal_ref")
-        if "rcd_ma" in form:
-            circuit.rcd_ma = form_float(form, "rcd_ma")
-        if "is_sunbed" in form:
-            circuit.is_sunbed = form_bool(form, "is_sunbed")
-        if "status" in form:
-            circuit.status = form_text(form, "status") or "ukjent"
-        if "note" in form:
-            circuit.note = form_text(form, "note")
-        circuit.updated_at = datetime.utcnow()
-        await session.commit()
-    return_view = "hierarki" if form_text(form, "return_view") == "hierarki" else ""
-    return_sunbeds = normalize_energy_sunbed_filter(form_text(form, "return_sunbeds"))
-    target = energy_query_url("/energi/kurser", edit="1", sunbeds=return_sunbeds, view=return_view)
-    return RedirectResponse(f"{target}#kurs-{circuit_no}", status_code=303)
-
-
-@app.get("/energi/kurser/pdf")
-async def energy_circuits_pdf(sunbeds: Optional[str] = None):
-    sunbed_filter = normalize_energy_sunbed_filter(sunbeds)
-    async with async_session() as session:
-        all_circuits = (
-            await session.execute(
-                select(EnergyCircuit).order_by(EnergyCircuit.circuit_no.asc())
-            )
-        ).scalars().all()
-        circuits = filter_energy_circuits_by_sunbed(all_circuits, sunbed_filter)
-        visible_circuit_numbers = [row.circuit_no for row in circuits]
-        load_rows = (
-            await session.execute(
-                select(
-                    EnergyLoad.circuit_no,
-                    func.count(EnergyLoad.id).label("count"),
-                    func.coalesce(func.sum(EnergyLoad.expected_power_w), 0).label("expected_power_w"),
-                )
-                .where(EnergyLoad.circuit_no.is_not(None))
-                .where(EnergyLoad.circuit_no.in_(visible_circuit_numbers))
-                .group_by(EnergyLoad.circuit_no)
-            )
-        ).all()
-    load_lookup = {
-        row.circuit_no: {
-            "count": int(row.count or 0),
-            "expected_power_w": float_or_zero(row.expected_power_w),
-        }
-        for row in load_rows
-    }
-    rows = []
-    for circuit in circuits:
-        load_info = load_lookup.get(circuit.circuit_no, {"count": 0, "expected_power_w": 0})
-        rows.append(
-            [
-                circuit.circuit_no,
-                circuit.description or "-",
-                f"{circuit.breaker_rating_a:g} A" if circuit.breaker_rating_a is not None else "-",
-                "ja" if energy_circuit_is_sunbed(circuit) else "nei",
-                load_info["count"],
-                f"{load_info['expected_power_w']:,.0f} W".replace(",", " "),
-                circuit.status or "-",
-                circuit.note or "-",
-            ]
-        )
-    pdf_bytes = build_table_pdf(
-        "Energi - kursliste",
-        "Elektriske kurser med vern, kabel, jordfeilbryter og koblede laster."
-        + (" PDF-en følger valgt solsengfilter." if sunbed_filter else ""),
-        [
-            {"label": "Kurs", "width": 34, "align": "right"},
-            {"label": "Beskrivelse", "width": 255},
-            {"label": "A", "width": 45, "align": "right"},
-            {"label": "Solseng", "width": 48},
-            {"label": "Laster", "width": 44, "align": "right"},
-            {"label": "Effekt", "width": 70, "align": "right"},
-            {"label": "Status", "width": 72},
-            {"label": "Notat", "width": 178},
-        ],
-        rows,
-        generated_at=local_now_naive(),
-    )
-    return pdf_response(pdf_bytes, f"lilletorget_energi_kursliste_{local_now_naive().date().isoformat()}.pdf")
-
-
-@app.get("/energi/laster", response_class=HTMLResponse)
-async def energy_loads_view(
-    request: Request,
-    q: Optional[str] = None,
-    circuit: Optional[int] = None,
-    load_type: Optional[str] = None,
-    active: Optional[str] = None,
-    sunbeds: Optional[str] = None,
-):
-    q_value = (q or "").strip()
-    sunbed_filter = normalize_energy_sunbed_filter(sunbeds)
-    async with async_session() as session:
-        circuits = (
-            await session.execute(
-                select(EnergyCircuit).order_by(EnergyCircuit.circuit_no.asc())
-            )
-        ).scalars().all()
-        type_rows = (
-            await session.execute(
-                select(EnergyLoad.load_type)
-                .where(EnergyLoad.load_type.is_not(None))
-                .where(func.trim(EnergyLoad.load_type) != "")
-                .distinct()
-                .order_by(EnergyLoad.load_type.asc())
-            )
-        ).all()
-        sunbed_circuit_numbers = [row.circuit_no for row in circuits if energy_circuit_is_sunbed(row)]
-        query = select(EnergyLoad).order_by(EnergyLoad.active.desc(), EnergyLoad.circuit_no.asc(), EnergyLoad.name.asc())
-        if q_value:
-            pattern = f"%{q_value}%"
-            query = query.where(
-                or_(
-                    EnergyLoad.name.ilike(pattern),
-                    EnergyLoad.area.ilike(pattern),
-                    EnergyLoad.note.ilike(pattern),
-                    EnergyLoad.load_type.ilike(pattern),
-                )
-            )
-        if circuit:
-            query = query.where(EnergyLoad.circuit_no == circuit)
-        if load_type:
-            query = query.where(EnergyLoad.load_type == load_type)
-        if active == "1":
-            query = query.where(EnergyLoad.active.is_(True))
-        elif active == "0":
-            query = query.where(EnergyLoad.active.is_(False))
-        if sunbed_filter == "hide":
-            query = query.where(or_(EnergyLoad.circuit_no.is_(None), ~EnergyLoad.circuit_no.in_(sunbed_circuit_numbers)))
-        elif sunbed_filter == "only":
-            query = query.where(EnergyLoad.circuit_no.in_(sunbed_circuit_numbers))
-        loads = (await session.execute(query)).scalars().all()
-        all_loads = (await session.execute(select(EnergyLoad))).scalars().all()
-    circuit_lookup = {row.circuit_no: row for row in circuits}
-    summary = {
-        "loads": len(all_loads),
-        "active": sum(1 for row in all_loads if row.active),
-        "direct": sum(1 for row in all_loads if row.measured_direct),
-        "expected_power_w": sum(float_or_zero(row.expected_power_w) for row in all_loads if row.active),
-    }
-    return templates.TemplateResponse(
-        request,
-        "energy_loads.html",
-        {
-            "loads": loads,
-            "circuits": circuits,
-            "circuit_lookup": circuit_lookup,
-            "load_types": [row.load_type for row in type_rows if row.load_type],
-            "summary": summary,
-            "filters": {
-                "q": q_value,
-                "circuit": circuit,
-                "load_type": load_type or "",
-                "active": active or "",
-                "sunbeds": sunbed_filter,
-            },
-            "energy_circuit_is_sunbed": energy_circuit_is_sunbed,
-        },
-    )
-
-
-@app.get("/energi/laster/pdf")
-async def energy_loads_pdf(
-    q: Optional[str] = None,
-    circuit: Optional[int] = None,
-    load_type: Optional[str] = None,
-    active: Optional[str] = None,
-    sunbeds: Optional[str] = None,
-):
-    q_value = (q or "").strip()
-    sunbed_filter = normalize_energy_sunbed_filter(sunbeds)
-    async with async_session() as session:
-        circuit_rows = (
-            await session.execute(
-                select(EnergyCircuit).order_by(EnergyCircuit.circuit_no.asc())
-            )
-        ).scalars().all()
-        sunbed_circuit_numbers = [row.circuit_no for row in circuit_rows if energy_circuit_is_sunbed(row)]
-        query = select(EnergyLoad).order_by(EnergyLoad.active.desc(), EnergyLoad.circuit_no.asc(), EnergyLoad.name.asc())
-        if q_value:
-            pattern = f"%{q_value}%"
-            query = query.where(
-                or_(
-                    EnergyLoad.name.ilike(pattern),
-                    EnergyLoad.area.ilike(pattern),
-                    EnergyLoad.note.ilike(pattern),
-                    EnergyLoad.load_type.ilike(pattern),
-                )
-            )
-        if circuit:
-            query = query.where(EnergyLoad.circuit_no == circuit)
-        if load_type:
-            query = query.where(EnergyLoad.load_type == load_type)
-        if active == "1":
-            query = query.where(EnergyLoad.active.is_(True))
-        elif active == "0":
-            query = query.where(EnergyLoad.active.is_(False))
-        if sunbed_filter == "hide":
-            query = query.where(or_(EnergyLoad.circuit_no.is_(None), ~EnergyLoad.circuit_no.in_(sunbed_circuit_numbers)))
-        elif sunbed_filter == "only":
-            query = query.where(EnergyLoad.circuit_no.in_(sunbed_circuit_numbers))
-        loads = (await session.execute(query)).scalars().all()
-    circuit_lookup = {row.circuit_no: row for row in circuit_rows}
-    rows = []
-    for load in loads:
-        ids = []
-        if load.fibaro_device_id:
-            ids.append(f"Fibaro enhet {load.fibaro_device_id}")
-        if load.fibaro_meter_id:
-            ids.append(f"måler {load.fibaro_meter_id}")
-        if load.zwave_switch_id:
-            ids.append(f"Z-Wave {load.zwave_switch_id}")
-        flags = []
-        if load.measured_direct:
-            flags.append("direkte målt")
-        if load.controllable:
-            flags.append("kan styres")
-        if load.critical:
-            flags.append("kritisk")
-        circuit_label = "-"
-        if load.circuit_no:
-            circuit = circuit_lookup.get(load.circuit_no)
-            circuit_label = f"{load.circuit_no} - {circuit.description}" if circuit else str(load.circuit_no)
-            if circuit and energy_circuit_is_sunbed(circuit):
-                circuit_label += " (solseng)"
-        rows.append(
-            [
-                load.name,
-                load.load_type or "-",
-                load.area or "-",
-                circuit_label,
-                f"{load.expected_power_w:,.0f} W".replace(",", " ") if load.expected_power_w is not None else "-",
-                ", ".join(ids) if ids else "-",
-                ", ".join(flags) if flags else "-",
-                "aktiv" if load.active else "inaktiv",
-                load.note or "-",
-            ]
-        )
-    subtitle = "Praktiske laster med kurs, forventet effekt og Fibaro/Z-Wave-koblinger."
-    if q_value or circuit or load_type or active or sunbed_filter:
-        subtitle += " PDF-en følger filtreringen i skjermbildet."
-    pdf_bytes = build_table_pdf(
-        "Energi - lastregister",
-        subtitle,
-        [
-            {"label": "Last", "width": 145},
-            {"label": "Type", "width": 70},
-            {"label": "Område", "width": 72},
-            {"label": "Kurs", "width": 200},
-            {"label": "Effekt", "width": 64, "align": "right"},
-            {"label": "ID-er", "width": 115},
-            {"label": "Egenskaper", "width": 112},
-            {"label": "Status", "width": 54},
-            {"label": "Notat", "width": 140},
-        ],
-        rows,
-        generated_at=local_now_naive(),
-    )
-    return pdf_response(pdf_bytes, f"lilletorget_energi_laster_{local_now_naive().date().isoformat()}.pdf")
-
-
-@app.post("/energi/laster", response_class=HTMLResponse)
-async def energy_load_save(request: Request):
-    form = await request.form()
-    name = form_text(form, "name")
-    if not name:
-        return redirect_keep_query(request, "/energi/laster?error=missing_name", status_code=303)
-    load_id = form_int(form, "load_id")
-    now_value = datetime.utcnow()
-    async with async_session() as session:
-        if load_id:
-            load = await session.get(EnergyLoad, load_id)
-            if not load:
-                raise HTTPException(status_code=404, detail="Last ikke funnet")
-        else:
-            load = EnergyLoad(created_at=now_value)
-            session.add(load)
-        load.name = name
-        load.load_type = form_text(form, "load_type")
-        load.area = form_text(form, "area")
-        load.circuit_no = form_int(form, "circuit_no")
-        load.expected_power_w = form_float(form, "expected_power_w")
-        load.measured_direct = form_bool(form, "measured_direct")
-        load.fibaro_device_id = form_int(form, "fibaro_device_id")
-        load.fibaro_meter_id = form_int(form, "fibaro_meter_id")
-        load.zwave_switch_id = form_int(form, "zwave_switch_id")
-        load.controllable = form_bool(form, "controllable")
-        load.critical = form_bool(form, "critical")
-        load.active = form_bool(form, "active", default=True)
-        load.note = form_text(form, "note")
-        load.source = "manual"
-        load.updated_at = now_value
-        await session.commit()
-    suffix = f"?circuit={load.circuit_no}" if load.circuit_no else ""
-    return redirect_keep_query(request, f"/energi/laster{suffix}", status_code=303)
-
-
-@app.post("/energi/laster/{load_id}/aktiv")
-async def energy_load_toggle_active(request: Request, load_id: int):
-    form = await request.form()
-    async with async_session() as session:
-        load = await session.get(EnergyLoad, load_id)
-        if not load:
-            raise HTTPException(status_code=404, detail="Last ikke funnet")
-        load.active = form_bool(form, "active")
-        load.updated_at = datetime.utcnow()
-        await session.commit()
-    return redirect_keep_query(request, "/energi/laster", status_code=303)
-
-
-@app.get("/api/energi/fibaro/json")
-async def energy_fibaro_json(limit: int = 300):
-    limit = max(1, min(limit, 5000))
-    async with async_session() as session:
-        rows = (
-            await session.execute(
-                select(EnergyFibaroSample)
-                .order_by(EnergyFibaroSample.bucket_start.desc())
-                .limit(limit)
-            )
-        ).scalars().all()
-    return {"rows": [row_to_dict(row, ENERGY_FIBARO_COLUMNS) for row in rows]}
-
-
-@app.get("/classic/energi/forbruk-per-seng", response_class=HTMLResponse)
-@app.get("/energi/forbruk-per-seng", response_class=HTMLResponse)
-async def energy_sunbed_consumption_view(
-    request: Request,
-    date_from: Optional[str] = None,
-    date_to: Optional[str] = None,
-):
-    today = local_now_naive().date()
-    async with async_session() as session:
-        analysis = await load_sunbed_power_analysis(session, date_from, date_to, today)
-    response = templates.TemplateResponse(
-        request,
-        "energy_sunbeds.html",
-        {
-            "date_from": analysis["dateFrom"],
-            "date_to": analysis["dateTo"],
-            "max_days": analysis["maxDays"],
-            "analysis": analysis,
-            "rooms": analysis["rooms"],
-            "observations": analysis["observations"],
-            "summary": analysis["summary"],
-            "max_power": analysis["maxPower"],
-        },
-    )
-    response.headers["Cache-Control"] = "no-store"
-    return response
-
-
-@app.get("/soling")
-async def sun2_redirect(request: Request):
-    return redirect_keep_query(request, "/soling/dagslinje", status_code=307)
-
-
-@app.get("/soling/oversikt", response_class=HTMLResponse)
-async def sun2_overview_view(request: Request):
-    async with async_session() as session:
-        summaries = await get_sun2_summaries(session)
-        latest_import = (
-            await session.execute(
-                select(Sun2ImportRun)
-                .order_by(Sun2ImportRun.timestamp.desc())
-                .limit(1)
-            )
-        ).scalars().first()
-    return templates.TemplateResponse(
-        request,
-        "sun2_overview.html",
-        {
-            "top_days": summaries["top_days"],
-            "top_months": summaries["top_months"],
-            "top_days_by_count": summaries["top_days_by_count"],
-            "top_months_by_count": summaries["top_months_by_count"],
-            "grand_total": summaries["total"],
-            "weekly_chart": summaries["weekly_chart"],
-            "first_date": summaries["first_date"],
-            "last_date": summaries["last_date"],
-            "total_rows": summaries["total_rows"],
-            "latest_import": latest_import,
-        },
-    )
-
-
-@app.get("/soling/prognose", response_class=HTMLResponse)
-async def sun2_forecast_view(request: Request):
-    now_local = datetime.now(LOCAL_TZ)
-    today = now_local.date()
-    async with async_session() as session:
-        forecast = await build_sun2_forecast(session, today, now_local)
-        saved_forecasts = await saved_forecast_table(session, "sun2")
-    response = templates.TemplateResponse(
-        request,
-        "sun2_forecast.html",
-        {
-            "forecast": forecast,
-            "day": forecast["day"],
-            "month": forecast["month"],
-            "year": forecast["year"],
-            "saved_forecasts": saved_forecasts,
-            "saved": request.query_params.get("saved") == "1",
-        },
-    )
-    response.headers["Cache-Control"] = "no-store"
-    return response
-
-
-@app.post("/soling/prognose/lagre")
-async def sun2_forecast_save(request: Request):
-    now_local = datetime.now(LOCAL_TZ)
-    today = now_local.date()
-    async with async_session() as session:
-        forecast = await build_sun2_forecast(session, today, now_local)
-        await save_forecast_snapshots(session, "sun2", forecast, getattr(request.state, "access_key_name", None))
-        await session.commit()
-    return RedirectResponse("/soling/prognose?saved=1", status_code=303)
-
-
-@app.get("/soling/detaljer", response_class=HTMLResponse)
-async def sun2_room_stats_view(request: Request, limit: int = 150):
-    limit = max(1, min(limit, 1000))
-    async with async_session() as session:
-        summaries = await get_sun2_summaries(session)
-        rows = (
-            await session.execute(
-                select(Sun2RoomDailyStat)
-                .order_by(Sun2RoomDailyStat.stat_date.desc(), Sun2RoomDailyStat.room)
-                .limit(limit)
-            )
-        ).scalars().all()
-        imports = (
-            await session.execute(
-                select(Sun2ImportRun)
-                .order_by(Sun2ImportRun.timestamp.desc())
-                .limit(25)
-            )
-        ).scalars().all()
-    return templates.TemplateResponse(
-        request,
-        "sun2_room_stats.html",
-        {
-            "rows": rows,
-            "imports": imports,
-            "limit": limit,
-            "monthly_totals": summaries["monthly"],
-            "yearly_totals": summaries["yearly"],
-            "grand_total": summaries["total"],
-            "first_date": summaries["first_date"],
-            "last_date": summaries["last_date"],
-            "total_rows": summaries["total_rows"],
-        },
-    )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 async def get_sun2_session_options(session) -> Dict[str, list[str]]:
@@ -31653,1147 +21678,32 @@ async def get_sun2_session_database_total(session) -> Dict[str, Any]:
     return value
 
 
-@app.get("/soling/enkeltimer", response_class=HTMLResponse)
-async def sun2_sessions_view(
-    request: Request,
-    limit: int = 50,
-    page: int = 1,
-    scope: Optional[str] = None,
-    sun2_user_id: Optional[str] = None,
-    date_from: Optional[str] = None,
-    date_to: Optional[str] = None,
-    room_id: Optional[str] = None,
-    room: Optional[str] = None,
-    payment_method: Optional[str] = None,
-    status: Optional[str] = None,
-    customer_type: Optional[str] = None,
-    q: Optional[str] = None,
-):
-    message = request.query_params.get("message", "")
-    error = request.query_params.get("error", "")
-    limit = max(25, min(limit, 1000))
-    page = max(1, page)
-    active_sun2_user_id = (sun2_user_id or "").strip()
-    active_room_id = normalize_room_id(room_id)
-    active_room = (room or "").strip()
-    active_payment_method = (payment_method or "").strip()
-    active_status = (status or "").strip()
-    active_customer_type = (customer_type or "").strip()
-    active_q = (q or "").strip()
-    active_scope = (scope or "recent").strip().lower()
-    if active_scope not in {"recent", "all"}:
-        active_scope = "recent"
-    active_date_from = None
-    active_date_to = None
-    try:
-        active_date_from = date.fromisoformat(date_from) if date_from else None
-    except ValueError:
-        active_date_from = None
-    try:
-        active_date_to = date.fromisoformat(date_to) if date_to else None
-    except ValueError:
-        active_date_to = None
-    user_has_filters = any([
-        active_sun2_user_id,
-        active_date_from,
-        active_date_to,
-        active_room_id,
-        active_room,
-        active_payment_method,
-        active_status,
-        active_customer_type,
-        active_q,
-    ])
-    auto_recent_window = active_scope != "all" and not user_has_filters
-    if auto_recent_window:
-        active_date_to = datetime.now(LOCAL_TZ).date()
-        active_date_from = active_date_to - timedelta(days=119)
-
-    session_filters = []
-    if active_sun2_user_id:
-        session_filters.append(Sun2TanningSession.sun2_user_id == active_sun2_user_id)
-    if active_date_from:
-        session_filters.append(Sun2TanningSession.stat_date >= active_date_from)
-    if active_date_to:
-        session_filters.append(Sun2TanningSession.stat_date <= active_date_to)
-    if active_room_id:
-        session_filters.append(Sun2TanningSession.room_id == active_room_id)
-    if active_room:
-        session_filters.append(Sun2TanningSession.room == active_room)
-    if active_payment_method:
-        session_filters.append(Sun2TanningSession.payment_method == active_payment_method)
-    if active_status:
-        session_filters.append(Sun2TanningSession.status == active_status)
-    if active_customer_type:
-        session_filters.append(Sun2TanningSession.customer_type == active_customer_type)
-    if active_q:
-        like = f"%{active_q.lower()}%"
-        q_room_id = normalize_room_id(active_q)
-        numeric_match = re.fullmatch(r"\d{1,2}", active_q)
-        if numeric_match:
-            q_room_id = normalize_room_id(f"rom-{int(active_q):02d}")
-        search_terms = [
-            func.lower(func.coalesce(Sun2TanningSession.user_name, "")).like(like),
-            func.lower(func.coalesce(Sun2TanningSession.user_identifier, "")).like(like),
-            func.lower(func.coalesce(Sun2TanningSession.sun2_user_id, "")).like(like),
-            func.lower(func.coalesce(Sun2TanningSession.room_id, "")).like(like),
-            func.lower(func.coalesce(Sun2TanningSession.room, "")).like(like),
-            func.lower(func.coalesce(Sun2TanningSession.source_room_name, "")).like(like),
-            func.lower(func.coalesce(Sun2TanningSession.sun2_bed_id, "")).like(like),
-            func.lower(func.coalesce(Sun2TanningSession.payment_method, "")).like(like),
-            func.lower(func.coalesce(Sun2TanningSession.status, "")).like(like),
-            func.lower(func.coalesce(Sun2TanningSession.source_file, "")).like(like),
-        ]
-        if q_room_id:
-            search_terms.append(Sun2TanningSession.room_id == q_room_id)
-        session_filters.append(or_(
-            *search_terms,
-        ))
-
-    async with async_session() as session:
-        options = await get_sun2_session_options(session)
-        room_id_options = options["room_ids"]
-        room_options = options["rooms"]
-        payment_options = options["payments"]
-        status_options = options["statuses"]
-        customer_options = options["customers"]
-
-        rows_query = select(Sun2TanningSession)
-        if session_filters:
-            rows_query = rows_query.where(*session_filters)
-        offset = (page - 1) * limit
-        rows = (
-            await session.execute(
-                rows_query
-                .order_by(Sun2TanningSession.started_at.desc())
-                .offset(offset)
-                .limit(limit)
-            )
-        ).scalars().all()
-        image_lookup: Dict[int, Sun2TanningSessionImage] = {}
-        row_ids = [row.id for row in rows if row.id]
-        if row_ids:
-            image_rows = (
-                await session.execute(
-                    select(Sun2TanningSessionImage)
-                    .options(sun2_session_image_meta_options())
-                    .where(Sun2TanningSessionImage.session_id.in_(row_ids))
-                    .order_by(Sun2TanningSessionImage.offset_seconds.asc(), Sun2TanningSessionImage.captured_at.asc())
-                )
-            ).scalars().all()
-            images_by_session: Dict[int, list[Sun2TanningSessionImage]] = defaultdict(list)
-            for image in image_rows:
-                images_by_session[image.session_id].append(image)
-            image_lookup = {
-                session_id: primary_sun2_session_image(images)
-                for session_id, images in images_by_session.items()
-                if primary_sun2_session_image(images)
-            }
-        imports = (
-            await session.execute(
-                select(Sun2SessionImportRun)
-                .order_by(Sun2SessionImportRun.timestamp.desc())
-                .limit(10)
-            )
-        ).scalars().all()
-        analytics_cache_parts = {
-            "scope": active_scope,
-            "sun2_user_id": active_sun2_user_id,
-            "date_from": active_date_from.isoformat() if active_date_from else "",
-            "date_to": active_date_to.isoformat() if active_date_to else "",
-            "room_id": active_room_id or "",
-            "room": active_room,
-            "payment_method": active_payment_method,
-            "status": active_status,
-            "customer_type": active_customer_type,
-            "q": active_q,
-        }
-        analytics_cache_key = "sun2_sessions:" + hashlib.sha1(
-            json.dumps(analytics_cache_parts, sort_keys=True).encode("utf-8")
-        ).hexdigest()
-        now_value = datetime.utcnow()
-        cached_analytics = SUMMARY_CACHE.get(analytics_cache_key)
-        if cached_analytics and cached_analytics.get("expires", datetime.min) > now_value:
-            analytics = cached_analytics["value"]
-            total = analytics["total"]
-            database_total = analytics["database_total"]
-            total_count = int((total or {}).get("sessions_count") or 0)
-            monthly = analytics.get("monthly", [])
-            chart_granularity = analytics["chart_granularity"]
-            daily = analytics["daily"]
-            hourly_rows = analytics["hourly_rows"]
-            top_rooms = analytics["top_rooms"]
-            top_users = analytics["top_users"]
-            payment_breakdown = analytics["payment_breakdown"]
-            status_breakdown = analytics["status_breakdown"]
-        else:
-            total_query = select(
-                func.count(Sun2TanningSession.id).label("sessions_count"),
-                func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                func.coalesce(func.avg(Sun2TanningSession.duration_minutes), 0).label("avg_duration_minutes"),
-                func.coalesce(func.avg(Sun2TanningSession.paid_amount_kr), 0).label("avg_paid_amount_kr"),
-                func.count(func.distinct(Sun2TanningSession.sun2_user_id)).label("unique_users_count"),
-                func.min(Sun2TanningSession.started_at).label("first_at"),
-                func.max(Sun2TanningSession.started_at).label("last_at"),
-            )
-            if session_filters:
-                total_query = total_query.where(*session_filters)
-            total = dict((await session.execute(total_query)).mappings().first() or {})
-            database_total = total
-            if session_filters:
-                database_total = await get_sun2_session_database_total(session)
-            total_count = int((total or {}).get("sessions_count") or 0)
-            monthly = []
-
-            chart_span_days = None
-            if active_date_from and active_date_to:
-                chart_span_days = (active_date_to - active_date_from).days + 1
-            chart_granularity = "month" if (active_scope == "all" or (chart_span_days and chart_span_days > 370)) else "day"
-            if chart_granularity == "month":
-                chart_year_part = func.extract("year", Sun2TanningSession.stat_date)
-                chart_month_part = func.extract("month", Sun2TanningSession.stat_date)
-                day_query = (
-                    select(
-                        chart_year_part.label("year"),
-                        chart_month_part.label("month"),
-                        func.count(Sun2TanningSession.id).label("sessions_count"),
-                        func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                        func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                    )
-                    .group_by(chart_year_part, chart_month_part)
-                    .order_by(chart_year_part.asc(), chart_month_part.asc())
-                )
-            else:
-                day_query = (
-                    select(
-                        Sun2TanningSession.stat_date.label("day"),
-                        func.count(Sun2TanningSession.id).label("sessions_count"),
-                        func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                        func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                    )
-                    .group_by(Sun2TanningSession.stat_date)
-                    .order_by(Sun2TanningSession.stat_date.asc())
-                )
-            if session_filters:
-                day_query = day_query.where(*session_filters)
-            daily = [dict(item) for item in (await session.execute(day_query)).mappings().all()]
-
-            hour_part = func.extract("hour", Sun2TanningSession.started_at)
-            hourly_query = (
-                select(
-                    hour_part.label("hour"),
-                    func.count(Sun2TanningSession.id).label("sessions_count"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                )
-                .group_by(hour_part)
-                .order_by(hour_part.asc())
-            )
-            if session_filters:
-                hourly_query = hourly_query.where(*session_filters)
-            hourly_rows = [dict(item) for item in (await session.execute(hourly_query)).mappings().all()]
-
-            top_rooms_query = (
-                select(
-                    Sun2TanningSession.room_id.label("room_id"),
-                    func.max(Sun2TanningSession.room).label("source_room_name"),
-                    func.count(Sun2TanningSession.id).label("sessions_count"),
-                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                )
-                .group_by(Sun2TanningSession.room_id)
-                .order_by(func.count(Sun2TanningSession.id).desc())
-                .limit(10)
-            )
-            if session_filters:
-                top_rooms_query = top_rooms_query.where(*session_filters)
-            top_rooms = [
-                {
-                    **dict(item),
-                    "label": sun2_room_label(item.get("room_id"), item.get("source_room_name")),
-                }
-                for item in (await session.execute(top_rooms_query)).mappings().all()
-            ]
-
-            top_users_query = (
-                select(
-                    Sun2TanningSession.sun2_user_id.label("sun2_user_id"),
-                    func.max(Sun2TanningSession.user_name).label("user_name"),
-                    func.count(Sun2TanningSession.id).label("sessions_count"),
-                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                    func.max(Sun2TanningSession.started_at).label("last_at"),
-                )
-                .where(Sun2TanningSession.sun2_user_id.is_not(None))
-                .where(Sun2TanningSession.sun2_user_id != "")
-                .group_by(Sun2TanningSession.sun2_user_id)
-                .order_by(func.count(Sun2TanningSession.id).desc())
-                .limit(10)
-            )
-            if session_filters:
-                top_users_query = top_users_query.where(*session_filters)
-            top_users = [dict(item) for item in (await session.execute(top_users_query)).mappings().all()]
-
-            payment_query = (
-                select(
-                    Sun2TanningSession.payment_method.label("label"),
-                    func.count(Sun2TanningSession.id).label("sessions_count"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                )
-                .group_by(Sun2TanningSession.payment_method)
-                .order_by(func.count(Sun2TanningSession.id).desc())
-                .limit(8)
-            )
-            if session_filters:
-                payment_query = payment_query.where(*session_filters)
-            payment_breakdown = [dict(item) for item in (await session.execute(payment_query)).mappings().all()]
-
-            status_query = (
-                select(
-                    Sun2TanningSession.status.label("label"),
-                    func.count(Sun2TanningSession.id).label("sessions_count"),
-                )
-                .group_by(Sun2TanningSession.status)
-                .order_by(func.count(Sun2TanningSession.id).desc())
-                .limit(8)
-            )
-            if session_filters:
-                status_query = status_query.where(*session_filters)
-            status_breakdown = [dict(item) for item in (await session.execute(status_query)).mappings().all()]
-
-            SUMMARY_CACHE[analytics_cache_key] = {
-                "expires": now_value + SUMMARY_CACHE_TTL,
-                "value": {
-                    "total": total,
-                    "database_total": database_total,
-                    "monthly": monthly,
-                    "chart_granularity": chart_granularity,
-                    "daily": daily,
-                    "hourly_rows": hourly_rows,
-                    "top_rooms": top_rooms,
-                    "top_users": top_users,
-                    "payment_breakdown": payment_breakdown,
-                    "status_breakdown": status_breakdown,
-                },
-            }
-        page_count = max(1, math.ceil(total_count / limit))
-        if page > page_count:
-            page = page_count
-            offset = (page - 1) * limit
-            rows = (
-                await session.execute(
-                    rows_query
-                    .order_by(Sun2TanningSession.started_at.desc())
-                    .offset(offset)
-                    .limit(limit)
-                )
-            ).scalars().all()
-            row_ids = [row.id for row in rows if row.id]
-            if row_ids:
-                image_rows = (
-                    await session.execute(
-                        select(Sun2TanningSessionImage)
-                        .options(sun2_session_image_meta_options())
-                        .where(Sun2TanningSessionImage.session_id.in_(row_ids))
-                        .order_by(Sun2TanningSessionImage.offset_seconds.asc(), Sun2TanningSessionImage.captured_at.asc())
-                    )
-                ).scalars().all()
-                images_by_session = defaultdict(list)
-                for image in image_rows:
-                    images_by_session[image.session_id].append(image)
-                image_lookup = {
-                    session_id: primary_sun2_session_image(images)
-                    for session_id, images in images_by_session.items()
-                    if primary_sun2_session_image(images)
-                }
-            else:
-                image_lookup = {}
-
-    filter_values = {
-        "limit": limit,
-        "page": page,
-        "scope": active_scope,
-        "sun2_user_id": active_sun2_user_id,
-        "date_from": active_date_from.isoformat() if active_date_from else "",
-        "date_to": active_date_to.isoformat() if active_date_to else "",
-        "room_id": active_room_id or "",
-        "room": active_room,
-        "payment_method": active_payment_method,
-        "status": active_status,
-        "customer_type": active_customer_type,
-        "q": active_q,
-    }
-    def query_url(**updates):
-        params = dict(filter_values)
-        params.update(updates)
-        if params.get("scope") == "recent" and not params.get("date_from") and not params.get("date_to"):
-            params.pop("scope", None)
-        params = {key: value for key, value in params.items() if value not in (None, "", 0)}
-        return f"/soling/enkeltimer?{urlencode(params)}"
-
-    hourly_lookup = {int(item.get("hour") or 0): item for item in hourly_rows}
-    hourly = [
-        {
-            "hour": hour,
-            "label": f"{hour:02d}",
-            "sessions_count": int((hourly_lookup.get(hour) or {}).get("sessions_count") or 0),
-            "paid_amount_kr": float((hourly_lookup.get(hour) or {}).get("paid_amount_kr") or 0),
-        }
-        for hour in range(24)
-    ]
-    peak_hour = max(hourly, key=lambda item: item["sessions_count"], default=None)
-    best_day = max(daily, key=lambda item: item.get("sessions_count") or 0, default=None)
-    daily_chart = [
-        {
-            "date": (
-                item.get("day").isoformat()
-                if chart_granularity == "day" and item.get("day")
-                else f"{int(item.get('year')):04d}-{int(item.get('month')):02d}-01"
-            ),
-            "label": (
-                item.get("day").strftime("%d.%m.%Y")
-                if chart_granularity == "day" and item.get("day")
-                else f"{int(item.get('month')):02d}.{int(item.get('year')):04d}"
-            ),
-            "sessions_count": int(item.get("sessions_count") or 0),
-            "duration_hours": round(float(item.get("duration_minutes") or 0) / 60, 2),
-            "paid_amount_kr": round(float(item.get("paid_amount_kr") or 0), 2),
-        }
-        for item in daily
-    ]
-    active_filter_count = sum(1 for key in ["sun2_user_id", "room_id", "room", "payment_method", "status", "customer_type", "q"] if filter_values.get(key))
-    if user_has_filters and (filter_values.get("date_from") or filter_values.get("date_to")):
-        active_filter_count += 1
-    pagination = {
-        "page": page,
-        "page_count": page_count,
-        "limit": limit,
-        "total_count": total_count,
-        "from_row": min(total_count, offset + 1) if total_count else 0,
-        "to_row": min(total_count, offset + len(rows)),
-        "prev_url": query_url(page=max(1, page - 1)) if page > 1 else "",
-        "next_url": query_url(page=min(page_count, page + 1)) if page < page_count else "",
-        "pages": [
-            {"number": number, "url": query_url(page=number), "active": number == page}
-            for number in range(max(1, page - 2), min(page_count, page + 2) + 1)
-        ],
-    }
-    return templates.TemplateResponse(
-        request,
-        "sun2_sessions.html",
-        {
-            "rows": rows,
-            "imports": imports,
-            "limit": limit,
-            "total": total or {},
-            "database_total": database_total or {},
-            "monthly": monthly,
-            "daily_chart": daily_chart,
-            "chart_granularity": chart_granularity,
-            "auto_recent_window": auto_recent_window,
-            "hourly": hourly,
-            "peak_hour": peak_hour,
-            "best_day": best_day,
-            "top_rooms": top_rooms,
-            "top_users": top_users,
-            "payment_breakdown": payment_breakdown,
-            "status_breakdown": status_breakdown,
-            "room_id_options": room_id_options,
-            "room_options": room_options,
-            "payment_options": payment_options,
-            "status_options": status_options,
-            "customer_options": customer_options,
-            "filters": filter_values,
-            "active_filter_count": active_filter_count,
-            "pagination": pagination,
-            "query_url": query_url,
-            "active_sun2_user_id": active_sun2_user_id,
-            "image_lookup": image_lookup,
-            "message": message,
-            "error": error,
-        },
-    )
 
 
-@app.post("/soling/enkeltimer/koble-bilder")
-async def sun2_sessions_link_images(request: Request):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    form = await request.form()
-    try:
-        days = int(form.get("days") or 7)
-    except (TypeError, ValueError):
-        days = 7
-    try:
-        limit = int(form.get("limit") or 5000)
-    except (TypeError, ValueError):
-        limit = 5000
-    try:
-        tolerance_seconds = int(form.get("tolerance_seconds") or SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS)
-    except (TypeError, ValueError):
-        tolerance_seconds = SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS
-    replace = str(form.get("replace") or "").strip().lower() in {"1", "true", "yes", "ja", "on"}
-    try:
-        result = await run_sun2_axis_snapshot_link_once(
-            "manual_jinja",
-            days=days,
-            limit=limit,
-            tolerance_seconds=tolerance_seconds,
-            replace=replace,
-        )
-        message = (
-            f"Koblet {result.get('linked', 0)} bilder. "
-            f"{result.get('already_linked', 0)} hadde bilde fra før, {result.get('no_match', 0)} manglet treff."
-        )
-        return redirect_with_query_params(request, "/soling/enkeltimer", message=message)
-    except Exception as exc:
-        logger.exception("Axis-bildekobling for soltimer feilet")
-        return redirect_with_query_params(request, "/soling/enkeltimer", error=str(exc))
 
 
-@app.post("/api/actions/soling/link-snapshot-images")
-async def api_v2_sun2_link_snapshot_images(
-    request: Request,
-    days: int = 7,
-    limit: int = 5000,
-    tolerance_seconds: int = SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS,
-    replace: bool = False,
-):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
-    result = await run_sun2_axis_snapshot_link_once(
-        "manual_api",
-        days=days,
-        limit=limit,
-        tolerance_seconds=tolerance_seconds,
-        replace=replace,
-    )
-    return {"status": "ok", "result": result}
 
 
-@app.get("/soling/dagslinje", response_class=HTMLResponse)
-async def sun2_day_timeline_view(request: Request, day: Optional[str] = None):
-    try:
-        selected = date.fromisoformat(day) if day else datetime.now(LOCAL_TZ).date()
-    except ValueError:
-        selected = datetime.now(LOCAL_TZ).date()
-
-    day_start = datetime.combine(selected, time.min)
-    day_end = day_start + timedelta(days=1)
-    visible_room_numbers = list(range(1, 10)) + [11, 12, 13]
-    visible_room_ids = [f"rom-{number:02d}" for number in visible_room_numbers]
-    room_lookup = {
-        room_id: {
-            "room_id": room_id,
-            "label": f"Rom {int(room_id.rsplit('-', 1)[-1])}",
-            "sessions": [],
-            "count": 0,
-            "minutes": 0.0,
-            "paid": 0.0,
-        }
-        for room_id in visible_room_ids
-    }
-
-    async with async_session() as session:
-        rows = (
-            await session.execute(
-                select(Sun2TanningSession)
-                .where(Sun2TanningSession.stat_date == selected)
-                .where(Sun2TanningSession.room_id.in_(visible_room_ids))
-                .order_by(Sun2TanningSession.room_id.asc(), Sun2TanningSession.started_at.asc())
-            )
-        ).scalars().all()
-        energy_rows = (
-            await session.execute(
-                select(
-                    EnergyHourlyConsumption.hour.label("hour"),
-                    func.coalesce(func.sum(EnergyHourlyConsumption.consumption_kwh), 0).label("consumption_kwh"),
-                    func.coalesce(func.sum(EnergyHourlyConsumption.production_kwh), 0).label("production_kwh"),
-                    func.count(EnergyHourlyConsumption.id).label("rows_count"),
-                )
-                .where(EnergyHourlyConsumption.stat_date == selected)
-                .group_by(EnergyHourlyConsumption.hour)
-                .order_by(EnergyHourlyConsumption.hour.asc())
-            )
-        ).mappings().all()
-
-    totals = {"sessions_count": 0, "duration_minutes": 0.0, "duration_hours": 0.0, "paid_amount_kr": 0.0}
-    aggregate_sessions = []
-    for row in rows:
-        room_id = normalize_room_id(row.room_id)
-        if room_id not in room_lookup or not row.started_at:
-            continue
-        start_at = row.started_at
-        end_at = row.ended_at
-        if getattr(start_at, "tzinfo", None):
-            start_at = start_at.astimezone(LOCAL_TZ).replace(tzinfo=None)
-        if end_at and getattr(end_at, "tzinfo", None):
-            end_at = end_at.astimezone(LOCAL_TZ).replace(tzinfo=None)
-        if not end_at:
-            end_at = start_at + timedelta(minutes=float(row.duration_minutes or 15))
-        if end_at <= start_at:
-            end_at = start_at + timedelta(minutes=max(1.0, float(row.duration_minutes or 1)))
-
-        clamped_start = max(day_start, min(day_end, start_at))
-        clamped_end = max(clamped_start, min(day_end, end_at))
-        duration_minutes = max(0.0, (clamped_end - clamped_start).total_seconds() / 60)
-        if duration_minutes <= 0:
-            continue
-
-        left = round(((clamped_start - day_start).total_seconds() / 86400) * 100, 4)
-        width = max(0.18, round(((clamped_end - clamped_start).total_seconds() / 86400) * 100, 4))
-        customer_type = (row.customer_type or "").lower()
-        kind = "standard"
-        if "ikke" in customer_type:
-            kind = "no-member"
-        elif "medlem" in customer_type:
-            kind = "member"
-        paid = float(row.paid_amount_kr or 0)
-        label = f"{start_at:%H:%M}"
-        title_parts = [
-            f"{room_lookup[room_id]['label']} {start_at:%H:%M}-{end_at:%H:%M}",
-            f"{duration_minutes:.0f} min",
-        ]
-        if row.user_name:
-            title_parts.append(str(row.user_name))
-        if paid:
-            title_parts.append(f"{paid:.0f} kr")
-        item = {
-            "left": left,
-            "width": width,
-            "label": label,
-            "title": " | ".join(title_parts),
-            "kind": kind,
-            "href": f"/soling/enkeltimer?date_from={selected.isoformat()}&date_to={selected.isoformat()}&room_id={room_id}",
-        }
-        room_lookup[room_id]["sessions"].append(item)
-        aggregate_sessions.append({**item, "label": room_lookup[room_id]["label"]})
-        room_lookup[room_id]["count"] += 1
-        room_lookup[room_id]["minutes"] += duration_minutes
-        room_lookup[room_id]["paid"] += paid
-        totals["sessions_count"] += 1
-        totals["duration_minutes"] += duration_minutes
-        totals["paid_amount_kr"] += paid
-
-    totals["duration_hours"] = round(totals["duration_minutes"] / 60, 2)
-    rooms = [room_lookup[room_id] for room_id in visible_room_ids]
-    busiest_room = max(rooms, key=lambda item: item["count"], default=None)
-    if busiest_room and not busiest_room["count"]:
-        busiest_room = None
-    today = datetime.now(LOCAL_TZ).date()
-    now_marker = None
-    if selected == today:
-        now_local = datetime.now(LOCAL_TZ).replace(tzinfo=None)
-        now_marker = round(max(0, min(100, ((now_local - day_start).total_seconds() / 86400) * 100)), 3)
-    ticks = [{"label": f"{hour:02d}", "left": round(hour / 24 * 100, 4)} for hour in range(0, 25, 2)]
-    energy_lookup = {int(item.get("hour") or 0): item for item in energy_rows}
-    energy_hours = []
-    max_energy_kwh = max([float((item.get("consumption_kwh") or 0)) for item in energy_rows] or [0.0])
-    total_energy_kwh = sum(float((item.get("consumption_kwh") or 0)) for item in energy_rows)
-    for hour in range(24):
-        item = energy_lookup.get(hour) or {}
-        consumption = float(item.get("consumption_kwh") or 0)
-        production = float(item.get("production_kwh") or 0)
-        energy_hours.append(
-            {
-                "hour": hour,
-                "left": round(hour / 24 * 100, 4),
-                "width": round(100 / 24, 4),
-                "height": round((consumption / max_energy_kwh) * 100, 2) if max_energy_kwh else 0,
-                "consumption_kwh": consumption,
-                "production_kwh": production,
-                "title": f"{hour:02d}:00-{(hour + 1) % 24:02d}:00 | {consumption:.2f} kWh",
-            }
-        )
-    peak_energy_hour = max(energy_hours, key=lambda item: item["consumption_kwh"], default=None)
-    if peak_energy_hour and not peak_energy_hour["consumption_kwh"]:
-        peak_energy_hour = None
-    energy_summary = {
-        "hours_count": len([item for item in energy_hours if item["consumption_kwh"] > 0]),
-        "total_kwh": total_energy_kwh,
-        "max_kwh": max_energy_kwh,
-        "peak_hour": peak_energy_hour,
-    }
-
-    return templates.TemplateResponse(
-        request,
-        "sun2_day_timeline.html",
-        {
-            "selected_day": selected.isoformat(),
-            "selected_day_label": selected.strftime("%d.%m.%Y"),
-            "prev_day": (selected - timedelta(days=1)).isoformat(),
-            "next_day": (selected + timedelta(days=1)).isoformat(),
-            "rooms": rooms,
-            "aggregate_sessions": aggregate_sessions,
-            "totals": totals,
-            "busiest_room": busiest_room,
-            "ticks": ticks,
-            "now_marker": now_marker,
-            "energy_hours": energy_hours,
-            "energy_summary": energy_summary,
-        },
-    )
 
 
-@app.get("/soling/senger", response_class=HTMLResponse)
-async def sun2_beds_view(request: Request):
-    async with async_session() as session:
-        beds = (
-            await session.execute(
-                select(Sun2Bed).order_by(Sun2Bed.physical_room_number, Sun2Bed.room_id, Sun2Bed.name)
-            )
-        ).scalars().all()
-        totals_rows = (
-            await session.execute(
-                select(
-                    Sun2TanningSession.room_id.label("room_id"),
-                    func.count(Sun2TanningSession.id).label("sessions_count"),
-                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                    func.max(Sun2TanningSession.started_at).label("last_at"),
-                )
-                .group_by(Sun2TanningSession.room_id)
-            )
-        ).mappings().all()
-    totals = {item["room_id"]: item for item in totals_rows}
-    return templates.TemplateResponse(
-        request,
-        "sun2_beds.html",
-        {
-            "beds": beds,
-            "totals": totals,
-            "room_label": sun2_room_label,
-        },
-    )
 
 
-@app.get("/soling/medlemmer", response_class=HTMLResponse)
-async def sun2_members_view(
-    request: Request,
-    q: str = "",
-    customer_type: str = "",
-    status: str = "",
-    limit: int = 250,
-):
-    search = (q or "").strip()
-    active_customer_type = (customer_type or "").strip()
-    active_status = (status or "").strip()
-    limit = max(25, min(limit, 1000))
-    filters = []
-    if search:
-        like = f"%{search.lower()}%"
-        filters.append(
-            or_(
-                func.lower(func.coalesce(Sun2Member.sun2_user_id, "")).like(like),
-                func.lower(func.coalesce(Sun2Member.name, "")).like(like),
-                func.lower(func.coalesce(Sun2Member.display_name, "")).like(like),
-                func.lower(func.coalesce(Sun2Member.initials, "")).like(like),
-                func.lower(func.coalesce(Sun2Member.email, "")).like(like),
-                func.lower(func.coalesce(Sun2Member.phone, "")).like(like),
-            )
-        )
-    if active_customer_type:
-        filters.append(Sun2Member.customer_type == active_customer_type)
-    if active_status:
-        filters.append(Sun2Member.status == active_status)
-
-    async with async_session() as session:
-        rows_query = select(Sun2Member)
-        for condition in filters:
-            rows_query = rows_query.where(condition)
-        members = (
-            await session.execute(
-                rows_query
-                .order_by(Sun2Member.imported_at.desc(), Sun2Member.name, Sun2Member.display_name, Sun2Member.sun2_user_id)
-                .limit(limit)
-            )
-        ).scalars().all()
-        member_ids = [member.sun2_user_id for member in members if member.sun2_user_id]
-        stats = {}
-        if member_ids:
-            stats_rows = (
-                await session.execute(
-                    select(
-                        Sun2TanningSession.sun2_user_id.label("sun2_user_id"),
-                        func.count(Sun2TanningSession.id).label("sessions_count"),
-                        func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                        func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                        func.max(Sun2TanningSession.started_at).label("last_session_at"),
-                        func.max(Sun2TanningSession.user_name).label("session_name"),
-                    )
-                    .where(Sun2TanningSession.sun2_user_id.in_(member_ids))
-                    .group_by(Sun2TanningSession.sun2_user_id)
-                )
-            ).mappings().all()
-            stats = {item["sun2_user_id"]: item for item in stats_rows}
-        totals = (
-            await session.execute(
-                select(
-                    func.count(Sun2Member.id).label("members_count"),
-                    func.count(Sun2Member.name).label("named_count"),
-                    func.count(Sun2Member.email).label("email_count"),
-                    func.count(Sun2Member.phone).label("phone_count"),
-                    func.max(Sun2Member.imported_at).label("last_imported_at"),
-                )
-            )
-        ).mappings().first() or {}
-        customer_options = (
-            await session.execute(
-                select(Sun2Member.customer_type).where(Sun2Member.customer_type.is_not(None)).distinct().order_by(Sun2Member.customer_type)
-            )
-        ).scalars().all()
-        status_options = (
-            await session.execute(
-                select(Sun2Member.status).where(Sun2Member.status.is_not(None)).distinct().order_by(Sun2Member.status)
-            )
-        ).scalars().all()
-        known_from_sessions = (
-            await session.execute(
-                select(func.count(func.distinct(Sun2TanningSession.sun2_user_id)))
-                .where(Sun2TanningSession.sun2_user_id.is_not(None))
-                .where(Sun2TanningSession.sun2_user_id != "")
-            )
-        ).scalar_one()
-    return templates.TemplateResponse(
-        request,
-        "sun2_members.html",
-        {
-            "members": members,
-            "stats": stats,
-            "totals": totals,
-            "known_from_sessions": known_from_sessions,
-            "filters": {
-                "q": search,
-                "customer_type": active_customer_type,
-                "status": active_status,
-                "limit": limit,
-            },
-            "customer_options": customer_options,
-            "status_options": status_options,
-        },
-    )
 
 
-@app.get("/api/sun2/room-stats/json")
-async def sun2_room_stats_json(limit: int = 300):
-    limit = max(1, min(limit, 5000))
-    async with async_session() as session:
-        summaries = await get_sun2_summaries(session)
-        rows = (
-            await session.execute(
-                select(Sun2RoomDailyStat)
-                .order_by(Sun2RoomDailyStat.stat_date.desc(), Sun2RoomDailyStat.room)
-                .limit(limit)
-            )
-        ).scalars().all()
-        imports = (
-            await session.execute(
-                select(Sun2ImportRun)
-                .order_by(Sun2ImportRun.timestamp.desc())
-                .limit(min(limit, 500))
-            )
-        ).scalars().all()
-    return {
-        "rows": [row_to_dict(row, SUN2_ROOM_COLUMNS) for row in rows],
-        "imports": [row_to_dict(row, SUN2_IMPORT_COLUMNS) for row in imports],
-        "daily_totals": summaries["daily"],
-        "monthly_totals": summaries["monthly"],
-        "yearly_totals": summaries["yearly"],
-        "top_days": summaries["top_days"],
-        "top_months": summaries["top_months"],
-        "top_days_by_count": summaries["top_days_by_count"],
-        "top_months_by_count": summaries["top_months_by_count"],
-        "grand_total": summaries["total"],
-        "first_date": summaries["first_date"],
-        "last_date": summaries["last_date"],
-        "total_rows": summaries["total_rows"],
-    }
 
 
-@app.get("/api/sun2/beds/json")
-async def sun2_beds_json():
-    async with async_session() as session:
-        rows = (
-            await session.execute(
-                select(Sun2Bed).order_by(Sun2Bed.physical_room_number, Sun2Bed.room_id, Sun2Bed.name)
-            )
-        ).scalars().all()
-    return {"rows": [row_to_dict(row, SUN2_BED_COLUMNS) for row in rows]}
 
 
-@app.get("/api/sun2/members/json")
-async def sun2_members_json(limit: int = 300, q: Optional[str] = None):
-    limit = max(1, min(limit, 5000))
-    search = (q or "").strip()
-    async with async_session() as session:
-        rows_query = select(Sun2Member)
-        if search:
-            like = f"%{search.lower()}%"
-            rows_query = rows_query.where(
-                or_(
-                    func.lower(func.coalesce(Sun2Member.sun2_user_id, "")).like(like),
-                    func.lower(func.coalesce(Sun2Member.name, "")).like(like),
-                    func.lower(func.coalesce(Sun2Member.display_name, "")).like(like),
-                    func.lower(func.coalesce(Sun2Member.initials, "")).like(like),
-                    func.lower(func.coalesce(Sun2Member.email, "")).like(like),
-                    func.lower(func.coalesce(Sun2Member.phone, "")).like(like),
-                )
-            )
-        rows = (
-            await session.execute(
-                rows_query
-                .order_by(Sun2Member.imported_at.desc(), Sun2Member.sun2_user_id)
-                .limit(limit)
-            )
-        ).scalars().all()
-    return {"rows": [row_to_dict(row, SUN2_MEMBER_COLUMNS) for row in rows], "q": search or None}
 
 
-@app.get("/api/sun2/sessions/json")
-async def sun2_sessions_json(limit: int = 300, sun2_user_id: Optional[str] = None):
-    limit = max(1, min(limit, 5000))
-    active_sun2_user_id = (sun2_user_id or "").strip()
-    async with async_session() as session:
-        rows_query = select(Sun2TanningSession)
-        if active_sun2_user_id:
-            rows_query = rows_query.where(Sun2TanningSession.sun2_user_id == active_sun2_user_id)
-        rows = (
-            await session.execute(
-                rows_query
-                .order_by(Sun2TanningSession.started_at.desc())
-                .limit(limit)
-            )
-        ).scalars().all()
-        imports = (
-            await session.execute(
-                select(Sun2SessionImportRun)
-                .order_by(Sun2SessionImportRun.timestamp.desc())
-                .limit(min(limit, 500))
-            )
-        ).scalars().all()
-    return {
-        "rows": [row_to_dict(row, SUN2_SESSION_COLUMNS) for row in rows],
-        "imports": [row_to_dict(row, SUN2_SESSION_IMPORT_COLUMNS) for row in imports],
-        "sun2_user_id": active_sun2_user_id or None,
-    }
 
 
-@app.get("/energi/elvia", response_class=HTMLResponse)
-async def energy_elvia_view(request: Request):
-    message = request.query_params.get("message", "")
-    error = request.query_params.get("error", "")
-    async with async_session() as session:
-        summaries = await get_energy_summaries(session)
-        rows = (
-            await session.execute(
-                select(EnergyHourlyConsumption)
-                .order_by(EnergyHourlyConsumption.measured_at.desc())
-                .limit(24)
-            )
-        ).scalars().all()
-        imports = (
-            await session.execute(
-                select(EnergyImportRun)
-                .order_by(EnergyImportRun.timestamp.desc())
-                .limit(25)
-            )
-        ).scalars().all()
-        elvia_status = (
-            await session.execute(select(ImportJobStatus).where(ImportJobStatus.job_name == "elvia_monthly_import"))
-        ).scalars().first()
-    return templates.TemplateResponse(
-        request,
-        "energy_elvia.html",
-        {
-            "rows": list(reversed(rows)),
-            "imports": imports,
-            "elvia_status": elvia_status,
-            "summaries": summaries,
-            "message": message,
-            "error": error,
-            "import_result": None,
-        },
-    )
 
 
-@app.post("/energi/elvia", response_class=HTMLResponse)
-async def energy_elvia_upload(request: Request, background_tasks: BackgroundTasks):
-    message = ""
-    error = ""
-    import_result = None
-    if not getattr(request.state, "auth_can_settings", False):
-        error = "Du må ha innstillingstilgang for å importere Elvia-filer."
-    else:
-        try:
-            form = await request.form()
-            upload = form.get("file")
-            filename = getattr(upload, "filename", "") or ""
-            if not upload or not filename:
-                raise ValueError("Velg en JSON-fil fra Elvia før du importerer.")
-            content = await upload.read()
-            async with async_session() as session:
-                await mark_import_job_running(
-                    session,
-                    "elvia_monthly_import",
-                    source="Manuell opplasting",
-                    message=f"Importerer {filename}",
-                    raw={"source_file": filename},
-                )
-                await session.commit()
-            background_tasks.add_task(run_elvia_import_background, content, filename)
-            message = f"Importen er startet for {filename}. Siden kan brukes mens jobben kjører."
-            return redirect_with_query_params(request, "/energi/elvia", message=message)
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            error = "Filen kunne ikke leses som gyldig JSON."
-        except Exception as exc:
-            error = str(exc)
-
-    async with async_session() as session:
-        summaries = await get_energy_summaries(session, force=bool(import_result and not error))
-        rows = (
-            await session.execute(
-                select(EnergyHourlyConsumption)
-                .order_by(EnergyHourlyConsumption.measured_at.desc())
-                .limit(24)
-            )
-        ).scalars().all()
-        imports = (
-            await session.execute(
-                select(EnergyImportRun)
-                .order_by(EnergyImportRun.timestamp.desc())
-                .limit(25)
-            )
-        ).scalars().all()
-        elvia_status = (
-            await session.execute(select(ImportJobStatus).where(ImportJobStatus.job_name == "elvia_monthly_import"))
-        ).scalars().first()
-    return templates.TemplateResponse(
-        request,
-        "energy_elvia.html",
-        {
-            "rows": list(reversed(rows)),
-            "imports": imports,
-            "elvia_status": elvia_status,
-            "summaries": summaries,
-            "message": message,
-            "error": error,
-            "import_result": import_result,
-        },
-    )
 
 
-@app.get("/api/energi/elvia/json")
-async def energy_elvia_json(limit: int = 300):
-    limit = max(1, min(limit, 5000))
-    async with async_session() as session:
-        summaries = await get_energy_summaries(session)
-        rows = (
-            await session.execute(
-                select(EnergyHourlyConsumption)
-                .order_by(EnergyHourlyConsumption.measured_at.desc())
-                .limit(limit)
-            )
-        ).scalars().all()
-        imports = (
-            await session.execute(
-                select(EnergyImportRun)
-                .order_by(EnergyImportRun.timestamp.desc())
-                .limit(min(limit, 500))
-            )
-        ).scalars().all()
-    return {
-        "rows": [row_to_dict(row, ENERGY_HOURLY_COLUMNS) for row in rows],
-        "imports": [row_to_dict(row, ENERGY_IMPORT_COLUMNS) for row in imports],
-        "daily_totals": summaries["daily"],
-        "monthly_totals": summaries["monthly"],
-        "yearly_totals": summaries["yearly"],
-        "top_days": summaries["top_days"],
-        "top_months": summaries["top_months"],
-        "grand_total": summaries["total"],
-        "first_at": summaries["first_at"],
-        "last_at": summaries["last_at"],
-        "total_rows": summaries["total"]["hours_count"],
-    }
 
 
-@app.get("/renhold/oversikt", response_class=HTMLResponse)
-async def cleaning_overview(request: Request):
-    async with async_session() as session:
-        robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
-        robots.sort(key=cleaning_robot_sort_key)
-        latest_status = {}
-        latest_jobs = {}
-        next_schedules = {}
-        robot_duids = [robot.duid for robot in robots]
-        if robot_duids:
-            latest_status_subq = (
-                select(
-                    RoborockStatusSample.robot_duid.label("robot_duid"),
-                    func.max(RoborockStatusSample.timestamp).label("latest_at"),
-                )
-                .where(RoborockStatusSample.robot_duid.in_(robot_duids))
-                .group_by(RoborockStatusSample.robot_duid)
-                .subquery()
-            )
-            status_rows = (
-                await session.execute(
-                    select(RoborockStatusSample).join(
-                        latest_status_subq,
-                        (RoborockStatusSample.robot_duid == latest_status_subq.c.robot_duid)
-                        & (RoborockStatusSample.timestamp == latest_status_subq.c.latest_at),
-                    )
-                )
-            ).scalars().all()
-            latest_status = {row.robot_duid: row for row in status_rows}
-
-            latest_job_subq = (
-                select(
-                    RoborockCleanJob.robot_duid.label("robot_duid"),
-                    func.max(RoborockCleanJob.begin_at).label("latest_at"),
-                )
-                .where(RoborockCleanJob.robot_duid.in_(robot_duids))
-                .group_by(RoborockCleanJob.robot_duid)
-                .subquery()
-            )
-            job_rows = (
-                await session.execute(
-                    select(RoborockCleanJob).join(
-                        latest_job_subq,
-                        (RoborockCleanJob.robot_duid == latest_job_subq.c.robot_duid)
-                        & (RoborockCleanJob.begin_at == latest_job_subq.c.latest_at),
-                    )
-                )
-            ).scalars().all()
-            latest_jobs = {row.robot_duid: row for row in job_rows}
-
-            schedule_rows = (
-                await session.execute(
-                    select(RoborockSchedule)
-                    .where(RoborockSchedule.robot_duid.in_(robot_duids))
-                    .where(RoborockSchedule.enabled == True)
-                    .where(RoborockSchedule.deleted_at.is_(None))
-                )
-            ).scalars().all()
-            schedules_by_robot: Dict[str, list[RoborockSchedule]] = {}
-            for schedule in schedule_rows:
-                schedules_by_robot.setdefault(schedule.robot_duid, []).append(schedule)
-            next_schedules = {
-                duid: min(schedules, key=roborock_next_schedule_score)
-                for duid, schedules in schedules_by_robot.items()
-                if schedules
-            }
-    return templates.TemplateResponse(
-        request,
-        "cleaning_overview.html",
-        {
-            "robots": robots,
-            "latest_status": latest_status,
-            "latest_jobs": latest_jobs,
-            "next_schedules": next_schedules,
-        },
-    )
 
 
 async def roborock_door_automation_payload(
@@ -32979,664 +21889,14 @@ async def roborock_door_automation_payload(
     return public_payload, command_payload
 
 
-@app.get("/api/renhold/night-report")
-async def api_cleaning_night_report(day: Optional[str] = None):
-    today = datetime.now(LOCAL_TZ).date()
-    latest_day = today + timedelta(days=1)
-    try:
-        selected_day = date.fromisoformat(day) if day else today
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail="Ugyldig dato. Bruk YYYY-MM-DD.") from exc
-    if selected_day > latest_day:
-        raise HTTPException(status_code=400, detail="Rapporten kan bare vise neste planlagte natt.")
-
-    window = report_window(selected_day)
-    job_start = local_naive_to_utc_naive(window["start"])
-    job_end = local_naive_to_utc_naive(window["end"])
-    telemetry_start = window["start"] - timedelta(minutes=15)
-    telemetry_end = window["end"] + timedelta(minutes=15)
-    async with async_session() as session:
-        robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
-        robots.sort(key=cleaning_robot_sort_key)
-        robot_duids = [robot.duid for robot in robots]
-        jobs = (
-            await session.execute(
-                select(RoborockCleanJob)
-                .where(RoborockCleanJob.robot_duid.in_(robot_duids or [""]))
-                .where(RoborockCleanJob.begin_at >= job_start)
-                .where(RoborockCleanJob.begin_at < job_end)
-                .order_by(RoborockCleanJob.robot_duid, RoborockCleanJob.begin_at)
-            )
-        ).scalars().all()
-        telemetry_samples = (
-            await session.execute(
-                select(RoborockTelemetrySample)
-                .where(RoborockTelemetrySample.robot_duid.in_(robot_duids or [""]))
-                .where(RoborockTelemetrySample.timestamp >= telemetry_start)
-                .where(RoborockTelemetrySample.timestamp <= telemetry_end)
-                .order_by(RoborockTelemetrySample.robot_duid, RoborockTelemetrySample.timestamp)
-            )
-        ).scalars().all()
-        water_events = (
-            await session.execute(
-                select(RoborockTelemetryEvent)
-                .where(RoborockTelemetryEvent.robot_duid.in_(robot_duids or [""]))
-                .where(RoborockTelemetryEvent.category == "vann")
-                .where(RoborockTelemetryEvent.timestamp >= window["start"])
-                .where(RoborockTelemetryEvent.timestamp <= window["end"])
-                .order_by(
-                    RoborockTelemetryEvent.robot_duid,
-                    RoborockTelemetryEvent.timestamp,
-                    RoborockTelemetryEvent.id,
-                )
-            )
-        ).scalars().all()
-        schedules = (
-            await session.execute(
-                select(RoborockSchedule)
-                .where(RoborockSchedule.robot_duid.in_(robot_duids or [""]))
-                .where(RoborockSchedule.deleted_at.is_(None))
-                .order_by(RoborockSchedule.robot_duid, RoborockSchedule.cron)
-            )
-        ).scalars().all()
-        schedule_snapshots = (
-            await session.execute(
-                select(RoborockScheduleSnapshot)
-                .where(RoborockScheduleSnapshot.robot_duid.in_(robot_duids or [""]))
-                .where(RoborockScheduleSnapshot.captured_at <= window["end"])
-                .order_by(
-                    RoborockScheduleSnapshot.robot_duid,
-                    RoborockScheduleSnapshot.captured_at,
-                    RoborockScheduleSnapshot.id,
-                )
-            )
-        ).scalars().all()
-        latest_probe_subq = (
-            select(func.max(RoborockProbeResult.id).label("latest_id"))
-            .where(RoborockProbeResult.robot_duid.in_(robot_duids or [""]))
-            .where(RoborockProbeResult.source == "local-telemetry")
-            .where(RoborockProbeResult.timestamp <= window["end"])
-            .group_by(RoborockProbeResult.robot_duid, RoborockProbeResult.command)
-            .subquery()
-        )
-        probes = (
-            await session.execute(
-                select(RoborockProbeResult)
-                .join(latest_probe_subq, RoborockProbeResult.id == latest_probe_subq.c.latest_id)
-                .where(
-                    RoborockProbeResult.command.in_(
-                        [
-                            "GET_SMART_WASH_PARAMS",
-                            "GET_WASH_TOWEL_MODE",
-                            "GET_CUSTOM_MODE",
-                            "GET_WATER_BOX_CUSTOM_MODE",
-                            "APP_GET_DRYER_SETTING",
-                            "GET_DUST_COLLECTION_MODE",
-                            "GET_DUST_COLLECTION_SWITCH_STATUS",
-                            "GET_CARPET_MODE",
-                            "GET_DND_TIMER",
-                        ]
-                    )
-                )
-            )
-        ).scalars().all()
-    return build_night_report(
-        selected_day,
-        list(robots),
-        list(jobs),
-        list(telemetry_samples),
-        list(probes),
-        generated_at=local_now_naive(),
-        schedules=list(schedules),
-        schedule_snapshots=list(schedule_snapshots),
-        water_events=list(water_events),
-    )
 
 
-@app.get("/api/renhold/weekly-jobs")
-async def api_cleaning_weekly_jobs(week: Optional[str] = Query(default=None)):
-    now = local_now_naive()
-    try:
-        selected_week = refill_iso_week_start(week, today=now.date())
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    current_week = refill_iso_week_start(None, today=now.date())
-    if selected_week > current_week:
-        raise HTTPException(status_code=422, detail="Ukesloggen kan ikke vise en fremtidig uke.")
-
-    period_start = datetime.combine(selected_week, time.min)
-    period_end = period_start + timedelta(days=7)
-    job_start = local_naive_to_utc_naive(period_start)
-    job_end = local_naive_to_utc_naive(period_end)
-    telemetry_start = period_start - timedelta(minutes=3)
-    telemetry_end = period_end + timedelta(minutes=12)
-    async with async_session() as session:
-        robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
-        robots.sort(key=cleaning_robot_sort_key)
-        robot_duids = [robot.duid for robot in robots]
-        jobs = (
-            await session.execute(
-                select(RoborockCleanJob)
-                .where(RoborockCleanJob.robot_duid.in_(robot_duids or [""]))
-                .where(RoborockCleanJob.begin_at >= job_start)
-                .where(RoborockCleanJob.begin_at < job_end)
-                .where(RoborockCleanJob.end_at.is_not(None))
-                .where(RoborockCleanJob.complete.is_(True))
-                .where(or_(RoborockCleanJob.error_code.is_(None), RoborockCleanJob.error_code == 0))
-                .order_by(RoborockCleanJob.begin_at.desc(), RoborockCleanJob.id.desc())
-            )
-        ).scalars().all()
-        telemetry_samples = (
-            await session.execute(
-                select(RoborockTelemetrySample)
-                .where(RoborockTelemetrySample.robot_duid.in_(robot_duids or [""]))
-                .where(RoborockTelemetrySample.timestamp >= telemetry_start)
-                .where(RoborockTelemetrySample.timestamp < telemetry_end)
-                .where(RoborockTelemetrySample.in_cleaning.is_(True))
-                .order_by(RoborockTelemetrySample.robot_duid, RoborockTelemetrySample.timestamp)
-            )
-        ).scalars().all()
-    return build_weekly_job_log(
-        selected_week,
-        list(robots),
-        list(jobs),
-        list(telemetry_samples),
-        generated_at=now,
-    )
 
 
-@app.get("/api/renhold/water-report")
-async def api_cleaning_water_report(days: int = Query(default=7, ge=1, le=90)):
-    now = local_now_naive()
-    period_start = datetime.combine(now.date() - timedelta(days=days - 1), time.min)
-    job_start = local_naive_to_utc_naive(period_start)
-    job_end = local_naive_to_utc_naive(now)
-    async with async_session() as session:
-        robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
-        robots.sort(key=cleaning_robot_sort_key)
-        robot_duids = [robot.duid for robot in robots]
-        jobs = (
-            await session.execute(
-                select(RoborockCleanJob)
-                .where(RoborockCleanJob.robot_duid.in_(robot_duids or [""]))
-                .where(RoborockCleanJob.begin_at >= job_start)
-                .where(RoborockCleanJob.begin_at <= job_end)
-                .order_by(RoborockCleanJob.robot_duid, RoborockCleanJob.begin_at)
-            )
-        ).scalars().all()
-        events = (
-            await session.execute(
-                select(RoborockTelemetryEvent)
-                .where(RoborockTelemetryEvent.robot_duid.in_(robot_duids or [""]))
-                .where(RoborockTelemetryEvent.category == "vann")
-                .where(RoborockTelemetryEvent.timestamp >= period_start)
-                .where(RoborockTelemetryEvent.timestamp <= now)
-                .order_by(RoborockTelemetryEvent.timestamp.desc(), RoborockTelemetryEvent.id.desc())
-                .limit(1000)
-            )
-        ).scalars().all()
-        latest_telemetry_subq = (
-            select(func.max(RoborockTelemetrySample.id).label("latest_id"))
-            .where(RoborockTelemetrySample.robot_duid.in_(robot_duids or [""]))
-            .group_by(RoborockTelemetrySample.robot_duid)
-            .subquery()
-        )
-        telemetry_samples = (
-            await session.execute(
-                select(RoborockTelemetrySample).join(
-                    latest_telemetry_subq,
-                    RoborockTelemetrySample.id == latest_telemetry_subq.c.latest_id,
-                )
-            )
-        ).scalars().all()
-        latest_probe_subq = (
-            select(func.max(RoborockProbeResult.id).label("latest_id"))
-            .where(RoborockProbeResult.robot_duid.in_(robot_duids or [""]))
-            .where(RoborockProbeResult.source == "local-telemetry")
-            .group_by(RoborockProbeResult.robot_duid, RoborockProbeResult.command)
-            .subquery()
-        )
-        probes = (
-            await session.execute(
-                select(RoborockProbeResult)
-                .join(latest_probe_subq, RoborockProbeResult.id == latest_probe_subq.c.latest_id)
-                .where(
-                    RoborockProbeResult.command.in_(
-                        ["GET_SMART_WASH_PARAMS", "GET_WASH_TOWEL_MODE", "GET_WATER_BOX_CUSTOM_MODE"]
-                    )
-                )
-            )
-        ).scalars().all()
-    return build_water_report(
-        days,
-        list(robots),
-        list(jobs),
-        list(telemetry_samples),
-        list(events),
-        list(probes),
-        generated_at=now,
-    )
 
 
-@app.get("/api/renhold/refill-log")
-async def api_cleaning_refill_log(week: Optional[str] = Query(default=None)):
-    now = local_now_naive()
-    try:
-        selected_week = refill_iso_week_start(week, today=now.date())
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    period_start = datetime.combine(selected_week, time.min)
-    period_end = datetime.combine(selected_week + timedelta(days=7), time.min)
-    query_start = period_start - timedelta(days=7)
-    query_end = min(period_end + timedelta(days=7), now)
-    async with async_session() as session:
-        robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
-        robots.sort(key=cleaning_robot_sort_key)
-        robot_duids = [robot.duid for robot in robots]
-        latest_telemetry_subq = (
-            select(func.max(RoborockTelemetrySample.id).label("latest_id"))
-            .where(RoborockTelemetrySample.robot_duid.in_(robot_duids or [""]))
-            .where(RoborockTelemetrySample.clear_water_status.is_not(None))
-            .group_by(RoborockTelemetrySample.robot_duid)
-            .subquery()
-        )
-        telemetry_samples = (
-            await session.execute(
-                select(RoborockTelemetrySample).join(
-                    latest_telemetry_subq,
-                    RoborockTelemetrySample.id == latest_telemetry_subq.c.latest_id,
-                )
-            )
-        ).scalars().all()
-        events = (
-            await session.execute(
-                select(RoborockTelemetryEvent)
-                .where(RoborockTelemetryEvent.robot_duid.in_(robot_duids or [""]))
-                .where(RoborockTelemetryEvent.field_name == "clear_water_status")
-                .where(RoborockTelemetryEvent.timestamp >= query_start)
-                .where(RoborockTelemetryEvent.timestamp < query_end)
-                .order_by(RoborockTelemetryEvent.timestamp, RoborockTelemetryEvent.id)
-            )
-        ).scalars().all()
-    water_capable_duids = {
-        row.robot_duid for row in telemetry_samples if row.clear_water_status is not None
-    }
-    return build_refill_log(
-        selected_week,
-        list(robots),
-        list(events),
-        generated_at=now,
-        water_capable_duids=water_capable_duids,
-    )
 
 
-@app.get("/api/renhold/robots/{duid}")
-async def api_cleaning_robot_detail(request: Request, duid: str):
-    async with async_session() as session:
-        robot = (await session.execute(select(RoborockRobot).where(RoborockRobot.duid == duid))).scalars().first()
-        if not robot:
-            raise HTTPException(status_code=404, detail="Ukjent robot")
-        statuses = (
-            await session.execute(
-                select(RoborockStatusSample)
-                .where(RoborockStatusSample.robot_duid == duid)
-                .order_by(RoborockStatusSample.timestamp.desc())
-                .limit(400)
-            )
-        ).scalars().all()
-        jobs = (
-            await session.execute(
-                select(RoborockCleanJob)
-                .where(RoborockCleanJob.robot_duid == duid)
-                .order_by(RoborockCleanJob.begin_at.desc())
-                .limit(50)
-            )
-        ).scalars().all()
-        schedules = (
-            await session.execute(
-                select(RoborockSchedule)
-                .where(RoborockSchedule.robot_duid == duid)
-                .order_by(RoborockSchedule.cron)
-            )
-        ).scalars().all()
-        cleaning_zone_pairs = (
-            await session.execute(
-                select(RoborockCleaningZoneMapping, CleaningZone)
-                .join(CleaningZone, CleaningZone.id == RoborockCleaningZoneMapping.zone_id)
-                .where(RoborockCleaningZoneMapping.robot_duid == duid)
-                .order_by(CleaningZone.zone_number)
-            )
-        ).all()
-        consumables = (
-            await session.execute(
-                select(RoborockConsumableSnapshot)
-                .where(RoborockConsumableSnapshot.robot_duid == duid)
-                .order_by(RoborockConsumableSnapshot.timestamp.desc())
-                .limit(1)
-            )
-        ).scalars().first()
-        latest_map = (
-            await session.execute(
-                select(RoborockMapSnapshot)
-                .where(RoborockMapSnapshot.robot_duid == duid)
-                .order_by(RoborockMapSnapshot.timestamp.desc())
-                .limit(1)
-            )
-        ).scalars().first()
-        telemetry_samples = (
-            await session.execute(
-                select(RoborockTelemetrySample)
-                .where(RoborockTelemetrySample.robot_duid == duid)
-                .order_by(RoborockTelemetrySample.timestamp.desc(), RoborockTelemetrySample.id.desc())
-                .limit(120)
-            )
-        ).scalars().all()
-        telemetry_events = (
-            await session.execute(
-                select(RoborockTelemetryEvent)
-                .where(RoborockTelemetryEvent.robot_duid == duid)
-                .order_by(RoborockTelemetryEvent.timestamp.desc(), RoborockTelemetryEvent.id.desc())
-                .limit(150)
-            )
-        ).scalars().all()
-        latest_probe_subq = (
-            select(func.max(RoborockProbeResult.id).label("latest_id"))
-            .where(RoborockProbeResult.robot_duid == duid)
-            .where(RoborockProbeResult.source == "local-telemetry")
-            .group_by(RoborockProbeResult.command)
-            .subquery()
-        )
-        telemetry_probes = (
-            await session.execute(
-                select(RoborockProbeResult)
-                .join(latest_probe_subq, RoborockProbeResult.id == latest_probe_subq.c.latest_id)
-                .order_by(RoborockProbeResult.command)
-            )
-        ).scalars().all()
-        command_runs = (
-            await session.execute(
-                select(RoborockCommandRun)
-                .where(RoborockCommandRun.robot_duid == duid)
-                .order_by(RoborockCommandRun.requested_at.desc(), RoborockCommandRun.id.desc())
-                .limit(30)
-            )
-        ).scalars().all()
-        cleaning_profiles = (
-            await session.execute(
-                select(RoborockCleaningProfile).order_by(
-                    RoborockCleaningProfile.active.desc(),
-                    RoborockCleaningProfile.cleaning_type,
-                    RoborockCleaningProfile.name,
-                )
-            )
-        ).scalars().all()
-        door_automation = (
-            await session.execute(
-                select(RoborockDoorAutomation).where(RoborockDoorAutomation.robot_duid == duid)
-            )
-        ).scalars().first()
-        if not door_automation and str(robot.name or "").strip().lower() == "1.etg b":
-            door_automation = await ensure_default_roborock_door_automation(session)
-            await session.commit()
-        door_automation_data = None
-        if door_automation:
-            door_automation_data, _ = await roborock_door_automation_payload(session, door_automation)
-
-    latest_status = statuses[0] if statuses else None
-    metadata = ((robot.extra or {}).get("metadata") or {}) if isinstance(robot.extra, dict) else {}
-    cleaning_zone_import = (
-        (robot.extra or {}).get("cleaning_zone_import") or {}
-        if isinstance(robot.extra, dict)
-        else {}
-    )
-    latest_raw = latest_status.raw if latest_status and isinstance(latest_status.raw, dict) else {}
-    network = latest_raw.get("network") if isinstance(latest_raw.get("network"), dict) else {}
-    provider = cleaning_provider(robot.provider)
-    status_rows = []
-    for row in statuses:
-        item = row_to_dict(row, [column for column in ROBOROCK_STATUS_COLUMNS if column != "raw"])
-        item.update(
-            {
-                "state_label": row.state_name if provider == "dreame" and row.state_name else roborock_state_label(row.state_code),
-                "error_label": roborock_error_label(row.error_code),
-                "fan_label": roborock_fan_label(row.fan_power),
-                "mop_label": roborock_mop_label(row.mop_mode),
-                "charge_label": roborock_charge_label(row.charge_status),
-                "signal_label": roborock_signal_label(row.rssi),
-            }
-        )
-        status_rows.append(item)
-    job_rows = []
-    for row in jobs:
-        item = row_to_dict(row, [column for column in ROBOROCK_JOB_COLUMNS if column != "raw"])
-        # Roborock job timestamps are Unix instants stored as UTC-naive values.
-        # Add an explicit Oslo offset before they reach browsers, which otherwise
-        # interpret the bare timestamp as local time and show it two hours early.
-        item["begin_at"] = api_local_iso(utc_naive_to_local_naive(row.begin_at))
-        item["end_at"] = api_local_iso(utc_naive_to_local_naive(row.end_at))
-        job_status_key, job_status_label = roborock_job_status(row.complete, row.error_code, row.end_at)
-        item.update(
-            {
-                "status": job_status_key,
-                "status_label": job_status_label,
-                "complete_label": roborock_bool_label(row.complete),
-                "error_label": roborock_error_label(row.error_code),
-                "rounds_label": roborock_rounds_label(row.clean_times),
-            }
-        )
-        job_rows.append(item)
-    schedule_rows = []
-    for row in schedules:
-        item = row_to_dict(row, [column for column in ROBOROCK_SCHEDULE_COLUMNS if column != "raw"])
-        item["updated_at"] = api_local_iso(row.updated_at)
-        item["deleted_at"] = api_local_iso(row.deleted_at)
-        item.update(
-            {
-                "schedule_label": roborock_schedule_text(row),
-                "next_label": roborock_next_schedule_text(row) if row.enabled and not row.deleted_at else None,
-                "enabled_label": "Slettet" if row.deleted_at else roborock_bool_label(row.enabled),
-                "rounds_label": roborock_rounds_label(row.repeat),
-                "fan_label": roborock_fan_label(row.fan_power),
-                "mop_label": roborock_mop_label(row.mop_mode),
-                "water_label": cleaning_water_mode_label(row.water_box_mode, provider),
-            }
-        )
-        schedule_rows.append(item)
-    consumable_data = None
-    if consumables:
-        raw_consumables = consumables.raw if isinstance(consumables.raw, dict) else {}
-        if raw_consumables.get("unit") == "percent_remaining":
-            def percent_label(value: Any) -> Optional[str]:
-                normalized = int_value(value)
-                return f"{normalized} % igjen" if normalized is not None else None
-            consumable_data = {
-                "timestamp": api_local_iso(consumables.timestamp),
-                "main_brush": percent_label(raw_consumables.get("main_brush_percent")),
-                "side_brush": percent_label(raw_consumables.get("side_brush_percent")),
-                "filter": percent_label(raw_consumables.get("filter_percent")),
-                "sensor": percent_label(raw_consumables.get("sensor_percent")),
-                "mop": percent_label(raw_consumables.get("mop_percent")),
-                "detergent": percent_label(raw_consumables.get("detergent_percent")),
-            }
-        else:
-            consumable_data = {
-                "timestamp": api_local_iso(consumables.timestamp),
-                "main_brush": format_seconds_as_hours(consumables.main_brush_work_time),
-                "side_brush": format_seconds_as_hours(consumables.side_brush_work_time),
-                "filter": format_seconds_as_hours(consumables.filter_work_time),
-                "sensor": format_seconds_as_hours(consumables.sensor_dirty_time),
-                "dust_collection": consumables.dust_collection_work_times,
-            }
-    map_data = None
-    if latest_map:
-        map_data = {
-            **row_to_dict(latest_map, [column for column in ROBOROCK_MAP_COLUMNS if column != "raw"]),
-            "imageDataUrl": f"data:image/png;base64,{latest_map.image_base64}" if latest_map.image_base64 else None,
-        }
-    telemetry_rows = []
-    for row in telemetry_samples:
-        item = row_to_dict(row, [column for column in ROBOROCK_TELEMETRY_COLUMNS if column != "raw"])
-        item.update(
-            {
-                "state_label": row.state_name if cleaning_provider(robot.provider) == "dreame" and row.state_name else roborock_state_label(row.state_code),
-                "error_label": roborock_error_label(row.error_code),
-                "charge_label": roborock_telemetry_value_label("is_charging", row.is_charging),
-                "dock_label": roborock_dock_type_label(row.dock_type),
-                "dock_error_label": roborock_dock_error_label(row.dock_error_status),
-                "clear_water_label": roborock_telemetry_value_label(
-                    "clear_water_status", row.clear_water_status, row.clear_water_status_name
-                ),
-                "dirty_water_label": roborock_telemetry_value_label(
-                    "dirty_water_status", row.dirty_water_status, row.dirty_water_status_name
-                ),
-                "dust_bag_label": roborock_telemetry_value_label(
-                    "dust_bag_status", row.dust_bag_status, row.dust_bag_status_name
-                ),
-                "robot_water_label": roborock_telemetry_value_label(
-                    "water_shortage_status", row.water_shortage_status, provider=provider
-                ),
-                "water_box_label": roborock_telemetry_value_label(
-                    "water_box_status", row.water_box_status
-                ),
-                "mop_attached_label": roborock_telemetry_value_label(
-                    "water_box_carriage_status", row.water_box_carriage_status
-                ),
-                "water_filter_label": roborock_telemetry_value_label(
-                    "water_box_filter_status", row.water_box_filter_status
-                ),
-                "water_interlock": roborock_water_interlock_from_sample(row) or None,
-                "signal_label": roborock_signal_label(row.rssi),
-            }
-        )
-        telemetry_rows.append(item)
-    latest_telemetry = telemetry_samples[0] if telemetry_samples else None
-    telemetry_fields = []
-    raw_status_fields = []
-    if latest_telemetry:
-        latest_values = row_to_dict(latest_telemetry, ROBOROCK_TELEMETRY_COLUMNS)
-        for category, field_name, label, name_field in ROBOROCK_TELEMETRY_DISPLAY_FIELDS:
-            value = latest_values.get(field_name)
-            name = latest_values.get(name_field) if name_field else None
-            telemetry_fields.append(
-                {
-                    "category": category,
-                    "field": field_name,
-                    "label": label,
-                    "value": value,
-                    "valueLabel": roborock_telemetry_value_label(field_name, value, name, provider),
-                    "supported": value is not None or name is not None,
-                }
-            )
-        telemetry_raw = latest_telemetry.raw if isinstance(latest_telemetry.raw, dict) else {}
-        raw_status = telemetry_raw.get("status_raw") if isinstance(telemetry_raw.get("status_raw"), dict) else {}
-        raw_status_fields = [
-            {
-                "field": key,
-                "value": json.dumps(value, ensure_ascii=False, separators=(",", ":"))
-                if isinstance(value, (dict, list))
-                else value,
-            }
-            for key, value in sorted(raw_status.items())
-        ]
-    event_rows = [
-        row_to_dict(row, [column for column in ROBOROCK_TELEMETRY_EVENT_COLUMNS if column != "raw"])
-        for row in telemetry_events
-    ]
-    latest_probe_by_command: Dict[str, RoborockProbeResult] = {}
-    for probe in telemetry_probes:
-        if probe.command and probe.command not in latest_probe_by_command:
-            latest_probe_by_command[probe.command] = probe
-    probe_rows = []
-    for command, probe in sorted(latest_probe_by_command.items()):
-        raw = probe.raw if isinstance(probe.raw, dict) else {}
-        probe_rows.append(
-            {
-                "command": command,
-                "supported": probe.ok is True,
-                "status": (
-                    "Støttet"
-                    if probe.ok is True
-                    else "Ikke støttet"
-                    if any(
-                        marker in str(probe.error or "").lower()
-                        for marker in ("not recognized", "unknown method", "not supported", "unsupported")
-                    )
-                    else "Feil"
-                ),
-                "checkedAt": api_local_iso(probe.timestamp),
-                "resultType": probe.result_type,
-                "value": raw.get("value"),
-                "error": probe.error,
-            }
-        )
-    robot_data = row_to_dict(robot, [column for column in ROBOROCK_ROBOT_COLUMNS if column not in {"extra", "capabilities"}])
-    robot_data.update(
-        {
-            "provider": provider,
-            "provider_label": cleaning_provider_label(provider),
-            "shared_label": roborock_bool_label(robot.shared),
-            "cloud_label": roborock_bool_label(robot.cloud_online),
-        }
-    )
-    command_rows = [
-        {
-            "id": row.id,
-            "request_id": row.request_id,
-            "action": row.action,
-            "requested_at": api_local_iso(utc_naive_to_local_naive(row.requested_at)),
-            "finished_at": api_local_iso(utc_naive_to_local_naive(row.finished_at)),
-            "requested_by": row.requested_by,
-            "status": row.status,
-            "message": row.message,
-            "before_state": row.before_state,
-            "after_state": row.after_state,
-            "profile": ((row.result or {}).get("target") or {}).get("profile")
-            if isinstance(row.result, dict)
-            else None,
-        }
-        for row in command_runs
-    ]
-    cleaning_zone_rows = [
-        {
-            "zoneNumber": zone.zone_number,
-            "name": zone.name,
-            "segmentId": mapping.segment_id,
-            "sourceScheduleId": mapping.source_schedule_id,
-            "sourceCron": mapping.source_cron,
-            "importedAt": api_local_iso(utc_naive_to_local_naive(mapping.imported_at)),
-            "importedBy": mapping.imported_by,
-        }
-        for mapping, zone in cleaning_zone_pairs
-    ]
-    return {
-        "robot": robot_data,
-        "metadata": metadata,
-        "network": network,
-        "latestStatus": status_rows[0] if status_rows else None,
-        "activeCycle": api_roborock_active_cycle(statuses),
-        "statuses": status_rows[:60],
-        "jobs": job_rows,
-        "schedules": schedule_rows,
-        "consumables": consumable_data,
-        "latestMap": map_data,
-        "latestTelemetry": telemetry_rows[0] if telemetry_rows else None,
-        "telemetrySamples": telemetry_rows,
-        "telemetryEvents": event_rows,
-        "telemetryFields": telemetry_fields,
-        "rawStatusFields": raw_status_fields,
-        "telemetryProbes": probe_rows,
-        "canControl": bool(
-            (DREAME_CONTROL_TOKEN if provider == "dreame" else ROBOROCK_CONTROL_TOKEN)
-            and getattr(request.state, "auth_is_master", False)
-        ),
-        "canManageCleaningZones": bool(provider == "roborock" and getattr(request.state, "auth_is_master", False)),
-        "controlHistory": command_rows,
-        "cleaningZones": cleaning_zone_rows,
-        "cleaningZoneImport": cleaning_zone_import,
-        "cleaningProfiles": [roborock_cleaning_profile_payload(row) for row in cleaning_profiles],
-        "cleaningProfileOptions": cleaning_profile_options(robot.model),
-        "doorAutomation": door_automation_data,
-    }
 
 
 def post_roborock_control(duid: str, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -33825,129 +22085,10 @@ async def roborock_door_automation_worker() -> None:
         await asyncio.sleep(ROBOROCK_DOOR_AUTOMATION_POLL_SECONDS)
 
 
-@app.put("/api/renhold/robots/{duid}/door-automation")
-async def api_update_roborock_door_automation(
-    request: Request,
-    duid: str,
-    values: RoborockDoorAutomationIn,
-):
-    forbidden = require_master(request)
-    if forbidden:
-        return forbidden
-    zone_numbers = unique_ints(values.zone_numbers)
-    if not zone_numbers:
-        raise HTTPException(status_code=400, detail="Velg minst én sone")
-    async with async_session() as session:
-        robot = (
-            await session.execute(select(RoborockRobot).where(RoborockRobot.duid == duid))
-        ).scalars().first()
-        if not robot:
-            raise HTTPException(status_code=404, detail="Ukjent robot")
-        automation = (
-            await session.execute(
-                select(RoborockDoorAutomation).where(RoborockDoorAutomation.robot_duid == duid)
-            )
-        ).scalars().first()
-        if not automation:
-            raise HTTPException(status_code=404, detail="Roboten har ikke inngangsstyrt automatikk")
-        profile = await session.get(RoborockCleaningProfile, values.profile_id)
-        if not profile or not profile.active or profile.cleaning_type != "vacuum":
-            raise HTTPException(status_code=400, detail="Velg en aktiv profil for bare støvsuging")
-        mapped_zone_numbers = set(
-            (
-                await session.execute(
-                    select(CleaningZone.zone_number)
-                    .join(
-                        RoborockCleaningZoneMapping,
-                        RoborockCleaningZoneMapping.zone_id == CleaningZone.id,
-                    )
-                    .where(
-                        RoborockCleaningZoneMapping.robot_duid == duid,
-                        CleaningZone.zone_number.in_(zone_numbers),
-                    )
-                )
-            ).scalars().all()
-        )
-        if values.enabled and mapped_zone_numbers != set(zone_numbers):
-            missing = sorted(set(zone_numbers) - mapped_zone_numbers)
-            raise HTTPException(
-                status_code=409,
-                detail=f"Kan ikke aktivere før Sone {', '.join(str(value) for value in missing)} er kartlagt",
-            )
-        now = local_now_naive()
-        automation.enabled = values.enabled
-        automation.opening_threshold = values.opening_threshold
-        automation.minimum_interval_minutes = values.minimum_interval_minutes
-        automation.zone_numbers = zone_numbers
-        automation.profile_id = values.profile_id
-        automation.last_error = None
-        automation.status = "counting" if values.enabled else "disabled"
-        automation.updated_at = now
-        await session.commit()
-        payload, _ = await roborock_door_automation_payload(session, automation, now)
-    return {"status": "ok", "message": "Automatikken er lagret. Telleren er beholdt.", "automation": payload}
 
 
-@app.post("/api/renhold/robots/{duid}/door-automation/reset-counter")
-async def api_reset_roborock_door_automation_counter(request: Request, duid: str):
-    forbidden = require_master(request)
-    if forbidden:
-        return forbidden
-    async with async_session() as session:
-        automation = (
-            await session.execute(
-                select(RoborockDoorAutomation).where(RoborockDoorAutomation.robot_duid == duid)
-            )
-        ).scalars().first()
-        if not automation:
-            raise HTTPException(status_code=404, detail="Roboten har ikke inngangsstyrt automatikk")
-        now = local_now_naive()
-        automation.counter_reset_at = now
-        automation.last_error = None
-        automation.status = "counting" if automation.enabled else "disabled"
-        automation.updated_at = now
-        await session.commit()
-        payload, _ = await roborock_door_automation_payload(session, automation, now)
-    return {"status": "ok", "message": "Telleren er nullstilt", "automation": payload}
 
 
-@app.post("/api/renhold/robots/{duid}/cleaning-zones/import-test-schedules")
-async def api_import_roborock_cleaning_zones(request: Request, duid: str):
-    forbidden = require_master(request)
-    if forbidden:
-        return forbidden
-    actor = getattr(request.state, "access_key_name", None) or "master"
-    async with async_session() as session:
-        robot = (await session.execute(select(RoborockRobot).where(RoborockRobot.duid == duid))).scalars().first()
-        if not robot:
-            raise HTTPException(status_code=404, detail="Ukjent robot")
-        robot_name = robot.name
-        schedules = (
-            await session.execute(
-                select(RoborockSchedule)
-                .where(RoborockSchedule.robot_duid == duid)
-                .where(RoborockSchedule.deleted_at.is_(None))
-                .order_by(RoborockSchedule.updated_at.desc(), RoborockSchedule.schedule_id)
-            )
-        ).scalars().all()
-        latest_schedule_at = max((row.updated_at for row in schedules if row.updated_at), default=None)
-        current_schedules = [row for row in schedules if row.updated_at == latest_schedule_at] if latest_schedule_at else []
-        try:
-            result = await import_roborock_cleaning_zones(session, duid, current_schedules, actor)
-        except RoborockZoneScheduleError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
-        if not result["imported"]:
-            raise HTTPException(
-                status_code=404,
-                detail="Fant ingen deaktiverte testplaner mellom 12:01 og 12:59 i siste Roborock-synkronisering",
-            )
-        await session.commit()
-    return {
-        "status": "ok",
-        "message": f"Leste inn {result['imported']} soner for {robot_name}",
-        "scheduleUpdatedAt": api_local_iso(latest_schedule_at),
-        **result,
-    }
 
 
 def apply_roborock_cleaning_profile_values(
@@ -33969,721 +22110,1154 @@ def apply_roborock_cleaning_profile_values(
     profile.updated_at = datetime.utcnow()
 
 
-@app.post("/api/renhold/cleaning-profiles")
-async def api_create_roborock_cleaning_profile(request: Request, values: RoborockCleaningProfileIn):
-    forbidden = require_master(request)
-    if forbidden:
-        return forbidden
-    profile = RoborockCleaningProfile(
-        slug=f"custom-{secrets.token_hex(8)}",
-        builtin=False,
-        created_at=datetime.utcnow(),
-    )
-    apply_roborock_cleaning_profile_values(profile, values)
-    async with async_session() as session:
-        session.add(profile)
-        await session.commit()
-        await session.refresh(profile)
-        return {"status": "ok", "profile": roborock_cleaning_profile_payload(profile)}
-
-
-@app.put("/api/renhold/cleaning-profiles/{profile_id}")
-async def api_update_roborock_cleaning_profile(
-    request: Request,
-    profile_id: int,
-    values: RoborockCleaningProfileIn,
-):
-    forbidden = require_master(request)
-    if forbidden:
-        return forbidden
-    async with async_session() as session:
-        profile = await session.get(RoborockCleaningProfile, profile_id)
-        if not profile:
-            raise HTTPException(status_code=404, detail="Ukjent rengjøringsprofil")
-        apply_roborock_cleaning_profile_values(profile, values)
-        await session.commit()
-        await session.refresh(profile)
-        return {"status": "ok", "profile": roborock_cleaning_profile_payload(profile)}
-
-
-@app.delete("/api/renhold/cleaning-profiles/{profile_id}")
-async def api_delete_roborock_cleaning_profile(request: Request, profile_id: int):
-    forbidden = require_master(request)
-    if forbidden:
-        return forbidden
-    async with async_session() as session:
-        profile = await session.get(RoborockCleaningProfile, profile_id)
-        if not profile:
-            raise HTTPException(status_code=404, detail="Ukjent rengjøringsprofil")
-        if profile.builtin:
-            raise HTTPException(status_code=409, detail="Standardprofiler kan redigeres, men ikke slettes")
-        await session.delete(profile)
-        await session.commit()
-    return {"status": "ok", "message": "Rengjøringsprofilen er slettet"}
-
-
-@app.post("/api/renhold/robots/{duid}/control")
-async def api_cleaning_robot_control(request: Request, duid: str, values: RoborockControlIn):
-    forbidden = require_master(request)
-    if forbidden:
-        return forbidden
-    allowed_actions = {
-        "dry_run",
-        "start",
-        "pause",
-        "resume",
-        "stop",
-        "dock",
-        "test_start_stop",
-        "clean_zone",
-        "set_mop_wash",
-    }
-    action = values.action.strip().lower()
-    if action not in allowed_actions:
-        raise HTTPException(status_code=400, detail="Ukjent robotkommando")
-    if action == "clean_zone" and (values.zone_number is None or values.profile_id is None):
-        raise HTTPException(status_code=400, detail="Sone og rengjøringsprofil må velges")
-    if action == "set_mop_wash":
-        if values.wash_mode not in {0, 1, 2, 8}:
-            raise HTTPException(status_code=400, detail="Ugyldig styrke for moppevask")
-        if values.wash_interval_minutes not in {10, 15, 20, 25}:
-            raise HTTPException(status_code=400, detail="Ugyldig intervall for moppevask")
-
-    actor = getattr(request.state, "access_key_name", None) or "master"
-    request_id = f"fibaro10-{secrets.token_hex(12)}"
-    zone_name: Optional[str] = None
-    segment_id: Optional[int] = None
-    profile_payload: Optional[Dict[str, Any]] = None
-    async with async_session() as session:
-        robot = (await session.execute(select(RoborockRobot).where(RoborockRobot.duid == duid))).scalars().first()
-        if not robot:
-            raise HTTPException(status_code=404, detail="Ukjent robot")
-        provider = cleaning_provider(robot.provider)
-        external_id = robot.external_id or cleaning_robot_external_id(provider, robot.duid)
-        if provider == "dreame":
-            if not DREAME_CONTROL_TOKEN:
-                raise HTTPException(status_code=503, detail="Dreame-styring er ikke konfigurert")
-            if action not in {"start", "pause", "resume", "stop", "dock"}:
-                raise HTTPException(status_code=400, detail="Denne kommandoen er ikke tilgjengelig for Dreame ennå")
-        elif not ROBOROCK_CONTROL_TOKEN:
-            raise HTTPException(status_code=503, detail="Roborock-styring er ikke konfigurert")
-        robot_name = robot.name
-        if action == "clean_zone":
-            zone_pair = (
-                await session.execute(
-                    select(RoborockCleaningZoneMapping, CleaningZone)
-                    .join(CleaningZone, CleaningZone.id == RoborockCleaningZoneMapping.zone_id)
-                    .where(
-                        RoborockCleaningZoneMapping.robot_duid == duid,
-                        CleaningZone.zone_number == values.zone_number,
-                    )
-                )
-            ).first()
-            if not zone_pair:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Sone {values.zone_number} er ikke koblet til {robot_name}",
-                )
-            mapping, zone = zone_pair
-            zone_name = zone.name
-            try:
-                segment_id = int(mapping.segment_id)
-            except (TypeError, ValueError) as exc:
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"{zone_name} har et ugyldig robotsegment",
-                ) from exc
-            profile = await session.get(RoborockCleaningProfile, values.profile_id)
-            if not profile or not profile.active:
-                raise HTTPException(status_code=404, detail="Rengjøringsprofilen finnes ikke eller er deaktivert")
-            profile_payload = roborock_cleaning_profile_payload(profile)
-        command_run = RoborockCommandRun(
-            request_id=request_id,
-            robot_duid=duid,
-            action=action,
-            requested_at=datetime.utcnow(),
-            requested_by=actor,
-            status="running",
-            message=f"Kommando sendt til {cleaning_provider_label(provider)}-loggeren",
-        )
-        session.add(command_run)
-        await session.commit()
-        command_id = command_run.id
-
-    try:
-        control_sender = post_dreame_control if provider == "dreame" else post_roborock_control
-        control_identity = external_id if provider == "dreame" else duid
-        result = await asyncio.to_thread(
-            control_sender,
-            control_identity,
-            {
-                "action": action,
-                "request_id": request_id,
-                "actor": actor,
-                "confirmation": f"CONFIRM:{duid}:{action}",
-                "test_duration_seconds": values.test_duration_seconds,
-                "zone_number": values.zone_number,
-                "segment_id": segment_id,
-                "wash_mode": values.wash_mode,
-                "wash_interval_minutes": values.wash_interval_minutes,
-                "profile": {
-                    "id": profile_payload["id"],
-                    "name": profile_payload["name"],
-                    "cleaning_type": profile_payload["cleaningType"],
-                    "fan_power": profile_payload["fanPower"],
-                    "water_box_mode": profile_payload["waterBoxMode"],
-                    "mop_mode": profile_payload["mopMode"],
-                    "repeat": profile_payload["repeat"],
-                    "summary": profile_payload["summary"],
-                }
-                if profile_payload
-                else None,
-            },
-        )
-        command_status = str(result.get("status") or "ok")
-        message = (
-            "Kontrolltest fullført"
-            if action == "test_start_stop"
-            else "Moppevaskinnstillingene er lagret og kontrollert mot roboten"
-            if action == "set_mop_wash"
-            else f"{profile_payload['name']} startet i {zone_name} på {robot_name}"
-            if action == "clean_zone"
-            else "Robotkommando utført"
-        )
-        before_state = result.get("before")
-        after_state = result.get("after")
-    except Exception as exc:
-        result = {"error": str(exc)}
-        command_status = "error"
-        message = str(exc)
-        before_state = None
-        after_state = None
-
-    async with async_session() as session:
-        command_run = await session.get(RoborockCommandRun, command_id)
-        if command_run:
-            command_run.finished_at = datetime.utcnow()
-            command_run.status = command_status
-            command_run.message = message
-            command_run.before_state = before_state
-            command_run.after_state = after_state
-            command_run.result = result
-            if action == "set_mop_wash" and command_status == "ok":
-                control_result = result.get("result") if isinstance(result, dict) else None
-                probes = control_result.get("probes") if isinstance(control_result, dict) else None
-                if isinstance(probes, dict):
-                    probe_timestamp = local_now_naive()
-                    for command, value in probes.items():
-                        session.add(
-                            RoborockProbeResult(
-                                robot_duid=duid,
-                                timestamp=probe_timestamp,
-                                source="local-telemetry",
-                                command=command,
-                                ok=True,
-                                result_type="dict",
-                                raw={"value": value},
-                            )
-                        )
-            await session.commit()
-
-    if command_status != "ok":
-        raise HTTPException(status_code=502, detail=message)
-    return {
-        "status": command_status,
-        "message": message,
-        "requestId": request_id,
-        "before": before_state,
-        "after": after_state,
-        "zoneNumber": values.zone_number if action == "clean_zone" else None,
-        "segmentId": segment_id,
-        "profile": profile_payload,
-        "settings": result.get("result", {}).get("settings")
-        if action == "set_mop_wash" and isinstance(result.get("result"), dict)
-        else None,
-    }
-
-
-@app.get("/renhold/robot/{duid}", response_class=HTMLResponse)
-async def cleaning_robot_detail(request: Request, duid: str):
-    async with async_session() as session:
-        robot = (await session.execute(select(RoborockRobot).where(RoborockRobot.duid == duid))).scalars().first()
-        if not robot:
-            return JSONResponse({"detail": "Ukjent robot"}, status_code=404)
-        statuses = (
-            await session.execute(
-                select(RoborockStatusSample)
-                .where(RoborockStatusSample.robot_duid == duid)
-                .order_by(RoborockStatusSample.timestamp.desc())
-                .limit(100)
-            )
-        ).scalars().all()
-        jobs = (
-            await session.execute(
-                select(RoborockCleanJob)
-                .where(RoborockCleanJob.robot_duid == duid)
-                .order_by(RoborockCleanJob.begin_at.desc())
-                .limit(50)
-            )
-        ).scalars().all()
-        schedules = (
-            await session.execute(
-                select(RoborockSchedule)
-                .where(RoborockSchedule.robot_duid == duid)
-                .where(RoborockSchedule.deleted_at.is_(None))
-                .order_by(RoborockSchedule.cron)
-            )
-        ).scalars().all()
-        consumables = (
-            await session.execute(
-                select(RoborockConsumableSnapshot)
-                .where(RoborockConsumableSnapshot.robot_duid == duid)
-                .order_by(RoborockConsumableSnapshot.timestamp.desc())
-                .limit(1)
-            )
-        ).scalars().first()
-        latest_map = (
-            await session.execute(
-                select(RoborockMapSnapshot)
-                .where(RoborockMapSnapshot.robot_duid == duid)
-                .order_by(RoborockMapSnapshot.timestamp.desc())
-                .limit(1)
-            )
-        ).scalars().first()
-    return templates.TemplateResponse(
-        request,
-        "cleaning_robot.html",
-        {
-            "robot": robot,
-            "latest_status": statuses[0] if statuses else None,
-            "statuses": statuses,
-            "jobs": jobs,
-            "schedules": schedules,
-            "consumables": consumables,
-            "latest_map": latest_map,
-        },
-    )
-
-
-@app.get("/renhold/json")
-async def cleaning_json(limit: int = 100):
-    limit = max(1, min(limit, 1000))
-    async with async_session() as session:
-        robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
-        robots.sort(key=cleaning_robot_sort_key)
-        jobs = (await session.execute(select(RoborockCleanJob).order_by(RoborockCleanJob.begin_at.desc()).limit(limit))).scalars().all()
-        statuses = (await session.execute(select(RoborockStatusSample).order_by(RoborockStatusSample.timestamp.desc()).limit(limit))).scalars().all()
-    job_rows = []
-    for row in jobs:
-        item = row_to_dict(row, ROBOROCK_JOB_COLUMNS)
-        item["begin_at"] = api_local_iso(utc_naive_to_local_naive(row.begin_at))
-        item["end_at"] = api_local_iso(utc_naive_to_local_naive(row.end_at))
-        job_rows.append(item)
-    return {
-        "robots": [row_to_dict(row, ROBOROCK_ROBOT_COLUMNS) for row in robots],
-        "jobs": job_rows,
-        "statuses": [row_to_dict(row, ROBOROCK_STATUS_COLUMNS) for row in statuses],
-    }
-
-
-@app.get("/lys/hendelser", response_class=HTMLResponse)
-async def lights_view(
-    request: Request,
-    event_type: Optional[str] = None,
-    action: Optional[str] = None,
-    device_key: Optional[str] = None,
-    device_id: Optional[int] = None,
-    mode: Optional[str] = None,
-    source_contains: Optional[str] = None,
-    from_text: Optional[str] = Query(default=None, alias="from"),
-    to_text: Optional[str] = Query(default=None, alias="to"),
-    limit: int = 300,
-):
-    rows, limit = await fetch_rows(OutdoorLightEvent, event_type, action, device_key, device_id, mode, source_contains, from_text, to_text, limit)
-    filters = {"event_type": event_type or "", "action": action or "", "device_key": device_key or "", "device_id": device_id or "", "mode": mode or "", "source_contains": source_contains or "", "from": from_text or "", "to": to_text or "", "limit": limit}
-    return templates.TemplateResponse(request, "lights.html", {"rows": rows, "filters": filters})
-
-
-@app.get("/lights/json")
-async def lights_json(
-    event_type: Optional[str] = None,
-    action: Optional[str] = None,
-    device_key: Optional[str] = None,
-    device_id: Optional[int] = None,
-    mode: Optional[str] = None,
-    source_contains: Optional[str] = None,
-    from_text: Optional[str] = Query(default=None, alias="from"),
-    to_text: Optional[str] = Query(default=None, alias="to"),
-    limit: int = 1000,
-):
-    rows, _ = await fetch_rows(OutdoorLightEvent, event_type, action, device_key, device_id, mode, source_contains, from_text, to_text, limit)
-    return {"count": len(rows), "rows": [row_to_dict(row, LIGHT_COLUMNS) for row in rows]}
-
-
-@app.get("/lights/download")
-async def lights_download(
-    event_type: Optional[str] = None,
-    action: Optional[str] = None,
-    device_key: Optional[str] = None,
-    device_id: Optional[int] = None,
-    mode: Optional[str] = None,
-    source_contains: Optional[str] = None,
-    from_text: Optional[str] = Query(default=None, alias="from"),
-    to_text: Optional[str] = Query(default=None, alias="to"),
-):
-    return await csv_response(OutdoorLightEvent, LIGHT_COLUMNS, "utelys_events.csv", event_type, action, device_key, device_id, mode, source_contains, from_text, to_text)
-
-
-@app.get("/lights/samples/json")
-async def light_samples_json(
-    mode: Optional[str] = None,
-    from_text: Optional[str] = Query(default=None, alias="from"),
-    to_text: Optional[str] = Query(default=None, alias="to"),
-    limit: int = 1000,
-):
-    rows, _ = await fetch_rows(OutdoorLightSample, None, None, None, None, mode, None, from_text, to_text, limit)
-    return {"count": len(rows), "rows": [row_to_dict(row, LIGHT_SAMPLE_COLUMNS) for row in rows]}
-
-
-@app.get("/lys/lux-logging", response_class=HTMLResponse)
-async def light_samples_view(
-    request: Request,
-    mode: Optional[str] = None,
-    from_text: Optional[str] = Query(default=None, alias="from"),
-    to_text: Optional[str] = Query(default=None, alias="to"),
-    limit: int = 200,
-):
-    rows, limit = await fetch_rows(OutdoorLightSample, None, None, None, None, mode, None, from_text, to_text, limit)
-    filters = {"mode": mode or "", "from": from_text or "", "to": to_text or "", "limit": limit}
-    return templates.TemplateResponse(request, "light_samples.html", {"rows": rows, "filters": filters})
-
-
-@app.get("/lights/samples/download")
-@app.get("/api/system/resources/lights/samples/download")
-async def light_samples_download(
-    mode: Optional[str] = None,
-    from_text: Optional[str] = Query(default=None, alias="from"),
-    to_text: Optional[str] = Query(default=None, alias="to"),
-):
-    return await csv_response(OutdoorLightSample, LIGHT_SAMPLE_COLUMNS, "utelys_samples.csv", None, None, None, None, mode, None, from_text, to_text)
-
-
-@app.get("/ventilasjon/hendelser", response_class=HTMLResponse)
-async def ventilation_view(
-    request: Request,
-    event_type: Optional[str] = None,
-    action: Optional[str] = None,
-    device_key: Optional[str] = None,
-    device_id: Optional[int] = None,
-    mode: Optional[str] = None,
-    source_contains: Optional[str] = None,
-    from_text: Optional[str] = Query(default=None, alias="from"),
-    to_text: Optional[str] = Query(default=None, alias="to"),
-    limit: int = 300,
-):
-    rows, limit = await fetch_rows(VentilationEvent, "fan_change", action, device_key, device_id, mode, source_contains, from_text, to_text, limit)
-    filters = {"event_type": "fan_change", "action": action or "", "device_key": device_key or "", "device_id": device_id or "", "mode": mode or "", "source_contains": source_contains or "", "from": from_text or "", "to": to_text or "", "limit": limit}
-    return templates.TemplateResponse(request, "ventilation.html", {"rows": rows, "filters": filters})
-
-
-@app.get("/ventilation/json")
-async def ventilation_json(
-    event_type: Optional[str] = None,
-    action: Optional[str] = None,
-    device_key: Optional[str] = None,
-    device_id: Optional[int] = None,
-    mode: Optional[str] = None,
-    source_contains: Optional[str] = None,
-    from_text: Optional[str] = Query(default=None, alias="from"),
-    to_text: Optional[str] = Query(default=None, alias="to"),
-    limit: int = 1000,
-):
-    rows, _ = await fetch_rows(VentilationEvent, "fan_change", action, device_key, device_id, mode, source_contains, from_text, to_text, limit)
-    return {"count": len(rows), "rows": [row_to_dict(row, VENT_COLUMNS) for row in rows]}
-
-
-@app.get("/ventilation/download")
-async def ventilation_download(
-    event_type: Optional[str] = None,
-    action: Optional[str] = None,
-    device_key: Optional[str] = None,
-    device_id: Optional[int] = None,
-    mode: Optional[str] = None,
-    source_contains: Optional[str] = None,
-    from_text: Optional[str] = Query(default=None, alias="from"),
-    to_text: Optional[str] = Query(default=None, alias="to"),
-):
-    return await csv_response(VentilationEvent, VENT_COLUMNS, "ventilasjon_events.csv", "fan_change", action, device_key, device_id, mode, source_contains, from_text, to_text)
-
-
-@app.get("/ventilasjon/temp-logg", response_class=HTMLResponse)
-async def ventilation_samples_view(
-    request: Request,
-    mode: Optional[str] = None,
-    from_text: Optional[str] = Query(default=None, alias="from"),
-    to_text: Optional[str] = Query(default=None, alias="to"),
-    limit: int = 200,
-):
-    rows, limit = await fetch_rows(VentilationSample, None, None, None, None, mode, None, from_text, to_text, limit)
-    filters = {"mode": mode or "", "from": from_text or "", "to": to_text or "", "limit": limit}
-    return templates.TemplateResponse(request, "ventilation_samples.html", {"rows": rows, "filters": filters})
-
-
-@app.get("/ventilation/samples/json")
-async def ventilation_samples_json(
-    mode: Optional[str] = None,
-    from_text: Optional[str] = Query(default=None, alias="from"),
-    to_text: Optional[str] = Query(default=None, alias="to"),
-    limit: int = 1000,
-):
-    rows, _ = await fetch_rows(VentilationSample, None, None, None, None, mode, None, from_text, to_text, limit)
-    return {"count": len(rows), "rows": [row_to_dict(row, VENT_SAMPLE_COLUMNS) for row in rows]}
-
-
-@app.get("/ventilation/samples/download")
-@app.get("/api/system/resources/ventilation/samples/download")
-async def ventilation_samples_download(
-    mode: Optional[str] = None,
-    from_text: Optional[str] = Query(default=None, alias="from"),
-    to_text: Optional[str] = Query(default=None, alias="to"),
-):
-    return await csv_response(VentilationSample, VENT_SAMPLE_COLUMNS, "ventilasjon_samples.csv", None, None, None, None, mode, None, from_text, to_text)
-
-
-@app.get("/ventilasjon/yr-logg", response_class=HTMLResponse)
-async def yr_samples_view(
-    request: Request,
-    from_text: Optional[str] = Query(default=None, alias="from"),
-    to_text: Optional[str] = Query(default=None, alias="to"),
-    limit: int = 500,
-):
-    rows, limit = await fetch_rows(YrForecastSample, None, None, None, None, None, None, from_text, to_text, limit, time_basis="utc")
-    filters = {"from": from_text or "", "to": to_text or "", "limit": limit}
-    return templates.TemplateResponse(request, "yr_samples.html", {"rows": rows, "filters": filters})
-
-
-@app.get("/yr/samples/json")
-async def yr_samples_json(
-    from_text: Optional[str] = Query(default=None, alias="from"),
-    to_text: Optional[str] = Query(default=None, alias="to"),
-    limit: int = 1000,
-):
-    rows, _ = await fetch_rows(YrForecastSample, None, None, None, None, None, None, from_text, to_text, limit, time_basis="utc")
-    return {"count": len(rows), "rows": [row_to_dict(row, YR_SAMPLE_COLUMNS) for row in rows]}
-
-
-@app.get("/yr/samples/download")
-@app.get("/api/system/resources/yr/samples/download")
-async def yr_samples_download(
-    from_text: Optional[str] = Query(default=None, alias="from"),
-    to_text: Optional[str] = Query(default=None, alias="to"),
-):
-    return await csv_response(YrForecastSample, YR_SAMPLE_COLUMNS, "yr_forecast_samples.csv", None, None, None, None, None, None, from_text, to_text, time_basis="utc")
-
-
-@app.get("/download")
-@app.get("/events/download")
-@app.get("/api/system/resources/events/download")
-async def generic_download():
-    return await csv_response(GenericEvent, GENERIC_COLUMNS, "event_data.csv", None, None, None, None, None, None, None, None)
-
-
-@app.get("/events/json")
-@app.get("/api/system/resources/events/json")
-async def events_json(limit: int = 1000):
-    limit = max(1, min(limit, 10000))
-    async with async_session() as session:
-        result = await session.execute(select(GenericEvent).order_by(GenericEvent.timestamp.desc()).limit(limit))
-        rows = result.scalars().all()
-    return {"count": len(rows), "rows": [row_to_dict(row, GENERIC_COLUMNS) for row in rows]}
-
-
-@app.get("/api/hc3/door-events/json")
-async def api_hc3_door_events_json(limit: int = Query(200, ge=1, le=5000)):
-    async with async_session() as session:
-        result = await session.execute(select(DoorEvent).order_by(DoorEvent.timestamp.desc()).limit(limit))
-        rows = result.scalars().all()
-    return {"count": len(rows), "rows": [row_to_dict(row, DOOR_EVENT_COLUMNS) for row in rows]}
-
-
-@app.get("/api/hc3/doors/status")
-async def api_hc3_doors_status(
-    history_limit: int = Query(50, ge=1, le=500),
-    period_limit: int = Query(80, ge=1, le=500),
-):
-    now = local_now_naive()
-    raw_limit = max(history_limit * 20, period_limit * 20, len(DOOR_SENSOR_IDS) * 150, 1000)
-    async with async_session() as session:
-        history_result = await session.execute(
-            select(DoorEvent)
-            .where(DoorEvent.device_id.in_(DOOR_SENSOR_IDS))
-            .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
-            .limit(raw_limit)
-        )
-        raw_rows = history_result.scalars().all()
-        total_events = await session.scalar(select(func.count(DoorEvent.id)).where(DoorEvent.device_id.in_(DOOR_SENSOR_IDS)))
-
-    change_rows_ascending = door_change_rows(list(reversed(raw_rows)))
-    latest_status_by_device = latest_door_event_by_device(raw_rows)
-    latest_change_by_device: Dict[int, DoorEvent] = {}
-    for row in reversed(change_rows_ascending):
-        if row.device_id is not None:
-            latest_change_by_device.setdefault(int(row.device_id), row)
-    newest_change_event = max(
-        change_rows_ascending,
-        key=lambda row: (normalize_local_naive(row.timestamp) or datetime.min, row.id or 0),
-        default=None,
-    )
-    newest_at = normalize_local_naive(newest_change_event.timestamp) if newest_change_event else None
-    periods = door_open_periods(change_rows_ascending, now)
-    recent_periods_by_device: Dict[str, list[Dict[str, Any]]] = {}
-    for period in periods:
-        recent_periods_by_device.setdefault(door_period_device_key(period), []).append(period)
-    raw_history_rows = raw_rows[:history_limit]
-    change_history_rows = list(reversed(change_rows_ascending))[:history_limit]
-
-    doors = []
-    for config in DOOR_SENSOR_CONFIG:
-        device_id = config.get("device_id")
-        latest_row = latest_status_by_device.get(int(device_id)) if device_id is not None else None
-        latest_change = latest_change_by_device.get(int(device_id)) if device_id is not None else None
-        door = door_status_payload(config, latest_row, now, latest_change)
-        door["recentPeriods"] = recent_periods_by_device.get(door_config_device_key(config), [])[:2]
-        doors.append(door)
-    doors = sorted(doors, key=lambda item: (str(item.get("groupKey") or ""), int(item.get("sortOrder") or 0), str(item.get("title") or "")))
-    known = [door for door in doors if door["state"] != "unknown"]
-    open_doors = [door for door in doors if door["state"] == "open"]
-    closed_doors = [door for door in doors if door["state"] == "closed"]
-    configured_doors = [door for door in doors if door["isConfigured"]]
-    return {
-        "generatedAt": now.isoformat(),
-        "datakildePath": "/admin/datakilder/hc3_door_events",
-        "summary": {
-            "total": len(doors),
-            "configured": len(configured_doors),
-            "planned": len(doors) - len(configured_doors),
-            "known": len(known),
-            "open": len(open_doors),
-            "closed": len(closed_doors),
-            "unknown": len(doors) - len(known),
-            "latestAt": newest_at.isoformat() if newest_at else None,
-            "latestLabel": format_source_datetime_short(newest_at) if newest_at else "-",
-            "latestAgeLabel": door_age_label(newest_at, now),
-            "latestChangeText": door_change_text(newest_change_event),
-            "events": int(total_events or 0),
-            "changes": len(change_rows_ascending),
-            "periods": len(periods),
-            "activePeriods": len([period for period in periods if period.get("state") == "open"]),
-        },
-        "doors": doors,
-        "changes": [door_event_payload(row, now) for row in change_history_rows],
-        "events": [door_event_payload(row, now) for row in raw_history_rows],
-        "periods": periods[:period_limit],
-    }
-
-
-@app.get("/api/hc3/doors/sunroom-sessions")
-async def api_hc3_doors_sunroom_sessions():
-    async with async_session() as session:
-        return await sunroom_door_session_payload(session, notify=False)
-
-
-@app.get("/api/hc3/doors/sunroom-logic")
-async def api_hc3_doors_sunroom_logic(
-    hours: int = Query(12, ge=1, le=72),
-    limit: int = Query(180, ge=20, le=500),
-):
-    async with async_session() as session:
-        return await sunroom_logic_payload(session, hours=hours, limit=limit)
-
-
-@app.get("/api/hc3/doors/alarm")
-async def api_hc3_doors_alarm(
-    history_limit: int = Query(100, ge=10, le=500),
-    day: Optional[str] = Query(None),
-):
-    history_day = parse_day(day) if day else None
-    async with async_session() as session:
-        return await sunroom_door_alarm_payload(session, history_limit=history_limit, history_day=history_day)
-
-
-@app.get("/api/hc3/doors/sunroom-overview")
-async def api_hc3_doors_sunroom_overview(days: int = Query(2, ge=1, le=30), day: Optional[str] = Query(None)):
-    async with async_session() as session:
-        return await sunroom_room_overview_payload(session, days=days, day=day)
-
-
-@app.get("/api/hc3/doors/sunroom-sessions/{room_id}")
-async def api_hc3_doors_sunroom_room_detail(
-    room_id: str,
-    days: int = Query(14, ge=1, le=90),
-    limit: int = Query(120, ge=10, le=500),
-):
-    async with async_session() as session:
-        return await sunroom_room_detail_payload(session, room_id, days=days, limit=limit)
-
-
-@app.get("/classic/parkering/kjoretoy", response_class=HTMLResponse)
-async def classic_parking_vehicles_view(
-    request: Request,
-    plate: Optional[str] = None,
-    navn: Optional[str] = None,
-    omrade: Optional[str] = None,
-    sun2_id: Optional[str] = None,
-    merke: Optional[str] = None,
-    modell: Optional[str] = None,
-    ryddet: Optional[int] = None,
-    limit: int = Query(100, ge=1, le=500),
-):
-    return await parking_vehicles_view(request, plate, navn, omrade, sun2_id, merke, modell, ryddet, limit)
-
-
-@app.get("/classic/parkering/navn-oppslag", response_class=HTMLResponse)
-async def classic_parking_name_lookup_view(request: Request, limit: int = Query(100, ge=1, le=500), offset: int = Query(0, ge=0)):
-    return await parking_name_lookup_view(request, limit, offset)
-
-
-@app.get("/classic/parkering/omrade-oppslag", response_class=HTMLResponse)
-async def classic_parking_area_lookup_view(request: Request, limit: int = Query(1000, ge=1, le=1000), offset: int = Query(0, ge=0)):
-    return await parking_area_lookup_view(request, limit, offset)
-
-
-@app.get("/classic/parkering/kjoretoy/{plate}", response_class=HTMLResponse)
-async def classic_parking_vehicle_detail_view(request: Request, plate: str, saved: Optional[str] = None):
-    return await parking_vehicle_detail_view(request, plate, saved)
-
-
-@app.get("/classic/energi/kurser/pdf")
-async def classic_energy_circuits_pdf(sunbeds: Optional[str] = None):
-    return await energy_circuits_pdf(sunbeds)
-
-
-@app.get("/classic/energi/laster/pdf")
-async def classic_energy_loads_pdf(
-    q: Optional[str] = None,
-    circuit: Optional[int] = None,
-    load_type: Optional[str] = None,
-    active: Optional[str] = None,
-    sunbeds: Optional[str] = None,
-):
-    return await energy_loads_pdf(q, circuit, load_type, active, sunbeds)
-
-
-@app.get("/classic/lys/innstillinger", response_class=HTMLResponse)
-async def classic_light_settings_view(request: Request):
-    return await light_settings_view(request)
-
-
-@app.get("/classic/renhold/oversikt", response_class=HTMLResponse)
-async def classic_cleaning_overview(request: Request):
-    return await cleaning_overview(request)
-
-
-@app.get("/classic/renhold/robot/{duid}", response_class=HTMLResponse)
-async def classic_cleaning_robot_detail(request: Request, duid: str):
-    return await cleaning_robot_detail(request, duid)
-
-
-@app.get("/classic/renhold/json")
-async def classic_cleaning_json(limit: int = 100):
-    return await cleaning_json(limit)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# HTTP composition. Route order is part of the public contract.
+from fibaro_core.routers import control_routes
+control_http = control_routes.create_router(control_routes.Dependencies(
+    ALARM_APP_URL=ALARM_APP_URL,
+    DOOR_SENSOR_CONFIG=DOOR_SENSOR_CONFIG,
+    DOOR_SENSOR_IDS=DOOR_SENSOR_IDS,
+    NTFY_BOLLARDS_TOPIC=NTFY_BOLLARDS_TOPIC,
+    async_session=async_session,
+    bollard_image_cache_control=bollard_image_cache_control,
+    bollard_mobile_notification_payload=bollard_mobile_notification_payload,
+    door_age_label=door_age_label,
+    door_change_rows=door_change_rows,
+    door_change_text=door_change_text,
+    door_config_device_key=door_config_device_key,
+    door_event_payload=door_event_payload,
+    door_open_periods=door_open_periods,
+    door_period_device_key=door_period_device_key,
+    door_status_payload=door_status_payload,
+    latest_door_event_by_device=latest_door_event_by_device,
+    logger=logger,
+    parse_day=parse_day,
+    protect_ledger_client=protect_ledger_client,
+    protect_ledger_json=protect_ledger_json,
+    publish_ntfy_message=publish_ntfy_message,
+    row_to_dict=row_to_dict,
+    run_hc3_door_poll_once=run_hc3_door_poll_once,
+    sunroom_door_alarm_payload=sunroom_door_alarm_payload,
+    sunroom_door_session_payload=sunroom_door_session_payload,
+    sunroom_logic_payload=sunroom_logic_payload,
+    sunroom_room_detail_payload=sunroom_room_detail_payload,
+    sunroom_room_overview_payload=sunroom_room_overview_payload,
+))
+api_hc3_door_events_json = control_http.endpoints["api_hc3_door_events_json"]
+api_hc3_doors_alarm = control_http.endpoints["api_hc3_doors_alarm"]
+api_hc3_doors_poll_sync = control_http.endpoints["api_hc3_doors_poll_sync"]
+api_hc3_doors_status = control_http.endpoints["api_hc3_doors_status"]
+api_hc3_doors_sunroom_logic = control_http.endpoints["api_hc3_doors_sunroom_logic"]
+api_hc3_doors_sunroom_overview = control_http.endpoints["api_hc3_doors_sunroom_overview"]
+api_hc3_doors_sunroom_room_detail = control_http.endpoints["api_hc3_doors_sunroom_room_detail"]
+api_hc3_doors_sunroom_sessions = control_http.endpoints["api_hc3_doors_sunroom_sessions"]
+api_test_unifi_protect_bollard_mobile_notification = control_http.endpoints["api_test_unifi_protect_bollard_mobile_notification"]
+api_unifi_protect_bollard_asset_image = control_http.endpoints["api_unifi_protect_bollard_asset_image"]
+api_unifi_protect_bollard_baseline = control_http.endpoints["api_unifi_protect_bollard_baseline"]
+api_unifi_protect_bollard_camera_crop = control_http.endpoints["api_unifi_protect_bollard_camera_crop"]
+api_unifi_protect_bollard_camera_image = control_http.endpoints["api_unifi_protect_bollard_camera_image"]
+api_unifi_protect_bollard_incident_image = control_http.endpoints["api_unifi_protect_bollard_incident_image"]
+api_unifi_protect_bollard_mobile_notifications = control_http.endpoints["api_unifi_protect_bollard_mobile_notifications"]
+api_unifi_protect_bollards = control_http.endpoints["api_unifi_protect_bollards"]
+api_unifi_protect_cameras = control_http.endpoints["api_unifi_protect_cameras"]
+api_unifi_protect_capabilities = control_http.endpoints["api_unifi_protect_capabilities"]
+api_unifi_protect_daily_license_plates = control_http.endpoints["api_unifi_protect_daily_license_plates"]
+api_unifi_protect_events = control_http.endpoints["api_unifi_protect_events"]
+api_unifi_protect_recognition_detail = control_http.endpoints["api_unifi_protect_recognition_detail"]
+api_unifi_protect_recognition_snapshot = control_http.endpoints["api_unifi_protect_recognition_snapshot"]
+api_unifi_protect_recognitions = control_http.endpoints["api_unifi_protect_recognitions"]
+api_unifi_protect_snapshot = control_http.endpoints["api_unifi_protect_snapshot"]
+api_unifi_protect_stats = control_http.endpoints["api_unifi_protect_stats"]
+api_unifi_protect_status = control_http.endpoints["api_unifi_protect_status"]
+from fibaro_core.routers import parking_routes
+parking_http = parking_routes.create_router(parking_routes.Dependencies(
+    CARS_DAY_CACHE_TTL=CARS_DAY_CACHE_TTL,
+    CARS_HISTORY_CACHE_TTL=CARS_HISTORY_CACHE_TTL,
+    SUMMARY_CACHE=SUMMARY_CACHE,
+    SVV_API_KEY=SVV_API_KEY,
+    SVV_IMPORT_SYNC_BATCH_SIZE=SVV_IMPORT_SYNC_BATCH_SIZE,
+    SVV_SYNC_BATCH_SIZE=SVV_SYNC_BATCH_SIZE,
+    SVV_SYNC_ENABLED=SVV_SYNC_ENABLED,
+    api_detail_field=api_detail_field,
+    api_parking_time_distribution=api_parking_time_distribution,
+    async_session=async_session,
+    build_parking_forecast=build_parking_forecast,
+    car_info_lookup_request=car_info_lookup_request,
+    clear_parking_vehicle_not_found_area=clear_parking_vehicle_not_found_area,
+    clear_parking_vehicle_not_found_fields=clear_parking_vehicle_not_found_fields,
+    clear_summary_cache=clear_summary_cache,
+    easypark_downloader_request=easypark_downloader_request,
+    easypark_recent_period=easypark_recent_period,
+    get_parking_summaries=get_parking_summaries,
+    import_counts_for_json=import_counts_for_json,
+    import_job_definition=import_job_definition,
+    import_job_status_from_age=import_job_status_from_age,
+    ingest_easypark_csv=ingest_easypark_csv,
+    is_not_found_marker=is_not_found_marker,
+    logger=logger,
+    normalize_month=normalize_month,
+    parking_area_overview_data=parking_area_overview_data,
+    parking_car_info_candidate_rows=parking_car_info_candidate_rows,
+    parking_missing_area_rows=parking_missing_area_rows,
+    parking_missing_name_rows=parking_missing_name_rows,
+    parking_period_summary=parking_period_summary,
+    parking_row_api=parking_row_api,
+    parking_timeline_end=parking_timeline_end,
+    parking_vehicle_by_plate_or_compact=parking_vehicle_by_plate_or_compact,
+    parking_vehicle_lookup_payload=parking_vehicle_lookup_payload,
+    parking_vehicle_not_found_field_labels=parking_vehicle_not_found_field_labels,
+    parking_weekly_average_payload=parking_weekly_average_payload,
+    parking_weekly_average_period=parking_weekly_average_period,
+    parking_weekly_selected_years=parking_weekly_selected_years,
+    parking_weekly_year_comparison_payload=parking_weekly_year_comparison_payload,
+    parse_day=parse_day,
+    protect_ledger_json=protect_ledger_json,
+    record_import_job=record_import_job,
+    redirect_keep_query=redirect_keep_query,
+    redirect_with_query_params=redirect_with_query_params,
+    refresh_parking_vehicle_summary=refresh_parking_vehicle_summary,
+    require_settings_access=require_settings_access,
+    require_settings_or_car_info_access=require_settings_or_car_info_access,
+    run_vehicle_svv_sync=run_vehicle_svv_sync,
+    save_parking_forecast_after_import=save_parking_forecast_after_import,
+    templates=templates,
+    unpaid_registered_vehicle_stays_payload=unpaid_registered_vehicle_stays_payload,
+    vehicle_blank_area_condition=vehicle_blank_area_condition,
+    vehicle_blank_name_condition=vehicle_blank_name_condition,
+    vehicle_car_info_candidate_condition=vehicle_car_info_candidate_condition,
+    vehicle_car_info_country_condition=vehicle_car_info_country_condition,
+    vehicle_missing_area_condition=vehicle_missing_area_condition,
+    vehicle_missing_name_condition=vehicle_missing_name_condition,
+))
+api_cars_day = parking_http.endpoints["api_cars_day"]
+api_cars_day_detections = parking_http.endpoints["api_cars_day_detections"]
+api_parking_control_report = parking_http.endpoints["api_parking_control_report"]
+api_v2_fetch_parking_settlements = parking_http.endpoints["api_v2_fetch_parking_settlements"]
+api_v2_parking_car_info_sync = parking_http.endpoints["api_v2_parking_car_info_sync"]
+api_v2_parking_clear_area_not_found = parking_http.endpoints["api_v2_parking_clear_area_not_found"]
+api_v2_parking_refresh = parking_http.endpoints["api_v2_parking_refresh"]
+api_v2_parking_save_forecast = parking_http.endpoints["api_v2_parking_save_forecast"]
+api_v2_parking_svv_sync = parking_http.endpoints["api_v2_parking_svv_sync"]
+api_v2_parking_time_distribution = parking_http.endpoints["api_v2_parking_time_distribution"]
+api_v2_parking_vehicle_clear_not_found = parking_http.endpoints["api_v2_parking_vehicle_clear_not_found"]
+api_v2_parking_vehicle_detail = parking_http.endpoints["api_v2_parking_vehicle_detail"]
+api_v2_parking_weekly_average_years = parking_http.endpoints["api_v2_parking_weekly_average_years"]
+api_v2_parking_weekly_averages = parking_http.endpoints["api_v2_parking_weekly_averages"]
+api_v2_parking_year_comparison = parking_http.endpoints["api_v2_parking_year_comparison"]
+classic_parking_area_lookup_view = parking_http.endpoints["classic_parking_area_lookup_view"]
+classic_parking_name_lookup_view = parking_http.endpoints["classic_parking_name_lookup_view"]
+classic_parking_vehicle_detail_view = parking_http.endpoints["classic_parking_vehicle_detail_view"]
+classic_parking_vehicles_view = parking_http.endpoints["classic_parking_vehicles_view"]
+parking_area_lookup_view = parking_http.endpoints["parking_area_lookup_view"]
+parking_area_overview_view = parking_http.endpoints["parking_area_overview_view"]
+parking_car_info_candidates_api = parking_http.endpoints["parking_car_info_candidates_api"]
+parking_easypark_import_csv = parking_http.endpoints["parking_easypark_import_csv"]
+parking_forecast_save = parking_http.endpoints["parking_forecast_save"]
+parking_forecast_view = parking_http.endpoints["parking_forecast_view"]
+parking_missing_areas_api = parking_http.endpoints["parking_missing_areas_api"]
+parking_missing_names_api = parking_http.endpoints["parking_missing_names_api"]
+parking_name_lookup_view = parking_http.endpoints["parking_name_lookup_view"]
+parking_overview_view = parking_http.endpoints["parking_overview_view"]
+parking_redirect = parking_http.endpoints["parking_redirect"]
+parking_refresh = parking_http.endpoints["parking_refresh"]
+parking_sessions_view = parking_http.endpoints["parking_sessions_view"]
+parking_statistics_view = parking_http.endpoints["parking_statistics_view"]
+parking_vehicle_area_api = parking_http.endpoints["parking_vehicle_area_api"]
+parking_vehicle_car_info_api = parking_http.endpoints["parking_vehicle_car_info_api"]
+parking_vehicle_clear_not_found_area = parking_http.endpoints["parking_vehicle_clear_not_found_area"]
+parking_vehicle_detail_save = parking_http.endpoints["parking_vehicle_detail_save"]
+parking_vehicle_detail_view = parking_http.endpoints["parking_vehicle_detail_view"]
+parking_vehicle_name_api = parking_http.endpoints["parking_vehicle_name_api"]
+parking_vehicle_statistics_view = parking_http.endpoints["parking_vehicle_statistics_view"]
+parking_vehicle_svv_sync_api = parking_http.endpoints["parking_vehicle_svv_sync_api"]
+parking_vehicles_view = parking_http.endpoints["parking_vehicles_view"]
+from fibaro_core.routers import system_routes
+system_http = system_routes.create_router(system_routes.Dependencies(
+    ACCESS_LOG_FAILURE_RETENTION_DAYS=ACCESS_LOG_FAILURE_RETENTION_DAYS,
+    ACCESS_LOG_SUCCESS_RETENTION_DAYS=ACCESS_LOG_SUCCESS_RETENTION_DAYS,
+    AI_CONFIG_KEY=AI_CONFIG_KEY,
+    APP_COMMIT=APP_COMMIT,
+    APP_STARTED_AT=APP_STARTED_AT,
+    AUTH_SESSION_RETENTION_DAYS=AUTH_SESSION_RETENTION_DAYS,
+    FIBARO10_BACKGROUND_TASKS_ENABLED=FIBARO10_BACKGROUND_TASKS_ENABLED,
+    FIBARO10_PROCESS_ROLE=FIBARO10_PROCESS_ROLE,
+    IMPORT_JOB_FAILURE_RETENTION_DAYS=IMPORT_JOB_FAILURE_RETENTION_DAYS,
+    IMPORT_JOB_SUCCESS_RETENTION_DAYS=IMPORT_JOB_SUCCESS_RETENTION_DAYS,
+    MOBILE_PREVIEW_REFRESH_SECONDS=MOBILE_PREVIEW_REFRESH_SECONDS,
+    NOTIFICATION_SENT_RETENTION_DAYS=NOTIFICATION_SENT_RETENTION_DAYS,
+    NTFY_BASE_URL=NTFY_BASE_URL,
+    OPENAI_MODEL=OPENAI_MODEL,
+    OPERATIONAL_RETENTION_ENABLED=OPERATIONAL_RETENTION_ENABLED,
+    OPERATIONAL_RETENTION_INTERVAL_HOURS=OPERATIONAL_RETENTION_INTERVAL_HOURS,
+    OPERATIONAL_RETENTION_STATE=OPERATIONAL_RETENTION_STATE,
+    admin_manual_payload=admin_manual_payload,
+    ai_dataset_overview=ai_dataset_overview,
+    ask_ai=ask_ai,
+    async_session=async_session,
+    background_tasks=background_tasks,
+    build_operational_incident_center=build_operational_incident_center,
+    csv_response=csv_response,
+    effective_openai_settings=effective_openai_settings,
+    import_status_rows=import_status_rows,
+    incident_state=incident_state,
+    logger=logger,
+    mask_secret=mask_secret,
+    minutes_since=minutes_since,
+    mobile_preview_screen_payload=mobile_preview_screen_payload,
+    mobile_preview_screens_for_request=mobile_preview_screens_for_request,
+    notification_outbox_status=notification_outbox_status,
+    ntfy_host=ntfy_host,
+    ntfy_subscription_rows=ntfy_subscription_rows,
+    operational_incident_review_payload=operational_incident_review_payload,
+    parse_form_body=parse_form_body,
+    protect_ledger_json=protect_ledger_json,
+    recent_ai_logs=recent_ai_logs,
+    redirect_keep_query=redirect_keep_query,
+    render_mobile_preview_screen=render_mobile_preview_screen,
+    require_settings_access=require_settings_access,
+    row_to_dict=row_to_dict,
+    templates=templates,
+))
+account_build_view = system_http.endpoints["account_build_view"]
+account_manual_view = system_http.endpoints["account_manual_view"]
+account_technical_view = system_http.endpoints["account_technical_view"]
+account_view = system_http.endpoints["account_view"]
+ai_datasets_json = system_http.endpoints["ai_datasets_json"]
+ai_logs_json = system_http.endpoints["ai_logs_json"]
+ai_redirect = system_http.endpoints["ai_redirect"]
+ai_search_submit = system_http.endpoints["ai_search_submit"]
+ai_search_view = system_http.endpoints["ai_search_view"]
+ai_settings_update = system_http.endpoints["ai_settings_update"]
+ai_settings_view = system_http.endpoints["ai_settings_view"]
+api_admin_build = system_http.endpoints["api_admin_build"]
+api_admin_builds = system_http.endpoints["api_admin_builds"]
+api_admin_manual = system_http.endpoints["api_admin_manual"]
+api_manual = system_http.endpoints["api_manual"]
+api_mobile_preview_frame = system_http.endpoints["api_mobile_preview_frame"]
+api_mobile_preview_screens = system_http.endpoints["api_mobile_preview_screens"]
+api_system_incident_review = system_http.endpoints["api_system_incident_review"]
+api_system_notifications = system_http.endpoints["api_system_notifications"]
+api_system_search = system_http.endpoints["api_system_search"]
+api_system_subsystems = system_http.endpoints["api_system_subsystems"]
+events_json = system_http.endpoints["events_json"]
+favicon = system_http.endpoints["favicon"]
+generic_download = system_http.endpoints["generic_download"]
+health = system_http.endpoints["health"]
+root_service_info = system_http.endpoints["root_service_info"]
+from fibaro_core.routers import access_routes
+access_http = access_routes.create_router(access_routes.Dependencies(
+    AUTH_COOKIE_NAME=AUTH_COOKIE_NAME,
+    AUTH_SESSION_MAX_AGE_SECONDS=AUTH_SESSION_MAX_AGE_SECONDS,
+    AUTH_USER_COOKIE_NAME=AUTH_USER_COOKIE_NAME,
+    FIBARO10_PWA=FIBARO10_PWA,
+    access_key_prefix=access_key_prefix,
+    access_password_hash=access_password_hash,
+    access_role=access_role,
+    access_role_label=access_role_label,
+    async_session=async_session,
+    create_auth_session=create_auth_session,
+    find_access_key=find_access_key,
+    log_access_attempt=log_access_attempt,
+    normalize_username=normalize_username,
+    parse_form_body=parse_form_body,
+    redirect_keep_query=redirect_keep_query,
+    require_master=require_master,
+    revoke_auth_session=revoke_auth_session,
+    should_use_secure_cookie=should_use_secure_cookie,
+    templates=templates,
+))
+api_auth_me = access_http.endpoints["api_auth_me"]
+api_auth_session_create = access_http.endpoints["api_auth_session_create"]
+api_auth_session_delete = access_http.endpoints["api_auth_session_delete"]
+api_v2_admin_user_create = access_http.endpoints["api_v2_admin_user_create"]
+api_v2_admin_user_update = access_http.endpoints["api_v2_admin_user_update"]
+keys_create = access_http.endpoints["keys_create"]
+keys_disable = access_http.endpoints["keys_disable"]
+keys_enable = access_http.endpoints["keys_enable"]
+keys_role_update = access_http.endpoints["keys_role_update"]
+keys_view = access_http.endpoints["keys_view"]
+login_submit = access_http.endpoints["login_submit"]
+login_view = access_http.endpoints["login_view"]
+logout = access_http.endpoints["logout"]
+from fibaro_core.routers import building_routes
+building_http = building_routes.create_router(building_routes.Dependencies(
+    CONFIG_DEFINITIONS=CONFIG_DEFINITIONS,
+    async_session=async_session,
+    build_light_chart_markers=build_light_chart_markers,
+    build_lux_day=build_lux_day,
+    build_temp_day=build_temp_day,
+    config_payload=config_payload,
+    config_values_from_payload=config_values_from_payload,
+    csv_response=csv_response,
+    fetch_lux_samples=fetch_lux_samples,
+    fetch_rows=fetch_rows,
+    get_or_create_config=get_or_create_config,
+    parse_day=parse_day,
+    percent_between=percent_between,
+    redirect_keep_query=redirect_keep_query,
+    require_settings_access=require_settings_access,
+    row_to_dict=row_to_dict,
+    templates=templates,
+    validate_config_values=validate_config_values,
+))
+api_control_config = building_http.endpoints["api_control_config"]
+api_control_config_update = building_http.endpoints["api_control_config_update"]
+api_control_configs = building_http.endpoints["api_control_configs"]
+classic_light_settings_view = building_http.endpoints["classic_light_settings_view"]
+day_lux_view = building_http.endpoints["day_lux_view"]
+day_temp_view = building_http.endpoints["day_temp_view"]
+light_samples_download = building_http.endpoints["light_samples_download"]
+light_samples_json = building_http.endpoints["light_samples_json"]
+light_samples_view = building_http.endpoints["light_samples_view"]
+lights_download = building_http.endpoints["lights_download"]
+lights_json = building_http.endpoints["lights_json"]
+lights_redirect = building_http.endpoints["lights_redirect"]
+lights_view = building_http.endpoints["lights_view"]
+ventilation_download = building_http.endpoints["ventilation_download"]
+ventilation_json = building_http.endpoints["ventilation_json"]
+ventilation_redirect = building_http.endpoints["ventilation_redirect"]
+ventilation_samples_download = building_http.endpoints["ventilation_samples_download"]
+ventilation_samples_json = building_http.endpoints["ventilation_samples_json"]
+ventilation_samples_view = building_http.endpoints["ventilation_samples_view"]
+ventilation_view = building_http.endpoints["ventilation_view"]
+yr_samples_download = building_http.endpoints["yr_samples_download"]
+yr_samples_json = building_http.endpoints["yr_samples_json"]
+yr_samples_view = building_http.endpoints["yr_samples_view"]
+from fibaro_core.routers import energy_routes
+energy_http = energy_routes.create_router(energy_routes.Dependencies(
+    ENERGY_HC3_HOURLY_DISPLAY_OFFSET=ENERGY_HC3_HOURLY_DISPLAY_OFFSET,
+    HC3_ENERGY_LIVE_TIMEOUT_SECONDS=HC3_ENERGY_LIVE_TIMEOUT_SECONDS,
+    __file__=__file__,
+    async_session=async_session,
+    clean_energy_load_values=clean_energy_load_values,
+    clean_energy_node_values=clean_energy_node_values,
+    default_energy_node_name=default_energy_node_name,
+    energy_area_cards=energy_area_cards,
+    energy_node_branch_ids=energy_node_branch_ids,
+    energy_node_from_values=energy_node_from_values,
+    find_or_create_energy_node_for_load=find_or_create_energy_node_for_load,
+    get_energy_summaries=get_energy_summaries,
+    hc3_devices_request=hc3_devices_request,
+    hc3_energy_device_summary=hc3_energy_device_summary,
+    hc3_energy_nodes_live=hc3_energy_nodes_live,
+    load_sunbed_power_analysis=load_sunbed_power_analysis,
+    mark_import_job_running=mark_import_job_running,
+    parse_day=parse_day,
+    redirect_keep_query=redirect_keep_query,
+    redirect_with_query_params=redirect_with_query_params,
+    require_settings_access=require_settings_access,
+    row_to_dict=row_to_dict,
+    run_elvia_import_background=run_elvia_import_background,
+    templates=templates,
+    validate_energy_load_power_values=validate_energy_load_power_values,
+    validate_energy_node_hc3_values=validate_energy_node_hc3_values,
+    validate_energy_node_link_uniqueness=validate_energy_node_link_uniqueness,
+    validate_energy_node_parent=validate_energy_node_parent,
+    validate_energy_node_profile_values=validate_energy_node_profile_values,
+))
+api_energy_elvia_upload = energy_http.endpoints["api_energy_elvia_upload"]
+api_v2_energy_circuit_update = energy_http.endpoints["api_v2_energy_circuit_update"]
+api_v2_energy_hc3_devices = energy_http.endpoints["api_v2_energy_hc3_devices"]
+api_v2_energy_load_create = energy_http.endpoints["api_v2_energy_load_create"]
+api_v2_energy_load_update = energy_http.endpoints["api_v2_energy_load_update"]
+api_v2_energy_node_create = energy_http.endpoints["api_v2_energy_node_create"]
+api_v2_energy_node_update = energy_http.endpoints["api_v2_energy_node_update"]
+api_v2_energy_nodes_live = energy_http.endpoints["api_v2_energy_nodes_live"]
+classic_energy_circuits_pdf = energy_http.endpoints["classic_energy_circuits_pdf"]
+classic_energy_loads_pdf = energy_http.endpoints["classic_energy_loads_pdf"]
+energy_circuit_save = energy_http.endpoints["energy_circuit_save"]
+energy_circuits_pdf = energy_http.endpoints["energy_circuits_pdf"]
+energy_circuits_view = energy_http.endpoints["energy_circuits_view"]
+energy_elvia_json = energy_http.endpoints["energy_elvia_json"]
+energy_elvia_upload = energy_http.endpoints["energy_elvia_upload"]
+energy_elvia_view = energy_http.endpoints["energy_elvia_view"]
+energy_fibaro_json = energy_http.endpoints["energy_fibaro_json"]
+energy_load_save = energy_http.endpoints["energy_load_save"]
+energy_load_toggle_active = energy_http.endpoints["energy_load_toggle_active"]
+energy_loads_pdf = energy_http.endpoints["energy_loads_pdf"]
+energy_loads_view = energy_http.endpoints["energy_loads_view"]
+energy_overview_legacy_redirect = energy_http.endpoints["energy_overview_legacy_redirect"]
+energy_redirect = energy_http.endpoints["energy_redirect"]
+energy_status_view = energy_http.endpoints["energy_status_view"]
+energy_sunbed_consumption_view = energy_http.endpoints["energy_sunbed_consumption_view"]
+energy_view = energy_http.endpoints["energy_view"]
+from fibaro_core.routers import sun_routes
+sun_http = sun_routes.create_router(sun_routes.Dependencies(
+    SUMMARY_CACHE=SUMMARY_CACHE,
+    SUMMARY_CACHE_TTL=SUMMARY_CACHE_TTL,
+    SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS=SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS,
+    async_session=async_session,
+    axis_snapshot_browser_payload=axis_snapshot_browser_payload,
+    axis_snapshot_path_for_id=axis_snapshot_path_for_id,
+    backfill_sun2_room_identity=backfill_sun2_room_identity,
+    build_sun2_forecast=build_sun2_forecast,
+    clear_summary_cache=clear_summary_cache,
+    get_sun2_session_database_total=get_sun2_session_database_total,
+    get_sun2_session_options=get_sun2_session_options,
+    get_sun2_summaries=get_sun2_summaries,
+    parse_axis_snapshot_id=parse_axis_snapshot_id,
+    primary_sun2_session_image=primary_sun2_session_image,
+    redirect_keep_query=redirect_keep_query,
+    replace_sun2_session_image_with_axis_snapshot=replace_sun2_session_image_with_axis_snapshot,
+    require_settings_access=require_settings_access,
+    row_to_dict=row_to_dict,
+    run_sun2_axis_snapshot_link_once=run_sun2_axis_snapshot_link_once,
+    set_sun2_session_primary_image=set_sun2_session_primary_image,
+    sun2_session_image_meta_options=sun2_session_image_meta_options,
+    templates=templates,
+))
+api_sun2_axis_snapshot_image = sun_http.endpoints["api_sun2_axis_snapshot_image"]
+api_sun2_session_image_browser = sun_http.endpoints["api_sun2_session_image_browser"]
+api_sun2_session_select_image = sun_http.endpoints["api_sun2_session_select_image"]
+api_sun2_session_set_primary_image = sun_http.endpoints["api_sun2_session_set_primary_image"]
+api_v2_sun2_link_snapshot_images = sun_http.endpoints["api_v2_sun2_link_snapshot_images"]
+api_v2_sun2_save_forecast = sun_http.endpoints["api_v2_sun2_save_forecast"]
+api_v2_sun2_year_comparison = sun_http.endpoints["api_v2_sun2_year_comparison"]
+api_v2_sun_settlement_attachment = sun_http.endpoints["api_v2_sun_settlement_attachment"]
+api_v2_sun_settlement_detail = sun_http.endpoints["api_v2_sun_settlement_detail"]
+api_v2_upload_sun_settlement = sun_http.endpoints["api_v2_upload_sun_settlement"]
+energy_soling_legacy_redirect = sun_http.endpoints["energy_soling_legacy_redirect"]
+sun2_backfill_room_identity = sun_http.endpoints["sun2_backfill_room_identity"]
+sun2_beds_json = sun_http.endpoints["sun2_beds_json"]
+sun2_beds_view = sun_http.endpoints["sun2_beds_view"]
+sun2_day_timeline_view = sun_http.endpoints["sun2_day_timeline_view"]
+sun2_forecast_save = sun_http.endpoints["sun2_forecast_save"]
+sun2_forecast_view = sun_http.endpoints["sun2_forecast_view"]
+sun2_members_json = sun_http.endpoints["sun2_members_json"]
+sun2_members_view = sun_http.endpoints["sun2_members_view"]
+sun2_overview_view = sun_http.endpoints["sun2_overview_view"]
+sun2_redirect = sun_http.endpoints["sun2_redirect"]
+sun2_room_stats_json = sun_http.endpoints["sun2_room_stats_json"]
+sun2_room_stats_json_legacy_redirect = sun_http.endpoints["sun2_room_stats_json_legacy_redirect"]
+sun2_room_stats_legacy_redirect = sun_http.endpoints["sun2_room_stats_legacy_redirect"]
+sun2_room_stats_view = sun_http.endpoints["sun2_room_stats_view"]
+sun2_session_image = sun_http.endpoints["sun2_session_image"]
+sun2_session_image_item = sun_http.endpoints["sun2_session_image_item"]
+sun2_sessions_json = sun_http.endpoints["sun2_sessions_json"]
+sun2_sessions_view = sun_http.endpoints["sun2_sessions_view"]
+from fibaro_core.routers import revenue_routes
+revenue_http = revenue_routes.create_router(revenue_routes.Dependencies(
+    DAY_ZOOM_OPTIONS=DAY_ZOOM_OPTIONS,
+    DREAME_EXPECTED_ROBOT_NAME=DREAME_EXPECTED_ROBOT_NAME,
+    LIGHT_TIMELINE_DEVICES=LIGHT_TIMELINE_DEVICES,
+    NTFY_LIGHTS_TOPIC=NTFY_LIGHTS_TOPIC,
+    NTFY_VENTILATION_TOPIC=NTFY_VENTILATION_TOPIC,
+    VENT_TIMELINE_DEVICES=VENT_TIMELINE_DEVICES,
+    api_bool_state=api_bool_state,
+    api_hc3_doors_status=lambda *args, **kwargs: api_hc3_doors_status(*args, **kwargs),
+    api_revenue_day=api_revenue_day,
+    api_unifi_protect_bollards=lambda *args, **kwargs: api_unifi_protect_bollards(*args, **kwargs),
+    async_session=async_session,
+    build_light_timeline_group=build_light_timeline_group,
+    build_lux_sparkline=build_lux_sparkline,
+    build_now_status=build_now_status,
+    build_revenue_month_context=build_revenue_month_context,
+    build_timeline_group=build_timeline_group,
+    dashboard_alert=dashboard_alert,
+    dashboard_compare_value=dashboard_compare_value,
+    dashboard_money_compare=dashboard_money_compare,
+    day_zoom_window=day_zoom_window,
+    event_device_key=event_device_key,
+    freshness_item=freshness_item,
+    get_parking_summaries=get_parking_summaries,
+    get_sun2_summaries=get_sun2_summaries,
+    hc3_fetch_switch_statuses=hc3_fetch_switch_statuses,
+    hc3_switch_config_for_timeline_device=hc3_switch_config_for_timeline_device,
+    import_status_rows=import_status_rows,
+    latest_cleaning_robot_sample=latest_cleaning_robot_sample,
+    light_sample_state=light_sample_state,
+    minutes_since=minutes_since,
+    ntfy_subscribe_url=ntfy_subscribe_url,
+    ntfy_topic_url=ntfy_topic_url,
+    operating_window=operating_window,
+    operations_area_status=operations_area_status,
+    operations_metric=operations_metric,
+    operations_recent_door_items=operations_recent_door_items,
+    operations_switch_item=operations_switch_item,
+    parse_day=parse_day,
+    percent_between=percent_between,
+    state_from_event=state_from_event,
+    status_timeline_lane=status_timeline_lane,
+    templates=templates,
+    ventilation_status_payload=ventilation_status_payload,
+    weather_from_rows=weather_from_rows,
+))
+api_operations_overview = revenue_http.endpoints["api_operations_overview"]
+api_v2_overview = revenue_http.endpoints["api_v2_overview"]
+api_v2_revenue_month = revenue_http.endpoints["api_v2_revenue_month"]
+api_v2_revenue_year_comparison = revenue_http.endpoints["api_v2_revenue_year_comparison"]
+api_v2_settlement_attachment = revenue_http.endpoints["api_v2_settlement_attachment"]
+api_v2_settlement_detail = revenue_http.endpoints["api_v2_settlement_detail"]
+api_v2_status_comparison = revenue_http.endpoints["api_v2_status_comparison"]
+day_view = revenue_http.endpoints["day_view"]
+import_status_view = revenue_http.endpoints["import_status_view"]
+index = revenue_http.endpoints["index"]
+status_key_metrics_view = revenue_http.endpoints["status_key_metrics_view"]
+status_revenue_month_view = revenue_http.endpoints["status_revenue_month_view"]
+status_statistics_view = revenue_http.endpoints["status_statistics_view"]
+from fibaro_core.routers import modules_routes
+from functools import partial
+from fibaro_core.services.modules import revenue as revenue_module
+revenue_module_dependencies = revenue_module.Dependencies(
+    api_revenue_accumulated_year_chart=api_revenue_accumulated_year_chart,
+    api_revenue_overview_tables=api_revenue_overview_tables,
+    api_revenue_weekly_chart=api_revenue_weekly_chart,
+    get_parking_summaries=get_parking_summaries,
+    get_sun2_summaries=get_sun2_summaries,
+    parking_period_summary=parking_period_summary,
+)
+from fibaro_core.services.modules import linking as linking_module
+linking_module_dependencies = linking_module.Dependencies(
+    PARKING_SUN_LINK_CONFIRMED=PARKING_SUN_LINK_CONFIRMED,
+    PARKING_SUN_LINK_PENDING=PARKING_SUN_LINK_PENDING,
+    api_filter=api_filter,
+    api_filter_int=api_filter_int,
+    api_parking_sun_link_candidate_row=api_parking_sun_link_candidate_row,
+    api_parking_sun_link_match_row=api_parking_sun_link_match_row,
+    api_parking_sun_link_state_row=api_parking_sun_link_state_row,
+    get_parking_sun_link_state=get_parking_sun_link_state,
+    parking_sun_link_candidate_edit=parking_sun_link_candidate_edit,
+    parking_sun_link_matched_paid_totals=parking_sun_link_matched_paid_totals,
+    parking_sun_link_qualified_distinct_matched_paid_total=parking_sun_link_qualified_distinct_matched_paid_total,
+    parking_sun_link_settings_edit=parking_sun_link_settings_edit,
+    refresh_parking_sun_link_state_counts=refresh_parking_sun_link_state_counts,
+)
+from fibaro_core.services.modules import parking as parking_module
+parking_module_dependencies = parking_module.Dependencies(
+    api_day_navigation=api_day_navigation,
+    api_filter=api_filter,
+    api_filter_int=api_filter_int,
+    api_filter_options=api_filter_options,
+    api_filter_value=api_filter_value,
+    api_parking_clear_area_not_found_action=api_parking_clear_area_not_found_action,
+    api_parking_day_timeline=api_parking_day_timeline,
+    api_parking_default_actions=api_parking_default_actions,
+    api_parking_forecast_evolution_chart=api_parking_forecast_evolution_chart,
+    api_parking_forecast_rows=api_parking_forecast_rows,
+    api_parking_overview_tables=api_parking_overview_tables,
+    api_parking_saved_forecast_rows=api_parking_saved_forecast_rows,
+    api_parking_weekly_chart=api_parking_weekly_chart,
+    api_tool_row=api_tool_row,
+    build_parking_forecast=build_parking_forecast,
+    get_parking_summaries=get_parking_summaries,
+    import_job_age=import_job_age,
+    import_job_updated_ago=import_job_updated_ago,
+    parking_area_missing_rows_for_period=parking_area_missing_rows_for_period,
+    parking_area_overview_data=parking_area_overview_data,
+    parking_missing_area_rows=parking_missing_area_rows,
+    parking_previous_stats_for_rows=parking_previous_stats_for_rows,
+    parking_row_api=parking_row_api,
+    parking_vehicle_count_stats=parking_vehicle_count_stats,
+    parking_vehicle_row_api=parking_vehicle_row_api,
+    parking_vehicle_search_condition=parking_vehicle_search_condition,
+    parse_day=parse_day,
+    row_to_dict=row_to_dict,
+)
+from fibaro_core.services.modules import sun as sun_module
+sun_module_dependencies = sun_module.Dependencies(
+    api_v2_soling_module=api_v2_soling_module,
+)
+from fibaro_core.services.modules import energy as energy_module
+energy_module_dependencies = energy_module.Dependencies(
+    api_config_value_rows=api_config_value_rows,
+    api_day_navigation=api_day_navigation,
+    api_energy_circuit_edit=api_energy_circuit_edit,
+    api_energy_load_edit=api_energy_load_edit,
+    api_filter=api_filter,
+    api_filter_int=api_filter_int,
+    api_filter_options=api_filter_options,
+    api_filter_value=api_filter_value,
+    api_pick=api_pick,
+    api_tool_row=api_tool_row,
+    build_energy_circuit_loads_payload=build_energy_circuit_loads_payload,
+    circuit_row_api=circuit_row_api,
+    cumulative_energy_points=cumulative_energy_points,
+    decimate_rows=decimate_rows,
+    energy_elvia_control_module_payload=energy_elvia_control_module_payload,
+    energy_elvia_module_payload=energy_elvia_module_payload,
+    load_row_api=load_row_api,
+    load_sunbed_power_analysis=load_sunbed_power_analysis,
+    parse_day=parse_day,
+)
+from fibaro_core.services.modules import ventilation as ventilation_module
+ventilation_module_dependencies = ventilation_module.Dependencies(
+    VENT_TIMELINE_DEVICES=VENT_TIMELINE_DEVICES,
+    api_config_field_rows=api_config_field_rows,
+    api_config_history_rows=api_config_history_rows,
+    api_filter=api_filter,
+    api_filter_int=api_filter_int,
+    api_filter_value=api_filter_value,
+    api_pick=api_pick,
+    api_rule_rows=api_rule_rows,
+    api_tool_row=api_tool_row,
+    build_temp_day=build_temp_day,
+    clean_display_text=clean_display_text,
+    config_rules=config_rules,
+    display_action=display_action,
+    display_control_mode=display_control_mode,
+    empty_ventilation_day_payload=empty_ventilation_day_payload,
+    fetch_rows=fetch_rows,
+    get_or_create_config=get_or_create_config,
+    hc3_fetch_switch_statuses=hc3_fetch_switch_statuses,
+    hc3_switch_config_for_timeline_device=hc3_switch_config_for_timeline_device,
+    merge_config_values=merge_config_values,
+    parse_day=parse_day,
+    percent_between=percent_between,
+    ventilation_day_payload=ventilation_day_payload,
+    ventilation_latest_payload=ventilation_latest_payload,
+    ventilation_settings_payload=ventilation_settings_payload,
+    ventilation_status_payload=ventilation_status_payload,
+)
+from fibaro_core.services.modules import lights as lights_module
+lights_module_dependencies = lights_module.Dependencies(
+    LIGHT_TIMELINE_DEVICES=LIGHT_TIMELINE_DEVICES,
+    api_day_navigation=api_day_navigation,
+    api_filter=api_filter,
+    api_filter_int=api_filter_int,
+    api_filter_value=api_filter_value,
+    api_pick=api_pick,
+    build_lux_day=build_lux_day,
+    build_solar_elevation_samples=build_solar_elevation_samples,
+    control_settings_payload=control_settings_payload,
+    fetch_rows=fetch_rows,
+    fetch_yr_cloud_samples=fetch_yr_cloud_samples,
+    get_or_create_config=get_or_create_config,
+    light_sample_state=light_sample_state,
+    merge_config_values=merge_config_values,
+    parse_day=parse_day,
+)
+from fibaro_core.services.modules import cleaning as cleaning_module
+cleaning_module_dependencies = cleaning_module.Dependencies(
+    DREAME_EXPECTED_ROBOT_NAME=DREAME_EXPECTED_ROBOT_NAME,
+    api_pick=api_pick,
+    api_roborock_active_cycle=api_roborock_active_cycle,
+    api_tool_row=api_tool_row,
+    config_defaults=config_defaults,
+    latest_cleaning_robot_sample=latest_cleaning_robot_sample,
+    merge_config_values=merge_config_values,
+    roborock_water_interlock_from_sample=roborock_water_interlock_from_sample,
+)
+from fibaro_core.services.modules import maintenance as maintenance_module
+maintenance_module_dependencies = maintenance_module.Dependencies(
+    OWNTRACKS_SITE_VISIT_LOCATION_KEY=OWNTRACKS_SITE_VISIT_LOCATION_KEY,
+    SITE_VISIT_ACTIVE_MAX_HOURS=SITE_VISIT_ACTIVE_MAX_HOURS,
+    api_maintenance_log_edit=api_maintenance_log_edit,
+    maintenance_log_row=maintenance_log_row,
+    site_visit_is_current=site_visit_is_current,
+    site_visit_is_stale=site_visit_is_stale,
+    site_visit_label=site_visit_label,
+    site_visit_row=site_visit_row,
+)
+from fibaro_core.services.modules import system as system_module
+system_module_dependencies = system_module.Dependencies(
+    ai_dataset_overview=ai_dataset_overview,
+    api_access_key_edit=api_access_key_edit,
+    api_access_key_row=api_access_key_row,
+    api_admin_manual_payload=api_admin_manual_payload,
+    api_config_value_rows=api_config_value_rows,
+    api_import_status_rows=api_import_status_rows,
+    api_pick=api_pick,
+    api_tool_row=api_tool_row,
+    build_admin_data_quality=build_admin_data_quality,
+    build_admin_relation_analysis=build_admin_relation_analysis,
+    build_admin_task_rows=build_admin_task_rows,
+    build_reconciliation_control=build_reconciliation_control,
+    effective_openai_settings=effective_openai_settings,
+    import_status_rows=import_status_rows,
+    row_to_dict=row_to_dict,
+)
+module_handlers = {
+    "omsetning": partial(revenue_module.render, dependencies=revenue_module_dependencies),
+    "parkering": partial(parking_module.render, dependencies=parking_module_dependencies),
+    "soling": partial(sun_module.render, dependencies=sun_module_dependencies),
+    "energi": partial(energy_module.render, dependencies=energy_module_dependencies),
+    "ventilasjon": partial(ventilation_module.render, dependencies=ventilation_module_dependencies),
+    "lys": partial(lights_module.render, dependencies=lights_module_dependencies),
+    "renhold": partial(cleaning_module.render, dependencies=cleaning_module_dependencies),
+    "vedlikehold": partial(maintenance_module.render, dependencies=maintenance_module_dependencies),
+    "admin": partial(system_module.render, dependencies=system_module_dependencies),
+    "koble": partial(linking_module.render, dependencies=linking_module_dependencies),
+}
+modules_http = modules_routes.create_router(modules_routes.Dependencies(async_session=async_session, handlers=module_handlers))
+api_v2_module = modules_http.endpoints["api_v2_module"]
+from fibaro_core.routers import linking_routes
+linking_http = linking_routes.create_router(linking_routes.Dependencies(
+    PARKING_SUN_LINK_CONFIRMED=PARKING_SUN_LINK_CONFIRMED,
+    PARKING_SUN_LINK_REJECTED=PARKING_SUN_LINK_REJECTED,
+    SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS=SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS,
+    async_session=async_session,
+    clear_summary_cache=clear_summary_cache,
+    get_parking_sun_link_state=get_parking_sun_link_state,
+    has_koble_worker_access=has_koble_worker_access,
+    logger=logger,
+    parking_sun_link_assessment=parking_sun_link_assessment,
+    parking_sun_link_probability=parking_sun_link_probability,
+    parking_sun_link_status_value=parking_sun_link_status_value,
+    redirect_with_query_params=redirect_with_query_params,
+    refresh_parking_sun_link_candidate_pairs=refresh_parking_sun_link_candidate_pairs,
+    refresh_parking_sun_link_state_counts=refresh_parking_sun_link_state_counts,
+    require_settings_access=require_settings_access,
+    reset_parking_sun_link_data=reset_parking_sun_link_data,
+    run_sun2_axis_snapshot_link_once=run_sun2_axis_snapshot_link_once,
+    update_parking_sun_link_import_status=update_parking_sun_link_import_status,
+))
+api_v2_koble_candidate_update = linking_http.endpoints["api_v2_koble_candidate_update"]
+api_v2_koble_restart = linking_http.endpoints["api_v2_koble_restart"]
+api_v2_koble_settings_update = linking_http.endpoints["api_v2_koble_settings_update"]
+api_v2_koble_start = linking_http.endpoints["api_v2_koble_start"]
+api_v2_koble_stop = linking_http.endpoints["api_v2_koble_stop"]
+api_v2_koble_worker_config = linking_http.endpoints["api_v2_koble_worker_config"]
+api_v2_koble_worker_results = linking_http.endpoints["api_v2_koble_worker_results"]
+api_v2_koble_worker_status = linking_http.endpoints["api_v2_koble_worker_status"]
+sun2_sessions_link_images = linking_http.endpoints["sun2_sessions_link_images"]
+from fibaro_core.routers import maintenance_routes
+maintenance_http = maintenance_routes.create_router(maintenance_routes.Dependencies(
+    MAINTENANCE_ACTION_OPTIONS=MAINTENANCE_ACTION_OPTIONS,
+    MAINTENANCE_PRIORITY_OPTIONS=MAINTENANCE_PRIORITY_OPTIONS,
+    MAINTENANCE_STATUS_OPTIONS=MAINTENANCE_STATUS_OPTIONS,
+    MAINTENANCE_TARGET_OPTIONS=MAINTENANCE_TARGET_OPTIONS,
+    OWNTRACKS_SITE_VISIT_LOCATION_KEY=OWNTRACKS_SITE_VISIT_LOCATION_KEY,
+    api_maintenance_log_edit=api_maintenance_log_edit,
+    async_session=async_session,
+    clean_maintenance_option=clean_maintenance_option,
+    find_site_visit_for_maintenance=find_site_visit_for_maintenance,
+    logger=logger,
+    maintenance_datetime_value=maintenance_datetime_value,
+    maintenance_log_row=maintenance_log_row,
+    maintenance_room_value=maintenance_room_value,
+    maintenance_target_name=maintenance_target_name,
+    normalize_maintenance_tags=normalize_maintenance_tags,
+    require_settings_access=require_settings_access,
+    run_owntracks_site_visit_sync=run_owntracks_site_visit_sync,
+    site_visit_confidence_percent=site_visit_confidence_percent,
+    site_visit_display_duration=site_visit_display_duration,
+    site_visit_is_stale=site_visit_is_stale,
+    site_visit_label=site_visit_label,
+    site_visit_row=site_visit_row,
+    site_visit_status_label=site_visit_status_label,
+))
+api_v2_maintenance_log_create = maintenance_http.endpoints["api_v2_maintenance_log_create"]
+api_v2_maintenance_log_update = maintenance_http.endpoints["api_v2_maintenance_log_update"]
+api_v2_maintenance_site_visit_detail = maintenance_http.endpoints["api_v2_maintenance_site_visit_detail"]
+api_v2_maintenance_site_visit_update = maintenance_http.endpoints["api_v2_maintenance_site_visit_update"]
+api_v2_maintenance_site_visits = maintenance_http.endpoints["api_v2_maintenance_site_visits"]
+api_v2_maintenance_site_visits_sync = maintenance_http.endpoints["api_v2_maintenance_site_visits_sync"]
+from fibaro_core.routers import cleaning_routes
+cleaning_http = cleaning_routes.create_router(cleaning_routes.Dependencies(
+    DREAME_CONTROL_TOKEN=DREAME_CONTROL_TOKEN,
+    ROBOROCK_CONTROL_TOKEN=ROBOROCK_CONTROL_TOKEN,
+    api_roborock_active_cycle=api_roborock_active_cycle,
+    apply_roborock_cleaning_profile_values=apply_roborock_cleaning_profile_values,
+    async_session=async_session,
+    ensure_default_roborock_door_automation=ensure_default_roborock_door_automation,
+    import_roborock_cleaning_zones=import_roborock_cleaning_zones,
+    post_dreame_control=post_dreame_control,
+    post_roborock_control=post_roborock_control,
+    require_master=require_master,
+    roborock_cleaning_profile_payload=roborock_cleaning_profile_payload,
+    roborock_door_automation_payload=roborock_door_automation_payload,
+    roborock_water_interlock_from_sample=roborock_water_interlock_from_sample,
+    row_to_dict=row_to_dict,
+    templates=templates,
+))
+api_cleaning_night_report = cleaning_http.endpoints["api_cleaning_night_report"]
+api_cleaning_refill_log = cleaning_http.endpoints["api_cleaning_refill_log"]
+api_cleaning_robot_control = cleaning_http.endpoints["api_cleaning_robot_control"]
+api_cleaning_robot_detail = cleaning_http.endpoints["api_cleaning_robot_detail"]
+api_cleaning_water_report = cleaning_http.endpoints["api_cleaning_water_report"]
+api_cleaning_weekly_jobs = cleaning_http.endpoints["api_cleaning_weekly_jobs"]
+api_create_roborock_cleaning_profile = cleaning_http.endpoints["api_create_roborock_cleaning_profile"]
+api_delete_roborock_cleaning_profile = cleaning_http.endpoints["api_delete_roborock_cleaning_profile"]
+api_import_roborock_cleaning_zones = cleaning_http.endpoints["api_import_roborock_cleaning_zones"]
+api_reset_roborock_door_automation_counter = cleaning_http.endpoints["api_reset_roborock_door_automation_counter"]
+api_update_roborock_cleaning_profile = cleaning_http.endpoints["api_update_roborock_cleaning_profile"]
+api_update_roborock_door_automation = cleaning_http.endpoints["api_update_roborock_door_automation"]
+classic_cleaning_json = cleaning_http.endpoints["classic_cleaning_json"]
+classic_cleaning_overview = cleaning_http.endpoints["classic_cleaning_overview"]
+classic_cleaning_robot_detail = cleaning_http.endpoints["classic_cleaning_robot_detail"]
+cleaning_json = cleaning_http.endpoints["cleaning_json"]
+cleaning_overview = cleaning_http.endpoints["cleaning_overview"]
+cleaning_robot_detail = cleaning_http.endpoints["cleaning_robot_detail"]
+from fibaro_core.routers import ingestion_routes
+ingestion_http = ingestion_routes.create_router(ingestion_routes.Dependencies(
+    api_import_job_run_row=api_import_job_run_row,
+    api_import_status_row=api_import_status_row,
+    api_import_status_rows=api_import_status_rows,
+    async_session=async_session,
+    clear_summary_cache=clear_summary_cache,
+    door_event_from_payload=door_event_from_payload,
+    generic_from_payload=generic_from_payload,
+    import_job_definition=import_job_definition,
+    import_status_rows=import_status_rows,
+    ingest_roborock_robot=ingest_roborock_robot,
+    ingest_roborock_telemetry_robot=ingest_roborock_telemetry_robot,
+    ingest_sun2_beds=ingest_sun2_beds,
+    ingest_sun2_finance_settlements=ingest_sun2_finance_settlements,
+    ingest_sun2_members=ingest_sun2_members,
+    ingest_sun2_product_sales=ingest_sun2_product_sales,
+    ingest_sun2_room_stats=ingest_sun2_room_stats,
+    ingest_sun2_tanning_sessions=ingest_sun2_tanning_sessions,
+    json_safe_model_payload=json_safe_model_payload,
+    light_from_payload=light_from_payload,
+    light_ntfy_payload=light_ntfy_payload,
+    light_sample_from_payload=light_sample_from_payload,
+    met_weather_cached=met_weather_cached,
+    payload_weather_symbol=payload_weather_symbol,
+    payload_weather_text=payload_weather_text,
+    record_import_job=record_import_job,
+    save_record=save_record,
+    save_yr_sample_for_payload=save_yr_sample_for_payload,
+    schedule_sun2_axis_snapshot_link=schedule_sun2_axis_snapshot_link,
+    sun2_duplicate_session_id_payload=sun2_duplicate_session_id_payload,
+    upsert_energy_fibaro_sample=upsert_energy_fibaro_sample,
+    upsert_kjeller_measurement_sample=upsert_kjeller_measurement_sample,
+    vent_from_payload=vent_from_payload,
+    vent_sample_from_payload=vent_sample_from_payload,
+    ventilation_ntfy_payload=ventilation_ntfy_payload,
+))
+api_hc3_door_event = ingestion_http.endpoints["api_hc3_door_event"]
+energy_fibaro_ingest = ingestion_http.endpoints["energy_fibaro_ingest"]
+hc3_meter_reading_log = ingestion_http.endpoints["hc3_meter_reading_log"]
+import_status_detail = ingestion_http.endpoints["import_status_detail"]
+import_status_json = ingestion_http.endpoints["import_status_json"]
+import_status_report = ingestion_http.endpoints["import_status_report"]
+legacy_log_data = ingestion_http.endpoints["legacy_log_data"]
+log_event = ingestion_http.endpoints["log_event"]
+roborock_ingest = ingestion_http.endpoints["roborock_ingest"]
+roborock_telemetry_ingest = ingestion_http.endpoints["roborock_telemetry_ingest"]
+sun2_beds_ingest = ingestion_http.endpoints["sun2_beds_ingest"]
+sun2_finance_settlements_ingest = ingestion_http.endpoints["sun2_finance_settlements_ingest"]
+sun2_members_ingest = ingestion_http.endpoints["sun2_members_ingest"]
+sun2_product_sales_ingest = ingestion_http.endpoints["sun2_product_sales_ingest"]
+sun2_room_stats_ingest = ingestion_http.endpoints["sun2_room_stats_ingest"]
+sun2_sessions_ingest = ingestion_http.endpoints["sun2_sessions_ingest"]
+
+control_http.register_endpoint(app, "api_unifi_protect_status")
+control_http.register_endpoint(app, "api_unifi_protect_cameras")
+control_http.register_endpoint(app, "api_unifi_protect_capabilities")
+control_http.register_endpoint(app, "api_unifi_protect_stats")
+control_http.register_endpoint(app, "api_unifi_protect_events")
+control_http.register_endpoint(app, "api_unifi_protect_recognitions")
+control_http.register_endpoint(app, "api_unifi_protect_recognition_detail")
+control_http.register_endpoint(app, "api_unifi_protect_daily_license_plates")
+parking_http.register_endpoint(app, "api_parking_control_report")
+control_http.register_endpoint(app, "api_unifi_protect_bollards")
+control_http.register_endpoint(app, "api_unifi_protect_bollard_mobile_notifications")
+control_http.register_endpoint(app, "api_test_unifi_protect_bollard_mobile_notification")
+parking_http.register_endpoint(app, "api_cars_day")
+parking_http.register_endpoint(app, "api_cars_day_detections")
+control_http.register_endpoint(app, "api_unifi_protect_snapshot")
+control_http.register_endpoint(app, "api_unifi_protect_recognition_snapshot")
+control_http.register_endpoint(app, "api_unifi_protect_bollard_baseline")
+control_http.register_endpoint(app, "api_unifi_protect_bollard_camera_image")
+control_http.register_endpoint(app, "api_unifi_protect_bollard_camera_crop")
+control_http.register_endpoint(app, "api_unifi_protect_bollard_asset_image")
+control_http.register_endpoint(app, "api_unifi_protect_bollard_incident_image")
+system_http.register_endpoint(app, "health")
+system_http.register_endpoint(app, "favicon")
+access_http.register_endpoint(app, "login_view")
+access_http.register_endpoint(app, "login_submit")
+access_http.register_endpoint(app, "logout")
+access_http.register_endpoint(app, "api_auth_session_create")
+access_http.register_endpoint(app, "api_auth_session_delete")
+access_http.register_endpoint(app, "api_auth_me")
+system_http.register_endpoint(app, "api_admin_builds")
+system_http.register_endpoint(app, "api_manual")
+system_http.register_endpoint(app, "api_admin_manual")
+system_http.register_endpoint(app, "api_system_notifications")
+system_http.register_endpoint(app, "api_system_incident_review")
+app.include_router(create_assets_router(async_session, require_settings_access))
+app.include_router(create_automations_router(async_session, require_settings_access))
+system_http.register_endpoint(app, "api_system_search")
+system_http.register_endpoint(app, "api_system_subsystems")
+system_http.register_endpoint(app, "api_admin_build")
+system_http.register_endpoint(app, "ai_redirect")
+building_http.register_endpoint(app, "lights_redirect")
+building_http.register_endpoint(app, "ventilation_redirect")
+system_http.register_endpoint(app, "ai_search_view")
+system_http.register_endpoint(app, "ai_search_submit")
+system_http.register_endpoint(app, "ai_settings_view")
+system_http.register_endpoint(app, "ai_settings_update")
+system_http.register_endpoint(app, "ai_datasets_json")
+system_http.register_endpoint(app, "ai_logs_json")
+system_http.register_endpoint(app, "account_view")
+system_http.register_endpoint(app, "account_build_view")
+system_http.register_endpoint(app, "account_technical_view")
+system_http.register_endpoint(app, "account_manual_view")
+energy_http.register_endpoint(app, "energy_view")
+access_http.register_endpoint(app, "keys_view")
+access_http.register_endpoint(app, "keys_create")
+access_http.register_endpoint(app, "keys_disable")
+access_http.register_endpoint(app, "keys_enable")
+access_http.register_endpoint(app, "keys_role_update")
+building_http.register_endpoint(app, "api_control_configs")
+building_http.register_endpoint(app, "api_control_config")
+building_http.register_endpoint(app, "api_control_config_update")
+system_http.register_endpoint(app, "root_service_info")
+system_http.register_endpoint(app, "api_mobile_preview_screens")
+system_http.register_endpoint(app, "api_mobile_preview_frame")
+sun_http.register_endpoint(app, "sun2_session_image")
+sun_http.register_endpoint(app, "sun2_session_image_item")
+sun_http.register_endpoint(app, "api_sun2_axis_snapshot_image")
+sun_http.register_endpoint(app, "api_sun2_session_image_browser")
+sun_http.register_endpoint(app, "api_sun2_session_select_image")
+sun_http.register_endpoint(app, "api_sun2_session_set_primary_image")
+revenue_http.register_endpoint(app, "index")
+revenue_http.register_endpoint(app, "status_key_metrics_view")
+revenue_http.register_endpoint(app, "api_v2_status_comparison")
+sun_http.register_endpoint(app, "api_v2_sun2_year_comparison")
+parking_http.register_endpoint(app, "api_v2_parking_year_comparison")
+parking_http.register_endpoint(app, "api_v2_parking_time_distribution")
+parking_http.register_endpoint(app, "api_v2_parking_weekly_averages")
+parking_http.register_endpoint(app, "api_v2_parking_weekly_average_years")
+revenue_http.register_endpoint(app, "api_v2_revenue_year_comparison")
+revenue_http.register_endpoint(app, "api_operations_overview")
+revenue_http.register_endpoint(app, "api_v2_overview")
+revenue_http.register_endpoint(app, "api_v2_revenue_month")
+revenue_http.register_endpoint(app, "api_v2_settlement_detail")
+revenue_http.register_endpoint(app, "api_v2_settlement_attachment")
+sun_http.register_endpoint(app, "api_v2_sun_settlement_detail")
+sun_http.register_endpoint(app, "api_v2_sun_settlement_attachment")
+modules_http.register_endpoint(app, "api_v2_module")
+parking_http.register_endpoint(app, "api_v2_parking_vehicle_detail")
+sun_http.register_endpoint(app, "api_v2_sun2_save_forecast")
+sun_http.register_endpoint(app, "api_v2_upload_sun_settlement")
+parking_http.register_endpoint(app, "api_v2_fetch_parking_settlements")
+parking_http.register_endpoint(app, "api_v2_parking_save_forecast")
+parking_http.register_endpoint(app, "api_v2_parking_refresh")
+parking_http.register_endpoint(app, "api_v2_parking_svv_sync")
+parking_http.register_endpoint(app, "api_v2_parking_car_info_sync")
+parking_http.register_endpoint(app, "api_v2_parking_clear_area_not_found")
+parking_http.register_endpoint(app, "api_v2_parking_vehicle_clear_not_found")
+linking_http.register_endpoint(app, "api_v2_koble_start")
+linking_http.register_endpoint(app, "api_v2_koble_stop")
+linking_http.register_endpoint(app, "api_v2_koble_restart")
+linking_http.register_endpoint(app, "api_v2_koble_settings_update")
+linking_http.register_endpoint(app, "api_v2_koble_candidate_update")
+linking_http.register_endpoint(app, "api_v2_koble_worker_config")
+linking_http.register_endpoint(app, "api_v2_koble_worker_status")
+linking_http.register_endpoint(app, "api_v2_koble_worker_results")
+energy_http.register_endpoint(app, "api_v2_energy_circuit_update")
+energy_http.register_endpoint(app, "api_v2_energy_node_create")
+energy_http.register_endpoint(app, "api_v2_energy_node_update")
+energy_http.register_endpoint(app, "api_v2_energy_hc3_devices")
+energy_http.register_endpoint(app, "api_v2_energy_nodes_live")
+energy_http.register_endpoint(app, "api_v2_energy_load_create")
+energy_http.register_endpoint(app, "api_v2_energy_load_update")
+maintenance_http.register_endpoint(app, "api_v2_maintenance_log_create")
+maintenance_http.register_endpoint(app, "api_v2_maintenance_log_update")
+maintenance_http.register_endpoint(app, "api_v2_maintenance_site_visit_detail")
+maintenance_http.register_endpoint(app, "api_v2_maintenance_site_visit_update")
+maintenance_http.register_endpoint(app, "api_v2_maintenance_site_visits")
+maintenance_http.register_endpoint(app, "api_v2_maintenance_site_visits_sync")
+access_http.register_endpoint(app, "api_v2_admin_user_create")
+access_http.register_endpoint(app, "api_v2_admin_user_update")
+revenue_http.register_endpoint(app, "status_revenue_month_view")
+revenue_http.register_endpoint(app, "status_statistics_view")
+revenue_http.register_endpoint(app, "import_status_view")
+revenue_http.register_endpoint(app, "day_view")
+building_http.register_endpoint(app, "day_lux_view")
+building_http.register_endpoint(app, "day_temp_view")
+ingestion_http.register_endpoint(app, "legacy_log_data")
+ingestion_http.register_endpoint(app, "hc3_meter_reading_log")
+ingestion_http.register_endpoint(app, "log_event")
+ingestion_http.register_endpoint(app, "api_hc3_door_event")
+control_http.register_endpoint(app, "api_hc3_doors_poll_sync")
+ingestion_http.register_endpoint(app, "import_status_report")
+ingestion_http.register_endpoint(app, "import_status_json")
+ingestion_http.register_endpoint(app, "import_status_detail")
+ingestion_http.register_endpoint(app, "roborock_ingest")
+ingestion_http.register_endpoint(app, "roborock_telemetry_ingest")
+ingestion_http.register_endpoint(app, "sun2_room_stats_ingest")
+ingestion_http.register_endpoint(app, "sun2_sessions_ingest")
+ingestion_http.register_endpoint(app, "sun2_beds_ingest")
+ingestion_http.register_endpoint(app, "sun2_members_ingest")
+ingestion_http.register_endpoint(app, "sun2_product_sales_ingest")
+ingestion_http.register_endpoint(app, "sun2_finance_settlements_ingest")
+sun_http.register_endpoint(app, "sun2_backfill_room_identity")
+sun_http.register_endpoint(app, "sun2_room_stats_legacy_redirect")
+sun_http.register_endpoint(app, "sun2_room_stats_json_legacy_redirect")
+parking_http.register_endpoint(app, "parking_redirect")
+parking_http.register_endpoint(app, "parking_easypark_import_csv")
+parking_http.register_endpoint(app, "parking_vehicle_svv_sync_api")
+parking_http.register_endpoint(app, "parking_refresh")
+parking_http.register_endpoint(app, "parking_overview_view")
+parking_http.register_endpoint(app, "parking_statistics_view")
+parking_http.register_endpoint(app, "parking_forecast_view")
+parking_http.register_endpoint(app, "parking_forecast_save")
+parking_http.register_endpoint(app, "parking_vehicle_statistics_view")
+parking_http.register_endpoint(app, "parking_area_overview_view")
+parking_http.register_endpoint(app, "parking_sessions_view")
+parking_http.register_endpoint(app, "parking_vehicles_view")
+parking_http.register_endpoint(app, "parking_vehicle_clear_not_found_area")
+parking_http.register_endpoint(app, "parking_name_lookup_view")
+parking_http.register_endpoint(app, "parking_area_lookup_view")
+parking_http.register_endpoint(app, "parking_car_info_candidates_api")
+parking_http.register_endpoint(app, "parking_missing_names_api")
+parking_http.register_endpoint(app, "parking_missing_areas_api")
+parking_http.register_endpoint(app, "parking_vehicle_name_api")
+parking_http.register_endpoint(app, "parking_vehicle_area_api")
+parking_http.register_endpoint(app, "parking_vehicle_car_info_api")
+parking_http.register_endpoint(app, "parking_vehicle_detail_view")
+parking_http.register_endpoint(app, "parking_vehicle_detail_save")
+energy_http.register_endpoint(app, "energy_redirect")
+energy_http.register_endpoint(app, "energy_overview_legacy_redirect")
+sun_http.register_endpoint(app, "energy_soling_legacy_redirect")
+ingestion_http.register_endpoint(app, "energy_fibaro_ingest")
+energy_http.register_endpoint(app, "api_energy_elvia_upload")
+energy_http.register_endpoint(app, "energy_status_view")
+energy_http.register_endpoint(app, "energy_circuits_view")
+energy_http.register_endpoint(app, "energy_circuit_save")
+energy_http.register_endpoint(app, "energy_circuits_pdf")
+energy_http.register_endpoint(app, "energy_loads_view")
+energy_http.register_endpoint(app, "energy_loads_pdf")
+energy_http.register_endpoint(app, "energy_load_save")
+energy_http.register_endpoint(app, "energy_load_toggle_active")
+energy_http.register_endpoint(app, "energy_fibaro_json")
+energy_http.register_endpoint(app, "energy_sunbed_consumption_view")
+sun_http.register_endpoint(app, "sun2_redirect")
+sun_http.register_endpoint(app, "sun2_overview_view")
+sun_http.register_endpoint(app, "sun2_forecast_view")
+sun_http.register_endpoint(app, "sun2_forecast_save")
+sun_http.register_endpoint(app, "sun2_room_stats_view")
+sun_http.register_endpoint(app, "sun2_sessions_view")
+linking_http.register_endpoint(app, "sun2_sessions_link_images")
+sun_http.register_endpoint(app, "api_v2_sun2_link_snapshot_images")
+sun_http.register_endpoint(app, "sun2_day_timeline_view")
+sun_http.register_endpoint(app, "sun2_beds_view")
+sun_http.register_endpoint(app, "sun2_members_view")
+sun_http.register_endpoint(app, "sun2_room_stats_json")
+sun_http.register_endpoint(app, "sun2_beds_json")
+sun_http.register_endpoint(app, "sun2_members_json")
+sun_http.register_endpoint(app, "sun2_sessions_json")
+energy_http.register_endpoint(app, "energy_elvia_view")
+energy_http.register_endpoint(app, "energy_elvia_upload")
+energy_http.register_endpoint(app, "energy_elvia_json")
+cleaning_http.register_endpoint(app, "cleaning_overview")
+cleaning_http.register_endpoint(app, "api_cleaning_night_report")
+cleaning_http.register_endpoint(app, "api_cleaning_weekly_jobs")
+cleaning_http.register_endpoint(app, "api_cleaning_water_report")
+cleaning_http.register_endpoint(app, "api_cleaning_refill_log")
+cleaning_http.register_endpoint(app, "api_cleaning_robot_detail")
+cleaning_http.register_endpoint(app, "api_update_roborock_door_automation")
+cleaning_http.register_endpoint(app, "api_reset_roborock_door_automation_counter")
+cleaning_http.register_endpoint(app, "api_import_roborock_cleaning_zones")
+cleaning_http.register_endpoint(app, "api_create_roborock_cleaning_profile")
+cleaning_http.register_endpoint(app, "api_update_roborock_cleaning_profile")
+cleaning_http.register_endpoint(app, "api_delete_roborock_cleaning_profile")
+cleaning_http.register_endpoint(app, "api_cleaning_robot_control")
+cleaning_http.register_endpoint(app, "cleaning_robot_detail")
+cleaning_http.register_endpoint(app, "cleaning_json")
+building_http.register_endpoint(app, "lights_view")
+building_http.register_endpoint(app, "lights_json")
+building_http.register_endpoint(app, "lights_download")
+building_http.register_endpoint(app, "light_samples_json")
+building_http.register_endpoint(app, "light_samples_view")
+building_http.register_endpoint(app, "light_samples_download")
+building_http.register_endpoint(app, "ventilation_view")
+building_http.register_endpoint(app, "ventilation_json")
+building_http.register_endpoint(app, "ventilation_download")
+building_http.register_endpoint(app, "ventilation_samples_view")
+building_http.register_endpoint(app, "ventilation_samples_json")
+building_http.register_endpoint(app, "ventilation_samples_download")
+building_http.register_endpoint(app, "yr_samples_view")
+building_http.register_endpoint(app, "yr_samples_json")
+building_http.register_endpoint(app, "yr_samples_download")
+system_http.register_endpoint(app, "generic_download")
+system_http.register_endpoint(app, "events_json")
+control_http.register_endpoint(app, "api_hc3_door_events_json")
+control_http.register_endpoint(app, "api_hc3_doors_status")
+control_http.register_endpoint(app, "api_hc3_doors_sunroom_sessions")
+control_http.register_endpoint(app, "api_hc3_doors_sunroom_logic")
+control_http.register_endpoint(app, "api_hc3_doors_alarm")
+control_http.register_endpoint(app, "api_hc3_doors_sunroom_overview")
+control_http.register_endpoint(app, "api_hc3_doors_sunroom_room_detail")
+parking_http.register_endpoint(app, "classic_parking_vehicles_view")
+parking_http.register_endpoint(app, "classic_parking_name_lookup_view")
+parking_http.register_endpoint(app, "classic_parking_area_lookup_view")
+parking_http.register_endpoint(app, "classic_parking_vehicle_detail_view")
+energy_http.register_endpoint(app, "classic_energy_circuits_pdf")
+energy_http.register_endpoint(app, "classic_energy_loads_pdf")
+building_http.register_endpoint(app, "classic_light_settings_view")
+cleaning_http.register_endpoint(app, "classic_cleaning_overview")
+cleaning_http.register_endpoint(app, "classic_cleaning_robot_detail")
+cleaning_http.register_endpoint(app, "classic_cleaning_json")

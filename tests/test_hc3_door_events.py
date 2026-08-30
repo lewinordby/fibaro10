@@ -9,18 +9,8 @@ from observability import STORAGE_TABLES
 
 
 def test_door_event_api_route_is_registered():
-    tree = ast.parse(Path("main.py").read_text(encoding="utf-8"))
-    routes = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.AsyncFunctionDef):
-            for decorator in node.decorator_list:
-                if (
-                    isinstance(decorator, ast.Call)
-                    and isinstance(decorator.func, ast.Attribute)
-                    and decorator.args
-                    and isinstance(decorator.args[0], ast.Constant)
-                ):
-                    routes.append(decorator.args[0].value)
+    import main
+    routes = [route.path for route in main.app.routes if hasattr(route, "path")]
 
     assert "/api/hc3/door-events" in routes
     assert "/api/hc3/door-events/json" in routes
@@ -685,8 +675,9 @@ class SunroomDoorTimingTests(unittest.TestCase):
         self.assertEqual(self.main.sunroom_alert_key(first), self.main.sunroom_alert_key(second))
 
     def test_read_endpoint_does_not_publish_alarm(self):
-        source = Path("main.py").read_text(encoding="utf-8")
-        endpoint = source.split('async def api_hc3_doors_sunroom_sessions():', 1)[1].split("\n\n", 1)[0]
+        import inspect
+        import main
+        endpoint = inspect.getsource(main.api_hc3_doors_sunroom_sessions)
 
         self.assertIn("notify=False", endpoint)
         self.assertNotIn("notify=True", endpoint)

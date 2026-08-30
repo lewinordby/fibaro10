@@ -125,7 +125,8 @@ def test_adapter_images_and_downloads_remain_narrowly_scoped() -> None:
 
 
 def test_system_tools_have_proxy_safe_core_routes() -> None:
-    source = (Path(__file__).resolve().parents[1] / "main.py").read_text(encoding="utf-8")
+    import main
+    routes = {route.path for route in main.app.routes if "GET" in getattr(route, "methods", ())}
     for path in (
         "/api/system/health",
         "/api/system/resources/events/json",
@@ -134,7 +135,7 @@ def test_system_tools_have_proxy_safe_core_routes() -> None:
         "/api/system/resources/lights/samples/download",
         "/api/system/resources/ventilation/samples/download",
     ):
-        assert f'@app.get("{path}")' in source
+        assert path in routes
 
 
 def test_active_app_copy_does_not_expose_retired_v2_labels() -> None:

@@ -137,10 +137,9 @@ def test_reached_threshold_starts_when_minimum_interval_expires_without_new_open
 
 
 def test_saving_door_automation_does_not_reset_the_counter():
-    source = (Path(__file__).resolve().parents[1] / "main.py").read_text(encoding="utf-8")
-    update_handler = source.split("async def api_update_roborock_door_automation(", 1)[1].split(
-        '@app.post("/api/renhold/robots/{duid}/door-automation/reset-counter")', 1
-    )[0]
+    import inspect
+    import main
+    update_handler = inspect.getsource(main.api_update_roborock_door_automation)
 
     assert "automation.counter_reset_at =" not in update_handler
     assert "Telleren er beholdt" in update_handler

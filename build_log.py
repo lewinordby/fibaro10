@@ -11,6 +11,23 @@ DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exi
 APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
+        "version": "1", "build": "1834", "date": "30.08.2026",
+        "headline": "API-er og modulvisninger er delt etter fagområde",
+        "title": "Egne domenefabrikker for rutene og ti separate modulbyggere",
+        "description": "HTTP-rutene ligger nå i egne domener med eksplisitte avhengigheter. Den store modulfunksjonen er delt i ti svarbyggere. Adresse, rekkefølge, autorisasjon og databasekontrakter er kontrollert.",
+        "applications": ["Fibaro10 kjerne/API", "Alle klienter beholder eksisterende API-er og design"],
+        "request": "gjennomfør alle etapper",
+        "work_duration": "Del av sammenhengende modulariseringsarbeid; separat tid ikke målt",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Skilt HTTP-registrering fra domenetjenester og runtime-ressurser.",
+            "Delt felles modulendepunkt i ti domenevise svarbyggere.",
+            "Bevart registreringsrekkefølge, inkludert gamle ressurser som klientene fortsatt bruker.",
+            "Rettet klassisk lysinnstillingslenke som pekte på en fjernet funksjon.",
+            "557 tester består, inkludert innlogging og alle sammenligningskontrakter.",
+        ],
+    },
+    {
         "version": "1", "build": "1833", "date": "30.08.2026",
         "headline": "Prognoser og oppgjør har egne fagmoduler",
         "title": "Skilt beregning, tolking og oppgjørskontroll fra main.py",

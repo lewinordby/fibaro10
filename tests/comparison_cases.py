@@ -126,6 +126,9 @@ class Scenario:
         async def parking(session):
             return summaries("parking")
         targets = [main]
+        for domain in ("revenue", "parking", "sun"):
+            targets.append(importlib.import_module(f"fibaro_core.routers.{domain}_routes"))
+            targets.append(getattr(main, f"{domain}_http").dependencies)
         for module in ("overview", "chart"):
             try:
                 targets.append(importlib.import_module("fibaro_core.services.comparisons." + module))
@@ -144,7 +147,9 @@ class Scenario:
         for name, value in dict(local_now_naive=lambda: self.now, async_session=lambda: self,
                                 import_status_rows=imports, get_sun2_summaries=sun,
                                 get_parking_summaries=parking, status_timeline_lane=self.lane).items():
-            stack.enter_context(patch.object(main, name, value))
+            for target in targets:
+                if hasattr(target, name):
+                    stack.enter_context(patch.object(target, name, value))
         return stack
 
 
@@ -214,6 +219,8 @@ class FullScenario(Scenario):
             indoor_avg=21, outdoor_avg=14, timestamp=self.now, weather="test")))
         stack.enter_context(patch.object(self.main, "ventilation_status_payload", lambda device, *args: dict(key=device["key"], state=None)))
         stack.enter_context(patch.object(self.main, "weather_from_rows", lambda *args: "test"))
+        for name in ("hc3_fetch_switch_statuses", "build_now_status", "ventilation_status_payload", "weather_from_rows"):
+            stack.enter_context(patch.object(self.main.revenue_http.dependencies, name, getattr(self.main, name)))
         return stack
 
 

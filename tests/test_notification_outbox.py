@@ -54,7 +54,7 @@ class NotificationOutboxTests(unittest.IsolatedAsyncioTestCase):
             state=True,
         )
         with (
-            patch("main.save_record", new=AsyncMock(return_value=123)) as save,
+            patch.object(main.ingestion_http.dependencies, "save_record", new=AsyncMock(return_value=123)) as save,
             patch("main.publish_ntfy_message") as network,
         ):
             result = await main.log_event(payload)
