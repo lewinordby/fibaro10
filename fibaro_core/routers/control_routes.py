@@ -2,22 +2,14 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from fastapi import APIRouter
-from fastapi import HTTPException
-from fastapi import Query
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
 from fibaro_core.export_definitions import DOOR_EVENT_COLUMNS
 from fibaro_core.models import DoorEvent
 from fibaro_core.routers.bundle import RouterBundle
-from sqlalchemy import func
-from sqlalchemy import select
-from time_formatting import format_source_datetime_short
-from time_formatting import local_now_naive
-from time_formatting import normalize_local_naive
-from typing import Any
-from typing import Any, Callable
-from typing import Dict
-from typing import Optional
+from sqlalchemy import func, select
+from time_formatting import format_source_datetime_short, local_now_naive, normalize_local_naive
+from typing import Any, Callable, Dict, Optional
 from unifi_protect_client import ProtectLedgerError
 import asyncio
 

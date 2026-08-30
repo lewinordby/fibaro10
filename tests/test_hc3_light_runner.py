@@ -12,7 +12,7 @@ def test_light_runner_controls_both_facade_light_strips():
 
 
 def test_fibaro10_light_config_knows_new_facade_light_id():
-    source = Path("main.py").read_text(encoding="utf-8")
+    source = Path("fibaro_core/catalog.py").read_text(encoding="utf-8")
 
     assert '"key": "lyslist", "name": "Lyslist dekor", "sample_attr": "light_lyslist", "legacy_ids": [425, 298]' in source
     assert '"device_ids": [425, 298]' in source

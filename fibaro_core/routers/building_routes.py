@@ -2,29 +2,27 @@
 
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
-from fastapi import APIRouter
-from fastapi import Query
-from fastapi import Request
-from fastapi.responses import HTMLResponse
-from fastapi.responses import JSONResponse
-from fibaro_core.export_definitions import LIGHT_COLUMNS
-from fibaro_core.export_definitions import LIGHT_SAMPLE_COLUMNS
-from fibaro_core.export_definitions import VENT_COLUMNS
-from fibaro_core.export_definitions import VENT_SAMPLE_COLUMNS
-from fibaro_core.export_definitions import YR_SAMPLE_COLUMNS
-from fibaro_core.models import ControlConfigHistory
-from fibaro_core.models import OutdoorLightEvent
-from fibaro_core.models import OutdoorLightSample
-from fibaro_core.models import VentilationEvent
-from fibaro_core.models import VentilationSample
-from fibaro_core.models import YrForecastSample
+from datetime import datetime, time, timedelta
+from fastapi import APIRouter, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from fibaro_core.export_definitions import (
+    LIGHT_COLUMNS,
+    LIGHT_SAMPLE_COLUMNS,
+    VENT_COLUMNS,
+    VENT_SAMPLE_COLUMNS,
+    YR_SAMPLE_COLUMNS,
+)
+from fibaro_core.models import (
+    ControlConfigHistory,
+    OutdoorLightEvent,
+    OutdoorLightSample,
+    VentilationEvent,
+    VentilationSample,
+    YrForecastSample,
+)
 from fibaro_core.routers.bundle import RouterBundle
 from time_formatting import local_now_naive
-from typing import Any, Callable
-from typing import Optional
+from typing import Any, Callable, Optional
 
 
 @dataclass

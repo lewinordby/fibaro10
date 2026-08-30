@@ -1,6 +1,6 @@
 # Fibaro10 core modules
 
-Updated 2026-08-30, build 1833.
+Updated 2026-08-30, build 1836.
 
 ## Forecasts and settlements (1833)
 
@@ -18,11 +18,11 @@ Shared response primitives live in `services/presentation.py`.
 
 This stage reduces main.py from 37,904 to 34,689 physical lines. The full local
 suite passes (557 tests, two unavailable optional Roborock tests skipped).
-Subsequent stages will be deployed together to avoid repeated worker restarts.
+Builds 1833-1836 are one controlled core rollout to avoid repeated worker restarts.
 
 ## Scope
 
-The first three stages of splitting `main.py` are complete, not a rewrite or a new
+All planned stages of splitting `main.py` are complete, not a rewrite or a new
 microservice. The web and worker processes still run the same application,
 use the same PostgreSQL database and expose the same public endpoints.
 Frontend, collectors, schedules, authentication policy and database schema
@@ -30,14 +30,21 @@ are unchanged.
 
 The entry point has decreased from 43,580 to 40,340 lines in build 1830 and
 to 39,128 physical lines in build 1831, then 37,904 in build 1832. The goal
-is clearer ownership and isolated testing; this change does not claim faster
+is clearer ownership and isolated testing. Builds 1833-1836 continue to 3,249
+lines of composition and re-exports, with no function or model definitions in
+main. This change does not claim faster
 SQL queries or a measured reduction in user-facing response time.
 
 ## Ownership
 
 | Location | Responsibility |
 | --- | --- |
-| `main.py` | Loads dotenv, creates runtime resources, registers middleware, lifecycle and routers. Still contains domains not yet extracted. |
+| `main.py` | Loads dotenv, creates runtime resources once, wires explicit dependencies, registers middleware, lifecycle and routes in their original order. Re-exports public domain names for existing scripts. |
+| `fibaro_core/settings.py` | Existing environment defaults and validation, without loading dotenv or starting services. Import after the entry point loads the environment. |
+| `fibaro_core/catalog.py` | Static room/device mappings, configuration definitions, energy circuits and UI option catalogues. |
+| `fibaro_core/runtime_state.py` | Process-owned lock slots and incident state. Importing the module creates no instances. |
+| `fibaro_core/lifecycle.py` | Existing schema bootstrap, initial records, worker role/feature gates and coordinated shutdown. |
+| `fibaro_core/middleware.py` | Authentication, service-token access, security/cache headers and request timing. |
 | `fibaro_core/database.py` | One shared declarative Base; explicit engine and session factory creation. No engine is created on import. |
 | `fibaro_core/config.py` | Shared snapshot-offset setting used by the Sun2 model and image logic. Environment is loaded by main before imports. |
 | `fibaro_core/models/` | All 63 existing SQLAlchemy models, grouped by domain. No queries or running jobs. |
@@ -58,6 +65,10 @@ SQL queries or a measured reduction in user-facing response time.
 | `value_parsing.py` | Existing value parsers plus the extracted int_or_zero / float_or_zero conversions. |
 | `fibaro_core/routers/assets.py` | Four existing asset endpoints: list, create, update and discover. |
 | `fibaro_core/routers/automations.py` | Three existing workbench endpoints: list, create and update. |
+| `fibaro_core/routers/*_routes.py` | Thirteen domain HTTP factories. Request validation, authorization and transaction boundaries stay with their handlers. |
+| `fibaro_core/routers/bundle.py` | Registers named endpoints in original order without creating duplicate handlers. |
+| `fibaro_core/services/modules/` | Ten independent response builders formerly inside the single module endpoint. |
+| `fibaro_core/services/runtime/` | Nineteen domain service factories bound to explicit process resources and cross-domain callbacks. |
 | `time_formatting.py` | Existing time helpers, including the extracted `api_local_iso`. Naive local timestamps retain their original meaning. |
 
 Model domains are building, cleaning, energy, finance, linking, maintenance,
@@ -85,12 +96,49 @@ tests still import them there. These are aliases to the same definitions,
 not duplicate implementations. New domain code should import the owning
 module directly.
 
+Runtime factories accept dataclass dependencies. Pure helpers remain direct
+imports; caches, sessions, configuration and cross-domain callbacks are explicit
+ports. Same-domain helpers share a closure. Cross-domain callbacks in main are
+deferred until invocation to avoid construction cycles. No domain imports main,
+uses `globals().update`, creates another engine or launches work on import.
+
+Tests should replace the owning dependency field or imported domain helper,
+not an obsolete main alias. For example, use `main.weather_dependencies.async_session`
+to inject a weather transaction, and the cache service's imported summary builder
+to test cache behavior. Existing public API paths and OpenAPI contracts are unchanged.
+
+The only intentional endpoint behavior fix is the classic lights-settings link:
+it now redirects to the current Mantis page and retains query parameters, instead
+of calling a removed function.
+
+## Background ownership
+
+- Sun owns snapshot linking and serialized requests to the existing SUN2 scraper.
+- Sunroom owns alarm evaluation, door-state reconciliation and event history.
+- Parking owns SVV lookup orchestration and existing EasyPark import processing.
+- Cleaning owns door-count automation, Roborock/Dreame integration and profiles.
+- Notifications owns the persistent ntfy outbox and its retry loop.
+- Maintenance owns OwnTracks visit synchronization; weather owns cached Yr reads.
+- System owns operational retention; energy owns analysis-cache warming.
+
+`main.py` creates the existing session factory, summary/weather caches, runtime
+dictionaries, process locks and task supervisor once per process. Each domain
+receives the same objects. The web role does not start background jobs. The worker
+role starts the same nine possible tasks, subject to the existing flags/tokens.
+Shutdown awaits cancellation of all supervised tasks. Startup failure launches
+no workers before initialization has completed.
+
+This extraction does not change collector schedules, Sun2 rate limits, EasyPark
+login, notification thresholds, camera storage, alarm grace periods, import
+commit order or database schema. It does not remove existing API aliases.
+
 ## Calculation boundaries
 
 Summary builders receive a session from the caller and only execute reads.
 They do not create engines, retrieve credentials, start imports or own caches.
-The existing `SUMMARY_CACHE`, five-minute lifetime, forced refresh and prefix
-invalidation remain in main. The comparison modules receive the current clock
+The existing `SUMMARY_CACHE` remains owned by main; its five-minute lifetime,
+forced refresh and prefix invalidation are implemented by `services/runtime/cache.py`.
+The comparison modules receive the current clock
 value and import status explicitly; sun and parking retain independent cutoffs
 when last-successful timestamps exist. No comparison module starts an import.
 
@@ -201,17 +249,21 @@ Do not reset or clean away runtime data or unrelated work. Verify the new
 core endpoints through the authenticated adapters and compare collector
 container start times before/after rollout.
 
-## Remaining extraction
+## Final verification
 
-Most of main still needs modularization. Continue with one bounded domain at
-a time, not by blindly moving endpoint decorators:
+The complete local suite passes 568 tests. Two optional logger tests require
+the Roborock SDK absent from this local Python environment and remain skipped.
+No frontend build is required because no frontend source or CSS changed.
+Fifteen adapter tests and ten mobile contract tests also pass. The live check
+covers 124 readiness and menu-route requests across the thirteen applications.
 
-1. Forecasts, then settlement calculations, as separate domain extractions.
-2. Read-oriented domain endpoints using explicit sessions and cache ownership.
-3. Import orchestration, alarm evaluation and background workers, preserving
-   locks, schedules, transaction boundaries and lifecycle ownership.
-4. Remaining HTTP composition and obsolete compatibility imports.
+`test_extraction_integrity.py` verifies relocated function bodies and all ten
+module response branches against build 1832, including literals. It also checks
+the repaired lights-settings redirect. `test_runtime_composition.py` exercises
+initialization failure, worker/web roles, worker names, shutdown, authentication
+and shared resource identity. Main is tested to contain no business definitions.
 
-Each step needs domain behavior tests as well as unchanged contract snapshots.
-Shared state must have a single owner. Never create a second scheduler or
-database engine inside an extracted router to make imports work.
+Contract fixtures must not be refreshed merely to accept a refactor. A public
+behavior change needs a separately reviewed test and explanation. The current
+extraction intentionally preserves existing formulas and alarm policies, even
+where future improvements may be useful.

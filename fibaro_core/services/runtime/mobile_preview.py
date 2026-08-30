@@ -1,14 +1,10 @@
 """Mobile Preview services with explicit process dependencies."""
 
 from dataclasses import dataclass
-from fastapi import HTTPException
-from fastapi import Request
+from fastapi import HTTPException, Request
 from fastapi.responses import HTMLResponse
 from types import SimpleNamespace
-from typing import Any
-from typing import Any, Callable
-from typing import Dict
-from typing import List
+from typing import Any, Callable, Dict, List
 from urllib.parse import quote
 
 

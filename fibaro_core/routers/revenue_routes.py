@@ -1,48 +1,49 @@
 """Revenue HTTP routes; runtime services are supplied by composition."""
 
-from cleaning_robot_domain import cleaning_provider
-from cleaning_robot_domain import cleaning_robot_is_active
-from cleaning_robot_domain import cleaning_robot_operational_state
-from cleaning_robot_domain import cleaning_robot_sort_key
+from cleaning_robot_domain import (
+    cleaning_provider,
+    cleaning_robot_is_active,
+    cleaning_robot_operational_state,
+    cleaning_robot_sort_key,
+)
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
-from fastapi import APIRouter
-from fastapi import HTTPException
-from fastapi import Query
-from fastapi import Request
-from fastapi.responses import HTMLResponse
-from fastapi.responses import Response
-from fibaro_core.models import AlarmEvent
-from fibaro_core.models import EnergyFibaroSample
-from fibaro_core.models import EnergyHourlyConsumption
-from fibaro_core.models import ImportJobRun
-from fibaro_core.models import OutdoorLightEvent
-from fibaro_core.models import OutdoorLightSample
-from fibaro_core.models import ParkingSession
-from fibaro_core.models import RoborockCleanJob
-from fibaro_core.models import RoborockRobot
-from fibaro_core.models import RoborockSchedule
-from fibaro_core.models import RoborockStatusSample
-from fibaro_core.models import RoborockTelemetrySample
-from fibaro_core.models import SettlementImport
-from fibaro_core.models import Sun2TanningSession
-from fibaro_core.models import VentilationEvent
-from fibaro_core.models import VentilationSample
-from fibaro_core.models import YrForecastSample
+from datetime import date, datetime, time, timedelta
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, Response
+from fibaro_core.models import (
+    AlarmEvent,
+    EnergyFibaroSample,
+    EnergyHourlyConsumption,
+    ImportJobRun,
+    OutdoorLightEvent,
+    OutdoorLightSample,
+    ParkingSession,
+    RoborockCleanJob,
+    RoborockRobot,
+    RoborockSchedule,
+    RoborockStatusSample,
+    RoborockTelemetrySample,
+    SettlementImport,
+    Sun2TanningSession,
+    VentilationEvent,
+    VentilationSample,
+    YrForecastSample,
+)
 from fibaro_core.routers.bundle import RouterBundle
 from fibaro_core.services.comparisons.chart import build_status_comparison
-from fibaro_core.services.comparisons.overview import build_overview_cards
-from fibaro_core.services.comparisons.overview import load_overview_comparisons
-from fibaro_core.services.comparisons.overview import overview_comparison_plan
-from fibaro_core.services.comparisons.windows import cutoff_label
-from fibaro_core.services.comparisons.windows import parse_anchor_day
-from fibaro_core.services.comparisons.windows import period_cutoff
-from fibaro_core.services.comparisons.windows import shifted_period_cutoff
-from fibaro_core.services.comparisons.windows import source_as_of
+from fibaro_core.services.comparisons.overview import (
+    build_overview_cards,
+    load_overview_comparisons,
+    overview_comparison_plan,
+)
+from fibaro_core.services.comparisons.windows import (
+    cutoff_label,
+    parse_anchor_day,
+    period_cutoff,
+    shifted_period_cutoff,
+    source_as_of,
+)
 from fibaro_core.services.comparisons.years import build_revenue_year_comparison
 from fibaro_core.services.presentation import format_short_number
 from fibaro_core.services.settlements.parsing import PARKING_SETTLEMENT_PROVIDER
@@ -50,25 +51,18 @@ from fibaro_core.services.settlements.presentation import settlement_detail_payl
 from fibaro_core.services.summaries.parking import parking_datetime_snapshot
 from fibaro_core.services.summaries.periods import parse_anchor_year
 from fibaro_core.services.summaries.revenue import combine_business_summaries
-from fibaro_core.services.summaries.sun import sun2_datetime_snapshot
-from fibaro_core.services.summaries.sun import sun2_period_snapshot
-from import_jobs import IMPORT_JOB_DEFINITIONS
-from import_jobs import IMPORT_JOB_NUMBER_BY_NAME
-from roborock_domain import roborock_job_status
-from roborock_domain import roborock_next_schedule_score
-from roborock_domain import roborock_schedule_text
-from sqlalchemy import func
-from sqlalchemy import or_
-from sqlalchemy import select
-from time_formatting import api_local_iso
-from time_formatting import local_naive_to_utc_naive
-from time_formatting import local_now_naive
-from time_formatting import normalize_local_naive
-from time_formatting import utc_naive_to_local_naive
-from typing import Any
-from typing import Any, Callable
-from typing import Dict
-from typing import Optional
+from fibaro_core.services.summaries.sun import sun2_datetime_snapshot, sun2_period_snapshot
+from import_jobs import IMPORT_JOB_DEFINITIONS, IMPORT_JOB_NUMBER_BY_NAME
+from roborock_domain import roborock_job_status, roborock_next_schedule_score, roborock_schedule_text
+from sqlalchemy import func, or_, select
+from time_formatting import (
+    api_local_iso,
+    local_naive_to_utc_naive,
+    local_now_naive,
+    normalize_local_naive,
+    utc_naive_to_local_naive,
+)
+from typing import Any, Callable, Dict, Optional
 from urllib.parse import quote
 from value_parsing import float_or_zero
 import asyncio

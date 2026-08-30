@@ -1,10 +1,7 @@
 """Sun module response assembly, independent of HTTP registration."""
 
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
+from datetime import date, datetime, time, timedelta
 from fibaro_core.services.summaries.periods import add_months
 from typing import Any
 

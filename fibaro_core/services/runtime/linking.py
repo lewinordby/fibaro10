@@ -1,36 +1,24 @@
 """Linking services with explicit process dependencies."""
 
 from dataclasses import dataclass
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 from fastapi import Request
-from fibaro_core.models import ImportJobStatus
-from fibaro_core.models import ParkingSession
-from fibaro_core.models import ParkingSunLinkCandidate
-from fibaro_core.models import ParkingSunLinkJobState
-from fibaro_core.models import ParkingSunLinkMatch
-from fibaro_core.models import ParkingSunLinkProcessed
-from fibaro_core.models import ParkingVehicle
-from fibaro_core.models import Sun2TanningSession
-from sqlalchemy import Date
-from sqlalchemy import and_
-from sqlalchemy import cast
-from sqlalchemy import delete
-from sqlalchemy import func
-from sqlalchemy import select
-from sqlalchemy import tuple_
+from fibaro_core.models import (
+    ImportJobStatus,
+    ParkingSession,
+    ParkingSunLinkCandidate,
+    ParkingSunLinkJobState,
+    ParkingSunLinkMatch,
+    ParkingSunLinkProcessed,
+    ParkingVehicle,
+    Sun2TanningSession,
+)
+from sqlalchemy import Date, and_, cast, delete, func, select, tuple_
 from sun2_helpers import sun2_room_label
-from time_formatting import api_local_iso
-from time_formatting import local_now_naive
-from time_formatting import normalize_local_naive
-from typing import Any
-from typing import Any, Callable
-from typing import Dict
-from typing import Iterable
-from typing import Optional
+from time_formatting import api_local_iso, local_now_naive, normalize_local_naive
+from typing import Any, Callable, Dict, Iterable, Optional
 from urllib.parse import quote
-from value_parsing import float_or_zero
-from value_parsing import int_or_zero
+from value_parsing import float_or_zero, int_or_zero
 
 
 @dataclass

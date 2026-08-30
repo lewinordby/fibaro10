@@ -1,26 +1,16 @@
 """Energy module response assembly, independent of HTTP registration."""
 
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
-from energy_helpers import energy_circuit_is_sunbed
-from energy_helpers import filter_energy_circuits_by_sunbed
-from energy_helpers import normalize_energy_sunbed_filter
-from fibaro_core.models import EnergyCircuit
-from fibaro_core.models import EnergyFibaroSample
-from fibaro_core.models import EnergyImportRun
-from fibaro_core.models import EnergyLoad
-from fibaro_core.models import EnergyNode
-from fibaro_core.services.presentation import api_card
-from fibaro_core.services.presentation import api_chart
-from fibaro_core.services.presentation import api_table
-from fibaro_core.services.presentation import format_short_number
+from datetime import date, datetime, time, timedelta
+from energy_helpers import (
+    energy_circuit_is_sunbed,
+    filter_energy_circuits_by_sunbed,
+    normalize_energy_sunbed_filter,
+)
+from fibaro_core.models import EnergyCircuit, EnergyFibaroSample, EnergyImportRun, EnergyLoad, EnergyNode
+from fibaro_core.services.presentation import api_card, api_chart, api_table, format_short_number
 from fibaro_core.services.summaries.periods import add_months
-from sqlalchemy import func
-from sqlalchemy import or_
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from time_formatting import api_local_iso
 from typing import Any
 from v2_navigation import v2_module_title

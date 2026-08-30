@@ -1,48 +1,37 @@
 """Presentation services with explicit process dependencies."""
 
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
+from datetime import date, datetime, time, timedelta
 from fastapi import Request
-from fastapi.responses import RedirectResponse
-from fastapi.responses import StreamingResponse
-from fibaro_core.export_definitions import SUN2_IMPORT_COLUMNS
-from fibaro_core.export_definitions import SUN2_ROOM_COLUMNS
-from fibaro_core.models import EnergyHourlyConsumption
-from fibaro_core.models import Sun2Bed
-from fibaro_core.models import Sun2ImportRun
-from fibaro_core.models import Sun2Member
-from fibaro_core.models import Sun2RoomDailyStat
-from fibaro_core.models import Sun2SessionImportRun
-from fibaro_core.models import Sun2TanningSession
+from fastapi.responses import RedirectResponse, StreamingResponse
+from fibaro_core.export_definitions import SUN2_IMPORT_COLUMNS, SUN2_ROOM_COLUMNS
+from fibaro_core.models import (
+    EnergyHourlyConsumption,
+    Sun2Bed,
+    Sun2ImportRun,
+    Sun2Member,
+    Sun2RoomDailyStat,
+    Sun2SessionImportRun,
+    Sun2TanningSession,
+)
 from fibaro_core.services.forecasts.snapshots import saved_forecast_table
-from fibaro_core.services.presentation import api_card
-from fibaro_core.services.presentation import api_chart
-from fibaro_core.services.presentation import api_table
-from fibaro_core.services.presentation import api_table_meta
-from fibaro_core.services.presentation import format_short_number
+from fibaro_core.services.presentation import (
+    api_card,
+    api_chart,
+    api_table,
+    api_table_meta,
+    format_short_number,
+)
 from fibaro_core.services.settlements.presentation import sun_settlement_module_payload
 from fibaro_core.services.summaries.sun import sun2_period_snapshot
 from io import StringIO
-from sqlalchemy import func
-from sqlalchemy import or_
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sun2_helpers import sun2_room_label
-from time_formatting import LOCAL_TZ
-from time_formatting import api_local_iso
-from time_formatting import local_naive_to_utc_naive
-from time_formatting import parse_datetime
-from typing import Any
-from typing import Any, Callable
-from typing import Dict
-from typing import Iterable
-from typing import Optional
+from time_formatting import LOCAL_TZ, api_local_iso, local_naive_to_utc_naive, parse_datetime
+from typing import Any, Callable, Dict, Iterable, Optional
 from urllib.parse import urlencode
 from v2_navigation import v2_module_title
-from value_parsing import float_or_zero
-from value_parsing import int_or_zero
+from value_parsing import float_or_zero, int_or_zero
 import csv
 import math
 

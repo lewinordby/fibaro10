@@ -1,85 +1,79 @@
 """Cleaning HTTP routes; runtime services are supplied by composition."""
 
-from cleaning_robot_domain import cleaning_provider
-from cleaning_robot_domain import cleaning_provider_label
-from cleaning_robot_domain import cleaning_robot_external_id
-from cleaning_robot_domain import cleaning_robot_sort_key
+from cleaning_robot_domain import (
+    cleaning_provider,
+    cleaning_provider_label,
+    cleaning_robot_external_id,
+    cleaning_robot_sort_key,
+)
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
-from fastapi import APIRouter
-from fastapi import HTTPException
-from fastapi import Query
-from fastapi import Request
-from fastapi.responses import HTMLResponse
-from fastapi.responses import JSONResponse
-from fibaro_core.export_definitions import ROBOROCK_JOB_COLUMNS
-from fibaro_core.export_definitions import ROBOROCK_MAP_COLUMNS
-from fibaro_core.export_definitions import ROBOROCK_ROBOT_COLUMNS
-from fibaro_core.export_definitions import ROBOROCK_SCHEDULE_COLUMNS
-from fibaro_core.export_definitions import ROBOROCK_STATUS_COLUMNS
-from fibaro_core.export_definitions import ROBOROCK_TELEMETRY_COLUMNS
-from fibaro_core.export_definitions import ROBOROCK_TELEMETRY_DISPLAY_FIELDS
-from fibaro_core.export_definitions import ROBOROCK_TELEMETRY_EVENT_COLUMNS
-from fibaro_core.models import CleaningZone
-from fibaro_core.models import RoborockCleanJob
-from fibaro_core.models import RoborockCleaningProfile
-from fibaro_core.models import RoborockCleaningZoneMapping
-from fibaro_core.models import RoborockCommandRun
-from fibaro_core.models import RoborockConsumableSnapshot
-from fibaro_core.models import RoborockDoorAutomation
-from fibaro_core.models import RoborockMapSnapshot
-from fibaro_core.models import RoborockProbeResult
-from fibaro_core.models import RoborockRobot
-from fibaro_core.models import RoborockSchedule
-from fibaro_core.models import RoborockScheduleSnapshot
-from fibaro_core.models import RoborockStatusSample
-from fibaro_core.models import RoborockTelemetryEvent
-from fibaro_core.models import RoborockTelemetrySample
+from datetime import date, datetime, time, timedelta
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from fibaro_core.export_definitions import (
+    ROBOROCK_JOB_COLUMNS,
+    ROBOROCK_MAP_COLUMNS,
+    ROBOROCK_ROBOT_COLUMNS,
+    ROBOROCK_SCHEDULE_COLUMNS,
+    ROBOROCK_STATUS_COLUMNS,
+    ROBOROCK_TELEMETRY_COLUMNS,
+    ROBOROCK_TELEMETRY_DISPLAY_FIELDS,
+    ROBOROCK_TELEMETRY_EVENT_COLUMNS,
+)
+from fibaro_core.models import (
+    CleaningZone,
+    RoborockCleanJob,
+    RoborockCleaningProfile,
+    RoborockCleaningZoneMapping,
+    RoborockCommandRun,
+    RoborockConsumableSnapshot,
+    RoborockDoorAutomation,
+    RoborockMapSnapshot,
+    RoborockProbeResult,
+    RoborockRobot,
+    RoborockSchedule,
+    RoborockScheduleSnapshot,
+    RoborockStatusSample,
+    RoborockTelemetryEvent,
+    RoborockTelemetrySample,
+)
 from fibaro_core.routers.bundle import RouterBundle
-from fibaro_core.schemas import RoborockCleaningProfileIn
-from fibaro_core.schemas import RoborockControlIn
-from fibaro_core.schemas import RoborockDoorAutomationIn
-from roborock_domain import cleaning_water_mode_label
-from roborock_domain import format_seconds_as_hours
-from roborock_domain import roborock_bool_label
-from roborock_domain import roborock_charge_label
-from roborock_domain import roborock_dock_error_label
-from roborock_domain import roborock_dock_type_label
-from roborock_domain import roborock_error_label
-from roborock_domain import roborock_fan_label
-from roborock_domain import roborock_job_status
-from roborock_domain import roborock_mop_label
-from roborock_domain import roborock_next_schedule_score
-from roborock_domain import roborock_next_schedule_text
-from roborock_domain import roborock_rounds_label
-from roborock_domain import roborock_schedule_text
-from roborock_domain import roborock_signal_label
-from roborock_domain import roborock_state_label
-from roborock_domain import roborock_telemetry_value_label
+from fibaro_core.schemas import RoborockCleaningProfileIn, RoborockControlIn, RoborockDoorAutomationIn
+from roborock_domain import (
+    cleaning_water_mode_label,
+    format_seconds_as_hours,
+    roborock_bool_label,
+    roborock_charge_label,
+    roborock_dock_error_label,
+    roborock_dock_type_label,
+    roborock_error_label,
+    roborock_fan_label,
+    roborock_job_status,
+    roborock_mop_label,
+    roborock_next_schedule_score,
+    roborock_next_schedule_text,
+    roborock_rounds_label,
+    roborock_schedule_text,
+    roborock_signal_label,
+    roborock_state_label,
+    roborock_telemetry_value_label,
+)
 from roborock_door_automation import unique_ints
 from roborock_profiles import cleaning_profile_options
-from roborock_refills import build_refill_log
-from roborock_refills import iso_week_start as refill_iso_week_start
-from roborock_reports import build_night_report
-from roborock_reports import report_window
+from roborock_refills import build_refill_log, iso_week_start as refill_iso_week_start
+from roborock_reports import build_night_report, report_window
 from roborock_water import build_water_report
 from roborock_weekly import build_weekly_job_log
 from roborock_zones import RoborockZoneScheduleError
-from sqlalchemy import func
-from sqlalchemy import or_
-from sqlalchemy import select
-from time_formatting import LOCAL_TZ
-from time_formatting import api_local_iso
-from time_formatting import local_naive_to_utc_naive
-from time_formatting import local_now_naive
-from time_formatting import utc_naive_to_local_naive
-from typing import Any
-from typing import Any, Callable
-from typing import Dict
-from typing import Optional
+from sqlalchemy import func, or_, select
+from time_formatting import (
+    LOCAL_TZ,
+    api_local_iso,
+    local_naive_to_utc_naive,
+    local_now_naive,
+    utc_naive_to_local_naive,
+)
+from typing import Any, Callable, Dict, Optional
 from value_parsing import int_value
 import asyncio
 import json

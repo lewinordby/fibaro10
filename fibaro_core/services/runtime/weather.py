@@ -1,20 +1,14 @@
 """Weather services with explicit process dependencies."""
 
 from dataclasses import dataclass
-from datetime import datetime
-from datetime import timedelta
-from datetime import timezone
+from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from fibaro_core.models import YrForecastSample
 from fibaro_core.schemas import EventDataIn
 from sqlalchemy import select
 from time import perf_counter
-from time_formatting import local_now_naive
-from time_formatting import sample_bucket
-from typing import Any
-from typing import Any, Callable
-from typing import Dict
-from typing import Optional
+from time_formatting import local_now_naive, sample_bucket
+from typing import Any, Callable, Dict, Optional
 from zoneinfo import ZoneInfo
 import asyncio
 import json

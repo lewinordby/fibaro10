@@ -1,21 +1,14 @@
 """Revenue module response assembly, independent of HTTP registration."""
 
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
-from fibaro_core.services.presentation import api_card
-from fibaro_core.services.presentation import api_table
-from fibaro_core.services.presentation import format_short_number
+from datetime import date, datetime, time, timedelta
+from fibaro_core.services.presentation import api_card, api_table, format_short_number
 from fibaro_core.services.summaries.periods import add_months
 from fibaro_core.services.summaries.revenue import combine_business_summaries
 from fibaro_core.services.summaries.sun import sun2_period_snapshot
-from typing import Any
-from typing import Dict
+from typing import Any, Dict
 from v2_navigation import v2_module_title
-from value_parsing import float_or_zero
-from value_parsing import int_or_zero
+from value_parsing import float_or_zero, int_or_zero
 import math
 
 

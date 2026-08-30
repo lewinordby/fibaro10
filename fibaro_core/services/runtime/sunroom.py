@@ -1,38 +1,31 @@
 """Sunroom services with explicit process dependencies."""
 
-from bisect import bisect_left
-from bisect import bisect_right
+from bisect import bisect_left, bisect_right
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
+from datetime import date, datetime, time, timedelta
 from fastapi import HTTPException
-from fibaro_core.models import AlarmEvent
-from fibaro_core.models import DoorEvent
-from fibaro_core.models import EnergyFibaroSample
-from fibaro_core.models import Sun2SessionImportRun
-from fibaro_core.models import Sun2TanningSession
+from fibaro_core.models import (
+    AlarmEvent,
+    DoorEvent,
+    EnergyFibaroSample,
+    Sun2SessionImportRun,
+    Sun2TanningSession,
+)
 from fibaro_core.schemas import DoorEventIn
-from sqlalchemy import and_
-from sqlalchemy import or_
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from statistics import median
-from sun2_helpers import SUN2_ROOM_MAP_BY_DISPLAY
-from sun2_helpers import normalize_room_id
-from sun2_helpers import sun2_room_label
-from time_formatting import api_local_iso
-from time_formatting import format_source_datetime
-from time_formatting import format_source_time
-from time_formatting import local_naive_to_utc_naive
-from time_formatting import local_now_naive
-from time_formatting import normalize_local_naive
-from time_formatting import parse_datetime
-from time_formatting import utc_naive_to_local_naive
-from typing import Any
-from typing import Any, Callable
-from typing import Dict
-from typing import Optional
+from sun2_helpers import SUN2_ROOM_MAP_BY_DISPLAY, normalize_room_id, sun2_room_label
+from time_formatting import (
+    api_local_iso,
+    format_source_datetime,
+    format_source_time,
+    local_naive_to_utc_naive,
+    local_now_naive,
+    normalize_local_naive,
+    parse_datetime,
+    utc_naive_to_local_naive,
+)
+from typing import Any, Callable, Dict, Optional
 from urllib.parse import urlencode
 from value_parsing import float_value
 import asyncio

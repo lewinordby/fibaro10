@@ -2,10 +2,8 @@
 
 from dataclasses import dataclass
 from fastapi import HTTPException
-from typing import Any
 from typing import Any, Callable
-from unifi_protect_client import ProtectLedgerClient
-from unifi_protect_client import ProtectLedgerError
+from unifi_protect_client import ProtectLedgerClient, ProtectLedgerError
 import asyncio
 
 

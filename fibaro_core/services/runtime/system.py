@@ -1,81 +1,63 @@
 """System services with explicit process dependencies."""
 
-from api_types import ModuleCardPayload
-from api_types import ModuleTablePayload
+from api_types import ModuleCardPayload, ModuleTablePayload
 from build_log import APP_BUILD
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
-from datetime import timezone
+from datetime import date, datetime, time, timedelta, timezone
 from energy_helpers import parse_elvia_json_payload
 from fastapi import Request
-from fibaro_core.models import AccessKey
-from fibaro_core.models import AccessLog
-from fibaro_core.models import AlarmEvent
-from fibaro_core.models import AuthSession
-from fibaro_core.models import DoorEvent
-from fibaro_core.models import EnergyFibaroSample
-from fibaro_core.models import EnergyImportRun
-from fibaro_core.models import ImportJobRun
-from fibaro_core.models import ImportJobStatus
-from fibaro_core.models import NotificationOutbox
-from fibaro_core.models import OperationalIncidentReview
-from fibaro_core.models import OutdoorLightSample
-from fibaro_core.models import ParkingSession
-from fibaro_core.models import ParkingVehicle
-from fibaro_core.models import RoborockSyncRun
-from fibaro_core.models import Sun2Bed
-from fibaro_core.models import Sun2FinanceSettlement
-from fibaro_core.models import Sun2ImportRun
-from fibaro_core.models import Sun2Member
-from fibaro_core.models import Sun2ProductSale
-from fibaro_core.models import Sun2SessionImportRun
-from fibaro_core.models import Sun2TanningSession
-from fibaro_core.models import Sun2TanningSessionImage
-from fibaro_core.models import VentilationSample
-from fibaro_core.models import YrForecastSample
-from fibaro_core.services.presentation import api_card
-from fibaro_core.services.presentation import api_chart
-from fibaro_core.services.presentation import api_table
-from fibaro_core.services.presentation import format_short_number
+from fibaro_core.models import (
+    AccessKey,
+    AccessLog,
+    AlarmEvent,
+    AuthSession,
+    DoorEvent,
+    EnergyFibaroSample,
+    EnergyImportRun,
+    ImportJobRun,
+    ImportJobStatus,
+    NotificationOutbox,
+    OperationalIncidentReview,
+    OutdoorLightSample,
+    ParkingSession,
+    ParkingVehicle,
+    RoborockSyncRun,
+    Sun2Bed,
+    Sun2FinanceSettlement,
+    Sun2ImportRun,
+    Sun2Member,
+    Sun2ProductSale,
+    Sun2SessionImportRun,
+    Sun2TanningSession,
+    Sun2TanningSessionImage,
+    VentilationSample,
+    YrForecastSample,
+)
+from fibaro_core.services.presentation import api_card, api_chart, api_table, format_short_number
 from fibaro_core.services.settlements.reconciliation import revenue_settlement_reconciliation_rows
-from import_jobs import IMPORT_JOB_DEFINITIONS
-from import_jobs import IMPORT_JOB_NUMBER_BY_NAME
-from incident_domain import apply_incident_reviews
-from incident_domain import backup_control
-from incident_domain import incident_summary
-from incident_domain import operational_incident
-from incident_domain import parse_status_text
+from import_jobs import IMPORT_JOB_DEFINITIONS, IMPORT_JOB_NUMBER_BY_NAME
+from incident_domain import (
+    apply_incident_reviews,
+    backup_control,
+    incident_summary,
+    operational_incident,
+    parse_status_text,
+)
 from operational_retention import execute_retention_statements
 from parking_vehicle_helpers import CAR_INFO_IMPORT_JOB_BY_COUNTRY
 from pathlib import Path
-from reconciliation_domain import evaluate_reconciliation
-from reconciliation_domain import reconciliation_group
-from reconciliation_domain import reconciliation_summary
-from reconciliation_domain import state_reconciliation
-from sqlalchemy import Date
-from sqlalchemy import and_
-from sqlalchemy import cast
-from sqlalchemy import delete
-from sqlalchemy import func
-from sqlalchemy import or_
-from sqlalchemy import select
-from system_inventory import system_component_summary
-from system_inventory import system_web_interface_rows
-from time_formatting import api_local_iso
-from time_formatting import local_now_naive
-from time_formatting import normalize_local_naive
-from time_formatting import utc_naive_to_local_naive
-from typing import Any
-from typing import Any, Callable
-from typing import Dict
-from typing import Mapping
-from typing import Optional
+from reconciliation_domain import (
+    evaluate_reconciliation,
+    reconciliation_group,
+    reconciliation_summary,
+    state_reconciliation,
+)
+from sqlalchemy import Date, and_, cast, delete, func, or_, select
+from system_inventory import system_component_summary, system_web_interface_rows
+from time_formatting import api_local_iso, local_now_naive, normalize_local_naive, utc_naive_to_local_naive
+from typing import Any, Callable, Dict, Mapping, Optional
 from urllib.parse import quote
-from value_parsing import float_or_zero
-from value_parsing import int_or_zero
+from value_parsing import float_or_zero, int_or_zero
 import asyncio
 import json
 import math

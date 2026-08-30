@@ -1,10 +1,10 @@
 """Module dispatch only; each domain owns its response builder."""
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
-
 from fastapi import APIRouter, HTTPException, Request
 from fibaro_core.routers.bundle import RouterBundle
 from time_formatting import local_now_naive
+
 
 
 @dataclass

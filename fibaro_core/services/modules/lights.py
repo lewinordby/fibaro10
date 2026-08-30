@@ -1,17 +1,9 @@
 """Lights module response assembly, independent of HTTP registration."""
 
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
-from fibaro_core.models import ControlConfigHistory
-from fibaro_core.models import OutdoorLightEvent
-from fibaro_core.models import OutdoorLightSample
-from fibaro_core.services.presentation import api_card
-from fibaro_core.services.presentation import api_chart
-from fibaro_core.services.presentation import api_table
-from fibaro_core.services.presentation import format_short_number
+from datetime import date, datetime, time, timedelta
+from fibaro_core.models import ControlConfigHistory, OutdoorLightEvent, OutdoorLightSample
+from fibaro_core.services.presentation import api_card, api_chart, api_table, format_short_number
 from fibaro_core.services.summaries.periods import add_months
 from sqlalchemy import select
 from time_formatting import api_local_iso

@@ -1,22 +1,23 @@
 """Linking HTTP routes; runtime services are supplied by composition."""
 
 from dataclasses import dataclass
-from fastapi import APIRouter
-from fastapi import HTTPException
-from fastapi import Request
-from fibaro_core.models import ParkingSunLinkCandidate
-from fibaro_core.models import ParkingSunLinkMatch
-from fibaro_core.models import ParkingSunLinkProcessed
-from fibaro_core.models import ParkingVehicle
+from fastapi import APIRouter, HTTPException, Request
+from fibaro_core.models import (
+    ParkingSunLinkCandidate,
+    ParkingSunLinkMatch,
+    ParkingSunLinkProcessed,
+    ParkingVehicle,
+)
 from fibaro_core.routers.bundle import RouterBundle
-from fibaro_core.schemas import ParkingSunLinkCandidateUpdate
-from fibaro_core.schemas import ParkingSunLinkSettingsUpdate
-from fibaro_core.schemas import ParkingSunLinkWorkerResultsIn
-from fibaro_core.schemas import ParkingSunLinkWorkerStatusIn
+from fibaro_core.schemas import (
+    ParkingSunLinkCandidateUpdate,
+    ParkingSunLinkSettingsUpdate,
+    ParkingSunLinkWorkerResultsIn,
+    ParkingSunLinkWorkerStatusIn,
+)
 from parking_vehicle_helpers import normalize_plate
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from time_formatting import local_now_naive
-from time_formatting import normalize_local_naive
+from time_formatting import local_now_naive, normalize_local_naive
 from typing import Any, Callable
 from value_parsing import int_or_zero
 

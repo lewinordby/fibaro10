@@ -1,41 +1,29 @@
 """System HTTP routes; runtime services are supplied by composition."""
 
-from api_contracts import admin_build_payload
-from api_contracts import admin_builds_payload
-from build_log import APP_BUILD
-from build_log import APP_VERSION
+from api_contracts import admin_build_payload, admin_builds_payload
+from build_log import APP_BUILD, APP_VERSION
 from dataclasses import dataclass
 from datetime import datetime
-from fastapi import APIRouter
-from fastapi import HTTPException
-from fastapi import Query
-from fastapi import Request
-from fastapi.responses import FileResponse
-from fastapi.responses import HTMLResponse
-from fastapi.responses import JSONResponse
-from fibaro_core.export_definitions import AI_QUERY_COLUMNS
-from fibaro_core.export_definitions import GENERIC_COLUMNS
-from fibaro_core.models import AiQueryLog
-from fibaro_core.models import AssetRegistryItem
-from fibaro_core.models import ControlConfig
-from fibaro_core.models import ControlConfigHistory
-from fibaro_core.models import GenericEvent
-from fibaro_core.models import MaintenanceLogEntry
-from fibaro_core.models import OperationalIncidentReview
-from fibaro_core.models import ParkingVehicle
-from fibaro_core.models import Sun2TanningSession
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fibaro_core.export_definitions import AI_QUERY_COLUMNS, GENERIC_COLUMNS
+from fibaro_core.models import (
+    AiQueryLog,
+    AssetRegistryItem,
+    ControlConfig,
+    ControlConfigHistory,
+    GenericEvent,
+    MaintenanceLogEntry,
+    OperationalIncidentReview,
+    ParkingVehicle,
+    Sun2TanningSession,
+)
 from fibaro_core.routers.bundle import RouterBundle
 from observability import health_payload
-from sqlalchemy import or_
-from sqlalchemy import select
-from sqlalchemy import text as sql_text
-from system_inventory import system_component_summary
-from system_inventory import system_subsystem_rows
-from time_formatting import api_local_iso
-from time_formatting import local_now_naive
-from typing import Any
-from typing import Any, Callable
-from typing import Dict
+from sqlalchemy import or_, select, text as sql_text
+from system_inventory import system_component_summary, system_subsystem_rows
+from time_formatting import api_local_iso, local_now_naive
+from typing import Any, Callable, Dict
 from urllib.parse import quote
 import json
 

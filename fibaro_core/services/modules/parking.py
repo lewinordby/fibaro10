@@ -1,32 +1,22 @@
 """Parking module response assembly, independent of HTTP registration."""
 
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
-from fibaro_core.models import ImportJobStatus
-from fibaro_core.models import ParkingSession
-from fibaro_core.models import ParkingVehicle
-from fibaro_core.models import ParkingVehicleDetails
-from fibaro_core.services.forecasts.snapshots import forecast_snapshot_history
-from fibaro_core.services.forecasts.snapshots import saved_forecast_table
-from fibaro_core.services.presentation import api_card
-from fibaro_core.services.presentation import api_chart
-from fibaro_core.services.presentation import api_table
-from fibaro_core.services.presentation import api_table_meta
-from fibaro_core.services.presentation import format_short_number
+from datetime import date, datetime, time, timedelta
+from fibaro_core.models import ImportJobStatus, ParkingSession, ParkingVehicle, ParkingVehicleDetails
+from fibaro_core.services.forecasts.snapshots import forecast_snapshot_history, saved_forecast_table
+from fibaro_core.services.presentation import (
+    api_card,
+    api_chart,
+    api_table,
+    api_table_meta,
+    format_short_number,
+)
 from fibaro_core.services.settlements.presentation import parking_settlement_module_payload
 from fibaro_core.services.summaries.parking import parking_datetime_snapshots
 from fibaro_core.services.summaries.periods import add_months
 from parking_vehicle_helpers import compact_plate
-from sqlalchemy import and_
-from sqlalchemy import case
-from sqlalchemy import func
-from sqlalchemy import or_
-from sqlalchemy import select
-from time_formatting import LOCAL_TZ
-from time_formatting import format_source_datetime
+from sqlalchemy import and_, case, func, or_, select
+from time_formatting import LOCAL_TZ, format_source_datetime
 from types import SimpleNamespace
 from typing import Any
 from urllib.parse import quote

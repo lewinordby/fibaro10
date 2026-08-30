@@ -3,34 +3,35 @@
 from cleaning_robot_domain import cleaning_provider
 from dataclasses import dataclass
 from datetime import datetime
-from fastapi import APIRouter
-from fastapi import HTTPException
-from fibaro_core.models import GenericEvent
-from fibaro_core.models import Hc3MeterReading
-from fibaro_core.models import ImportJobRun
-from fibaro_core.models import RoborockSyncRun
-from fibaro_core.models import Sun2ImportRun
-from fibaro_core.models import Sun2SessionImportRun
+from fastapi import APIRouter, HTTPException
+from fibaro_core.models import (
+    GenericEvent,
+    Hc3MeterReading,
+    ImportJobRun,
+    RoborockSyncRun,
+    Sun2ImportRun,
+    Sun2SessionImportRun,
+)
 from fibaro_core.routers.bundle import RouterBundle
-from fibaro_core.schemas import DoorEventIn
-from fibaro_core.schemas import EnergyFibaroIn
-from fibaro_core.schemas import EventDataIn
-from fibaro_core.schemas import Hc3MeterReadingIn
-from fibaro_core.schemas import ImportStatusReportIn
-from fibaro_core.schemas import LegacyLogIn
-from fibaro_core.schemas import RoborockIngestIn
-from fibaro_core.schemas import RoborockTelemetryIn
-from fibaro_core.schemas import Sun2BedsIngestIn
-from fibaro_core.schemas import Sun2FinanceSettlementsIngestIn
-from fibaro_core.schemas import Sun2MembersIngestIn
-from fibaro_core.schemas import Sun2ProductSalesIngestIn
-from fibaro_core.schemas import Sun2RoomStatsIngestIn
-from fibaro_core.schemas import Sun2TanningSessionsIngestIn
+from fibaro_core.schemas import (
+    DoorEventIn,
+    EnergyFibaroIn,
+    EventDataIn,
+    Hc3MeterReadingIn,
+    ImportStatusReportIn,
+    LegacyLogIn,
+    RoborockIngestIn,
+    RoborockTelemetryIn,
+    Sun2BedsIngestIn,
+    Sun2FinanceSettlementsIngestIn,
+    Sun2MembersIngestIn,
+    Sun2ProductSalesIngestIn,
+    Sun2RoomStatsIngestIn,
+    Sun2TanningSessionsIngestIn,
+)
 from fibaro_core.services.presentation import format_short_number
 from sqlalchemy import select
-from time_formatting import api_local_iso
-from time_formatting import local_now_naive
-from time_formatting import normalize_local_naive
+from time_formatting import api_local_iso, local_now_naive, normalize_local_naive
 from typing import Any, Callable
 
 

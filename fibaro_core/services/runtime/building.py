@@ -2,38 +2,35 @@
 
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
-from datetime import timedelta
-from datetime import timezone
-from fibaro_core.models import AlarmEvent
-from fibaro_core.models import ControlConfig
-from fibaro_core.models import ControlConfigHistory
-from fibaro_core.models import GenericEvent
-from fibaro_core.models import OutdoorLightEvent
-from fibaro_core.models import OutdoorLightSample
-from fibaro_core.models import ParkingSession
-from fibaro_core.models import Sun2TanningSession
-from fibaro_core.models import VentilationEvent
-from fibaro_core.models import VentilationSample
-from fibaro_core.models import YrForecastSample
+from datetime import date, datetime, timedelta, timezone
+from fibaro_core.models import (
+    AlarmEvent,
+    ControlConfig,
+    ControlConfigHistory,
+    GenericEvent,
+    OutdoorLightEvent,
+    OutdoorLightSample,
+    ParkingSession,
+    Sun2TanningSession,
+    VentilationEvent,
+    VentilationSample,
+    YrForecastSample,
+)
 from fibaro_core.schemas import EventDataIn
 from fibaro_core.services.comparisons.windows import status_timeline_position
 from solar_position import solar_elevation_degrees
 from sqlalchemy import select
 from sun2_helpers import sun2_room_label
 from time import monotonic
-from time_formatting import LOCAL_TZ
-from time_formatting import api_local_iso
-from time_formatting import format_source_datetime
-from time_formatting import format_source_datetime_short
-from time_formatting import local_now_naive
-from time_formatting import sample_bucket
-from typing import Any
-from typing import Any, Callable
-from typing import Dict
-from typing import Iterable
-from typing import Optional
+from time_formatting import (
+    LOCAL_TZ,
+    api_local_iso,
+    format_source_datetime,
+    format_source_datetime_short,
+    local_now_naive,
+    sample_bucket,
+)
+from typing import Any, Callable, Dict, Iterable, Optional
 from urllib.parse import quote_plus
 from value_parsing import float_or_zero
 import asyncio

@@ -11,6 +11,24 @@ DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exi
 APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
+        "version": "1", "build": "1836", "date": "30.08.2026",
+        "headline": "Oppsplittingen av main.py er fullført",
+        "title": "Egen livssyklus, tilgangskontroll og konfigurasjon med full kontraktskontroll",
+        "description": "main.py kobler nå bare sammen kjernens moduler og ressurser. Oppstart, nedstenging, middleware, miljøinnstillinger og faste definisjoner har egne moduler. Alle etappene rulles ut samlet uten å restarte datainnsamlere eller frontend.",
+        "applications": ["Fibaro10 kjerne/API og kjernearbeider", "Alle klienters eksisterende API-kontrakter beholdes"],
+        "request": "gjennomfør alle etapper",
+        "work_duration": "Del av sammenhengende modulariseringsarbeid; separat tid ikke målt",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "main.py redusert til 3 249 linjer med sammensetting og offentlige aliaser, uten egne forretningsfunksjoner.",
+            "Skilt miljøinnstillinger, statiske kataloger, middleware og oppstart/nedstenging i egne moduler.",
+            "Ryddet doble importer og overflødig mellomrom etter flyttingen.",
+            "Verifisert arbeidernavn, rollegrenser, oppstartsfeil, delte ressurser og sesjonskontroll.",
+            "Testet uendrede modeller, API-er, beregninger og flyttede funksjonskropper mot tidligere versjoner.",
+            "Oppdatert modulmanual, README og lokal kontrollrutine.",
+        ],
+    },
+    {
         "version": "1", "build": "1835", "date": "30.08.2026",
         "headline": "Domenetjenester og bakgrunnsjobber er skilt ut",
         "title": "Eksplisitte avhengigheter og ett eierskap til prosessressurser",

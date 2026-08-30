@@ -1,0 +1,343 @@
+"""Environment settings. The application loads dotenv before importing this module."""
+
+from datetime import timedelta
+from operational_retention import OperationalRetentionPolicy
+from pathlib import Path
+import hashlib
+import os
+
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+APP_COMMIT = os.getenv("APP_COMMIT") or os.getenv("GIT_COMMIT") or "unknown"
+
+SUN2_SESSIONS_QUIET_START_HOUR = 0
+
+SUN2_SESSIONS_QUIET_END_HOUR = 7
+
+MASTER_ACCESS_KEY_HASH = os.getenv(
+    "MASTER_ACCESS_KEY_HASH",
+    "752ede847bd180ef3d2700d117d297ced1b25664b946a3639fb7a3b2be93d5d1",
+)
+
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+
+AUTH_USER_COOKIE_NAME = "fibaro10_access_username"
+
+AUTH_COOKIE_NAME = "fibaro10_access_password"
+
+AUTH_SESSION_HEADER_NAME = "x-session-token"
+
+AUTH_SESSION_MAX_AGE_SECONDS = max(3600, int(os.getenv("AUTH_SESSION_MAX_AGE_SECONDS", str(60 * 60 * 24 * 30))))
+
+ACCESS_FAILED_DISABLE_THRESHOLD = max(1, int(os.getenv("ACCESS_FAILED_DISABLE_THRESHOLD", "3")))
+
+PUBLIC_PREFIXES = ("/static/", "/assets/")
+
+PUBLIC_PATHS = {
+    "/health",
+    "/favicon.ico",
+    "/auth/login",
+    "/manifest.webmanifest",
+    "/pwa-icon-192.png",
+    "/pwa-icon-512.png",
+    "/pwa-icon-maskable-512.png",
+    "/apple-touch-icon.png",
+}
+
+def env_float(name: str, default: str) -> float:
+    try:
+        return float(os.getenv(name, default))
+    except (TypeError, ValueError):
+        return float(default)
+
+MET_LAT = env_float("MET_LAT", "61.1153")
+
+MET_LON = env_float("MET_LON", "10.4662")
+
+MET_USER_AGENT = os.getenv("MET_USER_AGENT", "fibaro10/1.0 http://192.168.20.218:8110")
+
+SUMMARY_CACHE_TTL = timedelta(minutes=5)
+
+SUNBED_POWER_ANALYSIS_CACHE_TTL = timedelta(
+    minutes=max(3, int(os.getenv("SUNBED_POWER_ANALYSIS_CACHE_MINUTES", "10")))
+)
+
+SUNBED_POWER_CACHE_WARM_ENABLED = os.getenv("SUNBED_POWER_CACHE_WARM_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
+
+CARS_DAY_CACHE_TTL = timedelta(seconds=max(15, int(os.getenv("CARS_DAY_CACHE_SECONDS", "60"))))
+
+CARS_HISTORY_CACHE_TTL = timedelta(minutes=max(5, int(os.getenv("CARS_HISTORY_CACHE_MINUTES", "30"))))
+
+FIBARO10_PROCESS_ROLE = os.getenv("FIBARO10_PROCESS_ROLE", "combined").strip().lower() or "combined"
+
+FIBARO10_BACKGROUND_TASKS_ENABLED = os.getenv("FIBARO10_BACKGROUND_TASKS_ENABLED", "true").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "ja",
+}
+
+NTFY_BASE_URL = os.getenv("NTFY_BASE_URL", "https://ntfy.sh").rstrip("/")
+
+NTFY_LIGHTS_TOPIC = os.getenv("NTFY_LIGHTS_TOPIC", f"sun2-lys-{MASTER_ACCESS_KEY_HASH[:12]}")
+
+NTFY_VENTILATION_TOPIC = os.getenv("NTFY_VENTILATION_TOPIC", f"sun2-ventilasjon-{MASTER_ACCESS_KEY_HASH[:12]}")
+
+NTFY_ACCESS_TOPIC = os.getenv("NTFY_ACCESS_TOPIC", f"sun2-tilgang-{MASTER_ACCESS_KEY_HASH[:12]}")
+
+NTFY_DOORS_TOPIC = os.getenv("NTFY_DOORS_TOPIC", f"sun2-dorer-{MASTER_ACCESS_KEY_HASH[:12]}")
+
+NTFY_BOLLARDS_TOPIC = os.getenv("PROTECT_BOLLARD_NTFY_TOPIC", "").strip()
+
+ALARM_APP_URL = os.getenv("ALARM_APP_URL", "https://alarm.lilletorget.net").rstrip("/")
+
+if not NTFY_BOLLARDS_TOPIC and MASTER_ACCESS_KEY_HASH:
+    NTFY_BOLLARDS_TOPIC = (
+        "protect-pullerter-"
+        + hashlib.sha256(f"protect-bollards:{MASTER_ACCESS_KEY_HASH}".encode()).hexdigest()[:24]
+    )
+
+SVV_API_KEY = os.getenv("SVV_API_KEY", "").strip()
+
+SVV_API_URL = os.getenv(
+    "SVV_API_URL",
+    "https://www.vegvesen.no/ws/no/vegvesen/kjoretoy/felles/datautlevering/enkeltoppslag/kjoretoydata",
+).strip()
+
+SVV_API_AUTH_HEADER = os.getenv("SVV_API_AUTH_HEADER", "SVV-Authorization").strip()
+
+SVV_API_AUTH_PREFIX = os.getenv("SVV_API_AUTH_PREFIX", "Apikey").strip()
+
+SVV_SYNC_ENABLED = os.getenv("SVV_SYNC_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
+
+SVV_SYNC_INTERVAL_MINUTES = max(1, int(os.getenv("SVV_SYNC_INTERVAL_MINUTES", "10")))
+
+SVV_SYNC_BATCH_SIZE = max(1, int(os.getenv("SVV_SYNC_BATCH_SIZE", "50")))
+
+SVV_IMPORT_SYNC_BATCH_SIZE = max(0, int(os.getenv("SVV_IMPORT_SYNC_BATCH_SIZE", "5")))
+
+SVV_RETRY_AFTER_HOURS = max(1, int(os.getenv("SVV_RETRY_AFTER_HOURS", "24")))
+
+SVV_TRANSIENT_RETRY_AFTER_MINUTES = max(5, int(os.getenv("SVV_TRANSIENT_RETRY_AFTER_MINUTES", "30")))
+
+SVV_PERMANENT_NO_DATA_STATUSES = {204, 400, 404}
+
+SVV_TRANSIENT_STATUSES = {429, 500, 502, 503, 504}
+
+CAR_INFO_LOOKUP_URL = os.getenv("CAR_INFO_LOOKUP_URL", "http://127.0.0.1:8126").rstrip("/")
+
+CAR_INFO_APP_TOKEN = os.getenv("CAR_INFO_APP_TOKEN", "").strip()
+
+KOBLE_WORKER_TOKEN = (os.getenv("KOBLE_WORKER_TOKEN") or CAR_INFO_APP_TOKEN).strip()
+
+CAR_INFO_LOOKUP_TIMEOUT_SECONDS = max(5, int(os.getenv("CAR_INFO_LOOKUP_TIMEOUT_SECONDS", "30")))
+
+CAR_INFO_CANDIDATE_RETRY_HOURS = max(24, int(os.getenv("CAR_INFO_CANDIDATE_RETRY_HOURS", "720")))
+
+CAR_INFO_CANDIDATE_TRANSIENT_RETRY_MINUTES = max(30, int(os.getenv("CAR_INFO_CANDIDATE_TRANSIENT_RETRY_MINUTES", "240")))
+
+CAR_INFO_AUTO_TRIGGER_ENABLED = os.getenv("CAR_INFO_AUTO_TRIGGER_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
+
+CAR_INFO_AUTO_TRIGGER_MAX_PER_SVV_RUN = max(0, min(5, int(os.getenv("CAR_INFO_AUTO_TRIGGER_MAX_PER_SVV_RUN", "1"))))
+
+MOBILE_PREVIEW_REFRESH_SECONDS = max(15, int(os.getenv("MOBILE_PREVIEW_REFRESH_SECONDS", "60")))
+
+NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
+
+NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
+
+NTFY_OUTBOX_POLL_SECONDS = max(0.25, env_float("NTFY_OUTBOX_POLL_SECONDS", "1"))
+
+NTFY_OUTBOX_RETRY_BASE_SECONDS = max(1, int(os.getenv("NTFY_OUTBOX_RETRY_BASE_SECONDS", "5")))
+
+NTFY_OUTBOX_RETRY_MAX_SECONDS = max(
+    NTFY_OUTBOX_RETRY_BASE_SECONDS,
+    int(os.getenv("NTFY_OUTBOX_RETRY_MAX_SECONDS", "900")),
+)
+
+NTFY_OUTBOX_STALE_LOCK_SECONDS = max(30, int(os.getenv("NTFY_OUTBOX_STALE_LOCK_SECONDS", "300")))
+
+OPERATIONAL_RETENTION_ENABLED = os.getenv("OPERATIONAL_RETENTION_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
+
+OPERATIONAL_RETENTION_INTERVAL_HOURS = max(1, int(os.getenv("OPERATIONAL_RETENTION_INTERVAL_HOURS", "24")))
+
+OPERATIONAL_RETENTION_INITIAL_DELAY_SECONDS = max(5, int(os.getenv("OPERATIONAL_RETENTION_INITIAL_DELAY_SECONDS", "60")))
+
+ACCESS_LOG_SUCCESS_RETENTION_DAYS = max(7, int(os.getenv("ACCESS_LOG_SUCCESS_RETENTION_DAYS", "90")))
+
+ACCESS_LOG_FAILURE_RETENTION_DAYS = max(30, int(os.getenv("ACCESS_LOG_FAILURE_RETENTION_DAYS", "365")))
+
+IMPORT_JOB_SUCCESS_RETENTION_DAYS = max(7, int(os.getenv("IMPORT_JOB_SUCCESS_RETENTION_DAYS", "90")))
+
+IMPORT_JOB_FAILURE_RETENTION_DAYS = max(30, int(os.getenv("IMPORT_JOB_FAILURE_RETENTION_DAYS", "365")))
+
+NOTIFICATION_SENT_RETENTION_DAYS = max(7, int(os.getenv("NOTIFICATION_SENT_RETENTION_DAYS", "30")))
+
+AUTH_SESSION_RETENTION_DAYS = max(7, int(os.getenv("AUTH_SESSION_RETENTION_DAYS", "30")))
+
+OPERATIONAL_RETENTION_POLICY = OperationalRetentionPolicy(
+    access_success_days=ACCESS_LOG_SUCCESS_RETENTION_DAYS,
+    access_failure_days=ACCESS_LOG_FAILURE_RETENTION_DAYS,
+    import_success_days=IMPORT_JOB_SUCCESS_RETENTION_DAYS,
+    import_failure_days=IMPORT_JOB_FAILURE_RETENTION_DAYS,
+    notification_sent_days=NOTIFICATION_SENT_RETENTION_DAYS,
+    auth_session_days=AUTH_SESSION_RETENTION_DAYS,
+)
+
+SUNROOM_DOOR_MONITOR_ENABLED = os.getenv("SUNROOM_DOOR_MONITOR_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
+
+SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS = max(30, int(os.getenv("SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS", "60")))
+
+SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS = max(0, int(os.getenv("SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS", "20")))
+
+SUNROOM_DOOR_SESSION_GRACE_MINUTES = env_float("SUNROOM_DOOR_SESSION_GRACE_MINUTES", "8")
+
+SUNROOM_DOOR_FORCED_SYNC_MINUTES = env_float("SUNROOM_DOOR_FORCED_SYNC_MINUTES", "1")
+
+SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS = max(
+    60,
+    int(os.getenv("SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS", "300")),
+)
+
+SUNROOM_DOOR_SYNC_MAX_ATTEMPTS = max(1, int(os.getenv("SUNROOM_DOOR_SYNC_MAX_ATTEMPTS", "4")))
+
+SUNROOM_DOOR_NEW_SESSION_GRACE_MINUTES = env_float("SUNROOM_DOOR_NEW_SESSION_GRACE_MINUTES", "8")
+
+SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES = env_float("SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES", "17")
+
+SUNROOM_DOOR_SYNC_FAILURE_ALARM_MINUTES = env_float("SUNROOM_DOOR_SYNC_FAILURE_ALARM_MINUTES", "20")
+
+SUNROOM_DOOR_CRITICAL_MINUTES = env_float("SUNROOM_DOOR_CRITICAL_MINUTES", "25")
+
+SUNROOM_DOOR_SYNC_TIMEOUT_SECONDS = max(10, int(os.getenv("SUNROOM_DOOR_SYNC_TIMEOUT_SECONDS", "120")))
+
+SUNROOM_DOOR_PAYMENT_DELAY_MINUTES = env_float("SUNROOM_DOOR_PAYMENT_DELAY_MINUTES", "3")
+
+SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES = env_float("SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES", "3")
+
+SUNROOM_DOOR_EXIT_GRACE_MINUTES = env_float("SUNROOM_DOOR_EXIT_GRACE_MINUTES", "3")
+
+SUNROOM_DOOR_WARN_AFTER_END_MINUTES = env_float("SUNROOM_DOOR_WARN_AFTER_END_MINUTES", "5")
+
+SUNROOM_DOOR_ALERT_AFTER_END_MINUTES = env_float("SUNROOM_DOOR_ALERT_AFTER_END_MINUTES", "10")
+
+SUNROOM_DOOR_SESSION_LOOKBACK_HOURS = max(2, int(os.getenv("SUNROOM_DOOR_SESSION_LOOKBACK_HOURS", "12")))
+
+HC3_BASE_URL = os.getenv("HC3_BASE_URL", "").strip().rstrip("/")
+
+HC3_USER = os.getenv("HC3_USER", "").strip()
+
+HC3_PASS = os.getenv("HC3_PASS", "")
+
+HC3_DOOR_UNEXPECTED_CHECK_ENABLED = os.getenv("HC3_DOOR_UNEXPECTED_CHECK_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
+
+HC3_DOOR_UNEXPECTED_CHECK_INTERVAL_SECONDS = max(30, int(os.getenv("HC3_DOOR_UNEXPECTED_CHECK_INTERVAL_SECONDS", "60")))
+
+HC3_DOOR_UNEXPECTED_CHECK_INITIAL_DELAY_SECONDS = max(0, int(os.getenv("HC3_DOOR_UNEXPECTED_CHECK_INITIAL_DELAY_SECONDS", "20")))
+
+HC3_DOOR_UNEXPECTED_RECHECK_MINUTES = env_float("HC3_DOOR_UNEXPECTED_RECHECK_MINUTES", "10")
+
+HC3_DOOR_OTHER_OPEN_VERIFY_MINUTES = env_float("HC3_DOOR_OTHER_OPEN_VERIFY_MINUTES", "10")
+
+HC3_DOOR_SOLROOM_CLOSED_VERIFY_MINUTES = env_float("HC3_DOOR_SOLROOM_CLOSED_VERIFY_MINUTES", "90")
+
+HC3_DOOR_POLL_TIMEOUT_SECONDS = max(3, int(os.getenv("HC3_DOOR_POLL_TIMEOUT_SECONDS", "8")))
+
+HC3_DOOR_DEBOUNCE_SECONDS = max(0.0, env_float("HC3_DOOR_DEBOUNCE_SECONDS", "5"))
+
+HC3_SWITCH_POLL_TIMEOUT_SECONDS = max(2, int(os.getenv("HC3_SWITCH_POLL_TIMEOUT_SECONDS", "3")))
+
+HC3_SWITCH_STATUS_CACHE_SECONDS = max(0.0, env_float("HC3_SWITCH_STATUS_CACHE_SECONDS", "5"))
+
+HC3_ENERGY_DEVICE_LIST_CACHE_SECONDS = max(5.0, env_float("HC3_ENERGY_DEVICE_LIST_CACHE_SECONDS", "60"))
+
+HC3_ENERGY_LIVE_TIMEOUT_SECONDS = max(2, int(os.getenv("HC3_ENERGY_LIVE_TIMEOUT_SECONDS", "4")))
+
+EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
+
+SUN2_AXIS_SNAPSHOT_ROOT = Path(
+    os.getenv("SUN2_AXIS_SNAPSHOT_ROOT", os.getenv("AXIS_SNAPSHOT_DIR", "/axis_snapshots"))
+)
+
+SUN2_AXIS_SNAPSHOT_SERIES_OFFSETS_SECONDS = [-25, -20, -15, -10, -5]
+
+SUN2_AXIS_SNAPSHOT_MINUTE_ASSUMED_SECOND = max(
+    0,
+    min(59, int(os.getenv("SUN2_AXIS_SNAPSHOT_MINUTE_ASSUMED_SECOND", "30"))),
+)
+
+SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS", "8")))
+
+SUN2_AXIS_SNAPSHOT_LINK_ENABLED = os.getenv("SUN2_AXIS_SNAPSHOT_LINK_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
+
+SUN2_AXIS_SNAPSHOT_LINK_INTERVAL_SECONDS = max(30, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_INTERVAL_SECONDS", "60")))
+
+SUN2_AXIS_SNAPSHOT_LINK_INITIAL_DELAY_SECONDS = max(0, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_INITIAL_DELAY_SECONDS", "45")))
+
+SUN2_AXIS_SNAPSHOT_LINK_DAYS = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_DAYS", "35")))
+
+SUN2_AXIS_SNAPSHOT_LINK_LIMIT = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_LIMIT", "5000")))
+
+SUN2_AXIS_SNAPSHOT_DAY_CACHE_CURRENT_SECONDS = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_DAY_CACHE_CURRENT_SECONDS", "15")))
+
+SUN2_AXIS_SNAPSHOT_DAY_CACHE_ARCHIVE_SECONDS = max(60, int(os.getenv("SUN2_AXIS_SNAPSHOT_DAY_CACHE_ARCHIVE_SECONDS", "3600")))
+
+OWNTRACKS_SERVICE_URL = os.getenv("OWNTRACKS_SERVICE_URL", "http://owntracks_service:8128").rstrip("/")
+
+UNIFI_PROTECT_EVENTS_URL = os.getenv("UNIFI_PROTECT_EVENTS_URL", "http://unifi_protect_events:8130").rstrip("/")
+
+UNIFI_PROTECT_READ_API_TOKEN = os.getenv("UNIFI_PROTECT_READ_API_TOKEN", "").strip()
+
+ROBOROCK_LOGGER_URL = os.getenv("ROBOROCK_LOGGER_URL", "http://roborock_logger:8095").rstrip("/")
+
+SUN2_SESSION_SCRAPER_URL = os.getenv("SUN2_SESSION_SCRAPER_URL", "http://sun2_session_scraper:8098").rstrip("/")
+
+ROBOROCK_CONTROL_TOKEN = os.getenv("ROBOROCK_CONTROL_TOKEN", "").strip()
+
+DREAME_LOGGER_URL = os.getenv("DREAME_LOGGER_URL", "http://dreame_logger:8094").rstrip("/")
+
+DREAME_CONTROL_TOKEN = os.getenv("DREAME_CONTROL_TOKEN", "").strip()
+
+DREAME_EXPECTED_ROBOT_NAME = os.getenv("DREAME_EXPECTED_ROBOT_NAME", "Aqua10").strip() or "Aqua10"
+
+UNIFI_PROTECT_API_TIMEOUT_SECONDS = max(1, int(os.getenv("UNIFI_PROTECT_API_TIMEOUT_SECONDS", "10")))
+
+NIGHTLY_BACKUP_STATUS_PATH = Path(
+    os.getenv("NIGHTLY_BACKUP_STATUS_PATH", "/system_backup_status/nightly/LATEST_STATUS.txt")
+)
+
+FULL_BACKUP_STATUS_PATH = Path(
+    os.getenv("FULL_BACKUP_STATUS_PATH", "/system_backup_status/full/BACKUP_STATUS.txt")
+)
+
+OWNTRACKS_VISIT_SYNC_ENABLED = os.getenv("OWNTRACKS_VISIT_SYNC_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
+
+OWNTRACKS_VISIT_SYNC_INTERVAL_SECONDS = max(30, int(os.getenv("OWNTRACKS_VISIT_SYNC_INTERVAL_SECONDS", "60")))
+
+OWNTRACKS_VISIT_SYNC_LOOKBACK_HOURS = max(1, int(os.getenv("OWNTRACKS_VISIT_SYNC_LOOKBACK_HOURS", str(24 * 14))))
+
+OWNTRACKS_VISIT_SYNC_TIMEOUT_SECONDS = max(2, int(os.getenv("OWNTRACKS_VISIT_SYNC_TIMEOUT_SECONDS", "10")))
+
+SITE_VISIT_ACTIVE_MAX_HOURS = max(1, int(os.getenv("SITE_VISIT_ACTIVE_MAX_HOURS", "24")))
+
+OWNTRACKS_LILLETORGET_WAYPOINTS = [
+    item.strip()
+    for item in os.getenv("OWNTRACKS_LILLETORGET_WAYPOINTS", "Lilletorget 3,Lilletorget,Sun2").split(",")
+    if item.strip()
+]
+
+OWNTRACKS_SITE_VISIT_LOCATION_KEY = os.getenv("OWNTRACKS_SITE_VISIT_LOCATION_KEY", "lilletorget").strip() or "lilletorget"
+
+OWNTRACKS_SITE_VISIT_LOCATION_NAME = os.getenv("OWNTRACKS_SITE_VISIT_LOCATION_NAME", "Lilletorget").strip() or "Lilletorget"
+
+SITE_VISIT_MAINTENANCE_LINK_MARGIN_MINUTES = max(
+    0,
+    int(os.getenv("SITE_VISIT_MAINTENANCE_LINK_MARGIN_MINUTES", "30")),
+)
+
+SECURITY_HSTS_ENABLED = os.getenv("SECURITY_HSTS_ENABLED", "false").strip().lower() in {"1", "true", "yes", "ja"}
+
+SECURITY_HSTS_MAX_AGE_SECONDS = max(0, int(os.getenv("SECURITY_HSTS_MAX_AGE_SECONDS", str(60 * 60 * 24 * 180))))
+
+SLOW_REQUEST_WARNING_MS = max(250.0, env_float("SLOW_REQUEST_WARNING_MS", "1500"))

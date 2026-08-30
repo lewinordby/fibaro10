@@ -2,6 +2,7 @@ from datetime import date, datetime
 import os
 import unittest
 from unittest.mock import AsyncMock, patch
+from fastapi.responses import Response
 
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://example:example@127.0.0.1:5432/example")
 
@@ -370,7 +371,7 @@ class CarsDayApiTests(unittest.IsolatedAsyncioTestCase):
             main.parking_http.dependencies, "unpaid_registered_vehicle_stays_payload", new=unpaid_builder
         ):
             payload = await main.api_parking_control_report(
-                response=main.Response(), period="month", month="2026-08", week=None, gap_minutes=60
+                response=Response(), period="month", month="2026-08", week=None, gap_minutes=60
             )
 
         self.assertEqual(payload["month"], "2026-08")
@@ -481,7 +482,7 @@ class CarsDayApiTests(unittest.IsolatedAsyncioTestCase):
         )
         with patch.object(main.parking_http.dependencies, "protect_ledger_json", new=ledger):
             payload = await main.api_parking_control_report(
-                response=main.Response(), period="week", month=None, week="2026-W35", gap_minutes=60
+                response=Response(), period="week", month=None, week="2026-W35", gap_minutes=60
             )
 
         self.assertEqual(payload["periodType"], "week")
@@ -497,9 +498,9 @@ class CarsDayApiTests(unittest.IsolatedAsyncioTestCase):
         ledger = AsyncMock(return_value={"items": []})
         try:
             with patch.object(main.parking_http.dependencies, "protect_ledger_json", new=ledger):
-                first_response = main.Response()
+                first_response = Response()
                 first = await main.api_cars_day(response=first_response, day="2026-07-21")
-                second_response = main.Response()
+                second_response = Response()
                 second = await main.api_cars_day(response=second_response, day="2026-07-21")
         finally:
             main.clear_summary_cache("cars_day")
@@ -518,7 +519,7 @@ class CarsDayApiTests(unittest.IsolatedAsyncioTestCase):
         ledger = AsyncMock(return_value={"items": []})
         try:
             with patch.object(main.parking_http.dependencies, "protect_ledger_json", new=ledger):
-                await main.api_cars_day(response=main.Response(), day="2026-07-20")
+                await main.api_cars_day(response=Response(), day="2026-07-20")
         finally:
             main.clear_summary_cache("cars_day")
 

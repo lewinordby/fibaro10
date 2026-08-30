@@ -1,30 +1,19 @@
 """Dashboard services with explicit process dependencies."""
 
 from dataclasses import dataclass
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
-from fibaro_core.models import ParkingSession
-from fibaro_core.models import Sun2TanningSession
-from fibaro_core.services.presentation import api_chart
-from fibaro_core.services.presentation import api_table
-from fibaro_core.services.presentation import format_short_number
-from fibaro_core.services.presentation import format_signed_short_number
-from fibaro_core.services.summaries.periods import add_months
-from fibaro_core.services.summaries.periods import month_label
-from sqlalchemy import Date
-from sqlalchemy import cast
-from sqlalchemy import func
-from sqlalchemy import select
-from time_formatting import api_local_iso
-from time_formatting import local_now_naive
-from time_formatting import normalize_local_naive
-from typing import Any
-from typing import Any, Callable
-from typing import Dict
-from typing import Optional
-from value_parsing import float_or_zero
-from value_parsing import int_or_zero
+from datetime import datetime, time, timedelta
+from fibaro_core.models import ParkingSession, Sun2TanningSession
+from fibaro_core.services.presentation import (
+    api_chart,
+    api_table,
+    format_short_number,
+    format_signed_short_number,
+)
+from fibaro_core.services.summaries.periods import add_months, month_label
+from sqlalchemy import Date, cast, func, select
+from time_formatting import api_local_iso, local_now_naive, normalize_local_naive
+from typing import Any, Callable, Dict, Optional
+from value_parsing import float_or_zero, int_or_zero
 
 
 @dataclass

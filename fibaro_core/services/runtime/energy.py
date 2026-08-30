@@ -3,56 +3,48 @@
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
+from datetime import date, datetime, time, timedelta
 from fastapi import HTTPException
-from fibaro_core.export_definitions import ENERGY_HOURLY_COLUMNS
-from fibaro_core.export_definitions import ENERGY_IMPORT_COLUMNS
-from fibaro_core.models import EnergyCircuit
-from fibaro_core.models import EnergyFibaroSample
-from fibaro_core.models import EnergyHourlyConsumption
-from fibaro_core.models import EnergyImportRun
-from fibaro_core.models import EnergyLoad
-from fibaro_core.models import EnergyNode
-from fibaro_core.models import ImportJobStatus
-from fibaro_core.models import Sun2Bed
-from fibaro_core.models import Sun2TanningSession
-from fibaro_core.models import VentilationSample
-from fibaro_core.schemas import EnergyFibaroIn
-from fibaro_core.schemas import EventDataIn
-from fibaro_core.services.presentation import api_card
-from fibaro_core.services.presentation import api_chart
-from fibaro_core.services.presentation import api_iso_value
-from fibaro_core.services.presentation import api_table
-from fibaro_core.services.presentation import format_short_number
-from fibaro_core.services.presentation import format_signed_short_number
+from fibaro_core.export_definitions import ENERGY_HOURLY_COLUMNS, ENERGY_IMPORT_COLUMNS
+from fibaro_core.models import (
+    EnergyCircuit,
+    EnergyFibaroSample,
+    EnergyHourlyConsumption,
+    EnergyImportRun,
+    EnergyLoad,
+    EnergyNode,
+    ImportJobStatus,
+    Sun2Bed,
+    Sun2TanningSession,
+    VentilationSample,
+)
+from fibaro_core.schemas import EnergyFibaroIn, EventDataIn
+from fibaro_core.services.presentation import (
+    api_card,
+    api_chart,
+    api_iso_value,
+    api_table,
+    format_short_number,
+    format_signed_short_number,
+)
 from fibaro_core.services.settlements.parsing import parse_settlement_number
 from fibaro_core.services.summaries.energy import empty_fast_energy_summary
 from pathlib import Path
 from reconciliation_domain import evaluate_reconciliation
-from sqlalchemy import func
-from sqlalchemy import or_
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from statistics import median
-from sun2_helpers import normalize_room_id
-from sun2_helpers import sun2_room_label
-from time_formatting import LOCAL_TZ
-from time_formatting import api_local_iso
-from time_formatting import format_local_datetime
-from time_formatting import format_source_datetime
-from time_formatting import local_now_naive
-from time_formatting import normalize_local_naive
-from typing import Any
-from typing import Any, Callable
-from typing import Dict
-from typing import Iterable
-from typing import Optional
+from sun2_helpers import normalize_room_id, sun2_room_label
+from time_formatting import (
+    LOCAL_TZ,
+    api_local_iso,
+    format_local_datetime,
+    format_source_datetime,
+    local_now_naive,
+    normalize_local_naive,
+)
+from typing import Any, Callable, Dict, Iterable, Optional
 from v2_navigation import v2_module_title
-from value_parsing import float_or_zero
-from value_parsing import float_value
-from value_parsing import int_or_zero
+from value_parsing import float_or_zero, float_value, int_or_zero
 import asyncio
 import json
 import math

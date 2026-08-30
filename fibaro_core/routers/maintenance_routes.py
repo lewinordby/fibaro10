@@ -1,22 +1,13 @@
 """Maintenance HTTP routes; runtime services are supplied by composition."""
 
 from dataclasses import dataclass
-from fastapi import APIRouter
-from fastapi import HTTPException
-from fastapi import Query
-from fastapi import Request
-from fibaro_core.models import MaintenanceLogEntry
-from fibaro_core.models import SiteVisit
+from fastapi import APIRouter, HTTPException, Query, Request
+from fibaro_core.models import MaintenanceLogEntry, SiteVisit
 from fibaro_core.routers.bundle import RouterBundle
-from fibaro_core.schemas import MaintenanceLogInput
-from fibaro_core.schemas import MaintenanceSiteVisitInput
-from fibaro_core.services.presentation import api_card
-from fibaro_core.services.presentation import api_table
-from fibaro_core.services.presentation import format_short_number
-from sqlalchemy import func
-from sqlalchemy import select
-from time_formatting import format_source_datetime_short
-from time_formatting import local_now_naive
+from fibaro_core.schemas import MaintenanceLogInput, MaintenanceSiteVisitInput
+from fibaro_core.services.presentation import api_card, api_table, format_short_number
+from sqlalchemy import func, select
+from time_formatting import format_source_datetime_short, local_now_naive
 from typing import Any, Callable
 import urllib.request
 

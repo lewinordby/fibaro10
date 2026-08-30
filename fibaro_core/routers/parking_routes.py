@@ -1,92 +1,66 @@
 """Parking HTTP routes; runtime services are supplied by composition."""
 
-from cars_domain import cars_confidence_level
-from cars_domain import cars_daily_payment_metrics
-from cars_domain import cars_group_daily_recognitions
-from cars_domain import cars_public_detection
-from cars_domain import cars_recognition_local_datetime
-from cars_domain import cars_unifi_score
+from cars_domain import (
+    cars_confidence_level,
+    cars_daily_payment_metrics,
+    cars_group_daily_recognitions,
+    cars_public_detection,
+    cars_recognition_local_datetime,
+    cars_unifi_score,
+)
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
-from datetime import timezone
-from fastapi import APIRouter
-from fastapi import HTTPException
-from fastapi import Query
-from fastapi import Request
-from fastapi.responses import HTMLResponse
-from fastapi.responses import JSONResponse
-from fastapi.responses import RedirectResponse
-from fastapi.responses import Response
-from fastapi.responses import StreamingResponse
-from fibaro_core.models import ImportJobStatus
-from fibaro_core.models import ParkingSession
-from fibaro_core.models import ParkingVehicle
-from fibaro_core.models import ParkingVehicleDetails
+from datetime import date, datetime, time, timedelta, timezone
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
+from fibaro_core.models import ImportJobStatus, ParkingSession, ParkingVehicle, ParkingVehicleDetails
 from fibaro_core.routers.bundle import RouterBundle
-from fibaro_core.schemas import ParkingVehicleAreaUpdate
-from fibaro_core.schemas import ParkingVehicleCarInfoUpdate
-from fibaro_core.schemas import ParkingVehicleNameUpdate
+from fibaro_core.schemas import (
+    ParkingVehicleAreaUpdate,
+    ParkingVehicleCarInfoUpdate,
+    ParkingVehicleNameUpdate,
+)
 from fibaro_core.services.comparisons.years import build_parking_year_comparison
-from fibaro_core.services.forecasts.snapshots import save_forecast_snapshots
-from fibaro_core.services.forecasts.snapshots import saved_forecast_table
-from fibaro_core.services.presentation import api_card
-from fibaro_core.services.presentation import format_short_number
+from fibaro_core.services.forecasts.snapshots import save_forecast_snapshots, saved_forecast_table
+from fibaro_core.services.presentation import api_card, format_short_number
 from fibaro_core.services.settlements.mail import fetch_parking_settlements_from_gmail
-from fibaro_core.services.summaries.periods import add_months
-from fibaro_core.services.summaries.periods import month_label
-from fibaro_core.services.summaries.periods import parse_anchor_year
-from parking_vehicle_helpers import car_info_area_label
-from parking_vehicle_helpers import car_info_confirmed_foreign
-from parking_vehicle_helpers import car_info_confirmed_swedish
-from parking_vehicle_helpers import car_info_field_value
-from parking_vehicle_helpers import car_info_import_job_name
-from parking_vehicle_helpers import car_info_import_ok
-from parking_vehicle_helpers import car_info_lookup_country_code
-from parking_vehicle_helpers import car_info_provider_label
-from parking_vehicle_helpers import car_info_source_label
-from parking_vehicle_helpers import car_info_status_label
-from parking_vehicle_helpers import compact_plate
-from parking_vehicle_helpers import compact_plate_sql
-from parking_vehicle_helpers import is_supported_foreign_license_plate
-from parking_vehicle_helpers import normalize_plate
-from parking_vehicle_helpers import parking_current_ownership_warning
-from parking_vehicle_helpers import parking_duration_minutes
-from parking_vehicle_helpers import parking_row_context
-from parking_vehicle_helpers import parking_slot_remainder_minutes
-from parking_vehicle_helpers import parking_vehicle_display_class
-from parking_vehicle_helpers import parking_vehicle_display_color
-from parking_vehicle_helpers import parking_vehicle_display_inspection_deadline
-from parking_vehicle_helpers import parking_vehicle_display_label
-from parking_vehicle_helpers import parking_vehicle_display_registration_status
-from parking_vehicle_helpers import parking_vehicle_display_source
-from parking_vehicle_helpers import parking_vehicle_display_year
-from parking_vehicle_helpers import parking_vehicle_summary
-from parking_vehicle_helpers import parking_vehicle_year
-from parking_vehicle_helpers import svv_current_ownership_at
-from sqlalchemy import Integer
-from sqlalchemy import and_
-from sqlalchemy import case
-from sqlalchemy import cast
-from sqlalchemy import func
-from sqlalchemy import or_
-from sqlalchemy import select
-from time_formatting import LOCAL_TZ
-from time_formatting import api_local_iso
-from time_formatting import local_now_naive
-from time_formatting import normalize_local_naive
-from typing import Any
-from typing import Any, Callable
-from typing import Dict
-from typing import Mapping
-from typing import Optional
+from fibaro_core.services.summaries.periods import add_months, month_label, parse_anchor_year
+from parking_vehicle_helpers import (
+    car_info_area_label,
+    car_info_confirmed_foreign,
+    car_info_confirmed_swedish,
+    car_info_field_value,
+    car_info_import_job_name,
+    car_info_import_ok,
+    car_info_lookup_country_code,
+    car_info_provider_label,
+    car_info_source_label,
+    car_info_status_label,
+    compact_plate,
+    compact_plate_sql,
+    is_supported_foreign_license_plate,
+    normalize_plate,
+    parking_current_ownership_warning,
+    parking_duration_minutes,
+    parking_row_context,
+    parking_slot_remainder_minutes,
+    parking_vehicle_display_class,
+    parking_vehicle_display_color,
+    parking_vehicle_display_inspection_deadline,
+    parking_vehicle_display_label,
+    parking_vehicle_display_registration_status,
+    parking_vehicle_display_source,
+    parking_vehicle_display_year,
+    parking_vehicle_summary,
+    parking_vehicle_year,
+    svv_current_ownership_at,
+)
+from sqlalchemy import Integer, and_, case, cast, func, or_, select
+from time_formatting import LOCAL_TZ, api_local_iso, local_now_naive, normalize_local_naive
+from typing import Any, Callable, Dict, Mapping, Optional
 from urllib.parse import quote
-from value_parsing import float_or_zero
-from value_parsing import int_or_zero
+from value_parsing import float_or_zero, int_or_zero
 import asyncio
 import imaplib
 import json

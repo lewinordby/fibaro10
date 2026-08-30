@@ -1,23 +1,13 @@
 """Ventilation module response assembly, independent of HTTP registration."""
 
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
-from fibaro_core.export_definitions import VENT_COLUMNS
-from fibaro_core.export_definitions import YR_LOG_TABLE_COLUMNS
-from fibaro_core.models import ControlConfigHistory
-from fibaro_core.models import VentilationEvent
-from fibaro_core.models import VentilationSample
-from fibaro_core.models import YrForecastSample
-from fibaro_core.services.presentation import api_card
-from fibaro_core.services.presentation import api_table
-from fibaro_core.services.presentation import format_short_number
+from datetime import date, datetime, time, timedelta
+from fibaro_core.export_definitions import VENT_COLUMNS, YR_LOG_TABLE_COLUMNS
+from fibaro_core.models import ControlConfigHistory, VentilationEvent, VentilationSample, YrForecastSample
+from fibaro_core.services.presentation import api_card, api_table, format_short_number
 from fibaro_core.services.summaries.periods import add_months
 from sqlalchemy import select
-from typing import Any
-from typing import Dict
+from typing import Any, Dict
 from v2_navigation import v2_module_title
 
 

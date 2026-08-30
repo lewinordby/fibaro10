@@ -2,75 +2,52 @@
 
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
+from datetime import date, datetime, time, timedelta
 from dateutil import parser as dtparser
 from fastapi import Request
-from fibaro_core.models import ForecastSnapshot
-from fibaro_core.models import ParkingSession
-from fibaro_core.models import ParkingVehicle
-from fibaro_core.models import ParkingVehicleDetails
+from fibaro_core.models import ForecastSnapshot, ParkingSession, ParkingVehicle, ParkingVehicleDetails
 from fibaro_core.services.comparisons.windows import status_timeline_position
 from fibaro_core.services.forecasts import builders as forecast_builders
-from fibaro_core.services.forecasts.snapshots import forecast_chart_time_label
-from fibaro_core.services.forecasts.snapshots import forecast_snapshot_stamp
-from fibaro_core.services.forecasts.snapshots import save_forecast_snapshots
-from fibaro_core.services.presentation import api_chart
-from fibaro_core.services.presentation import api_table
-from fibaro_core.services.presentation import format_short_number
-from fibaro_core.services.summaries.periods import add_months
-from fibaro_core.services.summaries.periods import month_label
+from fibaro_core.services.forecasts.snapshots import (
+    forecast_chart_time_label,
+    forecast_snapshot_stamp,
+    save_forecast_snapshots,
+)
+from fibaro_core.services.presentation import api_chart, api_table, format_short_number
+from fibaro_core.services.summaries.periods import add_months, month_label
 from io import StringIO
-from parking_vehicle_helpers import CAR_INFO_IMPORT_JOB_BY_COUNTRY
-from parking_vehicle_helpers import DANISH_LICENSE_PLATE_SQL_REGEX
-from parking_vehicle_helpers import SWEDISH_LICENSE_PLATE_SQL_REGEX
-from parking_vehicle_helpers import car_info_confirmed_foreign
-from parking_vehicle_helpers import car_info_confirmed_swedish
-from parking_vehicle_helpers import car_info_country_code
-from parking_vehicle_helpers import car_info_field_value
-from parking_vehicle_helpers import car_info_import_ok
-from parking_vehicle_helpers import car_info_lookup_country_code
-from parking_vehicle_helpers import car_info_status_label
-from parking_vehicle_helpers import compact_plate
-from parking_vehicle_helpers import compact_plate_sql
-from parking_vehicle_helpers import first_value
-from parking_vehicle_helpers import is_danish_license_plate
-from parking_vehicle_helpers import is_supported_foreign_license_plate
-from parking_vehicle_helpers import is_swedish_license_plate
-from parking_vehicle_helpers import normalize_plate
-from parking_vehicle_helpers import parking_current_ownership_warning
-from parking_vehicle_helpers import parking_day_time_label
-from parking_vehicle_helpers import parking_vehicle_display_year
-from parking_vehicle_helpers import parking_vehicle_summary
-from parking_vehicle_helpers import svv_current_ownership_at
-from parking_vehicle_helpers import svv_detail_values
-from sqlalchemy import and_
-from sqlalchemy import case
-from sqlalchemy import func
-from sqlalchemy import or_
-from sqlalchemy import select
-from sqlalchemy import text as sql_text
-from sqlalchemy import tuple_
-from sqlalchemy import update
+from parking_vehicle_helpers import (
+    CAR_INFO_IMPORT_JOB_BY_COUNTRY,
+    DANISH_LICENSE_PLATE_SQL_REGEX,
+    SWEDISH_LICENSE_PLATE_SQL_REGEX,
+    car_info_confirmed_foreign,
+    car_info_confirmed_swedish,
+    car_info_country_code,
+    car_info_field_value,
+    car_info_import_ok,
+    car_info_lookup_country_code,
+    car_info_status_label,
+    compact_plate,
+    compact_plate_sql,
+    first_value,
+    is_danish_license_plate,
+    is_supported_foreign_license_plate,
+    is_swedish_license_plate,
+    normalize_plate,
+    parking_current_ownership_warning,
+    parking_day_time_label,
+    parking_vehicle_display_year,
+    parking_vehicle_summary,
+    svv_current_ownership_at,
+    svv_detail_values,
+)
+from sqlalchemy import and_, case, func, or_, select, text as sql_text, tuple_, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from time_formatting import LOCAL_TZ
-from time_formatting import api_local_iso
-from time_formatting import local_now_naive
-from time_formatting import normalize_local_naive
-from time_formatting import parse_datetime
-from typing import Any
-from typing import Any, Callable
-from typing import Dict
-from typing import Mapping
-from typing import Optional
+from time_formatting import LOCAL_TZ, api_local_iso, local_now_naive, normalize_local_naive, parse_datetime
+from typing import Any, Callable, Dict, Mapping, Optional
 from unifi_protect import unifi_protect_parking_timelapse_url
-from urllib.parse import quote
-from urllib.parse import quote_plus
-from urllib.parse import urlencode
-from value_parsing import float_or_zero
-from value_parsing import int_or_zero
+from urllib.parse import quote, quote_plus, urlencode
+from value_parsing import float_or_zero, int_or_zero
 import asyncio
 import csv
 import json

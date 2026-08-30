@@ -1,24 +1,13 @@
 """System module response assembly, independent of HTTP registration."""
 
-from build_log import APP_BUILD
-from build_log import BUILD_LOG
-from build_log import api_build_log_row
+from build_log import APP_BUILD, BUILD_LOG, api_build_log_row
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
-from fibaro_core.models import AccessKey
-from fibaro_core.models import AccessLog
-from fibaro_core.models import AiQueryLog
-from fibaro_core.services.presentation import api_card
-from fibaro_core.services.presentation import api_table
-from fibaro_core.services.presentation import format_short_number
+from datetime import date, datetime, time, timedelta
+from fibaro_core.models import AccessKey, AccessLog, AiQueryLog
+from fibaro_core.services.presentation import api_card, api_table, format_short_number
 from fibaro_core.services.summaries.periods import add_months
 from sqlalchemy import select
-from system_inventory import system_component_rows
-from system_inventory import system_component_summary
-from system_inventory import system_web_interface_rows
+from system_inventory import system_component_rows, system_component_summary, system_web_interface_rows
 from typing import Any
 from v2_navigation import v2_module_title
 

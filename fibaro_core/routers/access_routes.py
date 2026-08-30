@@ -2,22 +2,14 @@
 
 from build_log import APP_BUILD
 from dataclasses import dataclass
-from fastapi import APIRouter
-from fastapi import HTTPException
-from fastapi import Request
-from fastapi.responses import HTMLResponse
-from fastapi.responses import JSONResponse
-from fastapi.responses import RedirectResponse
-from fibaro_core.models import AccessKey
-from fibaro_core.models import AccessLog
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fibaro_core.models import AccessKey, AccessLog
 from fibaro_core.routers.bundle import RouterBundle
-from fibaro_core.schemas import V2AccessUserCreate
-from fibaro_core.schemas import V2AccessUserUpdate
+from fibaro_core.schemas import V2AccessUserCreate, V2AccessUserUpdate
 from microapp_backend import render_login_page
-from microapp_backend.auth import clear_auth_cookies
-from microapp_backend.auth import set_auth_session_cookie
-from sqlalchemy import select
-from sqlalchemy import update
+from microapp_backend.auth import clear_auth_cookies, set_auth_session_cookie
+from sqlalchemy import select, update
 from typing import Any, Callable
 import json
 

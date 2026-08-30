@@ -1,51 +1,213 @@
-from fibaro_core.services.forecasts import builders as forecast_builders
-from datetime import date, datetime, time, timedelta, timezone
-from email.header import decode_header, make_header
-from email.message import Message
-from email.utils import parsedate_to_datetime
-from io import BytesIO, StringIO
-from pathlib import Path
-from copy import deepcopy
-from collections import defaultdict
-from functools import lru_cache
-from statistics import median
-from types import SimpleNamespace
-from typing import Any, Dict, Iterable, List, Mapping, Optional
-from time import monotonic, perf_counter
-import asyncio
-from bisect import bisect_left, bisect_right
-import calendar
-import csv
-import email as email_lib
-import hashlib
-import imaplib
-import json
-import logging
-import math
-import mimetypes
-import os
-import re
-import base64
-import secrets
-from urllib.parse import parse_qs, quote, quote_plus, urlencode, urlparse
-import urllib.error
-import urllib.request
-from zoneinfo import ZoneInfo
-
+"""Compose the core API and worker from explicit domain dependencies."""
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request
+
+load_dotenv()
+
+from fibaro_core.services.forecasts import builders as forecast_builders
+from datetime import datetime, timezone
+from typing import Any, Dict
+import asyncio
+import logging
+
+from fastapi import FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from microapp_backend import PwaConfig, register_pwa, render_login_page
 from microapp_backend.auth import AUTH_SESSION_COOKIE_NAME, clear_auth_cookies, request_is_secure, set_auth_session_cookie
-from pydantic import BaseModel
-from sqlalchemy import Date, Integer, and_, case, cast, delete, func, literal, or_, select, text as sql_text, tuple_, union_all, update
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.orm import load_only
-from dateutil import parser as dtparser
-load_dotenv()
+from fibaro_core.catalog import (
+    ADMIN_TASK_SEVERITY_SORT,
+    AI_CONFIG_KEY,
+    AXIS_SNAPSHOT_FILENAME_RE,
+    AXIS_SNAPSHOT_ID_RE,
+    CONFIG_DEFINITIONS,
+    CONTROL_DEVICES,
+    DAY_ZOOM_OPTIONS,
+    DOOR_SENSOR_CONFIG,
+    DOOR_SENSOR_IDS,
+    EASYPARK_REQUIRED_COLUMNS,
+    ENERGY_ACCUMULATED_ID_BY_POWER_ID,
+    ENERGY_ACCUMULATED_KEYS,
+    ENERGY_AGGREGATE_GROUP_BY_POWER_ID,
+    ENERGY_AGGREGATE_HC3_MEMBERS,
+    ENERGY_AGGREGATE_METERS,
+    ENERGY_AGGREGATE_METERS_BY_KEY,
+    ENERGY_AGGREGATE_POWER_MEMBERS,
+    ENERGY_CIRCUIT_SEED_ROWS,
+    ENERGY_CIRCUIT_SEED_SOURCE,
+    ENERGY_FIBARO_AREAS,
+    ENERGY_HC3_HOURLY_DISPLAY_OFFSET,
+    ENERGY_HOURLY_COMPARE_FIELDS,
+    ENERGY_LOAD_POWER_PROFILES,
+    ENERGY_NODE_TYPES,
+    ENERGY_REALTIME_MAX_DELTA_SECONDS,
+    ENERGY_SUB_KEYS,
+    LIGHT_TIMELINE_DEVICES,
+    MAINTENANCE_ACTION_OPTIONS,
+    MAINTENANCE_PRESENCE_OPTIONS,
+    MAINTENANCE_PRIORITY_OPTIONS,
+    MAINTENANCE_STATUS_OPTIONS,
+    MAINTENANCE_TAG_OPTIONS,
+    MAINTENANCE_TARGET_OPTIONS,
+    MOBILE_PREVIEW_MONEY_KEYS,
+    MOBILE_PREVIEW_SCREENS,
+    PARKING_OCCUPANCY_SCALE_MAX,
+    PARKING_SUN_LINK_CONFIRMED,
+    PARKING_SUN_LINK_PENDING,
+    PARKING_SUN_LINK_REJECTED,
+    PARKING_SUN_LINK_STATUSES,
+    PARKING_TIMELINE_CAPACITY,
+    PARKING_TIMELINE_ROWS,
+    PARKING_TIME_PERIOD_OPTIONS,
+    PARKING_TIME_WEEKDAYS,
+    PARKING_WEEKLY_AVERAGE_PERIOD_OPTIONS,
+    ROBOROCK_DOOR_AUTOMATION_POLL_SECONDS,
+    ROOF_EXHAUST_UNMETERED_W,
+    SOLROOM_DOOR_HC3,
+    SUNBED_ANALYSIS_VENTILATION_MATCH_SECONDS,
+    VENT_TIMELINE_DEVICES,
+    WEATHER_LABELS,
+    YR_FORECAST_ASSIGNMENTS,
+)
+from fibaro_core.settings import (
+    ACCESS_FAILED_DISABLE_THRESHOLD,
+    ACCESS_LOG_FAILURE_RETENTION_DAYS,
+    ACCESS_LOG_SUCCESS_RETENTION_DAYS,
+    ALARM_APP_URL,
+    APP_COMMIT,
+    AUTH_COOKIE_NAME,
+    AUTH_SESSION_HEADER_NAME,
+    AUTH_SESSION_MAX_AGE_SECONDS,
+    AUTH_SESSION_RETENTION_DAYS,
+    AUTH_USER_COOKIE_NAME,
+    CARS_DAY_CACHE_TTL,
+    CARS_HISTORY_CACHE_TTL,
+    CAR_INFO_APP_TOKEN,
+    CAR_INFO_AUTO_TRIGGER_ENABLED,
+    CAR_INFO_AUTO_TRIGGER_MAX_PER_SVV_RUN,
+    CAR_INFO_CANDIDATE_RETRY_HOURS,
+    CAR_INFO_CANDIDATE_TRANSIENT_RETRY_MINUTES,
+    CAR_INFO_LOOKUP_TIMEOUT_SECONDS,
+    CAR_INFO_LOOKUP_URL,
+    DATABASE_URL,
+    DREAME_CONTROL_TOKEN,
+    DREAME_EXPECTED_ROBOT_NAME,
+    DREAME_LOGGER_URL,
+    EASYPARK_DOWNLOADER_URL,
+    FIBARO10_BACKGROUND_TASKS_ENABLED,
+    FIBARO10_PROCESS_ROLE,
+    FULL_BACKUP_STATUS_PATH,
+    HC3_BASE_URL,
+    HC3_DOOR_DEBOUNCE_SECONDS,
+    HC3_DOOR_OTHER_OPEN_VERIFY_MINUTES,
+    HC3_DOOR_POLL_TIMEOUT_SECONDS,
+    HC3_DOOR_SOLROOM_CLOSED_VERIFY_MINUTES,
+    HC3_DOOR_UNEXPECTED_CHECK_ENABLED,
+    HC3_DOOR_UNEXPECTED_CHECK_INITIAL_DELAY_SECONDS,
+    HC3_DOOR_UNEXPECTED_CHECK_INTERVAL_SECONDS,
+    HC3_DOOR_UNEXPECTED_RECHECK_MINUTES,
+    HC3_ENERGY_DEVICE_LIST_CACHE_SECONDS,
+    HC3_ENERGY_LIVE_TIMEOUT_SECONDS,
+    HC3_PASS,
+    HC3_SWITCH_POLL_TIMEOUT_SECONDS,
+    HC3_SWITCH_STATUS_CACHE_SECONDS,
+    HC3_USER,
+    IMPORT_JOB_FAILURE_RETENTION_DAYS,
+    IMPORT_JOB_SUCCESS_RETENTION_DAYS,
+    KOBLE_WORKER_TOKEN,
+    MASTER_ACCESS_KEY_HASH,
+    MET_LAT,
+    MET_LON,
+    MET_USER_AGENT,
+    MOBILE_PREVIEW_REFRESH_SECONDS,
+    NIGHTLY_BACKUP_STATUS_PATH,
+    NOTIFICATION_SENT_RETENTION_DAYS,
+    NTFY_ACCESS_COOLDOWN_MINUTES,
+    NTFY_ACCESS_TOPIC,
+    NTFY_BASE_URL,
+    NTFY_BOLLARDS_TOPIC,
+    NTFY_DOORS_TOPIC,
+    NTFY_LIGHTS_TOPIC,
+    NTFY_OUTBOX_POLL_SECONDS,
+    NTFY_OUTBOX_RETRY_BASE_SECONDS,
+    NTFY_OUTBOX_RETRY_MAX_SECONDS,
+    NTFY_OUTBOX_STALE_LOCK_SECONDS,
+    NTFY_TIMEOUT_SECONDS,
+    NTFY_VENTILATION_TOPIC,
+    OPENAI_MODEL,
+    OPERATIONAL_RETENTION_ENABLED,
+    OPERATIONAL_RETENTION_INITIAL_DELAY_SECONDS,
+    OPERATIONAL_RETENTION_INTERVAL_HOURS,
+    OPERATIONAL_RETENTION_POLICY,
+    OWNTRACKS_LILLETORGET_WAYPOINTS,
+    OWNTRACKS_SERVICE_URL,
+    OWNTRACKS_SITE_VISIT_LOCATION_KEY,
+    OWNTRACKS_SITE_VISIT_LOCATION_NAME,
+    OWNTRACKS_VISIT_SYNC_ENABLED,
+    OWNTRACKS_VISIT_SYNC_INTERVAL_SECONDS,
+    OWNTRACKS_VISIT_SYNC_LOOKBACK_HOURS,
+    OWNTRACKS_VISIT_SYNC_TIMEOUT_SECONDS,
+    PUBLIC_PATHS,
+    PUBLIC_PREFIXES,
+    ROBOROCK_CONTROL_TOKEN,
+    ROBOROCK_LOGGER_URL,
+    SECURITY_HSTS_ENABLED,
+    SECURITY_HSTS_MAX_AGE_SECONDS,
+    SITE_VISIT_ACTIVE_MAX_HOURS,
+    SITE_VISIT_MAINTENANCE_LINK_MARGIN_MINUTES,
+    SLOW_REQUEST_WARNING_MS,
+    SUMMARY_CACHE_TTL,
+    SUN2_AXIS_SNAPSHOT_DAY_CACHE_ARCHIVE_SECONDS,
+    SUN2_AXIS_SNAPSHOT_DAY_CACHE_CURRENT_SECONDS,
+    SUN2_AXIS_SNAPSHOT_LINK_DAYS,
+    SUN2_AXIS_SNAPSHOT_LINK_ENABLED,
+    SUN2_AXIS_SNAPSHOT_LINK_INITIAL_DELAY_SECONDS,
+    SUN2_AXIS_SNAPSHOT_LINK_INTERVAL_SECONDS,
+    SUN2_AXIS_SNAPSHOT_LINK_LIMIT,
+    SUN2_AXIS_SNAPSHOT_MINUTE_ASSUMED_SECOND,
+    SUN2_AXIS_SNAPSHOT_ROOT,
+    SUN2_AXIS_SNAPSHOT_SERIES_OFFSETS_SECONDS,
+    SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS,
+    SUN2_SESSIONS_QUIET_END_HOUR,
+    SUN2_SESSIONS_QUIET_START_HOUR,
+    SUN2_SESSION_SCRAPER_URL,
+    SUNBED_POWER_ANALYSIS_CACHE_TTL,
+    SUNBED_POWER_CACHE_WARM_ENABLED,
+    SUNROOM_DOOR_ALERT_AFTER_END_MINUTES,
+    SUNROOM_DOOR_CRITICAL_MINUTES,
+    SUNROOM_DOOR_EXIT_GRACE_MINUTES,
+    SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES,
+    SUNROOM_DOOR_FORCED_SYNC_MINUTES,
+    SUNROOM_DOOR_MONITOR_ENABLED,
+    SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS,
+    SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS,
+    SUNROOM_DOOR_NEW_SESSION_GRACE_MINUTES,
+    SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES,
+    SUNROOM_DOOR_PAYMENT_DELAY_MINUTES,
+    SUNROOM_DOOR_SESSION_GRACE_MINUTES,
+    SUNROOM_DOOR_SESSION_LOOKBACK_HOURS,
+    SUNROOM_DOOR_SYNC_FAILURE_ALARM_MINUTES,
+    SUNROOM_DOOR_SYNC_MAX_ATTEMPTS,
+    SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS,
+    SUNROOM_DOOR_SYNC_TIMEOUT_SECONDS,
+    SUNROOM_DOOR_WARN_AFTER_END_MINUTES,
+    SVV_API_AUTH_HEADER,
+    SVV_API_AUTH_PREFIX,
+    SVV_API_KEY,
+    SVV_API_URL,
+    SVV_IMPORT_SYNC_BATCH_SIZE,
+    SVV_PERMANENT_NO_DATA_STATUSES,
+    SVV_RETRY_AFTER_HOURS,
+    SVV_SYNC_BATCH_SIZE,
+    SVV_SYNC_ENABLED,
+    SVV_SYNC_INTERVAL_MINUTES,
+    SVV_TRANSIENT_RETRY_AFTER_MINUTES,
+    SVV_TRANSIENT_STATUSES,
+    UNIFI_PROTECT_API_TIMEOUT_SECONDS,
+    UNIFI_PROTECT_EVENTS_URL,
+    UNIFI_PROTECT_READ_API_TOKEN,
+    env_float,
+)
 from fibaro_core.database import Base, create_database
 from fibaro_core.runtime_state import IncidentState, ProcessLocks
 from fibaro_core.services.comparisons.overview import overview_comparison_plan, load_overview_comparisons, build_overview_cards
@@ -490,125 +652,14 @@ from value_parsing import (
 )
 from v2_navigation import v2_module_title
 
-DATABASE_URL = os.getenv("DATABASE_URL")
 logger = logging.getLogger("fibaro10")
 APP_STARTED_AT = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-APP_COMMIT = os.getenv("APP_COMMIT") or os.getenv("GIT_COMMIT") or "unknown"
-SUN2_SESSIONS_QUIET_START_HOUR = 0
-SUN2_SESSIONS_QUIET_END_HOUR = 7
-MASTER_ACCESS_KEY_HASH = os.getenv(
-    "MASTER_ACCESS_KEY_HASH",
-    "752ede847bd180ef3d2700d117d297ced1b25664b946a3639fb7a3b2be93d5d1",
-)
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
-AUTH_USER_COOKIE_NAME = "fibaro10_access_username"
-AUTH_COOKIE_NAME = "fibaro10_access_password"
-AUTH_SESSION_HEADER_NAME = "x-session-token"
-AUTH_SESSION_MAX_AGE_SECONDS = max(3600, int(os.getenv("AUTH_SESSION_MAX_AGE_SECONDS", str(60 * 60 * 24 * 30))))
-ACCESS_FAILED_DISABLE_THRESHOLD = max(1, int(os.getenv("ACCESS_FAILED_DISABLE_THRESHOLD", "3")))
-PUBLIC_PREFIXES = ("/static/", "/assets/")
-PUBLIC_PATHS = {
-    "/health",
-    "/favicon.ico",
-    "/auth/login",
-    "/manifest.webmanifest",
-    "/pwa-icon-192.png",
-    "/pwa-icon-512.png",
-    "/pwa-icon-maskable-512.png",
-    "/apple-touch-icon.png",
-}
 
 
-def env_float(name: str, default: str) -> float:
-    try:
-        return float(os.getenv(name, default))
-    except (TypeError, ValueError):
-        return float(default)
-
-
-MET_LAT = env_float("MET_LAT", "61.1153")
-MET_LON = env_float("MET_LON", "10.4662")
-MET_USER_AGENT = os.getenv("MET_USER_AGENT", "fibaro10/1.0 http://192.168.20.218:8110")
 MET_WEATHER_CACHE = {"expires": datetime.min, "value": None}
 
-SUMMARY_CACHE_TTL = timedelta(minutes=5)
 SUMMARY_CACHE: Dict[str, Dict[str, Any]] = {}
-SUNBED_POWER_ANALYSIS_CACHE_TTL = timedelta(
-    minutes=max(3, int(os.getenv("SUNBED_POWER_ANALYSIS_CACHE_MINUTES", "10")))
-)
-SUNBED_POWER_CACHE_WARM_ENABLED = os.getenv("SUNBED_POWER_CACHE_WARM_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
-CARS_DAY_CACHE_TTL = timedelta(seconds=max(15, int(os.getenv("CARS_DAY_CACHE_SECONDS", "60"))))
-CARS_HISTORY_CACHE_TTL = timedelta(minutes=max(5, int(os.getenv("CARS_HISTORY_CACHE_MINUTES", "30"))))
-FIBARO10_PROCESS_ROLE = os.getenv("FIBARO10_PROCESS_ROLE", "combined").strip().lower() or "combined"
-FIBARO10_BACKGROUND_TASKS_ENABLED = os.getenv("FIBARO10_BACKGROUND_TASKS_ENABLED", "true").strip().lower() in {
-    "1",
-    "true",
-    "yes",
-    "ja",
-}
-NTFY_BASE_URL = os.getenv("NTFY_BASE_URL", "https://ntfy.sh").rstrip("/")
-NTFY_LIGHTS_TOPIC = os.getenv("NTFY_LIGHTS_TOPIC", f"sun2-lys-{MASTER_ACCESS_KEY_HASH[:12]}")
-NTFY_VENTILATION_TOPIC = os.getenv("NTFY_VENTILATION_TOPIC", f"sun2-ventilasjon-{MASTER_ACCESS_KEY_HASH[:12]}")
-NTFY_ACCESS_TOPIC = os.getenv("NTFY_ACCESS_TOPIC", f"sun2-tilgang-{MASTER_ACCESS_KEY_HASH[:12]}")
-NTFY_DOORS_TOPIC = os.getenv("NTFY_DOORS_TOPIC", f"sun2-dorer-{MASTER_ACCESS_KEY_HASH[:12]}")
-NTFY_BOLLARDS_TOPIC = os.getenv("PROTECT_BOLLARD_NTFY_TOPIC", "").strip()
-ALARM_APP_URL = os.getenv("ALARM_APP_URL", "https://alarm.lilletorget.net").rstrip("/")
-if not NTFY_BOLLARDS_TOPIC and MASTER_ACCESS_KEY_HASH:
-    NTFY_BOLLARDS_TOPIC = (
-        "protect-pullerter-"
-        + hashlib.sha256(f"protect-bollards:{MASTER_ACCESS_KEY_HASH}".encode()).hexdigest()[:24]
-    )
-SVV_API_KEY = os.getenv("SVV_API_KEY", "").strip()
-SVV_API_URL = os.getenv(
-    "SVV_API_URL",
-    "https://www.vegvesen.no/ws/no/vegvesen/kjoretoy/felles/datautlevering/enkeltoppslag/kjoretoydata",
-).strip()
-SVV_API_AUTH_HEADER = os.getenv("SVV_API_AUTH_HEADER", "SVV-Authorization").strip()
-SVV_API_AUTH_PREFIX = os.getenv("SVV_API_AUTH_PREFIX", "Apikey").strip()
-SVV_SYNC_ENABLED = os.getenv("SVV_SYNC_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
-SVV_SYNC_INTERVAL_MINUTES = max(1, int(os.getenv("SVV_SYNC_INTERVAL_MINUTES", "10")))
-SVV_SYNC_BATCH_SIZE = max(1, int(os.getenv("SVV_SYNC_BATCH_SIZE", "50")))
-SVV_IMPORT_SYNC_BATCH_SIZE = max(0, int(os.getenv("SVV_IMPORT_SYNC_BATCH_SIZE", "5")))
-SVV_RETRY_AFTER_HOURS = max(1, int(os.getenv("SVV_RETRY_AFTER_HOURS", "24")))
-SVV_TRANSIENT_RETRY_AFTER_MINUTES = max(5, int(os.getenv("SVV_TRANSIENT_RETRY_AFTER_MINUTES", "30")))
-SVV_PERMANENT_NO_DATA_STATUSES = {204, 400, 404}
-SVV_TRANSIENT_STATUSES = {429, 500, 502, 503, 504}
 hc3_door_unexpected_verified_until: Dict[int, datetime] = {}
-CAR_INFO_LOOKUP_URL = os.getenv("CAR_INFO_LOOKUP_URL", "http://127.0.0.1:8126").rstrip("/")
-CAR_INFO_APP_TOKEN = os.getenv("CAR_INFO_APP_TOKEN", "").strip()
-KOBLE_WORKER_TOKEN = (os.getenv("KOBLE_WORKER_TOKEN") or CAR_INFO_APP_TOKEN).strip()
-CAR_INFO_LOOKUP_TIMEOUT_SECONDS = max(5, int(os.getenv("CAR_INFO_LOOKUP_TIMEOUT_SECONDS", "30")))
-CAR_INFO_CANDIDATE_RETRY_HOURS = max(24, int(os.getenv("CAR_INFO_CANDIDATE_RETRY_HOURS", "720")))
-CAR_INFO_CANDIDATE_TRANSIENT_RETRY_MINUTES = max(30, int(os.getenv("CAR_INFO_CANDIDATE_TRANSIENT_RETRY_MINUTES", "240")))
-CAR_INFO_AUTO_TRIGGER_ENABLED = os.getenv("CAR_INFO_AUTO_TRIGGER_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
-CAR_INFO_AUTO_TRIGGER_MAX_PER_SVV_RUN = max(0, min(5, int(os.getenv("CAR_INFO_AUTO_TRIGGER_MAX_PER_SVV_RUN", "1"))))
-MOBILE_PREVIEW_REFRESH_SECONDS = max(15, int(os.getenv("MOBILE_PREVIEW_REFRESH_SECONDS", "60")))
-NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
-NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
-NTFY_OUTBOX_POLL_SECONDS = max(0.25, env_float("NTFY_OUTBOX_POLL_SECONDS", "1"))
-NTFY_OUTBOX_RETRY_BASE_SECONDS = max(1, int(os.getenv("NTFY_OUTBOX_RETRY_BASE_SECONDS", "5")))
-NTFY_OUTBOX_RETRY_MAX_SECONDS = max(
-    NTFY_OUTBOX_RETRY_BASE_SECONDS,
-    int(os.getenv("NTFY_OUTBOX_RETRY_MAX_SECONDS", "900")),
-)
-NTFY_OUTBOX_STALE_LOCK_SECONDS = max(30, int(os.getenv("NTFY_OUTBOX_STALE_LOCK_SECONDS", "300")))
-OPERATIONAL_RETENTION_ENABLED = os.getenv("OPERATIONAL_RETENTION_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
-OPERATIONAL_RETENTION_INTERVAL_HOURS = max(1, int(os.getenv("OPERATIONAL_RETENTION_INTERVAL_HOURS", "24")))
-OPERATIONAL_RETENTION_INITIAL_DELAY_SECONDS = max(5, int(os.getenv("OPERATIONAL_RETENTION_INITIAL_DELAY_SECONDS", "60")))
-ACCESS_LOG_SUCCESS_RETENTION_DAYS = max(7, int(os.getenv("ACCESS_LOG_SUCCESS_RETENTION_DAYS", "90")))
-ACCESS_LOG_FAILURE_RETENTION_DAYS = max(30, int(os.getenv("ACCESS_LOG_FAILURE_RETENTION_DAYS", "365")))
-IMPORT_JOB_SUCCESS_RETENTION_DAYS = max(7, int(os.getenv("IMPORT_JOB_SUCCESS_RETENTION_DAYS", "90")))
-IMPORT_JOB_FAILURE_RETENTION_DAYS = max(30, int(os.getenv("IMPORT_JOB_FAILURE_RETENTION_DAYS", "365")))
-NOTIFICATION_SENT_RETENTION_DAYS = max(7, int(os.getenv("NOTIFICATION_SENT_RETENTION_DAYS", "30")))
-AUTH_SESSION_RETENTION_DAYS = max(7, int(os.getenv("AUTH_SESSION_RETENTION_DAYS", "30")))
-OPERATIONAL_RETENTION_POLICY = OperationalRetentionPolicy(
-    access_success_days=ACCESS_LOG_SUCCESS_RETENTION_DAYS,
-    access_failure_days=ACCESS_LOG_FAILURE_RETENTION_DAYS,
-    import_success_days=IMPORT_JOB_SUCCESS_RETENTION_DAYS,
-    import_failure_days=IMPORT_JOB_FAILURE_RETENTION_DAYS,
-    notification_sent_days=NOTIFICATION_SENT_RETENTION_DAYS,
-    auth_session_days=AUTH_SESSION_RETENTION_DAYS,
-)
 OPERATIONAL_RETENTION_STATE: Dict[str, Any] = {
     "status": "waiting" if OPERATIONAL_RETENTION_ENABLED else "disabled",
     "lastRunAt": None,
@@ -616,182 +667,12 @@ OPERATIONAL_RETENTION_STATE: Dict[str, Any] = {
     "lastError": None,
     "deleted": {},
 }
-SUNROOM_DOOR_MONITOR_ENABLED = os.getenv("SUNROOM_DOOR_MONITOR_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
-SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS = max(30, int(os.getenv("SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS", "60")))
-SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS = max(0, int(os.getenv("SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS", "20")))
-SUNROOM_DOOR_SESSION_GRACE_MINUTES = env_float("SUNROOM_DOOR_SESSION_GRACE_MINUTES", "8")
-SUNROOM_DOOR_FORCED_SYNC_MINUTES = env_float("SUNROOM_DOOR_FORCED_SYNC_MINUTES", "1")
-SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS = max(
-    60,
-    int(os.getenv("SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS", "300")),
-)
-SUNROOM_DOOR_SYNC_MAX_ATTEMPTS = max(1, int(os.getenv("SUNROOM_DOOR_SYNC_MAX_ATTEMPTS", "4")))
-SUNROOM_DOOR_NEW_SESSION_GRACE_MINUTES = env_float("SUNROOM_DOOR_NEW_SESSION_GRACE_MINUTES", "8")
-SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES = env_float("SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES", "17")
-SUNROOM_DOOR_SYNC_FAILURE_ALARM_MINUTES = env_float("SUNROOM_DOOR_SYNC_FAILURE_ALARM_MINUTES", "20")
-SUNROOM_DOOR_CRITICAL_MINUTES = env_float("SUNROOM_DOOR_CRITICAL_MINUTES", "25")
-SUNROOM_DOOR_SYNC_TIMEOUT_SECONDS = max(10, int(os.getenv("SUNROOM_DOOR_SYNC_TIMEOUT_SECONDS", "120")))
-SUNROOM_DOOR_PAYMENT_DELAY_MINUTES = env_float("SUNROOM_DOOR_PAYMENT_DELAY_MINUTES", "3")
-SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES = env_float("SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES", "3")
-SUNROOM_DOOR_EXIT_GRACE_MINUTES = env_float("SUNROOM_DOOR_EXIT_GRACE_MINUTES", "3")
-SUNROOM_DOOR_WARN_AFTER_END_MINUTES = env_float("SUNROOM_DOOR_WARN_AFTER_END_MINUTES", "5")
-SUNROOM_DOOR_ALERT_AFTER_END_MINUTES = env_float("SUNROOM_DOOR_ALERT_AFTER_END_MINUTES", "10")
-SUNROOM_DOOR_SESSION_LOOKBACK_HOURS = max(2, int(os.getenv("SUNROOM_DOOR_SESSION_LOOKBACK_HOURS", "12")))
-HC3_BASE_URL = os.getenv("HC3_BASE_URL", "").strip().rstrip("/")
-HC3_USER = os.getenv("HC3_USER", "").strip()
-HC3_PASS = os.getenv("HC3_PASS", "")
-HC3_DOOR_UNEXPECTED_CHECK_ENABLED = os.getenv("HC3_DOOR_UNEXPECTED_CHECK_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
-HC3_DOOR_UNEXPECTED_CHECK_INTERVAL_SECONDS = max(30, int(os.getenv("HC3_DOOR_UNEXPECTED_CHECK_INTERVAL_SECONDS", "60")))
-HC3_DOOR_UNEXPECTED_CHECK_INITIAL_DELAY_SECONDS = max(0, int(os.getenv("HC3_DOOR_UNEXPECTED_CHECK_INITIAL_DELAY_SECONDS", "20")))
-HC3_DOOR_UNEXPECTED_RECHECK_MINUTES = env_float("HC3_DOOR_UNEXPECTED_RECHECK_MINUTES", "10")
-HC3_DOOR_OTHER_OPEN_VERIFY_MINUTES = env_float("HC3_DOOR_OTHER_OPEN_VERIFY_MINUTES", "10")
-HC3_DOOR_SOLROOM_CLOSED_VERIFY_MINUTES = env_float("HC3_DOOR_SOLROOM_CLOSED_VERIFY_MINUTES", "90")
-HC3_DOOR_POLL_TIMEOUT_SECONDS = max(3, int(os.getenv("HC3_DOOR_POLL_TIMEOUT_SECONDS", "8")))
-HC3_DOOR_DEBOUNCE_SECONDS = max(0.0, env_float("HC3_DOOR_DEBOUNCE_SECONDS", "5"))
-HC3_SWITCH_POLL_TIMEOUT_SECONDS = max(2, int(os.getenv("HC3_SWITCH_POLL_TIMEOUT_SECONDS", "3")))
-HC3_SWITCH_STATUS_CACHE_SECONDS = max(0.0, env_float("HC3_SWITCH_STATUS_CACHE_SECONDS", "5"))
-HC3_ENERGY_DEVICE_LIST_CACHE_SECONDS = max(5.0, env_float("HC3_ENERGY_DEVICE_LIST_CACHE_SECONDS", "60"))
-HC3_ENERGY_LIVE_TIMEOUT_SECONDS = max(2, int(os.getenv("HC3_ENERGY_LIVE_TIMEOUT_SECONDS", "4")))
-ENERGY_AGGREGATE_METERS = (
-    {
-        "key": "heat_pumps",
-        "label": "Varmepumper",
-        "realtimeId": 237,
-        "accumulatedId": 335,
-        "description": "Samler varmepumpemalere i HC3.",
-        "special": False,
-    },
-    {
-        "key": "lighting",
-        "label": "Belysning",
-        "realtimeId": 305,
-        "accumulatedId": 336,
-        "description": "Samler belysningsmalere i HC3.",
-        "special": False,
-    },
-    {
-        "key": "massage",
-        "label": "Massasje",
-        "realtimeId": 333,
-        "accumulatedId": 337,
-        "description": "Samler massasjerom og tilhorende laster i HC3.",
-        "special": False,
-    },
-    {
-        "key": "other",
-        "label": "Annet",
-        "realtimeId": 332,
-        "accumulatedId": 328,
-        "description": "Samler andre malte laster i HC3.",
-        "special": False,
-    },
-    {
-        "key": "difference",
-        "label": "Differanse",
-        "realtimeId": 331,
-        "accumulatedId": 334,
-        "description": "Kontrollsamling: hovedinntak minus de fire ordinare samlingene.",
-        "special": True,
-    },
-)
-ENERGY_AGGREGATE_METERS_BY_KEY = {row["key"]: row for row in ENERGY_AGGREGATE_METERS}
-ENERGY_AGGREGATE_POWER_MEMBERS = {
-    "heat_pumps": (226, 230, 234),
-    "lighting": (201, 208, 213, 275, 280, 286, 287, 292, 293, 299, 303, 207, 298, 143, 186, 424, 425, 440),
-    "massage": (309, 314, 319, 324, 399),
-    "other": (269, 247, 368, 373, 378, 405, 406, 160, 449, 530),
-}
-ENERGY_AGGREGATE_HC3_MEMBERS = {
-    **ENERGY_AGGREGATE_POWER_MEMBERS,
-    "difference": (221, 237, 305, 333, 332),
-}
-ENERGY_AGGREGATE_GROUP_BY_POWER_ID = {
-    device_id: group_key
-    for group_key, device_ids in ENERGY_AGGREGATE_POWER_MEMBERS.items()
-    for device_id in device_ids
-}
-ENERGY_ACCUMULATED_ID_BY_POWER_ID = {
-    226: 226, 230: 230, 234: 234,
-    201: 201, 208: 208, 213: 213, 275: 275, 280: 280, 286: 286,
-    287: 287, 292: 292, 293: 293, 299: 299, 303: 303, 207: 207,
-    298: 298, 143: 143, 186: 186, 424: 424, 425: 425, 440: 440,
-    309: 308, 314: 313, 319: 318, 324: 323, 399: 398,
-    269: 269, 247: 247, 368: 367, 373: 372, 378: 377, 405: 405,
-    406: 406, 160: 160, 449: 449, 530: 529,
-}
-EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
-SUN2_AXIS_SNAPSHOT_ROOT = Path(
-    os.getenv("SUN2_AXIS_SNAPSHOT_ROOT", os.getenv("AXIS_SNAPSHOT_DIR", "/axis_snapshots"))
-)
-SUN2_AXIS_SNAPSHOT_SERIES_OFFSETS_SECONDS = [-25, -20, -15, -10, -5]
-SUN2_AXIS_SNAPSHOT_MINUTE_ASSUMED_SECOND = max(
-    0,
-    min(59, int(os.getenv("SUN2_AXIS_SNAPSHOT_MINUTE_ASSUMED_SECOND", "30"))),
-)
-SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS", "8")))
-SUN2_AXIS_SNAPSHOT_LINK_ENABLED = os.getenv("SUN2_AXIS_SNAPSHOT_LINK_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
-SUN2_AXIS_SNAPSHOT_LINK_INTERVAL_SECONDS = max(30, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_INTERVAL_SECONDS", "60")))
-SUN2_AXIS_SNAPSHOT_LINK_INITIAL_DELAY_SECONDS = max(0, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_INITIAL_DELAY_SECONDS", "45")))
-SUN2_AXIS_SNAPSHOT_LINK_DAYS = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_DAYS", "35")))
-SUN2_AXIS_SNAPSHOT_LINK_LIMIT = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_LIMIT", "5000")))
-SUN2_AXIS_SNAPSHOT_DAY_CACHE_CURRENT_SECONDS = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_DAY_CACHE_CURRENT_SECONDS", "15")))
-SUN2_AXIS_SNAPSHOT_DAY_CACHE_ARCHIVE_SECONDS = max(60, int(os.getenv("SUN2_AXIS_SNAPSHOT_DAY_CACHE_ARCHIVE_SECONDS", "3600")))
 
 axis_snapshot_day_cache: Dict[tuple[str, str], Dict[str, Any]] = {}
 sunroom_door_verifications: Dict[str, Dict[str, Any]] = {}
 
-OWNTRACKS_SERVICE_URL = os.getenv("OWNTRACKS_SERVICE_URL", "http://owntracks_service:8128").rstrip("/")
-UNIFI_PROTECT_EVENTS_URL = os.getenv("UNIFI_PROTECT_EVENTS_URL", "http://unifi_protect_events:8130").rstrip("/")
-UNIFI_PROTECT_READ_API_TOKEN = os.getenv("UNIFI_PROTECT_READ_API_TOKEN", "").strip()
-ROBOROCK_LOGGER_URL = os.getenv("ROBOROCK_LOGGER_URL", "http://roborock_logger:8095").rstrip("/")
-SUN2_SESSION_SCRAPER_URL = os.getenv("SUN2_SESSION_SCRAPER_URL", "http://sun2_session_scraper:8098").rstrip("/")
-ROBOROCK_CONTROL_TOKEN = os.getenv("ROBOROCK_CONTROL_TOKEN", "").strip()
-DREAME_LOGGER_URL = os.getenv("DREAME_LOGGER_URL", "http://dreame_logger:8094").rstrip("/")
-DREAME_CONTROL_TOKEN = os.getenv("DREAME_CONTROL_TOKEN", "").strip()
-DREAME_EXPECTED_ROBOT_NAME = os.getenv("DREAME_EXPECTED_ROBOT_NAME", "Aqua10").strip() or "Aqua10"
-UNIFI_PROTECT_API_TIMEOUT_SECONDS = max(1, int(os.getenv("UNIFI_PROTECT_API_TIMEOUT_SECONDS", "10")))
-NIGHTLY_BACKUP_STATUS_PATH = Path(
-    os.getenv("NIGHTLY_BACKUP_STATUS_PATH", "/system_backup_status/nightly/LATEST_STATUS.txt")
-)
-FULL_BACKUP_STATUS_PATH = Path(
-    os.getenv("FULL_BACKUP_STATUS_PATH", "/system_backup_status/full/BACKUP_STATUS.txt")
-)
 incident_state = IncidentState()
 process_locks = ProcessLocks()
-OWNTRACKS_VISIT_SYNC_ENABLED = os.getenv("OWNTRACKS_VISIT_SYNC_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
-OWNTRACKS_VISIT_SYNC_INTERVAL_SECONDS = max(30, int(os.getenv("OWNTRACKS_VISIT_SYNC_INTERVAL_SECONDS", "60")))
-OWNTRACKS_VISIT_SYNC_LOOKBACK_HOURS = max(1, int(os.getenv("OWNTRACKS_VISIT_SYNC_LOOKBACK_HOURS", str(24 * 14))))
-OWNTRACKS_VISIT_SYNC_TIMEOUT_SECONDS = max(2, int(os.getenv("OWNTRACKS_VISIT_SYNC_TIMEOUT_SECONDS", "10")))
-SITE_VISIT_ACTIVE_MAX_HOURS = max(1, int(os.getenv("SITE_VISIT_ACTIVE_MAX_HOURS", "24")))
-OWNTRACKS_LILLETORGET_WAYPOINTS = [
-    item.strip()
-    for item in os.getenv("OWNTRACKS_LILLETORGET_WAYPOINTS", "Lilletorget 3,Lilletorget,Sun2").split(",")
-    if item.strip()
-]
-OWNTRACKS_SITE_VISIT_LOCATION_KEY = os.getenv("OWNTRACKS_SITE_VISIT_LOCATION_KEY", "lilletorget").strip() or "lilletorget"
-OWNTRACKS_SITE_VISIT_LOCATION_NAME = os.getenv("OWNTRACKS_SITE_VISIT_LOCATION_NAME", "Lilletorget").strip() or "Lilletorget"
-SITE_VISIT_MAINTENANCE_LINK_MARGIN_MINUTES = max(
-    0,
-    int(os.getenv("SITE_VISIT_MAINTENANCE_LINK_MARGIN_MINUTES", "30")),
-)
-
-SECURITY_HSTS_ENABLED = os.getenv("SECURITY_HSTS_ENABLED", "false").strip().lower() in {"1", "true", "yes", "ja"}
-SECURITY_HSTS_MAX_AGE_SECONDS = max(0, int(os.getenv("SECURITY_HSTS_MAX_AGE_SECONDS", str(60 * 60 * 24 * 180))))
-SLOW_REQUEST_WARNING_MS = max(250.0, env_float("SLOW_REQUEST_WARNING_MS", "1500"))
-
-
-MOBILE_PREVIEW_SCREENS = [
-    {"key": "home", "title": "Forside", "subtitle": "Hovedkort og drift akkurat nå", "source_path": "/"},
-    {"key": "soling", "title": "Soling", "subtitle": "Dagens solinger og sammenligninger", "source_path": "/soling"},
-    {"key": "parkering", "title": "Parkering", "subtitle": "Dagens parkeringer og EasyPark-status", "source_path": "/parkering"},
-    {"key": "omsetning", "title": "Omsetning", "subtitle": "Samlet omsetning og periodekort", "source_path": "/omsetning"},
-    {"key": "omsetning-uke", "title": "Omsetning uke", "subtitle": "Mobilt søylediagram for uke", "source_path": "/omsetning/uke"},
-    {"key": "energi", "title": "Energi", "subtitle": "Strøm nå og forbruk i dag", "source_path": "/energi"},
-    {"key": "temperatur", "title": "Temperatur", "subtitle": "Temperatur og fukt fra mobilappen", "source_path": "/temperatur"},
-    {"key": "lys", "title": "Lys", "subtitle": "Lysstatus og siste hendelser", "source_path": "/lys"},
-    {"key": "ventilasjon", "title": "Ventilasjon", "subtitle": "Viftestatus og siste hendelser", "source_path": "/ventilasjon"},
-]
-MOBILE_PREVIEW_MONEY_KEYS = {"omsetning", "omsetning-uke"}
 
 
 background_tasks = BackgroundTaskSupervisor(logger)
@@ -820,9 +701,6 @@ templates.env.filters["source_time_short"] = format_source_time
 templates.env.filters["source_datetime_short"] = format_source_datetime_short
 
 
-
-
-
 templates.env.filters["roborock_state"] = roborock_state_label
 templates.env.filters["roborock_error"] = roborock_error_label
 templates.env.filters["roborock_fan"] = roborock_fan_label
@@ -839,808 +717,14 @@ templates.env.filters["pretty_json"] = roborock_json
 engine, async_session = create_database(DATABASE_URL)
 
 
-@app.middleware("http")
-async def access_key_middleware(request: Request, call_next):
-    if is_public_request(request):
-        return await call_next(request)
-
-    if is_car_info_app_request_path(request.url.path) and has_car_info_app_access(request):
-        request.state.access_key_id = None
-        request.state.access_key_name = "car_info_lookup"
-        request.state.auth_role = "settings"
-        request.state.auth_is_master = False
-        request.state.auth_can_settings = True
-        return await call_next(request)
-
-    if is_koble_worker_request_path(request.url.path) and has_koble_worker_access(request):
-        request.state.access_key_id = None
-        request.state.access_key_name = "parking_sun_linker"
-        request.state.auth_role = "settings"
-        request.state.auth_is_master = False
-        request.state.auth_can_settings = True
-        return await call_next(request)
-
-    auth_session_id = None
-    attempted_username = None
-    session_token = presented_session_token(request)
-    if session_token:
-        auth_session = await find_auth_session(session_token)
-        access_key = auth_session[0] if auth_session else None
-        auth_session_id = auth_session[1] if auth_session else None
-    else:
-        username, password = presented_credentials(request)
-        attempted_username = username
-        access_key = await find_access_key(username, password)
-    if not access_key:
-        await log_access_attempt(request, False, "missing_or_invalid_session" if session_token else "missing_or_invalid_key", attempted_username=attempted_username)
-        if wants_html(request):
-            return templates.TemplateResponse(
-                request,
-                "login.html",
-                {"error": "Mangler eller ugyldig brukernavn/passord"},
-                status_code=401,
-            )
-        return JSONResponse({"detail": "Ugyldig eller manglende brukernavn/passord"}, status_code=401)
-
-    request.state.access_key_id = access_key.id
-    request.state.access_key_name = access_key.name
-    request.state.auth_session_id = auth_session_id
-    request.state.auth_role = access_role(access_key)
-    request.state.auth_is_master = request.state.auth_role == "master"
-    request.state.auth_can_settings = request.state.auth_role in ["master", "settings"]
-    await log_access_attempt(request, True, "ok", access_key)
-    return await call_next(request)
-
-
-@app.middleware("http")
-async def security_headers_middleware(request: Request, call_next):
-    started_at = perf_counter()
-    response = await call_next(request)
-    duration_ms = (perf_counter() - started_at) * 1000
-    apply_security_headers(
-        response.headers,
-        hsts_enabled=SECURITY_HSTS_ENABLED,
-        hsts_max_age_seconds=SECURITY_HSTS_MAX_AGE_SECONDS,
-    )
-    for key, value in response_timing_headers(duration_ms).items():
-        response.headers.setdefault(key, value)
-    cache_control = cache_control_for_path(request.url.path)
-    if cache_control:
-        response.headers.setdefault("Cache-Control", cache_control)
-    if duration_ms >= SLOW_REQUEST_WARNING_MS and request.url.path != "/health":
-        logger.warning(
-            "Slow request %s %s completed in %.1f ms with status %s",
-            request.method,
-            request.url.path,
-            duration_ms,
-            response.status_code,
-        )
-    return response
-
-
-SOLROOM_DOOR_HC3 = {
-    1: {"device_id": 459, "hc3_name": "98.0 Rom 1"},
-    3: {"device_id": 543, "hc3_name": "148.0 Door Sensor"},
-    4: {"device_id": 465, "hc3_name": "101.0 Rom 4"},
-    5: {"device_id": 463, "hc3_name": "100.0 Rom 5"},
-    6: {"device_id": 469, "hc3_name": "104.0 Rom 6"},
-    7: {"device_id": 471, "hc3_name": "105.0 Rom 7"},
-    8: {"device_id": 473, "hc3_name": "106.0 Rom 8"},
-    9: {"device_id": 475, "hc3_name": "107.0 Rom 9"},
-    10: {"device_id": 477, "hc3_name": "108.0 Rom 10"},
-    11: {"device_id": 479, "hc3_name": "109.0 Rom 11"},
-    12: {"device_id": 539, "hc3_name": "130.0 Door Sensor"},
-}
-
-DOOR_SENSOR_CONFIG = [
-    *[
-        {
-            "device_id": SOLROOM_DOOR_HC3.get(index, {}).get("device_id"),
-            "device_key": f"door_solrom_{index:02d}",
-            "title": f"Solrom {index}",
-            "hc3_name": SOLROOM_DOOR_HC3.get(index, {}).get("hc3_name", "Ikke koblet i HC3"),
-            "group_key": "solrom",
-            "group_title": "Solrom",
-            "section_key": "1etg" if index in {1, 2, 3, 9} else "vip" if index in {10, 11, 12} else "2etg",
-            "section_title": "1.etg" if index in {1, 2, 3, 9} else "VIP" if index in {10, 11, 12} else "2.etg",
-            "sort_order": index,
-            "normal_state": "closed",
-        }
-        for index in range(1, 13)
-    ],
-    {
-        "device_id": 453,
-        "device_key": "door_453",
-        "title": "Bod/kjøkken",
-        "hc3_name": "96.0 bod/kjokken",
-        "group_key": "andre",
-        "group_title": "Andre dører",
-        "section_key": "bygg",
-        "section_title": "Bygg",
-        "sort_order": 101,
-        "normal_state": "closed",
-    },
-    {
-        "device_id": 447,
-        "device_key": "door_447",
-        "title": "Kjeller luke",
-        "hc3_name": "94.0 Kjeller luke",
-        "group_key": "andre",
-        "group_title": "Andre dører",
-        "section_key": "bygg",
-        "section_title": "Bygg",
-        "sort_order": 102,
-        "normal_state": "closed",
-    },
-    {
-        "device_id": 413,
-        "device_key": "door_413",
-        "title": "Arbeidsrom",
-        "hc3_name": "86.0 Arbeidsrom",
-        "group_key": "andre",
-        "group_title": "Andre dører",
-        "section_key": "bygg",
-        "section_title": "Bygg",
-        "sort_order": 103,
-        "normal_state": "closed",
-    },
-    {
-        "device_id": 541,
-        "device_key": "door_inngang",
-        "title": "Inngang",
-        "hc3_name": "131.0 Door Sensor",
-        "group_key": "andre",
-        "group_title": "Andre dører",
-        "section_key": "bygg",
-        "section_title": "Bygg",
-        "sort_order": 104,
-        "normal_state": "closed",
-    },
-    {
-        "device_id": 483,
-        "device_key": "door_massasjestudio",
-        "title": "Massasjestudio",
-        "hc3_name": "112.0 Massasje",
-        "group_key": "andre",
-        "group_title": "Andre dører",
-        "section_key": "bygg",
-        "section_title": "Bygg",
-        "sort_order": 105,
-        "normal_state": "closed",
-    },
-    {
-        "device_id": 535,
-        "device_key": "door_loftluke_massasje",
-        "title": "Loftluke massasje",
-        "hc3_name": "128.0 Loftluke massasje",
-        "group_key": "andre",
-        "group_title": "Andre dører",
-        "section_key": "bygg",
-        "section_title": "Bygg",
-        "sort_order": 106,
-        "normal_state": "closed",
-    },
-    {
-        "device_id": 489,
-        "device_key": "door_vaskerom",
-        "title": "Vaskerom",
-        "hc3_name": "115.0 Vaskerom",
-        "group_key": "andre",
-        "group_title": "Andre dører",
-        "section_key": "bygg",
-        "section_title": "Bygg",
-        "sort_order": 107,
-        "normal_state": "closed",
-    },
-    {
-        "device_id": 487,
-        "device_key": "door_papirlager",
-        "title": "Papirlager",
-        "hc3_name": "114.0 Papirlager",
-        "group_key": "andre",
-        "group_title": "Andre dører",
-        "section_key": "bygg",
-        "section_title": "Bygg",
-        "sort_order": 108,
-        "normal_state": "closed",
-    },
-    {
-        "device_id": 537,
-        "device_key": "door_soppelbod",
-        "title": "Søppelbod",
-        "hc3_name": "129.0 Door Sensor",
-        "group_key": "andre",
-        "group_title": "Andre dører",
-        "section_key": "bygg",
-        "section_title": "Bygg",
-        "sort_order": 109,
-        "normal_state": "closed",
-    },
-    {
-        "device_id": 493,
-        "device_key": "door_vaktmesterlager",
-        "title": "Vaktmesterlager",
-        "hc3_name": "117.0 Vaktmesterlager",
-        "group_key": "andre",
-        "group_title": "Andre dører",
-        "section_key": "bygg",
-        "section_title": "Bygg",
-        "sort_order": 110,
-        "normal_state": "closed",
-    },
-    {
-        "device_id": 495,
-        "device_key": "door_toalett",
-        "title": "Toalett",
-        "hc3_name": "118.0 Toalett",
-        "group_key": "andre",
-        "group_title": "Andre dører",
-        "section_key": "bygg",
-        "section_title": "Bygg",
-        "sort_order": 111,
-        "normal_state": "closed",
-    },
-]
-DOOR_SENSOR_IDS = [int(item["device_id"]) for item in DOOR_SENSOR_CONFIG if item.get("device_id") is not None]
-
-
-
-
-
-
-
-
-
-
-
-LIGHT_TIMELINE_DEVICES = [
-    {"key": "lyslist", "name": "Lyslist dekor", "sample_attr": "light_lyslist", "legacy_ids": [425, 298]},
-    {"key": "reklame", "name": "Reklameplakater", "sample_attr": "light_reklame", "legacy_ids": [427]},
-    {"key": "spot_glass_275", "name": "Spot foran glassvegg", "sample_attr": "light_spot_glass_275", "legacy_ids": [275]},
-    {"key": "spot_glass_299", "name": "Spot foran massasje", "sample_attr": "light_spot_glass_299", "legacy_ids": [299]},
-    {"key": "spot_inngang", "name": "6xspot over inngang", "sample_attr": "light_spot_inngang", "legacy_ids": [424]},
-    {"key": "parkering", "name": "Parkeringslys/gatelys", "sample_attr": "light_parkering", "legacy_ids": [440]},
-]
-
-VENT_TIMELINE_DEVICES = [
-    {"key": "vip_intake", "name": "Innluft VIP", "sample_attr": "fan_vip", "legacy_ids": [511]},
-    {"key": "floor_intake", "name": "Innluft 2.etg", "sample_attr": "fan_2etg", "legacy_ids": [160]},
-    {"key": "roof_exhaust", "name": "Avtrekk tak/loft", "sample_attr": "fan_tak", "legacy_ids": [134]},
-    {"key": "dehumidifier_basement", "name": "Avfukter kjeller", "sample_attr": "fan_avfukter", "legacy_ids": [449]},
-]
 hc3_switch_status_cache: Dict[int, tuple[float, Dict[str, Any]]] = {}
 hc3_energy_device_list_cache: Dict[str, Any] = {}
-
-DAY_ZOOM_OPTIONS = [
-    {"key": "all", "label": "Hele døgnet", "start_hour": 0, "end_hour": 24, "ticks": [0, 6, 12, 18, 24]},
-    {"key": "night", "label": "Natt 00-06", "start_hour": 0, "end_hour": 6, "ticks": [0, 2, 4, 6]},
-    {"key": "day", "label": "Dag 06-24", "start_hour": 6, "end_hour": 24, "ticks": [6, 12, 18, 24]},
-]
-
-WEATHER_LABELS = {
-    "clearsky": "Klarvær",
-    "clearsky_day": "Klarvær",
-    "clearsky_night": "Klarvær",
-    "clearsky_polartwilight": "Klarvær",
-    "fair": "Lettskyet",
-    "fair_day": "Lettskyet",
-    "fair_night": "Lettskyet",
-    "fair_polartwilight": "Lettskyet",
-    "partlycloudy": "Delvis skyet",
-    "partlycloudy_day": "Delvis skyet",
-    "partlycloudy_night": "Delvis skyet",
-    "partlycloudy_polartwilight": "Delvis skyet",
-    "cloudy": "Skyet",
-    "fog": "Tåke",
-    "lightrain": "Lett regn",
-    "rain": "Regn",
-    "heavyrain": "Kraftig regn",
-    "lightsnow": "Lett snø",
-    "snow": "Snø",
-    "heavysnow": "Kraftig snø",
-    "sleet": "Sludd",
-    "lightsleet": "Lett sludd",
-    "thunderstorm": "Torden",
-    "rainshowers": "Regnbyger",
-    "lightrainshowers": "Lette regnbyger",
-    "heavyrainshowers": "Kraftige regnbyger",
-    "snowshowers": "Snøbyger",
-    "lightsnowshowers": "Lette snøbyger",
-    "heavysnowshowers": "Kraftige snøbyger",
-}
-
-CONFIG_DEFINITIONS = {
-    "lights": {
-        "title": "Lysstyring",
-        "subtitle": "Terskler, driftstid og forklaring for utelys",
-        "theme": "theme-light",
-        "settings_path": "/lys/innstillinger",
-        "api_path": "/api/config/lights",
-        "groups": [
-            {
-                "title": "Felles drift",
-                "description": "Gjelder alle lys unntatt parkeringslys der feltet sier at åpningstid ignoreres.",
-                "fields": [
-                    {"key": "open_from", "label": "Start før åpning", "type": "time", "default": "06:45", "unit": "", "help": "Tidligste tidspunkt lys som følger åpningstid kan være på."},
-                    {"key": "close_at", "label": "Normal av-tid", "type": "time", "default": "23:00", "unit": "", "help": "Standard av-tid for lys som følger åpningstid."},
-                    {"key": "entrance_close_at", "label": "Inngang av-tid", "type": "time", "default": "23:20", "unit": "", "help": "6xspot over inngang kan stå litt lenger enn øvrige fasadelys."},
-                    {"key": "decision_delay_seconds", "label": "Bekreftelsestid", "type": "int", "default": 120, "unit": "sek", "help": "Lux må bekreftes etter denne forsinkelsen før lys endres."},
-                    {"key": "config_poll_minutes", "label": "HC3 henter config", "type": "int", "default": 5, "unit": "min", "help": "Hvor ofte HC3 bør kontrollere om versjon er endret."},
-                ],
-            },
-            {
-                "title": "Luxgrenser",
-                "description": "På-grense er lav lux. Av-grense er høyere lux for å gi hysterese og unngå flimring.",
-                "fields": [
-                    {"key": "lyslist_on_lux", "label": "Lyslist på under", "type": "float", "default": 1000, "unit": "lux", "help": "Dekorlys på fasade."},
-                    {"key": "lyslist_off_lux", "label": "Lyslist av over", "type": "float", "default": 1500, "unit": "lux", "help": "Må være høyere enn på-grensen."},
-                    {"key": "reklame_on_lux", "label": "Reklame på under", "type": "float", "default": 500, "unit": "lux", "help": "Reklameplakater på tegelfasade."},
-                    {"key": "reklame_off_lux", "label": "Reklame av over", "type": "float", "default": 700, "unit": "lux", "help": "Må være høyere enn på-grensen."},
-                    {"key": "spot_glass_on_lux", "label": "Spot foran på under", "type": "float", "default": 1500, "unit": "lux", "help": "Spot 275 og 299 foran glassveggen."},
-                    {"key": "spot_glass_off_lux", "label": "Spot foran av over", "type": "float", "default": 2000, "unit": "lux", "help": "Må være høyere enn på-grensen."},
-                    {"key": "spot_inngang_on_lux", "label": "6xspot inngang på under", "type": "float", "default": 100, "unit": "lux", "help": "Behovsstyrt inngangslys."},
-                    {"key": "spot_inngang_off_lux", "label": "6xspot inngang av over", "type": "float", "default": 150, "unit": "lux", "help": "Må være høyere enn på-grensen."},
-                    {"key": "parkering_on_lux", "label": "Parkering på under", "type": "float", "default": 50, "unit": "lux", "help": "Parkeringslys/gatelys."},
-                    {"key": "parkering_off_lux", "label": "Parkering av over", "type": "float", "default": 80, "unit": "lux", "help": "Parkeringslys følger ikke åpningstid."},
-                ],
-            },
-        ],
-    },
-    "ventilation": {
-        "title": "Ventilasjonsstyring",
-        "subtitle": "Temperaturgrenser, driftstid og forklaring for vifter",
-        "theme": "theme-vent",
-        "settings_path": "/ventilasjon/innstillinger",
-        "api_path": "/api/config/ventilation",
-        "groups": [
-            {
-                "title": "Drift og sikkerhet",
-                "description": "Disse grensene hindrer trekk, undertrykk og unødvendig varmetap.",
-                "fields": [
-                    {"key": "open_from", "label": "Åpningstid fra", "type": "time", "default": "07:00", "unit": "", "help": "Normal start for ventilasjonslogikk."},
-                    {"key": "close_at", "label": "Stenging", "type": "time", "default": "23:00", "unit": "", "help": "Normal stengetid."},
-                    {"key": "pre_cooling_from", "label": "Forkjøling fra", "type": "time", "default": "05:30", "unit": "", "help": "Kan brukes på varme dager når ute fortsatt er kaldt."},
-                    {"key": "exhaust_stop_before_close_minutes", "label": "Stopp avtrekk før stenging", "type": "int", "default": 60, "unit": "min", "help": "Sparer varme mot natten."},
-                    {"key": "mechanical_min_outdoor_temp", "label": "Sperr mekanisk under", "type": "float", "default": 7.0, "unit": "°C", "help": "Avtrekk og innluft stoppes når ute er kaldere enn dette."},
-                    {"key": "intake_min_outdoor_temp", "label": "Innluft minimum ute", "type": "float", "default": 10.0, "unit": "°C", "help": "Hindrer kald innblåsing."},
-                ],
-            },
-            {
-                "title": "Innluft",
-                "description": "Innluft skal bare gå når ute faktisk hjelper. Avtrekk får ikke tvinge varm uteluft inn, bortsett fra ved sikkerhetsvarmt loft.",
-                "fields": [
-                    {"key": "vip_start_temp", "label": "VIP innluft start", "type": "float", "default": 23.8, "unit": "°C", "help": "VIP-viften vurderer primært VIP-temperatur."},
-                    {"key": "vip_stop_temp", "label": "VIP innluft stopp", "type": "float", "default": 23.2, "unit": "°C", "help": "Lavere enn start for hysterese."},
-                    {"key": "floor_start_temp", "label": "1./2.etg innluft start", "type": "float", "default": 23.8, "unit": "°C", "help": "2.etg-viften vurderer 1.etg og 2.etg."},
-                    {"key": "floor_stop_temp", "label": "1./2.etg innluft stopp", "type": "float", "default": 23.2, "unit": "°C", "help": "Lavere enn start for hysterese."},
-                    {"key": "outdoor_cooler_delta", "label": "Ute må være kaldere", "type": "float", "default": 1.5, "unit": "°C", "help": "Ute må være minst så mye kaldere enn sonen."},
-                    {"key": "max_indoor_heat_need_temp", "label": "Varmebehov under", "type": "float", "default": 21.5, "unit": "°C", "help": "Under denne temperaturen unngår vi kjølende ventilasjon."},
-                ],
-            },
-            {
-                "title": "Avtrekk tak/loft",
-                "description": "Avtrekk skal ikke gå bare fordi solsenger er i bruk hvis lokalet trenger varme.",
-                "fields": [
-                    {"key": "loft_exhaust_start_temp", "label": "Takvifte start loft", "type": "float", "default": 30.0, "unit": "°C", "help": "Starter når loftet er varmt nok og ute ikke er for kaldt."},
-                    {"key": "loft_exhaust_stop_temp", "label": "Takvifte stopp loft", "type": "float", "default": 28.0, "unit": "°C", "help": "Stopper lavere enn start for hysterese."},
-                    {"key": "indoor_allow_exhaust_temp", "label": "Avtrekk tillatt når inne over", "type": "float", "default": 25.0, "unit": "°C", "help": "Hindrer at varme blåses ut når lokalet er kaldt."},
-                    {"key": "sunbed_power_1_threshold_w", "label": "Antatt 1 solseng over", "type": "int", "default": 4000, "unit": "W", "help": "Differanse mellom total og målt øvrig forbruk."},
-                    {"key": "sunbed_power_2_threshold_w", "label": "Antatt 2 solsenger over", "type": "int", "default": 12000, "unit": "W", "help": "Brukes for vurdering og logging."},
-                    {"key": "afterrun_minutes", "label": "Ettergang", "type": "int", "default": 20, "unit": "min", "help": "Hvor lenge vifter kan gå etter siste tydelige varmebelastning."},
-                ],
-            },
-            {
-                "title": "Kjeller og avfukter",
-                "description": "Avfukteren styres av fukt i kjeller med hysterese.",
-                "fields": [
-                    {"key": "basement_humidity_start", "label": "Avfukter på over", "type": "float", "default": 60.0, "unit": "%", "help": "Starter avfukter når kjellerfukt er over denne verdien."},
-                    {"key": "basement_humidity_stop", "label": "Avfukter av under", "type": "float", "default": 55.0, "unit": "%", "help": "Stopper avfukter når kjellerfukt er under denne verdien."},
-                    {"key": "basement_min_temp", "label": "Sperr under kjellertemp", "type": "float", "default": 5.0, "unit": "°C", "help": "Hindrer drift hvis kjelleren er for kald for trygg avfukting."},
-                ],
-            },
-        ],
-    },
-}
-
-
-CONTROL_DEVICES = {
-    "lights": {
-        "lux_sensor": {"key": "lux_ute", "name": "Luxsensor ute", "role": "sensor"},
-        "groups": [
-            {
-                "key": "lyslist",
-                "name": "Lyslist fasade",
-                "device_ids": [425, 298],
-                "on_lux_key": "lyslist_on_lux",
-                "off_lux_key": "lyslist_off_lux",
-                "time_from_key": "open_from",
-                "time_to_key": "close_at",
-                "follows_opening_hours": True,
-            },
-            {
-                "key": "reklame",
-                "name": "Reklameplakater tegelfasade",
-                "on_lux_key": "reklame_on_lux",
-                "off_lux_key": "reklame_off_lux",
-                "time_from_key": "open_from",
-                "time_to_key": "close_at",
-                "follows_opening_hours": True,
-            },
-            {
-                "key": "spot_glass",
-                "name": "Spot foran glassvegg",
-                "on_lux_key": "spot_glass_on_lux",
-                "off_lux_key": "spot_glass_off_lux",
-                "time_from_key": "open_from",
-                "time_to_key": "close_at",
-                "follows_opening_hours": True,
-            },
-            {
-                "key": "spot_inngang",
-                "name": "6xspot over inngang",
-                "on_lux_key": "spot_inngang_on_lux",
-                "off_lux_key": "spot_inngang_off_lux",
-                "time_from_key": "open_from",
-                "time_to_key": "entrance_close_at",
-                "follows_opening_hours": True,
-            },
-            {
-                "key": "parkering",
-                "name": "Parkeringslys",
-                "on_lux_key": "parkering_on_lux",
-                "off_lux_key": "parkering_off_lux",
-                "time_from_key": None,
-                "time_to_key": None,
-                "follows_opening_hours": False,
-            },
-        ],
-    },
-    "ventilation": {
-        "sensors": {
-            "outdoor_temp": {"key": "outdoor_temp", "name": "Utetemperatur"},
-            "netatmo_main": {"key": "netatmo_main", "name": "Netatmo hovedenhet"},
-            "basement_temp": {"key": "basement_temp", "name": "Kjeller temperatur", "device_id": 444},
-            "basement_humidity": {"key": "basement_humidity", "name": "Kjeller fukt", "device_id": 445},
-            "passive_intake": {"name": "Pass innluft"},
-        },
-        "fans": [
-            {"key": "vip_intake", "name": "Innluft VIP", "zone": "VIP"},
-            {"key": "floor_intake", "name": "Innluft 1./2.etg", "zone": "1.etg/2.etg"},
-            {"key": "roof_exhaust", "name": "Takvifte avtrekk", "zone": "Loft"},
-            {"key": "dehumidifier_basement", "name": "Avfukter kjeller", "zone": "Kjeller", "device_id": 449},
-        ],
-    },
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-AXIS_SNAPSHOT_FILENAME_RE = re.compile(r"^axis_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})\.jpg$")
-AXIS_SNAPSHOT_ID_RE = re.compile(r"^\d{14}$")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 from fibaro_core.services.presentation import format_short_number
 
 
 from fibaro_core.services.presentation import format_signed_short_number
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 from fibaro_core.services.forecasts.calendar import easter_sunday
@@ -1704,8 +788,6 @@ from fibaro_core.services.forecasts.models import parking_historical_day_fractio
 from fibaro_core.services.forecasts.models import intraday_forecast_value
 
 
-
-
 from fibaro_core.services.forecasts.models import parking_daily_model
 
 
@@ -1724,8 +806,6 @@ from fibaro_core.services.forecasts.models import parking_history_weight
 from fibaro_core.services.forecasts.models import parking_history_weight_precomputed
 
 
-
-
 from fibaro_core.services.forecasts.snapshots import forecast_period_label
 
 
@@ -1741,8 +821,6 @@ from fibaro_core.services.forecasts.snapshots import forecast_snapshot_from_peri
 from fibaro_core.services.forecasts.snapshots import save_forecast_snapshots
 
 
-
-
 from fibaro_core.services.forecasts.snapshots import saved_forecast_table
 
 
@@ -1755,889 +833,11 @@ from fibaro_core.services.forecasts.snapshots import forecast_snapshot_stamp
 from fibaro_core.services.forecasts.snapshots import forecast_chart_time_label
 
 
-
-
 templates.env.filters["short_number"] = format_short_number
 
 
-ENERGY_FIBARO_AREAS = [
-    {"key": "inntak", "label": "Inntak", "tone": "energy"},
-    {"key": "varmepumper", "label": "Varmepumper", "tone": "vent"},
-    {"key": "belysning", "label": "Belysning", "tone": "light"},
-    {"key": "massasje", "label": "Massasje", "tone": "sun2"},
-    {"key": "annet", "label": "Annet", "tone": "status"},
-    {"key": "avfukter", "label": "Avfukter", "tone": "vent"},
-    {"key": "differanse_beregnet", "label": "Differanse", "tone": "admin"},
-]
-
-ENERGY_CIRCUIT_SEED_SOURCE = "kursliste_37.xlsx"
-ENERGY_CIRCUIT_SEED_ROWS = [
-    {"circuit_no": 1, "description": "SENG ROM 1", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 18, "install_method": "B", "rcd_ma": 30},
-    {"circuit_no": 2, "description": "ROM 2 SENG", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 17, "install_method": "B2", "rcd_ma": 30},
-    {"circuit_no": 3, "description": "VARMEPUMPE \u00d8ST + stikk loft vip mrk 3.", "breaker_type": "Malthe Win", "breaker_rating_a": 16, "breaker_characteristic": "C", "cable_spec": "2x2,5+J", "cable_length_m": 20, "install_method": "B2", "rcd_ma": 30},
-    {"circuit_no": 4, "description": "VARMEPUMPE VEST/OVER HOVEDINNGANG", "breaker_type": "Malthe Win", "breaker_rating_a": 16, "breaker_characteristic": "C", "cable_spec": "2x2,5+J", "cable_length_m": 12, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 5, "description": "TERMINAL/ REGISTRERING OG KREMAUTOMAT", "breaker_type": "Malthe Win", "breaker_rating_a": 16, "breaker_characteristic": "C", "cable_spec": "2x2,5+J", "cable_length_m": 12, "install_method": "A2", "rcd_ma": 30},
-    {"circuit_no": 6, "description": "LOFT OVER LAGER/TAVLEROM vip", "breaker_type": "Malthe Win", "breaker_rating_a": 10, "breaker_characteristic": "C", "cable_spec": "2x1,5+J", "cable_length_m": 15, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 7, "description": "PARKERINGSAUTOMAT/STIKK LOFT VIP MRK. 7", "breaker_type": "Malthe Win", "breaker_rating_a": 10, "breaker_characteristic": "C", "cable_spec": "2x1,5+J", "cable_length_m": 40, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 8, "description": "LOFT NORD (OVER SENG 1+2+3) BOD NOR + TILFLUKTSTR\u00d8M/LAGER", "breaker_type": "Malthe Win", "breaker_rating_a": 10, "breaker_characteristic": "C", "cable_spec": "2x1,5+J", "cable_length_m": 40, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 9, "description": "STIKK BODROM VED SOL 7 og 8, STIKK KRYP FRA SOL 9 + STIKK V/DATASKAP BOD SSKAP", "breaker_type": "Malthe Win", "breaker_rating_a": 16, "breaker_characteristic": "C", "cable_spec": "2x2,5+J", "cable_length_m": 18, "install_method": "B2", "rcd_ma": 30, "note": "STIKK MASSAJE (h\u00e5ndskrift)"},
-    {"circuit_no": 10, "description": "LYS MIDTEN+STIKK TELLUS+TV NEDE+LOFT SYD", "breaker_type": "Malthe Win", "breaker_rating_a": 10, "breaker_characteristic": "C", "cable_spec": "2x1,5+J", "cable_length_m": 40, "install_method": "B2", "rcd_ma": 30},
-    {"circuit_no": 11, "description": "LYS SOLROM 1-10 + GANG OPPE", "breaker_type": "Malthe Win", "breaker_rating_a": 10, "breaker_characteristic": "C", "cable_spec": "2x1,5+J", "cable_length_m": 43, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 12, "description": "SOL ROM 3", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 13, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 13, "description": "ROM 4 SOL", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 12, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 14, "description": "ROM 5 SOL", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 13, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 15, "description": "ROM 6 SOL", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 15, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 16, "description": "ROM 8 SOL", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 12, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 17, "description": "ROM 7 SOL", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 13, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 18, "description": "ROM 10 SOL", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 12, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 19, "description": "ROM 9 SOL", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 13, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 20, "description": "HOVEDBRYTER 21 TIL 30", "breaker_type": "LAST", "breaker_rating_a": 63, "cable_spec": "3x10+J", "cable_length_m": 1, "install_method": "E"},
-    {"circuit_no": 21, "description": "LYS VIP (ROM 11,12,13 OG FELLESAREALE)", "breaker_type": "Malthe Win", "breaker_rating_a": 10, "breaker_characteristic": "C", "cable_spec": "2x1,5+J", "cable_length_m": 16, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 22, "description": "STIKK UTVENDIG FOR SKILT P\u00c5 TEGELVEGG", "breaker_type": "Malthe Win", "breaker_rating_a": 15, "breaker_characteristic": "C", "cable_spec": "2x2,5+J", "cable_length_m": 15, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 23, "description": "STIKK OVER VINDUER HOVEDINNGANG + BRUSAUTOMAT", "breaker_type": "Malthe Win", "breaker_rating_a": 15, "breaker_characteristic": "C", "cable_spec": "2x2,5+J", "cable_length_m": 15, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 24, "description": "Parkeringsautomat, plakatlys, front spot vip, 2xgatelys parkering", "status": "mangler vern-data"},
-    {"circuit_no": 25, "description": "LOFT 9 OG 10 LYS/STIKK", "breaker_type": "Malthe Win", "breaker_rating_a": 10, "breaker_characteristic": "C", "cable_spec": "2x1,5+J", "cable_length_m": 12, "install_method": "C", "rcd_ma": 30, "note": "VASKEMASKIN MAS. (h\u00e5ndskrift)"},
-    {"circuit_no": 26, "description": "LYS SSKAP,LAGER,WC-VASK,B\u00d8TTEKOTT (vip)", "breaker_type": "Malthe Win", "breaker_rating_a": 10, "breaker_characteristic": "C", "cable_spec": "2x1,5+J", "cable_length_m": 15, "install_method": "C", "rcd_ma": 30, "note": "LYSBAD MAS (h\u00e5ndskrift)"},
-    {"circuit_no": 27, "description": "VIFTE VIP, VARMEKABEL TAKRENNE", "breaker_type": "Malthe Win", "breaker_rating_a": 13, "breaker_characteristic": "C", "cable_spec": "2x2,5+J", "cable_length_m": 15, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 28, "description": "STIKK LOFT SYD(EKSTRA)", "breaker_type": "Malthe Win", "breaker_rating_a": 10, "breaker_characteristic": "C", "cable_spec": "2x1,5+J", "cable_length_m": 12, "install_method": "C", "rcd_ma": 30, "note": "VARME FOLIE MAS. (h\u00e5ndskrift)"},
-    {"circuit_no": 29, "description": "VVBEREDER UNDER ROM 8 + STIKK VIP BOD", "breaker_type": "Malthe Win", "breaker_rating_a": 15, "breaker_characteristic": "C", "cable_spec": "2x2,5+J", "cable_length_m": 15, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 30, "description": "VARMEPUMPE VIP", "breaker_type": "Malthe Win", "breaker_rating_a": 16, "breaker_characteristic": "C", "cable_spec": "2x2,5+J", "cable_length_m": 12, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 31, "description": "BRYTER VARMEKABEL I TAKRENNE", "status": "mangler vern-data"},
-    {"circuit_no": 32, "description": "ROM 11 SOL (vip)", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 10, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 33, "description": "ROM 12 SOL (vip)", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 14, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 34, "description": "ROM 13 SOL (vip)", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 16, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 35, "description": "AVTREKKSVIFTE TAK (LOFT SYD OVER ROM 9)", "breaker_type": "Malthe Win", "breaker_rating_a": 16, "breaker_characteristic": "C", "cable_spec": "3x1,5+J", "cable_length_m": 12, "install_method": "C", "rcd_ma": 30},
-    {"circuit_no": 36, "description": "KOBLINGSUR FOR AVTREKK VIP", "status": "mangler vern-data"},
-    {"circuit_no": 37, "description": "HOVEDSIKRING/OVERBELASTNINGSVERN", "breaker_type": "NH", "install_method": "GL", "status": "hovedvern"},
-]
-
-ENERGY_ACCUMULATED_KEYS = ["inntak", "varmepumper", "belysning", "massasje", "annet", "avfukter"]
-ENERGY_SUB_KEYS = ["varmepumper", "belysning", "massasje", "annet"]
-ENERGY_REALTIME_MAX_DELTA_SECONDS = 300
-ROOF_EXHAUST_UNMETERED_W = 320.0
-SUNBED_ANALYSIS_VENTILATION_MATCH_SECONDS = 180
 # HC3 accumulated kWh samples are end-stamped. For hourly comparison against
 # Elvia, show the delta on the hour it belongs to, not the hour it was posted.
-ENERGY_HC3_HOURLY_DISPLAY_OFFSET = timedelta(hours=1)
-ENERGY_HOURLY_COMPARE_FIELDS = [
-    "stat_date", "year", "month", "day", "hour", "consumption_kwh", "production_kwh",
-    "status", "is_verified", "is_estimated", "is_public_holiday", "use_weekend_prices",
-]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-YR_FORECAST_ASSIGNMENTS = [
-    ("api_updated_at", "api_updated_at"),
-    ("last_modified", "last_modified"),
-    ("expires_at", "expires_at"),
-    ("next_fetch_after", "next_fetch_after"),
-    ("age_seconds", "age_seconds"),
-    ("forecast_time", "forecast_time"),
-    ("symbol_code", "symbol"),
-    ("weather_text", "text"),
-    ("air_temperature", "air_temperature"),
-    ("air_temperature_percentile_10", "air_temperature_percentile_10"),
-    ("air_temperature_percentile_90", "air_temperature_percentile_90"),
-    ("relative_humidity", "relative_humidity"),
-    ("wind_speed", "wind_speed"),
-    ("wind_speed_of_gust", "wind_speed_of_gust"),
-    ("wind_speed_percentile_10", "wind_speed_percentile_10"),
-    ("wind_speed_percentile_90", "wind_speed_percentile_90"),
-    ("wind_from_direction", "wind_from_direction"),
-    ("cloud_area_fraction", "cloud_area_fraction"),
-    ("cloud_area_fraction_high", "cloud_area_fraction_high"),
-    ("cloud_area_fraction_medium", "cloud_area_fraction_medium"),
-    ("cloud_area_fraction_low", "cloud_area_fraction_low"),
-    ("fog_area_fraction", "fog_area_fraction"),
-    ("dew_point_temperature", "dew_point_temperature"),
-    ("air_pressure_at_sea_level", "air_pressure_at_sea_level"),
-    ("ultraviolet_index_clear_sky", "ultraviolet_index_clear_sky"),
-    ("precipitation_next_1h", "precipitation_next_1h"),
-    ("precipitation_next_1h_min", "precipitation_next_1h_min"),
-    ("precipitation_next_1h_max", "precipitation_next_1h_max"),
-    ("precipitation_next_6h", "precipitation_next_6h"),
-    ("precipitation_next_6h_min", "precipitation_next_6h_min"),
-    ("precipitation_next_6h_max", "precipitation_next_6h_max"),
-    ("probability_of_precipitation_next_1h", "probability_of_precipitation_next_1h"),
-    ("probability_of_precipitation_next_6h", "probability_of_precipitation_next_6h"),
-    ("probability_of_precipitation_next_12h", "probability_of_precipitation_next_12h"),
-    ("probability_of_thunder_next_1h", "probability_of_thunder_next_1h"),
-    ("air_temperature_min_next_6h", "air_temperature_min_next_6h"),
-    ("air_temperature_max_next_6h", "air_temperature_max_next_6h"),
-    ("symbol_confidence_next_12h", "symbol_confidence_next_12h"),
-    ("temp_1h", "temp_1h"),
-    ("temp_3h", "temp_3h"),
-    ("temp_6h", "temp_6h"),
-    ("temp_12h", "temp_12h"),
-    ("temp_24h", "temp_24h"),
-    ("symbol_1h", "symbol_1h"),
-    ("symbol_3h", "symbol_3h"),
-    ("symbol_6h", "symbol_6h"),
-    ("symbol_12h", "symbol_12h"),
-    ("symbol_24h", "symbol_24h"),
-    ("temp_min_next_6h", "temp_min_next_6h"),
-    ("temp_max_next_6h", "temp_max_next_6h"),
-]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-AI_CONFIG_KEY = "ai"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-async def startup():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-        for table_name, columns in STARTUP_COLUMNS.items():
-            for column_name, column_type in columns:
-                await conn.exec_driver_sql(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS {column_name} {column_type}")
-        for _, statement in PERFORMANCE_INDEXES:
-            await conn.execute(sql_text(statement))
-        await conn.execute(delete(OutdoorLightEvent).where(OutdoorLightEvent.source == "CODEX TEST"))
-        await conn.execute(delete(VentilationEvent).where(VentilationEvent.source == "CODEX TEST"))
-    async with async_session() as session:
-        node_backfill = await ensure_energy_node_backfill(session)
-        if node_backfill.get("created") or node_backfill.get("linked") or node_backfill.get("updated"):
-            logger.info("Energy node backfill: %s", node_backfill)
-        master_rows = (
-            await session.execute(
-                select(AccessKey).where(
-                    or_(
-                        AccessKey.key_hash == MASTER_ACCESS_KEY_HASH,
-                        AccessKey.name == "master",
-                        AccessKey.is_master == True,
-                    )
-                )
-            )
-        ).scalars().all()
-        master = None
-        if master_rows:
-            active_masters = [row for row in master_rows if row.active and (row.name == "master" or row.is_master)]
-            preferred_rows = active_masters or master_rows
-            master = sorted(
-                preferred_rows,
-                key=lambda row: (int(row.uses_count or 0), row.key_hash == MASTER_ACCESS_KEY_HASH, -(row.id or 0)),
-                reverse=True,
-            )[0]
-            merged_uses_count = sum(int(row.uses_count or 0) for row in master_rows)
-            duplicate_ids = [row.id for row in master_rows if row.id and row.id != master.id]
-            if duplicate_ids:
-                await session.execute(delete(AccessKey).where(AccessKey.id.in_(duplicate_ids)))
-                await session.flush()
-            master.name = "master"
-            master.key_hash = master.key_hash or MASTER_ACCESS_KEY_HASH
-            master.key_prefix = "sun2_master"
-            master.is_master = True
-            master.role = "master"
-            master.active = True
-            master.uses_count = max(int(master.uses_count or 0), merged_uses_count)
-        else:
-            session.add(
-                AccessKey(
-                    name="master",
-                    key_hash=MASTER_ACCESS_KEY_HASH,
-                    key_prefix="sun2_master",
-                    role="master",
-                    is_master=True,
-                    active=True,
-                )
-            )
-        legacy_shared = (
-            await session.execute(
-                select(AccessKey)
-                .where(AccessKey.is_master == False)
-                .where(AccessKey.key_plaintext.isnot(None))
-            )
-        ).scalars().all()
-        for key in legacy_shared:
-            username = normalize_username(key.name)
-            password = key.key_plaintext or ""
-            if not key.role:
-                key.role = "viewer"
-            if username and password:
-                key.name = username
-                key.key_hash = access_password_hash(username, password, is_master=False)
-                key.key_prefix = access_key_prefix(username, password, is_master=False)
-        await ensure_default_roborock_cleaning_profiles(session)
-        await ensure_default_roborock_door_automation(session)
-        snapshot_backfill = (
-            await ensure_roborock_schedule_snapshot_backfill(session)
-            if FIBARO10_BACKGROUND_TASKS_ENABLED
-            else 0
-        )
-        if snapshot_backfill:
-            logger.info("Opprettet %s innledende Roborock-plansnapshots", snapshot_backfill)
-        await session.commit()
-    async with async_session() as session:
-        for config_key in CONFIG_DEFINITIONS:
-            await get_or_create_config(session, config_key)
-        await seed_energy_circuits(session)
-        await session.commit()
-    if not FIBARO10_BACKGROUND_TASKS_ENABLED:
-        logger.info("Background tasks disabled for Fibaro10 process role %s", FIBARO10_PROCESS_ROLE)
-        return
-    if SVV_SYNC_ENABLED and SVV_API_KEY:
-        background_tasks.start("svv-sync", parking_vehicle_svv_worker)
-    if SUN2_AXIS_SNAPSHOT_LINK_ENABLED:
-        background_tasks.start("sun2-axis-snapshot-link", sun2_axis_snapshot_link_worker)
-    if SUNROOM_DOOR_MONITOR_ENABLED:
-        background_tasks.start("sunroom-door-monitor", sunroom_door_monitor_worker)
-    if HC3_DOOR_UNEXPECTED_CHECK_ENABLED:
-        background_tasks.start("hc3-door-poll", hc3_door_poll_worker)
-    if OWNTRACKS_VISIT_SYNC_ENABLED:
-        background_tasks.start("owntracks-visit-sync", owntracks_site_visit_sync_worker)
-    background_tasks.start("ntfy-outbox", notification_outbox_worker)
-    if OPERATIONAL_RETENTION_ENABLED:
-        background_tasks.start("operational-retention", operational_retention_worker)
-    if SUNBED_POWER_CACHE_WARM_ENABLED:
-        background_tasks.start("sunbed-power-cache-warm", sunbed_power_cache_warm_worker)
-    if ROBOROCK_CONTROL_TOKEN:
-        background_tasks.start("roborock-door-automation", roborock_door_automation_worker)
-
-
-async def shutdown_application():
-    await background_tasks.stop_all()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 from fibaro_core.services.presentation import api_table
@@ -2646,150 +846,7 @@ from fibaro_core.services.presentation import api_table
 from fibaro_core.services.presentation import api_table_meta
 
 
-
-
-
-
-
-
-
-
-
-
-PARKING_SUN_LINK_PENDING = "Avventer"
-PARKING_SUN_LINK_CONFIRMED = "Bekreftet"
-PARKING_SUN_LINK_REJECTED = "Avvist"
-PARKING_SUN_LINK_STATUSES = [
-    PARKING_SUN_LINK_PENDING,
-    PARKING_SUN_LINK_CONFIRMED,
-    PARKING_SUN_LINK_REJECTED,
-]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 from fibaro_core.services.presentation import api_chart
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-PARKING_TIMELINE_ROWS = [
-    {"key": "capacity", "label": "Kapasitet", "count": 23},
-]
-PARKING_TIMELINE_CAPACITY = sum(row["count"] for row in PARKING_TIMELINE_ROWS)
-PARKING_OCCUPANCY_SCALE_MAX = 25
-PARKING_TIME_WEEKDAYS = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"]
-PARKING_TIME_PERIOD_OPTIONS = [
-    {"key": "this_month", "label": "Denne måneden"},
-    {"key": "this_year", "label": "Dette året"},
-    {"key": "last_90_days", "label": "Siste 90 dager"},
-    {"key": "previous_month", "label": "Forrige måned"},
-    {"key": "last_year", "label": "I fjor"},
-    {"key": "custom", "label": "Egendefinert"},
-]
-PARKING_WEEKLY_AVERAGE_PERIOD_OPTIONS = [
-    {"key": "this_year", "label": "Dette året"},
-    {"key": "last_12_months", "label": "Siste 12 måneder"},
-    {"key": "last_24_months", "label": "Siste 24 måneder"},
-    {"key": "last_year", "label": "I fjor"},
-    {"key": "custom", "label": "Egendefinert"},
-]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 from fibaro_core.services.settlements.source_queries import sun2_product_daily_scope_condition
@@ -2804,226 +861,10 @@ from fibaro_core.services.settlements.source_queries import sun2_product_amount_
 from fibaro_core.services.settlements.source_queries import sun2_product_amount_ex_expr
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-MAINTENANCE_TAG_OPTIONS = [
-    "Tilstede",
-    "Kontroll",
-    "Renhold",
-    "Teknisk",
-    "Vedlikehold",
-    "Innkjøp",
-    "Leverandør",
-    "Parkering",
-    "Soling",
-    "Energi",
-    "Ventilasjon",
-    "Lys",
-    "Avvik",
-    "Oppfølging",
-]
-MAINTENANCE_STATUS_OPTIONS = ["Utført", "Må følges opp", "Planlagt", "Lukket"]
-MAINTENANCE_PRESENCE_OPTIONS = ["Tilstede Sun2", "Fjernarbeid", "Telefon/leverandør"]
-MAINTENANCE_TARGET_OPTIONS = [
-    "Generelt",
-    "Seng",
-    "Rom",
-    "Ventilasjon",
-    "Lys",
-    "Energi",
-    "Parkering",
-    "Renhold",
-    "Utstyr",
-    "Leverandør",
-]
-MAINTENANCE_ACTION_OPTIONS = [
-    "Kontroll",
-    "Vedlikehold",
-    "Rengjøring",
-    "Reparasjon",
-    "Bytte",
-    "Justering",
-    "Påfyll",
-    "Bestilling",
-    "Observasjon",
-]
-MAINTENANCE_PRIORITY_OPTIONS = ["Normal", "Lav", "Høy", "Kritisk"]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 from fibaro_core.services.presentation import api_card
 
 
-
-
 from fibaro_core.services.presentation import api_iso_value
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-ADMIN_TASK_SEVERITY_SORT = {
-    "Kritisk": 0,
-    "Høy": 1,
-    "Medium": 2,
-    "Lav": 3,
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 from fibaro_core.services.settlements.parsing import PARKING_SETTLEMENT_PROVIDER
@@ -3238,487 +1079,13 @@ from fibaro_core.services.settlements.reconciliation import settlement_amount_su
 from fibaro_core.services.settlements.reconciliation import revenue_settlement_reconciliation_rows
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-ENERGY_NODE_TYPES = {"zwave_device", "output", "child_device", "meter", "logical"}
-ENERGY_LOAD_POWER_PROFILES = {"unknown", "fixed", "variable"}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-EASYPARK_REQUIRED_COLUMNS = {
-    "Parking area",
-    "Source parking system",
-    "Area number",
-    "Parking ID",
-    "Start date",
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 from fibaro_core.services.settlements.source_queries import parking_source_control_key
 
 
 from fibaro_core.services.settlements.source_queries import parking_period_source_summaries
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-ROBOROCK_DOOR_AUTOMATION_POLL_SECONDS = 30
 _roborock_door_automation_lock = asyncio.Lock()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # Domain service composition. Deferred callbacks break cross-domain construction cycles.
@@ -4740,6 +2107,74 @@ get_energy_summaries = cache_service["get_energy_summaries"]
 get_parking_summaries = cache_service["get_parking_summaries"]
 get_sun2_summaries = cache_service["get_sun2_summaries"]
 
+
+# Lifecycle and middleware are registered once, after service construction.
+from fibaro_core import lifecycle
+lifecycle_dependencies = lifecycle.Dependencies(
+    CONFIG_DEFINITIONS=CONFIG_DEFINITIONS,
+    FIBARO10_BACKGROUND_TASKS_ENABLED=FIBARO10_BACKGROUND_TASKS_ENABLED,
+    FIBARO10_PROCESS_ROLE=FIBARO10_PROCESS_ROLE,
+    HC3_DOOR_UNEXPECTED_CHECK_ENABLED=HC3_DOOR_UNEXPECTED_CHECK_ENABLED,
+    MASTER_ACCESS_KEY_HASH=MASTER_ACCESS_KEY_HASH,
+    OPERATIONAL_RETENTION_ENABLED=OPERATIONAL_RETENTION_ENABLED,
+    OWNTRACKS_VISIT_SYNC_ENABLED=OWNTRACKS_VISIT_SYNC_ENABLED,
+    ROBOROCK_CONTROL_TOKEN=ROBOROCK_CONTROL_TOKEN,
+    SUN2_AXIS_SNAPSHOT_LINK_ENABLED=SUN2_AXIS_SNAPSHOT_LINK_ENABLED,
+    SUNBED_POWER_CACHE_WARM_ENABLED=SUNBED_POWER_CACHE_WARM_ENABLED,
+    SUNROOM_DOOR_MONITOR_ENABLED=SUNROOM_DOOR_MONITOR_ENABLED,
+    SVV_API_KEY=SVV_API_KEY,
+    SVV_SYNC_ENABLED=SVV_SYNC_ENABLED,
+    access_key_prefix=access_key_prefix,
+    access_password_hash=access_password_hash,
+    async_session=async_session,
+    background_tasks=background_tasks,
+    engine=engine,
+    ensure_default_roborock_cleaning_profiles=ensure_default_roborock_cleaning_profiles,
+    ensure_default_roborock_door_automation=ensure_default_roborock_door_automation,
+    ensure_energy_node_backfill=ensure_energy_node_backfill,
+    ensure_roborock_schedule_snapshot_backfill=ensure_roborock_schedule_snapshot_backfill,
+    get_or_create_config=get_or_create_config,
+    hc3_door_poll_worker=hc3_door_poll_worker,
+    logger=logger,
+    normalize_username=normalize_username,
+    notification_outbox_worker=notification_outbox_worker,
+    operational_retention_worker=operational_retention_worker,
+    owntracks_site_visit_sync_worker=owntracks_site_visit_sync_worker,
+    parking_vehicle_svv_worker=parking_vehicle_svv_worker,
+    roborock_door_automation_worker=roborock_door_automation_worker,
+    seed_energy_circuits=seed_energy_circuits,
+    sun2_axis_snapshot_link_worker=sun2_axis_snapshot_link_worker,
+    sunbed_power_cache_warm_worker=sunbed_power_cache_warm_worker,
+    sunroom_door_monitor_worker=sunroom_door_monitor_worker,
+)
+lifecycle_handlers = lifecycle.create_handlers(lifecycle_dependencies)
+startup = lifecycle_handlers["startup"]
+shutdown_application = lifecycle_handlers["shutdown_application"]
+from fibaro_core import middleware
+middleware_dependencies = middleware.Dependencies(
+    SECURITY_HSTS_ENABLED=SECURITY_HSTS_ENABLED,
+    SECURITY_HSTS_MAX_AGE_SECONDS=SECURITY_HSTS_MAX_AGE_SECONDS,
+    SLOW_REQUEST_WARNING_MS=SLOW_REQUEST_WARNING_MS,
+    access_role=access_role,
+    find_access_key=find_access_key,
+    find_auth_session=find_auth_session,
+    has_car_info_app_access=has_car_info_app_access,
+    has_koble_worker_access=has_koble_worker_access,
+    is_car_info_app_request_path=is_car_info_app_request_path,
+    is_koble_worker_request_path=is_koble_worker_request_path,
+    is_public_request=is_public_request,
+    log_access_attempt=log_access_attempt,
+    logger=logger,
+    presented_credentials=presented_credentials,
+    presented_session_token=presented_session_token,
+    templates=templates,
+    wants_html=wants_html,
+)
+middleware_handlers = middleware.create_handlers(middleware_dependencies)
+access_key_middleware = middleware_handlers["access_key_middleware"]
+security_headers_middleware = middleware_handlers["security_headers_middleware"]
+app.middleware("http")(access_key_middleware)
+app.middleware("http")(security_headers_middleware)
 
 # HTTP composition. Route order is part of the public contract.
 from fibaro_core.routers import control_routes

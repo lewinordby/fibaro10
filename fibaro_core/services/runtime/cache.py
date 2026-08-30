@@ -5,9 +5,7 @@ from datetime import datetime
 from fibaro_core.services.summaries.energy import build_energy_summaries_fast
 from fibaro_core.services.summaries.parking import build_parking_summaries_fast
 from fibaro_core.services.summaries.sun import build_sun2_summaries_fast
-from typing import Any
-from typing import Any, Callable
-from typing import Dict
+from typing import Any, Callable, Dict
 
 
 @dataclass

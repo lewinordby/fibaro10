@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 
 @unittest.skipUnless(
@@ -128,7 +129,7 @@ class Sun2AxisSnapshotTests(unittest.TestCase):
 
     def test_axis_snapshot_backfill_insert_ignores_concurrent_duplicate(self) -> None:
         statement = (
-            self.main.pg_insert(self.main.Sun2TanningSessionImage)
+            pg_insert(self.main.Sun2TanningSessionImage)
             .values(session_id=12, offset_seconds=-15)
             .on_conflict_do_nothing(index_elements=["session_id", "offset_seconds"])
         )

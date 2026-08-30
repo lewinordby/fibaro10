@@ -42,6 +42,25 @@ assert 'main' not in sys.modules
 """)
 
 
+def test_entry_point_loads_environment_before_domain_imports():
+    isolated_python("""
+import os
+from unittest.mock import patch
+def environment():
+    os.environ['DATABASE_URL'] = 'postgresql+asyncpg://test:test@127.0.0.1/test'
+    os.environ['SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS'] = '27'
+    os.environ['SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS'] = '301'
+with patch('dotenv.load_dotenv', side_effect=environment) as loader:
+    import main
+loader.assert_called_once()
+assert main.SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS == 27
+assert main.SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS == 301
+from fibaro_core.services.runtime import sun
+assert sun.SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS == 27
+assert main.Sun2TanningSessionImage.__table__.c.offset_seconds.default.arg == -27
+""")
+
+
 def test_all_models_use_one_metadata_registry_and_keep_public_identity():
     import main
 

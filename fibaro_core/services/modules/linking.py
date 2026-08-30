@@ -2,29 +2,16 @@
 
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
-from fibaro_core.models import ParkingSunLinkCandidate
-from fibaro_core.models import ParkingSunLinkMatch
-from fibaro_core.models import ParkingSunLinkProcessed
-from fibaro_core.services.presentation import api_card
-from fibaro_core.services.presentation import api_table
-from fibaro_core.services.presentation import format_short_number
+from datetime import date, datetime, time, timedelta
+from fibaro_core.models import ParkingSunLinkCandidate, ParkingSunLinkMatch, ParkingSunLinkProcessed
+from fibaro_core.services.presentation import api_card, api_table, format_short_number
 from fibaro_core.services.summaries.periods import add_months
-from sqlalchemy import case
-from sqlalchemy import func
-from sqlalchemy import select
-from sqlalchemy import tuple_
+from sqlalchemy import case, func, select, tuple_
 from sun2_helpers import sun2_room_label
-from time_formatting import api_local_iso
-from time_formatting import format_source_datetime_short
-from typing import Any
-from typing import Dict
+from time_formatting import api_local_iso, format_source_datetime_short
+from typing import Any, Dict
 from v2_navigation import v2_module_title
-from value_parsing import float_or_zero
-from value_parsing import int_or_zero
+from value_parsing import float_or_zero, int_or_zero
 
 
 @dataclass

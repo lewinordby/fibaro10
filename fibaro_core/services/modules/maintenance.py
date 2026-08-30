@@ -1,21 +1,13 @@
 """Maintenance module response assembly, independent of HTTP registration."""
 
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
-from fibaro_core.models import ImportJobStatus
-from fibaro_core.models import MaintenanceLogEntry
-from fibaro_core.models import SiteVisit
-from fibaro_core.services.presentation import api_card
-from fibaro_core.services.presentation import api_table
+from datetime import date, datetime, time, timedelta
+from fibaro_core.models import ImportJobStatus, MaintenanceLogEntry, SiteVisit
+from fibaro_core.services.presentation import api_card, api_table
 from fibaro_core.services.summaries.periods import add_months
-from sqlalchemy import func
-from sqlalchemy import select
+from sqlalchemy import func, select
 from time_formatting import format_source_datetime_short
-from typing import Any
-from typing import Dict
+from typing import Any, Dict
 from v2_navigation import v2_module_title
 
 

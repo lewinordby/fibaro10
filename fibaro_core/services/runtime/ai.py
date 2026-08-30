@@ -1,19 +1,12 @@
 """Ai services with explicit process dependencies."""
 
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
+from datetime import date, datetime
 from fibaro_core.export_definitions import AI_DATASETS
-from fibaro_core.models import AiQueryLog
-from fibaro_core.models import ControlConfig
-from fibaro_core.models import ControlConfigHistory
-from sqlalchemy import select
-from sqlalchemy import text as sql_text
+from fibaro_core.models import AiQueryLog, ControlConfig, ControlConfigHistory
+from sqlalchemy import select, text as sql_text
 from sun2_helpers import repair_mojibake
-from typing import Any
-from typing import Any, Callable
-from typing import Dict
-from typing import Optional
+from typing import Any, Callable, Dict, Optional
 from value_parsing import int_value
 import asyncio
 import json

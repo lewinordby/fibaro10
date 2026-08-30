@@ -27,13 +27,16 @@ kjernen, fagadapterne, integrasjonene, mobilflatene og driftsverktøyene.
 - Caddy: intern HTTPS med offentlig betrodde sertifikater og LAN/VPN-grense.
 
 `main.py` er inngangspunktet til kjernen. `fibaro_core/` eier nå felles
-databasemodeller, valideringsmodeller og de første isolerte API-routerne.
+databasemodeller, valideringsmodeller, alle API-routerne og domenetjenestene.
 Summer, rangering og årskurver ligger i egne fagmoduler under
 `fibaro_core/services/summaries/`.
 Sammenligningsperioder, dashboardkort og grafsvar ligger i
 `fibaro_core/services/comparisons/`, med tester mot API-svar fra før flyttingen.
 Dette er interne moduler i samme tjeneste, ikke nye mikroapper.
-Se [modulgrensene](docs/core-modules.md) før videre oppsplitting.
+Prognoser og oppgjør har egne moduler. Importorkestrering, alarmer og arbeidere
+ligger under `services/runtime/`, med eksplisitte avhengigheter til ressurser
+opprettet én gang i `main.py`. Oppstart og nedstenging ligger i `lifecycle.py`.
+Se [modulgrensene](docs/core-modules.md) før videre backendendringer.
 
 ## Dokumentasjon
 

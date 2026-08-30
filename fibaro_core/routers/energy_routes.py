@@ -2,50 +2,37 @@
 
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
-from energy_helpers import circuit_technical_label
-from energy_helpers import energy_circuit_is_sunbed
-from energy_helpers import energy_query_url
-from energy_helpers import filter_energy_circuits_by_sunbed
-from energy_helpers import form_bool
-from energy_helpers import form_float
-from energy_helpers import form_int
-from energy_helpers import form_text
-from energy_helpers import normalize_energy_sunbed_filter
-from fastapi import APIRouter
-from fastapi import BackgroundTasks
-from fastapi import HTTPException
-from fastapi import Query
-from fastapi import Request
-from fastapi.responses import HTMLResponse
-from fastapi.responses import JSONResponse
-from fastapi.responses import RedirectResponse
-from fibaro_core.export_definitions import ENERGY_FIBARO_COLUMNS
-from fibaro_core.export_definitions import ENERGY_HOURLY_COLUMNS
-from fibaro_core.export_definitions import ENERGY_IMPORT_COLUMNS
-from fibaro_core.models import EnergyCircuit
-from fibaro_core.models import EnergyFibaroSample
-from fibaro_core.models import EnergyHourlyConsumption
-from fibaro_core.models import EnergyImportRun
-from fibaro_core.models import EnergyLoad
-from fibaro_core.models import EnergyNode
-from fibaro_core.models import ImportJobStatus
+from datetime import datetime, time, timedelta
+from energy_helpers import (
+    circuit_technical_label,
+    energy_circuit_is_sunbed,
+    energy_query_url,
+    filter_energy_circuits_by_sunbed,
+    form_bool,
+    form_float,
+    form_int,
+    form_text,
+    normalize_energy_sunbed_filter,
+)
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fibaro_core.export_definitions import ENERGY_FIBARO_COLUMNS, ENERGY_HOURLY_COLUMNS, ENERGY_IMPORT_COLUMNS
+from fibaro_core.models import (
+    EnergyCircuit,
+    EnergyFibaroSample,
+    EnergyHourlyConsumption,
+    EnergyImportRun,
+    EnergyLoad,
+    EnergyNode,
+    ImportJobStatus,
+)
 from fibaro_core.routers.bundle import RouterBundle
-from fibaro_core.schemas import V2EnergyCircuitUpdate
-from fibaro_core.schemas import V2EnergyLoadIn
-from fibaro_core.schemas import V2EnergyNodeIn
+from fibaro_core.schemas import V2EnergyCircuitUpdate, V2EnergyLoadIn, V2EnergyNodeIn
 from pathlib import Path
-from pdf_exports import build_table_pdf
-from pdf_exports import pdf_response
-from sqlalchemy import func
-from sqlalchemy import or_
-from sqlalchemy import select
-from sqlalchemy import update
+from pdf_exports import build_table_pdf, pdf_response
+from sqlalchemy import func, or_, select, update
 from time_formatting import local_now_naive
-from typing import Any, Callable
-from typing import Optional
+from typing import Any, Callable, Optional
 from value_parsing import float_or_zero
 import asyncio
 import json

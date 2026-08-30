@@ -1,78 +1,74 @@
 """Sun services with explicit process dependencies."""
 
-from bisect import bisect_left
-from bisect import bisect_right
+from bisect import bisect_left, bisect_right
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
+from datetime import date, datetime, time, timedelta
 from fastapi import HTTPException
 from fibaro_core.config import SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS
-from fibaro_core.export_definitions import SUN2_BED_COLUMNS
-from fibaro_core.export_definitions import SUN2_IMPORT_COLUMNS
-from fibaro_core.export_definitions import SUN2_MEMBER_COLUMNS
-from fibaro_core.export_definitions import SUN2_SESSION_COLUMNS
-from fibaro_core.models import EnergyFibaroSample
-from fibaro_core.models import EnergyHourlyConsumption
-from fibaro_core.models import ImportJobStatus
-from fibaro_core.models import Sun2Bed
-from fibaro_core.models import Sun2FinanceSettlement
-from fibaro_core.models import Sun2Member
-from fibaro_core.models import Sun2ProductSale
-from fibaro_core.models import Sun2RoomDailyStat
-from fibaro_core.models import Sun2TanningSession
-from fibaro_core.models import Sun2TanningSessionImage
-from fibaro_core.schemas import Sun2BedsIngestIn
-from fibaro_core.schemas import Sun2FinanceSettlementsIngestIn
-from fibaro_core.schemas import Sun2MembersIngestIn
-from fibaro_core.schemas import Sun2ProductSalesIngestIn
-from fibaro_core.schemas import Sun2RoomStatsIngestIn
-from fibaro_core.schemas import Sun2TanningSessionIn
-from fibaro_core.schemas import Sun2TanningSessionsIngestIn
+from fibaro_core.export_definitions import (
+    SUN2_BED_COLUMNS,
+    SUN2_IMPORT_COLUMNS,
+    SUN2_MEMBER_COLUMNS,
+    SUN2_SESSION_COLUMNS,
+)
+from fibaro_core.models import (
+    EnergyFibaroSample,
+    EnergyHourlyConsumption,
+    ImportJobStatus,
+    Sun2Bed,
+    Sun2FinanceSettlement,
+    Sun2Member,
+    Sun2ProductSale,
+    Sun2RoomDailyStat,
+    Sun2TanningSession,
+    Sun2TanningSessionImage,
+)
+from fibaro_core.schemas import (
+    Sun2BedsIngestIn,
+    Sun2FinanceSettlementsIngestIn,
+    Sun2MembersIngestIn,
+    Sun2ProductSalesIngestIn,
+    Sun2RoomStatsIngestIn,
+    Sun2TanningSessionIn,
+    Sun2TanningSessionsIngestIn,
+)
 from fibaro_core.services.forecasts import builders as forecast_builders
-from fibaro_core.services.forecasts.calendar import iter_dates
-from fibaro_core.services.forecasts.calendar import month_end
-from fibaro_core.services.presentation import api_card
-from fibaro_core.services.presentation import api_chart
-from fibaro_core.services.presentation import api_table
-from fibaro_core.services.presentation import api_table_meta
-from fibaro_core.services.presentation import format_short_number
+from fibaro_core.services.forecasts.calendar import iter_dates, month_end
+from fibaro_core.services.presentation import (
+    api_card,
+    api_chart,
+    api_table,
+    api_table_meta,
+    format_short_number,
+)
 from fibaro_core.services.settlements.controls import sun2_product_sales_period_summary
-from fibaro_core.services.settlements.source_queries import sun2_product_amount_ex_expr
-from fibaro_core.services.settlements.source_queries import sun2_product_amount_inc_expr
-from fibaro_core.services.settlements.source_queries import sun2_product_daily_scope_condition
-from fibaro_core.services.settlements.source_queries import sun2_product_monthly_scope_condition
+from fibaro_core.services.settlements.source_queries import (
+    sun2_product_amount_ex_expr,
+    sun2_product_amount_inc_expr,
+    sun2_product_daily_scope_condition,
+    sun2_product_monthly_scope_condition,
+)
 from fibaro_core.services.summaries.periods import add_months
 from pathlib import Path
-from sqlalchemy import delete
-from sqlalchemy import func
-from sqlalchemy import or_
-from sqlalchemy import select
-from sqlalchemy import update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import load_only
-from sun2_helpers import SUN2_ROOM_MAP_BY_DISPLAY
-from sun2_helpers import SUN2_ROOM_OPTIONS
-from sun2_helpers import SUN2_ROOM_UNKNOWN_OLD_10
-from sun2_helpers import normalize_room_id
-from sun2_helpers import repair_mojibake
-from sun2_helpers import room_key_from_name
-from sun2_helpers import sun2_room_identity
-from sun2_helpers import sun2_room_label
+from sun2_helpers import (
+    SUN2_ROOM_MAP_BY_DISPLAY,
+    SUN2_ROOM_OPTIONS,
+    SUN2_ROOM_UNKNOWN_OLD_10,
+    normalize_room_id,
+    repair_mojibake,
+    room_key_from_name,
+    sun2_room_identity,
+    sun2_room_label,
+)
 from time import monotonic
-from time_formatting import LOCAL_TZ
-from time_formatting import local_now_naive
-from time_formatting import normalize_local_naive
-from typing import Any
-from typing import Any, Callable
-from typing import Dict
-from typing import Iterable
-from typing import Optional
+from time_formatting import LOCAL_TZ, local_now_naive, normalize_local_naive
+from typing import Any, Callable, Dict, Iterable, Optional
 from urllib.parse import urlencode
-from value_parsing import float_or_zero
-from value_parsing import int_or_zero
+from value_parsing import float_or_zero, int_or_zero
 import asyncio
 import hashlib
 import json

@@ -1,17 +1,12 @@
 """Common services with explicit process dependencies."""
 
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
+from datetime import date, datetime
 from fibaro_core.schemas import EventDataIn
 from pydantic import BaseModel
 from sqlalchemy import func
-from time_formatting import local_now_naive
-from time_formatting import normalize_local_naive
-from typing import Any
-from typing import Any, Callable
-from typing import Dict
-from typing import Optional
+from time_formatting import local_now_naive, normalize_local_naive
+from typing import Any, Callable, Dict, Optional
 import json
 import re
 

@@ -2,58 +2,47 @@
 
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
-from fastapi import APIRouter
-from fastapi import HTTPException
-from fastapi import Query
-from fastapi import Request
-from fastapi.responses import FileResponse
-from fastapi.responses import HTMLResponse
-from fastapi.responses import RedirectResponse
-from fastapi.responses import Response
-from fibaro_core.export_definitions import SUN2_BED_COLUMNS
-from fibaro_core.export_definitions import SUN2_IMPORT_COLUMNS
-from fibaro_core.export_definitions import SUN2_MEMBER_COLUMNS
-from fibaro_core.export_definitions import SUN2_ROOM_COLUMNS
-from fibaro_core.export_definitions import SUN2_SESSION_COLUMNS
-from fibaro_core.export_definitions import SUN2_SESSION_IMPORT_COLUMNS
-from fibaro_core.models import EnergyHourlyConsumption
-from fibaro_core.models import SettlementImport
-from fibaro_core.models import Sun2Bed
-from fibaro_core.models import Sun2ImportRun
-from fibaro_core.models import Sun2Member
-from fibaro_core.models import Sun2RoomDailyStat
-from fibaro_core.models import Sun2SessionImportRun
-from fibaro_core.models import Sun2TanningSession
-from fibaro_core.models import Sun2TanningSessionImage
+from datetime import date, datetime, time, timedelta
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
+from fibaro_core.export_definitions import (
+    SUN2_BED_COLUMNS,
+    SUN2_IMPORT_COLUMNS,
+    SUN2_MEMBER_COLUMNS,
+    SUN2_ROOM_COLUMNS,
+    SUN2_SESSION_COLUMNS,
+    SUN2_SESSION_IMPORT_COLUMNS,
+)
+from fibaro_core.models import (
+    EnergyHourlyConsumption,
+    SettlementImport,
+    Sun2Bed,
+    Sun2ImportRun,
+    Sun2Member,
+    Sun2RoomDailyStat,
+    Sun2SessionImportRun,
+    Sun2TanningSession,
+    Sun2TanningSessionImage,
+)
 from fibaro_core.routers.bundle import RouterBundle
 from fibaro_core.services.comparisons.years import build_sun2_year_comparison
-from fibaro_core.services.forecasts.snapshots import save_forecast_snapshots
-from fibaro_core.services.forecasts.snapshots import saved_forecast_table
-from fibaro_core.services.settlements.parsing import SUN_SETTLEMENT_PROVIDER
-from fibaro_core.services.settlements.parsing import is_settlement_attachment
-from fibaro_core.services.settlements.parsing import parse_settlement_period
-from fibaro_core.services.settlements.parsing import parse_sun_settlement_attachment
-from fibaro_core.services.settlements.parsing import settlement_parsed_meta
-from fibaro_core.services.settlements.parsing import settlement_period_from_parsed_dates
+from fibaro_core.services.forecasts.snapshots import save_forecast_snapshots, saved_forecast_table
+from fibaro_core.services.settlements.parsing import (
+    SUN_SETTLEMENT_PROVIDER,
+    is_settlement_attachment,
+    parse_settlement_period,
+    parse_sun_settlement_attachment,
+    settlement_parsed_meta,
+    settlement_period_from_parsed_dates,
+)
 from fibaro_core.services.settlements.presentation import sun_settlement_detail_payload
 from fibaro_core.services.summaries.periods import parse_anchor_year
 from pathlib import Path
-from sqlalchemy import func
-from sqlalchemy import or_
-from sqlalchemy import select
-from sun2_helpers import normalize_room_id
-from sun2_helpers import sun2_room_label
-from time_formatting import LOCAL_TZ
-from time_formatting import local_now_naive
-from typing import Any, Callable
-from typing import Dict
-from typing import Optional
-from urllib.parse import quote
-from urllib.parse import urlencode
+from sqlalchemy import func, or_, select
+from sun2_helpers import normalize_room_id, sun2_room_label
+from time_formatting import LOCAL_TZ, local_now_naive
+from typing import Any, Callable, Dict, Optional
+from urllib.parse import quote, urlencode
 from value_parsing import float_or_zero
 import hashlib
 import json

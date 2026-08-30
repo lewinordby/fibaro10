@@ -1,25 +1,13 @@
 """Access services with explicit process dependencies."""
 
 from dataclasses import dataclass
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from fibaro_core.models import AccessKey
-from fibaro_core.models import AccessLog
-from fibaro_core.models import AuthSession
-from microapp_backend.auth import AUTH_SESSION_COOKIE_NAME
-from microapp_backend.auth import request_is_secure
-from sqlalchemy import and_
-from sqlalchemy import delete
-from sqlalchemy import func
-from sqlalchemy import or_
-from sqlalchemy import select
-from sqlalchemy import update
-from typing import Any
-from typing import Any, Callable
-from typing import Dict
-from typing import Optional
+from fibaro_core.models import AccessKey, AccessLog, AuthSession
+from microapp_backend.auth import AUTH_SESSION_COOKIE_NAME, request_is_secure
+from sqlalchemy import and_, delete, func, or_, select, update
+from typing import Any, Callable, Dict, Optional
 from urllib.parse import parse_qs
 import asyncio
 import base64

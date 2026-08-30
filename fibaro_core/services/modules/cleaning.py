@@ -1,56 +1,56 @@
 """Cleaning module response assembly, independent of HTTP registration."""
 
-from cleaning_robot_domain import CLEANING_ROBOT_STATUS_STALE_AFTER_MINUTES
-from cleaning_robot_domain import cleaning_provider
-from cleaning_robot_domain import cleaning_provider_label
-from cleaning_robot_domain import cleaning_robot_is_active
-from cleaning_robot_domain import cleaning_robot_sort_key
-from cleaning_robot_domain import expected_dreame_summary
+from cleaning_robot_domain import (
+    CLEANING_ROBOT_STATUS_STALE_AFTER_MINUTES,
+    cleaning_provider,
+    cleaning_provider_label,
+    cleaning_robot_is_active,
+    cleaning_robot_sort_key,
+    expected_dreame_summary,
+)
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
-from fibaro_core.models import ControlConfig
-from fibaro_core.models import RoborockCleanJob
-from fibaro_core.models import RoborockConsumableSnapshot
-from fibaro_core.models import RoborockRobot
-from fibaro_core.models import RoborockSchedule
-from fibaro_core.models import RoborockStatusSample
-from fibaro_core.models import RoborockTelemetrySample
-from fibaro_core.services.presentation import api_card
-from fibaro_core.services.presentation import api_table
+from datetime import date, datetime, time, timedelta
+from fibaro_core.models import (
+    ControlConfig,
+    RoborockCleanJob,
+    RoborockConsumableSnapshot,
+    RoborockRobot,
+    RoborockSchedule,
+    RoborockStatusSample,
+    RoborockTelemetrySample,
+)
+from fibaro_core.services.presentation import api_card, api_table
 from fibaro_core.services.summaries.periods import add_months
-from roborock_domain import format_seconds_as_hours
-from roborock_domain import roborock_active_cycle_summary
-from roborock_domain import roborock_dock_error_label
-from roborock_domain import roborock_error_label
-from roborock_domain import roborock_job_status
-from roborock_domain import roborock_next_schedule_score
-from roborock_domain import roborock_next_schedule_text
-from roborock_domain import roborock_operational_readiness
-from roborock_domain import roborock_rounds_label
-from roborock_domain import roborock_schedule_text
-from roborock_domain import roborock_signal_label
-from roborock_domain import roborock_telemetry_value_label
+from roborock_domain import (
+    format_seconds_as_hours,
+    roborock_active_cycle_summary,
+    roborock_dock_error_label,
+    roborock_error_label,
+    roborock_job_status,
+    roborock_next_schedule_score,
+    roborock_next_schedule_text,
+    roborock_operational_readiness,
+    roborock_rounds_label,
+    roborock_schedule_text,
+    roborock_signal_label,
+    roborock_telemetry_value_label,
+)
 from roborock_door_automation import opening_window
 from roborock_reports import build_schedule_check
-from sqlalchemy import func
-from sqlalchemy import select
-from time_formatting import LOCAL_TZ
-from time_formatting import api_local_iso
-from time_formatting import local_naive_to_utc_naive
-from time_formatting import local_now_naive
-from time_formatting import normalize_local_naive
-from time_formatting import utc_naive_to_local_naive
-from typing import Any
-from typing import Dict
-from typing import Optional
+from sqlalchemy import func, select
+from time_formatting import (
+    LOCAL_TZ,
+    api_local_iso,
+    local_naive_to_utc_naive,
+    local_now_naive,
+    normalize_local_naive,
+    utc_naive_to_local_naive,
+)
+from typing import Any, Dict, Optional
 from urllib.parse import quote
 from v2_navigation import v2_module_title
-from value_parsing import int_or_zero
-from value_parsing import int_value
+from value_parsing import int_or_zero, int_value
 
 
 @dataclass

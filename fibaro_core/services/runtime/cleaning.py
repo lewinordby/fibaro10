@@ -1,68 +1,66 @@
 """Cleaning services with explicit process dependencies."""
 
-from cleaning_robot_domain import cleaning_provider
-from cleaning_robot_domain import cleaning_robot_external_id
-from cleaning_robot_domain import cleaning_robot_uid
+from cleaning_robot_domain import cleaning_provider, cleaning_robot_external_id, cleaning_robot_uid
 from dataclasses import dataclass
 from datetime import datetime
 from fastapi import HTTPException
 from fibaro_core.export_definitions import ROBOROCK_TELEMETRY_COLUMNS
-from fibaro_core.models import CleaningZone
-from fibaro_core.models import ControlConfig
-from fibaro_core.models import DoorEvent
-from fibaro_core.models import RoborockCleanJob
-from fibaro_core.models import RoborockCleaningProfile
-from fibaro_core.models import RoborockCleaningZoneMapping
-from fibaro_core.models import RoborockCommandRun
-from fibaro_core.models import RoborockConsumableSnapshot
-from fibaro_core.models import RoborockDoorAutomation
-from fibaro_core.models import RoborockMapSnapshot
-from fibaro_core.models import RoborockProbeResult
-from fibaro_core.models import RoborockRobot
-from fibaro_core.models import RoborockSchedule
-from fibaro_core.models import RoborockScheduleSnapshot
-from fibaro_core.models import RoborockStatusSample
-from fibaro_core.models import RoborockTelemetryEvent
-from fibaro_core.models import RoborockTelemetrySample
+from fibaro_core.models import (
+    CleaningZone,
+    ControlConfig,
+    DoorEvent,
+    RoborockCleanJob,
+    RoborockCleaningProfile,
+    RoborockCleaningZoneMapping,
+    RoborockCommandRun,
+    RoborockConsumableSnapshot,
+    RoborockDoorAutomation,
+    RoborockMapSnapshot,
+    RoborockProbeResult,
+    RoborockRobot,
+    RoborockSchedule,
+    RoborockScheduleSnapshot,
+    RoborockStatusSample,
+    RoborockTelemetryEvent,
+    RoborockTelemetrySample,
+)
 from fibaro_core.schemas import RoborockCleaningProfileIn
-from roborock_domain import reconcile_roborock_schedule_snapshot
-from roborock_domain import roborock_active_cycle_summary
-from roborock_domain import roborock_fan_label
-from roborock_domain import roborock_mop_label
-from roborock_domain import roborock_rounds_label
-from roborock_domain import roborock_state_label
-from roborock_domain import roborock_telemetry_changes
-from roborock_domain import roborock_water_label
-from roborock_door_automation import automation_counter_start
-from roborock_door_automation import automation_decision
-from roborock_door_automation import opening_window
-from roborock_door_automation import profile_command_payload
-from roborock_door_automation import unique_ints
-from roborock_profiles import CLEANING_TYPE_LABELS
-from roborock_profiles import DEFAULT_CLEANING_PROFILES
-from roborock_profiles import cleaning_profile_summary
-from roborock_profiles import validate_cleaning_profile
-from roborock_zones import RoborockZoneScheduleError
-from roborock_zones import discover_roborock_zone_candidates
-from sqlalchemy import func
-from sqlalchemy import select
-from time_formatting import api_local_iso
-from time_formatting import local_now_naive
-from time_formatting import normalize_local_naive
-from time_formatting import utc_naive_to_local_naive
-from typing import Any
-from typing import Any, Callable
-from typing import Dict
-from typing import Iterable
-from typing import Mapping
-from typing import Optional
+from roborock_domain import (
+    reconcile_roborock_schedule_snapshot,
+    roborock_active_cycle_summary,
+    roborock_fan_label,
+    roborock_mop_label,
+    roborock_rounds_label,
+    roborock_state_label,
+    roborock_telemetry_changes,
+    roborock_water_label,
+)
+from roborock_door_automation import (
+    automation_counter_start,
+    automation_decision,
+    opening_window,
+    profile_command_payload,
+    unique_ints,
+)
+from roborock_profiles import (
+    CLEANING_TYPE_LABELS,
+    DEFAULT_CLEANING_PROFILES,
+    cleaning_profile_summary,
+    validate_cleaning_profile,
+)
+from roborock_zones import RoborockZoneScheduleError, discover_roborock_zone_candidates
+from sqlalchemy import func, select
+from time_formatting import api_local_iso, local_now_naive, normalize_local_naive, utc_naive_to_local_naive
+from typing import Any, Callable, Dict, Iterable, Mapping, Optional
 from urllib.parse import quote
-from value_parsing import area_m2_from_payload
-from value_parsing import bool_value
-from value_parsing import first_dict
-from value_parsing import float_value
-from value_parsing import int_value
-from value_parsing import timestamp_value
+from value_parsing import (
+    area_m2_from_payload,
+    bool_value,
+    first_dict,
+    float_value,
+    int_value,
+    timestamp_value,
+)
 import asyncio
 import hashlib
 import json

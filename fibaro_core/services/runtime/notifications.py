@@ -1,22 +1,12 @@
 """Notifications services with explicit process dependencies."""
 
 from dataclasses import dataclass
-from datetime import datetime
-from datetime import timedelta
-from fibaro_core.models import AlarmEvent
-from fibaro_core.models import NotificationOutbox
-from sqlalchemy import and_
-from sqlalchemy import func
-from sqlalchemy import or_
-from sqlalchemy import select
-from time_formatting import api_local_iso
-from time_formatting import local_now_naive
-from typing import Any
-from typing import Any, Callable
-from typing import Optional
-from urllib.parse import quote
-from urllib.parse import quote_plus
-from urllib.parse import urlparse
+from datetime import datetime, timedelta
+from fibaro_core.models import AlarmEvent, NotificationOutbox
+from sqlalchemy import and_, func, or_, select
+from time_formatting import api_local_iso, local_now_naive
+from typing import Any, Callable, Optional
+from urllib.parse import quote, quote_plus, urlparse
 import asyncio
 import urllib.request
 
