@@ -1,4 +1,5 @@
 import ast
+from datetime import datetime
 import importlib.util
 import os
 from pathlib import Path
@@ -47,31 +48,32 @@ class ApiPayloadContractTests(unittest.TestCase):
 
 
 class OverviewApiContractTests(unittest.TestCase):
-    def test_overview_year_revenue_totals_are_assigned(self) -> None:
-        tree = ast.parse(Path("main.py").read_text(encoding="utf-8"))
-        overview_func = next(
-            node
-            for node in tree.body
-            if isinstance(node, ast.AsyncFunctionDef) and node.name == "api_v2_overview"
+    def test_overview_year_revenue_totals_are_present(self) -> None:
+        from fibaro_core.services.comparisons.overview import (
+            OverviewComparisons, build_overview_cards, overview_comparison_plan,
         )
-        assigned_names: set[str] = set()
-        for node in ast.walk(overview_func):
-            if isinstance(node, ast.Assign):
-                for target in node.targets:
-                    if isinstance(target, ast.Name):
-                        assigned_names.add(target.id)
-            elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-                assigned_names.add(node.target.id)
-
-        for name in ("revenue_year", "revenue_previous_year", "revenue_two_years"):
-            self.assertIn(name, assigned_names)
+        plan = overview_comparison_plan([], datetime(2026, 8, 30, 16))
+        sun, full, parking = {}, {}, {}
+        for period in plan.periods:
+            for window in (period.current, period.previous, period.extra):
+                sun[window.key] = SimpleNamespace(paid=100, sessions=1)
+                parking[window.key] = SimpleNamespace(paid=20, sessions=2)
+            for window in (period.previous, period.extra):
+                full[window.key] = SimpleNamespace(paid=200, sessions=3)
+                parking[window.key + "_full"] = SimpleNamespace(paid=40, sessions=4)
+        year = build_overview_cards(OverviewComparisons(plan, full, sun, parking), {}, {}, "revenue")[3]
+        self.assertEqual(year["total"], 120)
+        self.assertEqual(year["previousTotal"], 120)
+        self.assertEqual(year["previousFullTotal"], 240)
+        self.assertEqual(year["extraComparisons"][0]["total"], 120)
+        self.assertEqual(year["extraComparisons"][0]["fullTotal"], 240)
 
     def test_overview_uses_batched_period_queries(self) -> None:
-        tree = ast.parse(Path("main.py").read_text(encoding="utf-8"))
+        tree = ast.parse(Path("fibaro_core/services/comparisons/overview.py").read_text(encoding="utf-8"))
         overview_func = next(
             node
             for node in tree.body
-            if isinstance(node, ast.AsyncFunctionDef) and node.name == "api_v2_overview"
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "load_overview_comparisons"
         )
         called_names = {
             node.func.id

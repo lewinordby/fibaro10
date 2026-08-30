@@ -30,6 +30,8 @@ kjernen, fagadapterne, integrasjonene, mobilflatene og driftsverktøyene.
 databasemodeller, valideringsmodeller og de første isolerte API-routerne.
 Summer, rangering og årskurver ligger i egne fagmoduler under
 `fibaro_core/services/summaries/`.
+Sammenligningsperioder, dashboardkort og grafsvar ligger i
+`fibaro_core/services/comparisons/`, med tester mot API-svar fra før flyttingen.
 Dette er interne moduler i samme tjeneste, ikke nye mikroapper.
 Se [modulgrensene](docs/core-modules.md) før videre oppsplitting.
 

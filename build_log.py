@@ -12,6 +12,38 @@ APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
         "version": "1",
+        "build": "1832",
+        "date": "30.08.2026",
+        "headline": "Sammenligninger og dashboardkort har fått felles perioderegler",
+        "title": "Tredje etappe av oppsplittingen av main.py samler sammenligningslogikken",
+        "description": (
+            "Datatidspunkt, periodevalg, sammenligningskort og grafsvar er skilt ut i egne moduler. "
+            "Dashboardet bruker nå samme dag-, uke- og månedsregler som sammenligningsgrafen. "
+            "Årssammenligninger er også skilt fra HTTP-endepunktene. Tall, etiketter, "
+            "rangeringer og API-kontrakter er kontrollert mot build 1831 før flyttingen. "
+            "main.py er redusert med 1 224 linjer, til 37 904."
+        ),
+        "applications": [
+            "Fibaro10 kjerne/API: egne tjenester for perioder, dashboardkort og sammenligninger.",
+            "Omsetning, Parkering og Soling: samme data og utseende med felles perioderegler.",
+            "Komplett oversikt: driftsfeltene er bevart og regresjonstestet.",
+            "Frontend, datainnsamlere, alarmer og tidsplaner: ingen endringer.",
+        ],
+        "request": "kjør på",
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Skilt ut kildebaserte skjæringstidspunkt og navigasjon for dag, uke og måned.",
+            "Samlet de fire dashboardkortenes perioder, batchoppslag, rangering og referansefelt.",
+            "Bevart fulle referansegrafer selv om sammenligningstall stopper ved samme datatidspunkt.",
+            "Flyttet årssammenligningenes svarbygging til testbare funksjoner uten database eller cache.",
+            "Låst 1 183 API-scenarier og periodeforespørsler mot kontrollgrunnlag fra build 1831.",
+            "Utvidet tester for kalendergrenser, datatidspunkt, feiltilfeller og ufiltrert oversikt.",
+            "Dokumentert eksisterende fallback ved manglende importstatus og årsvisningenes dagjustering.",
+        ],
+    },
+    {
+        "version": "1",
         "build": "1831",
         "date": "30.08.2026",
         "headline": "Beregninger og rangering har fått egne fagmoduler",

@@ -41,6 +41,7 @@ Write-Host "Python unit tests"
 Run "python" @("-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py") $repoRoot
 Run "python" @("-m", "pytest", "tests/test_core_architecture.py", "tests/test_core_contracts.py", "tests/test_core_routers.py", "tests/test_operational_workspaces.py", "-q") $repoRoot
 Run "python" @("-m", "pytest", "tests/test_summary_calculations.py", "tests/test_summary_runtime.py", "tests/test_overview_batch_queries.py", "tests/test_revenue_top_weeks.py", "tests/test_domain_top_weeks.py", "-q") $repoRoot
+Run "python" @("-m", "pytest", "tests/test_comparison_contracts.py", "tests/test_comparison_windows.py", "tests/test_comparison_runtime.py", "-q") $repoRoot
 Run "python" @("-m", "unittest", "revenue_app.tests.test_main") $repoRoot
 Run "python" @("-m", "unittest", "parking_app.tests.test_main") $repoRoot
 Run "python" @("-m", "pytest", "tests/test_domain_microapps.py", "tests/test_system_inventory.py", "-q") $repoRoot

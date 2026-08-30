@@ -1,17 +1,17 @@
 # Fibaro10 core modules
 
-Updated 2026-08-30, build 1831.
+Updated 2026-08-30, build 1832.
 
 ## Scope
 
-The first two stages of splitting `main.py` are complete, not a rewrite or a new
+The first three stages of splitting `main.py` are complete, not a rewrite or a new
 microservice. The web and worker processes still run the same application,
 use the same PostgreSQL database and expose the same public endpoints.
 Frontend, collectors, schedules, authentication policy and database schema
 are unchanged.
 
 The entry point has decreased from 43,580 to 40,340 lines in build 1830 and
-to 39,128 physical lines in build 1831. The goal
+to 39,128 physical lines in build 1831, then 37,904 in build 1832. The goal
 is clearer ownership and isolated testing; this change does not claim faster
 SQL queries or a measured reduction in user-facing response time.
 
@@ -33,6 +33,10 @@ SQL queries or a measured reduction in user-facing response time.
 | `fibaro_core/services/summaries/energy.py` | Daily, monthly and yearly energy aggregates and estimated-hour counts. |
 | `fibaro_core/services/summaries/revenue.py` | Combined revenue, day/week/month rankings and accumulated year curves. |
 | `fibaro_core/services/summaries/periods.py` | Calendar normalization, ISO week identity, year navigation and the effective month helpers. |
+| `fibaro_core/services/comparisons/windows.py` | Source cutoffs, shared day/week/month windows, navigation and timeline coordinates. |
+| `fibaro_core/services/comparisons/overview.py` | Explicit dashboard period plans, batched source snapshots and the four comparison cards. |
+| `fibaro_core/services/comparisons/chart.py` | Comparison response assembly with an explicit session, clock value, import status and timeline reader. |
+| `fibaro_core/services/comparisons/years.py` | Pure annual-comparison response builders for sun, parking and revenue. |
 | `value_parsing.py` | Existing value parsers plus the extracted int_or_zero / float_or_zero conversions. |
 | `fibaro_core/routers/assets.py` | Four existing asset endpoints: list, create, update and discover. |
 | `fibaro_core/routers/automations.py` | Three existing workbench endpoints: list, create and update. |
@@ -68,9 +72,9 @@ module directly.
 Summary builders receive a session from the caller and only execute reads.
 They do not create engines, retrieve credentials, start imports or own caches.
 The existing `SUMMARY_CACHE`, five-minute lifetime, forced refresh and prefix
-invalidation remain in main. Selection of last-successful import timestamps
-and comparison windows also remains there; sun and parking retain independent
-cutoffs instead of using the wall clock.
+invalidation remain in main. The comparison modules receive the current clock
+value and import status explicitly; sun and parking retain independent cutoffs
+when last-successful timestamps exist. No comparison module starts an import.
 
 The migration preserves these rules:
 
@@ -91,6 +95,38 @@ The two shadowed definitions of `add_months` and `month_label` were removed.
 Only their previously effective implementations remain, now in periods.py.
 In particular, `add_months` returns the first day of the destination month;
 this release does not silently switch to preserving the input day number.
+
+## Comparison boundaries
+
+Main still owns request parsing, database sessions, cached summary retrieval,
+import-status retrieval, and the room/parking event reader. The comparison chart
+receives that timeline reader explicitly, avoiding reverse imports or duplicated
+room mapping. HTTP paths, query defaults, validation and response shapes remain
+unchanged. The full overview retains its non-business fields.
+
+The dashboard now derives day/week/month windows from the same function as the
+comparison chart. Frozen dataclasses describe current, previous and extra
+reference periods. All four cards use one presenter, with revenue/count ranking
+selected by scope. Snapshot reads remain batched: eight full SUN2 periods,
+twelve SUN2 cutoff periods and twenty parking periods. These use the same
+existing three batch helpers (five underlying SQL queries).
+
+Important preserved behavior, not new guarantees:
+
+- A newer failed import does not advance a source cutoff. UTC timestamps are
+  converted to Oslo local time; future source timestamps are clamped to now.
+- Without a successful source timestamp or explicit fallback, the existing
+  policy falls back to now. This release does not introduce a missing-data state.
+- Past selected periods are complete. A future anchor is clamped to today.
+- Day charts span 06:00-24:00 and week charts show the full week. Reference
+  lanes extend through the full reference period, while comparison totals still
+  use the matching source cutoff. Month chart behavior is unchanged.
+- Dashboard year references use elapsed local calendar days, not month/day
+  matching. Annual charts retain ordinal-day alignment and daily rather than
+  intraday granularity. Leap-year offsets have not been reinterpreted.
+- ISO week 53 falls back to the final available week of the prior ISO year.
+- Comparisons, forecasts and settlements are separate ownership boundaries;
+  the latter two are not modified in this stage.
 
 ## Verification
 
@@ -117,11 +153,22 @@ The focused core tests are also included in `scripts/check-local.ps1`:
   ISO boundaries, leap years, top-20 lists and exact timestamp limits.
 - `test_summary_runtime.py` verifies re-exports, source-specific cutoffs,
   cache behavior and the absence of shadowed top-level function definitions.
+- `test_comparison_contracts.py` compares 1,176 deterministic dashboard/chart/year
+  scenarios with output and requested-period fingerprints recorded before moving
+  build 1831 code. Seven additional full-overview cases replay the original
+  build 1831 function and include non-business fields and query structure.
+- `test_comparison_windows.py` checks exact source timestamps, UTC conversion,
+  stale/missing/future sources, shorter months, leap years, ISO weeks, navigation,
+  ranking basis, totals and batched reads without importing main.
+- `test_comparison_runtime.py` exercises HTTP validation, session closure on
+  errors, reference selection and the difference between full chart lanes and
+  cutoff-based comparison totals.
 
 Do not regenerate `tests/fixtures/core_contracts.json` just to make a refactor
 pass. Only intentionally accepted public-contract changes justify a new
 snapshot; review the changed sections first.
 The same restriction applies to `tests/fixtures/summary_contracts.json`.
+It also applies to `comparison_contracts.json` and `overview_full_contracts.json`.
 
 ## Deployment
 
@@ -141,7 +188,7 @@ container start times before/after rollout.
 Most of main still needs modularization. Continue with one bounded domain at
 a time, not by blindly moving endpoint decorators:
 
-1. Remaining comparison-window assembly, forecasts and settlement calculations.
+1. Forecasts, then settlement calculations, as separate domain extractions.
 2. Read-oriented domain endpoints using explicit sessions and cache ownership.
 3. Import orchestration, alarm evaluation and background workers, preserving
    locks, schedules, transaction boundaries and lifecycle ownership.
