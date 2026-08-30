@@ -1,6 +1,24 @@
 # Fibaro10 core modules
 
-Updated 2026-08-30, build 1832.
+Updated 2026-08-30, build 1833.
+
+## Forecasts and settlements (1833)
+
+`services/forecasts/` owns calendar/holiday weighting, daily and period models,
+forecast assembly and snapshot persistence. Builders receive the existing cache
+and summary reader explicitly. They neither own a second cache nor commit the
+caller's transaction. The import-triggered save still follows the same import.
+Sixty-four frozen payload/SQL contracts come from build 1832, not the refactor.
+
+`services/settlements/` separates parsing, source queries, control calculations,
+field presentation, full responses, Gmail retrieval and reconciliation. Existing
+credit-note signs, pre-2026 source availability and VAT/control rules are unchanged.
+Parsing and source reads are not coupled to a web request or engine creation.
+Shared response primitives live in `services/presentation.py`.
+
+This stage reduces main.py from 37,904 to 34,689 physical lines. The full local
+suite passes (557 tests, two unavailable optional Roborock tests skipped).
+Subsequent stages will be deployed together to avoid repeated worker restarts.
 
 ## Scope
 

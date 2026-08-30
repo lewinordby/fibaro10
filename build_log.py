@@ -11,6 +11,23 @@ DEFAULT_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exi
 APP_BUILD = os.getenv("APP_BUILD", DEFAULT_BUILD)
 BUILD_LOG = [
     {
+        "version": "1", "build": "1833", "date": "30.08.2026",
+        "headline": "Prognoser og oppgjør har egne fagmoduler",
+        "title": "Skilt beregning, tolking og oppgjørskontroll fra main.py",
+        "description": "Flyttet prognosemodeller, prognosehistorikk, dokumenttolking, kildekontroll og oppgjørsvisning til egne moduler. Cache, transaksjoner, importflyt og API-kontrakter er bevart.",
+        "applications": ["Fibaro10 kjerne/API", "Ingen endring i frontend eller datainnsamlere"],
+        "request": "gjennomfør alle etapper",
+        "work_duration": "Del av sammenhengende modulariseringsarbeid; separat tid ikke målt",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "38 prognosedefinisjoner flyttet; cache og sammendragsleser gis eksplisitt til beregningene.",
+            "87 oppgjørs- og presentasjonsdefinisjoner har fått eget eierskap.",
+            "64 prognosescenarier kontrollert mot kode fra build 1832, inkludert SQL.",
+            "557 tester bestått; to Roborock-tester hoppet over fordi lokal avhengighet mangler.",
+            "main.py redusert fra 37 904 til 34 689 linjer.",
+        ],
+    },
+    {
         "version": "1",
         "build": "1832",
         "date": "30.08.2026",

@@ -1,3 +1,4 @@
+from fibaro_core.services.forecasts import builders as forecast_builders
 from datetime import date, datetime, time, timedelta, timezone
 from email.header import decode_header, make_header
 from email.message import Message
@@ -4201,17 +4202,10 @@ def import_job_updated_ago(row: Optional[ImportJobStatus]) -> str:
     return f"Oppdatert {age_label(minutes)}"
 
 
-def format_short_number(value: Any, decimals: int = 0) -> str:
-    number = float_or_zero(value)
-    if decimals:
-        return f"{number:,.{decimals}f}".replace(",", " ")
-    return f"{round(number):,}".replace(",", " ")
+from fibaro_core.services.presentation import format_short_number
 
 
-def format_signed_short_number(value: Any, decimals: int = 0) -> str:
-    number = float_or_zero(value)
-    sign = "+" if number > 0 else ""
-    return f"{sign}{format_short_number(number, decimals)}"
+from fibaro_core.services.presentation import format_signed_short_number
 
 
 def dashboard_compare_detail(
@@ -4397,956 +4391,110 @@ def normalize_month(value: Optional[str], fallback: date) -> date:
     return fallback.replace(day=1)
 
 
-@lru_cache(maxsize=64)
-def easter_sunday(year: int) -> date:
-    a = year % 19
-    b = year // 100
-    c = year % 100
-    d = b // 4
-    e = b % 4
-    f = (b + 8) // 25
-    g = (b - f + 1) // 3
-    h = (19 * a + b - d - g + 15) % 30
-    i = c // 4
-    k = c % 4
-    l = (32 + 2 * e + 2 * i - h - k) % 7
-    m = (a + 11 * h + 22 * l) // 451
-    month = (h + l - 7 * m + 114) // 31
-    day = ((h + l - 7 * m + 114) % 31) + 1
-    return date(year, month, day)
+from fibaro_core.services.forecasts.calendar import easter_sunday
 
 
-@lru_cache(maxsize=4096)
-def norwegian_holiday_name(day: date) -> str:
-    easter = easter_sunday(day.year)
-    holidays = {
-        date(day.year, 1, 1): "Nyttårsdag",
-        easter - timedelta(days=3): "Skjærtorsdag",
-        easter - timedelta(days=2): "Langfredag",
-        easter: "1. påskedag",
-        easter + timedelta(days=1): "2. påskedag",
-        date(day.year, 5, 1): "Arbeidernes dag",
-        date(day.year, 5, 17): "17. mai",
-        easter + timedelta(days=39): "Kristi himmelfartsdag",
-        easter + timedelta(days=49): "1. pinsedag",
-        easter + timedelta(days=50): "2. pinsedag",
-        date(day.year, 12, 25): "1. juledag",
-        date(day.year, 12, 26): "2. juledag",
-    }
-    return holidays.get(day, "")
+from fibaro_core.services.forecasts.calendar import norwegian_holiday_name
 
 
-def month_distance(a: int, b: int) -> int:
-    raw = abs(a - b)
-    return min(raw, 12 - raw)
+from fibaro_core.services.forecasts.calendar import month_distance
 
 
-def iter_dates(start: date, end: date):
-    current = start
-    while current <= end:
-        yield current
-        current += timedelta(days=1)
+from fibaro_core.services.forecasts.calendar import iter_dates
 
 
-def month_end(day: date) -> date:
-    return date(day.year, day.month, calendar.monthrange(day.year, day.month)[1])
+from fibaro_core.services.forecasts.calendar import month_end
 
 
-SUN2_FORECAST_SEASON_WEIGHTS = (1.75, 1.35, 1.05, 0.82)
-PARKING_FORECAST_SEASON_WEIGHTS = (1.85, 1.38, 1.05, 0.78)
+from fibaro_core.services.forecasts.models import SUN2_FORECAST_SEASON_WEIGHTS
+from fibaro_core.services.forecasts.models import PARKING_FORECAST_SEASON_WEIGHTS
 
 
-def weighted_average(values: list[tuple[float, float]]) -> tuple[float, float, int]:
-    weighted_sum = sum(value * weight for value, weight in values)
-    weight_sum = sum(weight for _, weight in values)
-    if weight_sum <= 0:
-        return 0.0, 0.0, 0
-    return weighted_sum / weight_sum, weight_sum, len(values)
+from fibaro_core.services.forecasts.models import weighted_average
 
 
-def sun2_history_weight(target_day: date, historical_day: date, today: date) -> float:
-    return sun2_history_weight_precomputed(
-        target_day,
-        historical_day,
-        today,
-        bool(norwegian_holiday_name(target_day)),
-    )
+from fibaro_core.services.forecasts.models import sun2_history_weight
 
 
-def sun2_history_weight_precomputed(target_day: date, historical_day: date, today: date, target_holiday: bool) -> float:
-    if historical_day >= today:
-        return 0.0
-    age_years = max(0.0, (today - historical_day).days / 365.25)
-    recency = 0.72 ** age_years
-    month_diff = month_distance(target_day.month, historical_day.month)
-    season = {0: 1.75, 1: 1.35, 2: 1.05, 3: 0.82}.get(month_diff, 0.55)
-    weekday = 1.35 if target_day.weekday() == historical_day.weekday() else 0.82
-    history_holiday = bool(norwegian_holiday_name(historical_day))
-    holiday = 1.8 if target_holiday and history_holiday else 1.0 if target_holiday == history_holiday else 0.55
-    return max(0.0, recency * season * weekday * holiday)
+from fibaro_core.services.forecasts.models import sun2_history_weight_precomputed
 
 
-def sun2_daily_model(target_day: date, history: Dict[date, Dict[str, float]], today: date) -> Dict[str, Any]:
-    target_holiday_name = norwegian_holiday_name(target_day)
-    target_holiday = bool(target_holiday_name)
-    sessions_sum = 0.0
-    paid_sum = 0.0
-    minutes_sum = 0.0
-    weight_sum = 0.0
-    comparable_days = 0
-    for historical_day, item in history.items():
-        weight = sun2_history_weight_precomputed(target_day, historical_day, today, target_holiday)
-        if weight <= 0:
-            continue
-        sessions_sum += float_or_zero(item.get("sessions")) * weight
-        paid_sum += float_or_zero(item.get("paid")) * weight
-        minutes_sum += float_or_zero(item.get("minutes")) * weight
-        weight_sum += weight
-        comparable_days += 1
-    if weight_sum <= 0:
-        sessions = paid = minutes = 0.0
-    else:
-        sessions = sessions_sum / weight_sum
-        paid = paid_sum / weight_sum
-        minutes = minutes_sum / weight_sum
-    return {
-        "day": target_day,
-        "sessions": sessions,
-        "paid": paid,
-        "minutes": minutes,
-        "weight_sum": weight_sum,
-        "comparable_days": comparable_days,
-        "holiday": target_holiday_name,
-    }
+from fibaro_core.services.forecasts.models import sun2_daily_model
 
 
-def sun2_model_history_features(history: Dict[date, Dict[str, float]], today: date) -> list[tuple[int, int, bool, float, float, float, float]]:
-    features = []
-    for historical_day, item in history.items():
-        if historical_day >= today:
-            continue
-        age_years = max(0.0, (today - historical_day).days / 365.25)
-        features.append(
-            (
-                historical_day.month,
-                historical_day.weekday(),
-                bool(norwegian_holiday_name(historical_day)),
-                0.72 ** age_years,
-                float_or_zero(item.get("sessions")),
-                float_or_zero(item.get("paid")),
-                float_or_zero(item.get("minutes")),
-            )
-        )
-    return features
+from fibaro_core.services.forecasts.models import sun2_model_history_features
 
 
-def sun2_daily_model_from_features(
-    target_day: date,
-    features: list[tuple[int, int, bool, float, float, float, float]],
-) -> Dict[str, Any]:
-    target_holiday_name = norwegian_holiday_name(target_day)
-    target_holiday = bool(target_holiday_name)
-    target_month = target_day.month
-    target_weekday = target_day.weekday()
-    sessions_sum = 0.0
-    paid_sum = 0.0
-    minutes_sum = 0.0
-    weight_sum = 0.0
-    comparable_days = 0
-    for history_month, history_weekday, history_holiday, recency, sessions_value, paid_value, minutes_value in features:
-        raw_month_diff = abs(target_month - history_month)
-        month_diff = min(raw_month_diff, 12 - raw_month_diff)
-        season = SUN2_FORECAST_SEASON_WEIGHTS[month_diff] if month_diff < len(SUN2_FORECAST_SEASON_WEIGHTS) else 0.55
-        weekday = 1.35 if target_weekday == history_weekday else 0.82
-        holiday = 1.8 if target_holiday and history_holiday else 1.0 if target_holiday == history_holiday else 0.55
-        weight = recency * season * weekday * holiday
-        if weight <= 0:
-            continue
-        sessions_sum += sessions_value * weight
-        paid_sum += paid_value * weight
-        minutes_sum += minutes_value * weight
-        weight_sum += weight
-        comparable_days += 1
-    if weight_sum <= 0:
-        sessions = paid = minutes = 0.0
-    else:
-        sessions = sessions_sum / weight_sum
-        paid = paid_sum / weight_sum
-        minutes = minutes_sum / weight_sum
-    return {
-        "day": target_day,
-        "sessions": sessions,
-        "paid": paid,
-        "minutes": minutes,
-        "weight_sum": weight_sum,
-        "comparable_days": comparable_days,
-        "holiday": target_holiday_name,
-    }
+from fibaro_core.services.forecasts.models import sun2_daily_model_from_features
 
 
-def sun2_period_actual(history: Dict[date, Dict[str, float]], start: date, end: date) -> Dict[str, float]:
-    total = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0}
-    for day in iter_dates(start, end):
-        item = history.get(day) or {}
-        total["sessions"] += float_or_zero(item.get("sessions"))
-        total["paid"] += float_or_zero(item.get("paid"))
-        total["minutes"] += float_or_zero(item.get("minutes"))
-    return total
+from fibaro_core.services.forecasts.models import sun2_period_actual
 
 
-def sun2_apply_tempo(actual: float, expected: float, minimum: float = 0.62, maximum: float = 1.65) -> float:
-    if expected <= 0:
-        return 1.0
-    return max(minimum, min(maximum, actual / expected))
+from fibaro_core.services.forecasts.models import sun2_apply_tempo
 
 
-def parking_apply_period_tempo(actual: float, expected: float, progress: float) -> float:
-    if expected <= 0:
-        return 1.0
-    progress = max(0.0, min(1.0, progress))
-    observed = float_or_zero(actual) / expected
-    confidence = 0.12 + 0.78 * (progress ** 0.85)
-    blended = 1.0 + (observed - 1.0) * confidence
-    if progress < 0.18:
-        minimum, maximum = 0.82, 1.25
-    elif progress < 0.42:
-        minimum, maximum = 0.70, 1.40
-    elif progress < 0.72:
-        minimum, maximum = 0.58, 1.58
-    else:
-        minimum, maximum = 0.45, 1.78
-    return max(minimum, min(maximum, blended))
+from fibaro_core.services.forecasts.models import parking_apply_period_tempo
 
 
-def opening_day_fraction(minute_of_day: int, opening_minute: int = 7 * 60, closing_minute: int = 23 * 60, power: float = 0.92) -> float:
-    if minute_of_day <= opening_minute:
-        return 0.0
-    if minute_of_day >= closing_minute:
-        return 1.0
-    linear_fraction = (minute_of_day - opening_minute) / (closing_minute - opening_minute)
-    return max(0.0, min(1.0, linear_fraction ** power))
+from fibaro_core.services.forecasts.models import opening_day_fraction
 
 
-def weighted_intraday_fraction(
-    target_day: date,
-    today: date,
-    rows: list[tuple[date, float, float]],
-    weight_fn,
-    fallback_fraction: float,
-    min_weighted_total: float = 25.0,
-) -> float:
-    elapsed_weighted = 0.0
-    total_weighted = 0.0
-    for historical_day, elapsed_count, total_count in rows:
-        total_count = float_or_zero(total_count)
-        if total_count <= 0:
-            continue
-        weight = weight_fn(target_day, historical_day, today)
-        if weight <= 0:
-            continue
-        elapsed_weighted += float_or_zero(elapsed_count) * weight
-        total_weighted += total_count * weight
-    if total_weighted < min_weighted_total:
-        return fallback_fraction
-    return max(0.0, min(1.0, elapsed_weighted / total_weighted))
+from fibaro_core.services.forecasts.models import weighted_intraday_fraction
 
 
-async def sun2_historical_day_fraction(
-    session,
-    target_day: date,
-    today: date,
-    history: Dict[date, Dict[str, float]],
-    minute_of_day: int,
-    fallback_fraction: float,
-) -> float:
-    if fallback_fraction <= 0.0 or fallback_fraction >= 1.0 or not history:
-        return fallback_fraction
-    first_day = min(history)
-    minute_expr = func.extract("hour", Sun2TanningSession.started_at) * 60 + func.extract("minute", Sun2TanningSession.started_at)
-    result = await session.execute(
-        select(
-            Sun2TanningSession.stat_date,
-            func.coalesce(func.sum(case((minute_expr <= minute_of_day, 1), else_=0)), 0),
-            func.count(Sun2TanningSession.id),
-        )
-        .where(Sun2TanningSession.stat_date >= first_day)
-        .where(Sun2TanningSession.stat_date < today)
-        .group_by(Sun2TanningSession.stat_date)
-    )
-    rows = [(row[0], row[1], row[2]) for row in result.all()]
-    return weighted_intraday_fraction(target_day, today, rows, sun2_history_weight, fallback_fraction)
+from fibaro_core.services.forecasts.models import sun2_historical_day_fraction
 
 
-async def parking_historical_day_fraction(
-    session,
-    target_day: date,
-    today: date,
-    history: Dict[date, Dict[str, float]],
-    minute_of_day: int,
-    fallback_fraction: float,
-) -> float:
-    if fallback_fraction <= 0.0 or fallback_fraction >= 1.0 or not history:
-        return fallback_fraction
-    first_day = min(history)
-    minute_expr = func.extract("hour", ParkingSession.start_time) * 60 + func.extract("minute", ParkingSession.start_time)
-    result = await session.execute(
-        select(
-            cast(ParkingSession.start_time, Date),
-            func.coalesce(func.sum(case((minute_expr <= minute_of_day, 1), else_=0)), 0),
-            func.count(ParkingSession.id),
-        )
-        .where(ParkingSession.start_time >= datetime.combine(first_day, time.min))
-        .where(ParkingSession.start_time < datetime.combine(today, time.min))
-        .group_by(cast(ParkingSession.start_time, Date))
-    )
-    rows = [(row[0], row[1], row[2]) for row in result.all()]
-    return weighted_intraday_fraction(target_day, today, rows, parking_history_weight, fallback_fraction)
+from fibaro_core.services.forecasts.models import parking_historical_day_fraction
 
 
-def intraday_forecast_value(
-    actual: float,
-    model: float,
-    day_fraction: float,
-    minute_of_day: int,
-    opening_minute: int,
-    minimum_expected_now: float = 3.0,
-) -> tuple[float, float]:
-    actual = float_or_zero(actual)
-    model = float_or_zero(model)
-    day_fraction = max(0.01, min(1.0, day_fraction))
-    if model <= 0:
-        projected = actual / day_fraction if day_fraction > 0 else actual
-        return max(actual, projected), 1.0
-
-    expected_now = model * day_fraction
-    if minute_of_day <= opening_minute or expected_now < minimum_expected_now:
-        return max(actual, model), 1.0
-
-    observed_tempo = actual / expected_now if expected_now > 0 else 1.0
-    confidence = max(0.0, min(1.0, (day_fraction - 0.14) / 0.55))
-    blended_tempo = 1.0 + (observed_tempo - 1.0) * confidence
-
-    if day_fraction < 0.35:
-        min_tempo, max_tempo = (0.78, 1.35)
-    elif day_fraction < 0.65:
-        min_tempo, max_tempo = (0.58, 1.55)
-    else:
-        min_tempo, max_tempo = (0.42, 1.75)
-    tempo = max(min_tempo, min(max_tempo, blended_tempo))
-    return max(actual, model * tempo), tempo
+from fibaro_core.services.forecasts.models import intraday_forecast_value
 
 
 async def build_sun2_forecast(session, today: date, now_local: datetime) -> Dict[str, Any]:
-    cache_key = f"sun2_forecast:{today.isoformat()}:{now_local.hour:02d}:{now_local.minute // 5}"
-    now_utc = datetime.utcnow()
-    cached = SUMMARY_CACHE.get(cache_key)
-    if cached and cached.get("expires", datetime.min) > now_utc:
-        return cached["value"]
-
-    summaries = await get_sun2_summaries(session)
-    history: Dict[date, Dict[str, float]] = {}
-    for item in summaries.get("daily", []):
-        period = item.get("period")
-        try:
-            day = date.fromisoformat(period)
-        except (TypeError, ValueError):
-            continue
-        history[day] = {
-            "sessions": float_or_zero(item.get("totalt_antall_solinger")),
-            "paid": float_or_zero(item.get("totalt_inntjent_kr")),
-            "minutes": float_or_zero(item.get("total_soletid_minutter")),
-        }
-    model_cutoff = today - timedelta(days=1461)
-    model_history = {
-        day: item
-        for day, item in history.items()
-        if model_cutoff <= day < today
-    }
-    if len(model_history) < 180:
-        model_history = {day: item for day, item in history.items() if day < today}
-
-    actual_today = history.get(today, {"sessions": 0.0, "paid": 0.0, "minutes": 0.0})
-    minute_of_day = now_local.hour * 60 + now_local.minute
-    opening_minute = 7 * 60
-    closing_minute = 23 * 60
-    day_fraction = opening_day_fraction(minute_of_day, opening_minute, closing_minute, power=0.86)
-    day_fraction = await sun2_historical_day_fraction(session, today, today, model_history, minute_of_day, day_fraction)
-    model_features = sun2_model_history_features(model_history, today)
-    daily_model_cache: Dict[date, Dict[str, Any]] = {}
-
-    def model_for(day: date) -> Dict[str, Any]:
-        model = daily_model_cache.get(day)
-        if model is None:
-            model = sun2_daily_model_from_features(day, model_features)
-            daily_model_cache[day] = model
-        return model
-
-    model_today = model_for(today)
-    actual_sessions = float_or_zero(actual_today.get("sessions"))
-    actual_paid = float_or_zero(actual_today.get("paid"))
-    actual_minutes = float_or_zero(actual_today.get("minutes"))
-    day_sessions, session_tempo = intraday_forecast_value(
-        actual_sessions,
-        model_today["sessions"],
-        day_fraction,
-        minute_of_day,
-        opening_minute,
-        minimum_expected_now=3.0,
-    )
-    day_paid = max(actual_paid, float_or_zero(model_today.get("paid")) * session_tempo)
-    day_minutes = max(actual_minutes, float_or_zero(model_today.get("minutes")) * session_tempo)
-
-    def forecast_period(start: date, end: date, label: str) -> Dict[str, Any]:
-        actual_end = min(today, end)
-        actual = sun2_period_actual(history, start, actual_end) if actual_end >= start else {"sessions": 0.0, "paid": 0.0, "minutes": 0.0}
-        expected_so_far = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0}
-        remaining_base = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0}
-        today_remaining = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0}
-        future_days = []
-        for day in iter_dates(start, end):
-            model = model_for(day)
-            if day < today:
-                expected_so_far["sessions"] += model["sessions"]
-                expected_so_far["paid"] += model["paid"]
-                expected_so_far["minutes"] += model["minutes"]
-            elif day == today:
-                expected_so_far["sessions"] += model["sessions"] * day_fraction
-                expected_so_far["paid"] += model["paid"] * day_fraction
-                expected_so_far["minutes"] += model["minutes"] * day_fraction
-            else:
-                remaining_base["sessions"] += model["sessions"]
-                remaining_base["paid"] += model["paid"]
-                remaining_base["minutes"] += model["minutes"]
-                future_days.append(model)
-        tempo_sessions = sun2_apply_tempo(actual["sessions"], expected_so_far["sessions"])
-        tempo_paid = sun2_apply_tempo(actual["paid"], expected_so_far["paid"])
-        tempo_minutes = sun2_apply_tempo(actual["minutes"], expected_so_far["minutes"])
-        if start <= today <= end:
-            actual["sessions"] = max(actual["sessions"], actual_sessions)
-            actual["paid"] = max(actual["paid"], actual_paid)
-            actual["minutes"] = max(actual["minutes"], actual_minutes)
-            today_remaining["sessions"] = max(0.0, day_sessions - actual_sessions)
-            today_remaining["paid"] = max(0.0, day_paid - actual_paid)
-            today_remaining["minutes"] = max(0.0, day_minutes - actual_minutes)
-        forecast = {
-            "sessions": actual["sessions"] + today_remaining["sessions"] + remaining_base["sessions"] * tempo_sessions,
-            "paid": actual["paid"] + today_remaining["paid"] + remaining_base["paid"] * tempo_paid,
-            "minutes": actual["minutes"] + today_remaining["minutes"] + remaining_base["minutes"] * tempo_minutes,
-        }
-        important_days = sorted(
-            [item for item in future_days if item.get("holiday")],
-            key=lambda item: item["day"],
-        )[:8]
-        return {
-            "label": label,
-            "start": start,
-            "end": end,
-            "actual": actual,
-            "expected_so_far": expected_so_far,
-            "forecast": forecast,
-            "tempo": tempo_sessions,
-            "remaining_days": max(0, (end - today).days),
-            "important_days": important_days,
-        }
-
-    month_start = date(today.year, today.month, 1)
-    year_start = date(today.year, 1, 1)
-    month = forecast_period(month_start, month_end(today), "Inneværende måned")
-    year = forecast_period(year_start, date(today.year, 12, 31), "Inneværende år")
-    weekday_names = ["mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag", "søndag"]
-    day = {
-        "label": "I dag",
-        "date": today,
-        "weekday": weekday_names[today.weekday()],
-        "holiday": norwegian_holiday_name(today),
-        "actual": actual_today,
-        "forecast": {"sessions": day_sessions, "paid": day_paid, "minutes": day_minutes},
-        "model": model_today,
-        "day_fraction": day_fraction,
-        "remaining_fraction": max(0.0, 1.0 - day_fraction),
-        "comparable_days": model_today["comparable_days"],
-    }
-    value = {
-        "day": day,
-        "month": month,
-        "year": year,
-        "history_first_date": summaries.get("first_date"),
-        "history_last_date": summaries.get("last_date"),
-        "generated_at": now_local,
-    }
-    SUMMARY_CACHE[cache_key] = {"expires": now_utc + timedelta(minutes=3), "value": value}
-    return value
-
-
-def parking_daily_model(target_day: date, history: Dict[date, Dict[str, float]], today: date) -> Dict[str, Any]:
-    target_holiday_name = norwegian_holiday_name(target_day)
-    target_holiday = bool(target_holiday_name)
-    sessions_sum = 0.0
-    paid_sum = 0.0
-    minutes_sum = 0.0
-    vehicles_sum = 0.0
-    weight_sum = 0.0
-    comparable_days = 0
-    for historical_day, item in history.items():
-        weight = parking_history_weight_precomputed(target_day, historical_day, today, target_holiday)
-        if weight <= 0:
-            continue
-        sessions_sum += float_or_zero(item.get("sessions")) * weight
-        paid_sum += float_or_zero(item.get("paid")) * weight
-        minutes_sum += float_or_zero(item.get("minutes")) * weight
-        vehicles_sum += float_or_zero(item.get("vehicles")) * weight
-        weight_sum += weight
-        comparable_days += 1
-    if weight_sum <= 0:
-        sessions = paid = minutes = vehicles = 0.0
-    else:
-        sessions = sessions_sum / weight_sum
-        paid = paid_sum / weight_sum
-        minutes = minutes_sum / weight_sum
-        vehicles = vehicles_sum / weight_sum
-    return {
-        "day": target_day,
-        "sessions": sessions,
-        "paid": paid,
-        "minutes": minutes,
-        "vehicles": vehicles,
-        "weight_sum": weight_sum,
-        "comparable_days": comparable_days,
-        "holiday": target_holiday_name,
-    }
-
-
-def parking_model_history_features(
-    history: Dict[date, Dict[str, float]],
-    today: date,
-) -> list[tuple[int, int, bool, float, float, float, float, float]]:
-    features = []
-    for historical_day, item in history.items():
-        if historical_day >= today:
-            continue
-        age_years = max(0.0, (today - historical_day).days / 365.25)
-        features.append(
-            (
-                historical_day.month,
-                historical_day.weekday(),
-                bool(norwegian_holiday_name(historical_day)),
-                0.74 ** age_years,
-                float_or_zero(item.get("sessions")),
-                float_or_zero(item.get("paid")),
-                float_or_zero(item.get("minutes")),
-                float_or_zero(item.get("vehicles")),
-            )
-        )
-    return features
-
-
-def parking_daily_model_from_features(
-    target_day: date,
-    features: list[tuple[int, int, bool, float, float, float, float, float]],
-) -> Dict[str, Any]:
-    target_holiday_name = norwegian_holiday_name(target_day)
-    target_holiday = bool(target_holiday_name)
-    target_month = target_day.month
-    target_weekday = target_day.weekday()
-    target_is_sunday = target_weekday == 6
-    sessions_sum = 0.0
-    paid_sum = 0.0
-    minutes_sum = 0.0
-    vehicles_sum = 0.0
-    weight_sum = 0.0
-    comparable_days = 0
-    for history_month, history_weekday, history_holiday, recency, sessions_value, paid_value, minutes_value, vehicles_value in features:
-        raw_month_diff = abs(target_month - history_month)
-        month_diff = min(raw_month_diff, 12 - raw_month_diff)
-        season = PARKING_FORECAST_SEASON_WEIGHTS[month_diff] if month_diff < len(PARKING_FORECAST_SEASON_WEIGHTS) else 0.48
-        history_is_sunday = history_weekday == 6
-        if target_is_sunday:
-            weekday = 3.2 if history_is_sunday else 0.035
-        elif history_is_sunday:
-            weekday = 0.10
-        else:
-            weekday = 1.45 if target_weekday == history_weekday else 0.78
-        holiday = 1.8 if target_holiday and history_holiday else 1.0 if target_holiday == history_holiday else 0.50
-        weight = recency * season * weekday * holiday
-        if weight <= 0:
-            continue
-        sessions_sum += sessions_value * weight
-        paid_sum += paid_value * weight
-        minutes_sum += minutes_value * weight
-        vehicles_sum += vehicles_value * weight
-        weight_sum += weight
-        comparable_days += 1
-    if weight_sum <= 0:
-        sessions = paid = minutes = vehicles = 0.0
-    else:
-        sessions = sessions_sum / weight_sum
-        paid = paid_sum / weight_sum
-        minutes = minutes_sum / weight_sum
-        vehicles = vehicles_sum / weight_sum
-    return {
-        "day": target_day,
-        "sessions": sessions,
-        "paid": paid,
-        "minutes": minutes,
-        "vehicles": vehicles,
-        "weight_sum": weight_sum,
-        "comparable_days": comparable_days,
-        "holiday": target_holiday_name,
-    }
-
-
-def parking_period_actual(history: Dict[date, Dict[str, float]], start: date, end: date) -> Dict[str, float]:
-    total = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0, "vehicles": 0.0}
-    for day in iter_dates(start, end):
-        item = history.get(day) or {}
-        total["sessions"] += float_or_zero(item.get("sessions"))
-        total["paid"] += float_or_zero(item.get("paid"))
-        total["minutes"] += float_or_zero(item.get("minutes"))
-        total["vehicles"] += float_or_zero(item.get("vehicles"))
-    return total
-
-
-def parking_history_weight(target_day: date, historical_day: date, today: date) -> float:
-    return parking_history_weight_precomputed(
-        target_day,
-        historical_day,
-        today,
-        bool(norwegian_holiday_name(target_day)),
+    return await forecast_builders.build_sun2_forecast(
+        session, today, now_local, cache=SUMMARY_CACHE, summaries_getter=get_sun2_summaries,
     )
 
 
-def parking_history_weight_precomputed(target_day: date, historical_day: date, today: date, target_holiday: bool) -> float:
-    if historical_day >= today:
-        return 0.0
-    age_years = max(0.0, (today - historical_day).days / 365.25)
-    recency = 0.74 ** age_years
-    month_diff = month_distance(target_day.month, historical_day.month)
-    season = {0: 1.85, 1: 1.38, 2: 1.05, 3: 0.78}.get(month_diff, 0.48)
+from fibaro_core.services.forecasts.models import parking_daily_model
 
-    target_weekday = target_day.weekday()
-    history_weekday = historical_day.weekday()
-    target_is_sunday = target_weekday == 6
-    history_is_sunday = history_weekday == 6
-    if target_is_sunday:
-        weekday = 3.2 if history_is_sunday else 0.035
-    elif history_is_sunday:
-        weekday = 0.10
-    else:
-        weekday = 1.45 if target_weekday == history_weekday else 0.78
 
-    history_holiday = bool(norwegian_holiday_name(historical_day))
-    holiday = 1.8 if target_holiday and history_holiday else 1.0 if target_holiday == history_holiday else 0.50
-    return max(0.0, recency * season * weekday * holiday)
+from fibaro_core.services.forecasts.models import parking_model_history_features
+
+
+from fibaro_core.services.forecasts.models import parking_daily_model_from_features
+
+
+from fibaro_core.services.forecasts.models import parking_period_actual
+
+
+from fibaro_core.services.forecasts.models import parking_history_weight
+
+
+from fibaro_core.services.forecasts.models import parking_history_weight_precomputed
 
 
 async def build_parking_forecast(session, today: date, now_local: datetime) -> Dict[str, Any]:
-    cache_key = f"parking_forecast:{today.isoformat()}:{now_local.hour:02d}:{now_local.minute // 5}"
-    now_utc = datetime.utcnow()
-    cached = SUMMARY_CACHE.get(cache_key)
-    if cached and cached.get("expires", datetime.min) > now_utc:
-        return cached["value"]
-
-    summaries = await get_parking_summaries(session)
-    history: Dict[date, Dict[str, float]] = {}
-    for item in summaries.get("daily", []):
-        period = item.get("period")
-        try:
-            day = date.fromisoformat(period)
-        except (TypeError, ValueError):
-            continue
-        history[day] = {
-            "sessions": float_or_zero(item.get("sessions")),
-            "paid": float_or_zero(item.get("paid")),
-            "minutes": float_or_zero(item.get("minutes")),
-            "vehicles": float_or_zero(item.get("vehicles")),
-        }
-
-    model_cutoff = today - timedelta(days=1461)
-    model_history = {
-        day: item
-        for day, item in history.items()
-        if model_cutoff <= day < today
-    }
-    if len(model_history) < 180:
-        model_history = {day: item for day, item in history.items() if day < today}
-
-    actual_today = history.get(today, {"sessions": 0.0, "paid": 0.0, "minutes": 0.0, "vehicles": 0.0})
-    minute_of_day = now_local.hour * 60 + now_local.minute
-    opening_minute = 7 * 60
-    closing_minute = 23 * 60
-    day_fraction = opening_day_fraction(minute_of_day, opening_minute, closing_minute, power=0.9)
-    day_fraction = await parking_historical_day_fraction(session, today, today, model_history, minute_of_day, day_fraction)
-
-    model_features = parking_model_history_features(model_history, today)
-    daily_model_cache: Dict[date, Dict[str, Any]] = {}
-
-    def model_for(day: date) -> Dict[str, Any]:
-        model = daily_model_cache.get(day)
-        if model is None:
-            model = parking_daily_model_from_features(day, model_features)
-            daily_model_cache[day] = model
-        return model
-
-    model_today = model_for(today)
-    actual_sessions = float_or_zero(actual_today.get("sessions"))
-    actual_paid = float_or_zero(actual_today.get("paid"))
-    actual_minutes = float_or_zero(actual_today.get("minutes"))
-    actual_vehicles = float_or_zero(actual_today.get("vehicles"))
-    day_sessions, session_tempo = intraday_forecast_value(
-        actual_sessions,
-        model_today["sessions"],
-        day_fraction,
-        minute_of_day,
-        opening_minute,
-        minimum_expected_now=4.0,
-    )
-    day_paid, _ = intraday_forecast_value(
-        actual_paid,
-        model_today["paid"],
-        day_fraction,
-        minute_of_day,
-        opening_minute,
-        minimum_expected_now=80.0,
-    )
-    day_minutes, _ = intraday_forecast_value(
-        actual_minutes,
-        model_today["minutes"],
-        day_fraction,
-        minute_of_day,
-        opening_minute,
-        minimum_expected_now=60.0,
-    )
-    day_vehicles, _ = intraday_forecast_value(
-        actual_vehicles,
-        model_today["vehicles"],
-        day_fraction,
-        minute_of_day,
-        opening_minute,
-        minimum_expected_now=3.0,
-    )
-
-    def forecast_period(start: date, end: date, label: str) -> Dict[str, Any]:
-        actual_end = min(today, end)
-        actual = parking_period_actual(history, start, actual_end) if actual_end >= start else {"sessions": 0.0, "paid": 0.0, "minutes": 0.0, "vehicles": 0.0}
-        expected_so_far = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0, "vehicles": 0.0}
-        remaining_base = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0, "vehicles": 0.0}
-        today_remaining = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0, "vehicles": 0.0}
-        future_days = []
-        for day in iter_dates(start, end):
-            model = model_for(day)
-            if day < today:
-                expected_so_far["sessions"] += model["sessions"]
-                expected_so_far["paid"] += model["paid"]
-                expected_so_far["minutes"] += model["minutes"]
-                expected_so_far["vehicles"] += model["vehicles"]
-            elif day == today:
-                expected_so_far["sessions"] += model["sessions"] * day_fraction
-                expected_so_far["paid"] += model["paid"] * day_fraction
-                expected_so_far["minutes"] += model["minutes"] * day_fraction
-                expected_so_far["vehicles"] += model["vehicles"] * day_fraction
-            else:
-                remaining_base["sessions"] += model["sessions"]
-                remaining_base["paid"] += model["paid"]
-                remaining_base["minutes"] += model["minutes"]
-                remaining_base["vehicles"] += model["vehicles"]
-                future_days.append(model)
-
-        def model_progress(metric: str) -> float:
-            total = expected_so_far[metric] + remaining_base[metric]
-            return expected_so_far[metric] / total if total > 0 else 1.0
-
-        tempo_sessions = parking_apply_period_tempo(actual["sessions"], expected_so_far["sessions"], model_progress("sessions"))
-        tempo_paid = parking_apply_period_tempo(actual["paid"], expected_so_far["paid"], model_progress("paid"))
-        tempo_minutes = parking_apply_period_tempo(actual["minutes"], expected_so_far["minutes"], model_progress("minutes"))
-        tempo_vehicles = parking_apply_period_tempo(actual["vehicles"], expected_so_far["vehicles"], model_progress("vehicles"))
-        if start <= today <= end:
-            actual["sessions"] = max(actual["sessions"], actual_sessions)
-            actual["paid"] = max(actual["paid"], actual_paid)
-            actual["minutes"] = max(actual["minutes"], actual_minutes)
-            actual["vehicles"] = max(actual["vehicles"], actual_vehicles)
-            today_remaining["sessions"] = max(0.0, day_sessions - actual_sessions)
-            today_remaining["paid"] = max(0.0, day_paid - actual_paid)
-            today_remaining["minutes"] = max(0.0, day_minutes - actual_minutes)
-            today_remaining["vehicles"] = max(0.0, day_vehicles - actual_vehicles)
-        forecast = {
-            "sessions": actual["sessions"] + today_remaining["sessions"] + remaining_base["sessions"] * tempo_sessions,
-            "paid": actual["paid"] + today_remaining["paid"] + remaining_base["paid"] * tempo_paid,
-            "minutes": actual["minutes"] + today_remaining["minutes"] + remaining_base["minutes"] * tempo_minutes,
-            "vehicles": actual["vehicles"] + today_remaining["vehicles"] + remaining_base["vehicles"] * tempo_vehicles,
-        }
-        important_days = sorted(
-            [item for item in future_days if item.get("holiday")],
-            key=lambda item: item["day"],
-        )[:8]
-        return {
-            "label": label,
-            "start": start,
-            "end": end,
-            "actual": actual,
-            "expected_so_far": expected_so_far,
-            "forecast": forecast,
-            "tempo": tempo_sessions,
-            "remaining_days": max(0, (end - today).days),
-            "important_days": important_days,
-        }
-
-    month_start = date(today.year, today.month, 1)
-    year_start = date(today.year, 1, 1)
-    month = forecast_period(month_start, month_end(today), "Inneværende måned")
-    year = forecast_period(year_start, date(today.year, 12, 31), "Inneværende år")
-    weekday_names = ["mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag", "søndag"]
-    day = {
-        "label": "I dag",
-        "date": today,
-        "weekday": weekday_names[today.weekday()],
-        "holiday": norwegian_holiday_name(today),
-        "actual": actual_today,
-        "forecast": {"sessions": day_sessions, "paid": day_paid, "minutes": day_minutes, "vehicles": day_vehicles},
-        "model": model_today,
-        "day_fraction": day_fraction,
-        "remaining_fraction": max(0.0, 1.0 - day_fraction),
-        "comparable_days": model_today["comparable_days"],
-    }
-    value = {
-        "day": day,
-        "month": month,
-        "year": year,
-        "history_first_date": summaries.get("first_date"),
-        "history_last_date": summaries.get("last_date"),
-        "generated_at": now_local,
-    }
-    SUMMARY_CACHE[cache_key] = {"expires": now_utc + timedelta(minutes=3), "value": value}
-    return value
-
-
-def forecast_period_label(period_type: str, start: date, end: date) -> str:
-    if period_type == "day":
-        return start.strftime("%d.%m.%Y")
-    if period_type == "month":
-        return start.strftime("%m.%Y")
-    if period_type == "year":
-        return str(start.year)
-    return f"{start.strftime('%d.%m.%Y')} - {end.strftime('%d.%m.%Y')}"
-
-
-def db_naive_utc(value: Optional[datetime]) -> Optional[datetime]:
-    if value is None:
-        return None
-    if value.tzinfo is not None:
-        return value.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
-    return value
-
-
-async def actual_for_forecast_period(session, domain: str, start: date, end: date) -> Dict[str, float]:
-    if domain == "sun2":
-        row = await sun2_period_snapshot(session, start, end + timedelta(days=1))
-        return {
-            "sessions": float_or_zero(row.sessions),
-            "paid": float_or_zero(row.paid),
-            "minutes": float_or_zero(row.minutes),
-            "vehicles": 0.0,
-        }
-
-    start_at = datetime.combine(start, time.min)
-    end_at = datetime.combine(end + timedelta(days=1), time.min)
-    row = (
-        await session.execute(
-            select(
-                func.count(ParkingSession.id).label("sessions"),
-                func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-                func.coalesce(func.sum(ParkingSession.parking_time_min), 0).label("minutes"),
-                func.count(func.distinct(ParkingSession.car_license_number)).label("vehicles"),
-            ).where(
-                ParkingSession.start_time >= start_at,
-                ParkingSession.start_time < end_at,
-            )
-        )
-    ).one()
-    return {
-        "sessions": float_or_zero(row.sessions),
-        "paid": float_or_zero(row.paid),
-        "minutes": float_or_zero(row.minutes),
-        "vehicles": float_or_zero(row.vehicles),
-    }
-
-
-def forecast_snapshot_from_period(
-    *,
-    domain: str,
-    period_type: str,
-    start: date,
-    end: date,
-    period: Dict[str, Any],
-    generated_at: Optional[datetime],
-    created_by: Optional[str],
-) -> ForecastSnapshot:
-    forecast = period.get("forecast") or {}
-    actual = period.get("actual") or {}
-    model = period.get("model") or {}
-    return ForecastSnapshot(
-        domain=domain,
-        period_type=period_type,
-        period_start=start,
-        period_end=end,
-        generated_at=db_naive_utc(generated_at),
-        created_by=created_by,
-        forecast_sessions=float_or_zero(forecast.get("sessions")),
-        forecast_paid=float_or_zero(forecast.get("paid")),
-        forecast_minutes=float_or_zero(forecast.get("minutes")),
-        forecast_vehicles=float_or_zero(forecast.get("vehicles")),
-        actual_sessions_at_save=float_or_zero(actual.get("sessions")),
-        actual_paid_at_save=float_or_zero(actual.get("paid")),
-        actual_minutes_at_save=float_or_zero(actual.get("minutes")),
-        actual_vehicles_at_save=float_or_zero(actual.get("vehicles")),
-        model_sessions=float_or_zero(model.get("sessions")),
-        day_fraction=period.get("day_fraction"),
-        tempo=period.get("tempo"),
-        raw={
-            "label": period.get("label"),
-            "holiday": period.get("holiday"),
-            "comparable_days": period.get("comparable_days"),
-            "remaining_days": period.get("remaining_days"),
-        },
+    return await forecast_builders.build_parking_forecast(
+        session, today, now_local, cache=SUMMARY_CACHE, summaries_getter=get_parking_summaries,
     )
 
 
-async def save_forecast_snapshots(session, domain: str, forecast: Dict[str, Any], created_by: Optional[str]) -> None:
-    today = forecast["day"]["date"]
-    month = forecast["month"]
-    year = forecast["year"]
-    session.add(
-        forecast_snapshot_from_period(
-            domain=domain,
-            period_type="day",
-            start=today,
-            end=today,
-            period=forecast["day"],
-            generated_at=forecast.get("generated_at"),
-            created_by=created_by,
-        )
-    )
-    session.add(
-        forecast_snapshot_from_period(
-            domain=domain,
-            period_type="month",
-            start=month["start"],
-            end=month["end"],
-            period=month,
-            generated_at=forecast.get("generated_at"),
-            created_by=created_by,
-        )
-    )
-    session.add(
-        forecast_snapshot_from_period(
-            domain=domain,
-            period_type="year",
-            start=year["start"],
-            end=year["end"],
-            period=year,
-            generated_at=forecast.get("generated_at"),
-            created_by=created_by,
-        )
-    )
+from fibaro_core.services.forecasts.snapshots import forecast_period_label
+
+
+from fibaro_core.services.forecasts.snapshots import db_naive_utc
+
+
+from fibaro_core.services.forecasts.snapshots import actual_for_forecast_period
+
+
+from fibaro_core.services.forecasts.snapshots import forecast_snapshot_from_period
+
+
+from fibaro_core.services.forecasts.snapshots import save_forecast_snapshots
 
 
 async def save_parking_forecast_after_import(session, created_by: str = "EasyPark import") -> Dict[str, Any]:
@@ -5374,76 +4522,16 @@ async def save_parking_forecast_after_import(session, created_by: str = "EasyPar
     }
 
 
-async def saved_forecast_table(session, domain: str, limit: int = 18) -> list[Dict[str, Any]]:
-    rows = (
-        await session.execute(
-            select(ForecastSnapshot)
-            .where(ForecastSnapshot.domain == domain)
-            .order_by(ForecastSnapshot.created_at.desc(), ForecastSnapshot.id.desc())
-            .limit(limit)
-        )
-    ).scalars().all()
-    today = local_now_naive().date()
-    actual_by_period: Dict[tuple[date, date], Dict[str, float]] = {}
-    for row in rows:
-        period_key = (row.period_start, row.period_end)
-        if period_key not in actual_by_period:
-            actual_by_period[period_key] = await actual_for_forecast_period(
-                session,
-                domain,
-                row.period_start,
-                row.period_end,
-            )
-    items = []
-    for row in rows:
-        actual = actual_by_period[(row.period_start, row.period_end)]
-        forecast = {
-            "sessions": float_or_zero(row.forecast_sessions),
-            "paid": float_or_zero(row.forecast_paid),
-            "minutes": float_or_zero(row.forecast_minutes),
-            "vehicles": float_or_zero(row.forecast_vehicles),
-        }
-        items.append(
-            {
-                "id": row.id,
-                "created_at": row.created_at,
-                "created_by": row.created_by,
-                "period_type": row.period_type,
-                "period_label": forecast_period_label(row.period_type, row.period_start, row.period_end),
-                "period_done": row.period_end < today,
-                "forecast": forecast,
-                "actual": actual,
-                "delta": {
-                    "sessions": actual["sessions"] - forecast["sessions"],
-                    "paid": actual["paid"] - forecast["paid"],
-                    "minutes": actual["minutes"] - forecast["minutes"],
-                },
-            }
-        )
-    return items
+from fibaro_core.services.forecasts.snapshots import saved_forecast_table
 
 
-async def forecast_snapshot_history(session, domain: str, limit: int = 180) -> list[ForecastSnapshot]:
-    return (
-        await session.execute(
-            select(ForecastSnapshot)
-            .where(ForecastSnapshot.domain == domain)
-            .order_by(ForecastSnapshot.created_at.desc(), ForecastSnapshot.id.desc())
-            .limit(limit)
-        )
-    ).scalars().all()
+from fibaro_core.services.forecasts.snapshots import forecast_snapshot_history
 
 
-def forecast_snapshot_stamp(row: ForecastSnapshot) -> Optional[datetime]:
-    return row.generated_at or row.created_at
+from fibaro_core.services.forecasts.snapshots import forecast_snapshot_stamp
 
 
-def forecast_chart_time_label(value: Optional[datetime]) -> str:
-    if not value:
-        return "-"
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=ZoneInfo("UTC"))
-    return value.astimezone(LOCAL_TZ).strftime("%d.%m %H:%M")
+from fibaro_core.services.forecasts.snapshots import forecast_chart_time_label
 
 
 def api_parking_forecast_evolution_chart(rows: list[ForecastSnapshot]) -> Optional[Dict[str, Any]]:
@@ -17656,40 +16744,10 @@ async def api_v2_sun_settlement_attachment(settlement_id: int, download: bool = 
         )
 
 
-def api_table(
-    title: str,
-    columns: list[str],
-    rows: list[Dict[str, Any]],
-    edit: Optional[Dict[str, Any]] = None,
-    meta: Optional[Dict[str, Any]] = None,
-) -> ModuleTablePayload:
-    payload = {
-        "title": title,
-        "columns": columns,
-        "rows": rows,
-    }
-    if edit:
-        payload["edit"] = edit
-    if meta:
-        payload["meta"] = meta
-    return payload
+from fibaro_core.services.presentation import api_table
 
 
-def api_table_meta(total_rows: int, page: int, page_size: int, shown_rows: int) -> Dict[str, Any]:
-    offset = max(0, (page - 1) * page_size)
-    first_row = offset + 1 if total_rows and shown_rows else 0
-    last_row = offset + shown_rows if shown_rows else 0
-    return {
-        "totalRows": total_rows,
-        "page": page,
-        "pageSize": page_size,
-        "offset": offset,
-        "shownRows": shown_rows,
-        "firstRow": first_row,
-        "lastRow": min(last_row, total_rows),
-        "hasPrevious": page > 1,
-        "hasMore": offset + shown_rows < total_rows,
-    }
+from fibaro_core.services.presentation import api_table_meta
 
 
 def api_filter(
@@ -18624,47 +17682,7 @@ def ventilation_settings_payload(
     return control_settings_payload("ventilation", config, values, history)
 
 
-def api_chart(
-    title: str,
-    x: list[str],
-    series: list[Dict[str, Any]],
-    subtitle: str = "",
-    chart_type: str = "line",
-    height: int = 330,
-    metrics: Optional[list[Dict[str, Any]]] = None,
-    default_metric: Optional[str] = None,
-    default_visible_series: Optional[list[str]] = None,
-    x_axis_type: str = "category",
-    x_axis_min: Optional[str] = None,
-    x_axis_max: Optional[str] = None,
-    disable_zoom: bool = False,
-    day_navigation: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
-    payload = {
-        "title": title,
-        "subtitle": subtitle,
-        "type": chart_type,
-        "x": x,
-        "height": height,
-        "series": series,
-    }
-    if metrics:
-        payload["metrics"] = metrics
-    if default_metric:
-        payload["defaultMetric"] = default_metric
-    if default_visible_series:
-        payload["defaultVisibleSeries"] = default_visible_series
-    if x_axis_type != "category":
-        payload["xAxisType"] = x_axis_type
-    if x_axis_min:
-        payload["xAxisMin"] = x_axis_min
-    if x_axis_max:
-        payload["xAxisMax"] = x_axis_max
-    if disable_zoom:
-        payload["disableZoom"] = True
-    if day_navigation:
-        payload["dayNavigation"] = day_navigation
-    return payload
+from fibaro_core.services.presentation import api_chart
 
 
 def api_day_navigation(selected_day: date, today: date) -> Dict[str, Any]:
@@ -19949,24 +18967,16 @@ def api_parking_saved_forecast_rows(rows: list[Dict[str, Any]]) -> list[Dict[str
     ]
 
 
-def sun2_product_daily_scope_condition():
-    return Sun2ProductSale.period_start == Sun2ProductSale.period_end
+from fibaro_core.services.settlements.source_queries import sun2_product_daily_scope_condition
 
 
-def sun2_product_monthly_scope_condition():
-    return and_(
-        Sun2ProductSale.period_start.is_not(None),
-        Sun2ProductSale.period_end.is_not(None),
-        Sun2ProductSale.period_start != Sun2ProductSale.period_end,
-    )
+from fibaro_core.services.settlements.source_queries import sun2_product_monthly_scope_condition
 
 
-def sun2_product_amount_inc_expr():
-    return func.coalesce(Sun2ProductSale.amount_inc_vat_kr, Sun2ProductSale.amount_ex_vat_kr * 1.25)
+from fibaro_core.services.settlements.source_queries import sun2_product_amount_inc_expr
 
 
-def sun2_product_amount_ex_expr():
-    return func.coalesce(Sun2ProductSale.amount_ex_vat_kr, Sun2ProductSale.amount_inc_vat_kr / 1.25)
+from fibaro_core.services.settlements.source_queries import sun2_product_amount_ex_expr
 
 
 def sun2_product_summary_row(period: str, label: str, summary: Dict[str, Any]) -> Dict[str, Any]:
@@ -21710,17 +20720,7 @@ def api_access_key_edit() -> Dict[str, Any]:
     }
 
 
-def api_card(title: str, value: Any, unit: str = "", detail: str = "", tone: str = "status", href: str = "") -> ModuleCardPayload:
-    card = {
-        "title": title,
-        "value": str(value if value is not None else "-"),
-        "unit": unit,
-        "detail": detail,
-        "tone": tone,
-    }
-    if href:
-        card["href"] = href
-    return card
+from fibaro_core.services.presentation import api_card
 
 
 def api_pick(row: Any, columns: list[str]) -> Dict[str, Any]:
@@ -21730,10 +20730,7 @@ def api_pick(row: Any, columns: list[str]) -> Dict[str, Any]:
     return payload
 
 
-def api_iso_value(value: Any) -> Any:
-    if isinstance(value, (datetime, date)):
-        return value.isoformat()
-    return value
+from fibaro_core.services.presentation import api_iso_value
 
 
 def api_energy_summary_item(item: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -24021,2391 +23018,216 @@ async def build_admin_relation_analysis(session, now_dt: datetime) -> Dict[str, 
     }
 
 
-PARKING_SETTLEMENT_PROVIDER = "parking_parknordic"
-SUN_SETTLEMENT_PROVIDER = "sun_altera"
-PARKING_SETTLEMENT_SENDER = os.getenv("PARKING_SETTLEMENT_SENDER", "fredrik@parknordic.no")
-SETTLEMENT_ATTACHMENT_EXTENSIONS = {".pdf", ".csv", ".xlsx", ".xls", ".xml", ".txt", ".jpg", ".jpeg", ".png"}
-SETTLEMENT_PARSER_VERSION = 5
-NORWEGIAN_MONTHS = {
-    "januar": 1,
-    "jan": 1,
-    "februar": 2,
-    "feb": 2,
-    "mars": 3,
-    "mar": 3,
-    "april": 4,
-    "apr": 4,
-    "mai": 5,
-    "juni": 6,
-    "jun": 6,
-    "juli": 7,
-    "jul": 7,
-    "august": 8,
-    "aug": 8,
-    "september": 9,
-    "sep": 9,
-    "oktober": 10,
-    "okt": 10,
-    "november": 11,
-    "nov": 11,
-    "desember": 12,
-    "des": 12,
-}
-
-
-def decoded_mime_header(value: Optional[str]) -> str:
-    if not value:
-        return ""
-    try:
-        return str(make_header(decode_header(value)))
-    except Exception:
-        return value
-
-
-def message_email_date(value: Optional[str]) -> Optional[datetime]:
-    if not value:
-        return None
-    try:
-        parsed = parsedate_to_datetime(value)
-    except Exception:
-        return None
-    if parsed.tzinfo:
-        return parsed.astimezone(LOCAL_TZ).replace(tzinfo=None)
-    return parsed
-
-
-def settlement_gmail_credentials() -> tuple[str, str]:
-    gmail_email = os.getenv("SETTLEMENT_GMAIL_EMAIL") or os.getenv("EASYPARK_GMAIL_EMAIL")
-    app_password = os.getenv("SETTLEMENT_GMAIL_APP_PASSWORD") or os.getenv("EASYPARK_GMAIL_APP_PASSWORD")
-    if not gmail_email:
-        raise RuntimeError("Mangler SETTLEMENT_GMAIL_EMAIL eller EASYPARK_GMAIL_EMAIL.")
-    if not app_password:
-        raise RuntimeError("Mangler SETTLEMENT_GMAIL_APP_PASSWORD eller EASYPARK_GMAIL_APP_PASSWORD.")
-    return gmail_email, app_password.replace(" ", "")
-
-
-def settlement_mailboxes() -> list[str]:
-    configured = os.getenv("SETTLEMENT_GMAIL_MAILBOXES")
-    if not configured:
-        return ["INBOX", "__GMAIL_ALL__"]
-    return [item.strip() for item in configured.split(",") if item.strip()]
-
-
-def settlement_gmail_configured() -> bool:
-    return bool(
-        (os.getenv("SETTLEMENT_GMAIL_EMAIL") or os.getenv("EASYPARK_GMAIL_EMAIL"))
-        and (os.getenv("SETTLEMENT_GMAIL_APP_PASSWORD") or os.getenv("EASYPARK_GMAIL_APP_PASSWORD"))
-    )
-
-
-def select_gmail_mailbox(mailbox: imaplib.IMAP4_SSL, mailbox_name: str) -> str:
-    candidates = [mailbox_name, f'"{mailbox_name}"']
-    if " " in mailbox_name or "/" in mailbox_name:
-        candidates = [f'"{mailbox_name}"', mailbox_name]
-    for candidate in candidates:
-        try:
-            status, _ = mailbox.select(candidate, readonly=True)
-        except imaplib.IMAP4.error:
-            continue
-        if status == "OK":
-            return status
-    return "NO"
-
-
-def parse_imap_mailbox_name(line: str) -> str:
-    if ' "/" ' in line:
-        name = line.rsplit(' "/" ', 1)[-1]
-    elif ' "." ' in line:
-        name = line.rsplit(' "." ', 1)[-1]
-    else:
-        name = line.split(" ", 1)[-1]
-    return name.strip().strip('"')
-
-
-def discover_gmail_all_mailbox(mailbox: imaplib.IMAP4_SSL) -> Optional[str]:
-    try:
-        status, data = mailbox.list()
-    except imaplib.IMAP4.error:
-        return None
-    if status != "OK":
-        return None
-    for item in data or []:
-        text_value = item.decode(errors="replace") if isinstance(item, bytes) else str(item)
-        if "\\All" in text_value:
-            return parse_imap_mailbox_name(text_value)
-    return None
-
-
-def is_settlement_attachment(filename: str, content_type: str) -> bool:
-    extension = Path(filename or "").suffix.lower()
-    if extension in SETTLEMENT_ATTACHMENT_EXTENSIONS:
-        return True
-    return content_type in {
-        "application/pdf",
-        "image/jpeg",
-        "image/png",
-        "text/csv",
-        "application/csv",
-        "application/vnd.ms-excel",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "text/plain",
-        "application/xml",
-        "text/xml",
-    }
-
-
-def iter_message_attachments(message: Message) -> Iterable[Dict[str, Any]]:
-    for part in message.walk():
-        disposition = (part.get_content_disposition() or "").lower()
-        filename = decoded_mime_header(part.get_filename())
-        if disposition != "attachment" and not filename:
-            continue
-        payload = part.get_payload(decode=True)
-        if not payload:
-            continue
-        content_type = part.get_content_type() or "application/octet-stream"
-        if not filename:
-            extension = mimetypes.guess_extension(content_type) or ".bin"
-            filename = f"attachment{extension}"
-        if not is_settlement_attachment(filename, content_type):
-            continue
-        yield {
-            "filename": filename,
-            "content_type": content_type,
-            "bytes": payload,
-            "sha256": hashlib.sha256(payload).hexdigest(),
-        }
-
-
-def parse_settlement_period(text_value: str, email_date: Optional[datetime]) -> tuple[Optional[date], Optional[date], str]:
-    text_value = text_value or ""
-    match = re.search(r"\b(20\d{2})[-_./ ](0?[1-9]|1[0-2])\b", text_value)
-    if match:
-        start = date(int(match.group(1)), int(match.group(2)), 1)
-        end = add_months(start, 1) - timedelta(days=1)
-        return start, end, month_label(start)
-    match = re.search(r"\b(0?[1-9]|1[0-2])[-_./ ](20\d{2})\b", text_value)
-    if match:
-        start = date(int(match.group(2)), int(match.group(1)), 1)
-        end = add_months(start, 1) - timedelta(days=1)
-        return start, end, month_label(start)
-    lowered = text_value.lower()
-    for month_name, month_number in NORWEGIAN_MONTHS.items():
-        match = re.search(rf"\b{re.escape(month_name)}\s+(20\d{{2}})\b", lowered)
-        if match:
-            start = date(int(match.group(1)), month_number, 1)
-            end = add_months(start, 1) - timedelta(days=1)
-            return start, end, month_label(start)
-    if email_date and email_date.day <= 12:
-        previous_month = add_months(email_date.date().replace(day=1), -1)
-        return previous_month, add_months(previous_month, 1) - timedelta(days=1), f"{month_label(previous_month)} (antatt)"
-    return None, None, "Ikke tolket"
-
-
-def settlement_decode_text(content: bytes) -> str:
-    for encoding in ("utf-8-sig", "utf-8", "cp1252", "latin-1"):
-        try:
-            return content.decode(encoding)
-        except UnicodeDecodeError:
-            continue
-    return content.decode("latin-1", errors="replace")
-
-
-def settlement_text_lines(text_value: str) -> list[str]:
-    lines: list[str] = []
-    for line in (text_value or "").replace("\u00a0", " ").splitlines():
-        clean = re.sub(r"\s+", " ", line).strip()
-        if clean:
-            lines.append(clean)
-    return lines
-
-
-def extract_settlement_text(filename: str, content_type: str, content: bytes) -> Dict[str, Any]:
-    extension = Path(filename or "").suffix.lower()
-    method = "unknown"
-    warnings: list[str] = []
-    text_value = ""
-    pages_count: Optional[int] = None
-    try:
-        if content_type == "application/pdf" or extension == ".pdf":
-            method = "pypdf"
-            try:
-                from pypdf import PdfReader
-
-                reader = PdfReader(BytesIO(content))
-                pages_count = len(reader.pages)
-                text_value = "\n".join(page.extract_text() or "" for page in reader.pages)
-            except Exception as exc:
-                warnings.append(f"PDF-tekst kunne ikke leses: {exc}")
-        elif extension in {".xlsx", ".xls"} or content_type in {
-            "application/vnd.ms-excel",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        }:
-            method = "openpyxl"
-            try:
-                from openpyxl import load_workbook
-
-                workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
-                rows: list[str] = []
-                for sheet in workbook.worksheets:
-                    rows.append(f"[Ark: {sheet.title}]")
-                    for row in sheet.iter_rows(values_only=True):
-                        values = [str(value).strip() for value in row if value not in (None, "")]
-                        if values:
-                            rows.append("\t".join(values))
-                text_value = "\n".join(rows)
-            except Exception as exc:
-                warnings.append(f"Regneark kunne ikke leses: {exc}")
-        else:
-            method = "text"
-            text_value = settlement_decode_text(content)
-    except Exception as exc:
-        warnings.append(f"Vedlegg kunne ikke tekstleses: {exc}")
-    lines = settlement_text_lines(text_value)
-    if not lines:
-        warnings.append("Ingen tekst ble hentet fra vedlegget.")
-    return {
-        "method": method,
-        "text": text_value,
-        "lines": lines,
-        "line_count": len(lines),
-        "pages_count": pages_count,
-        "warnings": warnings,
-    }
-
-
-SETTLEMENT_NUMBER_RE = re.compile(
-    r"-?(?:\d{1,3}(?:[ \u00a0]\d{3})+(?:[,.]\d+)?|\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+\.\d+|\d+,\d+|\d+)"
-)
-
-
-def parse_settlement_number(value: Any) -> Optional[float]:
-    if value is None:
-        return None
-    text_value = str(value).strip().replace("\u00a0", " ")
-    if not text_value:
-        return None
-    text_value = text_value.replace(" ", "").replace("%", "")
-    if "," in text_value and "." in text_value:
-        if text_value.rfind(",") < text_value.rfind("."):
-            text_value = text_value.replace(",", "")
-        else:
-            text_value = text_value.replace(".", "").replace(",", ".")
-    elif "," in text_value:
-        text_value = text_value.replace(",", ".")
-    try:
-        return float(text_value)
-    except ValueError:
-        return None
-
-
-def settlement_numbers_from_line(line: str) -> list[float]:
-    clean = (line or "").replace("\u00a0", " ").strip()
-    if "," not in clean and "%" not in clean and re.fullmatch(r"-?[\d ]+", clean):
-        tokens = clean.split()
-        if len(tokens) >= 4 and len(tokens) % 2 == 0 and all(len(tokens[index + 1]) == 3 for index in range(0, len(tokens), 2)):
-            values = []
-            for index in range(0, len(tokens), 2):
-                parsed = parse_settlement_number(f"{tokens[index]} {tokens[index + 1]}")
-                if parsed is not None:
-                    values.append(parsed)
-            return values
-    values: list[float] = []
-    for match in SETTLEMENT_NUMBER_RE.findall(line or ""):
-        parsed = parse_settlement_number(match)
-        if parsed is not None:
-            values.append(parsed)
-    return values
-
-
-def settlement_number_value(value: Optional[float]) -> Optional[float | int]:
-    if value is None:
-        return None
-    if abs(value - round(value)) < 0.000001:
-        return int(round(value))
-    return round(value, 2)
-
-
-def settlement_line_source(index: int, line: str) -> str:
-    return f"PDF tekstlinje {index + 1}: {line}"
-
-
-def settlement_parse_date_from_line(line: str) -> Optional[str]:
-    match = re.search(r"\b(\d{1,2})\.(\d{1,2})\.(20\d{2})\b", line or "")
-    if match:
-        try:
-            return date(int(match.group(3)), int(match.group(2)), int(match.group(1))).isoformat()
-        except ValueError:
-            return None
-    match = re.search(r"\b(\d{1,2})/(\d{1,2})/(\d{2}|\d{4})\b", line or "")
-    if match:
-        year_value = int(match.group(3))
-        if year_value < 100:
-            year_value += 2000
-        try:
-            return date(year_value, int(match.group(2)), int(match.group(1))).isoformat()
-        except ValueError:
-            return None
-    return None
-
-
-def parse_parking_settlement_text(extraction: Dict[str, Any]) -> Dict[str, Any]:
-    lines = list(extraction.get("lines") or [])
-    parsed: Dict[str, Any] = {}
-    field_sources: Dict[str, str] = {}
-    field_confidence: Dict[str, float] = {}
-    parser_notes: list[str] = []
-
-    def set_field(field: str, value: Any, source: str, confidence: float = 0.9) -> None:
-        if value is None or value == "":
-            return
-        parsed[field] = value
-        field_sources[field] = source
-        field_confidence[field] = round(max(0.0, min(1.0, confidence)), 2)
-
-    for index, line in enumerate(lines):
-        lower = line.lower()
-        source = settlement_line_source(index, line)
-        if lower.startswith("oslo "):
-            set_field("report_date", settlement_parse_date_from_line(line), source, 0.95)
-        period_match = re.search(r"oppgjørsrapport\s+for\s+(.+?20\d{2})\b", lower, flags=re.IGNORECASE)
-        if period_match:
-            label = period_match.group(1).strip()
-            set_field("reported_period_label", label[:1].upper() + label[1:], source, 0.95)
-        match = re.search(r"driftssted\s+(\d+)\s+(.+)", line, flags=re.IGNORECASE)
-        if match:
-            set_field("site_number", match.group(1), source, 0.95)
-            set_field("site_name", match.group(2).strip(), source, 0.95)
-        match = re.search(r"oppdragsgiver\s+(\d+)\s+(.+)", line, flags=re.IGNORECASE)
-        if match:
-            set_field("customer_number", match.group(1), source, 0.95)
-            set_field("customer_name", match.group(2).strip(), source, 0.95)
-        if lower.startswith("antall automater"):
-            values = settlement_numbers_from_line(line)
-            if values:
-                set_field("machine_count", settlement_number_value(values[-1]), source, 0.95)
-        if "mynt/kortautomat" in lower and "brutto" in lower:
-            values = settlement_numbers_from_line(line)
-            if values:
-                set_field("gross_coin_card_ex_vat", settlement_number_value(values[-1]), source, 0.9)
-        if lower.startswith("easypark"):
-            values = settlement_numbers_from_line(line)
-            if values:
-                set_field("easypark_ex_vat", settlement_number_value(values[-1]), source, 0.95)
-                set_field("easypark_inc_vat_estimate", settlement_number_value(values[-1] * 1.25), f"{source}; beregnet * 1,25", 0.75)
-        if lower.startswith("fratrekk"):
-            values = settlement_numbers_from_line(line)
-            if values:
-                set_field("settlement_fee_ex_vat", settlement_number_value(values[-1]), source, 0.9)
-        email_matches = re.findall(r"[\w.\-+]+@[\w.\-]+\.\w+", line)
-        if email_matches and "contact_email" not in parsed:
-            set_field("contact_email", email_matches[0], source, 0.8)
-
-    deduction_index = next((index for index, line in enumerate(lines) if line.lower().startswith("fratrekk")), None)
-    numeric_rows: list[tuple[int, str, list[float]]] = []
-    if deduction_index is not None:
-        for index, line in enumerate(lines[deduction_index + 1 :], start=deduction_index + 1):
-            lower = line.lower()
-            if lower.startswith("betaling ") or lower.startswith("event.") or lower.startswith("nb!"):
-                break
-            values = settlement_numbers_from_line(line)
-            if values and re.fullmatch(r"[-\d\s,%.]+", line):
-                numeric_rows.append((index, line, values))
-
-    assignments = [
-        (
-            ("revenue_basis_ex_vat", "revenue_share_percent", "revenue_share_ex_vat"),
-            3,
-            0.72,
-            "Hovedgrunnlag/andel/sum lest fra første uetiketterte tallrad etter fratrekk.",
-        ),
-        (
-            ("long_term_parking_ex_vat", "long_term_share_percent", "long_term_share_ex_vat"),
-            3,
-            0.68,
-            "Langtidsparkering lest fra andre uetiketterte tallrad etter fratrekk.",
-        ),
-        (
-            ("control_fee_net_ex_vat", "control_fee_share_percent", "control_fee_share_ex_vat"),
-            3,
-            0.68,
-            "Kontrollavgift lest fra tredje uetiketterte tallrad etter fratrekk.",
-        ),
-        (
-            ("total_basis_ex_vat", "total_share_ex_vat"),
-            2,
-            0.72,
-            "Totalsum eks. mva lest fra fjerde uetiketterte tallrad etter fratrekk.",
-        ),
-        (
-            ("vat_25_percent",),
-            1,
-            0.78,
-            "25% mva lest fra tallraden etter totalsum.",
-        ),
-        (
-            ("payout_inc_vat",),
-            1,
-            0.78,
-            "Til utbetaling lest fra siste tallrad før betalingsinfo.",
-        ),
-    ]
-    for row_index, assignment in enumerate(assignments):
-        if row_index >= len(numeric_rows):
-            parser_notes.append(f"Mangler tallrad for {', '.join(assignment[0])}.")
-            continue
-        fields, expected_count, confidence, note = assignment
-        source_index, source_line, values = numeric_rows[row_index]
-        if len(values) < expected_count:
-            parser_notes.append(f"For få tall i tekstlinje {source_index + 1}: {source_line}")
-            continue
-        source = f"{settlement_line_source(source_index, source_line)}; {note}"
-        for field, value in zip(fields, values):
-            set_field(field, settlement_number_value(value), source, confidence)
-
-    required_fields = [
-        "reported_period_label",
-        "site_number",
-        "customer_number",
-        "gross_coin_card_ex_vat",
-        "easypark_ex_vat",
-        "settlement_fee_ex_vat",
-        "control_fee_net_ex_vat",
-        "total_basis_ex_vat",
-        "payout_inc_vat",
-    ]
-    found_required = sum(1 for field in required_fields if field in parsed)
-    confidence = round(found_required / len(required_fields), 2)
-    parsed["_meta"] = {
-        "parser": "parking_parknordic_pdf",
-        "parser_version": SETTLEMENT_PARSER_VERSION,
-        "confidence": confidence,
-        "field_sources": field_sources,
-        "field_confidence": field_confidence,
-        "line_count": extraction.get("line_count") or len(lines),
-        "pages_count": extraction.get("pages_count"),
-        "method": extraction.get("method"),
-        "warnings": list(extraction.get("warnings") or []),
-        "notes": parser_notes,
-        "source_lines": lines,
-    }
-    return parsed
-
-
-def parse_parking_settlement_attachment(filename: str, content_type: str, content: bytes) -> Dict[str, Any]:
-    extraction = extract_settlement_text(filename, content_type, content)
-    parsed = parse_parking_settlement_text(extraction)
-    return parsed
-
-
-def sun_settlement_number_from_line(line: str) -> Optional[float]:
-    values = settlement_numbers_from_line(line)
-    return settlement_number_value(values[-1]) if values else None
-
-
-SUN_SETTLEMENT_AMOUNT_FIELDS = {
-    "sun_revenue_ex_vat",
-    "product_sales_ex_vat",
-    "transaction_fee_ex_vat",
-    "service_fee_ex_vat",
-    "marketing_sms_fee_ex_vat",
-    "marketing_email_fee_ex_vat",
-    "sum_ex_vat",
-    "vat_25_percent",
-    "payout_inc_vat",
-}
-
-
-def normalize_sun_creditnote_signs(parsed: Dict[str, Any], field_sources: Dict[str, str]) -> bool:
-    changed = False
-    for field in SUN_SETTLEMENT_AMOUNT_FIELDS:
-        value = parse_settlement_number(parsed.get(field))
-        if value is None:
-            continue
-        normalized = settlement_number_value(-value)
-        if normalized == parsed.get(field):
-            continue
-        parsed[field] = normalized
-        field_sources[field] = f"{field_sources.get(field, 'Maskinlest fra oppgjørsskjema')}; fortegn snudd fordi dokumentet er kreditnota"
-        changed = True
-    return changed
-
-
-def parse_sun_settlement_text(extraction: Dict[str, Any]) -> Dict[str, Any]:
-    lines = list(extraction.get("lines") or [])
-    parsed: Dict[str, Any] = {}
-    field_sources: Dict[str, str] = {}
-    field_confidence: Dict[str, float] = {}
-    parser_notes: list[str] = []
-
-    def set_field(field: str, value: Any, source: str, confidence: float = 0.9) -> None:
-        if value is None or value == "":
-            return
-        parsed[field] = value
-        field_sources[field] = source
-        field_confidence[field] = round(max(0.0, min(1.0, confidence)), 2)
-
-    line_fields = [
-        ("solomsetning for perioden", "sun_revenue_ex_vat", 0.95),
-        ("produktsalg for perioden", "product_sales_ex_vat", 0.95),
-        ("transaksjonskostnad", "transaction_fee_ex_vat", 0.92),
-        ("serviceavtale", "service_fee_ex_vat", 0.9),
-        ("markedsf", "marketing_fee_ex_vat", 0.82),
-        ("sum eks. mva", "sum_ex_vat", 0.95),
-        ("mva grunnlag", "sum_ex_vat", 0.95),
-        ("sum ordrelinjer", "sum_ex_vat", 0.9),
-        ("25% mva", "vat_25_percent", 0.95),
-        ("fakturabel", "payout_inc_vat", 0.95),
-        ("belop nok", "payout_inc_vat", 0.95),
-        ("beløp nok", "payout_inc_vat", 0.95),
-    ]
-    marketing_email_seen = False
-    pending_field: Optional[tuple[str, float, str]] = None
-    for index, line in enumerate(lines):
-        lower = line.lower()
-        source = settlement_line_source(index, line)
-        if pending_field:
-            values = settlement_numbers_from_line(line)
-            if values:
-                field, confidence, pending_source = pending_field
-                set_field(field, settlement_number_value(values[-1]), f"{pending_source}; {source}", confidence)
-                pending_field = None
-            elif lower and not lower.endswith(":"):
-                pending_field = None
-
-        parsed_date = settlement_parse_date_from_line(line)
-        if parsed_date and "credit_note_date" not in parsed:
-            set_field("credit_note_date", parsed_date, source, 0.82)
-            set_field("delivery_date", parsed_date, source, 0.72)
-        if "kreditnotanr" in lower or "faktnr" in lower:
-            values = settlement_numbers_from_line(line)
-            if values:
-                set_field("credit_note_number", settlement_number_value(values[-1]), source, 0.95)
-        if "kreditnotadato" in lower:
-            set_field("credit_note_date", parsed_date, source, 0.95)
-        if "leveransedato" in lower:
-            set_field("delivery_date", parsed_date, source, 0.95)
-        if "organisasjonsnr" in lower or "foretaksregisteret" in lower:
-            match = re.search(r"(NO\d+MVA|\d{9})", line, flags=re.IGNORECASE)
-            if match:
-                set_field("supplier_org_no", match.group(1), source, 0.9)
-        if "altera as" in lower and "supplier_name" not in parsed:
-            set_field("supplier_name", "Altera AS", source, 0.9)
-        if "sun2 lillehammer" in lower and "customer_name" not in parsed:
-            set_field("customer_name", line.strip(), source, 0.9)
-        if lower.startswith("sum mva"):
-            values = settlement_numbers_from_line(line)
-            if values:
-                set_field("vat_25_percent", settlement_number_value(values[-1]), source, 0.95)
-            else:
-                pending_field = ("vat_25_percent", 0.95, source)
-
-        for marker, field, confidence in line_fields:
-            if marker not in lower:
-                continue
-            value = sun_settlement_number_from_line(line)
-            if field == "marketing_fee_ex_vat" and "e-post" in lower:
-                field = "marketing_email_fee_ex_vat"
-                marketing_email_seen = True
-            elif field == "marketing_fee_ex_vat" and marketing_email_seen:
-                field = "marketing_sms_fee_ex_vat"
-            elif field == "marketing_fee_ex_vat":
-                field = "marketing_sms_fee_ex_vat"
-            set_field(field, value, source, confidence)
-
-    is_creditnote = any("kreditnota" in line.lower() for line in lines)
-    if is_creditnote and normalize_sun_creditnote_signs(parsed, field_sources):
-        parser_notes.append("Fortegn er snudd fordi Altera sender oppgjøret som kreditnota. Inntekter vises positivt og fratrekk/gebyrer negativt.")
-
-    sum_ex_vat = settlement_parsed_float(parsed, "sum_ex_vat")
-    vat = settlement_parsed_float(parsed, "vat_25_percent")
-    payout = settlement_parsed_float(parsed, "payout_inc_vat")
-    if sum_ex_vat is not None and "vat_25_percent" not in parsed:
-        set_field("vat_25_percent", settlement_number_value(sum_ex_vat * 0.25), "Beregnet fra Sum eks. MVA", 0.7)
-    if sum_ex_vat is not None and vat is not None and payout is not None:
-        diff = round(sum_ex_vat + vat - payout, 2)
-        if abs(diff) > 1:
-            parser_notes.append(f"Sum eks. mva + mva avviker fra Beløp NOK med {diff} kr.")
-
-    if not lines:
-        parser_notes.append("Vedlegget har ikke tekstlag. Originalen er lagret, men tall må kontrolleres manuelt eller OCR-leses senere.")
-
-    required_fields = [
-        "sun_revenue_ex_vat",
-        "product_sales_ex_vat",
-        "transaction_fee_ex_vat",
-        "service_fee_ex_vat",
-        "sum_ex_vat",
-        "vat_25_percent",
-        "payout_inc_vat",
-    ]
-    found_required = sum(1 for field in required_fields if field in parsed)
-    confidence = round(found_required / len(required_fields), 2)
-    parsed["_meta"] = {
-        "parser": "sun_altera_creditnote_pdf",
-        "parser_version": SETTLEMENT_PARSER_VERSION,
-        "confidence": confidence,
-        "field_sources": field_sources,
-        "field_confidence": field_confidence,
-        "line_count": extraction.get("line_count") or len(lines),
-        "pages_count": extraction.get("pages_count"),
-        "method": extraction.get("method"),
-        "warnings": list(extraction.get("warnings") or []),
-        "notes": parser_notes,
-        "source_lines": lines,
-    }
-    return parsed
-
-
-def parse_sun_settlement_attachment(filename: str, content_type: str, content: bytes) -> Dict[str, Any]:
-    extraction = extract_settlement_text(filename, content_type, content)
-    return parse_sun_settlement_text(extraction)
-
-
-def parse_settlement_attachment_for_provider(provider: str, filename: str, content_type: str, content: bytes) -> Dict[str, Any]:
-    if provider == SUN_SETTLEMENT_PROVIDER:
-        return parse_sun_settlement_attachment(filename, content_type, content)
-    return parse_parking_settlement_attachment(filename, content_type, content)
-
-
-def settlement_period_from_parsed_dates(parsed: Any, *fields: str) -> tuple[Optional[date], Optional[date], str]:
-    for field in fields:
-        raw_value = settlement_parsed_value(parsed, field)
-        if not raw_value:
-            continue
-        try:
-            parsed_date = date.fromisoformat(str(raw_value))
-        except ValueError:
-            continue
-        start = parsed_date.replace(day=1)
-        return start, add_months(start, 1) - timedelta(days=1), month_label(start)
-    return None, None, "Ikke tolket"
-
-
-def settlement_public_parsed(parsed: Any) -> Dict[str, Any]:
-    if not isinstance(parsed, dict):
-        return {}
-    return {key: value for key, value in parsed.items() if not str(key).startswith("_")}
-
-
-def settlement_parsed_meta(parsed: Any) -> Dict[str, Any]:
-    if not isinstance(parsed, dict):
-        return {}
-    meta = parsed.get("_meta")
-    return meta if isinstance(meta, dict) else {}
-
-
-def settlement_parsed_value(parsed: Any, field: str) -> Any:
-    return settlement_public_parsed(parsed).get(field)
-
-
-def settlement_parsed_float(parsed: Any, field: str) -> Optional[float]:
-    value = settlement_parsed_value(parsed, field)
-    if isinstance(value, (int, float)):
-        return float(value)
-    return parse_settlement_number(value)
-
-
-def settlement_needs_parse(row: SettlementImport) -> bool:
-    meta = settlement_parsed_meta(row.parsed)
-    return meta.get("parser_version") != SETTLEMENT_PARSER_VERSION
-
-
-def ensure_settlement_parsed(row: SettlementImport) -> bool:
-    if not settlement_needs_parse(row):
-        return False
-    parsed = parse_settlement_attachment_for_provider(
-        row.provider,
-        row.attachment_filename or "",
-        row.attachment_content_type or "",
-        row.attachment_bytes or b"",
-    )
-    row.parsed = parsed
-    raw = dict(row.raw or {}) if isinstance(row.raw, dict) else {}
-    raw["settlement_parser"] = settlement_parsed_meta(parsed)
-    row.raw = raw
-    if not row.period_start and parsed.get("reported_period_label"):
-        period_start, period_end, period_label = parse_settlement_period(str(parsed.get("reported_period_label")), row.email_date)
-        row.period_start = period_start
-        row.period_end = period_end
-        row.period_label = period_label
-    if not row.period_start and row.provider == SUN_SETTLEMENT_PROVIDER:
-        period_start, period_end, period_label = settlement_period_from_parsed_dates(parsed, "delivery_date", "credit_note_date")
-        row.period_start = period_start
-        row.period_end = period_end
-        row.period_label = period_label
-    meta = settlement_parsed_meta(parsed)
-    row.status = "tolket" if float_or_zero(meta.get("confidence")) >= 0.6 else "krever kontroll"
-    return True
-
-
-def settlement_field_source(parsed: Any, field: str, fallback: str = "Maskinlest fra oppgjørsskjema") -> str:
-    sources = settlement_parsed_meta(parsed).get("field_sources")
-    if isinstance(sources, dict):
-        return str(sources.get(field) or fallback)
-    return fallback
-
-
-def settlement_field_confidence(parsed: Any, field: str) -> Optional[float]:
-    values = settlement_parsed_meta(parsed).get("field_confidence")
-    if not isinstance(values, dict):
-        return None
-    raw_value = values.get(field)
-    if isinstance(raw_value, (int, float)):
-        return float(raw_value)
-    return parse_settlement_number(raw_value)
-
-
-def settlement_row_api(row: SettlementImport) -> Dict[str, Any]:
-    parsed = row.parsed if isinstance(row.parsed, dict) else {}
-    meta = settlement_parsed_meta(parsed)
-    path_prefix = "/soling/oppgjor" if row.provider == SUN_SETTLEMENT_PROVIDER else "/parkering/oppgjor"
-    return {
-        "id": row.id,
-        "provider": row.provider,
-        "source": row.source,
-        "period_label": row.period_label,
-        "period_start": row.period_start.isoformat() if row.period_start else None,
-        "period_end": row.period_end.isoformat() if row.period_end else None,
-        "status": row.status,
-        "sender": row.sender,
-        "email_date": api_local_iso(row.email_date),
-        "email_subject": row.email_subject,
-        "attachment_filename": row.attachment_filename,
-        "attachment_content_type": row.attachment_content_type,
-        "attachment_size": row.attachment_size,
-        "attachment_sha256": row.attachment_sha256[:12] if row.attachment_sha256 else None,
-        "easypark_ex_vat": settlement_parsed_value(parsed, "easypark_ex_vat"),
-        "easypark_inc_vat_estimate": settlement_parsed_value(parsed, "easypark_inc_vat_estimate"),
-        "sun_revenue_ex_vat": settlement_parsed_value(parsed, "sun_revenue_ex_vat"),
-        "product_sales_ex_vat": settlement_parsed_value(parsed, "product_sales_ex_vat"),
-        "transaction_fee_ex_vat": settlement_parsed_value(parsed, "transaction_fee_ex_vat"),
-        "service_fee_ex_vat": settlement_parsed_value(parsed, "service_fee_ex_vat"),
-        "marketing_sms_fee_ex_vat": settlement_parsed_value(parsed, "marketing_sms_fee_ex_vat"),
-        "marketing_email_fee_ex_vat": settlement_parsed_value(parsed, "marketing_email_fee_ex_vat"),
-        "sum_ex_vat": settlement_parsed_value(parsed, "sum_ex_vat"),
-        "vat_25_percent": settlement_parsed_value(parsed, "vat_25_percent"),
-        "payout_inc_vat": settlement_parsed_value(parsed, "payout_inc_vat"),
-        "parser_confidence": meta.get("confidence"),
-        "imported_at": api_local_iso(row.imported_at),
-        "path": f"{path_prefix}/{row.id}",
-    }
-
-
-def format_file_size(value: Optional[int]) -> str:
-    if not value:
-        return "-"
-    if value < 1024:
-        return f"{value} B"
-    if value < 1024 * 1024:
-        return f"{value / 1024:.1f} KB"
-    return f"{value / (1024 * 1024):.1f} MB"
-
-
-def settlement_field(
-    label: str,
-    field: str,
-    value: Any,
-    source: str,
-    note: str = "",
-    confidence: Optional[float] = None,
-) -> Dict[str, Any]:
-    payload = {
-        "label": label,
-        "field": field,
-        "value": api_iso_value(value),
-        "source": source,
-        "note": note,
-    }
-    if confidence is not None:
-        payload["confidence"] = round(max(0.0, min(1.0, confidence)), 2)
-    return payload
-
-
-def settlement_sum_or_none(*values: Optional[float]) -> Optional[float]:
-    if any(value is None for value in values):
-        return None
-    return round(sum(float(value or 0) for value in values), 2)
-
-
-def settlement_form_field(
-    label: str,
-    field: str,
-    value: Any,
-    parsed: Any,
-    group: str,
-    note: str,
-    expected: Optional[float] = None,
-    expected_label: str = "Beregnet",
-    expected_source: str = "",
-    expected_detail: str = "",
-    difference_direction: str = "value_minus_expected",
-) -> Dict[str, Any]:
-    payload = settlement_field(
-        label,
-        field,
-        value,
-        settlement_field_source(parsed, field),
-        note,
-        settlement_field_confidence(parsed, field),
-    )
-    payload["group"] = group
-    if expected is not None:
-        numeric_value = parse_settlement_number(value)
-        payload["expected"] = settlement_number_value(expected)
-        payload["expectedLabel"] = expected_label
-        if expected_source:
-            payload["expectedSource"] = expected_source
-        if expected_detail:
-            payload["expectedDetail"] = expected_detail
-        if numeric_value is not None:
-            if difference_direction == "expected_minus_value":
-                difference = round(expected - float(numeric_value), 2)
-            else:
-                difference = round(float(numeric_value) - expected, 2)
-            payload["difference"] = settlement_number_value(difference)
-            payload["status"] = "ok" if abs(difference) <= 1 else "warn"
-        else:
-            payload["status"] = "missing"
-    elif value is None or value == "":
-        payload["status"] = "missing"
-    else:
-        payload["status"] = "ok"
-    return payload
-
-
-def settlement_source_expected(
-    source_summaries: Optional[Dict[str, Dict[str, Any]]],
-    key: str,
-) -> tuple[Optional[float], str]:
-    if not source_summaries:
-        return None, ""
-    summary = source_summaries.get(key) or {}
-    value = summary.get("paid_ex_vat")
-    if value is None:
-        return None, ""
-    sources = summary.get("sources")
-    if isinstance(sources, list) and sources:
-        source_text = ", ".join(str(item) for item in sources)
-    else:
-        source_text = str(summary.get("label") or key)
-    count_value = int_or_zero(summary.get("count"))
-    return round(float_or_zero(value), 2), f"{count_value} parkeringer fra {source_text}"
-
-
-async def sun2_product_sales_period_summary(session, start: date, end: date) -> Dict[str, Any]:
-    amount_ex_expr = func.coalesce(Sun2ProductSale.amount_ex_vat_kr, Sun2ProductSale.amount_inc_vat_kr / 1.25)
-    base_query = select(
-        func.count(Sun2ProductSale.id),
-        func.coalesce(func.sum(amount_ex_expr), 0),
-        func.coalesce(func.sum(Sun2ProductSale.amount_inc_vat_kr), 0),
-        func.coalesce(func.sum(Sun2ProductSale.quantity), 0),
-        func.min(Sun2ProductSale.stat_date),
-        func.max(Sun2ProductSale.stat_date),
-        func.max(Sun2ProductSale.imported_at),
-    )
-    active_filters = [
-        Sun2ProductSale.period_start == start,
-        Sun2ProductSale.period_end == end,
-    ]
-    result = (
-        await session.execute(
-            base_query.where(*active_filters)
-        )
-    ).one()
-    source_scope = "monthly" if int_or_zero(result[0]) else "daily"
-    if not int_or_zero(result[0]):
-        active_filters = [
-            Sun2ProductSale.stat_date >= start,
-            Sun2ProductSale.stat_date <= end,
-            Sun2ProductSale.period_start == Sun2ProductSale.period_end,
-        ]
-        result = (
-            await session.execute(
-                base_query.where(*active_filters)
-            )
-        ).one()
-    count_value, amount_ex, amount_inc, quantity, first_date, last_date, last_imported = result
-    period_summary_raw = (
-        await session.execute(
-            select(Sun2ProductSale.raw)
-            .where(*active_filters)
-            .where(Sun2ProductSale.raw.isnot(None))
-            .order_by(Sun2ProductSale.imported_at.desc())
-            .limit(1)
-        )
-    ).scalars().first()
-    period_summary = {}
-    if isinstance(period_summary_raw, dict) and isinstance(period_summary_raw.get("period_summary"), dict):
-        period_summary = period_summary_raw["period_summary"]
-    real_money_inc = parse_settlement_number(period_summary.get("real_money_inc_vat_kr")) if period_summary else None
-    total_summary_inc = parse_settlement_number(period_summary.get("total_inc_vat_kr")) if period_summary else None
-    control_amount_inc = real_money_inc if real_money_inc is not None else float_or_zero(amount_inc)
-    control_amount_ex = round(control_amount_inc / 1.25, 2) if real_money_inc is not None else float_or_zero(amount_ex)
-    return {
-        "count": int_or_zero(count_value),
-        "quantity": float_or_zero(quantity),
-        "amount_ex_vat": round(float_or_zero(control_amount_ex), 2),
-        "amount_inc_vat": round(float_or_zero(control_amount_inc), 2),
-        "gross_amount_ex_vat": round(float_or_zero(amount_ex), 2),
-        "gross_amount_inc_vat": round(float_or_zero(amount_inc), 2),
-        "real_money_inc_vat": real_money_inc,
-        "summary_total_inc_vat": total_summary_inc,
-        "control_basis": "ekte_penger" if real_money_inc is not None else "produktlinjer_total",
-        "first_date": first_date,
-        "last_date": last_date,
-        "last_imported_at": last_imported,
-        "period_start": start,
-        "period_end": end,
-        "source_scope": source_scope,
-    }
-
-
-def sun2_product_sales_expected(summary: Optional[Dict[str, Any]]) -> tuple[Optional[float], str]:
-    if not summary or int_or_zero(summary.get("count")) <= 0:
-        return None, ""
-    count_value = int_or_zero(summary.get("count"))
-    quantity = float_or_zero(summary.get("quantity"))
-    detail = f"{count_value} salgslinjer"
-    if quantity:
-        detail += f", {format_short_number(quantity, 2)} stk"
-    gross_inc = parse_settlement_number(summary.get("gross_amount_inc_vat") or summary.get("summary_total_inc_vat"))
-    if gross_inc is not None:
-        detail += f", månedsomsetning {format_short_number(gross_inc, 2)} kr inkl. mva"
-    last_imported = summary.get("last_imported_at")
-    if last_imported:
-        detail += f", sist importert {format_local_datetime(last_imported)}"
-    return round(float_or_zero(summary.get("gross_amount_ex_vat", summary.get("amount_ex_vat"))), 2), detail
-
-
-async def sun2_finance_settlement_period_summary(session, start: date, end: date) -> Dict[str, Any]:
-    row = (
-        await session.execute(
-            select(Sun2FinanceSettlement)
-            .where(Sun2FinanceSettlement.period_start == start)
-            .where(Sun2FinanceSettlement.period_end == end)
-            .order_by(Sun2FinanceSettlement.imported_at.desc())
-            .limit(1)
-        )
-    ).scalars().first()
-    if not row:
-        row = (
-            await session.execute(
-                select(Sun2FinanceSettlement)
-                .where(Sun2FinanceSettlement.period_start <= start)
-                .where(Sun2FinanceSettlement.period_end >= end)
-                .order_by(Sun2FinanceSettlement.imported_at.desc())
-                .limit(1)
-            )
-        ).scalars().first()
-    if not row:
-        return {"period_start": start, "period_end": end, "count": 0}
-    return {
-        "id": row.id,
-        "source_payout_id": row.source_payout_id,
-        "payout_label": row.payout_label,
-        "period_start": row.period_start,
-        "period_end": row.period_end,
-        "payout_date": row.payout_date,
-        "member_tanning_count": row.member_tanning_count,
-        "member_tanning_inc_vat": row.member_tanning_inc_vat_kr,
-        "unregistered_tanning_count": row.unregistered_tanning_count,
-        "unregistered_tanning_inc_vat": row.unregistered_tanning_inc_vat_kr,
-        "tanning_gross_inc_vat": round(float_or_zero(row.member_tanning_inc_vat_kr) + float_or_zero(row.unregistered_tanning_inc_vat_kr), 2),
-        "tanning_gross_ex_vat": round((float_or_zero(row.member_tanning_inc_vat_kr) + float_or_zero(row.unregistered_tanning_inc_vat_kr)) / 1.25, 2),
-        "tanning_control_inc_vat": row.tanning_control_inc_vat_kr,
-        "tanning_control_ex_vat": row.tanning_control_ex_vat_kr,
-        "last_imported_at": row.imported_at,
-        "source_file": row.source_file,
-        "count": 1,
-    }
-
-
-def sun2_tanning_revenue_expected(summary: Optional[Dict[str, Any]]) -> tuple[Optional[float], str]:
-    if not summary or int_or_zero(summary.get("count")) <= 0:
-        return None, ""
-    value = parse_settlement_number(summary.get("tanning_gross_ex_vat"))
-    if value is None:
-        return None, ""
-    member_count = int_or_zero(summary.get("member_tanning_count"))
-    unregistered_count = int_or_zero(summary.get("unregistered_tanning_count"))
-    member_inc = parse_settlement_number(summary.get("member_tanning_inc_vat"))
-    unregistered_inc = parse_settlement_number(summary.get("unregistered_tanning_inc_vat"))
-    detail_parts = [
-        f"{member_count} medlemssolinger",
-        f"{unregistered_count} uregistrerte solinger",
-    ]
-    if member_inc is not None or unregistered_inc is not None:
-        detail_parts.append(
-            f"månedsomsetning {format_short_number(float_or_zero(member_inc) + float_or_zero(unregistered_inc), 2)} kr inkl. mva"
-        )
-    payout_label = summary.get("payout_label") or summary.get("source_payout_id")
-    if payout_label:
-        detail_parts.append(str(payout_label))
-    last_imported = summary.get("last_imported_at")
-    if last_imported:
-        detail_parts.append(f"sist importert {format_local_datetime(last_imported)}")
-    return round(float_or_zero(value), 2), ", ".join(detail_parts)
-
-
-def sun2_tanning_sessions_revenue_expected(summary: Optional[Dict[str, Any]]) -> tuple[Optional[float], str, str, str]:
-    if not summary:
-        return None, "", "sun2_tanning_sessions", "Sun2 enkelttimer"
-
-    daily_count = int_or_zero(summary.get("daily_count"))
-    daily_amount_ex = parse_settlement_number(summary.get("daily_amount_ex_vat"))
-    if daily_count > 0 and daily_amount_ex is not None:
-        detail_parts = [f"{daily_count} solinger fra dagsstatistikk"]
-        daily_amount_inc = parse_settlement_number(summary.get("daily_amount_inc_vat"))
-        if daily_amount_inc is not None:
-            detail_parts.append(f"månedsomsetning {format_short_number(daily_amount_inc, 2)} kr inkl. mva")
-        last_imported = summary.get("daily_last_imported_at")
-        if last_imported:
-            detail_parts.append(f"sist importert {format_local_datetime(last_imported)}")
-        return round(float_or_zero(daily_amount_ex), 2), ", ".join(detail_parts), "sun2_room_daily_stats", "Sun2 dagsstatistikk"
-
-    count_value = int_or_zero(summary.get("count"))
-    amount_ex = parse_settlement_number(summary.get("amount_ex_vat"))
-    if count_value > 0 and amount_ex is not None:
-        detail_parts = [f"{count_value} rå enkelttimer"]
-        amount_inc = parse_settlement_number(summary.get("amount_inc_vat"))
-        if amount_inc is not None:
-            detail_parts.append(f"månedsomsetning {format_short_number(amount_inc, 2)} kr inkl. mva")
-        last_imported = summary.get("last_imported_at")
-        if last_imported:
-            detail_parts.append(f"sist importert {format_local_datetime(last_imported)}")
-        return round(float_or_zero(amount_ex), 2), ", ".join(detail_parts), "sun2_tanning_sessions", "Sun2 enkelttimer"
-
-    return None, "", "sun2_tanning_sessions", "Sun2 enkelttimer"
-
-
-def sun2_tanning_revenue_control_expected(
-    finance_summary: Optional[Dict[str, Any]],
-    sessions_summary: Optional[Dict[str, Any]] = None,
-) -> tuple[Optional[float], str, str, str]:
-    value, detail = sun2_tanning_revenue_expected(finance_summary)
-    if value is not None:
-        return value, detail, "sun2_finance_settlements", "Sun2 finanshistorikk"
-    return sun2_tanning_sessions_revenue_expected(sessions_summary)
-
-
-async def sun2_tanning_sessions_period_summary(session, start: date, end: date) -> Dict[str, Any]:
-    result = (
-        await session.execute(
-            select(
-                func.count(Sun2TanningSession.id),
-                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0),
-                func.min(Sun2TanningSession.started_at),
-                func.max(Sun2TanningSession.started_at),
-                func.max(Sun2TanningSession.imported_at),
-            )
-            .where(Sun2TanningSession.stat_date >= start)
-            .where(Sun2TanningSession.stat_date <= end)
-        )
-    ).one()
-    daily_result = (
-        await session.execute(
-            select(
-                func.coalesce(func.sum(Sun2RoomDailyStat.totalt_antall_solinger), 0),
-                func.coalesce(func.sum(Sun2RoomDailyStat.totalt_inntjent_kr), 0),
-                func.max(Sun2RoomDailyStat.imported_at),
-            )
-            .where(Sun2RoomDailyStat.stat_date >= start)
-            .where(Sun2RoomDailyStat.stat_date <= end)
-        )
-    ).one()
-    count_value, amount_inc, first_started, last_started, last_imported = result
-    daily_count, daily_amount_inc, daily_imported = daily_result
-    return {
-        "period_start": start,
-        "period_end": end,
-        "count": int_or_zero(count_value),
-        "amount_inc_vat": round(float_or_zero(amount_inc), 2),
-        "amount_ex_vat": round(float_or_zero(amount_inc) / 1.25, 2),
-        "first_started_at": first_started,
-        "last_started_at": last_started,
-        "last_imported_at": last_imported,
-        "daily_count": int_or_zero(daily_count),
-        "daily_amount_inc_vat": round(float_or_zero(daily_amount_inc), 2),
-        "daily_amount_ex_vat": round(float_or_zero(daily_amount_inc) / 1.25, 2),
-        "daily_last_imported_at": daily_imported,
-    }
-
-
-def settlement_form_rows(parsed: Any, source_summaries: Optional[Dict[str, Dict[str, Any]]] = None) -> list[Dict[str, Any]]:
-    gross_coin_card = settlement_parsed_float(parsed, "gross_coin_card_ex_vat")
-    easypark = settlement_parsed_float(parsed, "easypark_ex_vat")
-    fee = settlement_parsed_float(parsed, "settlement_fee_ex_vat")
-    net_coin_card = settlement_parsed_float(parsed, "revenue_basis_ex_vat")
-    long_term = settlement_parsed_float(parsed, "long_term_parking_ex_vat")
-    control_fee = settlement_parsed_float(parsed, "control_fee_net_ex_vat")
-    total_basis = settlement_parsed_float(parsed, "total_basis_ex_vat")
-    total_share = settlement_parsed_float(parsed, "total_share_ex_vat")
-    vat = settlement_parsed_float(parsed, "vat_25_percent")
-    payout = settlement_parsed_float(parsed, "payout_inc_vat")
-
-    expected_net_coin_card = settlement_sum_or_none(gross_coin_card, easypark, fee)
-    expected_total_basis = settlement_sum_or_none(net_coin_card, long_term, control_fee)
-    expected_payout = settlement_sum_or_none(total_share, vat)
-    expected_flowbird, expected_flowbird_detail = settlement_source_expected(source_summaries, "flowbird")
-    expected_easypark, expected_easypark_detail = settlement_source_expected(source_summaries, "easypark")
-
-    rows = [
-        settlement_form_field(
-            "Brutto mynt/kortautomat",
-            "gross_coin_card_ex_vat",
-            settlement_parsed_value(parsed, "gross_coin_card_ex_vat"),
-            parsed,
-            "amount",
-            "Operativt beløp fra linjen Bruttoinntekter over mynt/kortautomat.",
-        ),
-        settlement_form_field(
-            "EasyPark",
-            "easypark_ex_vat",
-            settlement_parsed_value(parsed, "easypark_ex_vat"),
-            parsed,
-            "amount",
-            "Operativt beløp fra EasyPark-linjen. Dette kontrolleres mot source_system = EasyPark.",
-        ),
-        settlement_form_field(
-            "Fratrekk tømming/telling/kort",
-            "settlement_fee_ex_vat",
-            settlement_parsed_value(parsed, "settlement_fee_ex_vat"),
-            parsed,
-            "amount",
-            "Operativt fratrekk for tømming, telling og kortavregning.",
-        ),
-        settlement_form_field(
-            "Netto innbetalte kontrollavgifter",
-            "control_fee_net_ex_vat",
-            settlement_parsed_value(parsed, "control_fee_net_ex_vat"),
-            parsed,
-            "amount",
-            "Operativt beløp fra linjen Netto innbetalte kontrollavgifter.",
-        ),
-        settlement_form_field(
-            "Nettoinntekter mynt/kortautomat",
-            "revenue_basis_ex_vat",
-            settlement_parsed_value(parsed, "revenue_basis_ex_vat"),
-            parsed,
-            "control",
-            "Kontrollsum: brutto mynt/kort + EasyPark + fratrekk.",
-            expected_net_coin_card,
-        ),
-        settlement_form_field(
-            "Grunnlag omsetning eks. mva",
-            "total_basis_ex_vat",
-            settlement_parsed_value(parsed, "total_basis_ex_vat"),
-            parsed,
-            "control",
-            "Kontrollsum: netto mynt/kort + langtidsparkering + netto kontrollavgifter.",
-            expected_total_basis,
-        ),
-        settlement_form_field(
-            "Til utbetaling",
-            "payout_inc_vat",
-            settlement_parsed_value(parsed, "payout_inc_vat"),
-            parsed,
-            "control",
-            "Kontrollsum: sum eks. mva + 25% mva.",
-            expected_payout,
-        ),
-    ]
-    source_controls = {
-        "gross_coin_card_ex_vat": (
-            expected_flowbird,
-            "Fibaro10 flowbird eks. mva",
-            "source_system = flowbird-parknordic",
-            expected_flowbird_detail,
-        ),
-        "easypark_ex_vat": (
-            expected_easypark,
-            "Fibaro10 EasyPark eks. mva",
-            "source_system = EasyPark",
-            expected_easypark_detail,
-        ),
-    }
-    for item in rows:
-        expected, expected_label, expected_source, expected_detail = source_controls.get(item.get("field"), (None, "", "", ""))
-        if expected is None:
-            continue
-        numeric_value = parse_settlement_number(item.get("value"))
-        item["expected"] = settlement_number_value(expected)
-        item["expectedLabel"] = expected_label
-        item["expectedSource"] = expected_source
-        item["expectedDetail"] = expected_detail
-        if numeric_value is not None:
-            difference = round(float(numeric_value) - expected, 2)
-            item["difference"] = settlement_number_value(difference)
-            item["status"] = "ok" if abs(difference) <= 1 else "warn"
-        else:
-            item["status"] = "missing"
-    return rows
-
-
-def sun_settlement_form_rows(
-    parsed: Any,
-    product_sales_summary: Optional[Dict[str, Any]] = None,
-    finance_summary: Optional[Dict[str, Any]] = None,
-    sessions_summary: Optional[Dict[str, Any]] = None,
-) -> list[Dict[str, Any]]:
-    sun_revenue = settlement_parsed_float(parsed, "sun_revenue_ex_vat")
-    product_sales = settlement_parsed_float(parsed, "product_sales_ex_vat")
-    transaction_fee = settlement_parsed_float(parsed, "transaction_fee_ex_vat")
-    service_fee = settlement_parsed_float(parsed, "service_fee_ex_vat")
-    marketing_sms = settlement_parsed_float(parsed, "marketing_sms_fee_ex_vat")
-    marketing_email = settlement_parsed_float(parsed, "marketing_email_fee_ex_vat")
-    sum_ex_vat = settlement_parsed_float(parsed, "sum_ex_vat")
-    vat = settlement_parsed_float(parsed, "vat_25_percent")
-    payout = settlement_parsed_float(parsed, "payout_inc_vat")
-
-    line_sum = settlement_sum_or_none(
-        sun_revenue,
-        product_sales,
-        transaction_fee,
-        service_fee,
-        marketing_sms,
-        marketing_email,
-    )
-    expected_vat = round(sum_ex_vat * 0.25, 2) if sum_ex_vat is not None else None
-    expected_payout = settlement_sum_or_none(sum_ex_vat, vat)
-    transaction_base = settlement_sum_or_none(sun_revenue, product_sales)
-    expected_transaction_fee = round(-transaction_base * 0.06, 2) if transaction_base is not None else None
-    expected_product_sales, expected_product_sales_detail = sun2_product_sales_expected(product_sales_summary)
-    expected_sun_revenue, expected_sun_revenue_detail, expected_sun_revenue_source, _ = sun2_tanning_revenue_control_expected(
-        finance_summary,
-        sessions_summary,
-    )
-
-    return [
-        settlement_form_field(
-            "Solomsetning for perioden",
-            "sun_revenue_ex_vat",
-            settlement_parsed_value(parsed, "sun_revenue_ex_vat"),
-            parsed,
-            "amount",
-            "Operativt beløp fra linjen Solomsetning for perioden.",
-            expected_sun_revenue,
-            expected_label="Sun2 månedsomsetning eks. mva",
-            expected_source=expected_sun_revenue_source,
-            expected_detail=expected_sun_revenue_detail,
-            difference_direction="expected_minus_value",
-        ),
-        settlement_form_field(
-            "Produktsalg for perioden",
-            "product_sales_ex_vat",
-            settlement_parsed_value(parsed, "product_sales_ex_vat"),
-            parsed,
-            "amount",
-            "Operativt beløp fra linjen Produktsalg for perioden.",
-            expected_product_sales,
-            expected_label="Sun2 månedsomsetning eks. mva",
-            expected_source="sun2_product_sales",
-            expected_detail=expected_product_sales_detail,
-            difference_direction="expected_minus_value",
-        ),
-        settlement_form_field(
-            "Transaksjonskostnad",
-            "transaction_fee_ex_vat",
-            settlement_parsed_value(parsed, "transaction_fee_ex_vat"),
-            parsed,
-            "amount",
-            "Fratrekk fra linjen Transaksjonskostnad.",
-            expected_transaction_fee,
-            expected_label="6% av solomsetning + produktsalg",
-        ),
-        settlement_form_field(
-            "Serviceavtale",
-            "service_fee_ex_vat",
-            settlement_parsed_value(parsed, "service_fee_ex_vat"),
-            parsed,
-            "amount",
-            "Fratrekk fra linjen Serviceavtale.",
-        ),
-        settlement_form_field(
-            "Markedsforing SMS",
-            "marketing_sms_fee_ex_vat",
-            settlement_parsed_value(parsed, "marketing_sms_fee_ex_vat"),
-            parsed,
-            "amount",
-            "Eventuelt fratrekk for markedsføring på SMS.",
-        ),
-        settlement_form_field(
-            "Markedsforing e-post",
-            "marketing_email_fee_ex_vat",
-            settlement_parsed_value(parsed, "marketing_email_fee_ex_vat"),
-            parsed,
-            "amount",
-            "Eventuelt fratrekk for markedsføring på e-post.",
-        ),
-        settlement_form_field(
-            "Sum eks. MVA",
-            "sum_ex_vat",
-            settlement_parsed_value(parsed, "sum_ex_vat"),
-            parsed,
-            "control",
-            "Kontrollsum: solomsetning + produktsalg + fratrekk.",
-            line_sum,
-        ),
-        settlement_form_field(
-            "25% mva",
-            "vat_25_percent",
-            settlement_parsed_value(parsed, "vat_25_percent"),
-            parsed,
-            "control",
-            "Kontrollsum: Sum eks. MVA * 25%.",
-            expected_vat,
-        ),
-        settlement_form_field(
-            "Beløp NOK",
-            "payout_inc_vat",
-            settlement_parsed_value(parsed, "payout_inc_vat"),
-            parsed,
-            "control",
-            "Kontrollsum: Sum eks. MVA + 25% mva.",
-            expected_payout,
-        ),
-    ]
-
-
-def settlement_original_payload(row: SettlementImport, api_prefix: Optional[str] = None) -> Dict[str, Any]:
-    filename = row.attachment_filename or f"oppgjor-{row.id}"
-    content_type = row.attachment_content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
-    extension = Path(filename).suffix.lower()
-    preview_kind = "unsupported"
-    if content_type == "application/pdf" or extension == ".pdf":
-        preview_kind = "pdf"
-    elif content_type.startswith("image/"):
-        preview_kind = "image"
-    elif content_type.startswith("text/") or extension in {".csv", ".txt", ".xml"}:
-        preview_kind = "text"
-    if not api_prefix:
-        api_prefix = "/api/soling/settlements" if row.provider == SUN_SETTLEMENT_PROVIDER else "/api/settlements"
-    return {
-        "filename": filename,
-        "contentType": content_type,
-        "size": row.attachment_size,
-        "sizeLabel": format_file_size(row.attachment_size),
-        "sha256": row.attachment_sha256,
-        "previewKind": preview_kind,
-        "previewUrl": f"{api_prefix}/{row.id}/attachment",
-        "downloadUrl": f"{api_prefix}/{row.id}/attachment?download=1",
-    }
-
-
-SETTLEMENT_PARSED_FIELD_LABELS: list[tuple[str, str, str]] = [
-    ("Rapportdato", "report_date", "Dato i selve oppgjørsrapporten."),
-    ("Rapportperiode", "reported_period_label", "Periode slik den står i skjemaet."),
-    ("Driftssted nr.", "site_number", "Park Nordic sitt driftsstednummer."),
-    ("Driftssted", "site_name", "Navn på driftssted i skjemaet."),
-    ("Oppdragsgiver nr.", "customer_number", "Park Nordic sitt kundenummer."),
-    ("Oppdragsgiver", "customer_name", "Kundenavn i skjemaet."),
-    ("Antall automater", "machine_count", "Antall automater oppgitt i skjemaet."),
-    ("Brutto mynt/kort eks. mva", "gross_coin_card_ex_vat", "Beløp i kolonnen Oms. eks. mva."),
-    ("EasyPark eks. mva", "easypark_ex_vat", "Beløp i kolonnen Oms. eks. mva."),
-    ("EasyPark estimert inkl. mva", "easypark_inc_vat_estimate", "Beregnet som EasyPark eks. mva * 1,25."),
-    ("Fratrekk eks. mva", "settlement_fee_ex_vat", "Fratrekk for tømming, telling og kortavregning."),
-    ("Nettoinntekter mynt/kort eks. mva", "revenue_basis_ex_vat", "Første summeringsrad etter fratrekk."),
-    ("Andel mynt/kort", "revenue_share_percent", "Andel i prosent fra samme summeringsrad."),
-    ("Sum mynt/kort eks. mva", "revenue_share_ex_vat", "Sum-kolonnen for hovedomsetning."),
-    ("Langtidsparkering eks. mva", "long_term_parking_ex_vat", "Andre uetiketterte tallrad etter fratrekk."),
-    ("Andel langtidsparkering", "long_term_share_percent", "Andel i prosent for langtidsparkering."),
-    ("Sum langtidsparkering eks. mva", "long_term_share_ex_vat", "Sum-kolonnen for langtidsparkering."),
-    ("Netto kontrollavgifter eks. mva", "control_fee_net_ex_vat", "Tredje uetiketterte tallrad etter fratrekk."),
-    ("Andel kontrollavgifter", "control_fee_share_percent", "Andel i prosent for kontrollavgifter."),
-    ("Sum kontrollavgifter eks. mva", "control_fee_share_ex_vat", "Sum-kolonnen for kontrollavgifter."),
-    ("Grunnlag omsetning eks. mva", "total_basis_ex_vat", "Totalsum før mva."),
-    ("Totalt oppgjør eks. mva", "total_share_ex_vat", "Sum til grunnlag for mva."),
-    ("25% mva", "vat_25_percent", "Mva-linje i skjemaet."),
-    ("Til utbetaling inkl. mva", "payout_inc_vat", "Sluttsum oppgitt i skjemaet."),
-    ("Kontakt e-post", "contact_email", "E-postadresse funnet i skjemaet."),
-]
-
-
-SUN_SETTLEMENT_PARSED_FIELD_LABELS: list[tuple[str, str, str]] = [
-    ("Kreditnotanr.", "credit_note_number", "Kreditnotanummer fra Altera."),
-    ("Kreditnotadato", "credit_note_date", "Dato på kreditnotaen."),
-    ("Leveransedato", "delivery_date", "Dato/periodegrunnlag fra skjemaet."),
-    ("Leverandør", "supplier_name", "Leverandør funnet i skjemaet."),
-    ("Leverandør org.nr.", "supplier_org_no", "Organisasjonsnummer funnet i skjemaet."),
-    ("Kunde", "customer_name", "Kundenavn funnet i skjemaet."),
-    ("Solomsetning eks. mva", "sun_revenue_ex_vat", "Beløp fra linjen Solomsetning for perioden."),
-    ("Produktsalg eks. mva", "product_sales_ex_vat", "Beløp fra linjen Produktsalg for perioden."),
-    ("Transaksjonskostnad eks. mva", "transaction_fee_ex_vat", "Fratrekk fra linjen Transaksjonskostnad."),
-    ("Serviceavtale eks. mva", "service_fee_ex_vat", "Fratrekk fra linjen Serviceavtale."),
-    ("Markedsføring SMS eks. mva", "marketing_sms_fee_ex_vat", "Eventuelt fratrekk for markedsføring på SMS."),
-    ("Markedsføring e-post eks. mva", "marketing_email_fee_ex_vat", "Eventuelt fratrekk for markedsføring på e-post."),
-    ("Sum eks. mva", "sum_ex_vat", "Sum eks. mva fra skjemaet."),
-    ("25% mva", "vat_25_percent", "Mva-linje fra skjemaet."),
-    ("Beløp NOK", "payout_inc_vat", "Sluttsum fra skjemaet."),
-]
-
-
-def parsed_field_rows_for_labels(parsed: Dict[str, Any], labels: list[tuple[str, str, str]]) -> list[Dict[str, Any]]:
-    rows: list[Dict[str, Any]] = []
-    known_fields = {field for _, field, _ in labels}
-    for label, field, note in labels:
-        if field not in parsed:
-            continue
-        rows.append(
-            settlement_field(
-                label,
-                field,
-                parsed.get(field),
-                settlement_field_source(parsed, field),
-                note,
-                settlement_field_confidence(parsed, field),
-            )
-        )
-    for field in sorted(key for key in parsed.keys() if not key.startswith("_") and key not in known_fields):
-        rows.append(
-            settlement_field(
-                field.replace("_", " ").title(),
-                field,
-                parsed.get(field),
-                settlement_field_source(parsed, field),
-                "Ekstra felt fra parseren.",
-                settlement_field_confidence(parsed, field),
-            )
-        )
-    return rows
-
-
-def settlement_parsed_field_rows(parsed: Dict[str, Any]) -> list[Dict[str, Any]]:
-    return parsed_field_rows_for_labels(parsed, SETTLEMENT_PARSED_FIELD_LABELS)
-
-
-def sun_settlement_parsed_field_rows(parsed: Dict[str, Any]) -> list[Dict[str, Any]]:
-    return parsed_field_rows_for_labels(parsed, SUN_SETTLEMENT_PARSED_FIELD_LABELS)
-
-
-async def settlement_detail_payload(session, row: SettlementImport) -> Dict[str, Any]:
-    changed = ensure_settlement_parsed(row)
-    if changed:
-        await session.commit()
-
-    parsed = row.parsed if isinstance(row.parsed, dict) else {}
-    public_parsed = settlement_public_parsed(parsed)
-    meta = settlement_parsed_meta(parsed)
-    control_rows = []
-    control_cards = []
-    source_summaries: Optional[Dict[str, Dict[str, Any]]] = None
-    if row.period_start and row.period_end:
-        start_dt = datetime.combine(row.period_start, time.min)
-        end_dt = datetime.combine(row.period_end + timedelta(days=1), time.min)
-        source_summaries = await parking_period_source_summaries(session, start_dt, end_dt)
-        easypark_summary = source_summaries["easypark"]
-        flowbird_summary = source_summaries["flowbird"]
-        other_summary = source_summaries["other"]
-        count_value = int_or_zero(easypark_summary.get("count")) + int_or_zero(flowbird_summary.get("count")) + int_or_zero(other_summary.get("count"))
-        paid_value = (
-            float_or_zero(easypark_summary.get("paid_inc_vat"))
-            + float_or_zero(flowbird_summary.get("paid_inc_vat"))
-            + float_or_zero(other_summary.get("paid_inc_vat"))
-        )
-        average_value = round(paid_value / count_value, 2) if count_value else None
-        flowbird_ex_vat = round(float_or_zero(flowbird_summary.get("paid_ex_vat")), 2)
-        easypark_source_ex_vat = round(float_or_zero(easypark_summary.get("paid_ex_vat")), 2)
-        gross_coin_card = settlement_parsed_float(parsed, "gross_coin_card_ex_vat")
-        easypark_ex_vat = settlement_parsed_float(parsed, "easypark_ex_vat")
-        payout_inc_vat = settlement_parsed_float(parsed, "payout_inc_vat")
-        diff_flowbird = round(gross_coin_card - flowbird_ex_vat, 2) if gross_coin_card is not None else None
-        diff_easypark = round(easypark_ex_vat - easypark_source_ex_vat, 2) if easypark_ex_vat is not None else None
-        control_rows = [
-            settlement_field("Kontrollperiode fra", "period_start", row.period_start, "Tolket fra emne/filnavn"),
-            settlement_field("Kontrollperiode til", "period_end", row.period_end, "Beregnet siste dag i tolket måned"),
-            settlement_field("Flowbird parkeringer", "flowbird_source_count", int_or_zero(flowbird_summary.get("count")), "source_system = flowbird-parknordic"),
-            settlement_field("Flowbird i Fibaro10 eks. mva", "flowbird_source_paid_ex_vat", flowbird_ex_vat, "source_system = flowbird-parknordic", "Summeres fra fee_ex_vat for hele oppgjørsmåneden."),
-            settlement_field("Brutto mynt/kort i skjema eks. mva", "gross_coin_card_ex_vat", gross_coin_card, settlement_field_source(parsed, "gross_coin_card_ex_vat"), "Beløp hentet fra oppgjørsskjemaet.", settlement_field_confidence(parsed, "gross_coin_card_ex_vat")),
-            settlement_field("Avvik skjema - Flowbird eks. mva", "flowbird_source_diff_ex_vat", diff_flowbird, "Beregnet kontroll", "Positivt tall betyr at skjemaet har høyere brutto mynt/kort enn Fibaro10-kilden."),
-            settlement_field("EasyPark parkeringer", "easypark_source_count", int_or_zero(easypark_summary.get("count")), "source_system = EasyPark"),
-            settlement_field("EasyPark i Fibaro10 eks. mva", "easypark_source_paid_ex_vat", easypark_source_ex_vat, "source_system = EasyPark", "Summeres fra fee_ex_vat for hele oppgjørsmåneden."),
-            settlement_field("EasyPark i skjema eks. mva", "easypark_ex_vat", easypark_ex_vat, settlement_field_source(parsed, "easypark_ex_vat"), "Beløp hentet fra oppgjørsskjemaet.", settlement_field_confidence(parsed, "easypark_ex_vat")),
-            settlement_field("Avvik skjema - EasyPark eks. mva", "easypark_source_diff_ex_vat", diff_easypark, "Beregnet kontroll", "Positivt tall betyr at skjemaet har høyere EasyPark-beløp enn Fibaro10-kilden."),
-            settlement_field("Andre kildeparkeringer", "other_source_count", int_or_zero(other_summary.get("count")), "Alle andre source_system-verdier"),
-            settlement_field("Total parkering i Fibaro10 inkl. mva", "parking_paid", round(paid_value, 2), "Alle parkeringskilder", "Totalverdi for orientering, ikke brukt som EasyPark-kontroll."),
-            settlement_field("Snitt per parkering", "average_paid", average_value, "Beregnet fra intern parkeringstelling"),
-            settlement_field("Til utbetaling i skjema", "payout_inc_vat", payout_inc_vat, settlement_field_source(parsed, "payout_inc_vat"), "Oppgjørets sluttsum. Dette er ikke direkte det samme som kundebetaling i Fibaro10.", settlement_field_confidence(parsed, "payout_inc_vat")),
-        ]
-        control_cards = [
-            api_card("Flowbird Fibaro10", format_short_number(flowbird_ex_vat, 2), "kr", f"{int_or_zero(flowbird_summary.get('count'))} parkeringer", "parking"),
-            api_card("EasyPark Fibaro10", format_short_number(easypark_source_ex_vat, 2), "kr", f"{int_or_zero(easypark_summary.get('count'))} parkeringer", "parking"),
-        ]
-        if diff_flowbird is not None:
-            control_cards.append(api_card("Avvik Flowbird", format_short_number(diff_flowbird, 2), "kr", "Skjema minus Fibaro10 eks. mva", "revenue"))
-        if diff_easypark is not None:
-            control_cards.append(api_card("Avvik EasyPark", format_short_number(diff_easypark, 2), "kr", "Skjema minus Fibaro10 eks. mva", "revenue"))
-    else:
-        control_rows = [
-            settlement_field("Kontrollstatus", "status", "Mangler periode", "Perioden kunne ikke tolkes fra emne, filnavn eller e-postdato"),
-        ]
-
-    parsed_rows = settlement_parsed_field_rows(parsed)
-    if not parsed_rows:
-        parsed_rows = [
-            settlement_field(
-                "Skjemafelter",
-                "parsed",
-                "Ikke maskinlest ennå",
-                "Originalskjemaet er lagret, men tall/felter fra selve skjemaet er ikke trukket ut til strukturerte felter ennå.",
-            )
-        ]
-    parser_rows = [
-        settlement_field("Parser", "parser", meta.get("parser"), "Teknisk parsermetadata"),
-        settlement_field("Parser-versjon", "parser_version", meta.get("parser_version"), "Teknisk parsermetadata"),
-        settlement_field("Sikkerhet", "confidence", meta.get("confidence"), "Andel nøkkelfelter som ble funnet"),
-        settlement_field("Tekstmetode", "method", meta.get("method"), "Hvordan vedlegget ble lest"),
-        settlement_field("Tekstlinjer", "line_count", meta.get("line_count"), "Antall tekstlinjer hentet fra originalfil"),
-        settlement_field("Sider", "pages_count", meta.get("pages_count"), "Antall PDF-sider hvis kjent"),
-    ]
-    warnings = meta.get("warnings") if isinstance(meta.get("warnings"), list) else []
-    notes = meta.get("notes") if isinstance(meta.get("notes"), list) else []
-    for index, warning in enumerate([*warnings, *notes], start=1):
-        parser_rows.append(settlement_field(f"Merknad {index}", f"parser_note_{index}", warning, "Parser"))
-
-    cards = [
-        api_card("Periode", row.period_label or "Ikke tolket", "", "Fra emne/filnavn eller e-postdato", "revenue"),
-        api_card("Original", settlement_original_payload(row)["sizeLabel"], "", row.attachment_filename or "-", "status"),
-        api_card("Skjemafelter", len(public_parsed), "stk", f"Sikkerhet {format_short_number(float_or_zero(meta.get('confidence')) * 100, 0)} %", "status"),
-        api_card("Til utbetaling", format_short_number(settlement_parsed_float(parsed, "payout_inc_vat") or 0, 2), "kr", "Fra skjema", "revenue"),
-        *control_cards,
-    ]
-    return {
-        "id": row.id,
-        "title": row.period_label or f"Oppgjør {row.id}",
-        "subtitle": row.attachment_filename or row.email_subject or "",
-        "cards": cards,
-        "original": settlement_original_payload(row),
-        "sections": [
-            {"title": "Oppgjørsformular", "rows": settlement_form_rows(parsed, source_summaries)},
-            {"title": "Nøkkeltall fra skjema", "rows": parsed_rows},
-            {"title": "Kontroll mot Fibaro10", "rows": control_rows},
-            {
-                "title": "Tolket periode",
-                "rows": [
-                    settlement_field("Periodeetikett", "period_label", row.period_label, "Tolket fra emne/filnavn, eventuelt antatt fra e-postdato"),
-                    settlement_field("Periodestart", "period_start", row.period_start, "Første dag i tolket måned"),
-                    settlement_field("Periodeslutt", "period_end", row.period_end, "Siste dag i tolket måned"),
-                    settlement_field("Status", "status", row.status, "Importstatus i Fibaro10"),
-                ],
-            },
-            {
-                "title": "E-post og vedlegg",
-                "rows": [
-                    settlement_field("Avsender", "sender", row.sender, "E-postheader From"),
-                    settlement_field("E-postdato", "email_date", row.email_date, "E-postheader Date"),
-                    settlement_field("Emne", "email_subject", row.email_subject, "E-postheader Subject"),
-                    settlement_field("Gmail UID", "gmail_uid", row.gmail_uid, "Gmail IMAP UID"),
-                    settlement_field("Postboks", "mailbox", row.mailbox, "Gmail IMAP mappe"),
-                    settlement_field("Filnavn", "attachment_filename", row.attachment_filename, "Vedlegg"),
-                    settlement_field("Filtype", "attachment_content_type", row.attachment_content_type, "Vedlegg MIME-type"),
-                    settlement_field("Filstørrelse", "attachment_size", format_file_size(row.attachment_size), "Vedlegg byte-størrelse"),
-                    settlement_field("SHA-256", "attachment_sha256", row.attachment_sha256, "Hash av originalvedlegg"),
-                    settlement_field("Importert", "imported_at", row.imported_at, "Tidspunkt Fibaro10 lagret oppgjøret"),
-                ],
-            },
-            {"title": "Parserkontroll", "rows": parser_rows},
-        ],
-        "raw": row.raw or {},
-    }
-
-
-async def sun_settlement_detail_payload(session, row: SettlementImport) -> Dict[str, Any]:
-    changed = ensure_settlement_parsed(row)
-    if changed:
-        await session.commit()
-
-    parsed = row.parsed if isinstance(row.parsed, dict) else {}
-    public_parsed = settlement_public_parsed(parsed)
-    meta = settlement_parsed_meta(parsed)
-    product_sales_summary = (
-        await sun2_product_sales_period_summary(session, row.period_start, row.period_end)
-        if row.period_start and row.period_end
-        else None
-    )
-    finance_summary = (
-        await sun2_finance_settlement_period_summary(session, row.period_start, row.period_end)
-        if row.period_start and row.period_end
-        else None
-    )
-    sessions_summary = (
-        await sun2_tanning_sessions_period_summary(session, row.period_start, row.period_end)
-        if row.period_start and row.period_end
-        else None
-    )
-    expected_sun_revenue, sun_revenue_detail, sun_revenue_source, sun_revenue_source_label = sun2_tanning_revenue_control_expected(
-        finance_summary,
-        sessions_summary,
-    )
-    expected_product_sales, product_sales_detail = sun2_product_sales_expected(product_sales_summary)
-    sun_revenue_value = settlement_parsed_float(parsed, "sun_revenue_ex_vat")
-    sun_revenue_diff = (
-        round(expected_sun_revenue - sun_revenue_value, 2)
-        if sun_revenue_value is not None and expected_sun_revenue is not None
-        else None
-    )
-    raw_sessions_ex = parse_settlement_number((sessions_summary or {}).get("amount_ex_vat"))
-    raw_sessions_diff = (
-        round(raw_sessions_ex - expected_sun_revenue, 2)
-        if raw_sessions_ex is not None and expected_sun_revenue is not None
-        else None
-    )
-    finance_gross_ex = parse_settlement_number((finance_summary or {}).get("tanning_gross_ex_vat"))
-    raw_sessions_gross_diff = (
-        round(raw_sessions_ex - finance_gross_ex, 2)
-        if raw_sessions_ex is not None and finance_gross_ex is not None
-        else None
-    )
-    product_sales_value = settlement_parsed_float(parsed, "product_sales_ex_vat")
-    product_sales_diff = (
-        round(expected_product_sales - product_sales_value, 2)
-        if product_sales_value is not None and expected_product_sales is not None
-        else None
-    )
-    parsed_rows = sun_settlement_parsed_field_rows(parsed)
-    if not parsed_rows:
-        parsed_rows = [
-            settlement_field(
-                "Skjemafelter",
-                "parsed",
-                "Ikke maskinlest ennå",
-                "Originalskjemaet er lagret, men dokumentet har ikke tekstlag eller lesbare felter i parseren.",
-            )
-        ]
-    parser_rows = [
-        settlement_field("Parser", "parser", meta.get("parser"), "Teknisk parsermetadata"),
-        settlement_field("Parser-versjon", "parser_version", meta.get("parser_version"), "Teknisk parsermetadata"),
-        settlement_field("Sikkerhet", "confidence", meta.get("confidence"), "Andel nokkelfelter som ble funnet"),
-        settlement_field("Tekstmetode", "method", meta.get("method"), "Hvordan vedlegget ble lest"),
-        settlement_field("Tekstlinjer", "line_count", meta.get("line_count"), "Antall tekstlinjer hentet fra originalfil"),
-        settlement_field("Sider", "pages_count", meta.get("pages_count"), "Antall PDF-sider hvis kjent"),
-    ]
-    warnings = meta.get("warnings") if isinstance(meta.get("warnings"), list) else []
-    notes = meta.get("notes") if isinstance(meta.get("notes"), list) else []
-    for index, warning in enumerate([*warnings, *notes], start=1):
-        parser_rows.append(settlement_field(f"Merknad {index}", f"parser_note_{index}", warning, "Parser"))
-
-    original = settlement_original_payload(row, "/api/soling/settlements")
-    cards = [
-        api_card("Periode", row.period_label or "Ikke tolket", "", "Fra skjema, filnavn eller dato", "sun2"),
-        api_card("Original", original["sizeLabel"], "", row.attachment_filename or "-", "status"),
-        api_card("Skjemafelter", len(public_parsed), "stk", f"Sikkerhet {format_short_number(float_or_zero(meta.get('confidence')) * 100, 0)} %", "status"),
-        api_card("Beløp NOK", format_short_number(settlement_parsed_float(parsed, "payout_inc_vat") or 0, 2), "kr", "Fra skjema", "revenue"),
-    ]
-    if expected_sun_revenue is not None:
-        cards.append(api_card("Sun2 soling", format_short_number(expected_sun_revenue, 2), "kr", sun_revenue_detail, "sun2"))
-    if sun_revenue_diff is not None:
-        tone = "status" if abs(sun_revenue_diff) <= 1 else "revenue"
-        cards.append(api_card("Avvik soling", format_short_number(sun_revenue_diff, 2), "kr", "Intern månedsomsetning minus skjema eks. mva", tone))
-    if raw_sessions_ex is not None:
-        cards.append(
-            api_card(
-                "Rå enkelttimer",
-                format_short_number(raw_sessions_ex, 2),
-                "kr",
-                f"{int_or_zero((sessions_summary or {}).get('count'))} timer eks. mva",
-                "sun2",
-            )
-        )
-    if raw_sessions_diff is not None:
-        tone = "status" if abs(raw_sessions_diff) <= 1 else "revenue"
-        cards.append(api_card("Råtimer kontroll", format_short_number(raw_sessions_gross_diff or 0, 2), "kr", "Rå enkelttimer minus Sun2 månedsomsetning", tone))
-    if expected_product_sales is not None:
-        cards.append(api_card("Sun2 produktsalg", format_short_number(expected_product_sales, 2), "kr", product_sales_detail, "sun2"))
-    if product_sales_diff is not None:
-        tone = "status" if abs(product_sales_diff) <= 1 else "revenue"
-        cards.append(api_card("Avvik produktsalg", format_short_number(product_sales_diff, 2), "kr", "Sun2 månedsomsetning minus skjema eks. mva", tone))
-    return {
-        "id": row.id,
-        "title": row.period_label or f"Solingsoppgjør {row.id}",
-        "subtitle": row.attachment_filename or row.email_subject or "",
-        "cards": cards,
-        "original": original,
-        "sections": [
-            {"title": "Oppgjørsskjema", "rows": sun_settlement_form_rows(parsed, product_sales_summary, finance_summary, sessions_summary)},
-            {
-                "title": "Kontroll mot intern månedsomsetning",
-                "rows": [
-                    settlement_field("System soling eks. mva", "sun_revenue_source_ex_vat", expected_sun_revenue, sun_revenue_source_label, "Intern månedsomsetning for soling."),
-                    settlement_field("Skjema soling eks. mva", "sun_revenue_ex_vat", sun_revenue_value, "Oppgjørsskjema", "Solomsetning for perioden."),
-                    settlement_field("Avvik soling eks. mva", "sun_revenue_diff_ex_vat", sun_revenue_diff, "Beregnet kontroll", "System soling minus skjema soling."),
-                    settlement_field("System produktsalg eks. mva", "product_sales_source_ex_vat", expected_product_sales, "Sun2 produktsalg", "Intern månedsomsetning for produktsalg."),
-                    settlement_field("Skjema produktsalg eks. mva", "product_sales_ex_vat", product_sales_value, "Oppgjørsskjema", "Produktsalg for perioden."),
-                    settlement_field("Avvik produktsalg eks. mva", "product_sales_diff_ex_vat", product_sales_diff, "Beregnet kontroll", "System produktsalg minus skjema produktsalg."),
-                    settlement_field("Sun2 soling brutto inkl. mva", "sun_finance_gross_inc_vat", (finance_summary or {}).get("tanning_gross_inc_vat"), "Sun2 finanshistorikk", "Medlemssolinger + uregistrerte solinger for perioden."),
-                    settlement_field("Kontrollkilde soling", "sun_revenue_source", sun_revenue_source, "Beregnet kontroll", "Kilden som brukes for system soling i denne perioden."),
-                    settlement_field("Rå enkelttimer eks. mva", "sun_sessions_raw_ex_vat", raw_sessions_ex, "sun2_tanning_sessions", f"{int_or_zero((sessions_summary or {}).get('count'))} enkelttimer i perioden."),
-                    settlement_field("Råtimer mot system soling eks. mva", "sun_sessions_diff_vs_finance_gross_ex_vat", raw_sessions_gross_diff, "Teknisk kontroll", "Rå enkelttimer minus intern månedsomsetning."),
-                ],
-            },
-            {"title": "Nøkkeltall fra skjema", "rows": parsed_rows},
-            {
-                "title": "Tolket periode",
-                "rows": [
-                    settlement_field("Periodeetikett", "period_label", row.period_label, "Tolket fra skjema, filnavn eller dato"),
-                    settlement_field("Periodestart", "period_start", row.period_start, "Første dag i tolket måned"),
-                    settlement_field("Periodeslutt", "period_end", row.period_end, "Siste dag i tolket måned"),
-                    settlement_field("Status", "status", row.status, "Importstatus i Fibaro10"),
-                ],
-            },
-            {
-                "title": "E-post og vedlegg",
-                "rows": [
-                    settlement_field("Avsender", "sender", row.sender, "E-postheader From eller manuell import"),
-                    settlement_field("E-postdato", "email_date", row.email_date, "E-postheader Date"),
-                    settlement_field("Emne", "email_subject", row.email_subject, "E-postheader Subject"),
-                    settlement_field("Gmail UID", "gmail_uid", row.gmail_uid, "Gmail IMAP UID"),
-                    settlement_field("Postboks", "mailbox", row.mailbox, "Gmail IMAP mappe"),
-                    settlement_field("Filnavn", "attachment_filename", row.attachment_filename, "Vedlegg"),
-                    settlement_field("Filtype", "attachment_content_type", row.attachment_content_type, "Vedlegg MIME-type"),
-                    settlement_field("Filstørrelse", "attachment_size", format_file_size(row.attachment_size), "Vedlegg byte-størrelse"),
-                    settlement_field("SHA-256", "attachment_sha256", row.attachment_sha256, "Hash av originalvedlegg"),
-                    settlement_field("Importert", "imported_at", row.imported_at, "Tidspunkt Fibaro10 lagret oppgjøret"),
-                ],
-            },
-            {"title": "Parserkontroll", "rows": parser_rows},
-        ],
-        "raw": row.raw or {},
-    }
-
-
-def sun_settlement_summary_row(
-    row: SettlementImport,
-    product_sales_summary: Optional[Dict[str, Any]] = None,
-    finance_summary: Optional[Dict[str, Any]] = None,
-    sessions_summary: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
-    parsed = row.parsed if isinstance(row.parsed, dict) else {}
-    form_rows = sun_settlement_form_rows(parsed, product_sales_summary, finance_summary, sessions_summary)
-    control_rows = [item for item in form_rows if item.get("group") == "control"]
-    warn_count = len([item for item in form_rows if item.get("status") == "warn"])
-    missing_count = len([item for item in form_rows if item.get("status") == "missing"])
-    status_label = "OK" if not warn_count and not missing_count else "Krever kontroll"
-    expected_sun_revenue, sun_revenue_detail, sun_revenue_source, _ = sun2_tanning_revenue_control_expected(
-        finance_summary,
-        sessions_summary,
-    )
-    sun_revenue_value = settlement_parsed_float(parsed, "sun_revenue_ex_vat")
-    sun_revenue_diff = (
-        round(expected_sun_revenue - sun_revenue_value, 2)
-        if sun_revenue_value is not None and expected_sun_revenue is not None
-        else None
-    )
-    if expected_sun_revenue is None:
-        sun_revenue_control_status = "Mangler Sun2-grunnlag"
-    elif sun_revenue_diff is not None and abs(sun_revenue_diff) <= 1:
-        sun_revenue_control_status = "OK"
-    else:
-        sun_revenue_control_status = "Avvik"
-    raw_sessions_ex = parse_settlement_number((sessions_summary or {}).get("amount_ex_vat"))
-    raw_sessions_diff = (
-        round(raw_sessions_ex - expected_sun_revenue, 2)
-        if raw_sessions_ex is not None and expected_sun_revenue is not None
-        else None
-    )
-    finance_gross_ex = parse_settlement_number((finance_summary or {}).get("tanning_gross_ex_vat"))
-    raw_sessions_gross_diff = (
-        round(raw_sessions_ex - finance_gross_ex, 2)
-        if raw_sessions_ex is not None and finance_gross_ex is not None
-        else None
-    )
-    raw_sessions_status = "Mangler råtimer"
-    if raw_sessions_ex is not None and finance_gross_ex is not None:
-        raw_sessions_status = "OK" if abs(raw_sessions_gross_diff or 0) <= 1 else "Avvik"
-    expected_product_sales, product_sales_detail = sun2_product_sales_expected(product_sales_summary)
-    product_sales_value = settlement_parsed_float(parsed, "product_sales_ex_vat")
-    product_sales_diff = (
-        round(expected_product_sales - product_sales_value, 2)
-        if product_sales_value is not None and expected_product_sales is not None
-        else None
-    )
-    if expected_product_sales is None:
-        product_control_status = "Mangler Sun2-grunnlag"
-    elif product_sales_diff is not None and abs(product_sales_diff) <= 1:
-        product_control_status = "OK"
-    else:
-        product_control_status = "Avvik"
-    return {
-        **settlement_row_api(row),
-        "sum_check_status": status_label,
-        "sum_check_warnings": warn_count,
-        "missing_fields": missing_count,
-        "sun_revenue_source_ex_vat": expected_sun_revenue,
-        "sun_revenue_source": sun_revenue_source,
-        "sun_revenue_source_detail": sun_revenue_detail,
-        "sun_revenue_diff_ex_vat": sun_revenue_diff,
-        "sun_revenue_control_status": sun_revenue_control_status,
-        "sun_sessions_count": int_or_zero((sessions_summary or {}).get("count")),
-        "sun_sessions_source_ex_vat": raw_sessions_ex,
-        "sun_sessions_diff_vs_finance_ex_vat": raw_sessions_diff,
-        "sun_sessions_diff_vs_finance_gross_ex_vat": raw_sessions_gross_diff,
-        "sun_sessions_control_status": raw_sessions_status,
-        "sun_finance_gross_ex_vat": finance_gross_ex,
-        "product_sales_source_ex_vat": expected_product_sales,
-        "product_sales_source_detail": product_sales_detail,
-        "product_sales_diff_ex_vat": product_sales_diff,
-        "product_sales_control_status": product_control_status,
-    }
-
-
-async def sun_settlement_module_payload(session) -> Dict[str, Any]:
-    settlement_rows = (
-        await session.execute(
-            select(SettlementImport)
-            .where(SettlementImport.provider == SUN_SETTLEMENT_PROVIDER)
-            .order_by(SettlementImport.period_start.desc().nullslast(), SettlementImport.imported_at.desc())
-            .limit(200)
-        )
-    ).scalars().all()
-    latest_import_settlement = (
-        await session.execute(
-            select(SettlementImport)
-            .where(SettlementImport.provider == SUN_SETTLEMENT_PROVIDER)
-            .order_by(SettlementImport.imported_at.desc())
-            .limit(1)
-        )
-    ).scalars().first()
-    changed_any = False
-    for row in settlement_rows:
-        changed_any = ensure_settlement_parsed(row) or changed_any
-    if changed_any:
-        await session.commit()
-
-    total_settlements = (
-        await session.execute(
-            select(func.count(SettlementImport.id)).where(SettlementImport.provider == SUN_SETTLEMENT_PROVIDER)
-        )
-    ).scalar_one()
-    unknown_period_count = (
-        await session.execute(
-            select(func.count(SettlementImport.id))
-            .where(SettlementImport.provider == SUN_SETTLEMENT_PROVIDER)
-            .where(SettlementImport.period_start.is_(None))
-        )
-    ).scalar_one()
-    parsed_period_count = max(0, int_or_zero(total_settlements) - int_or_zero(unknown_period_count))
-    product_sales_summaries: Dict[int, Dict[str, Any]] = {}
-    finance_summaries: Dict[int, Dict[str, Any]] = {}
-    sessions_summaries: Dict[int, Dict[str, Any]] = {}
-    for row in settlement_rows:
-        if row.id and row.period_start and row.period_end:
-            product_sales_summaries[row.id] = await sun2_product_sales_period_summary(session, row.period_start, row.period_end)
-            finance_summaries[row.id] = await sun2_finance_settlement_period_summary(session, row.period_start, row.period_end)
-            sessions_summaries[row.id] = await sun2_tanning_sessions_period_summary(session, row.period_start, row.period_end)
-    product_control_rows = [
-        sun_settlement_summary_row(
-            row,
-            product_sales_summaries.get(row.id or 0),
-            finance_summaries.get(row.id or 0),
-            sessions_summaries.get(row.id or 0),
-        )
-        for row in settlement_rows
-    ]
-    sun_revenue_control_ok = len([row for row in product_control_rows if row.get("sun_revenue_control_status") == "OK"])
-    sun_revenue_control_missing = len([row for row in product_control_rows if row.get("sun_revenue_control_status") == "Mangler Sun2-grunnlag"])
-    raw_sessions_control_avvik = len([row for row in product_control_rows if row.get("sun_sessions_control_status") == "Avvik"])
-    product_control_ok = len([row for row in product_control_rows if row.get("product_sales_control_status") == "OK"])
-    product_control_missing = len([row for row in product_control_rows if row.get("product_sales_control_status") == "Mangler Sun2-grunnlag"])
-    return {
-        "title": "Soling · Oppgjør",
-        "subtitle": "Manuell innlasting av Altera-kreditnotaer og kontroll av skjemaets egne summer.",
-        "cards": [
-            api_card("Oppgjør importert", total_settlements, "stk", f"{parsed_period_count} perioder tolket", "sun2", href="/soling/oppgjor"),
-            api_card(
-                "Siste import",
-                format_local_datetime(latest_import_settlement.imported_at) if latest_import_settlement else "-",
-                "",
-                latest_import_settlement.period_label if latest_import_settlement else "Ingen importerte oppgjør",
-                "status",
-                href="/soling/oppgjor",
-            ),
-            api_card("Mangler periode", unknown_period_count, "stk", "Krever manuell kontroll eller OCR", "status", href="/soling/oppgjor"),
-            api_card("Kontroll soling", sun_revenue_control_ok, "OK", f"{sun_revenue_control_missing} mangler Sun2-grunnlag", "sun2", href="/soling/oppgjor"),
-            api_card("Råtimeavvik", raw_sessions_control_avvik, "stk", "Rå enkelttimer mot Sun2 månedsomsetning", "revenue" if raw_sessions_control_avvik else "status", href="/soling/oppgjor"),
-            api_card("Kontroll produktsalg", product_control_ok, "OK", f"{product_control_missing} mangler Sun2-grunnlag", "sun2", href="/soling/oppgjor"),
-        ],
-        "charts": [],
-        "tables": [
-            api_table(
-                "Solingsoppgjør",
-                [
-                    "period_label",
-                    "period_start",
-                    "period_end",
-                    "status",
-                    "sum_check_status",
-                    "sun_revenue_ex_vat",
-                    "sun_revenue_source_ex_vat",
-                    "sun_revenue_diff_ex_vat",
-                    "sun_revenue_control_status",
-                    "sun_sessions_count",
-                    "sun_sessions_source_ex_vat",
-                    "sun_sessions_diff_vs_finance_ex_vat",
-                    "sun_sessions_diff_vs_finance_gross_ex_vat",
-                    "sun_sessions_control_status",
-                    "sun_finance_gross_ex_vat",
-                    "product_sales_ex_vat",
-                    "product_sales_source_ex_vat",
-                    "product_sales_diff_ex_vat",
-                    "product_sales_control_status",
-                    "transaction_fee_ex_vat",
-                    "service_fee_ex_vat",
-                    "marketing_sms_fee_ex_vat",
-                    "marketing_email_fee_ex_vat",
-                    "sum_ex_vat",
-                    "vat_25_percent",
-                    "payout_inc_vat",
-                    "parser_confidence",
-                    "attachment_filename",
-                    "imported_at",
-                ],
-                product_control_rows,
-            ),
-        ],
-        "actions": [],
-        "uploadEndpoint": "/api/actions/soling/upload-settlement",
-    }
-
-
-async def parking_settlement_module_payload(session) -> Dict[str, Any]:
-    settlement_rows = (
-        await session.execute(
-            select(SettlementImport)
-            .where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
-            .order_by(SettlementImport.period_start.desc().nullslast(), SettlementImport.imported_at.desc())
-            .limit(200)
-        )
-    ).scalars().all()
-    latest_import_settlement = (
-        await session.execute(
-            select(SettlementImport)
-            .where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
-            .order_by(SettlementImport.imported_at.desc())
-            .limit(1)
-        )
-    ).scalars().first()
-    changed_any = False
-    for row in settlement_rows:
-        changed_any = ensure_settlement_parsed(row) or changed_any
-    if changed_any:
-        await session.commit()
-
-    total_settlements = (
-        await session.execute(
-            select(func.count(SettlementImport.id)).where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
-        )
-    ).scalar_one()
-    unknown_period_count = (
-        await session.execute(
-            select(func.count(SettlementImport.id))
-            .where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
-            .where(SettlementImport.period_start.is_(None))
-        )
-    ).scalar_one()
-    parsed_period_count = max(0, int_or_zero(total_settlements) - int_or_zero(unknown_period_count))
-    control_rows = []
-    for row in settlement_rows[:36]:
-        if not row.period_start or not row.period_end:
-            continue
-        start_dt = datetime.combine(row.period_start, time.min)
-        end_dt = datetime.combine(row.period_end + timedelta(days=1), time.min)
-        source_summaries = await parking_period_source_summaries(session, start_dt, end_dt)
-        easypark_summary = source_summaries["easypark"]
-        flowbird_summary = source_summaries["flowbird"]
-        other_summary = source_summaries["other"]
-        count_value = int_or_zero(easypark_summary.get("count")) + int_or_zero(flowbird_summary.get("count")) + int_or_zero(other_summary.get("count"))
-        paid_value = (
-            float_or_zero(easypark_summary.get("paid_inc_vat"))
-            + float_or_zero(flowbird_summary.get("paid_inc_vat"))
-            + float_or_zero(other_summary.get("paid_inc_vat"))
-        )
-        flowbird_ex_vat = round(float_or_zero(flowbird_summary.get("paid_ex_vat")), 2)
-        easypark_source_ex_vat = round(float_or_zero(easypark_summary.get("paid_ex_vat")), 2)
-        gross_coin_card = settlement_parsed_float(row.parsed, "gross_coin_card_ex_vat")
-        easypark_ex_vat = settlement_parsed_float(row.parsed, "easypark_ex_vat")
-        flowbird_source_diff = round(gross_coin_card - flowbird_ex_vat, 2) if gross_coin_card is not None else None
-        easypark_source_diff = round(easypark_ex_vat - easypark_source_ex_vat, 2) if easypark_ex_vat is not None else None
-        control_rows.append(
-            {
-                "period_label": row.period_label,
-                "period_start": row.period_start.isoformat(),
-                "period_end": row.period_end.isoformat(),
-                "parking_count": count_value,
-                "parking_paid": round(paid_value, 2),
-                "flowbird_source_count": int_or_zero(flowbird_summary.get("count")),
-                "flowbird_source_paid_ex_vat": flowbird_ex_vat,
-                "gross_coin_card_ex_vat": settlement_parsed_value(row.parsed, "gross_coin_card_ex_vat"),
-                "flowbird_source_diff_ex_vat": flowbird_source_diff,
-                "easypark_source_count": int_or_zero(easypark_summary.get("count")),
-                "easypark_source_paid_ex_vat": easypark_source_ex_vat,
-                "easypark_source_diff_ex_vat": easypark_source_diff,
-                "other_source_count": int_or_zero(other_summary.get("count")),
-                "easypark_ex_vat": settlement_parsed_value(row.parsed, "easypark_ex_vat"),
-                "payout_inc_vat": settlement_parsed_value(row.parsed, "payout_inc_vat"),
-                "average_paid": round(paid_value / count_value, 2) if count_value else None,
-                "attachment_filename": row.attachment_filename,
-                "status": row.status,
-            }
-        )
-    actions = [
-        {
-            "key": "fetch-parking-settlements",
-            "label": "Hent Park Nordic fra Gmail",
-            "method": "POST",
-            "path": "/api/actions/parkering/fetch-settlements",
-            "confirm": f"Hente nye parkeringsoppgjør fra Gmail fra {PARKING_SETTLEMENT_SENDER}?",
-            "tone": "primary",
-        }
-    ]
-    return {
-        "title": "Parkering · Oppgjør",
-        "subtitle": "Importer månedlige parkeringsoppgjør fra Gmail og kontroller EasyPark og Flowbird/Park Nordic mot interne kildetall.",
-        "cards": [
-            api_card(
-                "Oppgjør importert",
-                total_settlements,
-                "stk",
-                f"{parsed_period_count} perioder tolket",
-                "parking",
-                href="/parkering/oppgjor",
-            ),
-            api_card(
-                "Siste import",
-                format_local_datetime(latest_import_settlement.imported_at) if latest_import_settlement else "-",
-                "",
-                latest_import_settlement.period_label if latest_import_settlement else "Ingen importerte oppgjør",
-                "status",
-                href="/parkering/oppgjor",
-            ),
-            api_card(
-                "Ikke periodetolket",
-                unknown_period_count,
-                "stk",
-                "Krever manuell kontroll av filnavn/emne",
-                "status",
-                href="/parkering/oppgjor",
-            ),
-            api_card(
-                "Gmail",
-                "Klar" if settlement_gmail_configured() else "Mangler",
-                "",
-                "Bruker egne SETTLEMENT-vars eller EasyPark-vars som fallback",
-                "status",
-                href="/admin/teknisk",
-            ),
-        ],
-        "charts": [],
-        "tables": [
-            api_table(
-                "Parkeringsoppgjør",
-                [
-                    "period_label",
-                    "period_start",
-                    "period_end",
-                    "status",
-                    "easypark_ex_vat",
-                    "easypark_inc_vat_estimate",
-                    "payout_inc_vat",
-                    "parser_confidence",
-                    "attachment_filename",
-                    "email_date",
-                    "imported_at",
-                ],
-                [settlement_row_api(row) for row in settlement_rows],
-            ),
-            api_table(
-                "Kontroll mot interne parkeringstall",
-                [
-                    "period_label",
-                    "period_start",
-                    "period_end",
-                    "parking_count",
-                    "parking_paid",
-                    "flowbird_source_count",
-                    "flowbird_source_paid_ex_vat",
-                    "gross_coin_card_ex_vat",
-                    "flowbird_source_diff_ex_vat",
-                    "easypark_source_count",
-                    "easypark_source_paid_ex_vat",
-                    "easypark_source_diff_ex_vat",
-                    "other_source_count",
-                    "easypark_ex_vat",
-                    "payout_inc_vat",
-                    "average_paid",
-                    "attachment_filename",
-                    "status",
-                ],
-                control_rows,
-            ),
-        ],
-        "actions": actions,
-    }
-
-
-async def fetch_parking_settlements_from_gmail(session, since_days: int = 370, limit: int = 80) -> Dict[str, Any]:
-    gmail_email, app_password = settlement_gmail_credentials()
-    sender = os.getenv("PARKING_SETTLEMENT_SENDER", PARKING_SETTLEMENT_SENDER)
-    imap_host = os.getenv("SETTLEMENT_GMAIL_IMAP_HOST", "imap.gmail.com")
-    since = (datetime.now() - timedelta(days=max(1, since_days))).strftime("%d-%b-%Y")
-    imported = 0
-    skipped = 0
-    scanned_messages = 0
-    scanned_attachments = 0
-    mailbox_errors: list[str] = []
-    seen_message_keys: set[str] = set()
-    seen_hashes: set[str] = set()
-
-    with imaplib.IMAP4_SSL(imap_host) as mailbox:
-        mailbox.login(gmail_email, app_password)
-        mailbox_names = []
-        for configured_mailbox in settlement_mailboxes():
-            mailbox_name = discover_gmail_all_mailbox(mailbox) if configured_mailbox == "__GMAIL_ALL__" else configured_mailbox
-            if mailbox_name and mailbox_name not in mailbox_names:
-                mailbox_names.append(mailbox_name)
-        for mailbox_name in mailbox_names:
-            status = select_gmail_mailbox(mailbox, mailbox_name)
-            if status != "OK":
-                mailbox_errors.append(f"Kunne ikke åpne {mailbox_name}")
-                continue
-            status, data = mailbox.uid("search", None, f'(FROM "{sender}" SINCE "{since}")')
-            if status != "OK" or not data or not data[0]:
-                continue
-            message_uids = data[0].split()[-limit:]
-            for uid in message_uids:
-                status, raw_data = mailbox.uid("fetch", uid, "(RFC822)")
-                if status != "OK" or not raw_data:
-                    continue
-                raw_part = raw_data[0]
-                if not isinstance(raw_part, tuple) or len(raw_part) < 2:
-                    continue
-                raw_message = raw_part[1]
-                message = email_lib.message_from_bytes(raw_message)
-                message_id = (message.get("Message-ID") or f"{mailbox_name}:{uid.decode(errors='ignore')}").strip()
-                message_key = f"{mailbox_name}:{message_id}"
-                if message_key in seen_message_keys:
-                    continue
-                seen_message_keys.add(message_key)
-                scanned_messages += 1
-                subject = decoded_mime_header(message.get("Subject"))
-                sender_value = decoded_mime_header(message.get("From"))
-                email_date = message_email_date(message.get("Date"))
-                for attachment in iter_message_attachments(message):
-                    scanned_attachments += 1
-                    sha = attachment["sha256"]
-                    if sha in seen_hashes:
-                        skipped += 1
-                        continue
-                    seen_hashes.add(sha)
-                    existing = (
-                        await session.execute(
-                            select(SettlementImport.id)
-                            .where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
-                            .where(SettlementImport.attachment_sha256 == sha)
-                            .limit(1)
-                        )
-                    ).scalars().first()
-                    if existing:
-                        skipped += 1
-                        continue
-                    parsed_settlement = parse_parking_settlement_attachment(
-                        attachment["filename"],
-                        attachment["content_type"],
-                        attachment["bytes"],
-                    )
-                    period_start, period_end, period_label = parse_settlement_period(
-                        f"{subject} {attachment['filename']}",
-                        email_date,
-                    )
-                    if not period_start and parsed_settlement.get("reported_period_label"):
-                        period_start, period_end, period_label = parse_settlement_period(
-                            str(parsed_settlement.get("reported_period_label")),
-                            email_date,
-                        )
-                    parser_meta = settlement_parsed_meta(parsed_settlement)
-                    session.add(
-                        SettlementImport(
-                            provider=PARKING_SETTLEMENT_PROVIDER,
-                            source="gmail",
-                            sender=sender_value,
-                            gmail_message_id=message_id,
-                            gmail_uid=uid.decode(errors="ignore"),
-                            email_subject=subject,
-                            email_date=email_date,
-                            mailbox=mailbox_name,
-                            period_start=period_start,
-                            period_end=period_end,
-                            period_label=period_label,
-                            attachment_filename=attachment["filename"],
-                            attachment_content_type=attachment["content_type"],
-                            attachment_sha256=sha,
-                            attachment_size=len(attachment["bytes"]),
-                            attachment_bytes=attachment["bytes"],
-                            status="tolket" if float_or_zero(parser_meta.get("confidence")) >= 0.6 else "krever kontroll",
-                            parsed=parsed_settlement,
-                            raw={
-                                "mailbox": mailbox_name,
-                                "sender_filter": sender,
-                                "gmail_account": gmail_email,
-                                "settlement_parser": parser_meta,
-                            },
-                        )
-                    )
-                    imported += 1
-    return {
-        "imported": imported,
-        "skipped": skipped,
-        "scanned_messages": scanned_messages,
-        "scanned_attachments": scanned_attachments,
-        "sender": sender,
-        "since_days": since_days,
-        "mailbox_errors": mailbox_errors,
-    }
-
-
-def reconciliation_diff(system_value: Optional[float], settlement_value: Optional[float]) -> Optional[float]:
-    difference = reconciliation_difference(system_value, settlement_value)
-    return round(difference, 2) if difference is not None else None
-
-
-def reconciliation_status(system_value: Optional[float], settlement_value: Optional[float], diff_value: Optional[float]) -> str:
-    if settlement_value is None:
-        return "Mangler oppgjør"
-    if system_value is None:
-        return "Mangler systemgrunnlag"
-    result = evaluate_reconciliation(
-        check_id="legacy-settlement-control",
-        domain="Oppgjør",
-        title="Oppgjørskontroll",
-        actual_label="System",
-        actual_value=system_value,
-        reference_label="Oppgjør",
-        reference_value=settlement_value,
-        unit="kr",
-        absolute_tolerance=1,
-        critical_multiplier=1,
-    )
-    return "OK" if result["status"] == "ok" else "Avvik"
-
-
-def settlement_amount_sum(*values: Optional[float]) -> Optional[float]:
-    parsed_values = [parse_settlement_number(value) for value in values]
-    if not any(value is not None for value in parsed_values):
-        return None
-    return round(sum(float_or_zero(value) for value in parsed_values), 2)
-
-
-async def revenue_settlement_reconciliation_rows(session, limit: int = 36) -> list[Dict[str, Any]]:
-    parking_settlements = (
-        await session.execute(
-            select(SettlementImport)
-            .where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
-            .where(SettlementImport.period_start.is_not(None))
-            .where(SettlementImport.period_end.is_not(None))
-            .order_by(SettlementImport.period_start.desc(), SettlementImport.imported_at.desc())
-            .limit(limit * 2)
-        )
-    ).scalars().all()
-    sun_settlements = (
-        await session.execute(
-            select(SettlementImport)
-            .where(SettlementImport.provider == SUN_SETTLEMENT_PROVIDER)
-            .where(SettlementImport.period_start.is_not(None))
-            .where(SettlementImport.period_end.is_not(None))
-            .order_by(SettlementImport.period_start.desc(), SettlementImport.imported_at.desc())
-            .limit(limit * 2)
-        )
-    ).scalars().all()
-
-    periods: dict[tuple[date, date], Dict[str, Any]] = {}
-    for row in parking_settlements:
-        if not row.period_start or not row.period_end:
-            continue
-        key = (row.period_start, row.period_end)
-        periods.setdefault(key, {"start": row.period_start, "end": row.period_end})
-        periods[key].setdefault("parking", row)
-    for row in sun_settlements:
-        if not row.period_start or not row.period_end:
-            continue
-        key = (row.period_start, row.period_end)
-        periods.setdefault(key, {"start": row.period_start, "end": row.period_end})
-        periods[key].setdefault("sun", row)
-
-    rows: list[Dict[str, Any]] = []
-    for item in sorted(periods.values(), key=lambda value: value["start"], reverse=True)[:limit]:
-        start = item["start"]
-        end = item["end"]
-        parking_row: Optional[SettlementImport] = item.get("parking")
-        sun_row: Optional[SettlementImport] = item.get("sun")
-        period_label = (
-            (parking_row.period_label if parking_row else None)
-            or (sun_row.period_label if sun_row else None)
-            or month_label(start)
-        )
-
-        parking_source = await parking_period_source_summaries(
-            session,
-            datetime.combine(start, time.min),
-            datetime.combine(end + timedelta(days=1), time.min),
-        )
-        parking_system_ex = round(
-            float_or_zero(parking_source["easypark"].get("paid_ex_vat"))
-            + float_or_zero(parking_source["flowbird"].get("paid_ex_vat"))
-            + float_or_zero(parking_source["other"].get("paid_ex_vat")),
-            2,
-        )
-        parking_settlement_ex = None
-        if parking_row:
-            parking_settlement_ex = settlement_amount_sum(
-                settlement_parsed_float(parking_row.parsed, "gross_coin_card_ex_vat"),
-                settlement_parsed_float(parking_row.parsed, "easypark_ex_vat"),
-            )
-        parking_diff = reconciliation_diff(parking_system_ex, parking_settlement_ex)
-        parking_status = reconciliation_status(parking_system_ex, parking_settlement_ex, parking_diff)
-
-        finance_summary = await sun2_finance_settlement_period_summary(session, start, end)
-        sessions_summary = await sun2_tanning_sessions_period_summary(session, start, end)
-        sun_system_ex, _detail, _source, _source_label = sun2_tanning_revenue_control_expected(
-            finance_summary,
-            sessions_summary,
-        )
-        sun_settlement_ex = settlement_parsed_float(sun_row.parsed, "sun_revenue_ex_vat") if sun_row else None
-        sun_diff = reconciliation_diff(sun_system_ex, sun_settlement_ex)
-        sun_status = reconciliation_status(sun_system_ex, sun_settlement_ex, sun_diff)
-
-        system_total = settlement_amount_sum(parking_system_ex, sun_system_ex)
-        settlement_total = settlement_amount_sum(parking_settlement_ex, sun_settlement_ex)
-        total_diff = reconciliation_diff(system_total, settlement_total)
-        if parking_status == "OK" and sun_status == "OK":
-            status = "OK"
-        elif "Avvik" in {parking_status, sun_status}:
-            status = "Avvik"
-        else:
-            status = "Mangler grunnlag"
-
-        rows.append(
-            {
-                "period_label": period_label,
-                "period_start": start,
-                "period_end": end,
-                "parking_settlement_id": parking_row.id if parking_row else None,
-                "parking_settlement_imported_at": parking_row.imported_at if parking_row else None,
-                "parking_system_ex_vat": parking_system_ex,
-                "parking_settlement_ex_vat": parking_settlement_ex,
-                "parking_diff_ex_vat": parking_diff,
-                "parking_control_status": parking_status,
-                "sun_settlement_id": sun_row.id if sun_row else None,
-                "sun_settlement_imported_at": sun_row.imported_at if sun_row else None,
-                "sun_system_ex_vat": sun_system_ex,
-                "sun_settlement_ex_vat": sun_settlement_ex,
-                "sun_diff_ex_vat": sun_diff,
-                "sun_control_status": sun_status,
-                "system_total_ex_vat": system_total,
-                "settlement_total_ex_vat": settlement_total,
-                "total_diff_ex_vat": total_diff,
-                "status": status,
-            }
-        )
-    return rows
+from fibaro_core.services.settlements.parsing import PARKING_SETTLEMENT_PROVIDER
+from fibaro_core.services.settlements.parsing import SUN_SETTLEMENT_PROVIDER
+from fibaro_core.services.settlements.mail import PARKING_SETTLEMENT_SENDER
+from fibaro_core.services.settlements.parsing import SETTLEMENT_ATTACHMENT_EXTENSIONS
+from fibaro_core.services.settlements.parsing import SETTLEMENT_PARSER_VERSION
+from fibaro_core.services.settlements.parsing import NORWEGIAN_MONTHS
+
+
+from fibaro_core.services.settlements.parsing import decoded_mime_header
+
+
+from fibaro_core.services.settlements.mail import message_email_date
+
+
+from fibaro_core.services.settlements.mail import settlement_gmail_credentials
+
+
+from fibaro_core.services.settlements.mail import settlement_mailboxes
+
+
+from fibaro_core.services.settlements.mail import settlement_gmail_configured
+
+
+from fibaro_core.services.settlements.mail import select_gmail_mailbox
+
+
+from fibaro_core.services.settlements.mail import parse_imap_mailbox_name
+
+
+from fibaro_core.services.settlements.mail import discover_gmail_all_mailbox
+
+
+from fibaro_core.services.settlements.parsing import is_settlement_attachment
+
+
+from fibaro_core.services.settlements.parsing import iter_message_attachments
+
+
+from fibaro_core.services.settlements.parsing import parse_settlement_period
+
+
+from fibaro_core.services.settlements.parsing import settlement_decode_text
+
+
+from fibaro_core.services.settlements.parsing import settlement_text_lines
+
+
+from fibaro_core.services.settlements.parsing import extract_settlement_text
+
+
+from fibaro_core.services.settlements.parsing import SETTLEMENT_NUMBER_RE
+
+
+from fibaro_core.services.settlements.parsing import parse_settlement_number
+
+
+from fibaro_core.services.settlements.parsing import settlement_numbers_from_line
+
+
+from fibaro_core.services.settlements.parsing import settlement_number_value
+
+
+from fibaro_core.services.settlements.parsing import settlement_line_source
+
+
+from fibaro_core.services.settlements.parsing import settlement_parse_date_from_line
+
+
+from fibaro_core.services.settlements.parsing import parse_parking_settlement_text
+
+
+from fibaro_core.services.settlements.parsing import parse_parking_settlement_attachment
+
+
+from fibaro_core.services.settlements.parsing import sun_settlement_number_from_line
+
+
+from fibaro_core.services.settlements.parsing import SUN_SETTLEMENT_AMOUNT_FIELDS
+
+
+from fibaro_core.services.settlements.parsing import normalize_sun_creditnote_signs
+
+
+from fibaro_core.services.settlements.parsing import parse_sun_settlement_text
+
+
+from fibaro_core.services.settlements.parsing import parse_sun_settlement_attachment
+
+
+from fibaro_core.services.settlements.parsing import parse_settlement_attachment_for_provider
+
+
+from fibaro_core.services.settlements.parsing import settlement_period_from_parsed_dates
+
+
+from fibaro_core.services.settlements.parsing import settlement_public_parsed
+
+
+from fibaro_core.services.settlements.parsing import settlement_parsed_meta
+
+
+from fibaro_core.services.settlements.parsing import settlement_parsed_value
+
+
+from fibaro_core.services.settlements.parsing import settlement_parsed_float
+
+
+from fibaro_core.services.settlements.parsing import settlement_needs_parse
+
+
+from fibaro_core.services.settlements.parsing import ensure_settlement_parsed
+
+
+from fibaro_core.services.settlements.parsing import settlement_field_source
+
+
+from fibaro_core.services.settlements.parsing import settlement_field_confidence
+
+
+from fibaro_core.services.settlements.presentation import settlement_row_api
+
+
+from fibaro_core.services.presentation import format_file_size
+
+
+from fibaro_core.services.settlements.presentation import settlement_field
+
+
+from fibaro_core.services.settlements.controls import settlement_sum_or_none
+
+
+from fibaro_core.services.settlements.presentation import settlement_form_field
+
+
+from fibaro_core.services.settlements.controls import settlement_source_expected
+
+
+from fibaro_core.services.settlements.controls import sun2_product_sales_period_summary
+
+
+from fibaro_core.services.settlements.controls import sun2_product_sales_expected
+
+
+from fibaro_core.services.settlements.controls import sun2_finance_settlement_period_summary
+
+
+from fibaro_core.services.settlements.controls import sun2_tanning_revenue_expected
+
+
+from fibaro_core.services.settlements.controls import sun2_tanning_sessions_revenue_expected
+
+
+from fibaro_core.services.settlements.controls import sun2_tanning_revenue_control_expected
+
+
+from fibaro_core.services.settlements.controls import sun2_tanning_sessions_period_summary
+
+
+from fibaro_core.services.settlements.controls import settlement_form_rows
+
+
+from fibaro_core.services.settlements.controls import sun_settlement_form_rows
+
+
+from fibaro_core.services.settlements.presentation import settlement_original_payload
+
+
+from fibaro_core.services.settlements.presentation import SETTLEMENT_PARSED_FIELD_LABELS
+
+
+from fibaro_core.services.settlements.presentation import SUN_SETTLEMENT_PARSED_FIELD_LABELS
+
+
+from fibaro_core.services.settlements.presentation import parsed_field_rows_for_labels
+
+
+from fibaro_core.services.settlements.presentation import settlement_parsed_field_rows
+
+
+from fibaro_core.services.settlements.presentation import sun_settlement_parsed_field_rows
+
+
+from fibaro_core.services.settlements.presentation import settlement_detail_payload
+
+
+from fibaro_core.services.settlements.presentation import sun_settlement_detail_payload
+
+
+from fibaro_core.services.settlements.presentation import sun_settlement_summary_row
+
+
+from fibaro_core.services.settlements.presentation import sun_settlement_module_payload
+
+
+from fibaro_core.services.settlements.presentation import parking_settlement_module_payload
+
+
+from fibaro_core.services.settlements.mail import fetch_parking_settlements_from_gmail
+
+
+from fibaro_core.services.settlements.reconciliation import reconciliation_diff
+
+
+from fibaro_core.services.settlements.reconciliation import reconciliation_status
+
+
+from fibaro_core.services.settlements.reconciliation import settlement_amount_sum
+
+
+from fibaro_core.services.settlements.reconciliation import revenue_settlement_reconciliation_rows
 
 
 async def latest_energy_reconciliation_check(session) -> Dict[str, Any]:
@@ -32808,47 +29630,10 @@ async def parking_period_summary(session, label: str, start_at: datetime, end_at
     return {"label": label, "count": row[0] or 0, "paid": row[1] or 0}
 
 
-def parking_source_control_key(source_system: Optional[str]) -> str:
-    source = (source_system or "").strip().lower()
-    if source == "easypark":
-        return "easypark"
-    if source == "flowbird-parknordic" or "flowbird" in source:
-        return "flowbird"
-    return "other"
+from fibaro_core.services.settlements.source_queries import parking_source_control_key
 
 
-async def parking_period_source_summaries(session, start_at: datetime, end_at: datetime) -> Dict[str, Dict[str, Any]]:
-    rows = (
-        await session.execute(
-            select(
-                ParkingSession.source_system,
-                func.count(ParkingSession.id),
-                func.coalesce(func.sum(ParkingSession.fee_ex_vat), 0),
-                func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0),
-            )
-            .where(ParkingSession.start_time >= start_at)
-            .where(ParkingSession.start_time < end_at)
-            .group_by(ParkingSession.source_system)
-        )
-    ).all()
-    summaries: Dict[str, Dict[str, Any]] = {
-        "easypark": {"label": "EasyPark", "sources": [], "count": 0, "paid_ex_vat": 0.0, "paid_inc_vat": 0.0},
-        "flowbird": {"label": "flowbird-parknordic", "sources": [], "count": 0, "paid_ex_vat": 0.0, "paid_inc_vat": 0.0},
-        "other": {"label": "Andre kilder", "sources": [], "count": 0, "paid_ex_vat": 0.0, "paid_inc_vat": 0.0},
-    }
-    for source_system, count_value, paid_ex_vat, paid_inc_vat in rows:
-        key = parking_source_control_key(source_system)
-        item = summaries[key]
-        source_label = (source_system or "").strip() or "-"
-        if source_label not in item["sources"]:
-            item["sources"].append(source_label)
-        item["count"] += int_or_zero(count_value)
-        item["paid_ex_vat"] += float_or_zero(paid_ex_vat)
-        item["paid_inc_vat"] += float_or_zero(paid_inc_vat)
-    for item in summaries.values():
-        item["paid_ex_vat"] = round(float_or_zero(item.get("paid_ex_vat")), 2)
-        item["paid_inc_vat"] = round(float_or_zero(item.get("paid_inc_vat")), 2)
-    return summaries
+from fibaro_core.services.settlements.source_queries import parking_period_source_summaries
 
 
 def easypark_recent_period() -> tuple[date, date]:
