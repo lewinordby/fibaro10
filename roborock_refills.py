@@ -43,11 +43,29 @@ def _resource_label(value: Any, stored_label: Any) -> str:
     return roborock_resource_status_label(value, stored_label)
 
 
-def _transition_kind(row: Any) -> Optional[str]:
+def _int_value(value: Any) -> Optional[int]:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _transition_kind(row: Any, provider: str) -> Optional[str]:
     if str(_row_value(row, "field_name") or "") != "clear_water_status":
         return None
     previous_value = _row_value(row, "previous_value")
     current_value = _row_value(row, "current_value")
+    if provider == "dreame":
+        previous_code = _int_value(previous_value)
+        current_code = _int_value(current_value)
+        # Aqua10 reports the removable clean-water tank as code 1 while it is
+        # out of the dock. Replacing it with an OK tank (code 0) completes the
+        # refill. Code 2 is only a low-water warning and is not a refill itself.
+        if current_code == 1 and previous_code != 1:
+            return "empty"
+        if previous_code == 1 and current_code == 0:
+            return "refilled"
+        return None
     previous = _resource_label(previous_value, _row_value(row, "previous_label"))
     current = _resource_label(current_value, _row_value(row, "current_label"))
     if previous == "OK" and current == "Tom":
@@ -61,13 +79,12 @@ def _transition_kind(row: Any) -> Optional[str]:
         "Ikke montert",
     }:
         return None
-    try:
-        if int(previous_value) == 0 and int(current_value) != 0:
-            return "empty"
-        if int(previous_value) != 0 and int(current_value) == 0:
-            return "refilled"
-    except (TypeError, ValueError):
-        pass
+    previous_code = _int_value(previous_value)
+    current_code = _int_value(current_value)
+    if previous_code == 0 and current_code not in {None, 0}:
+        return "empty"
+    if previous_code not in {None, 0} and current_code == 0:
+        return "refilled"
     return None
 
 
@@ -93,8 +110,7 @@ def build_refill_log(
         (
             row
             for row in robots
-            if str(_row_value(row, "provider") or "roborock") == "roborock"
-            and (capable is None or str(_row_value(row, "duid") or "") in capable)
+            if capable is None or str(_row_value(row, "duid") or "") in capable
         ),
         key=cleaning_robot_sort_key,
     )
@@ -102,12 +118,16 @@ def build_refill_log(
         str(_row_value(robot, "duid") or ""): str(_row_value(robot, "name") or "Robot")
         for robot in robot_rows
     }
+    robot_providers = {
+        str(_row_value(robot, "duid") or ""): str(_row_value(robot, "provider") or "roborock").strip().lower()
+        for robot in robot_rows
+    }
 
     transitions_by_robot: dict[str, list[dict[str, Any]]] = {}
     for row in events:
-        kind = _transition_kind(row)
         stamp = normalize_local_naive(_row_value(row, "timestamp"))
         duid = str(_row_value(row, "robot_duid") or "")
+        kind = _transition_kind(row, robot_providers.get(duid, "roborock"))
         if not kind or not stamp or duid not in robot_names:
             continue
         transitions_by_robot.setdefault(duid, []).append(
@@ -243,8 +263,10 @@ def build_refill_log(
         "robots": robot_summary,
         "cycles": public_cycles,
         "measurementNote": (
-            "Tom registreres ved første avlesning der dokkens rentvannstatus går fra OK til Tom. "
-            "Fylt registreres når statusen senere går fra Tom til OK. Roborock rapporterer ikke liter eller "
-            "eksakt fyllingsgrad, så klokkeslettene kan avvike med opptil ett innsamlingsintervall."
+            "For Roborock registreres Tom når dokkens rentvannstatus går fra OK til Tom, og Fylt når den "
+            "går tilbake til OK. For Aqua10 starter syklusen når rentvannstanken tas ut av dokken og avsluttes "
+            "når den settes tilbake med status OK. Aqua10-statusen Lite starter ikke en påfyllingssyklus alene. "
+            "Robotene rapporterer ikke liter eller eksakt fyllingsgrad, så klokkeslettene kan avvike med opptil "
+            "ett innsamlingsintervall."
         ),
     }

@@ -1,6 +1,25 @@
 [
   {
     "version": "1",
+    "build": "1838",
+    "date": "01.09.2026",
+    "headline": "Påfyllingsloggen inkluderer Aqua10",
+    "title": "Leverandørnøytrale påfyllingssykluser for robotdokkene",
+    "description": "Renhold/Påfylling viser nå Aqua10 sammen med Roborock-robotene. Aqua10s uttak og innsetting av rentvannstanken tolkes som én påfyllingssyklus, mens statusen Lite alene ikke registreres som tom tank eller ferdig påfylling.",
+    "applications": ["Fibaro10 kjerne/API", "Mantis Renhold/Påfylling"],
+    "request": "I appen Renhold, Påfylling: sørg for at dette også fungerer med den nye Aqua10.",
+    "work_duration": "Avgrenset retting og regresjonstest; separat tid ikke målt",
+    "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+    "changes": [
+      "Fjerner leverandørfilteret som utelot Dreame fra påfyllingsloggen.",
+      "Tolker Aqua10-kode 1 som at rentvannstanken er tatt ut, og kode 0 som at tanken er satt tilbake med OK-status.",
+      "Lar Lite være en tidlig status uten å opprette en falsk påfyllingssyklus.",
+      "Presiserer i påfyllingsvisningen at starttidspunktet for Aqua10 er når tanken tas ut, og bruker ventetid som felles varighetsbegrep.",
+      "Legger til tester for Aqua10-syklus, lavt vann og felles robotoversikt."
+    ]
+  },
+  {
+    "version": "1",
     "build": "1837",
     "date": "30.08.2026",
     "headline": "Tryggere utrulling, raskere beregninger og ryddigere fagmoduler",

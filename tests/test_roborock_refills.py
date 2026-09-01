@@ -45,7 +45,8 @@ def test_refill_log_pairs_empty_and_refilled_times() -> None:
     assert report["summary"]["empties"] == 1
     assert report["summary"]["fills"] == 1
     assert report["summary"]["pending"] == 0
-    assert report["summary"]["robots"] == 1
+    assert report["summary"]["robots"] == 2
+    assert [robot["name"] for robot in report["robots"]] == ["1.etg A", "Aqua10"]
     assert len(report["cycles"]) == 1
     assert report["cycles"][0]["robotName"] == "1.etg A"
     assert report["cycles"][0]["emptyAt"].startswith("2026-08-10T08:00")
@@ -156,6 +157,87 @@ def test_refill_log_can_limit_summary_to_water_capable_docks() -> None:
 
     assert report["summary"]["robots"] == 1
     assert [robot["name"] for robot in report["robots"]] == ["1.etg A"]
+
+
+def test_refill_log_uses_aqua10_tank_removal_and_replacement_as_refill_cycle() -> None:
+    robot = row(duid="dreame:aqua10", name="Aqua10", provider="dreame")
+    events = [
+        row(
+            id=1,
+            robot_duid=robot.duid,
+            timestamp=datetime(2026, 8, 12, 8),
+            field_name="clear_water_status",
+            previous_value="0",
+            current_value="2",
+            previous_label="OK",
+            current_label="Lite",
+        ),
+        row(
+            id=2,
+            robot_duid=robot.duid,
+            timestamp=datetime(2026, 8, 12, 8, 5),
+            field_name="clear_water_status",
+            previous_value="2",
+            current_value="1",
+            previous_label="Lite",
+            current_label="Ikke montert",
+        ),
+        row(
+            id=3,
+            robot_duid=robot.duid,
+            timestamp=datetime(2026, 8, 12, 8, 10),
+            field_name="clear_water_status",
+            previous_value="1",
+            current_value="0",
+            previous_label="Ikke montert",
+            current_label="OK",
+        ),
+    ]
+
+    report = build_refill_log(
+        date(2026, 8, 10),
+        [robot],
+        events,
+        generated_at=datetime(2026, 8, 15, 12),
+    )
+
+    assert report["summary"] == {
+        "empties": 1,
+        "fills": 1,
+        "robots": 1,
+        "pending": 0,
+        "latestFillAt": "2026-08-12T08:10:00+02:00",
+        "averageEmptyMinutes": 5,
+    }
+    assert report["cycles"][0]["robotName"] == "Aqua10"
+    assert report["cycles"][0]["emptyAt"].startswith("2026-08-12T08:05")
+    assert report["cycles"][0]["refilledAt"].startswith("2026-08-12T08:10")
+
+
+def test_refill_log_does_not_mark_aqua10_low_water_as_empty() -> None:
+    robot = row(duid="dreame:aqua10", name="Aqua10", provider="dreame")
+    event = row(
+        id=1,
+        robot_duid=robot.duid,
+        timestamp=datetime(2026, 8, 12, 8),
+        field_name="clear_water_status",
+        previous_value="0",
+        current_value="2",
+        previous_label="OK",
+        current_label="Lite",
+    )
+
+    report = build_refill_log(
+        date(2026, 8, 10),
+        [robot],
+        [event],
+        generated_at=datetime(2026, 8, 15, 12),
+    )
+
+    assert report["summary"]["robots"] == 1
+    assert report["summary"]["empties"] == 0
+    assert report["summary"]["fills"] == 0
+    assert report["cycles"] == []
 
 
 def test_iso_week_navigation_handles_year_boundaries_and_invalid_values() -> None:
