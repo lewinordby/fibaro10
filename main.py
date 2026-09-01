@@ -1656,6 +1656,7 @@ sunroom_dependencies = sunroom_services.Dependencies(
     sunroom_door_verifications=sunroom_door_verifications,
 )
 sunroom_service = sunroom_services.create_service(sunroom_dependencies)
+apply_sunroom_bed_status_to_active_periods = sunroom_service["apply_sunroom_bed_status_to_active_periods"]
 apply_sunroom_alarm_verification = sunroom_service["apply_sunroom_alarm_verification"]
 cleanup_sunroom_door_verifications = sunroom_service["cleanup_sunroom_door_verifications"]
 door_action_from_state = sunroom_service["door_action_from_state"]

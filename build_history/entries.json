@@ -1,6 +1,24 @@
 [
   {
     "version": "1",
+    "build": "1849",
+    "date": "01.09.2026",
+    "headline": "Stengt-status gjelder også pågående dørperioder",
+    "title": "Tidslinjen skiller stengt rom fra manglende soltime",
+    "description": "Når en seng er slått av i Sun2 vises også den pågående lukkede dørperioden som Stengt. Selve dørhendelsen og varigheten beholdes, men perioden presenteres nøytralt og kan ikke forveksles med manglende betaling eller døralarm.",
+    "applications": ["Mantis Kontroll", "Romkontroll", "Fibaro10 API"],
+    "request": "Gjør Stengt helt konsekvent i alle dørvisninger, inkludert tidslinje og detaljer.",
+    "work_duration": "Siste produksjonsgjennomgang, tidslinjekorrigering, regresjon og utrulling; separat tid ikke målt",
+    "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+    "changes": [
+      "Merker en aktiv lukkeperiode som Stengt når tilhørende Sun2-seng er avslått.",
+      "Fjerner Mangler soltime, overtid og varselpreg fra den aktive perioden for stengte rom.",
+      "Beholder fysisk Lukket-status, klokkeslett, varighet og rå hendelser tilgjengelig.",
+      "Bruker nøytral tidslinjefarge for stengte rom."
+    ]
+  },
+  {
+    "version": "1",
     "build": "1848",
     "date": "01.09.2026",
     "headline": "Stengt-status fullført i alle dørvisninger",

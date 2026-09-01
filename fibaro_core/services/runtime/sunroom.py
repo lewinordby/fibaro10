@@ -1564,6 +1564,29 @@ def create_service(dependencies: Dependencies):
             for row in rows
         }
 
+    def apply_sunroom_bed_status_to_active_periods(
+        periods: list[Dict[str, Any]],
+        bed_status: Optional[Dict[str, Any]],
+    ) -> list[Dict[str, Any]]:
+        if not bed_status or bed_status.get("enabled") is not False:
+            return periods
+        for period in periods:
+            if not period.get("isActive"):
+                continue
+            period.update(
+                {
+                    "severity": "disabled",
+                    "status": "Stengt",
+                    "detail": "Sengen er slått av i Sun2. Den lukkede døren er ikke et avvik.",
+                    "missingSession": False,
+                    "remainingSeconds": None,
+                    "remainingLabel": "-",
+                    "overstaySeconds": None,
+                    "overstayLabel": "",
+                }
+            )
+        return periods
+
     def sunroom_status_item(
         config: Dict[str, Any],
         latest_row: Optional[DoorEvent],
@@ -2711,6 +2734,7 @@ def create_service(dependencies: Dependencies):
         start_cutoff = now - timedelta(days=days)
         bed_id = sunroom_bed_id_for_config(config)
         bed_statuses_by_id = await sunroom_bed_statuses_by_id(session, [bed_id] if bed_id else [], now)
+        bed_status = bed_statuses_by_id.get(str(bed_id or ""))
         device_id = config.get("device_id")
         latest_row: Optional[DoorEvent] = None
         raw_rows: list[DoorEvent] = []
@@ -2763,6 +2787,7 @@ def create_service(dependencies: Dependencies):
             if matched_session and matched_session.id is not None:
                 matched_session_ids.add(int(matched_session.id))
             periods.append(sunroom_period_payload(period, matched_session, now))
+        apply_sunroom_bed_status_to_active_periods(periods, bed_status)
 
         current_period = next((period for period in periods if period.get("isActive")), None)
         sessions_without_door = [
@@ -2775,7 +2800,7 @@ def create_service(dependencies: Dependencies):
             latest_row,
             {normalized_room_id: session_rows},
             now,
-            bed_statuses_by_id.get(str(bed_id or "")),
+            bed_status,
         )
         alerts = [period for period in periods if period.get("severity") == "alert"]
         warnings = [period for period in periods if period.get("severity") == "warning"]
@@ -2929,12 +2954,13 @@ def create_service(dependencies: Dependencies):
             device_id = config.get("device_id")
             latest_row = latest_change_by_device.get(int(device_id)) if device_id is not None else None
             room_sessions = sessions_by_room.get(room_id or "", [])
+            bed_status = bed_statuses_by_id.get(str(sunroom_bed_id_for_config(config) or ""))
             status_item = sunroom_status_item(
                 config,
                 latest_row,
                 {room_id or "": room_sessions},
                 now,
-                bed_statuses_by_id.get(str(sunroom_bed_id_for_config(config) or "")),
+                bed_status,
             )
             device_periods = periods_by_device.get(door_config_device_key(config), [])
 
@@ -2960,6 +2986,7 @@ def create_service(dependencies: Dependencies):
                     payload["entranceMarkers"] = []
                     payload["powerMarkers"] = []
                 periods.append(payload)
+            apply_sunroom_bed_status_to_active_periods(periods, bed_status)
 
             day_events: list[Dict[str, Any]] = []
             for period in device_periods:
@@ -3183,6 +3210,7 @@ def create_service(dependencies: Dependencies):
         return items
 
     return {
+        "apply_sunroom_bed_status_to_active_periods": apply_sunroom_bed_status_to_active_periods,
         "apply_sunroom_alarm_verification": apply_sunroom_alarm_verification,
         "cleanup_sunroom_door_verifications": cleanup_sunroom_door_verifications,
         "door_action_from_state": door_action_from_state,

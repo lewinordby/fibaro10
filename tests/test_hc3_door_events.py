@@ -460,6 +460,32 @@ class SunroomDoorTimingTests(unittest.TestCase):
         self.assertIsNone(item["alarmReason"])
         self.assertNotIn(item, self.main.sunroom_force_sync_candidates([item]))
 
+    def test_disabled_sun2_bed_marks_active_period_as_closed_not_alarm(self):
+        periods = [
+            {
+                "isActive": True,
+                "severity": "alert",
+                "status": "Mangler soltime",
+                "missingSession": True,
+                "remainingSeconds": -300,
+                "overstaySeconds": 300,
+            },
+            {
+                "isActive": False,
+                "severity": "warning",
+                "status": "Historisk avvik",
+                "missingSession": True,
+            },
+        ]
+
+        result = self.main.apply_sunroom_bed_status_to_active_periods(periods, {"enabled": False})
+
+        self.assertEqual(result[0]["status"], "Stengt")
+        self.assertEqual(result[0]["severity"], "disabled")
+        self.assertFalse(result[0]["missingSession"])
+        self.assertIsNone(result[0]["remainingSeconds"])
+        self.assertEqual(result[1]["status"], "Historisk avvik")
+
     def test_stale_sun2_bed_status_holds_alarm_until_refreshed(self):
         config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_solrom_10")
         now = datetime(2026, 9, 1, 13, 30)
