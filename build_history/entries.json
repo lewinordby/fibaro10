@@ -1,6 +1,25 @@
 [
   {
     "version": "1",
+    "build": "1839",
+    "date": "01.09.2026",
+    "headline": "Aqua10 varsler påfylling ved lavt rentvann",
+    "title": "Pågående påfyllingsbehov registreres før tanken tas ut",
+    "description": "Renhold/Påfylling registrerer nå Aqua10 straks dokken rapporterer Lite rentvann. Tankuttak beholdes i samme pågående syklus, og hendelsen avsluttes først når dokken igjen rapporterer OK.",
+    "applications": ["Fibaro10 kjerne/API", "Mantis Renhold/Påfylling"],
+    "request": "Nå har jeg kjørt Aqua10 tom for vann, men den kommer likevel ikke opp i listen Påfylling for i dag.",
+    "work_duration": "Avgrenset feilretting og produksjonskontroll; separat tid ikke målt",
+    "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+    "changes": [
+      "Bekrefter fra produksjonstelemetrien at Aqua10 gikk fra OK til Lite kl. 09:33:24.",
+      "Lar Aqua10-statusene Lite og tank tatt ut inngå i samme pågående påfyllingssyklus.",
+      "Avslutter først syklusen når rentvannstatusen går tilbake til OK.",
+      "Utvider testene med lavt vann, tankuttak uten duplikat og direkte retur til OK.",
+      "Oppdaterer måleforklaringen i Påfylling slik at den beskriver Aqua10-signalet korrekt."
+    ]
+  },
+  {
+    "version": "1",
     "build": "1838",
     "date": "01.09.2026",
     "headline": "Påfyllingsloggen inkluderer Aqua10",

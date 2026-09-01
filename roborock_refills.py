@@ -58,12 +58,13 @@ def _transition_kind(row: Any, provider: str) -> Optional[str]:
     if provider == "dreame":
         previous_code = _int_value(previous_value)
         current_code = _int_value(current_value)
-        # Aqua10 reports the removable clean-water tank as code 1 while it is
-        # out of the dock. Replacing it with an OK tank (code 0) completes the
-        # refill. Code 2 is only a low-water warning and is not a refill itself.
-        if current_code == 1 and previous_code != 1:
+        # Aqua10 asks for a refill with code 2 (low water) and reports code 1
+        # while the removable tank is out of the dock. Both belong to the same
+        # pending refill cycle; only a return to OK (code 0) completes it.
+        refill_needed_codes = {1, 2}
+        if current_code in refill_needed_codes and previous_code not in refill_needed_codes:
             return "empty"
-        if previous_code == 1 and current_code == 0:
+        if previous_code in refill_needed_codes and current_code == 0:
             return "refilled"
         return None
     previous = _resource_label(previous_value, _row_value(row, "previous_label"))
@@ -264,8 +265,8 @@ def build_refill_log(
         "cycles": public_cycles,
         "measurementNote": (
             "For Roborock registreres Tom når dokkens rentvannstatus går fra OK til Tom, og Fylt når den "
-            "går tilbake til OK. For Aqua10 starter syklusen når rentvannstanken tas ut av dokken og avsluttes "
-            "når den settes tilbake med status OK. Aqua10-statusen Lite starter ikke en påfyllingssyklus alene. "
+            "går tilbake til OK. For Aqua10 starter syklusen når dokken rapporterer Lite eller når "
+            "rentvannstanken tas ut, og avsluttes først når statusen går tilbake til OK. "
             "Robotene rapporterer ikke liter eller eksakt fyllingsgrad, så klokkeslettene kan avvike med opptil "
             "ett innsamlingsintervall."
         ),
