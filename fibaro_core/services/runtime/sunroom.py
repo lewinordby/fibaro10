@@ -1548,6 +1548,22 @@ def create_service(dependencies: Dependencies):
             "ageMinutes": age_minutes,
         }
 
+    async def sunroom_bed_statuses_by_id(
+        session,
+        bed_ids: list[str],
+        now: datetime,
+    ) -> Dict[str, Dict[str, Any]]:
+        normalized_ids = sorted({str(bed_id) for bed_id in bed_ids if bed_id})
+        if not normalized_ids:
+            return {}
+        rows = (
+            await session.execute(select(Sun2Bed).where(Sun2Bed.sun2_bed_id.in_(normalized_ids)))
+        ).scalars().all()
+        return {
+            str(row.sun2_bed_id): sunroom_bed_status_payload(row, now)
+            for row in rows
+        }
+
     def sunroom_status_item(
         config: Dict[str, Any],
         latest_row: Optional[DoorEvent],
@@ -2168,12 +2184,7 @@ def create_service(dependencies: Dependencies):
 
         room_ids = sorted({room_id for room_id in (sunroom_room_id_for_config(config) for config in solroom_configs) if room_id})
         bed_ids = sorted({bed_id for bed_id in (sunroom_bed_id_for_config(config) for config in solroom_configs) if bed_id})
-        beds_by_id: Dict[str, Sun2Bed] = {}
-        if bed_ids:
-            bed_rows = (
-                await session.execute(select(Sun2Bed).where(Sun2Bed.sun2_bed_id.in_(bed_ids)))
-            ).scalars().all()
-            beds_by_id = {str(row.sun2_bed_id): row for row in bed_rows}
+        bed_statuses_by_id = await sunroom_bed_statuses_by_id(session, bed_ids, now)
         sessions_by_room: Dict[str, list[Sun2TanningSession]] = {room_id: [] for room_id in room_ids}
         if room_ids or bed_ids:
             start_cutoff = now - timedelta(hours=SUNROOM_DOOR_SESSION_LOOKBACK_HOURS)
@@ -2200,7 +2211,7 @@ def create_service(dependencies: Dependencies):
             device_id = config.get("device_id")
             latest_row = latest_change_by_device.get(int(device_id)) if device_id is not None else None
             bed_id = sunroom_bed_id_for_config(config)
-            bed_status = sunroom_bed_status_payload(beds_by_id.get(str(bed_id or "")), now)
+            bed_status = bed_statuses_by_id.get(str(bed_id or ""))
             rooms.append(sunroom_status_item(config, latest_row, sessions_by_room, now, bed_status))
         rooms.sort(key=lambda item: (str(item.get("sectionKey") or ""), int(item.get("sortOrder") or 0)))
         candidate_alarm_keys = {
@@ -2699,6 +2710,7 @@ def create_service(dependencies: Dependencies):
         limit = max(10, min(limit, 500))
         start_cutoff = now - timedelta(days=days)
         bed_id = sunroom_bed_id_for_config(config)
+        bed_statuses_by_id = await sunroom_bed_statuses_by_id(session, [bed_id] if bed_id else [], now)
         device_id = config.get("device_id")
         latest_row: Optional[DoorEvent] = None
         raw_rows: list[DoorEvent] = []
@@ -2758,7 +2770,13 @@ def create_service(dependencies: Dependencies):
             for row in session_rows
             if row.id is not None and int(row.id) not in matched_session_ids and normalize_local_naive(row.started_at) >= start_cutoff
         ][:25]
-        current = sunroom_status_item(config, latest_row, {normalized_room_id: session_rows}, now)
+        current = sunroom_status_item(
+            config,
+            latest_row,
+            {normalized_room_id: session_rows},
+            now,
+            bed_statuses_by_id.get(str(bed_id or "")),
+        )
         alerts = [period for period in periods if period.get("severity") == "alert"]
         warnings = [period for period in periods if period.get("severity") == "warning"]
         missing = [period for period in periods if period.get("missingSession")]
@@ -2807,6 +2825,7 @@ def create_service(dependencies: Dependencies):
         device_ids = [int(config["device_id"]) for config in configs if config.get("device_id") is not None]
         room_ids = [room_id for room_id in (sunroom_room_id_for_config(config) for config in configs) if room_id]
         bed_ids = [bed_id for bed_id in (sunroom_bed_id_for_config(config) for config in configs) if bed_id]
+        bed_statuses_by_id = await sunroom_bed_statuses_by_id(session, bed_ids, now)
         entrance_config = sunroom_entrance_config()
         entrance_device_id = int(entrance_config["device_id"]) if entrance_config and entrance_config.get("device_id") is not None else None
 
@@ -2910,7 +2929,13 @@ def create_service(dependencies: Dependencies):
             device_id = config.get("device_id")
             latest_row = latest_change_by_device.get(int(device_id)) if device_id is not None else None
             room_sessions = sessions_by_room.get(room_id or "", [])
-            status_item = sunroom_status_item(config, latest_row, {room_id or "": room_sessions}, now)
+            status_item = sunroom_status_item(
+                config,
+                latest_row,
+                {room_id or "": room_sessions},
+                now,
+                bed_statuses_by_id.get(str(sunroom_bed_id_for_config(config) or "")),
+            )
             device_periods = periods_by_device.get(door_config_device_key(config), [])
 
             periods = []
@@ -3017,7 +3042,12 @@ def create_service(dependencies: Dependencies):
                 }
             )
 
-        active_rooms = [room for room in rooms if (room.get("status") or {}).get("isOccupied")]
+        active_rooms = [
+            room
+            for room in rooms
+            if (room.get("status") or {}).get("isOccupied")
+            and (room.get("status") or {}).get("bedEnabled") is not False
+        ]
         warning_rooms = [room for room in rooms if (room.get("status") or {}).get("severity") == "warning"]
         alert_rooms = [room for room in rooms if (room.get("status") or {}).get("severity") == "alert"]
         sessions_without_door_count = sum(int((room.get("summary") or {}).get("withoutDoor") or 0) for room in rooms)

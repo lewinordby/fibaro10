@@ -61,6 +61,8 @@ def test_all_relocated_function_bodies_preserve_original_behavior():
             'sunroom_door_alarm_payload',
             'sunroom_door_session_payload',
             'sunroom_force_sync_candidates',
+            'sunroom_room_detail_payload',
+            'sunroom_room_overview_payload',
             'sunroom_status_item',
             'sync_sunroom_alarm_history',
         }

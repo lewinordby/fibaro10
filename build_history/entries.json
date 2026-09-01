@@ -1,6 +1,25 @@
 [
   {
     "version": "1",
+    "build": "1848",
+    "date": "01.09.2026",
+    "headline": "Stengt-status fullført i alle dørvisninger",
+    "title": "Romkontroll og romdetaljer bruker nå gjeldende Sun2-status",
+    "description": "Den siste historikkbaserte romkontrollen er koblet til samme aktuelle sengestatus som døroversikten, solromsvisningen og mobilappen. Avslåtte senger vises nøytralt som Stengt og teller ikke som aktive rom, samtidig som fysisk dørstatus og historiske hendelser beholdes.",
+    "applications": ["Mantis Kontroll", "Romkontroll", "Fibaro10 API"],
+    "request": "Gjør Stengt konsekvent i alle visninger. Kontroll/Dører/Oversikt og mobilappen må ikke vise et avslått rom som lukket og rødt.",
+    "work_duration": "Produksjonskontroll av alle dørflater, korrigering av siste historikkvisning, tester og ny utrulling; separat tid ikke målt",
+    "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+    "changes": [
+      "Kobler gjeldende Sun2-sengestatus inn i både romkontrolloversikten og romdetaljene.",
+      "Tar avslåtte senger ut av nøkkeltallet Aktive nå.",
+      "Viser Stengt nøytralt i romvelgeren og skjuler feilaktig varseltrekant for et avslått rom.",
+      "Beholder historiske dørhendelser og fysisk Lukket-status som egne fakta.",
+      "Kontrollerer live at Dører/Oversikt og hovedmobilappen viser Solrom 10 korrekt som Stengt."
+    ]
+  },
+  {
+    "version": "1",
     "build": "1847",
     "date": "01.09.2026",
     "headline": "Stengte solrom vises likt overalt",
