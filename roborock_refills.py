@@ -58,13 +58,11 @@ def _transition_kind(row: Any, provider: str) -> Optional[str]:
     if provider == "dreame":
         previous_code = _int_value(previous_value)
         current_code = _int_value(current_value)
-        # Aqua10 asks for a refill with code 2 (low water) and reports code 1
-        # while the removable tank is out of the dock. Both belong to the same
-        # pending refill cycle; only a return to OK (code 0) completes it.
-        refill_needed_codes = {1, 2}
-        if current_code in refill_needed_codes and previous_code not in refill_needed_codes:
-            return "empty"
-        if previous_code in refill_needed_codes and current_code == 0:
+        if current_code == 2 and previous_code != 2:
+            return "low"
+        if current_code == 1 and previous_code != 1:
+            return "tank_removed"
+        if previous_code in {1, 2} and current_code == 0:
             return "refilled"
         return None
     previous = _resource_label(previous_value, _row_value(row, "previous_label"))
@@ -143,16 +141,24 @@ def build_refill_log(
     for duid, transitions in transitions_by_robot.items():
         pending: Optional[dict[str, Any]] = None
         for transition in sorted(transitions, key=lambda item: item["timestamp"]):
-            if transition["kind"] == "empty":
+            kind = transition["kind"]
+            if kind in {"empty", "low", "tank_removed"}:
                 if pending is None:
                     pending = {
                         "id": f"empty-{transition['id']}",
                         "robotDuid": duid,
                         "robotName": robot_names[duid],
-                        "emptyAtValue": transition["timestamp"],
+                        "provider": robot_providers[duid],
+                        "attentionAtValue": transition["timestamp"],
+                        "lowAtValue": None,
+                        "tankRemovedAtValue": None,
                         "refilledAtValue": None,
                     }
                     all_cycles.append(pending)
+                if kind == "low" and pending["lowAtValue"] is None:
+                    pending["lowAtValue"] = transition["timestamp"]
+                if kind == "tank_removed" and pending["tankRemovedAtValue"] is None:
+                    pending["tankRemovedAtValue"] = transition["timestamp"]
                 continue
             if pending is not None:
                 pending["refilledAtValue"] = transition["timestamp"]
@@ -163,7 +169,10 @@ def build_refill_log(
                         "id": f"refill-{transition['id']}",
                         "robotDuid": duid,
                         "robotName": robot_names[duid],
-                        "emptyAtValue": None,
+                        "provider": robot_providers[duid],
+                        "attentionAtValue": None,
+                        "lowAtValue": None,
+                        "tankRemovedAtValue": None,
                         "refilledAtValue": transition["timestamp"],
                     }
                 )
@@ -171,18 +180,31 @@ def build_refill_log(
     period_cycles = [
         cycle
         for cycle in all_cycles
-        if _in_period(cycle["emptyAtValue"], period_start, period_end)
+        if _in_period(cycle["attentionAtValue"], period_start, period_end)
+        or _in_period(cycle["tankRemovedAtValue"], period_start, period_end)
         or _in_period(cycle["refilledAtValue"], period_start, period_end)
     ]
     for cycle in period_cycles:
-        empty_at = cycle["emptyAtValue"]
+        attention_at = cycle["attentionAtValue"]
+        low_at = cycle["lowAtValue"]
+        tank_removed_at = cycle["tankRemovedAtValue"]
         refilled_at = cycle["refilledAtValue"]
-        if empty_at and refilled_at:
-            cycle["emptyMinutes"] = round((refilled_at - empty_at).total_seconds() / 60)
-        elif empty_at and week_start == current_week_start:
-            cycle["emptyMinutes"] = max(0, round((now - empty_at).total_seconds() / 60))
+        end_at = refilled_at or (now if week_start == current_week_start else None)
+        cycle["responseMinutes"] = (
+            max(0, round((tank_removed_at - low_at).total_seconds() / 60))
+            if low_at and tank_removed_at
+            else None
+        )
+        cycle["tankRemovedMinutes"] = (
+            max(0, round((end_at - tank_removed_at).total_seconds() / 60))
+            if tank_removed_at and end_at
+            else None
+        )
+        if attention_at and end_at:
+            cycle["totalMinutes"] = max(0, round((end_at - attention_at).total_seconds() / 60))
         else:
-            cycle["emptyMinutes"] = None
+            cycle["totalMinutes"] = None
+        cycle["emptyMinutes"] = cycle["totalMinutes"]
         cycle["status"] = "completed" if refilled_at else "pending"
 
     public_cycles = [
@@ -190,14 +212,29 @@ def build_refill_log(
             "id": cycle["id"],
             "robotDuid": cycle["robotDuid"],
             "robotName": cycle["robotName"],
-            "emptyAt": _local_iso(cycle["emptyAtValue"]),
+            "provider": cycle["provider"],
+            "reason": (
+                "Lite vann"
+                if cycle["lowAtValue"]
+                else "Tank tatt ut"
+                if cycle["tankRemovedAtValue"]
+                else "Tom"
+            ),
+            "attentionAt": _local_iso(cycle["attentionAtValue"]),
+            "lowAt": _local_iso(cycle["lowAtValue"]),
+            "tankRemovedAt": _local_iso(cycle["tankRemovedAtValue"]),
+            "emptyAt": _local_iso(cycle["attentionAtValue"]),
             "refilledAt": _local_iso(cycle["refilledAtValue"]),
             "emptyMinutes": cycle["emptyMinutes"],
+            "responseMinutes": cycle["responseMinutes"],
+            "tankRemovedMinutes": cycle["tankRemovedMinutes"],
+            "totalMinutes": cycle["totalMinutes"],
             "status": cycle["status"],
+            "statusLabel": "Påfylt" if cycle["status"] == "completed" else "Venter på fylling",
         }
         for cycle in sorted(
             period_cycles,
-            key=lambda item: item["emptyAtValue"] or item["refilledAtValue"] or datetime.min,
+            key=lambda item: item["attentionAtValue"] or item["refilledAtValue"] or datetime.min,
             reverse=True,
         )
     ]
@@ -206,28 +243,38 @@ def build_refill_log(
     for robot in robot_rows:
         duid = str(_row_value(robot, "duid") or "")
         cycles = [cycle for cycle in period_cycles if cycle["robotDuid"] == duid]
-        empty_rows = [cycle for cycle in cycles if _in_period(cycle["emptyAtValue"], period_start, period_end)]
+        empty_rows = [cycle for cycle in cycles if _in_period(cycle["attentionAtValue"], period_start, period_end)]
+        low_rows = [cycle for cycle in cycles if _in_period(cycle["lowAtValue"], period_start, period_end)]
+        removal_rows = [cycle for cycle in cycles if _in_period(cycle["tankRemovedAtValue"], period_start, period_end)]
         fill_rows = [cycle for cycle in cycles if _in_period(cycle["refilledAtValue"], period_start, period_end)]
         durations = [cycle["emptyMinutes"] for cycle in empty_rows if cycle["emptyMinutes"] is not None and cycle["refilledAtValue"]]
-        last_empty = max((cycle["emptyAtValue"] for cycle in empty_rows), default=None)
+        response_durations = [cycle["responseMinutes"] for cycle in cycles if cycle["responseMinutes"] is not None]
+        last_empty = max((cycle["attentionAtValue"] for cycle in empty_rows), default=None)
         last_fill = max((cycle["refilledAtValue"] for cycle in fill_rows), default=None)
-        pending = next((cycle for cycle in empty_rows if cycle["status"] == "pending"), None)
+        pending = next((cycle for cycle in cycles if cycle["status"] == "pending"), None)
         robot_summary.append(
             {
                 "duid": duid,
                 "name": str(_row_value(robot, "name") or "Robot"),
                 "empties": len(empty_rows),
+                "lowWaterWarnings": len(low_rows),
+                "tankRemovals": len(removal_rows),
                 "fills": len(fill_rows),
                 "pending": pending is not None,
-                "currentEmptySince": _local_iso(pending["emptyAtValue"]) if pending else None,
+                "currentEmptySince": _local_iso(pending["attentionAtValue"]) if pending else None,
                 "lastEmptyAt": _local_iso(last_empty),
                 "lastFillAt": _local_iso(last_fill),
                 "averageEmptyMinutes": round(sum(durations) / len(durations)) if durations else None,
+                "averageResponseMinutes": (
+                    round(sum(response_durations) / len(response_durations)) if response_durations else None
+                ),
             }
         )
     robot_summary.sort(key=cleaning_robot_sort_key)
 
-    empty_cycles = [cycle for cycle in period_cycles if _in_period(cycle["emptyAtValue"], period_start, period_end)]
+    empty_cycles = [cycle for cycle in period_cycles if _in_period(cycle["attentionAtValue"], period_start, period_end)]
+    low_cycles = [cycle for cycle in period_cycles if _in_period(cycle["lowAtValue"], period_start, period_end)]
+    removal_cycles = [cycle for cycle in period_cycles if _in_period(cycle["tankRemovedAtValue"], period_start, period_end)]
     fill_cycles = [cycle for cycle in period_cycles if _in_period(cycle["refilledAtValue"], period_start, period_end)]
     completed_durations = [
         cycle["emptyMinutes"]
@@ -253,9 +300,11 @@ def build_refill_log(
         },
         "summary": {
             "empties": len(empty_cycles),
+            "lowWaterWarnings": len(low_cycles),
+            "tankRemovals": len(removal_cycles),
             "fills": len(fill_cycles),
             "robots": len(robot_summary),
-            "pending": sum(cycle["status"] == "pending" for cycle in empty_cycles),
+            "pending": sum(cycle["status"] == "pending" for cycle in period_cycles),
             "latestFillAt": _local_iso(latest_fill),
             "averageEmptyMinutes": (
                 round(sum(completed_durations) / len(completed_durations)) if completed_durations else None
@@ -265,8 +314,9 @@ def build_refill_log(
         "cycles": public_cycles,
         "measurementNote": (
             "For Roborock registreres Tom når dokkens rentvannstatus går fra OK til Tom, og Fylt når den "
-            "går tilbake til OK. For Aqua10 starter syklusen når dokken rapporterer Lite eller når "
-            "rentvannstanken tas ut, og avsluttes først når statusen går tilbake til OK. "
+            "går tilbake til OK. Aqua10 viser Lite vann, Tank tatt ut og OK som egne tidspunkt i samme "
+            "påfyllingssyklus. Reaksjonstid måles fra Lite vann til tankuttak, tanktid fra uttak til OK, "
+            "og total tid fra første påfyllingsbehov til OK. "
             "Robotene rapporterer ikke liter eller eksakt fyllingsgrad, så klokkeslettene kan avvike med opptil "
             "ett innsamlingsintervall."
         ),

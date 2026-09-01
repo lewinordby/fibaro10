@@ -203,6 +203,8 @@ def test_refill_log_uses_aqua10_low_water_and_tank_replacement_as_one_refill_cyc
 
     assert report["summary"] == {
         "empties": 1,
+        "lowWaterWarnings": 1,
+        "tankRemovals": 1,
         "fills": 1,
         "robots": 1,
         "pending": 0,
@@ -210,8 +212,14 @@ def test_refill_log_uses_aqua10_low_water_and_tank_replacement_as_one_refill_cyc
         "averageEmptyMinutes": 10,
     }
     assert report["cycles"][0]["robotName"] == "Aqua10"
+    assert report["cycles"][0]["reason"] == "Lite vann"
+    assert report["cycles"][0]["lowAt"].startswith("2026-08-12T08:00")
+    assert report["cycles"][0]["tankRemovedAt"].startswith("2026-08-12T08:05")
     assert report["cycles"][0]["emptyAt"].startswith("2026-08-12T08:00")
     assert report["cycles"][0]["refilledAt"].startswith("2026-08-12T08:10")
+    assert report["cycles"][0]["responseMinutes"] == 5
+    assert report["cycles"][0]["tankRemovedMinutes"] == 5
+    assert report["cycles"][0]["totalMinutes"] == 10
     assert report["cycles"][0]["emptyMinutes"] == 10
 
 
@@ -240,6 +248,9 @@ def test_refill_log_marks_aqua10_low_water_as_pending_refill() -> None:
     assert report["summary"]["fills"] == 0
     assert report["summary"]["pending"] == 1
     assert report["cycles"][0]["status"] == "pending"
+    assert report["cycles"][0]["reason"] == "Lite vann"
+    assert report["cycles"][0]["lowAt"].startswith("2026-08-12T08:00")
+    assert report["cycles"][0]["tankRemovedAt"] is None
     assert report["cycles"][0]["emptyAt"].startswith("2026-08-12T08:00")
 
 
@@ -278,7 +289,49 @@ def test_refill_log_completes_aqua10_cycle_when_low_water_returns_to_ok() -> Non
     assert report["summary"]["empties"] == 1
     assert report["summary"]["fills"] == 1
     assert report["summary"]["pending"] == 0
+    assert report["cycles"][0]["responseMinutes"] is None
+    assert report["cycles"][0]["tankRemovedMinutes"] is None
     assert report["cycles"][0]["emptyMinutes"] == 7
+
+
+def test_refill_log_records_aqua10_tank_removal_without_low_water_warning() -> None:
+    robot = row(duid="dreame:aqua10", name="Aqua10", provider="dreame")
+    events = [
+        row(
+            id=1,
+            robot_duid=robot.duid,
+            timestamp=datetime(2026, 8, 12, 8),
+            field_name="clear_water_status",
+            previous_value="0",
+            current_value="1",
+            previous_label="OK",
+            current_label="Ikke montert",
+        ),
+        row(
+            id=2,
+            robot_duid=robot.duid,
+            timestamp=datetime(2026, 8, 12, 8, 4),
+            field_name="clear_water_status",
+            previous_value="1",
+            current_value="0",
+            previous_label="Ikke montert",
+            current_label="OK",
+        ),
+    ]
+
+    report = build_refill_log(
+        date(2026, 8, 10),
+        [robot],
+        events,
+        generated_at=datetime(2026, 8, 15, 12),
+    )
+
+    assert report["summary"]["lowWaterWarnings"] == 0
+    assert report["summary"]["tankRemovals"] == 1
+    assert report["cycles"][0]["reason"] == "Tank tatt ut"
+    assert report["cycles"][0]["lowAt"] is None
+    assert report["cycles"][0]["tankRemovedAt"].startswith("2026-08-12T08:00")
+    assert report["cycles"][0]["tankRemovedMinutes"] == 4
 
 
 def test_iso_week_navigation_handles_year_boundaries_and_invalid_values() -> None:
