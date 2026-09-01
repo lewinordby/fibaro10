@@ -5,13 +5,61 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
 from fibaro_core.export_definitions import DOOR_EVENT_COLUMNS
-from fibaro_core.models import DoorEvent
+from fibaro_core.models import DoorEvent, Sun2Bed
 from fibaro_core.routers.bundle import RouterBundle
 from sqlalchemy import func, select
 from time_formatting import format_source_datetime_short, local_now_naive, normalize_local_naive
 from typing import Any, Callable, Dict, Optional
 from unifi_protect_client import ProtectLedgerError
 import asyncio
+
+
+def enrich_sunroom_door_statuses(
+    doors: list[Dict[str, Any]],
+    rooms: list[Dict[str, Any]],
+) -> None:
+    """Add one shared operational presentation without hiding sensor raw state."""
+    rooms_by_key = {
+        str(room.get("deviceKey")): room
+        for room in rooms
+        if room.get("deviceKey")
+    }
+    for door in doors:
+        if door.get("groupKey") != "solrom":
+            door["displayState"] = door.get("state")
+            door["displayStateLabel"] = door.get("stateLabel")
+            continue
+
+        room = rooms_by_key.get(str(door.get("deviceKey") or ""))
+        if not room:
+            door["displayState"] = door.get("state")
+            door["displayStateLabel"] = door.get("stateLabel")
+            continue
+
+        door.update(
+            {
+                "bedEnabled": room.get("bedEnabled"),
+                "bedStatus": room.get("bedStatus"),
+                "bedStatusCode": room.get("bedStatusCode"),
+                "bedStatusFresh": room.get("bedStatusFresh"),
+                "bedStatusImportedAt": room.get("bedStatusImportedAt"),
+                "bedStatusImportedLabel": room.get("bedStatusImportedLabel"),
+                "roomStatus": room.get("status"),
+                "roomSeverity": room.get("severity"),
+            }
+        )
+        if room.get("bedEnabled") is False or room.get("severity") == "disabled":
+            door["displayState"] = "disabled"
+            door["displayStateLabel"] = "Stengt"
+        elif door.get("state") == "open":
+            door["displayState"] = "open"
+            door["displayStateLabel"] = "Ledig"
+        elif door.get("state") == "closed":
+            door["displayState"] = "closed"
+            door["displayStateLabel"] = "I bruk"
+        else:
+            door["displayState"] = "unknown"
+            door["displayStateLabel"] = "Ukjent"
 
 
 @dataclass
@@ -40,6 +88,8 @@ class Dependencies:
     row_to_dict: Callable[..., Any]
     run_hc3_door_poll_once: Callable[..., Any]
     sunroom_door_alarm_payload: Callable[..., Any]
+    sunroom_bed_id_for_config: Callable[..., Any]
+    sunroom_bed_status_payload: Callable[..., Any]
     sunroom_door_session_payload: Callable[..., Any]
     sunroom_logic_payload: Callable[..., Any]
     sunroom_room_detail_payload: Callable[..., Any]
@@ -338,6 +388,8 @@ def create_router(dependencies: Dependencies) -> RouterBundle:
         door_period_device_key = dependencies.door_period_device_key
         door_status_payload = dependencies.door_status_payload
         latest_door_event_by_device = dependencies.latest_door_event_by_device
+        sunroom_bed_id_for_config = dependencies.sunroom_bed_id_for_config
+        sunroom_bed_status_payload = dependencies.sunroom_bed_status_payload
         now = local_now_naive()
         raw_limit = max(history_limit * 20, period_limit * 20, len(DOOR_SENSOR_IDS) * 150, 1000)
         async with async_session() as session:
@@ -349,6 +401,17 @@ def create_router(dependencies: Dependencies) -> RouterBundle:
             )
             raw_rows = history_result.scalars().all()
             total_events = await session.scalar(select(func.count(DoorEvent.id)).where(DoorEvent.device_id.in_(DOOR_SENSOR_IDS)))
+            bed_ids = sorted(
+                {
+                    str(bed_id)
+                    for bed_id in (sunroom_bed_id_for_config(config) for config in DOOR_SENSOR_CONFIG)
+                    if bed_id
+                }
+            )
+            bed_rows = (
+                await session.execute(select(Sun2Bed).where(Sun2Bed.sun2_bed_id.in_(bed_ids)))
+            ).scalars().all() if bed_ids else []
+            beds_by_id = {str(row.sun2_bed_id): row for row in bed_rows}
 
         change_rows_ascending = door_change_rows(list(reversed(raw_rows)))
         latest_status_by_device = latest_door_event_by_device(raw_rows)
@@ -377,11 +440,34 @@ def create_router(dependencies: Dependencies) -> RouterBundle:
             door = door_status_payload(config, latest_row, now, latest_change)
             door["recentPeriods"] = recent_periods_by_device.get(door_config_device_key(config), [])[:2]
             doors.append(door)
+        sunroom_rooms = []
+        for config in DOOR_SENSOR_CONFIG:
+            if config.get("group_key") != "solrom":
+                continue
+            bed_id = sunroom_bed_id_for_config(config)
+            bed_status = sunroom_bed_status_payload(beds_by_id.get(str(bed_id or "")), now)
+            sunroom_rooms.append(
+                {
+                    "deviceKey": config.get("device_key"),
+                    "bedEnabled": bed_status.get("enabled"),
+                    "bedStatus": bed_status.get("status"),
+                    "bedStatusCode": bed_status.get("statusCode"),
+                    "bedStatusFresh": bed_status.get("fresh"),
+                    "bedStatusImportedAt": bed_status.get("importedAt"),
+                    "bedStatusImportedLabel": bed_status.get("importedLabel"),
+                    "severity": "disabled" if bed_status.get("enabled") is False else None,
+                    "status": "Stengt" if bed_status.get("enabled") is False else None,
+                }
+            )
+        enrich_sunroom_door_statuses(doors, sunroom_rooms)
         doors = sorted(doors, key=lambda item: (str(item.get("groupKey") or ""), int(item.get("sortOrder") or 0), str(item.get("title") or "")))
         known = [door for door in doors if door["state"] != "unknown"]
         open_doors = [door for door in doors if door["state"] == "open"]
         closed_doors = [door for door in doors if door["state"] == "closed"]
         configured_doors = [door for door in doors if door["isConfigured"]]
+        disabled_solrooms = [door for door in doors if door.get("displayState") == "disabled"]
+        available_solrooms = [door for door in doors if door.get("displayState") == "open" and door.get("groupKey") == "solrom"]
+        occupied_solrooms = [door for door in doors if door.get("displayState") == "closed" and door.get("groupKey") == "solrom"]
         return {
             "generatedAt": now.isoformat(),
             "datakildePath": "/admin/datakilder/hc3_door_events",
@@ -401,6 +487,9 @@ def create_router(dependencies: Dependencies) -> RouterBundle:
                 "changes": len(change_rows_ascending),
                 "periods": len(periods),
                 "activePeriods": len([period for period in periods if period.get("state") == "open"]),
+                "sunroomsAvailable": len(available_solrooms),
+                "sunroomsOccupied": len(occupied_solrooms),
+                "sunroomsDisabled": len(disabled_solrooms),
             },
             "doors": doors,
             "changes": [door_event_payload(row, now) for row in change_history_rows],

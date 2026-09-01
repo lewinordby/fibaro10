@@ -176,6 +176,7 @@ h1, h2, h3, p { margin: 0; }
 
 .metric-strip { display: grid; grid-template-columns: repeat(4, 1fr); overflow: hidden; border: 1px solid var(--gray-200); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
 .metric-strip.is-three { grid-template-columns: repeat(3, 1fr); }
+.metric-strip.is-five { grid-template-columns: repeat(5, 1fr); }
 .metric-strip div { display: grid; gap: .12rem; padding: .68rem .4rem; border-left: 1px solid var(--gray-200); text-align: center; }
 .metric-strip div:first-child { border-left: 0; }
 .metric-strip small { color: var(--gray-500); font-size: .65rem; }
@@ -194,6 +195,7 @@ h1, h2, h3, p { margin: 0; }
 .room-card.is-alert { border-top-color: var(--red-700); }
 .room-card.is-warning { border-top-color: var(--yellow-700); }
 .room-card.is-ok { border-top-color: var(--green-700); }
+.room-card.is-neutral { border-top-color: var(--gray-400); background: var(--gray-100); }
 .room-card-head { display: flex; align-items: start; justify-content: space-between; gap: .45rem; }
 .room-card-head > span { display: grid; gap: .08rem; min-width: 0; }
 .room-card-head small { color: var(--gray-500); font-size: .64rem; }

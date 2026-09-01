@@ -412,7 +412,7 @@ def login_html(error: str, next_path: str) -> str:
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
-  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=8">
+  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=9">
   <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-body">
@@ -451,9 +451,9 @@ INDEX_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
-  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=8">
+  <link rel="stylesheet" href="/assets/alarm-mobile.css?v=9">
   <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
-  <script src="/assets/alarm-mobile.js?v=8" defer></script>
+  <script src="/assets/alarm-mobile.js?v=9" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
   <div id="preloader" aria-hidden="true"></div>

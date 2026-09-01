@@ -74,7 +74,21 @@ function severityLabel(value) {
     obscured: "Tildekket",
     uncalibrated: "Mangler referanse",
     error: "Feil",
+    disabled: "Stengt",
   }[text(value).toLowerCase()] || text(value, "Ukjent");
+}
+
+function roomIsDisabled(room) {
+  return room?.bedEnabled === false || text(room?.severity).toLowerCase() === "disabled";
+}
+
+function roomDisplaySeverity(room) {
+  return roomIsDisabled(room) ? "disabled" : room?.severity;
+}
+
+function roomDisplayLabel(room) {
+  if (roomIsDisabled(room)) return "Stengt";
+  return room?.doorStateLabel || (room?.isOccupied ? "Lukket" : "Åpen");
 }
 
 function subscription(key) {
@@ -215,6 +229,7 @@ function renderOverview() {
 }
 
 function doorSessionSummary(room) {
+  if (roomIsDisabled(room)) return `Sengen er slått av i Sun2 · dør ${text(room.doorStateLabel, "ukjent").toLowerCase()}`;
   const session = room.session || {};
   if (!room.isOccupied) return "Døren er åpen";
   if (!session || !Object.keys(session).length) return `Lukket ${room.occupiedDurationLabel || ""} · ingen soltime funnet`;
@@ -236,8 +251,9 @@ function renderDoors() {
       <span class="count-badge ${number(summary.alarm) ? "is-alert" : "is-ok"}">${number(summary.alarm)} aktive</span>
     </section>
 
-    <section class="metric-strip">
+    <section class="metric-strip is-five">
       <div><small>Lukket</small><strong>${number(summary.active)}</strong></div>
+      <div><small>Stengt</small><strong>${number(summary.disabled)}</strong></div>
       <div><small>Venter</small><strong>${number(summary.waiting)}</strong></div>
       <div><small>Følg med</small><strong>${number(summary.warning)}</strong></div>
       <div><small>Alarm</small><strong>${number(summary.alarm)}</strong></div>
@@ -252,13 +268,13 @@ function renderDoors() {
       <div class="section-title"><h2>Romstatus</h2><span>${rooms.length}</span></div>
       <div class="room-grid">
         ${rooms.map((room) => `
-          <article class="room-card ${severityClass(room.severity)}" data-room="${escapeHtml(room.roomId || "")}" data-device="${escapeHtml(room.deviceKey || "")}">
+          <article class="room-card ${severityClass(roomDisplaySeverity(room))}" data-room="${escapeHtml(room.roomId || "")}" data-device="${escapeHtml(room.deviceKey || "")}">
             <div class="room-card-head">
               <span><small>${escapeHtml(room.sectionLabel || room.sectionKey || "Solrom")}</small><strong>${escapeHtml(room.title || room.roomLabel || room.roomId || "Rom")}</strong></span>
-              <b>${escapeHtml(severityLabel(room.severity))}</b>
+              <b>${escapeHtml(severityLabel(roomDisplaySeverity(room)))}</b>
             </div>
             <p>${escapeHtml(doorSessionSummary(room))}</p>
-            <footer><span>${escapeHtml(room.doorStateLabel || (room.isOccupied ? "Lukket" : "Åpen"))}</span><time>${escapeHtml(room.doorChangedLabel || room.lastChangedLabel || "-")}</time></footer>
+            <footer><span>${escapeHtml(roomDisplayLabel(room))}</span><time>${escapeHtml(room.doorChangedLabel || room.lastChangedLabel || "-")}</time></footer>
           </article>
         `).join("") || '<p class="empty-state">Ingen romdata er tilgjengelig.</p>'}
       </div>

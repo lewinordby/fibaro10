@@ -72,6 +72,25 @@ class OnlineDashboardDoorTests(unittest.TestCase):
         self.assertIn("Solrom 1", html)
         self.assertIn("Ledig", html)
 
+    def test_disabled_sunroom_is_neutral_and_excluded_from_busy_summary(self) -> None:
+        payload = online_main.door_status_payload(
+            online_main.SOLROOM_DOOR_BY_KEY["door_solrom_10"],
+            {"id": 1, "timestamp": self.now, "action": "CLOSED", "state": False},
+            self.now,
+        )
+        online_main.apply_mobile_sunroom_bed_status(
+            payload,
+            {"status": "Av", "status_code": "0", "imported_at": self.now},
+        )
+
+        self.assertEqual(payload["state"], "closed")
+        self.assertEqual(payload["display_state"], "disabled")
+        self.assertEqual(payload["display_state_label"], "Stengt")
+        self.assertIn("1 stengt", online_main.render_solroom_door_summary([payload]))
+        self.assertNotIn("1 i bruk", online_main.render_solroom_door_summary([payload]))
+        self.assertIn("is-disabled", online_main.render_door_dashboard_cards([payload]))
+        self.assertIn("Stengt", online_main.render_door_overview([payload], "/solrom"))
+
     def test_door_alarm_rendering_prioritizes_active_alarm(self) -> None:
         alarm_item = {
             "title": "Solrom 4",

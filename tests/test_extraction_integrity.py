@@ -57,6 +57,7 @@ def test_all_relocated_function_bodies_preserve_original_behavior():
     special.update(
         {
             'apply_sunroom_alarm_verification',
+            'api_hc3_doors_status',
             'sunroom_door_alarm_payload',
             'sunroom_door_session_payload',
             'sunroom_force_sync_candidates',

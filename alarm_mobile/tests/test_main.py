@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 from urllib.parse import urlencode
 from unittest.mock import AsyncMock, patch
 
@@ -96,9 +97,18 @@ class AlarmMobileTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('id="doorsView"', INDEX_HTML)
         self.assertIn('id="bollardsView"', INDEX_HTML)
         self.assertIn('id="bollardDetailView"', INDEX_HTML)
-        self.assertIn("alarm-mobile.js?v=8", INDEX_HTML)
+        self.assertIn("alarm-mobile.js?v=9", INDEX_HTML)
         self.assertIn("/appkit-assets/lilletorget-appkit.css?v=4", INDEX_HTML)
         self.assertIn('class="appkit-footer bottom-nav"', INDEX_HTML)
+
+    def test_disabled_sunroom_has_shared_mobile_presentation(self):
+        script = Path("alarm_mobile/app/static/alarm-mobile.js").read_text(encoding="utf-8")
+        stylesheet = Path("alarm_mobile/app/static/alarm-mobile.css").read_text(encoding="utf-8")
+
+        self.assertIn("function roomIsDisabled", script)
+        self.assertIn('return "Stengt"', script)
+        self.assertIn("summary.disabled", script)
+        self.assertIn(".room-card.is-neutral", stylesheet)
 
 
 if __name__ == "__main__":

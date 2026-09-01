@@ -1024,6 +1024,11 @@ h2 { font-size: 1.05rem; }
 .other-door-card.is-solrom.is-closed {
     border-left-color: var(--red);
 }
+.door-mini-card.is-solrom.is-disabled,
+.other-door-card.is-solrom.is-disabled {
+    border-left-color: #8d96a6;
+    background: rgba(167, 176, 192, .08);
+}
 .door-mini-card.is-alarm {
     border-color: rgba(200, 106, 85, .36);
     border-left-color: var(--red);
@@ -1087,6 +1092,10 @@ h2 { font-size: 1.05rem; }
 .other-door-card.is-solrom.is-closed em {
     color: #9b3e2e;
     background: rgba(200, 106, 85, .14);
+}
+.other-door-card.is-solrom.is-disabled em {
+    color: #596273;
+    background: rgba(167, 176, 192, .18);
 }
 .other-door-card small {
     grid-column: 1 / -1;
@@ -2589,6 +2598,12 @@ body.appkit-mobile .appkit-footer .nav-status.is-primary.is-active svg {
 :root[data-theme="dark"] body.appkit-mobile .other-door-card.is-solrom.is-closed {
     border-left-color: var(--appkit-revenue);
     background: color-mix(in srgb, var(--appkit-revenue) 5%, #131b23);
+}
+
+:root[data-theme="dark"] body.appkit-mobile .door-mini-card.is-solrom.is-disabled,
+:root[data-theme="dark"] body.appkit-mobile .other-door-card.is-solrom.is-disabled {
+    border-left-color: var(--appkit-muted);
+    background: color-mix(in srgb, var(--appkit-muted) 7%, #131b23);
 }
 
 :root[data-theme="dark"] body.appkit-mobile .door-mini-card.is-alarm {

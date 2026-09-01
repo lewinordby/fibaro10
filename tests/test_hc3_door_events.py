@@ -6,6 +6,7 @@ from pathlib import Path
 
 from import_jobs import IMPORT_JOB_DEFINITIONS
 from observability import STORAGE_TABLES
+from fibaro_core.routers.control_routes import enrich_sunroom_door_statuses
 
 
 def test_door_event_api_route_is_registered():
@@ -18,6 +19,36 @@ def test_door_event_api_route_is_registered():
     assert "/api/hc3/doors/poll-sync" in routes
     assert "/api/hc3/doors/alarm" in routes
     assert "/api/hc3/doors/sunroom-logic" in routes
+
+
+def test_shared_door_status_marks_disabled_sunroom_without_hiding_sensor_state():
+    doors = [
+        {
+            "deviceKey": "door_solrom_10",
+            "groupKey": "solrom",
+            "state": "closed",
+            "stateLabel": "Lukket",
+        }
+    ]
+    rooms = [
+        {
+            "deviceKey": "door_solrom_10",
+            "bedEnabled": False,
+            "bedStatus": "Av",
+            "bedStatusCode": "0",
+            "bedStatusFresh": True,
+            "severity": "disabled",
+            "status": "Stengt",
+        }
+    ]
+
+    enrich_sunroom_door_statuses(doors, rooms)
+
+    assert doors[0]["state"] == "closed"
+    assert doors[0]["stateLabel"] == "Lukket"
+    assert doors[0]["displayState"] == "disabled"
+    assert doors[0]["displayStateLabel"] == "Stengt"
+    assert doors[0]["bedEnabled"] is False
 
 
 def test_door_event_datakilde_and_storage_are_registered():

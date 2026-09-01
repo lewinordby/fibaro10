@@ -1459,7 +1459,57 @@ async def door_events_for(device_key: str, configs_by_key: dict[str, dict[str, A
 
 
 async def solroom_door_statuses() -> list[dict[str, Any]]:
-    return await door_statuses_for(SOLROOM_DOOR_CONFIG, SOLROOM_DOOR_DEVICE_IDS, SOLROOM_DOOR_KEYS)
+    statuses = await door_statuses_for(SOLROOM_DOOR_CONFIG, SOLROOM_DOOR_DEVICE_IDS, SOLROOM_DOOR_KEYS)
+    if not SOURCE_MODE or not statuses:
+        return statuses
+    bed_ids = [str(config["sun2_bed_id"]) for config in SOLROOM_DOOR_CONFIG if config.get("sun2_bed_id")]
+    bed_rows = await many_mappings(
+        """
+        select sun2_bed_id, status, status_code, imported_at
+        from sun2_beds
+        where sun2_bed_id = any(:bed_ids)
+        """,
+        {"bed_ids": bed_ids},
+    )
+    beds_by_id = {str(row.get("sun2_bed_id")): row for row in bed_rows}
+    config_by_key = {str(config["device_key"]): config for config in SOLROOM_DOOR_CONFIG}
+    for status in statuses:
+        config = config_by_key.get(str(status.get("device_key") or ""), {})
+        bed = beds_by_id.get(str(config.get("sun2_bed_id") or ""))
+        apply_mobile_sunroom_bed_status(status, bed)
+    return statuses
+
+
+def mobile_sun2_bed_enabled(row: Optional[dict[str, Any]]) -> Optional[bool]:
+    if not row:
+        return None
+    status_code = str(row.get("status_code") or "").strip().casefold()
+    status = str(row.get("status") or "").strip().casefold()
+    if status_code in {"0", "false", "off", "disabled", "inactive"} or status in {
+        "av",
+        "slått av",
+        "deaktivert",
+        "stengt",
+        "ute av drift",
+    }:
+        return False
+    if status_code in {"1", "true", "on", "enabled", "active"} or status in {"på", "aktiv", "i drift"}:
+        return True
+    return None
+
+
+def apply_mobile_sunroom_bed_status(status: dict[str, Any], bed: Optional[dict[str, Any]]) -> None:
+    enabled = mobile_sun2_bed_enabled(bed)
+    status["bed_enabled"] = enabled
+    status["bed_status"] = str((bed or {}).get("status") or "") or None
+    status["bed_status_code"] = str((bed or {}).get("status_code") or "") or None
+    status["bed_status_imported_at"] = (bed or {}).get("imported_at")
+    if enabled is False:
+        status["display_state"] = "disabled"
+        status["display_state_label"] = "Stengt"
+    else:
+        status["display_state"] = status.get("state")
+        status["display_state_label"] = status.get("state_label")
 
 
 def solroom_room_id_from_config(config: dict[str, Any]) -> str:
@@ -1579,6 +1629,7 @@ async def solroom_door_alarm_statuses(statuses: list[dict[str, Any]]) -> dict[st
             )
         missing_session = bool(
             status.get("state") == "closed"
+            and status.get("bed_enabled") is not False
             and session is None
             and duration_seconds is not None
             and duration_seconds >= int(SUNROOM_DOOR_SESSION_GRACE_MINUTES * 60)
@@ -1612,7 +1663,8 @@ async def solroom_door_alarm_statuses(statuses: list[dict[str, Any]]) -> dict[st
         "summary": {
             "alarms": len(alarms),
             "watch": len(watch),
-            "busy": sum(1 for item in items if item.get("state") == "closed"),
+            "busy": sum(1 for item in items if item.get("state") == "closed" and item.get("bed_enabled") is not False),
+            "disabled": sum(1 for item in items if item.get("bed_enabled") is False),
             "rooms": len(items),
         },
         "subscribe_url": ntfy_subscribe_url(NTFY_DOORS_TOPIC, "SUN2 dørvarsler"),
@@ -3674,8 +3726,9 @@ async def solroom_doors_detail(request: Request):
     )
     body = detail_stats(
         [
-            ("Ledige", fmt_int(sum(1 for item in statuses if item.get("state") == "open")), "dør åpen"),
-            ("I bruk", fmt_int(sum(1 for item in statuses if item.get("state") == "closed")), "dør lukket"),
+            ("Ledige", fmt_int(sum(1 for item in statuses if item.get("display_state", item.get("state")) == "open")), "dør åpen"),
+            ("I bruk", fmt_int(sum(1 for item in statuses if item.get("display_state", item.get("state")) == "closed")), "dør lukket"),
+            ("Stengt", fmt_int(sum(1 for item in statuses if item.get("display_state") == "disabled")), "seng slått av i Sun2"),
             ("Ukjent", fmt_int(sum(1 for item in statuses if item.get("state") == "unknown")), "mangler siste status"),
             ("Sist endret", fmt_clock(latest), fmt_date(latest)),
         ]
@@ -3697,7 +3750,11 @@ async def solroom_door_detail(device_key: str, request: Request):
     events = await solroom_door_events(device_key, 80) if SOURCE_MODE else []
     body = detail_stats(
         [
-            ("Status", str(status.get("state_label") or "Ukjent"), str(status.get("age_label") or "-")),
+            (
+                "Romstatus",
+                str(status.get("display_state_label") or status.get("state_label") or "Ukjent"),
+                f"Dør fysisk {str(status.get('state_label') or 'ukjent').lower()}",
+            ),
             ("Sist endret", str(status.get("last_changed") or "-"), str(status.get("section_title") or "")),
             (
                 "Batteri",
@@ -3974,10 +4031,13 @@ def render_other_door_summary(statuses: list[dict[str, Any]]) -> str:
 def render_solroom_door_summary(statuses: list[dict[str, Any]]) -> str:
     if not statuses:
         return "Ingen romdata"
-    available_count = sum(1 for item in statuses if item.get("state") == "open")
-    busy_count = sum(1 for item in statuses if item.get("state") == "closed")
+    available_count = sum(1 for item in statuses if item.get("display_state", item.get("state")) == "open")
+    busy_count = sum(1 for item in statuses if item.get("display_state", item.get("state")) == "closed")
+    disabled_count = sum(1 for item in statuses if item.get("display_state") == "disabled")
     unknown_count = sum(1 for item in statuses if item.get("state") == "unknown")
     parts = [f"{available_count} ledige", f"{busy_count} i bruk"]
+    if disabled_count:
+        parts.append(f"{disabled_count} stengt")
     if unknown_count:
         parts.append(f"{unknown_count} ukjent")
     return " · ".join(parts)
@@ -3994,11 +4054,13 @@ def render_door_dashboard_cards(statuses: list[dict[str, Any]]) -> str:
     cards = []
     for item in newest:
         group_class = f" is-{escape(str(item.get('group_key') or 'door'))}"
+        display_state = str(item.get("display_state") or item.get("state") or "unknown")
+        display_label = str(item.get("display_state_label") or item.get("state_label") or "Ukjent")
         cards.append(
             f"""
-            <article class="door-mini-card is-{escape(str(item.get("state") or "unknown"))}{group_class}">
+            <article class="door-mini-card is-{escape(display_state)}{group_class}">
                 <strong>{escape(str(item.get("title") or ""))}</strong>
-                <span>{escape(str(item.get("state_label") or "Ukjent"))}</span>
+                <span>{escape(display_label)}</span>
                 <small>{escape(str(item.get("age_label") or "-"))}</small>
             </article>
             """
@@ -4122,9 +4184,9 @@ def render_door_overview(statuses: list[dict[str, Any]], base_path: str) -> str:
         return '<section class="section-block"><p class="empty-list">Ingen dørdata akkurat nå.</p></section>'
     cards = []
     for item in statuses:
-        state = str(item.get("state") or "unknown")
+        state = str(item.get("display_state") or item.get("state") or "unknown")
         title = str(item.get("title") or item.get("device_key") or "Dør")
-        state_label = str(item.get("state_label") or "Ukjent")
+        state_label = str(item.get("display_state_label") or item.get("state_label") or "Ukjent")
         last_changed = str(item.get("last_changed") or "-")
         age_label = str(item.get("age_label") or "-")
         section = str(item.get("section_title") or "").strip()
