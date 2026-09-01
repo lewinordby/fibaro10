@@ -155,7 +155,7 @@ def build_refill_log(
                         "refilledAtValue": None,
                     }
                     all_cycles.append(pending)
-                if kind == "low" and pending["lowAtValue"] is None:
+                if kind in {"empty", "low"} and pending["lowAtValue"] is None:
                     pending["lowAtValue"] = transition["timestamp"]
                 if kind == "tank_removed" and pending["tankRemovedAtValue"] is None:
                     pending["tankRemovedAtValue"] = transition["timestamp"]
@@ -215,7 +215,7 @@ def build_refill_log(
             "provider": cycle["provider"],
             "reason": (
                 "Lite vann"
-                if cycle["lowAtValue"]
+                if cycle["provider"] == "dreame" and cycle["lowAtValue"]
                 else "Tank tatt ut"
                 if cycle["tankRemovedAtValue"]
                 else "Tom"
@@ -313,7 +313,8 @@ def build_refill_log(
         "robots": robot_summary,
         "cycles": public_cycles,
         "measurementNote": (
-            "For Roborock registreres Tom når dokkens rentvannstatus går fra OK til Tom, og Fylt når den "
+            "For Roborock vises Tom i kolonnen Lite / tomt vann når dokkens rentvannstatus går fra OK til Tom, "
+            "og Fylt når den "
             "går tilbake til OK. Aqua10 viser Lite vann, Tank tatt ut og OK som egne tidspunkt i samme "
             "påfyllingssyklus. Reaksjonstid måles fra Lite vann til tankuttak, tanktid fra uttak til OK, "
             "og total tid fra første påfyllingsbehov til OK. "

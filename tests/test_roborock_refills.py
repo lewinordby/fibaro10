@@ -49,6 +49,9 @@ def test_refill_log_pairs_empty_and_refilled_times() -> None:
     assert [robot["name"] for robot in report["robots"]] == ["1.etg A", "Aqua10"]
     assert len(report["cycles"]) == 1
     assert report["cycles"][0]["robotName"] == "1.etg A"
+    assert report["cycles"][0]["reason"] == "Tom"
+    assert report["cycles"][0]["lowAt"].startswith("2026-08-10T08:00")
+    assert report["cycles"][0]["tankRemovedAt"] is None
     assert report["cycles"][0]["emptyAt"].startswith("2026-08-10T08:00")
     assert report["cycles"][0]["refilledAt"].startswith("2026-08-10T09:00")
     assert report["cycles"][0]["emptyMinutes"] == 60
