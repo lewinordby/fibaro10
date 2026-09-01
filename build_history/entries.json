@@ -1,6 +1,26 @@
 [
   {
     "version": "1",
+    "build": "1844",
+    "date": "01.09.2026",
+    "headline": "Aqua10 får reell automatisk vannsperre",
+    "title": "Dreame-planene pauses ved lite vann og gjenopptas etter påfylling",
+    "description": "Aqua10s aktive vaskeplaner slås nå faktisk av i Dreamehome når rentvannstatusen er Lite, tom eller mangler. Planenes opprinnelige status lagres og verifiseres, og bare planene som sperren selv pauset blir aktivert igjen når rentvannet uttrykkelig rapporteres OK.",
+    "applications": ["Dreame_logger", "Fibaro10 kjerne/API", "Mantis Renhold"],
+    "request": "Gjør det riktig: Aqua10-jobbene skal settes på pause når det er lite vann.",
+    "work_duration": "Utvidelse av Dreame-styringen med vedvarende tilstand, verifisering og full regresjonskontroll; separat tid ikke målt",
+    "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+    "changes": [
+      "Tolker Lite, tom og manglende rentvann som blokkerende Aqua10-status.",
+      "Deaktiverer alle aktive Dreame-planer ved å oppdatere den komplette planstrengen uten å endre tidspunkt, ukedager, kart eller soner.",
+      "Verifiserer resultatet og lagrer hver plans opprinnelige Dreame-status før den regnes som pauset.",
+      "Gjenoppretter bare planene som vannsperren selv pauset når status igjen er uttrykkelig OK.",
+      "Gjenoppretter ikke en plan som er slettet mens vannsperren er aktiv.",
+      "Rapporterer Aqua10-vannsperren gjennom samme statuskontrakt som Roborock, slik at oversikten viser reelt antall pausede planer."
+    ]
+  },
+  {
+    "version": "1",
     "build": "1843",
     "date": "01.09.2026",
     "headline": "Renhold-status finjustert for lav skjermhøyde",

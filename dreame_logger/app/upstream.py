@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .normalization import normalize_device_snapshot
+from .water_interlock import rewrite_schedule_states, schedule_state_map
 
 
 LOGGER = logging.getLogger("dreame_logger.upstream")
@@ -140,6 +141,40 @@ class DreameUpstream:
         device.update()
         snapshot = normalize_device_snapshot(device, descriptor, self.timezone_name)
         return {"action": action, "result": result, "snapshot": snapshot}
+
+    def set_schedule_states(self, external_id: str, requested: dict[str, str]) -> dict[str, Any]:
+        from dreame.types import DreameVacuumProperty
+
+        descriptor = self.descriptors.get(external_id)
+        if not descriptor:
+            self.discover()
+            descriptor = self.descriptors.get(external_id)
+        if not descriptor:
+            raise KeyError(external_id)
+        device = self._device(descriptor)
+        if not getattr(device, "available", False):
+            device.connect_device()
+        device.update()
+        raw_schedule = device.get_property(DreameVacuumProperty.SCHEDULE) or ""
+        updated, before, changed = rewrite_schedule_states(raw_schedule, requested)
+        if changed and not device.set_property(DreameVacuumProperty.SCHEDULE, updated):
+            raise RuntimeError("Dreamehome avviste endring av vaskeplanene")
+        if changed:
+            device.update()
+        verified = schedule_state_map(device.get_property(DreameVacuumProperty.SCHEDULE) or updated)
+        failed = {
+            schedule_id: {"expected": state, "actual": verified.get(schedule_id)}
+            for schedule_id, state in requested.items()
+            if schedule_id in before and verified.get(schedule_id) != state
+        }
+        return {
+            "ok": not failed,
+            "requested": requested,
+            "before": before,
+            "changed": changed,
+            "verified": verified,
+            "failed": failed,
+        }
 
     def close(self) -> None:
         for device in self.devices.values():

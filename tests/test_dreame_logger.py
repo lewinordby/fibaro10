@@ -1,7 +1,10 @@
+import asyncio
 from datetime import datetime, timedelta
 from enum import IntEnum
 
+from dreame_logger.app import main as dreame_main
 from dreame_logger.app.normalization import normalize_device_snapshot, normalize_history, normalize_schedule
+from dreame_logger.app.water_interlock import clear_water_state, rewrite_schedule_states, schedule_state_map
 from roborock_reports import resource_problem
 
 
@@ -188,3 +191,102 @@ def test_dreame_invalid_schedule_is_disabled_and_malformed_time_is_preserved():
     assert row is not None
     assert row["cron"] == "25:75"
     assert row["enabled"] is False
+
+
+def test_dreame_schedule_state_rewrite_preserves_complete_plan_definition():
+    raw = "1-1-03:05-0101010-1-11-0-0-a,b;2-2-03:05-0010101-1-11-0-0-c,d"
+
+    paused, before, changed = rewrite_schedule_states(raw, {"1": "0", "2": "0"})
+
+    assert before == {"1": "1", "2": "2"}
+    assert changed == {"1": "0", "2": "0"}
+    assert paused == "1-0-03:05-0101010-1-11-0-0-a,b;2-0-03:05-0010101-1-11-0-0-c,d"
+    assert schedule_state_map(paused) == {"1": "0", "2": "0"}
+
+
+def test_dreame_water_state_blocks_low_or_missing_tank_but_requires_explicit_ok_to_restore():
+    assert clear_water_state({"clear_water_status": 0, "clear_water_status_name": "OK"}) == "ok"
+    assert clear_water_state({"clear_water_status": 2, "clear_water_status_name": "low_water"}) == "empty"
+    assert clear_water_state({"clear_water_status": 1, "clear_water_status_name": "missing"}) == "empty"
+    assert clear_water_state({}) == "unknown"
+
+
+def test_aqua10_low_water_pauses_active_schedules_and_refill_restores_them(monkeypatch):
+    state = {"water_interlocks": {}}
+    snapshot = {
+        "external_id": "aqua10",
+        "telemetry": {"clear_water_status": 2, "clear_water_status_name": "low_water"},
+        "schedules": [
+            {"id": "1", "cron": "5 3 * * 1,3,5", "enabled": True},
+            {"id": "2", "cron": "5 3 * * 2,4,6", "enabled": True},
+        ],
+    }
+
+    class FakeUpstream:
+        def __init__(self):
+            self.calls = []
+
+        def set_schedule_states(self, external_id, requested):
+            self.calls.append((external_id, requested))
+            if set(requested.values()) == {"0"}:
+                return {
+                    "ok": True,
+                    "before": {"1": "1", "2": "2"},
+                    "verified": {"1": "0", "2": "0"},
+                    "failed": {},
+                }
+            return {
+                "ok": True,
+                "before": {"1": "0", "2": "0"},
+                "verified": requested,
+                "failed": {},
+            }
+
+    fake = FakeUpstream()
+    monkeypatch.setattr(dreame_main, "get_upstream", lambda: fake)
+
+    blocked = asyncio.run(dreame_main.reconcile_water_interlock(snapshot, state))
+
+    assert fake.calls == [("aqua10", {"1": "0", "2": "0"})]
+    assert blocked["status"] == "blocked"
+    assert blocked["paused_count"] == 2
+    assert {row["previous_state"] for row in blocked["paused_schedules"]} == {"1", "2"}
+    assert all(schedule["enabled"] is False for schedule in snapshot["schedules"])
+
+    snapshot["telemetry"] = {"clear_water_status": 0, "clear_water_status_name": "OK"}
+    restored = asyncio.run(dreame_main.reconcile_water_interlock(snapshot, state))
+
+    assert fake.calls[-1] == ("aqua10", {"1": "1", "2": "2"})
+    assert restored["status"] == "ready"
+    assert restored["paused_count"] == 0
+    assert all(schedule["enabled"] is True for schedule in snapshot["schedules"])
+
+
+def test_aqua10_does_not_recreate_schedule_deleted_while_water_blocked(monkeypatch):
+    state = {
+        "water_interlocks": {
+            "aqua10": {
+                "status": "blocked",
+                "blocked_at": "2026-09-01T10:00:00+02:00",
+                "paused_schedules": [
+                    {"schedule_id": "deleted", "cron": "5 3 * * *", "previous_state": "1", "paused_at": "2026-09-01T10:00:00+02:00"}
+                ],
+            }
+        }
+    }
+    snapshot = {
+        "external_id": "aqua10",
+        "telemetry": {"clear_water_status": 0, "clear_water_status_name": "OK"},
+        "schedules": [],
+    }
+
+    class UnexpectedUpstream:
+        def set_schedule_states(self, *_args, **_kwargs):
+            raise AssertionError("En slettet plan skal ikke gjenopprettes")
+
+    monkeypatch.setattr(dreame_main, "get_upstream", lambda: UnexpectedUpstream())
+
+    restored = asyncio.run(dreame_main.reconcile_water_interlock(snapshot, state))
+
+    assert restored["status"] == "ready"
+    assert restored["paused_count"] == 0

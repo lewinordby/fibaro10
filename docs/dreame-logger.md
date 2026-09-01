@@ -40,6 +40,18 @@ Fibaro10 mottar ikke et nøyaktig vann- eller såpenivå i prosent eller liter f
 om lite vann markeres for oppfølging, men gjør ikke alene en ferdig jobb mislykket. Varslene tomt,
 ikke nok vann til rengjøring og tank ikke montert regnes som blokkerende vannmangel.
 
+## Automatisk vannsperre
+
+`dreame_logger` kontrollerer vannstatus ved hver femminutters synkronisering. Når Aqua10 rapporterer
+lite, tomt eller manglende rentvann, deaktiveres alle planene som er aktive i Dreamehome. Tjenesten
+lagrer plan-ID, tidspunkt, opprinnelig Dreame-status og tidspunktet planen ble pauset. Endringen regnes
+ikke som vellykket før den nye statusen er verifisert.
+
+Når rentvannet igjen rapporteres uttrykkelig `OK`, aktiveres bare planene som vannsperren selv pauset.
+Planer som slettes mens sperren er aktiv, blir ikke opprettet på nytt. Ukjent eller utdatert vannstatus
+fører aldri til automatisk gjenopptak. Sperren kan nøddeaktiveres med
+`DREAME_WATER_INTERLOCK_ENABLED=false`, men er aktiv som standard.
+
 Kartbehandling er bevisst deaktivert i første fase. Det holder minnebruken lav og reduserer risikoen i den løpende status- og historikkinnlesingen. Kart kan vurderes separat etter at Aqua10 er aktiv og stabil.
 
 ## Første oppsett
@@ -53,6 +65,7 @@ DREAME_USERNAME=
 DREAME_PASSWORD=
 DREAME_COUNTRY=eu
 DREAME_ACCOUNT_TYPE=dreame
+DREAME_WATER_INTERLOCK_ENABLED=true
 ```
 
 4. Deploy normalt med `scripts/deploy-qnap.ps1` eller bygg tjenesten direkte fra `dreame_logger/docker-compose.qnap.yml`.

@@ -18,6 +18,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from .upstream import DreameCredentials, DreameUpstream
+from .water_interlock import ACTIVE_SCHEDULE_STATES, active_schedule_rows, clear_water_state, interlock_label
 
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
@@ -38,6 +39,12 @@ DREAME_PASSWORD = os.getenv("DREAME_PASSWORD", "")
 DREAME_COUNTRY = os.getenv("DREAME_COUNTRY", "eu").strip().lower()
 DREAME_ACCOUNT_TYPE = os.getenv("DREAME_ACCOUNT_TYPE", "dreame").strip().lower()
 DREAME_CONTROL_TOKEN = os.getenv("DREAME_CONTROL_TOKEN", "").strip()
+DREAME_WATER_INTERLOCK_ENABLED = os.getenv("DREAME_WATER_INTERLOCK_ENABLED", "true").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 EXPECTED_ROBOT_NAME = os.getenv("DREAME_EXPECTED_ROBOT_NAME", "Aqua10").strip() or "Aqua10"
 COLLECTOR_ID = os.getenv("COLLECTOR_ID", "dreame_logger")
 APP_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exists() else "dev"
@@ -55,6 +62,7 @@ def load_state() -> dict[str, Any]:
         "last_error": None,
         "robots": [],
         "pending_batches": 0,
+        "water_interlocks": {},
     }
     if not STATE_FILE.exists():
         return defaults
@@ -138,7 +146,125 @@ def summarized_robot(snapshot: dict[str, Any]) -> dict[str, Any]:
         "battery": status.get("battery"),
         "online": (snapshot.get("metadata") or {}).get("online"),
         "error": snapshot.get("last_error"),
+        "water_interlock": (snapshot.get("telemetry") or {}).get("water_interlock"),
     }
+
+
+def public_water_interlock(entry: dict[str, Any]) -> dict[str, Any]:
+    paused = entry.get("paused_schedules") if isinstance(entry.get("paused_schedules"), list) else []
+    status = str(entry.get("status") or "ready")
+    return {
+        "enabled": DREAME_WATER_INTERLOCK_ENABLED,
+        "status": status,
+        "label": interlock_label(status, len(paused)),
+        "water_status": entry.get("water_status"),
+        "checked_at": entry.get("checked_at"),
+        "blocked_at": entry.get("blocked_at"),
+        "restored_at": entry.get("restored_at"),
+        "paused_count": len(paused),
+        "paused_schedules": paused,
+        "last_action": entry.get("last_action"),
+        "last_error": entry.get("last_error"),
+    }
+
+
+async def reconcile_water_interlock(snapshot: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
+    external_id = str(snapshot.get("external_id") or "")
+    now = local_now().isoformat()
+    interlocks = state.setdefault("water_interlocks", {})
+    entry = interlocks.setdefault(external_id, {"paused_schedules": []})
+    telemetry = snapshot.get("telemetry") if isinstance(snapshot.get("telemetry"), dict) else {}
+    water_status = clear_water_state(telemetry)
+    entry.update({"checked_at": now, "water_status": water_status})
+
+    if not DREAME_WATER_INTERLOCK_ENABLED:
+        entry.update({"status": "disabled", "last_error": None})
+        return public_water_interlock(entry)
+    if water_status == "unknown":
+        entry.update({"status": "blocked" if entry.get("paused_schedules") else "unsupported", "last_error": None})
+        return public_water_interlock(entry)
+
+    schedules = snapshot.get("schedules") if isinstance(snapshot.get("schedules"), list) else []
+    schedules_by_id = {
+        str(row.get("id") or row.get("schedule_id")): row
+        for row in schedules
+        if isinstance(row, dict) and (row.get("id") or row.get("schedule_id"))
+    }
+    paused = {
+        str(row.get("schedule_id")): row
+        for row in (entry.get("paused_schedules") or [])
+        if isinstance(row, dict) and row.get("schedule_id")
+    }
+
+    if water_status == "empty":
+        candidates = {row["schedule_id"]: row for row in active_schedule_rows(schedules)}
+        if candidates:
+            result = await asyncio.to_thread(
+                get_upstream().set_schedule_states,
+                external_id,
+                {schedule_id: "0" for schedule_id in candidates},
+            )
+            verified = result.get("verified") or {}
+            before = result.get("before") or {}
+            for schedule_id, row in candidates.items():
+                if verified.get(schedule_id) == "0":
+                    previous_state = str(before.get(schedule_id) or paused.get(schedule_id, {}).get("previous_state") or "1")
+                    paused[schedule_id] = {
+                        **row,
+                        "previous_state": previous_state if previous_state in ACTIVE_SCHEDULE_STATES else "1",
+                        "paused_at": paused.get(schedule_id, {}).get("paused_at") or now,
+                    }
+                    schedules_by_id[schedule_id]["enabled"] = False
+            entry["last_action"] = {
+                "action": "pause",
+                "at": now,
+                "count": sum(verified.get(schedule_id) == "0" for schedule_id in candidates),
+                "requested": len(candidates),
+            }
+            entry["last_error"] = None if result.get("ok") else json.dumps(result.get("failed"), ensure_ascii=False)
+        else:
+            entry["last_error"] = None
+        entry["paused_schedules"] = list(paused.values())
+        entry["blocked_at"] = entry.get("blocked_at") or now
+        entry["status"] = "error" if entry.get("last_error") else "blocked"
+        return public_water_interlock(entry)
+
+    restorable = {
+        schedule_id: row
+        for schedule_id, row in paused.items()
+        if schedule_id in schedules_by_id
+    }
+    if restorable:
+        requested = {
+            schedule_id: str(row.get("previous_state") or "1")
+            for schedule_id, row in restorable.items()
+        }
+        result = await asyncio.to_thread(get_upstream().set_schedule_states, external_id, requested)
+        verified = result.get("verified") or {}
+        restored_ids = {schedule_id for schedule_id, target in requested.items() if verified.get(schedule_id) == target}
+        for schedule_id in restored_ids:
+            schedules_by_id[schedule_id]["enabled"] = True
+        paused = {
+            schedule_id: row
+            for schedule_id, row in paused.items()
+            if schedule_id not in restored_ids and schedule_id in schedules_by_id
+        }
+        entry["last_action"] = {
+            "action": "restore",
+            "at": now,
+            "count": len(restored_ids),
+            "requested": len(restorable),
+        }
+        entry["last_error"] = None if result.get("ok") else json.dumps(result.get("failed"), ensure_ascii=False)
+    else:
+        paused = {schedule_id: row for schedule_id, row in paused.items() if schedule_id in schedules_by_id}
+        entry["last_error"] = None
+    entry["paused_schedules"] = list(paused.values())
+    if not paused:
+        entry["restored_at"] = now if entry.get("blocked_at") else entry.get("restored_at")
+        entry["blocked_at"] = None
+    entry["status"] = "error" if entry.get("last_error") else ("blocked" if paused else "ready")
+    return public_water_interlock(entry)
 
 
 upstream: DreameUpstream | None = None
@@ -187,6 +313,25 @@ async def sync_once() -> dict[str, Any]:
         try:
             await asyncio.to_thread(flush_queue)
             snapshots = await asyncio.to_thread(get_upstream().refresh)
+            for snapshot in snapshots:
+                telemetry = snapshot.get("telemetry") if isinstance(snapshot.get("telemetry"), dict) else None
+                if not telemetry or not snapshot.get("external_id"):
+                    continue
+                try:
+                    telemetry["water_interlock"] = await reconcile_water_interlock(snapshot, state)
+                except Exception as exc:
+                    external_id = str(snapshot.get("external_id"))
+                    entry = state.setdefault("water_interlocks", {}).setdefault(external_id, {"paused_schedules": []})
+                    entry.update(
+                        {
+                            "checked_at": local_now().isoformat(),
+                            "water_status": clear_water_state(telemetry),
+                            "status": "error",
+                            "last_error": f"{type(exc).__name__}: {exc}",
+                        }
+                    )
+                    telemetry["water_interlock"] = public_water_interlock(entry)
+                    LOGGER.exception("Aqua10 water interlock failed for %s", external_id)
             payload = {
                 "collector_id": COLLECTOR_ID,
                 "source": COLLECTOR_ID,
