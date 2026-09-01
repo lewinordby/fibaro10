@@ -79,6 +79,10 @@ Visningsnumrene 10-12 er ikke de samme som intern fysisk rom-ID. Solrom 10, 11 o
 bekrefter alarmgrunnlaget i en ny databaseøkt før varsel sendes. Det er bare bakgrunnsmonitoren som kan sende
 ntfy-varsel; visning og oppdatering av websider er lesende.
 
+Aktuell sengestatus hentes fra Sun2 sammen med enkelttimene. En seng som er slått av i Sun2 behandles som
+`Stengt`: lukket dør er da forventet og døralarmen er deaktivert. Ukjent eller utdatert sengestatus kan heller ikke
+utløse alarm før en vellykket Sun2-oppdatering har bekreftet at sengen er aktiv.
+
 ## Alarmhistorikk og avvik
 
 Raa apne- og lukkehendelser beholdes i `door_events`. Fibaro10 slar sammen gjentatte statuser fra HC3 til en

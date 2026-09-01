@@ -74,6 +74,11 @@ Betalingskontrollen er hendelsesstyrt:
 - En global sperre i skraperen sørger for at flere rom aldri gir tettere SUN2-oppslag enn hvert 5. minutt.
 - Hvis en eldre, fortsatt pågående time er koblet til døren, kontrolleres det likevel om en ny kunde har betalt på samme rom.
 - Når en nyere time dukker opp, blir den automatisk valgt foran den gamle.
+- Den samme innloggede nettleserøkten oppdaterer også sengestatusen fra Sun2. Det gir ikke et ekstra Sun2-oppslag eller en ekstra innlogging.
+
+En seng som er markert `Av` i Sun2 vises som `Stengt` og kan ikke utløse døralarm selv om døren er lukket. Dersom
+sengestatusen er ukjent eller eldre enn ti minutter, holdes en mulig alarm tilbake til en vellykket Sun2-oppdatering
+har bekreftet at sengen er aktiv. Dette hindrer både alarm på stengte rom og alarm basert på gamle metadata.
 
 Alarmforløpet uten funnet time er:
 

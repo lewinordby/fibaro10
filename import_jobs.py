@@ -69,9 +69,9 @@ IMPORT_JOB_DEFINITIONS = {
         "title": "Sun2 senger",
         "category": "Soling",
         "source": "QNAP",
-        "expected_interval_minutes": 7 * 24 * 60,
-        "warning_after_minutes": 14 * 24 * 60,
-        "description": "Seng-/rommetadata fra Sun2.",
+        "expected_interval_minutes": 35,
+        "warning_after_minutes": 60,
+        "description": "Aktuell sengestatus og rommetadata fra Sun2, oppdatert sammen med enkelttimene.",
     },
     "sun2_members_import": {
         "title": "Sun2 medlemmer",
@@ -243,7 +243,7 @@ IMPORT_JOB_DETAILS = {
         "dependencies": ["sun2_session_scraper", "Sun2", "Axis snapshot-arkiv", "Fibaro10 API", "PostgreSQL"],
     },
     "sun2_beds_import": {
-        "data_flow": "Sun2 session scraper henter rom- og sengmetadata fra Sun2 og oppdaterer lokal sengtabell. Metadata brukes for visningsnavn, romkobling og energiberegning.",
+        "data_flow": "Sun2 session scraper henter aktuell sengestatus samt rom- og sengmetadata i samme innloggede nettleserøkt som enkelttimene. Fibaro10 bruker statusen til visningsnavn, romkobling, energiberegning og til å deaktivere døralarm for senger som er slått av.",
         "dependencies": ["sun2_session_scraper", "Sun2", "Fibaro10 API", "PostgreSQL"],
     },
     "sun2_members_import": {

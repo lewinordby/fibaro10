@@ -73,6 +73,16 @@ def test_sun2_live_sync_persists_the_trigger_reason():
     assert "scrape_today_sync, reason" in source
 
 
+def test_sun2_live_sync_refreshes_bed_status_in_same_browser_context():
+    source = Path("sun2_session_scraper/app/main.py").read_text(encoding="utf-8")
+    scrape_source = source[source.index("def scrape_month_sync"):source.index("def scrape_today_sync")]
+
+    assert "if period_is_still_open:" in scrape_source
+    assert "beds_page = context.new_page()" in scrape_source
+    assert "open_beds_page(beds_page, username, password)" in scrape_source
+    assert "sync_beds_from_page(beds_page)" in scrape_source
+
+
 def test_hc3_door_lua_contains_expected_devices_and_endpoint():
     lua = Path("scripts/hc3_door_event_logger.lua").read_text(encoding="utf-8")
 
@@ -380,6 +390,128 @@ class SunroomDoorTimingTests(unittest.TestCase):
         self.assertEqual(item["status"], "Alarm")
         self.assertEqual(item["alarmReason"], "closed_without_session")
         self.assertEqual(self.main.sunroom_alarm_detected_at(item, now), now - timedelta(minutes=1))
+
+    def test_disabled_sun2_bed_suppresses_closed_door_alarm(self):
+        config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_solrom_10")
+        now = datetime(2026, 9, 1, 13, 30)
+        row = self.main.DoorEvent(
+            device_id=config["device_id"],
+            device_key=config["device_key"],
+            timestamp=now - timedelta(hours=2),
+            action="CLOSED",
+            state=False,
+        )
+        bed_status = {
+            "enabled": False,
+            "fresh": True,
+            "status": "Av",
+            "statusCode": "0",
+            "importedAt": now.isoformat(),
+            "importedLabel": "13:30",
+            "ageMinutes": 0,
+        }
+
+        item = self.main.sunroom_status_item(
+            config,
+            row,
+            {self.main.sunroom_room_id_for_config(config): []},
+            now,
+            bed_status,
+        )
+
+        self.assertEqual(item["doorState"], "closed")
+        self.assertEqual(item["status"], "Stengt")
+        self.assertEqual(item["severity"], "disabled")
+        self.assertFalse(item["bedEnabled"])
+        self.assertFalse(item["alarmEligible"])
+        self.assertFalse(item["missingSession"])
+        self.assertFalse(item["noSessionAlarmActive"])
+        self.assertIsNone(item["alarmReason"])
+        self.assertNotIn(item, self.main.sunroom_force_sync_candidates([item]))
+
+    def test_stale_sun2_bed_status_holds_alarm_until_refreshed(self):
+        config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_solrom_10")
+        now = datetime(2026, 9, 1, 13, 30)
+        row = self.main.DoorEvent(
+            device_id=config["device_id"],
+            device_key=config["device_key"],
+            timestamp=now - timedelta(minutes=18),
+            action="CLOSED",
+            state=False,
+        )
+        stale_status = {
+            "enabled": True,
+            "fresh": False,
+            "status": "På",
+            "statusCode": "1",
+            "importedAt": (now - timedelta(hours=2)).isoformat(),
+            "importedLabel": "11:30",
+            "ageMinutes": 120,
+        }
+
+        item = self.main.sunroom_status_item(
+            config,
+            row,
+            {self.main.sunroom_room_id_for_config(config): []},
+            now,
+            stale_status,
+        )
+
+        self.assertEqual(item["status"], "Kontrollerer sengestatus")
+        self.assertEqual(item["severity"], "waiting")
+        self.assertFalse(item["alarmEligible"])
+        self.assertFalse(item["noSessionAlarmActive"])
+        self.assertIsNone(item["alarmReason"])
+        self.assertEqual(self.main.apply_sunroom_alarm_verification([item], now)[0]["severity"], "waiting")
+        self.assertEqual(self.main.sunroom_force_sync_candidates([item]), [item])
+
+    def test_fresh_enabled_sun2_bed_keeps_normal_alarm_logic(self):
+        config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_solrom_10")
+        now = datetime(2026, 9, 1, 13, 30)
+        row = self.main.DoorEvent(
+            device_id=config["device_id"],
+            device_key=config["device_key"],
+            timestamp=now - timedelta(minutes=18),
+            action="CLOSED",
+            state=False,
+        )
+        fresh_status = {
+            "enabled": True,
+            "fresh": True,
+            "status": "På",
+            "statusCode": "1",
+            "importedAt": now.isoformat(),
+            "importedLabel": "13:30",
+            "ageMinutes": 0,
+        }
+
+        item = self.main.sunroom_status_item(
+            config,
+            row,
+            {self.main.sunroom_room_id_for_config(config): []},
+            now,
+            fresh_status,
+        )
+
+        self.assertTrue(item["alarmEligible"])
+        self.assertTrue(item["noSessionAlarmActive"])
+        self.assertEqual(item["alarmReason"], "closed_without_session")
+
+    def test_sun2_bed_status_maps_off_code_and_freshness(self):
+        now = datetime(2026, 9, 1, 13, 30)
+        row = self.main.Sun2Bed(
+            sun2_bed_id="679",
+            name="Rom 10 Super+",
+            status="Av",
+            status_code="0",
+            imported_at=self.main.local_naive_to_utc_naive(now - timedelta(minutes=2)),
+        )
+
+        status = self.main.sunroom_bed_status_payload(row, now)
+
+        self.assertFalse(status["enabled"])
+        self.assertTrue(status["fresh"])
+        self.assertEqual(status["ageMinutes"], 2)
 
     def test_old_finished_session_does_not_cover_a_new_closed_period(self):
         now = datetime(2026, 7, 13, 12, 0)

@@ -1606,31 +1606,22 @@ def post_members_to_fibaro10(payload: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
-def scrape_beds_sync() -> dict[str, Any]:
-    username = env_required("SUN2_USERNAME")
-    password = env_required("SUN2_PASSWORD")
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context(locale="nb-NO", accept_downloads=True)
-        page = context.new_page()
-        open_beds_page(page, username, password)
-        beds = extract_beds(page)
-        response = None
-        if POST_TO_FIBARO10 and beds:
-            response = post_to_fibaro10(
-                {
-                    "source": "sun2_session_scraper",
-                    "collector_id": COLLECTOR_ID,
-                    "timestamp": datetime.utcnow().isoformat(),
-                    "ok": True,
-                    "message": f"Importerte {len(beds)} SUN2-senger",
-                    "beds": beds,
-                    "extra": {"settings_url": page.url},
-                },
-                "/api/sun2/beds/ingest",
-            )
-        context.close()
-        browser.close()
+def sync_beds_from_page(page) -> dict[str, Any]:
+    beds = extract_beds(page)
+    response = None
+    if POST_TO_FIBARO10 and beds:
+        response = post_to_fibaro10(
+            {
+                "source": "sun2_session_scraper",
+                "collector_id": COLLECTOR_ID,
+                "timestamp": datetime.utcnow().isoformat(),
+                "ok": True,
+                "message": f"Importerte {len(beds)} SUN2-senger",
+                "beds": beds,
+                "extra": {"settings_url": page.url},
+            },
+            "/api/sun2/beds/ingest",
+        )
     state["beds_last_sync"] = datetime.utcnow().isoformat()
     state["beds_last_count"] = len(beds)
     save_progress({"last_action": "beds_synced", "beds_last_count": len(beds), "fibaro10_beds_response": response})
@@ -1643,6 +1634,20 @@ def scrape_beds_sync() -> dict[str, Any]:
         raw={"posted": bool(response), "response": response},
     )
     return {"ok": True, "beds": len(beds), "posted": bool(response), "fibaro10_response": response}
+
+
+def scrape_beds_sync() -> dict[str, Any]:
+    username = env_required("SUN2_USERNAME")
+    password = env_required("SUN2_PASSWORD")
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(locale="nb-NO", accept_downloads=True)
+        page = context.new_page()
+        open_beds_page(page, username, password)
+        result = sync_beds_from_page(page)
+        context.close()
+        browser.close()
+    return result
 
 
 def scrape_members_sync() -> dict[str, Any]:
@@ -1991,6 +1996,23 @@ def scrape_month_sync(
         if POST_TO_FIBARO10 and sessions:
             response = post_to_fibaro10(payload)
             state["posted_files"] += 1
+        beds_result = None
+        beds_error = None
+        if period_is_still_open:
+            beds_page = context.new_page()
+            try:
+                open_beds_page(beds_page, username, password)
+                beds_result = sync_beds_from_page(beds_page)
+            except Exception as exc:
+                beds_error = str(exc)[:1000]
+                post_import_status(
+                    "sun2_beds_import",
+                    ok=False,
+                    message=f"Sengestatus under live-sync feilet: {beds_error}",
+                    raw={"trigger_reason": trigger_reason},
+                )
+            finally:
+                beds_page.close()
         context.close()
         browser.close()
 
@@ -2019,6 +2041,8 @@ def scrape_month_sync(
         "rows": len(sessions),
         "posted": bool(response),
         "trigger_reason": trigger_reason,
+        "beds": beds_result,
+        "beds_error": beds_error,
         "fibaro10_response": response,
     }
 

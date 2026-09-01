@@ -52,6 +52,18 @@ def test_all_relocated_function_bodies_preserve_original_behavior():
     # Additive measurement evidence is covered by the data-source endpoint tests.
     special.add('import_status_detail')
     special.add('import_status_rows')  # Additive provenance; times/thresholds preserved.
+    # Bed-state-aware door alarms intentionally extend the extracted runtime.
+    # Their current behavior is covered by test_hc3_door_events.py.
+    special.update(
+        {
+            'apply_sunroom_alarm_verification',
+            'sunroom_door_alarm_payload',
+            'sunroom_door_session_payload',
+            'sunroom_force_sync_candidates',
+            'sunroom_status_item',
+            'sync_sunroom_alarm_history',
+        }
+    )
     differences = [name for name, digest in expected.items() if name not in special and digest not in candidates[name]]
     assert not differences, differences
 

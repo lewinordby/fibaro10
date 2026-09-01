@@ -8,6 +8,7 @@ from fibaro_core.models import (
     AlarmEvent,
     DoorEvent,
     EnergyFibaroSample,
+    Sun2Bed,
     Sun2SessionImportRun,
     Sun2TanningSession,
 )
@@ -59,6 +60,7 @@ class Dependencies:
     SUNROOM_DOOR_SYNC_MAX_ATTEMPTS: Any
     SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS: Any
     SUNROOM_DOOR_WARN_AFTER_END_MINUTES: Any
+    SUNROOM_BED_STATUS_MAX_AGE_MINUTES: Any
     alarm_event_payload: Callable[..., Any]
     async_session: Callable[..., Any]
     attach_hc3_alarm_verification: Callable[..., Any]
@@ -1501,11 +1503,57 @@ def create_service(dependencies: Dependencies):
             "overstayLabel": door_duration_label(overstay_seconds) if overstay_seconds else "",
         }
 
+    def sunroom_bed_status_payload(row: Optional[Sun2Bed], now: datetime) -> Dict[str, Any]:
+        max_age_minutes = dependencies.SUNROOM_BED_STATUS_MAX_AGE_MINUTES
+        if row is None:
+            return {
+                "enabled": None,
+                "fresh": False,
+                "status": None,
+                "statusCode": None,
+                "importedAt": None,
+                "importedLabel": "-",
+                "ageMinutes": None,
+            }
+
+        status = str(row.status or "").strip()
+        status_code = str(row.status_code or "").strip().lower()
+        normalized_status = status.casefold()
+        if status_code in {"0", "false", "off", "disabled", "inactive"} or normalized_status in {
+            "av",
+            "slått av",
+            "deaktivert",
+            "stengt",
+            "ute av drift",
+        }:
+            enabled: Optional[bool] = False
+        elif status_code in {"1", "true", "on", "enabled", "active"} or normalized_status in {
+            "på",
+            "aktiv",
+            "i drift",
+        }:
+            enabled = True
+        else:
+            enabled = None
+
+        imported_at = utc_naive_to_local_naive(row.imported_at)
+        age_minutes = max(0, int((now - imported_at).total_seconds() // 60)) if imported_at else None
+        return {
+            "enabled": enabled,
+            "fresh": bool(age_minutes is not None and age_minutes <= max_age_minutes),
+            "status": status or None,
+            "statusCode": str(row.status_code or "").strip() or None,
+            "importedAt": imported_at.isoformat() if imported_at else None,
+            "importedLabel": format_source_datetime(imported_at) if imported_at else "-",
+            "ageMinutes": age_minutes,
+        }
+
     def sunroom_status_item(
         config: Dict[str, Any],
         latest_row: Optional[DoorEvent],
         sessions_by_room: Dict[str, list[Sun2TanningSession]],
         now: datetime,
+        bed_status: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         SUNROOM_DOOR_ALERT_AFTER_END_MINUTES = dependencies.SUNROOM_DOOR_ALERT_AFTER_END_MINUTES
         SUNROOM_DOOR_CRITICAL_MINUTES = dependencies.SUNROOM_DOOR_CRITICAL_MINUTES
@@ -1536,6 +1584,9 @@ def create_service(dependencies: Dependencies):
         no_session_alarm_threshold_seconds = int(SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES * 60)
         no_session_critical_active = False
         alarm_stage: Optional[str] = None
+        bed_enabled = bed_status.get("enabled") if bed_status is not None else None
+        bed_status_fresh = bool(bed_status.get("fresh")) if bed_status is not None else True
+        alarm_eligible = bed_enabled is not False and bed_status_fresh
 
         if not door.get("isConfigured"):
             severity = "unknown"
@@ -1591,6 +1642,25 @@ def create_service(dependencies: Dependencies):
                 status = "I bruk"
                 detail = "Soltime funnet, men sluttid mangler."
 
+        if bed_status is not None and bed_enabled is False:
+            severity = "disabled"
+            status = "Stengt"
+            detail = "Sengen er slått av i Sun2. Døralarm er deaktivert."
+            missing_session = False
+            no_session_alarm_active = False
+            no_session_critical_active = False
+            overstay_seconds = None
+            remaining_seconds = None
+        elif bed_status is not None and not bed_status_fresh and is_occupied and (
+            missing_session or severity == "alert"
+        ):
+            severity = "waiting"
+            status = "Kontrollerer sengestatus"
+            detail = "Sengestatusen fra Sun2 er utdatert. Døralarm holdes tilbake til statusen er oppdatert."
+            missing_session = False
+            no_session_alarm_active = False
+            no_session_critical_active = False
+
         alarm_reason = None
         alarm_title = ""
         if no_session_alarm_active:
@@ -1620,6 +1690,14 @@ def create_service(dependencies: Dependencies):
             "doorChangedLabel": format_source_datetime(changed_at) if changed_at else "-",
             "doorAgeLabel": door.get("ageLabel"),
             "isOccupied": is_occupied,
+            "alarmEligible": alarm_eligible,
+            "bedEnabled": bed_enabled,
+            "bedStatusFresh": bed_status_fresh,
+            "bedStatus": bed_status.get("status") if bed_status is not None else None,
+            "bedStatusCode": bed_status.get("statusCode") if bed_status is not None else None,
+            "bedStatusImportedAt": bed_status.get("importedAt") if bed_status is not None else None,
+            "bedStatusImportedLabel": bed_status.get("importedLabel") if bed_status is not None else "-",
+            "bedStatusAgeMinutes": bed_status.get("ageMinutes") if bed_status is not None else None,
             "occupiedSince": closed_since.isoformat() if closed_since else None,
             "occupiedSinceLabel": format_source_datetime(closed_since) if closed_since else "-",
             "occupiedDurationSeconds": occupied_seconds,
@@ -1718,6 +1796,7 @@ def create_service(dependencies: Dependencies):
             item
             for item in items
             if item.get("isOccupied")
+            and item.get("bedEnabled") is not False
             and (
                 not item.get("session")
                 or item.get("alarmReason") == "overstay"
@@ -1764,7 +1843,7 @@ def create_service(dependencies: Dependencies):
         new_session_grace_seconds = int(SUNROOM_DOOR_NEW_SESSION_GRACE_MINUTES * 60)
         for source_item in items:
             item = dict(source_item)
-            if not item.get("isOccupied"):
+            if not item.get("isOccupied") or item.get("alarmEligible") is False:
                 verified_items.append(item)
                 continue
             state = sunroom_door_verifications.get(sunroom_door_period_key(item)) or {}
@@ -1952,6 +2031,8 @@ def create_service(dependencies: Dependencies):
             alarm.resolved_at = now
             if current.get("doorState") == "open":
                 alarm.resolution_reason = "door_opened"
+            elif current.get("bedEnabled") is False:
+                alarm.resolution_reason = "bed_disabled"
             elif current.get("session"):
                 alarm.resolution_reason = "session_found"
             else:
@@ -2087,6 +2168,12 @@ def create_service(dependencies: Dependencies):
 
         room_ids = sorted({room_id for room_id in (sunroom_room_id_for_config(config) for config in solroom_configs) if room_id})
         bed_ids = sorted({bed_id for bed_id in (sunroom_bed_id_for_config(config) for config in solroom_configs) if bed_id})
+        beds_by_id: Dict[str, Sun2Bed] = {}
+        if bed_ids:
+            bed_rows = (
+                await session.execute(select(Sun2Bed).where(Sun2Bed.sun2_bed_id.in_(bed_ids)))
+            ).scalars().all()
+            beds_by_id = {str(row.sun2_bed_id): row for row in bed_rows}
         sessions_by_room: Dict[str, list[Sun2TanningSession]] = {room_id: [] for room_id in room_ids}
         if room_ids or bed_ids:
             start_cutoff = now - timedelta(hours=SUNROOM_DOOR_SESSION_LOOKBACK_HOURS)
@@ -2112,7 +2199,9 @@ def create_service(dependencies: Dependencies):
         for config in solroom_configs:
             device_id = config.get("device_id")
             latest_row = latest_change_by_device.get(int(device_id)) if device_id is not None else None
-            rooms.append(sunroom_status_item(config, latest_row, sessions_by_room, now))
+            bed_id = sunroom_bed_id_for_config(config)
+            bed_status = sunroom_bed_status_payload(beds_by_id.get(str(bed_id or "")), now)
+            rooms.append(sunroom_status_item(config, latest_row, sessions_by_room, now, bed_status))
         rooms.sort(key=lambda item: (str(item.get("sectionKey") or ""), int(item.get("sortOrder") or 0)))
         candidate_alarm_keys = {
             sunroom_alarm_event_key(item)
@@ -2135,7 +2224,8 @@ def create_service(dependencies: Dependencies):
             await sync_sunroom_alarm_history(session, rooms, now)
             await publish_sunroom_door_alerts(rooms, now, session=session)
             await session.commit()
-        active_rooms = [item for item in rooms if item.get("isOccupied")]
+        active_rooms = [item for item in rooms if item.get("isOccupied") and item.get("bedEnabled") is not False]
+        disabled_rooms = [item for item in rooms if item.get("bedEnabled") is False]
         warning_rooms = [item for item in rooms if item.get("severity") == "warning"]
         alert_rooms = [item for item in rooms if item.get("severity") == "alert"]
         missing_session_rooms = [item for item in rooms if item.get("missingSession")]
@@ -2160,16 +2250,18 @@ def create_service(dependencies: Dependencies):
                 "warnAfterEndMinutes": SUNROOM_DOOR_WARN_AFTER_END_MINUTES,
                 "alertAfterEndMinutes": SUNROOM_DOOR_ALERT_AFTER_END_MINUTES,
                 "monitorIntervalSeconds": SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS,
+                "bedStatusMaxAgeMinutes": dependencies.SUNROOM_BED_STATUS_MAX_AGE_MINUTES,
             },
             "summary": {
                 "rooms": len(rooms),
                 "active": len(active_rooms),
+                "disabled": len(disabled_rooms),
                 "waiting": len([item for item in rooms if item.get("severity") == "waiting"]),
                 "warning": len(warning_rooms),
                 "alert": len(alert_rooms),
                 "missingSession": len(missing_session_rooms),
                 "noSessionAlarm": len(no_session_alarm_rooms),
-                "ok": len([item for item in rooms if item.get("severity") in {"free", "active"}]),
+                "ok": len([item for item in rooms if item.get("severity") in {"free", "active", "disabled"}]),
             },
             "rooms": rooms,
         }
@@ -2183,8 +2275,18 @@ def create_service(dependencies: Dependencies):
         payload = await sunroom_door_session_payload(session, notify=False)
         rooms = list(payload.get("rooms") or [])
         alarms = [item for item in rooms if item.get("severity") == "alert" and item.get("isOccupied")]
-        watch = [item for item in rooms if item.get("missingSession") and not item.get("noSessionAlarmActive")]
-        occupied_without_session = [item for item in rooms if item.get("isOccupied") and not item.get("session")]
+        watch = [
+            item
+            for item in rooms
+            if item.get("alarmEligible") is not False
+            and item.get("missingSession")
+            and not item.get("noSessionAlarmActive")
+        ]
+        occupied_without_session = [
+            item
+            for item in rooms
+            if item.get("alarmEligible") is not False and item.get("isOccupied") and not item.get("session")
+        ]
         history_limit = max(10, min(int(history_limit or 100), 500))
         history_stmt = select(AlarmEvent).where(AlarmEvent.domain == "doors")
         if history_day:
@@ -3138,6 +3240,7 @@ def create_service(dependencies: Dependencies):
         "sunroom_session_period_score": sunroom_session_period_score,
         "sunroom_session_sun_start_at": sunroom_session_sun_start_at,
         "sunroom_status_item": sunroom_status_item,
+        "sunroom_bed_status_payload": sunroom_bed_status_payload,
         "sunroom_sync_candidate_is_due": sunroom_sync_candidate_is_due,
         "sunroom_sync_reason_label": sunroom_sync_reason_label,
         "sunroom_watt_label": sunroom_watt_label,

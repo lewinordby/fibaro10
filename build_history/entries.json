@@ -1,6 +1,25 @@
 [
   {
     "version": "1",
+    "build": "1845",
+    "date": "01.09.2026",
+    "headline": "Avslåtte Sun2-senger utløser ikke døralarm",
+    "title": "Fersk sengestatus inngår nå i alarmvurderingen",
+    "description": "Solromalarmene kontrollerer nå om den aktuelle sengen faktisk er aktiv i Sun2. En avslått seng behandles som et stengt rom, mens gammel eller ukjent status må oppdateres før en mulig døralarm kan bekreftes.",
+    "applications": ["Sun2 session scraper", "Fibaro10 kjerne/API", "Kontroll/Dører"],
+    "request": "Når en seng er slått av i Sun2-systemet skal døralarmen ikke gå. Rom 10 er stengt og døren er derfor lukket.",
+    "work_duration": "Kartlegging, alarmmodell, regresjonstester og produksjonskontroll; separat tid ikke målt",
+    "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+    "changes": [
+      "Oppdaterer sengestatus i samme innloggede nettleserøkt som dagens enkelttimer, uten ekstra innlogging eller tettere Sun2-oppslag.",
+      "Viser avslåtte senger som Stengt og tar dem helt ut av døralarmvurderingen.",
+      "Holder mulige alarmer tilbake når sengestatusen mangler eller er eldre enn ti minutter.",
+      "Avslutter en allerede aktiv alarm automatisk dersom sengen blir bekreftet avslått.",
+      "Oppdaterer datakildeoversikten med faktisk frekvens, avhengigheter og bruk av sengestatusen."
+    ]
+  },
+  {
+    "version": "1",
     "build": "1844",
     "date": "01.09.2026",
     "headline": "Aqua10 får reell automatisk vannsperre",

@@ -191,6 +191,7 @@ from fibaro_core.settings import (
     SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS,
     SUNROOM_DOOR_SYNC_TIMEOUT_SECONDS,
     SUNROOM_DOOR_WARN_AFTER_END_MINUTES,
+    SUNROOM_BED_STATUS_MAX_AGE_MINUTES,
     SVV_API_AUTH_HEADER,
     SVV_API_AUTH_PREFIX,
     SVV_API_KEY,
@@ -1634,6 +1635,7 @@ sunroom_dependencies = sunroom_services.Dependencies(
     SUNROOM_DOOR_SYNC_MAX_ATTEMPTS=SUNROOM_DOOR_SYNC_MAX_ATTEMPTS,
     SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS=SUNROOM_DOOR_SYNC_MIN_INTERVAL_SECONDS,
     SUNROOM_DOOR_WARN_AFTER_END_MINUTES=SUNROOM_DOOR_WARN_AFTER_END_MINUTES,
+    SUNROOM_BED_STATUS_MAX_AGE_MINUTES=SUNROOM_BED_STATUS_MAX_AGE_MINUTES,
     alarm_event_payload=lambda *args, **kwargs: alarm_event_payload(*args, **kwargs),
     async_session=async_session,
     attach_hc3_alarm_verification=lambda *args, **kwargs: attach_hc3_alarm_verification(*args, **kwargs),
@@ -1741,6 +1743,7 @@ sunroom_session_payload = sunroom_service["sunroom_session_payload"]
 sunroom_session_period_score = sunroom_service["sunroom_session_period_score"]
 sunroom_session_sun_start_at = sunroom_service["sunroom_session_sun_start_at"]
 sunroom_status_item = sunroom_service["sunroom_status_item"]
+sunroom_bed_status_payload = sunroom_service["sunroom_bed_status_payload"]
 sunroom_sync_candidate_is_due = sunroom_service["sunroom_sync_candidate_is_due"]
 sunroom_sync_reason_label = sunroom_service["sunroom_sync_reason_label"]
 sunroom_watt_label = sunroom_service["sunroom_watt_label"]
