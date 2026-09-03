@@ -199,7 +199,7 @@ class OnlineDashboardDoorTests(unittest.TestCase):
     def test_mobile_entrance_uses_replacement_sensor(self) -> None:
         config = online_main.OTHER_DOOR_BY_KEY["door_inngang"]
 
-        self.assertEqual(config["device_id"], 541)
+        self.assertEqual(config["device_id"], 545)
         self.assertEqual(config["title"], "Inngang")
 
 

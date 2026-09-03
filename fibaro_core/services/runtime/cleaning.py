@@ -279,7 +279,7 @@ def create_service(dependencies: Dependencies):
             return None
         automation = RoborockDoorAutomation(
             robot_duid=robot.duid,
-            door_device_id=541,
+            door_device_id=545,
             enabled=False,
             opening_threshold=10,
             minimum_interval_minutes=60,

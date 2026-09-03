@@ -231,7 +231,7 @@ class RoborockDoorAutomation(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     robot_duid = Column(String, nullable=False, unique=True, index=True)
-    door_device_id = Column(Integer, nullable=False, default=541, index=True)
+    door_device_id = Column(Integer, nullable=False, default=545, index=True)
     enabled = Column(Boolean, nullable=False, default=False, index=True)
     opening_threshold = Column(Integer, nullable=False, default=10)
     minimum_interval_minutes = Column(Integer, nullable=False, default=60)

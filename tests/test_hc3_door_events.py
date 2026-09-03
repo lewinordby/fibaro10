@@ -132,7 +132,7 @@ def test_hc3_door_lua_contains_expected_devices_and_endpoint():
         "453",
         "447",
         "413",
-        "541",
+        "545",
         "483",
         "535",
         "489",
@@ -167,7 +167,7 @@ def test_hc3_single_door_scene_script_contains_configured_devices():
         "453",
         "447",
         "413",
-        "541",
+        "545",
         "483",
         "535",
         "489",
@@ -180,7 +180,7 @@ def test_hc3_single_door_scene_script_contains_configured_devices():
 
     assert "door_solrom_02" not in script
     assert '"device_key": "door_solrom_03"' in script
-    assert "OBSOLETE_DOOR_DEVICE_IDS = {491, 499}" in script
+    assert "OBSOLETE_DOOR_DEVICE_IDS = {491, 499, 541}" in script
     assert "disable_obsolete_door_scenes" in script
     assert "HC3_DOOR_UPSERT_DEVICE_IDS" in script
 
@@ -201,11 +201,11 @@ class SunroomDoorTimingTests(unittest.TestCase):
 
     def test_operations_overview_uses_friendly_door_name(self):
         result = self.main.operations_recent_door_items({
-            "doors": [{"deviceId": 541, "deviceKey": "door_inngang", "title": "Inngang"}],
+            "doors": [{"deviceId": 545, "deviceKey": "door_inngang", "title": "Inngang"}],
             "changes": [{
-                "deviceId": 541,
+                "deviceId": 545,
                 "deviceKey": "door_inngang",
-                "deviceName": "131.0 Door Sensor",
+                "deviceName": "149.0 Inngang",
                 "stateLabel": "Lukket",
                 "ageLabel": "2 min siden",
                 "state": "closed",
@@ -841,7 +841,7 @@ class SunroomDoorTimingTests(unittest.TestCase):
     def test_replacement_entrance_sensor_preserves_door_key(self):
         config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_inngang")
 
-        self.assertEqual(config["device_id"], 541)
+        self.assertEqual(config["device_id"], 545)
         self.assertEqual(config["title"], "Inngang")
         self.assertEqual(config["group_key"], "andre")
         self.assertEqual(config["normal_state"], "closed")

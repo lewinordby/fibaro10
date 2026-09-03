@@ -52,6 +52,8 @@ def test_all_relocated_function_bodies_preserve_original_behavior():
     # Additive measurement evidence is covered by the data-source endpoint tests.
     special.add('import_status_detail')
     special.add('import_status_rows')  # Additive provenance; times/thresholds preserved.
+    # The default automation now follows the replacement physical entrance sensor.
+    special.add('ensure_default_roborock_door_automation')
     # Bed-state-aware door alarms intentionally extend the extracted runtime.
     # Their current behavior is covered by test_hc3_door_events.py.
     special.update(

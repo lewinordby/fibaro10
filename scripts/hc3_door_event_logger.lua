@@ -14,7 +14,7 @@
 453 value
 447 value
 413 value
-541 value
+545 value
 483 value
 535 value
 489 value
@@ -53,7 +53,7 @@ local DEVICES = {
   [453] = { key = "door_453", name = "96.0 bod/kjokken" },
   [447] = { key = "door_447", name = "94.0 Kjeller luke" },
   [413] = { key = "door_413", name = "86.0 Arbeidsrom" },
-  [541] = { key = "door_inngang", name = "131.0 Door Sensor" },
+  [545] = { key = "door_inngang", name = "149.0 Inngang" },
   [483] = { key = "door_massasjestudio", name = "112.0 Massasje" },
   [535] = { key = "door_loftluke_massasje", name = "128.0 Loftluke massasje" },
   [489] = { key = "door_vaskerom", name = "115.0 Vaskerom" },

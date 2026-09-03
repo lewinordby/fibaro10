@@ -64,7 +64,7 @@ Disse ligger i Fibaro10 med fast kobling mot HC3 device-id. Solrom 2 er fortsatt
 | 477 | `door_solrom_10` | Solrom 10 | Solrom | VIP |
 | 479 | `door_solrom_11` | Solrom 11 | Solrom | VIP |
 | 539 (node 130) | `door_solrom_12` | Solrom 12 | Solrom | VIP |
-| 541 (node 131) | `door_inngang` | Inngang | Andre dorer | Bygg |
+| 545 (node 149) | `door_inngang` | Inngang | Andre dorer | Bygg |
 | 483 | `door_massasjestudio` | Massasjestudio | Andre dorer | Bygg |
 | 489 | `door_vaskerom` | Vaskerom | Andre dorer | Bygg |
 | 487 | `door_papirlager` | Papirlager | Andre dorer | Bygg |
@@ -124,7 +124,7 @@ Scriptet oppretter eller oppdaterer en Lua-scene per montert dor, for eksempel:
 
 - `Dorlogger 459 - Solrom 1`
 - `Dorlogger 453 - Bod/kjokken`
-- `Dorlogger 541 - Inngang`
+- `Dorlogger 545 - Inngang`
 
 Det skriver ogsa en scene-map til `outputs/hc3_inventory/door_single_scene_map_*.json`.
 

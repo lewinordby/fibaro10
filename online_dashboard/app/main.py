@@ -144,7 +144,7 @@ OTHER_DOOR_CONFIG = [
     {"device_id": 453, "device_key": "door_453", "title": "Bod/kjøkken", "sort_order": 101},
     {"device_id": 447, "device_key": "door_447", "title": "Kjeller luke", "sort_order": 102},
     {"device_id": 413, "device_key": "door_413", "title": "Arbeidsrom", "sort_order": 103},
-    {"device_id": 541, "device_key": "door_inngang", "title": "Inngang", "sort_order": 104},
+    {"device_id": 545, "device_key": "door_inngang", "title": "Inngang", "sort_order": 104},
     {"device_id": 483, "device_key": "door_massasjestudio", "title": "Massasjestudio", "sort_order": 105},
     {"device_id": 535, "device_key": "door_loftluke_massasje", "title": "Loftluke massasje", "sort_order": 106},
     {"device_id": 489, "device_key": "door_vaskerom", "title": "Vaskerom", "sort_order": 107},

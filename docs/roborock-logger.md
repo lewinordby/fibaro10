@@ -178,7 +178,7 @@ Robotsiden for `1.etg B` har en egen automatikk som kan starte én felles støvs
 soner. Standardoppsettet er deaktivert, med 10 åpninger av inngangsdøren, minst 60 minutter mellom automatiske
 starter og Sone 1 valgt. Automatikken kan først aktiveres når alle valgte soner er koblet til gyldige kartsegmenter.
 
-Telleren bruker bare reelle tilstandsendringer for inngangsdørens HC3-enhet `541`. Følgende må være oppfylt:
+Telleren bruker bare reelle tilstandsendringer for inngangsdørens HC3-enhet `545`. Følgende må være oppfylt:
 
 - døråpningene har skjedd samme dag og etter dagens åpningstid startet
 - antall åpninger har nådd den konfigurerte terskelen

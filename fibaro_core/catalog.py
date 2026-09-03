@@ -158,10 +158,10 @@ DOOR_SENSOR_CONFIG = [
         "normal_state": "closed",
     },
     {
-        "device_id": 541,
+        "device_id": 545,
         "device_key": "door_inngang",
         "title": "Inngang",
-        "hc3_name": "131.0 Door Sensor",
+        "hc3_name": "149.0 Inngang",
         "group_key": "andre",
         "group_title": "Andre dører",
         "section_key": "bygg",

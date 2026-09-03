@@ -20,7 +20,7 @@ DISABLE_LEGACY_TRIGGERS = os.environ.get("HC3_DOOR_DISABLE_LEGACY", "true").stri
     "ja",
 }
 LEGACY_TRIGGER_NAMES = {"registrere dor aapnes", "registrere dor lukkes"}
-OBSOLETE_DOOR_DEVICE_IDS = {491, 499}
+OBSOLETE_DOOR_DEVICE_IDS = {491, 499, 541}
 UPSERT_DEVICE_IDS = {
     int(value)
     for value in os.environ.get("HC3_DOOR_UPSERT_DEVICE_IDS", "").split(",")
@@ -42,7 +42,7 @@ DOORS = [
     {"device_id": 453, "device_key": "door_453", "name": "96.0 bod/kjokken", "title": "Bod/kjokken"},
     {"device_id": 447, "device_key": "door_447", "name": "94.0 Kjeller luke", "title": "Kjeller luke"},
     {"device_id": 413, "device_key": "door_413", "name": "86.0 Arbeidsrom", "title": "Arbeidsrom"},
-    {"device_id": 541, "device_key": "door_inngang", "name": "131.0 Door Sensor", "title": "Inngang"},
+    {"device_id": 545, "device_key": "door_inngang", "name": "149.0 Inngang", "title": "Inngang"},
     {"device_id": 483, "device_key": "door_massasjestudio", "name": "112.0 Massasje", "title": "Massasjestudio"},
     {"device_id": 535, "device_key": "door_loftluke_massasje", "name": "128.0 Loftluke massasje", "title": "Loftluke massasje"},
     {"device_id": 489, "device_key": "door_vaskerom", "name": "115.0 Vaskerom", "title": "Vaskerom"},
