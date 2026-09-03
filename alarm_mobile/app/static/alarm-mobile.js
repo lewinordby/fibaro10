@@ -275,6 +275,7 @@ function renderDoors() {
             </div>
             <p>${escapeHtml(doorSessionSummary(room))}</p>
             <footer><span>${escapeHtml(roomDisplayLabel(room))}</span><time>${escapeHtml(room.doorChangedLabel || room.lastChangedLabel || "-")}</time></footer>
+            <div class="room-card-meta"><span>Batteri ${escapeHtml(room.batteryLabel || "-")}</span><span>Kontrollert ${escapeHtml(room.doorUpdatedAgeLabel || "-")}</span></div>
           </article>
         `).join("") || '<p class="empty-state">Ingen romdata er tilgjengelig.</p>'}
       </div>

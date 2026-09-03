@@ -237,6 +237,26 @@ class DoorEvent(Base):
     extra = Column(JSON, nullable=True)
 
 
+class DoorSensorStatus(Base):
+    __tablename__ = "door_sensor_status"
+
+    device_id = Column(Integer, primary_key=True)
+    device_key = Column(String, index=True, nullable=True)
+    device_name = Column(String, nullable=True)
+    state = Column(Boolean, index=True, nullable=True)
+    raw_value = Column(String, nullable=True)
+    battery_level = Column(Float, nullable=True)
+    hc3_dead = Column(Boolean, nullable=True)
+    hc3_enabled = Column(Boolean, nullable=True)
+    observed_at = Column(DateTime, index=True, nullable=False, default=local_now_naive)
+    last_changed_at = Column(DateTime, index=True, nullable=True)
+    last_change_event_id = Column(Integer, nullable=True)
+    source = Column(String, index=True, nullable=True)
+    extra = Column(JSON, nullable=True)
+    created_at = Column(DateTime, index=True, nullable=False, default=local_now_naive)
+    updated_at = Column(DateTime, index=True, nullable=False, default=local_now_naive)
+
+
 class AlarmEvent(Base):
     __tablename__ = "alarm_events"
 

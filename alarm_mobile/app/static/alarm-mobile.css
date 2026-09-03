@@ -203,6 +203,7 @@ h1, h2, h3, p { margin: 0; }
 .room-card-head b { color: var(--gray-600); font-size: .66rem; white-space: nowrap; }
 .room-card p { color: var(--gray-600); font-size: .73rem; line-height: 1.4; }
 .room-card footer { display: flex; justify-content: space-between; gap: .5rem; padding-top: .48rem; border-top: 1px solid var(--gray-200); color: var(--gray-500); font-size: .68rem; }
+.room-card-meta { display: flex; justify-content: space-between; gap: .5rem; color: var(--gray-500); font-size: .66rem; }
 .is-highlighted { border-color: var(--violet-600) !important; box-shadow: 0 0 0 3px rgba(117, 95, 248, .2) !important; }
 
 .camera-list { display: grid; gap: .7rem; padding: .65rem; }

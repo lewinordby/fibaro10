@@ -26,7 +26,7 @@ def response_timing_headers(duration_ms: float) -> dict[str, str]:
 
 STORAGE_TABLES = [
     "utelys_events", "utelys_samples", "ventilasjon_events", "ventilasjon_samples",
-    "yr_forecast_samples", "control_configs", "control_config_history", "event_data", "door_events", "alarm_events",
+    "yr_forecast_samples", "control_configs", "control_config_history", "event_data", "door_events", "door_sensor_status", "alarm_events",
     "notification_outbox", "operational_incident_reviews", "asset_registry_items", "automation_workbench_rules",
     "roborock_robots", "roborock_status_samples", "roborock_clean_jobs",
     "roborock_schedules", "roborock_consumables", "roborock_maps",

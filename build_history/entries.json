@@ -1,6 +1,26 @@
 [
   {
     "version": "1",
+    "build": "1851",
+    "date": "03.09.2026",
+    "headline": "Dørfølere viser batteri, siste kontroll og varig siste endring",
+    "title": "Komplett og fersk HC3-status for alle dørfølere",
+    "description": "Hver dørføler har nå en egen varig statusrad med batterinivå, siste vellykkede avlesning fra HC3 og siste faktiske statusendring. PC- og mobilvisningene skiller tydelig mellom kontrolltid og endringstid, og gamle endringer forsvinner ikke lenger når den felles hendelsesloggen vokser.",
+    "applications": ["Fibaro10 API", "Kontroll/Dører", "Lilletorget Mobil", "Alarm Mobil", "Bygg og drift", "System/Datakilder"],
+    "request": "Vis batterinivå og siste oppdatering mot HC3 på alle dørfølere i mobil- og øvrige grensesnitt. Siste faktiske endring skal alltid vises, også når den er gammel.",
+    "work_duration": "Datamodell, migrering, HC3-avlesning, API, PC- og mobilgrensesnitt, tester og produksjonskontroll; separat tid ikke målt",
+    "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+    "changes": [
+      "Oppretter én varig door_sensor_status-rad per dørføler i stedet for å utlede gjeldende status fra et begrenset hendelsesutdrag.",
+      "Leser status og batteri for alle konfigurerte følere fra HC3 hvert femte minutt.",
+      "Beholder door_events som en ren logg over faktiske endringer og nødvendige HC3-korrigeringer.",
+      "Tilfører separate API-felter for Sist endret og Sist kontrollert, med både absolutt og relativ tid.",
+      "Viser batteri og begge tidene på døroversikter, solrom, detaljer og rådatatabell i PC- og mobilgrensesnittet.",
+      "Oppdaterer datakildebeskrivelsen og helsegrensen for den femminutters HC3-kontrollen."
+    ]
+  },
+  {
+    "version": "1",
     "build": "1850",
     "date": "03.09.2026",
     "headline": "Ny inngangsdørsensor overtar uten historikkbrudd",

@@ -71,6 +71,8 @@ class OnlineDashboardDoorTests(unittest.TestCase):
         self.assertIn('href="/solrom/door_solrom_01"', html)
         self.assertIn("Solrom 1", html)
         self.assertIn("Ledig", html)
+        self.assertIn("Batteri", html)
+        self.assertIn("kontrollert", html)
 
     def test_disabled_sunroom_is_neutral_and_excluded_from_busy_summary(self) -> None:
         payload = online_main.door_status_payload(

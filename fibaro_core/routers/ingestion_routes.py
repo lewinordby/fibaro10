@@ -66,6 +66,7 @@ class Dependencies:
     save_yr_sample_for_payload: Callable[..., Any]
     schedule_sun2_axis_snapshot_link: Callable[..., Any]
     sun2_duplicate_session_id_payload: Callable[..., Any]
+    upsert_door_event_status: Callable[..., Any]
     upsert_energy_fibaro_sample: Callable[..., Any]
     upsert_kjeller_measurement_sample: Callable[..., Any]
     vent_from_payload: Callable[..., Any]
@@ -215,10 +216,12 @@ def create_router(dependencies: Dependencies) -> RouterBundle:
         async_session = dependencies.async_session
         door_event_from_payload = dependencies.door_event_from_payload
         record_import_job = dependencies.record_import_job
+        upsert_door_event_status = dependencies.upsert_door_event_status
         row = door_event_from_payload(data)
         async with async_session() as session:
             session.add(row)
             await session.flush()
+            await upsert_door_event_status(session, row)
             await record_import_job(
                 session,
                 "hc3_door_events",

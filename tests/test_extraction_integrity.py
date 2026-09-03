@@ -54,15 +54,21 @@ def test_all_relocated_function_bodies_preserve_original_behavior():
     special.add('import_status_rows')  # Additive provenance; times/thresholds preserved.
     # The default automation now follows the replacement physical entrance sensor.
     special.add('ensure_default_roborock_door_automation')
-    # Bed-state-aware door alarms intentionally extend the extracted runtime.
-    # Their current behavior is covered by test_hc3_door_events.py.
+        # Bed-state-aware alarms and durable HC3 sensor observations intentionally
+        # extend the extracted door runtime; test_hc3_door_events.py covers both.
     special.update(
         {
             'apply_sunroom_alarm_verification',
-            'api_hc3_doors_status',
-            'sunroom_door_alarm_payload',
+                'api_hc3_doors_status',
+                'api_hc3_door_event',
+                'door_state_from_event',
+                'door_status_payload',
+                'hc3_door_poll_worker',
+                'run_hc3_door_poll_once',
+                'sunroom_door_alarm_payload',
             'sunroom_door_session_payload',
-            'sunroom_force_sync_candidates',
+                'sunroom_force_sync_candidates',
+                'sunroom_logic_for_room',
             'sunroom_room_detail_payload',
             'sunroom_room_overview_payload',
             'sunroom_status_item',

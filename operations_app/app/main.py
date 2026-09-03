@@ -44,6 +44,7 @@ def door_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "avdeling": row.get("sectionTitle") or row.get("groupTitle"),
             "status": row.get("stateLabel"),
             "sist endret": row.get("lastChangedLabel"),
+            "sist kontrollert": row.get("lastUpdatedLabel"),
             "varighet": row.get("ageLabel"),
             "batteri": row.get("batteryLabel"),
         }
@@ -82,10 +83,11 @@ async def doors_module(request: Request, client: httpx.AsyncClient, headers: dic
             session = row.get("session") or {}
             room_rows.append({
                 "rom": row.get("title"), "avdeling": row.get("sectionTitle"), "d\u00f8r": row.get("doorStateLabel"),
-                "siden": row.get("doorAgeLabel"), "status": row.get("status"), "soltime": session.get("startedLabel"),
+                "siden": row.get("doorAgeLabel"), "batteri": row.get("batteryLabel"),
+                "kontrollert": row.get("doorUpdatedLabel"), "status": row.get("status"), "soltime": session.get("startedLabel"),
                 "forventet ut": row.get("expectedExitLabel"), "gjenst\u00e5r": row.get("remainingLabel") or row.get("overstayLabel"),
             })
-        tables = [{"title": "Solrom akkurat n\u00e5", "columns": ["rom", "avdeling", "d\u00f8r", "siden", "status", "soltime", "forventet ut", "gjenst\u00e5r"], "rows": room_rows}]
+        tables = [{"title": "Solrom akkurat n\u00e5", "columns": ["rom", "avdeling", "d\u00f8r", "siden", "batteri", "kontrollert", "status", "soltime", "forventet ut", "gjenst\u00e5r"], "rows": room_rows}]
     elif view == "romkontroll-ny2":
         params = {"days": request.query_params.get("days", "2")}
         if day := request.query_params.get("day"):

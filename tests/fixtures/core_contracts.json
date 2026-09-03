@@ -2234,6 +2234,7 @@
     "control_config_history": "7c15e299cf3f16a08e95f6048bb9286556f0be75743fb8a83f4e4deeb0603057",
     "control_configs": "2380686988d6f9325ddcf0fabd3cfe09b404a4421d470d1e4b24af91517ef06b",
     "door_events": "60472b04d180127dd1e99a95c6ae62e6e45661205871dd2f1fb167ee4918e425",
+    "door_sensor_status": "4d0fad93f650f2f02749235c0d815fd0eae01826a9dbcd2c58f456222efc5002",
     "energy_circuits": "ec7c262e9aa415fc3940d007bdb6e2cfc2091760c81cef6a6171b50957c53d03",
     "energy_fibaro_samples": "9b29e302e18ab3a0e911c35b4e10e6d99ef3b68979c57436365e2696bd8f5598",
     "energy_hourly_consumption": "46f858b27a68efb4d609e823d91fccdba583d2a706cea361c8fbc5f2f464bd2e",

@@ -1327,7 +1327,8 @@ def datetime_sort_value(value: Any) -> float:
 
 def door_status_payload(config: dict[str, Any], row: Optional[dict[str, Any]], now: datetime) -> dict[str, Any]:
     state = door_state_info(row)
-    timestamp = row.get("timestamp") if row else None
+    timestamp = (row.get("last_changed_at") or row.get("timestamp")) if row else None
+    updated_at = (row.get("observed_at") or row.get("timestamp")) if row else None
     state_label = state["label"]
     if config.get("group_key") == "solrom":
         if state["state"] == "open":
@@ -1346,7 +1347,10 @@ def door_status_payload(config: dict[str, Any], row: Optional[dict[str, Any]], n
         "timestamp": timestamp,
         "last_changed": display_stamp(timestamp),
         "age_label": relative_time_label(timestamp, now),
-        "event_id": row.get("id") if row else None,
+        "last_updated_at": updated_at,
+        "last_updated": display_stamp(updated_at),
+        "last_updated_age_label": relative_time_label(updated_at, now),
+        "event_id": (row.get("last_change_event_id") or row.get("id")) if row else None,
         "battery_level": row.get("battery_level") if row else None,
         "device_name": row.get("device_name") if row else "",
     }
@@ -1418,7 +1422,18 @@ async def door_statuses_for(
     now = local_now()
     if not SOURCE_MODE:
         return []
-    rows = await many_mappings(
+    status_rows = await many_mappings(
+        """
+        select device_id, device_key, device_name, state, raw_value, battery_level,
+               observed_at, last_changed_at, last_change_event_id, source,
+               hc3_dead, hc3_enabled, extra
+        from door_sensor_status
+        where device_id = any(:device_ids) or device_key = any(:device_keys)
+        order by observed_at desc, device_id
+        """,
+        {"device_ids": device_ids, "device_keys": device_keys},
+    )
+    event_rows = await many_mappings(
         """
         select id, timestamp, event_type, action, device_key, device_id, device_name,
                source, raw_value, state, previous_state, battery_level, extra
@@ -1431,7 +1446,9 @@ async def door_statuses_for(
     )
     statuses = []
     for config in sorted(configs, key=lambda item: int(item.get("sort_order") or 0)):
-        latest_row = next((row for row in rows if door_config_match(row, config)), None)
+        latest_row = next((row for row in status_rows if door_config_match(row, config)), None)
+        if latest_row is None:
+            latest_row = next((row for row in event_rows if door_config_match(row, config)), None)
         statuses.append(door_status_payload(config, latest_row, now))
     return statuses
 
@@ -3756,6 +3773,7 @@ async def solroom_door_detail(device_key: str, request: Request):
                 f"Dør fysisk {str(status.get('state_label') or 'ukjent').lower()}",
             ),
             ("Sist endret", str(status.get("last_changed") or "-"), str(status.get("section_title") or "")),
+            ("Sist kontrollert", str(status.get("last_updated") or "-"), str(status.get("last_updated_age_label") or "-")),
             (
                 "Batteri",
                 f"{float(status['battery_level']):.0f}%" if status.get("battery_level") is not None else "-",
@@ -3836,6 +3854,7 @@ async def other_door_detail(device_key: str, request: Request):
         [
             ("Status", str(status.get("state_label") or "Ukjent"), str(status.get("age_label") or "-")),
             ("Sist endret", str(status.get("last_changed") or "-"), str(status.get("device_name") or "")),
+            ("Sist kontrollert", str(status.get("last_updated") or "-"), str(status.get("last_updated_age_label") or "-")),
             (
                 "Batteri",
                 f"{float(status['battery_level']):.0f}%" if status.get("battery_level") is not None else "-",
@@ -4061,7 +4080,8 @@ def render_door_dashboard_cards(statuses: list[dict[str, Any]]) -> str:
             <article class="door-mini-card is-{escape(display_state)}{group_class}">
                 <strong>{escape(str(item.get("title") or ""))}</strong>
                 <span>{escape(display_label)}</span>
-                <small>{escape(str(item.get("age_label") or "-"))}</small>
+                <small>Endret {escape(str(item.get("age_label") or "-"))} · batteri {escape(f"{float(item['battery_level']):.0f}%" if item.get('battery_level') is not None else '-')}</small>
+                <small>Kontrollert {escape(str(item.get("last_updated_age_label") or "-"))}</small>
             </article>
             """
         )
@@ -4202,6 +4222,7 @@ def render_door_overview(statuses: list[dict[str, Any]], base_path: str) -> str:
                 </div>
                 <em>{escape(state_label)}</em>
                 <small>Sist endret {escape(last_changed)} · {escape(age_label)}</small>
+                <small>Batteri {escape(f"{float(item['battery_level']):.0f}%" if item.get('battery_level') is not None else '-')} · kontrollert {escape(str(item.get('last_updated_age_label') or '-'))}</small>
             </a>
             """
         )

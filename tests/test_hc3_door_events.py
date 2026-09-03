@@ -57,10 +57,11 @@ def test_door_event_datakilde_and_storage_are_registered():
 
     assert definition["title"] == "Dørhendelser fra HC3"
     assert definition["source"] == "HC3"
-    assert poll_definition["title"] == "HC3 dørstatus ved avvik"
+    assert poll_definition["title"] == "HC3 dørstatus og batteri"
     assert poll_definition["source"] == "Fibaro10 / HC3 API"
-    assert poll_definition["expected_interval_minutes"] == 2
+    assert poll_definition["expected_interval_minutes"] == 5
     assert "door_events" in STORAGE_TABLES
+    assert "door_sensor_status" in STORAGE_TABLES
     assert "alarm_events" in STORAGE_TABLES
 
 
@@ -74,12 +75,21 @@ def test_alarm_history_schema_and_backfill_are_present():
     assert "notification_status=\"unknown\"" in backfill
 
 
+def test_door_sensor_status_schema_preserves_current_and_change_times():
+    migration = Path("migrations/versions/20260903_1400_add_door_sensor_status.sql").read_text(encoding="utf-8")
+
+    assert "CREATE TABLE IF NOT EXISTS door_sensor_status" in migration
+    assert "observed_at TIMESTAMP" in migration
+    assert "last_changed_at TIMESTAMP" in migration
+    assert "LAG(state) OVER" in migration
+    assert "ON CONFLICT (device_id) DO NOTHING" in migration
+
+
 def test_hc3_door_poll_worker_is_configured():
     source = Path("fibaro_core/services/runtime/sunroom.py").read_text(encoding="utf-8")
 
-    assert "HC3_DOOR_UNEXPECTED_CHECK_INTERVAL_SECONDS" in source
+    assert "HC3_DOOR_STATUS_POLL_INTERVAL_SECONDS" in source
     assert "hc3_door_poll_worker" in source
-    assert "run_hc3_door_unexpected_check_once" in source
     assert "run_hc3_door_poll_once" in source
     assert "HC3 POLL SYNC" in source
 
@@ -323,6 +333,29 @@ class SunroomDoorTimingTests(unittest.TestCase):
         self.assertEqual(payload["lastChangedEventId"], 10)
         self.assertEqual(payload["eventId"], 11)
         self.assertEqual(payload["batteryLevel"], 100)
+        self.assertEqual(payload["lastUpdatedAt"], "2026-08-13T23:22:38")
+
+    def test_door_status_keeps_durable_change_and_independent_hc3_update(self):
+        config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_solrom_03")
+        now = datetime(2026, 9, 3, 14, 10)
+        status = self.main.DoorSensorStatus(
+            device_id=543,
+            device_key="door_solrom_03",
+            device_name="148.0 Door Sensor",
+            state=True,
+            battery_level=87,
+            observed_at=datetime(2026, 9, 3, 14, 8),
+            last_changed_at=datetime(2026, 8, 10, 21, 48, 41),
+            last_change_event_id=10,
+        )
+
+        payload = self.main.door_status_payload(config, None, now, sensor_status=status)
+
+        self.assertEqual(payload["state"], "open")
+        self.assertEqual(payload["lastChangedAt"], "2026-08-10T21:48:41")
+        self.assertEqual(payload["lastUpdatedAt"], "2026-09-03T14:08:00")
+        self.assertEqual(payload["lastUpdatedAgeLabel"], "2 min siden")
+        self.assertEqual(payload["batteryLabel"], "87%")
 
     def test_energy_evidence_confirms_expected_three_minute_start(self):
         row = self.main.Sun2TanningSession(

@@ -5,7 +5,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
 from fibaro_core.export_definitions import DOOR_EVENT_COLUMNS
-from fibaro_core.models import DoorEvent, Sun2Bed
+from fibaro_core.models import DoorEvent, DoorSensorStatus, Sun2Bed
 from fibaro_core.routers.bundle import RouterBundle
 from sqlalchemy import func, select
 from time_formatting import format_source_datetime_short, local_now_naive, normalize_local_naive
@@ -401,6 +401,11 @@ def create_router(dependencies: Dependencies) -> RouterBundle:
             )
             raw_rows = history_result.scalars().all()
             total_events = await session.scalar(select(func.count(DoorEvent.id)).where(DoorEvent.device_id.in_(DOOR_SENSOR_IDS)))
+            sensor_status_rows = (
+                await session.execute(
+                    select(DoorSensorStatus).where(DoorSensorStatus.device_id.in_(DOOR_SENSOR_IDS))
+                )
+            ).scalars().all() if DOOR_SENSOR_IDS else []
             bed_ids = sorted(
                 {
                     str(bed_id)
@@ -415,6 +420,7 @@ def create_router(dependencies: Dependencies) -> RouterBundle:
 
         change_rows_ascending = door_change_rows(list(reversed(raw_rows)))
         latest_status_by_device = latest_door_event_by_device(raw_rows)
+        sensor_status_by_device = {int(row.device_id): row for row in sensor_status_rows}
         latest_change_by_device: Dict[int, DoorEvent] = {}
         for row in reversed(change_rows_ascending):
             if row.device_id is not None:
@@ -437,7 +443,8 @@ def create_router(dependencies: Dependencies) -> RouterBundle:
             device_id = config.get("device_id")
             latest_row = latest_status_by_device.get(int(device_id)) if device_id is not None else None
             latest_change = latest_change_by_device.get(int(device_id)) if device_id is not None else None
-            door = door_status_payload(config, latest_row, now, latest_change)
+            sensor_status = sensor_status_by_device.get(int(device_id)) if device_id is not None else None
+            door = door_status_payload(config, latest_row, now, latest_change, sensor_status)
             door["recentPeriods"] = recent_periods_by_device.get(door_config_device_key(config), [])[:2]
             doors.append(door)
         sunroom_rooms = []

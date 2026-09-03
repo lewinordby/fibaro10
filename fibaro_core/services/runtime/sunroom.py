@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from fibaro_core.models import (
     AlarmEvent,
     DoorEvent,
+    DoorSensorStatus,
     EnergyFibaroSample,
     Sun2Bed,
     Sun2SessionImportRun,
@@ -41,6 +42,7 @@ class Dependencies:
     HC3_DOOR_DEBOUNCE_SECONDS: Any
     HC3_DOOR_OTHER_OPEN_VERIFY_MINUTES: Any
     HC3_DOOR_SOLROOM_CLOSED_VERIFY_MINUTES: Any
+    HC3_DOOR_STATUS_POLL_INTERVAL_SECONDS: Any
     HC3_DOOR_UNEXPECTED_CHECK_INITIAL_DELAY_SECONDS: Any
     HC3_DOOR_UNEXPECTED_CHECK_INTERVAL_SECONDS: Any
     NTFY_DOORS_TOPIC: Any
@@ -160,10 +162,10 @@ def create_service(dependencies: Dependencies):
         days = hours // 24
         return "1 dag siden" if days == 1 else f"{days} dager siden"
 
-    def door_state_from_event(row: Optional[DoorEvent]) -> Dict[str, str]:
+    def door_state_from_event(row: Optional[Any]) -> Dict[str, str]:
         if not row:
             return {"state": "unknown", "label": "Ukjent", "tone": "unknown"}
-        action = (row.action or "").upper()
+        action = (getattr(row, "action", None) or "").upper()
         if row.state is True or action == "OPEN":
             return {"state": "open", "label": "Åpen", "tone": "warn"}
         if row.state is False or action == "CLOSED":
@@ -198,17 +200,28 @@ def create_service(dependencies: Dependencies):
         row: Optional[DoorEvent],
         now: datetime,
         changed_row: Optional[DoorEvent] = None,
+        sensor_status: Optional[DoorSensorStatus] = None,
     ) -> Dict[str, Any]:
-        state = door_state_from_event(row)
+        current_row = sensor_status or row
+        state = door_state_from_event(current_row)
         change_event = changed_row or row
-        timestamp = normalize_local_naive(change_event.timestamp) if change_event else None
+        changed_at = (
+            normalize_local_naive(sensor_status.last_changed_at)
+            if sensor_status and sensor_status.last_changed_at
+            else normalize_local_naive(change_event.timestamp) if change_event else None
+        )
+        updated_at = (
+            normalize_local_naive(sensor_status.observed_at)
+            if sensor_status and sensor_status.observed_at
+            else normalize_local_naive(row.timestamp) if row else None
+        )
         device_id = config.get("device_id")
         normal_state = str(config.get("normal_state") or "closed")
         return {
             "deviceId": device_id,
             "deviceKey": config["device_key"],
             "title": config["title"],
-            "hc3Name": row.device_name if row and row.device_name else config.get("hc3_name", ""),
+            "hc3Name": current_row.device_name if current_row and current_row.device_name else config.get("hc3_name", ""),
             "groupKey": config.get("group_key", "andre"),
             "groupTitle": config.get("group_title", "Andre dører"),
             "sectionKey": config.get("section_key", config.get("group_key", "andre")),
@@ -220,15 +233,94 @@ def create_service(dependencies: Dependencies):
             "state": state["state"],
             "stateLabel": state["label"] if device_id is not None else "Klargjort",
             "tone": state["tone"],
-            "lastChangedAt": timestamp.isoformat() if timestamp else None,
-            "lastChangedLabel": format_source_datetime(timestamp) if timestamp else "-",
-            "ageLabel": door_age_label(timestamp, now),
-            "rawValue": row.raw_value if row else None,
-            "batteryLevel": row.battery_level if row else None,
-            "batteryLabel": f"{row.battery_level:.0f}%" if row and row.battery_level is not None else "-",
+            "lastChangedAt": changed_at.isoformat() if changed_at else None,
+            "lastChangedLabel": format_source_datetime(changed_at) if changed_at else "-",
+            "ageLabel": door_age_label(changed_at, now),
+            "lastUpdatedAt": updated_at.isoformat() if updated_at else None,
+            "lastUpdatedLabel": format_source_datetime(updated_at) if updated_at else "-",
+            "lastUpdatedAgeLabel": door_age_label(updated_at, now),
+            "rawValue": current_row.raw_value if current_row else None,
+            "batteryLevel": current_row.battery_level if current_row else None,
+            "batteryLabel": f"{current_row.battery_level:.0f}%" if current_row and current_row.battery_level is not None else "-",
+            "hc3Dead": sensor_status.hc3_dead if sensor_status else None,
+            "hc3Enabled": sensor_status.hc3_enabled if sensor_status else None,
             "eventId": row.id if row else None,
-            "lastChangedEventId": change_event.id if change_event else None,
+            "lastChangedEventId": sensor_status.last_change_event_id if sensor_status else change_event.id if change_event else None,
         }
+
+    async def upsert_door_sensor_status(
+        session,
+        config: Dict[str, Any],
+        status: Dict[str, Any],
+        observed_at: Optional[datetime] = None,
+        change_event: Optional[DoorEvent] = None,
+    ) -> DoorSensorStatus:
+        device_id = int(status.get("device_id") or config.get("device_id"))
+        observed_at = normalize_local_naive(observed_at) or local_now_naive()
+        row = await session.get(DoorSensorStatus, device_id)
+        current_state = status.get("state")
+        if row is None:
+            row = DoorSensorStatus(device_id=device_id, created_at=observed_at)
+            session.add(row)
+            state_changed = current_state is not None
+        else:
+            state_changed = current_state is not None and row.state != current_state
+
+        row.device_key = status.get("device_key") or config.get("device_key")
+        row.device_name = status.get("device_name") or config.get("hc3_name") or config.get("title")
+        row.state = current_state
+        row.raw_value = status.get("raw_value")
+        if status.get("battery_level") is not None:
+            row.battery_level = status.get("battery_level")
+        if "dead" in status:
+            row.hc3_dead = status.get("dead")
+        if "hc3_enabled" in status:
+            row.hc3_enabled = status.get("hc3_enabled")
+        row.observed_at = observed_at
+        row.updated_at = local_now_naive()
+        row.source = str(status.get("source") or "HC3")
+        row.extra = status.get("extra") or {}
+
+        if change_event is not None and (state_changed or row.last_changed_at is None):
+            row.last_changed_at = normalize_local_naive(change_event.timestamp) or observed_at
+            row.last_change_event_id = change_event.id
+        elif state_changed:
+            row.last_changed_at = observed_at
+            row.last_change_event_id = None
+        return row
+
+    async def upsert_door_event_status(session, event: DoorEvent) -> Optional[DoorSensorStatus]:
+        if event.device_id is None:
+            return None
+        config = next(
+            (
+                item
+                for item in dependencies.DOOR_SENSOR_CONFIG
+                if item.get("device_id") is not None and int(item["device_id"]) == int(event.device_id)
+            ),
+            {
+                "device_id": event.device_id,
+                "device_key": event.device_key,
+                "hc3_name": event.device_name,
+                "title": event.device_name or event.device_key or str(event.device_id),
+            },
+        )
+        return await upsert_door_sensor_status(
+            session,
+            config,
+            {
+                "device_id": event.device_id,
+                "device_key": event.device_key,
+                "device_name": event.device_name,
+                "state": event.state,
+                "raw_value": event.raw_value,
+                "battery_level": event.battery_level,
+                "source": event.source or "HC3",
+                "extra": event.extra or {},
+            },
+            observed_at=event.timestamp,
+            change_event=event,
+        )
 
     def door_event_state_bool(row: Optional[DoorEvent]) -> Optional[bool]:
         if not row:
@@ -455,10 +547,24 @@ def create_service(dependencies: Dependencies):
                 latest_row = latest_by_device.get(device_id)
                 latest_state = door_event_state_bool(latest_row)
                 if latest_state == current_state:
+                    await upsert_door_sensor_status(
+                        session,
+                        config,
+                        {**status, "source": "HC3 API"},
+                        observed_at=local_now_naive(),
+                        change_event=latest_row,
+                    )
                     continue
                 row = door_event_from_payload(door_poll_sync_payload(config, status, latest_row))
                 session.add(row)
                 await session.flush()
+                await upsert_door_sensor_status(
+                    session,
+                    config,
+                    {**status, "source": "HC3 API", "extra": row.extra or {}},
+                    observed_at=row.timestamp,
+                    change_event=row,
+                )
                 changes.append(
                     {
                         "event_id": row.id,
@@ -563,14 +669,14 @@ def create_service(dependencies: Dependencies):
     async def hc3_door_poll_worker():
         DOOR_SENSOR_IDS = dependencies.DOOR_SENSOR_IDS
         HC3_DOOR_UNEXPECTED_CHECK_INITIAL_DELAY_SECONDS = dependencies.HC3_DOOR_UNEXPECTED_CHECK_INITIAL_DELAY_SECONDS
-        HC3_DOOR_UNEXPECTED_CHECK_INTERVAL_SECONDS = dependencies.HC3_DOOR_UNEXPECTED_CHECK_INTERVAL_SECONDS
+        HC3_DOOR_STATUS_POLL_INTERVAL_SECONDS = dependencies.HC3_DOOR_STATUS_POLL_INTERVAL_SECONDS
         async_session = dependencies.async_session
         logger = dependencies.logger
         record_import_job = dependencies.record_import_job
         await asyncio.sleep(HC3_DOOR_UNEXPECTED_CHECK_INITIAL_DELAY_SECONDS)
         while True:
             try:
-                await run_hc3_door_unexpected_check_once("unexpected_interval")
+                await run_hc3_door_poll_once("status_interval")
             except Exception as exc:
                 logger.warning("HC3 dørstatuskontroll feilet: %s", exc, exc_info=True)
                 try:
@@ -590,7 +696,7 @@ def create_service(dependencies: Dependencies):
                         await session.commit()
                 except Exception:
                     logger.warning("Kunne ikke logge feil fra HC3 dørstatuskontroll.", exc_info=True)
-            await asyncio.sleep(HC3_DOOR_UNEXPECTED_CHECK_INTERVAL_SECONDS)
+            await asyncio.sleep(HC3_DOOR_STATUS_POLL_INTERVAL_SECONDS)
 
     def door_period_device_key(period: Dict[str, Any]) -> str:
         device_id = period.get("deviceId")
@@ -1593,13 +1699,14 @@ def create_service(dependencies: Dependencies):
         sessions_by_room: Dict[str, list[Sun2TanningSession]],
         now: datetime,
         bed_status: Optional[Dict[str, Any]] = None,
+        sensor_status: Optional[DoorSensorStatus] = None,
     ) -> Dict[str, Any]:
         SUNROOM_DOOR_ALERT_AFTER_END_MINUTES = dependencies.SUNROOM_DOOR_ALERT_AFTER_END_MINUTES
         SUNROOM_DOOR_CRITICAL_MINUTES = dependencies.SUNROOM_DOOR_CRITICAL_MINUTES
         SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES = dependencies.SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES
         SUNROOM_DOOR_SESSION_GRACE_MINUTES = dependencies.SUNROOM_DOOR_SESSION_GRACE_MINUTES
         SUNROOM_DOOR_WARN_AFTER_END_MINUTES = dependencies.SUNROOM_DOOR_WARN_AFTER_END_MINUTES
-        door = door_status_payload(config, latest_row, now)
+        door = door_status_payload(config, latest_row, now, sensor_status=sensor_status)
         identity = sunroom_identity_for_config(config)
         display_number = identity.get("display_room_number") or sunroom_display_number(config)
         room_id = sunroom_room_id_for_config(config)
@@ -1607,7 +1714,11 @@ def create_service(dependencies: Dependencies):
         sessions = sessions_by_room.get(room_id or "", [])
         door_state = door.get("state")
         is_occupied = door_state == "closed"
-        changed_at = normalize_local_naive(latest_row.timestamp) if latest_row else None
+        changed_at = (
+            normalize_local_naive(sensor_status.last_changed_at)
+            if sensor_status and sensor_status.last_changed_at
+            else normalize_local_naive(latest_row.timestamp) if latest_row else None
+        )
         closed_since = changed_at if is_occupied else None
         occupied_seconds = int((now - closed_since).total_seconds()) if closed_since else None
         matched_session = sunroom_best_session_for_door(sessions, is_occupied, changed_at, now)
@@ -1728,6 +1839,11 @@ def create_service(dependencies: Dependencies):
             "doorChangedAt": changed_at.isoformat() if changed_at else None,
             "doorChangedLabel": format_source_datetime(changed_at) if changed_at else "-",
             "doorAgeLabel": door.get("ageLabel"),
+            "doorUpdatedAt": door.get("lastUpdatedAt"),
+            "doorUpdatedLabel": door.get("lastUpdatedLabel"),
+            "doorUpdatedAgeLabel": door.get("lastUpdatedAgeLabel"),
+            "batteryLevel": door.get("batteryLevel"),
+            "batteryLabel": door.get("batteryLabel"),
             "isOccupied": is_occupied,
             "alarmEligible": alarm_eligible,
             "bedEnabled": bed_enabled,
@@ -2198,6 +2314,12 @@ def create_service(dependencies: Dependencies):
                 .limit(raw_limit)
             )
             raw_rows = result.scalars().all()
+        sensor_status_rows = (
+            await session.execute(
+                select(DoorSensorStatus).where(DoorSensorStatus.device_id.in_(solroom_device_ids))
+            )
+        ).scalars().all() if solroom_device_ids else []
+        sensor_status_by_device = {int(row.device_id): row for row in sensor_status_rows}
         change_rows_ascending = door_change_rows(list(reversed(raw_rows)))
         latest_change_by_device: Dict[int, DoorEvent] = {}
         for row in reversed(change_rows_ascending):
@@ -2233,9 +2355,10 @@ def create_service(dependencies: Dependencies):
         for config in solroom_configs:
             device_id = config.get("device_id")
             latest_row = latest_change_by_device.get(int(device_id)) if device_id is not None else None
+            sensor_status = sensor_status_by_device.get(int(device_id)) if device_id is not None else None
             bed_id = sunroom_bed_id_for_config(config)
             bed_status = bed_statuses_by_id.get(str(bed_id or ""))
-            rooms.append(sunroom_status_item(config, latest_row, sessions_by_room, now, bed_status))
+            rooms.append(sunroom_status_item(config, latest_row, sessions_by_room, now, bed_status, sensor_status))
         rooms.sort(key=lambda item: (str(item.get("sectionKey") or ""), int(item.get("sortOrder") or 0)))
         candidate_alarm_keys = {
             sunroom_alarm_event_key(item)
@@ -2445,6 +2568,11 @@ def create_service(dependencies: Dependencies):
             "doorStateLabel": item.get("doorStateLabel"),
             "doorAgeLabel": item.get("doorAgeLabel"),
             "doorChangedAt": api_local_iso(door_changed_at),
+            "doorUpdatedAt": item.get("doorUpdatedAt"),
+            "doorUpdatedLabel": item.get("doorUpdatedLabel"),
+            "doorUpdatedAgeLabel": item.get("doorUpdatedAgeLabel"),
+            "batteryLevel": item.get("batteryLevel"),
+            "batteryLabel": item.get("batteryLabel"),
             "severity": item.get("severity"),
             "phase": phase,
             "decision": decision,
@@ -2738,6 +2866,7 @@ def create_service(dependencies: Dependencies):
         device_id = config.get("device_id")
         latest_row: Optional[DoorEvent] = None
         raw_rows: list[DoorEvent] = []
+        sensor_status = await session.get(DoorSensorStatus, int(device_id)) if device_id is not None else None
 
         if device_id is not None:
             latest_row = (
@@ -2801,6 +2930,7 @@ def create_service(dependencies: Dependencies):
             {normalized_room_id: session_rows},
             now,
             bed_status,
+            sensor_status,
         )
         alerts = [period for period in periods if period.get("severity") == "alert"]
         warnings = [period for period in periods if period.get("severity") == "warning"]
@@ -2866,6 +2996,12 @@ def create_service(dependencies: Dependencies):
                     .limit(max(len(device_ids) * 500, 4000))
                 )
             ).scalars().all()
+        sensor_status_rows = (
+            await session.execute(
+                select(DoorSensorStatus).where(DoorSensorStatus.device_id.in_(device_ids))
+            )
+        ).scalars().all() if device_ids else []
+        sensor_status_by_device = {int(row.device_id): row for row in sensor_status_rows}
         entrance_rows: list[DoorEvent] = []
         if entrance_device_id is not None:
             entrance_rows = (
@@ -2961,6 +3097,7 @@ def create_service(dependencies: Dependencies):
                 {room_id or "": room_sessions},
                 now,
                 bed_status,
+                sensor_status_by_device.get(int(device_id)) if device_id is not None else None,
             )
             device_periods = periods_by_device.get(door_config_device_key(config), [])
 
@@ -3248,6 +3385,8 @@ def create_service(dependencies: Dependencies):
         "publish_sunroom_door_alerts": publish_sunroom_door_alerts,
         "run_hc3_door_poll_once": run_hc3_door_poll_once,
         "run_hc3_door_unexpected_check_once": run_hc3_door_unexpected_check_once,
+        "upsert_door_event_status": upsert_door_event_status,
+        "upsert_door_sensor_status": upsert_door_sensor_status,
         "sunroom_alarm_detected_at": sunroom_alarm_detected_at,
         "sunroom_alarm_event_key": sunroom_alarm_event_key,
         "sunroom_alarm_message": sunroom_alarm_message,

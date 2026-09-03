@@ -102,6 +102,7 @@ from fibaro_core.settings import (
     HC3_DOOR_OTHER_OPEN_VERIFY_MINUTES,
     HC3_DOOR_POLL_TIMEOUT_SECONDS,
     HC3_DOOR_SOLROOM_CLOSED_VERIFY_MINUTES,
+    HC3_DOOR_STATUS_POLL_INTERVAL_SECONDS,
     HC3_DOOR_UNEXPECTED_CHECK_ENABLED,
     HC3_DOOR_UNEXPECTED_CHECK_INITIAL_DELAY_SECONDS,
     HC3_DOOR_UNEXPECTED_CHECK_INTERVAL_SECONDS,
@@ -307,6 +308,7 @@ from fibaro_core.models import (
     ControlConfig,
     ControlConfigHistory,
     DoorEvent,
+    DoorSensorStatus,
     EnergyCircuit,
     EnergyFibaroSample,
     EnergyHourlyConsumption,
@@ -1616,6 +1618,7 @@ sunroom_dependencies = sunroom_services.Dependencies(
     HC3_DOOR_DEBOUNCE_SECONDS=HC3_DOOR_DEBOUNCE_SECONDS,
     HC3_DOOR_OTHER_OPEN_VERIFY_MINUTES=HC3_DOOR_OTHER_OPEN_VERIFY_MINUTES,
     HC3_DOOR_SOLROOM_CLOSED_VERIFY_MINUTES=HC3_DOOR_SOLROOM_CLOSED_VERIFY_MINUTES,
+    HC3_DOOR_STATUS_POLL_INTERVAL_SECONDS=HC3_DOOR_STATUS_POLL_INTERVAL_SECONDS,
     HC3_DOOR_UNEXPECTED_CHECK_INITIAL_DELAY_SECONDS=HC3_DOOR_UNEXPECTED_CHECK_INITIAL_DELAY_SECONDS,
     HC3_DOOR_UNEXPECTED_CHECK_INTERVAL_SECONDS=HC3_DOOR_UNEXPECTED_CHECK_INTERVAL_SECONDS,
     NTFY_DOORS_TOPIC=NTFY_DOORS_TOPIC,
@@ -1694,6 +1697,7 @@ publish_door_ntfy = sunroom_service["publish_door_ntfy"]
 publish_sunroom_door_alerts = sunroom_service["publish_sunroom_door_alerts"]
 run_hc3_door_poll_once = sunroom_service["run_hc3_door_poll_once"]
 run_hc3_door_unexpected_check_once = sunroom_service["run_hc3_door_unexpected_check_once"]
+upsert_door_event_status = sunroom_service["upsert_door_event_status"]
 sunroom_alarm_detected_at = sunroom_service["sunroom_alarm_detected_at"]
 sunroom_alarm_event_key = sunroom_service["sunroom_alarm_event_key"]
 sunroom_alarm_message = sunroom_service["sunroom_alarm_message"]
@@ -2980,6 +2984,7 @@ ingestion_http = ingestion_routes.create_router(ingestion_routes.Dependencies(
     save_yr_sample_for_payload=save_yr_sample_for_payload,
     schedule_sun2_axis_snapshot_link=schedule_sun2_axis_snapshot_link,
     sun2_duplicate_session_id_payload=sun2_duplicate_session_id_payload,
+    upsert_door_event_status=upsert_door_event_status,
     upsert_energy_fibaro_sample=upsert_energy_fibaro_sample,
     upsert_kjeller_measurement_sample=upsert_kjeller_measurement_sample,
     vent_from_payload=vent_from_payload,
