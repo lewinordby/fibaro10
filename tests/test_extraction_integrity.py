@@ -49,6 +49,8 @@ def test_all_relocated_function_bodies_preserve_original_behavior():
     # Post-extraction changes: concurrency/invalidation tests and differential
     # energy analysis tests compare actual behavior with the frozen old body.
     special.update({'cached_summaries', 'clear_summary_cache', 'build_sunbed_power_analysis'})
+    # Elvia and HC3 are intentionally aligned to the same local clock hour.
+    special.add('energy_elvia_control_module_payload')
     # Additive measurement evidence is covered by the data-source endpoint tests.
     special.add('import_status_detail')
     special.add('import_status_rows')  # Additive provenance; times/thresholds preserved.

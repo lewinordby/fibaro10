@@ -539,7 +539,7 @@ ROOF_EXHAUST_UNMETERED_W = 320.0
 
 SUNBED_ANALYSIS_VENTILATION_MATCH_SECONDS = 180
 
-ENERGY_HC3_HOURLY_DISPLAY_OFFSET = timedelta(hours=1)
+ENERGY_HC3_HOURLY_DISPLAY_OFFSET = timedelta(0)
 
 ENERGY_HOURLY_COMPARE_FIELDS = [
     "stat_date", "year", "month", "day", "hour", "consumption_kwh", "production_kwh",

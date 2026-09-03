@@ -2403,7 +2403,7 @@ def create_service(dependencies: Dependencies):
                 {"name": "Elvia", "data": elvia_values, "type": "bar", "color": "#5b6b84", "unit": "kWh"},
                 {"name": "Avvik", "data": diff_values, "type": "line", "color": "#dc2626", "unit": "kWh", "smooth": False},
             ],
-            "HC3 er realtime-basert delta forskjøvet én time bakover for å matche Elvia-timen.",
+            "HC3 er beregnet fra hovedinntakets effektkanal (enhet 221) i samme lokale klokktime som Elvia.",
             "bar",
             430,
             metrics=[
@@ -2434,13 +2434,13 @@ def create_service(dependencies: Dependencies):
 
         return {
             "title": v2_module_title("energi", "elvia-kontroll"),
-            "subtitle": "Kontroll av Elvia-timesforbruk mot HC3/Fibaro10 realtime-basert energilogging.",
+            "subtitle": "Kontroll av Elvia-timesforbruk mot hovedinntakets effektmåler i HC3.",
             "cards": [
                 api_card("HC3 valgt dag", format_short_number(hc3_total, 1), "kWh", sample_detail, "energy", href="/energi/status"),
                 api_card("Elvia valgt dag", format_short_number(elvia_total, 1), "kWh", f"{len(elvia_present)}/24 timer importert", "status", href="/energi/elvia"),
                 api_card("Avvik", format_signed_short_number(diff_total, 1), "kWh", diff_detail, "energy" if control_status == "OK" else "status", href="/energi/elvia-kontroll"),
                 api_card("Status", control_status, "", latest_elvia_detail, "energy" if control_status == "OK" else "status", href="/energi/elvia-kontroll"),
-                api_card("Tidsjustering", "-1", "time", "HC3-delta er endestemplet", "status", href="/energi/elvia-kontroll"),
+                api_card("Målegrunnlag", "Inntak - R", "", "HC3 221 · 30 s effektmåling", "status", href="/energi/status"),
             ],
             "charts": [chart],
             "tables": [
@@ -2458,9 +2458,9 @@ def create_service(dependencies: Dependencies):
                             "hc3_periode_fra": compare_start,
                             "hc3_periode_til": compare_end,
                             "elvia_dato": selected_day.isoformat(),
-                            "delta_kilde": "realtime_w",
+                            "delta_kilde": "HC3 221 Inntak - R (realtime_w)",
                             "maks_intervall_sek": ENERGY_REALTIME_MAX_DELTA_SECONDS,
-                            "timeforskyvning": "-1 time i visning",
+                            "timeforskyvning": "Ingen; samme lokale klokktime",
                             "siste_hc3_sample": latest_hc3.bucket_start if latest_hc3 else None,
                             "siste_elvia_time": latest_elvia.measured_at if latest_elvia else None,
                         }
