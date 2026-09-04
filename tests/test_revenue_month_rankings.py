@@ -15,13 +15,18 @@ def test_revenue_day_rankings_cover_year_and_matching_weekday():
 
     assert rankings[monday_best] == {
         "year_rank": 1,
+        "year_worst_rank": 3,
         "year_day_count": 3,
         "weekday_rank": 1,
+        "weekday_worst_rank": 2,
         "weekday_day_count": 2,
     }
     assert rankings[monday_second]["year_rank"] == 2
+    assert rankings[monday_second]["year_worst_rank"] == 2
     assert rankings[monday_second]["weekday_rank"] == 2
+    assert rankings[monday_second]["weekday_worst_rank"] == 1
     assert rankings[tuesday]["weekday_rank"] == 1
+    assert rankings[tuesday]["weekday_worst_rank"] == 1
     assert rankings[tuesday]["weekday_day_count"] == 1
 
 
@@ -34,6 +39,8 @@ def test_revenue_day_rankings_ignore_days_without_revenue_and_share_tied_rank():
 
     assert rankings[first]["year_rank"] == 1
     assert rankings[second]["year_rank"] == 1
+    assert rankings[first]["year_worst_rank"] == 1
+    assert rankings[second]["year_worst_rank"] == 1
     assert rankings[first]["year_day_count"] == 2
     assert empty not in rankings
 
@@ -62,13 +69,17 @@ def test_revenue_day_api_includes_rankings():
             "is_today": True,
             "is_weekend": False,
             "year_rank": 12,
+            "year_worst_rank": 236,
             "year_day_count": 247,
             "weekday_rank": 3,
+            "weekday_worst_rank": 33,
             "weekday_day_count": 35,
         }
     )
 
     assert payload["yearRank"] == 12
+    assert payload["yearWorstRank"] == 236
     assert payload["yearDayCount"] == 247
     assert payload["weekdayRank"] == 3
+    assert payload["weekdayWorstRank"] == 33
     assert payload["weekdayDayCount"] == 35

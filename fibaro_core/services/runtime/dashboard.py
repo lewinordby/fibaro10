@@ -31,23 +31,34 @@ def _revenue_day_rankings(
     year_rank_by_total: Dict[float, int] = {}
     for index, total in enumerate(ordered_totals, start=1):
         year_rank_by_total.setdefault(total, index)
+    year_worst_rank_by_total: Dict[float, int] = {}
+    for index, total in enumerate(reversed(ordered_totals), start=1):
+        year_worst_rank_by_total.setdefault(total, index)
 
     weekday_totals: Dict[int, list[float]] = {}
     for day, total in totals.items():
         weekday_totals.setdefault(day.weekday(), []).append(total)
 
     weekday_rank_by_total: Dict[int, Dict[float, int]] = {}
+    weekday_worst_rank_by_total: Dict[int, Dict[float, int]] = {}
     for weekday, values in weekday_totals.items():
         ranks: Dict[float, int] = {}
-        for index, total in enumerate(sorted(values, reverse=True), start=1):
+        ordered_values = sorted(values, reverse=True)
+        for index, total in enumerate(ordered_values, start=1):
             ranks.setdefault(total, index)
         weekday_rank_by_total[weekday] = ranks
+        worst_ranks: Dict[float, int] = {}
+        for index, total in enumerate(reversed(ordered_values), start=1):
+            worst_ranks.setdefault(total, index)
+        weekday_worst_rank_by_total[weekday] = worst_ranks
 
     return {
         day: {
             "year_rank": year_rank_by_total[total],
+            "year_worst_rank": year_worst_rank_by_total[total],
             "year_day_count": len(totals),
             "weekday_rank": weekday_rank_by_total[day.weekday()][total],
+            "weekday_worst_rank": weekday_worst_rank_by_total[day.weekday()][total],
             "weekday_day_count": len(weekday_totals[day.weekday()]),
         }
         for day, total in totals.items()
@@ -218,8 +229,10 @@ def create_service(dependencies: Dependencies):
             "isToday": row["is_today"],
             "isWeekend": row["is_weekend"],
             "yearRank": row.get("year_rank"),
+            "yearWorstRank": row.get("year_worst_rank"),
             "yearDayCount": row.get("year_day_count"),
             "weekdayRank": row.get("weekday_rank"),
+            "weekdayWorstRank": row.get("weekday_worst_rank"),
             "weekdayDayCount": row.get("weekday_day_count"),
         }
 
