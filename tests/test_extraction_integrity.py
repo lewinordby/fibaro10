@@ -54,6 +54,8 @@ def test_all_relocated_function_bodies_preserve_original_behavior():
     # Additive measurement evidence is covered by the data-source endpoint tests.
     special.add('import_status_detail')
     special.add('import_status_rows')  # Additive provenance; times/thresholds preserved.
+    # Month rows now include annual and weekday revenue ranks.
+    special.update({'api_revenue_day', 'build_revenue_month_context'})
     # The default automation now follows the replacement physical entrance sensor.
     special.add('ensure_default_roborock_door_automation')
         # Bed-state-aware alarms and durable HC3 sensor observations intentionally

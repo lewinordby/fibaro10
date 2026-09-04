@@ -1,7 +1,7 @@
 """Dashboard services with explicit process dependencies."""
 
 from dataclasses import dataclass
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from fibaro_core.models import ParkingSession, Sun2TanningSession
 from fibaro_core.services.presentation import (
     api_chart,
@@ -14,6 +14,44 @@ from sqlalchemy import Date, cast, func, select
 from time_formatting import api_local_iso, local_now_naive, normalize_local_naive
 from typing import Any, Callable, Dict, Optional
 from value_parsing import float_or_zero, int_or_zero
+
+
+def _revenue_day_rankings(
+    sol_by_day: Dict[date, float], parking_by_day: Dict[date, float]
+) -> Dict[date, Dict[str, int]]:
+    totals = {
+        day: float_or_zero(sol_by_day.get(day)) + float_or_zero(parking_by_day.get(day))
+        for day in sol_by_day.keys() | parking_by_day.keys()
+    }
+    totals = {day: total for day, total in totals.items() if total > 0}
+    if not totals:
+        return {}
+
+    ordered_totals = sorted(totals.values(), reverse=True)
+    year_rank_by_total: Dict[float, int] = {}
+    for index, total in enumerate(ordered_totals, start=1):
+        year_rank_by_total.setdefault(total, index)
+
+    weekday_totals: Dict[int, list[float]] = {}
+    for day, total in totals.items():
+        weekday_totals.setdefault(day.weekday(), []).append(total)
+
+    weekday_rank_by_total: Dict[int, Dict[float, int]] = {}
+    for weekday, values in weekday_totals.items():
+        ranks: Dict[float, int] = {}
+        for index, total in enumerate(sorted(values, reverse=True), start=1):
+            ranks.setdefault(total, index)
+        weekday_rank_by_total[weekday] = ranks
+
+    return {
+        day: {
+            "year_rank": year_rank_by_total[total],
+            "year_day_count": len(totals),
+            "weekday_rank": weekday_rank_by_total[day.weekday()][total],
+            "weekday_day_count": len(weekday_totals[day.weekday()]),
+        }
+        for day, total in totals.items()
+    }
 
 
 @dataclass
@@ -179,6 +217,10 @@ def create_service(dependencies: Dependencies):
             "total": row["total"],
             "isToday": row["is_today"],
             "isWeekend": row["is_weekend"],
+            "yearRank": row.get("year_rank"),
+            "yearDayCount": row.get("year_day_count"),
+            "weekdayRank": row.get("weekday_rank"),
+            "weekdayDayCount": row.get("weekday_day_count"),
         }
 
     async def build_revenue_month_context(month: Optional[str] = None) -> Dict[str, Any]:
@@ -189,6 +231,14 @@ def create_service(dependencies: Dependencies):
         next_month = add_months(month_start, 1)
         previous_month = add_months(month_start, -1)
         days_in_month = (next_month - month_start).days
+        year_start = date(month_start.year, 1, 1)
+        year_end = date(month_start.year + 1, 1, 1)
+        if month_start.year < today.year:
+            ranking_end = year_end
+        elif month_start.year == today.year:
+            ranking_end = today + timedelta(days=1)
+        else:
+            ranking_end = year_start
         async with async_session() as session:
             sol_rows = (
                 await session.execute(
@@ -197,8 +247,8 @@ def create_service(dependencies: Dependencies):
                         func.count(Sun2TanningSession.id).label("count"),
                         func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("amount"),
                     )
-                    .where(Sun2TanningSession.stat_date >= month_start)
-                    .where(Sun2TanningSession.stat_date < next_month)
+                    .where(Sun2TanningSession.stat_date >= year_start)
+                    .where(Sun2TanningSession.stat_date < ranking_end)
                     .group_by(Sun2TanningSession.stat_date)
                 )
             ).mappings().all()
@@ -210,8 +260,8 @@ def create_service(dependencies: Dependencies):
                         func.count(ParkingSession.id).label("count"),
                         func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("amount"),
                     )
-                    .where(ParkingSession.start_time >= datetime.combine(month_start, time.min))
-                    .where(ParkingSession.start_time < datetime.combine(next_month, time.min))
+                    .where(ParkingSession.start_time >= datetime.combine(year_start, time.min))
+                    .where(ParkingSession.start_time < datetime.combine(ranking_end, time.min))
                     .group_by(parking_day)
                 )
             ).mappings().all()
@@ -220,6 +270,7 @@ def create_service(dependencies: Dependencies):
         sol_count_by_day = {row["day"]: int_or_zero(row["count"]) for row in sol_rows}
         parking_by_day = {row["day"]: float_or_zero(row["amount"]) for row in parking_rows}
         parking_count_by_day = {row["day"]: int_or_zero(row["count"]) for row in parking_rows}
+        day_rankings = _revenue_day_rankings(sol_by_day, parking_by_day)
         rows = []
         for offset in range(days_in_month):
             day = month_start + timedelta(days=offset)
@@ -237,6 +288,7 @@ def create_service(dependencies: Dependencies):
                     "total": sol_amount + parking_amount,
                     "is_today": day == today,
                     "is_weekend": day.weekday() >= 5,
+                    **day_rankings.get(day, {}),
                 }
             )
         max_total = max([row["total"] for row in rows] + [1.0])
