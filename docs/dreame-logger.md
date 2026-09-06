@@ -52,6 +52,23 @@ Planer som slettes mens sperren er aktiv, blir ikke opprettet på nytt. Ukjent e
 fører aldri til automatisk gjenopptak. Sperren kan nøddeaktiveres med
 `DREAME_WATER_INTERLOCK_ENABLED=false`, men er aktiv som standard.
 
+## Påfyllingslogg
+
+Fra logger-build 4 lagres vannendringer også direkte når Dreame sender dem, ikke bare ved
+femminuttersinnlesingen. Rentvannstank ut og tilbake kan derfor registreres selv om begge deler
+skjer mellom to synkroniseringer. Mottakstiden lagres med tidssone, og rådataene angir om
+observasjonen kom fra en vannendring eller vanlig synkronisering.
+
+Observasjonene mellomlagres varig i `/data/telemetry-outbox` før sending. Normal forsinkelse til
+Fibaro10 er opptil to sekunder; API-feil gir nye forsøk etter 30 sekunder uten å slette køen.
+Dette øker ikke frekvensen på skraping av jobber/planer og endrer ikke vannsperrens femminutterskontroll.
+Påfylt er fortsatt utledet fra tankstatus, ikke en måling av liter. Hendelser som ikke når fram
+fra Dreame under et forbindelsesbrudd, kan ikke garanteres rekonstruert.
+
+Hendelsen 6. september 2026 er dokumentert i `docs/incidents/aqua10-refill-20260906.log`.
+`scripts/recover-dreame-refill-events.py` kan gjenopprette slike dokumenterte hendelser uten å
+overskrive målinger eller nåværende status. Det krever `--apply`; standard er kun kontroll.
+
 Kartbehandling er bevisst deaktivert i første fase. Det holder minnebruken lav og reduserer risikoen i den løpende status- og historikkinnlesingen. Kart kan vurderes separat etter at Aqua10 er aktiv og stabil.
 
 ## Første oppsett

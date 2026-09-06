@@ -18,6 +18,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from .upstream import DreameCredentials, DreameUpstream
+from .telemetry_outbox import TelemetryOutbox
 from .water_interlock import ACTIVE_SCHEDULE_STATES, active_schedule_rows, clear_water_state, interlock_label
 
 
@@ -48,6 +49,7 @@ DREAME_WATER_INTERLOCK_ENABLED = os.getenv("DREAME_WATER_INTERLOCK_ENABLED", "tr
 EXPECTED_ROBOT_NAME = os.getenv("DREAME_EXPECTED_ROBOT_NAME", "Aqua10").strip() or "Aqua10"
 COLLECTOR_ID = os.getenv("COLLECTOR_ID", "dreame_logger")
 APP_BUILD = BUILD_FILE.read_text(encoding="utf-8").strip() if BUILD_FILE.exists() else "dev"
+telemetry_outbox = TelemetryOutbox(DATA_DIR / "telemetry-outbox")
 
 
 def local_now() -> datetime:
@@ -108,9 +110,43 @@ def queue_batch(payload: dict[str, Any], path: str = "/api/renhold/ingest") -> N
 
 def pending_count() -> int:
     if not QUEUE_FILE.exists():
-        return 0
+        return telemetry_outbox.count()
     with QUEUE_FILE.open("r", encoding="utf-8") as file:
-        return sum(1 for line in file if line.strip())
+        return sum(1 for line in file if line.strip()) + telemetry_outbox.count()
+
+
+def record_telemetry(snapshot: dict[str, Any], observed_at: str, reason: str) -> None:
+    telemetry = dict(snapshot.get("telemetry") or {})
+    if not telemetry:
+        return
+    telemetry["collection"] = {"observed_at": observed_at, "reason": reason}
+    entry = load_state().get("water_interlocks", {}).get(str(snapshot.get("external_id")))
+    if entry:
+        telemetry["water_interlock"] = public_water_interlock(entry)
+    telemetry_outbox.append({
+        "collector_id": COLLECTOR_ID,
+        "source": COLLECTOR_ID,
+        "timestamp": observed_at,
+        "robots": [{
+            **{key: snapshot.get(key) for key in ("provider", "external_id", "duid", "name", "model")},
+            "telemetry": telemetry,
+        }],
+    })
+
+
+def flush_telemetry() -> int:
+    return telemetry_outbox.flush(lambda payload: post_json("/api/renhold/telemetry/ingest", payload))
+
+
+async def telemetry_loop() -> None:
+    while True:
+        try:
+            await asyncio.to_thread(flush_telemetry)
+        except Exception:
+            LOGGER.warning("Dreame telemetry delivery failed; observations retained for retry", exc_info=True)
+            await asyncio.sleep(30)
+        else:
+            await asyncio.sleep(2)
 
 
 def flush_queue() -> int:
@@ -284,6 +320,7 @@ def get_upstream() -> DreameUpstream:
                 account_type=DREAME_ACCOUNT_TYPE,
             ),
             LOCAL_TIMEZONE,
+            on_telemetry=record_telemetry,
         )
     return upstream
 
@@ -343,30 +380,6 @@ async def sync_once() -> dict[str, Any]:
             except Exception:
                 await asyncio.to_thread(queue_batch, payload, "/api/renhold/ingest")
                 raise
-            telemetry_robots = [
-                {
-                    "provider": "dreame",
-                    "external_id": item.get("external_id"),
-                    "duid": item.get("duid"),
-                    "name": item.get("name"),
-                    "model": item.get("model"),
-                    "telemetry": item.get("telemetry"),
-                }
-                for item in snapshots
-                if item.get("telemetry")
-            ]
-            if telemetry_robots:
-                telemetry_payload = {
-                    "collector_id": COLLECTOR_ID,
-                    "source": COLLECTOR_ID,
-                    "timestamp": started.isoformat(),
-                    "robots": telemetry_robots,
-                }
-                try:
-                    await asyncio.to_thread(post_json, "/api/renhold/telemetry/ingest", telemetry_payload)
-                except Exception:
-                    LOGGER.warning("Fibaro10 telemetry ingest failed; request queued", exc_info=True)
-                    await asyncio.to_thread(queue_batch, telemetry_payload, "/api/renhold/telemetry/ingest")
             state.update(
                 {
                     "last_success": local_now().isoformat(),
@@ -376,6 +389,15 @@ async def sync_once() -> dict[str, Any]:
                 }
             )
             save_state(state)
+            # Capture current cached values, not the pre-control snapshot: water
+            # may have changed while history and schedule requests were running.
+            await asyncio.to_thread(get_upstream().publish_telemetry, [
+                str(item["external_id"]) for item in snapshots if item.get("telemetry")
+            ])
+            try:
+                await asyncio.to_thread(flush_telemetry)
+            except Exception:
+                LOGGER.warning("Dreame telemetry remains queued", exc_info=True)
             return {"status": "ok", "robots": len(snapshots), "fibaro10": result}
         except Exception as exc:
             LOGGER.exception("Dreame synchronization failed")
@@ -396,13 +418,19 @@ async def lifespan(_: FastAPI):
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     save_state(load_state())
     task = asyncio.create_task(sync_loop(), name="dreame-sync")
+    telemetry_task = asyncio.create_task(telemetry_loop(), name="dreame-telemetry")
     try:
         yield
     finally:
         task.cancel()
-        await asyncio.gather(task, return_exceptions=True)
+        telemetry_task.cancel()
+        await asyncio.gather(task, telemetry_task, return_exceptions=True)
         if upstream:
             await asyncio.to_thread(upstream.close)
+        try:
+            await asyncio.to_thread(flush_telemetry)
+        except Exception:
+            LOGGER.warning("Dreame telemetry retained on disk during shutdown")
 
 
 app = FastAPI(title="Dreame_logger", lifespan=lifespan)
@@ -429,7 +457,9 @@ async def health() -> dict[str, Any]:
         "last_success": state["last_success"],
         "last_error": state["last_error"],
         "robots": len(state["robots"]),
-        "pending_batches": state["pending_batches"],
+        "pending_batches": pending_count(),
+        "water_change_capture": "event-driven",
+        "sync_interval_seconds": SYNC_INTERVAL_SECONDS,
     }
 
 

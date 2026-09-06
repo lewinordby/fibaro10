@@ -1,10 +1,20 @@
 import asyncio
+import importlib.util
+import sys
 from datetime import datetime, timedelta
 from enum import IntEnum
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
 
 from dreame_logger.app import main as dreame_main
 from dreame_logger.app.normalization import normalize_device_snapshot, normalize_history, normalize_schedule
 from dreame_logger.app.water_interlock import clear_water_state, rewrite_schedule_states, schedule_state_map
+from dreame_logger.app.telemetry_outbox import TelemetryOutbox
+from dreame_logger.app.upstream import DreameCredentials, DreameUpstream
+from roborock_domain import roborock_telemetry_changes
+from roborock_refills import build_refill_log
 from roborock_reports import resource_problem
 
 
@@ -290,3 +300,113 @@ def test_aqua10_does_not_recreate_schedule_deleted_while_water_blocked(monkeypat
 
     assert restored["status"] == "ready"
     assert restored["paused_count"] == 0
+
+
+def test_aqua10_captures_refill_between_periodic_samples(monkeypatch, tmp_path):
+    properties = SimpleNamespace(**{name: name for name in (
+        "CLEAN_WATER_TANK_STATUS", "DIRTY_WATER_TANK_STATUS", "LOW_WATER_WARNING", "WATER_TANK",
+    )})
+    monkeypatch.setitem(sys.modules, "dreame.types", SimpleNamespace(DreameVacuumProperty=properties))
+    outbox = TelemetryOutbox(tmp_path / "outbox")
+    monkeypatch.setattr(dreame_main, "telemetry_outbox", outbox)
+    monkeypatch.setattr(dreame_main, "load_state", lambda: {"water_interlocks": {}})
+    adapter = DreameUpstream(DreameCredentials("test", "test"), "Europe/Oslo", dreame_main.record_telemetry)
+    device = FakeDevice()
+    device.status = FakeStatus()
+    device.status.clean_water_tank_status = 0
+    device.status.clean_water_tank_status_name = "installed"
+    device._ready = True
+    listeners = {}
+    device.listen = lambda callback, prop: listeners.update({prop: callback})
+    descriptor = {"did": "aqua", "name": "Aqua10"}
+    adapter._listen_for_water_changes(device, descriptor)
+    adapter._snapshot(device, descriptor, "periodic")
+
+    device.status.clean_water_tank_status = 1
+    device.status.clean_water_tank_status_name = "not_installed"
+    listeners["CLEAN_WATER_TANK_STATUS"](0)
+    device.status.clean_water_tank_status = 0
+    device.status.clean_water_tank_status_name = "installed"
+    listeners["CLEAN_WATER_TANK_STATUS"](1)
+    adapter._snapshot(device, descriptor, "periodic")
+
+    delivered = []
+    outbox.flush(delivered.append)
+    samples = [batch["robots"][0]["telemetry"] for batch in delivered]
+    assert [sample["clear_water_status"] for sample in samples] == [0, 1, 0, 0]
+    assert [sample["collection"]["reason"] for sample in samples] == [
+        "periodic", "property:CLEAN_WATER_TANK_STATUS", "property:CLEAN_WATER_TANK_STATUS", "periodic",
+    ]
+    assert all(datetime.fromisoformat(batch["timestamp"]).tzinfo is not None for batch in delivered)
+    events = []
+    for previous, current, batch in zip(samples, samples[1:], delivered[1:]):
+        events.extend({**change, "robot_duid": "dreame:aqua", "timestamp": datetime.fromisoformat(batch["timestamp"])}
+                      for change in roborock_telemetry_changes(previous, current, "dreame"))
+    today = datetime.fromisoformat(delivered[0]["timestamp"]).date()
+    report = build_refill_log(today - timedelta(days=today.weekday()),
+                              [{"duid": "dreame:aqua", "name": "Aqua10", "provider": "dreame"}], events)
+    assert len(report["cycles"]) == 1
+    assert report["cycles"][0]["tankRemovedAt"]
+    assert report["cycles"][0]["status"] == "completed"
+
+
+def test_dreame_outbox_retains_order_after_failure_and_restart(tmp_path):
+    outbox = TelemetryOutbox(tmp_path)
+    for number in range(3):
+        outbox.append({"number": number})
+    delivered = []
+
+    def flaky_send(payload):
+        if payload["number"] == 1:
+            raise OSError("offline")
+        delivered.append(payload["number"])
+
+    with pytest.raises(OSError, match="offline"):
+        outbox.flush(flaky_send)
+    assert delivered == [0]
+    restored = TelemetryOutbox(tmp_path)
+    assert restored.count() == 2
+    restored.flush(lambda payload: delivered.append(payload["number"]))
+    assert delivered == [0, 1, 2]
+    assert restored.count() == 0
+
+
+def test_dreame_outbox_snapshots_payload_and_ignores_unfinished_writes(tmp_path):
+    outbox = TelemetryOutbox(tmp_path)
+    payload = {"water": {"state": 1}}
+    outbox.append(payload)
+    payload["water"]["state"] = 0
+    (tmp_path / "unfinished.tmp").write_text("partial", encoding="utf-8")
+    delivered = []
+    outbox.flush(delivered.append)
+    assert delivered == [{"water": {"state": 1}}]
+
+
+def test_dreame_outbox_producers_are_not_blocked_by_delivery(tmp_path):
+    outbox = TelemetryOutbox(tmp_path)
+    outbox.append({"water": 1})
+
+    def send(_payload):
+        outbox.append({"water": 0})
+
+    assert outbox.flush(send) == 1
+    delivered = []
+    outbox.flush(delivered.append)
+    assert delivered == [{"water": 0}]
+
+
+def test_dreame_recovery_uses_evidence_time_and_only_clean_water():
+    script = Path(__file__).resolve().parents[1] / "scripts" / "recover-dreame-refill-events.py"
+    spec = importlib.util.spec_from_file_location("dreame_refill_recovery", script)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    rows = list(module.parse_changes(
+        "2026-09-06T14:14:17.835539093Z INFO:dreame.device:Property CLEAN_WATER_TANK_STATUS Changed: 0 -> 1\n"
+        "2026-09-06T14:16:34.838913846Z INFO:dreame.device:Property CLEAN_WATER_TANK_STATUS Changed: 1 -> 0\n"
+        "2026-09-06T14:16:35.835447099Z INFO:dreame.device:Property DIRTY_WATER_TANK_STATUS Changed: 0 -> 1\n"
+    ))
+    assert len(rows) == 2
+    assert rows[0][0] == datetime(2026, 9, 6, 16, 14, 17, 835539)
+    assert rows[1][0] == datetime(2026, 9, 6, 16, 16, 34, 838913)
+    assert rows[0][1]["current_label"] == "Ikke montert"
+    assert rows[1][1]["current_label"] == "OK"

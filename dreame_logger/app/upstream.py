@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import logging
+import threading
 from dataclasses import dataclass
-from typing import Any
+from datetime import datetime
+from typing import Any, Callable
+from zoneinfo import ZoneInfo
 
 from .normalization import normalize_device_snapshot
 from .water_interlock import rewrite_schedule_states, schedule_state_map
@@ -22,12 +25,45 @@ class DreameCredentials:
 class DreameUpstream:
     """Small standalone adapter around the pinned Dreame Vacuum protocol."""
 
-    def __init__(self, credentials: DreameCredentials, timezone_name: str) -> None:
+    def __init__(
+        self, credentials: DreameCredentials, timezone_name: str,
+        on_telemetry: Callable[[dict[str, Any], str, str], None] | None = None,
+    ) -> None:
         self.credentials = credentials
         self.timezone_name = timezone_name
         self.protocol: Any = None
         self.devices: dict[str, Any] = {}
         self.descriptors: dict[str, dict[str, Any]] = {}
+        self.on_telemetry = on_telemetry
+        self._observation_lock = threading.RLock()
+
+    def _snapshot(self, device: Any, descriptor: dict[str, Any], reason: str, *, publish: bool = True) -> dict[str, Any]:
+        with self._observation_lock:
+            observed_at = datetime.now(ZoneInfo(self.timezone_name)).isoformat()
+            snapshot = normalize_device_snapshot(device, descriptor, self.timezone_name)
+            if publish and self.on_telemetry:
+                self.on_telemetry(snapshot, observed_at, reason)
+            return snapshot
+
+    def publish_telemetry(self, external_ids: list[str]) -> None:
+        for external_id in external_ids:
+            self._snapshot(self.devices[external_id], self.descriptors[external_id], "periodic")
+
+    def _listen_for_water_changes(self, device: Any, descriptor: dict[str, Any]) -> None:
+        from dreame.types import DreameVacuumProperty
+
+        def listener(property_name: str):
+            def changed(previous: Any) -> None:
+                if previous is None or not getattr(device, "_ready", False):
+                    return
+                try:
+                    self._snapshot(device, descriptor, f"property:{property_name}")
+                except Exception:
+                    LOGGER.exception("Could not persist Dreame water change for %s", descriptor.get("did"))
+            return changed
+
+        for name in ("CLEAN_WATER_TANK_STATUS", "DIRTY_WATER_TANK_STATUS", "LOW_WATER_WARNING", "WATER_TANK"):
+            device.listen(listener(name), getattr(DreameVacuumProperty, name))
 
     def _new_protocol(self, device_id: str | None = None, auth_key: str | None = None) -> Any:
         from dreame.protocol import DreameVacuumProtocol
@@ -87,6 +123,8 @@ class DreameUpstream:
         # Map parsing is intentionally disabled. It is memory intensive and not
         # needed for reliable status, history or control in this service.
         device._map_manager = None
+        if self.on_telemetry:
+            self._listen_for_water_changes(device, descriptor)
         self.devices[external_id] = device
         return device
 
@@ -100,7 +138,7 @@ class DreameUpstream:
                 if not getattr(device, "available", False):
                     device.connect_device()
                 device.update()
-                snapshots.append(normalize_device_snapshot(device, descriptor, self.timezone_name))
+                snapshots.append(self._snapshot(device, descriptor, "periodic", publish=False))
             except Exception as exc:
                 LOGGER.exception("Dreame refresh failed for %s", external_id)
                 snapshots.append(
