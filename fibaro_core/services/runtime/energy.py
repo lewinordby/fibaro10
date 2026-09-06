@@ -2304,6 +2304,14 @@ def create_service(dependencies: Dependencies):
             )
         ).scalars().first()
 
+        from fibaro_core.services.energy_quality import local_hour_occurrences, valid_consumption
+
+        hour_occurrences = local_hour_occurrences(selected_day)
+        day_hours = sum(hour_occurrences.values())
+        ambiguous_hours = {hour for hour, count in hour_occurrences.items() if count > 1}
+        hc3_resets_by_hour = defaultdict(int)
+        invalid_samples_by_hour = defaultdict(int)
+        estimated_hours = set()
         hc3_by_hour = {hour: 0.0 for hour in range(24)}
         hc3_samples_by_hour = {hour: 0 for hour in range(24)}
         hc3_valid_samples_by_hour = {hour: 0 for hour in range(24)}
@@ -2314,7 +2322,10 @@ def create_service(dependencies: Dependencies):
             if display_time.date() != selected_day:
                 continue
             hour = display_time.hour
-            delta_value = row.inntak_delta_kwh
+            delta_value = valid_consumption(row.inntak_delta_kwh)
+            hc3_resets_by_hour[hour] += int(bool(row.inntak_reset))
+            if row.inntak_delta_kwh is not None and delta_value is None:
+                invalid_samples_by_hour[hour] += 1
             hc3_samples_by_hour[hour] += 1
             if delta_value is not None:
                 hc3_valid_samples_by_hour[hour] += 1
@@ -2329,11 +2340,16 @@ def create_service(dependencies: Dependencies):
             hour = int(row.hour)
             if hour < 0 or hour > 23:
                 continue
+            consumption = valid_consumption(row.consumption_kwh)
+            if consumption is None:
+                elvia_status_by_hour[hour].add("Ugyldig forbruk")
+                continue
             elvia_present.add(hour)
-            elvia_by_hour[hour] += float_or_zero(row.consumption_kwh)
+            elvia_by_hour[hour] += consumption
             if row.status:
                 elvia_status_by_hour[hour].add(str(row.status))
-            if row.is_estimated:
+            if row.is_estimated or (row.status and str(row.status).upper() != "OK"):
+                estimated_hours.add(hour)
                 elvia_status_by_hour[hour].add("estimert")
 
         hourly_rows = []
@@ -2347,13 +2363,14 @@ def create_service(dependencies: Dependencies):
         hc3_total = 0.0
         elvia_total = 0.0
         hc3_present = {hour for hour, count in hc3_valid_samples_by_hour.items() if count > 0}
-        matched_hours = hc3_present & elvia_present
+        # Repeated civil hours cannot be separated in the legacy naive timestamp schema.
+        matched_hours = (hc3_present & elvia_present & set(hour_occurrences)) - ambiguous_hours
         matched_hc3_total = 0.0
         matched_elvia_total = 0.0
         hc3_contiguous = True
         elvia_contiguous = True
-        for hour in range(24):
-            hour_label = f"{hour:02d}:00"
+        for hour in hour_occurrences:
+            hour_label = f"{hour:02d}:00" + (" (dobbel time)" if hour in ambiguous_hours else "")
             hc3_kwh = round(hc3_by_hour[hour], 3)
             elvia_kwh = round(elvia_by_hour[hour], 3)
             diff_kwh = round(hc3_kwh - elvia_kwh, 3)
@@ -2364,8 +2381,8 @@ def create_service(dependencies: Dependencies):
             if comparable:
                 matched_hc3_total += hc3_kwh
                 matched_elvia_total += elvia_kwh
-            hc3_contiguous = hc3_contiguous and hour in hc3_present
-            elvia_contiguous = elvia_contiguous and hour in elvia_present
+            hc3_contiguous = hc3_contiguous and hour in hc3_present and hour not in ambiguous_hours
+            elvia_contiguous = elvia_contiguous and hour in elvia_present and hour not in ambiguous_hours
             hour_labels.append(hour_label)
             hc3_values.append(hc3_kwh if hour in hc3_present else None)
             elvia_values.append(elvia_kwh if hour in elvia_present else None)
@@ -2376,7 +2393,7 @@ def create_service(dependencies: Dependencies):
             status_text = " / ".join(sorted(elvia_status_by_hour[hour])) if hour in elvia_present else "Mangler"
             hourly_rows.append(
                 {
-                    "hour_label": f"{hour:02d}:00-{(hour + 1) % 24:02d}:00",
+                    "hour_label": hour_label + f"-{(hour + 1) % 24:02d}:00",
                     "hc3_kwh": hc3_kwh if hour in hc3_present else None,
                     "elvia_kwh": elvia_kwh if hour in elvia_present else None,
                     "diff_kwh": diff_kwh if comparable else None,
@@ -2384,6 +2401,15 @@ def create_service(dependencies: Dependencies):
                     "hc3_samples": hc3_samples_by_hour[hour],
                     "hc3_delta_samples": hc3_valid_samples_by_hour[hour],
                     "elvia_status": status_text,
+                    "hc3_resets": hc3_resets_by_hour[hour],
+                    "quality": (
+                        "Tvetydig vintertid; ikke sammenlignet" if hour in ambiguous_hours
+                        else "Ugyldige deltamålinger" if invalid_samples_by_hour[hour]
+                        else "Estimert Elvia" if hour in estimated_hours
+                        else "Delvis HC3" if hc3_valid_samples_by_hour[hour] != 120
+                        else "Teller nullstilt; effektmåling brukt" if hc3_resets_by_hour[hour]
+                        else "Målt"
+                    ),
                 }
             )
 
@@ -2394,22 +2420,30 @@ def create_service(dependencies: Dependencies):
         abs_diff = abs(diff_total) if diff_total is not None else None
         ok_limit = max(1.0, matched_elvia_total * 0.02)
         has_elvia = bool(elvia_present)
-        complete_hc3_hours = sum(count == 120 for count in hc3_valid_samples_by_hour.values())
+        complete_hc3_hours = sum(hc3_valid_samples_by_hour[hour] == 120 for hour in hour_occurrences if hour not in ambiguous_hours)
         if not has_elvia:
             control_status = "Mangler Elvia"
         elif not hc3_present:
             control_status = "Mangler HC3"
-        elif len(matched_hours) < 24 or complete_hc3_hours < 24:
+        elif ambiguous_hours:
+            control_status = "Tvetydig vintertid"
+        elif len(matched_hours) < day_hours or complete_hc3_hours < day_hours:
             control_status = "Delvis grunnlag"
+        elif estimated_hours:
+            control_status = "Estimert grunnlag"
         else:
             control_status = "OK" if abs_diff <= ok_limit else "Avvik"
-        coverage_detail = f"{len(matched_hours)}/24 felles timer; {complete_hc3_hours}/24 komplette HC3-timeserier"
+        coverage_detail = f"{len(matched_hours)}/{day_hours} felles timer; {complete_hc3_hours}/{day_hours} komplette HC3-timeserier"
+        if estimated_hours:
+            coverage_detail += f"; {len(estimated_hours)} estimerte Elvia-timer"
+        if ambiguous_hours:
+            coverage_detail += "; gjentatt klokktime er ikke entydig lagret og inngår ikke i avvik"
         diff_detail = (
             f"{format_signed_short_number(diff_percent_total, 1)} % mot Elvia · {coverage_detail}"
             if diff_percent_total is not None
             else coverage_detail
         )
-        sample_detail = f"{len(hc3_present)}/24 timer med data · {sum(hc3_valid_samples_by_hour.values())}/{sum(hc3_samples_by_hour.values())} samples med delta"
+        sample_detail = f"{len(hc3_present)}/{day_hours} lokale timefelt med data · {sum(hc3_valid_samples_by_hour.values())}/{sum(hc3_samples_by_hour.values())} samples med delta"
         latest_elvia_detail = (
             f"Siste Elvia-time {format_source_datetime(latest_elvia.measured_at)}"
             if latest_elvia and latest_elvia.measured_at
@@ -2458,7 +2492,7 @@ def create_service(dependencies: Dependencies):
             "subtitle": "Kontroll av Elvia-timesforbruk mot hovedinntakets effektmåler i HC3.",
             "cards": [
                 api_card("HC3 valgt dag", format_short_number(hc3_total, 1) if hc3_present else "-", "kWh", sample_detail, "energy", href="/energi/status"),
-                api_card("Elvia valgt dag", format_short_number(elvia_total, 1) if has_elvia else "-", "kWh", f"{len(elvia_present)}/24 timer importert", "status", href="/energi/elvia"),
+                api_card("Elvia valgt dag", format_short_number(elvia_total, 1) if has_elvia else "-", "kWh", f"{len(elvia_present)}/{day_hours} lokale timefelt importert", "status", href="/energi/elvia"),
                 api_card("Avvik i felles timer", format_signed_short_number(diff_total, 1) if diff_total is not None else "-", "kWh", diff_detail, "energy" if control_status == "OK" else "status", href="/energi/elvia-kontroll"),
                 api_card("Status", control_status, "", f"{coverage_detail} · {latest_elvia_detail}", "energy" if control_status == "OK" else "status", href="/energi/elvia-kontroll"),
                 api_card("Målegrunnlag", "Inntak - R", "", "HC3 221 · 30 s effektmåling", "status", href="/energi/status"),
@@ -2467,7 +2501,7 @@ def create_service(dependencies: Dependencies):
             "tables": [
                 api_table(
                     "Timekontroll",
-                    ["hour_label", "hc3_kwh", "elvia_kwh", "diff_kwh", "diff_percent", "hc3_samples", "hc3_delta_samples", "elvia_status"],
+                    ["hour_label", "hc3_kwh", "elvia_kwh", "diff_kwh", "diff_percent", "hc3_samples", "hc3_delta_samples", "elvia_status", "hc3_resets", "quality"],
                     hourly_rows,
                 ),
                 api_table(
@@ -2482,6 +2516,10 @@ def create_service(dependencies: Dependencies):
                             "delta_kilde": "HC3 221 Inntak - R (realtime_w)",
                             "maks_intervall_sek": ENERGY_REALTIME_MAX_DELTA_SECONDS,
                             "timeforskyvning": "Ingen; samme lokale klokktime",
+                            "faktiske_timer_i_dognet": day_hours,
+                            "estimerte_elvia_timer": len(estimated_hours),
+                            "hc3_tellerreset": sum(hc3_resets_by_hour.values()),
+                            "hc3_reset_forklaring": "Tellerreset påvirker ikke effektintegrasjonen som brukes i kontrollen.",
                             "siste_hc3_sample": latest_hc3.bucket_start if latest_hc3 else None,
                             "siste_elvia_time": latest_elvia.measured_at if latest_elvia else None,
                         }

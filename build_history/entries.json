@@ -1,6 +1,28 @@
 [
   {
     "version": "1",
+    "build": "1854",
+    "date": "06.09.2026",
+    "headline": "Tydeligere kontrollgrunnlag og tryggere arbeid i mikroappene",
+    "title": "Fullfører forbedringsrunden med konservativ datakontroll og selektive bygg",
+    "description": "Rydder System og Operasjon, beskytter besøksnotater, gjør betalingskontroll tidsavgrenset og synliggjør månedens datagrunnlag. Renhold får kommende nattjobber med pauser og kontrollbehov. Energi håndterer sommertid, estimater og tellerreset. Mantis får avhengighetsstyrte bygg og kontrollert publisering.",
+    "applications": ["Fibaro10 API", "System-adapter", "Mantis-plattform", "System", "Operasjon", "Energi", "Kontroll", "Vedlikehold", "Parkering", "Soling", "Omsetning", "Renhold"],
+    "request": "gjør alt da",
+    "work_duration": "Analyse, implementering, regeltester, nettlesertester og kontrollert utrulling; separat fullstendig tidsmåling er ikke tilgjengelig",
+    "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+    "changes": [
+      "Søkbar manual og avklart skille mellom teknisk administrasjon, hendelser og kontrollregler.",
+      "Besøksvalg og søk bevares; ulagrede besøksnotater beskyttes ved navigering.",
+      "Elvia-kontroll for 23/25-timersdøgn, estimerte data og tellerreset; tvetydig vintertid gir ikke falsk OK.",
+      "Betalingsdekning beregnes per observert tidsrom med eksplisitt delvis, ventende og ukjent grunnlag.",
+      "Månedsoversikt viser registrerte dager og importtid separat for soling og parkering.",
+      "Kommende nattjobber viser vannpauser, batteri og kontrollbehov uten å endre robotplanene.",
+      "Selektive Mantis-bygg, filverifikasjon, parallell publiseringskandidat og tidligere ressursfiler for åpne faner.",
+      "Ingen endring i importplaner, robotstyring eller alarmgrenser. Se kvalitetsnotatet for testdekning og begrensninger."
+    ]
+  },
+  {
+    "version": "1",
     "build": "1853",
     "date": "06.09.2026",
     "headline": "Bevarer arbeidet ved oppdatering og gjør kontrollgrunnlaget tydelig",

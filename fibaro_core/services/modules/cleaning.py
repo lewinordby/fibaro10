@@ -21,6 +21,7 @@ from fibaro_core.models import (
     RoborockTelemetrySample,
 )
 from fibaro_core.services.presentation import api_card, api_table
+from fibaro_core.services.cleaning_preparation import night_preparation
 from fibaro_core.services.summaries.periods import add_months
 from roborock_domain import (
     format_seconds_as_hours,
@@ -155,7 +156,6 @@ async def render(session, request, module, view, q, day, now_dt, dependencies):
     schedules = (
         await session.execute(
             select(RoborockSchedule)
-            .where(RoborockSchedule.enabled == True)
             .where(RoborockSchedule.deleted_at.is_(None))
             .order_by(RoborockSchedule.robot_duid, RoborockSchedule.schedule_id)
         )
@@ -369,7 +369,7 @@ async def render(session, request, module, view, q, day, now_dt, dependencies):
         robot_duid: str,
         water_interlock: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        configured = schedules_by_robot.get(robot_duid, [])
+        configured = [row for row in schedules_by_robot.get(robot_duid, []) if row.enabled is True]
         paused_rows = (
             water_interlock.get("paused_schedules")
             if isinstance(water_interlock, dict)
@@ -446,6 +446,8 @@ async def render(session, request, module, view, q, day, now_dt, dependencies):
         )
     if not any(cleaning_provider(robot.provider) == "dreame" for robot in robots):
         robot_summaries.append(expected_dreame_summary(DREAME_EXPECTED_ROBOT_NAME))
+    for summary in robot_summaries:
+        summary["nightPreparation"] = night_preparation(summary, schedules_by_robot.get(summary["duid"], []), now_dt)
     timeline_now = local_now_naive()
     ventilation_config = (
         await session.execute(select(ControlConfig).where(ControlConfig.key == "ventilation"))
@@ -651,4 +653,3 @@ async def render(session, request, module, view, q, day, now_dt, dependencies):
             },
         },
     }
-

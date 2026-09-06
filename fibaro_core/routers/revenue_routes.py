@@ -1944,6 +1944,7 @@ def create_router(dependencies: Dependencies) -> RouterBundle:
                 "todayRow": api_revenue_day(summary["today_row"]) if summary["today_row"] else None,
             },
             "rows": [api_revenue_day(row) for row in context["rows"]],
+            "coverage": context.get("coverage"),
         }
 
     @router.get("/api/settlements/{settlement_id}")

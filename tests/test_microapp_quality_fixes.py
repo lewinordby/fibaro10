@@ -121,6 +121,43 @@ def test_complete_energy_day_can_be_ok(database):
     assert next(row['value'] for row in result['cards'] if row['title'] == 'Status') == 'OK'
 
 
+@pytest.mark.parametrize(('day', 'expected_status', 'count'), [
+    (date(2026, 3, 29), 'OK', 23),
+    (date(2026, 10, 25), 'Tvetydig vintertid', 24),
+])
+def test_energy_dst_integration(database, day, expected_status, count):
+    from fibaro_core.services.energy_quality import local_hour_occurrences
+    session, remote = database
+    for hour in local_hour_occurrences(day):
+        stamp = datetime.combine(day, datetime.min.time()).replace(hour=hour)
+        session.add(EnergyHourlyConsumption(meter_id='test', measured_at=stamp, stat_date=day,
+                    year=day.year, month=day.month, day=day.day, hour=hour, consumption_kwh=0, status='OK'))
+        session.add_all(EnergyFibaroSample(bucket_start=stamp + timedelta(seconds=30 * i), inntak_delta_kwh=0) for i in range(120))
+    session.commit()
+    result = asyncio.run(main.energy_elvia_control_module_payload(remote, day, date(2026, 11, 1)))
+    assert next(row['value'] for row in result['cards'] if row['title'] == 'Status') == expected_status
+    assert len(result['tables'][0]['rows']) == count
+    if count == 24:
+        assert result['tables'][0]['rows'][2]['diff_kwh'] is None
+        assert result['charts'][0]['metrics'][1]['series'][0]['data'][2] is None
+
+
+def test_estimated_elvia_and_reset_are_explained_without_discarding_power_data(database):
+    session, remote = database
+    rows = [elvia(hour, 0) for hour in range(24)]
+    rows[1].is_estimated = True
+    session.add_all(rows)
+    samples = [EnergyFibaroSample(bucket_start=datetime(2026, 9, 5) + timedelta(seconds=30 * i), inntak_delta_kwh=0) for i in range(2880)]
+    samples[0].inntak_reset = True
+    session.add_all(samples)
+    session.commit()
+    result = energy_result(remote)
+    assert next(row['value'] for row in result['cards'] if row['title'] == 'Status') == 'Estimert grunnlag'
+    assert result['tables'][0]['rows'][0]['hc3_resets'] == 1
+    assert 'Teller nullstilt' in result['tables'][0]['rows'][0]['quality']
+    assert result['tables'][0]['rows'][0]['diff_kwh'] == 0
+
+
 @pytest.mark.parametrize('change', ['old', 'error', 'stopped', 'disabled', 'cameras', 'missing', 'invalid', 'future'])
 def test_bollard_health_never_hides_missing_or_contradictory_evidence(change):
     payload = {'runtime': {'running': True, 'last_success_at': '2026-09-06T10:00:00Z'}, 'settings': {'monitoring_enabled': True, 'analysis_interval_seconds': 300}, 'summary': {'target_cameras': 3, 'connected_cameras': 3}}
@@ -173,8 +210,9 @@ def test_link_pages_include_pairs_after_250_with_stable_order(database, view):
 
 @pytest.mark.parametrize(('start', 'end', 'fee', 'excluded'), [
     (datetime(2026, 9, 1, 10), None, 50, False),
-    (datetime(2026, 9, 6, 10), None, 50, True),
-    (datetime(2026, 9, 5, 22), datetime(2026, 9, 6, 1), 50, True),
+    (datetime(2026, 9, 6, 10), None, 50, False),
+    (datetime(2026, 9, 5, 22), datetime(2026, 9, 6, 1), 50, False),
+    (datetime(2026, 9, 6, 10), datetime(2026, 9, 6, 11), 50, True),
     (datetime(2026, 9, 5, 10), datetime(2026, 9, 5, 11), 50, False),
     (datetime(2026, 9, 6, 10), None, 0, False),
 ])
@@ -187,8 +225,10 @@ def test_old_open_parking_does_not_cover_future_observations(start, end, fee, ex
     first.scalars.return_value.all.return_value = [parking]
     second = MagicMock()
     second.all.return_value = []
-    remote.execute.side_effect = [first, second]
-    source = {'days': [{'date': '2026-09-06', 'vehicles': [{'plate': 'TEST1', 'duration_minutes': 20, 'observation_count': 2}]}]}
+    third = MagicMock()
+    third.scalar.return_value = datetime(2026, 9, 6, 20)
+    remote.execute.side_effect = [first, second, third]
+    source = {'days': [{'date': '2026-09-06', 'vehicles': [{'plate': 'TEST1', 'first_observed_at': '2026-09-06T10:00:00+02:00', 'last_observed_at': '2026-09-06T10:20:00+02:00', 'duration_minutes': 20, 'observation_count': 2}]}]}
     with patch.object(main.parking_dependencies, 'async_session', return_value=remote):
         result = asyncio.run(main.unpaid_registered_vehicle_stays_payload(source, date(2026, 9, 6), date(2026, 9, 7)))
     assert (len(result['days']) == 0) is excluded

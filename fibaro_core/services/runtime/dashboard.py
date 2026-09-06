@@ -2,7 +2,8 @@
 
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
-from fibaro_core.models import ParkingSession, Sun2TanningSession
+from fibaro_core.models import ImportJobStatus, ParkingSession, Sun2TanningSession
+from fibaro_core.services.revenue_coverage import month_source_coverage
 from fibaro_core.services.presentation import (
     api_chart,
     api_table,
@@ -284,6 +285,15 @@ def create_service(dependencies: Dependencies):
         parking_by_day = {row["day"]: float_or_zero(row["amount"]) for row in parking_rows}
         parking_count_by_day = {row["day"]: int_or_zero(row["count"]) for row in parking_rows}
         day_rankings = _revenue_day_rankings(sol_by_day, parking_by_day)
+        async with async_session() as session:
+            import_stamps = dict((await session.execute(
+                select(ImportJobStatus.job_name, ImportJobStatus.last_success_at)
+                .where(ImportJobStatus.job_name.in_(["sun2_sessions_import", "easypark_parking_import"]))
+            )).all())
+        coverage = {
+            "sun": month_source_coverage(month_start, next_month, today, set(sol_count_by_day), import_stamps.get("sun2_sessions_import")),
+            "parking": month_source_coverage(month_start, next_month, today, set(parking_count_by_day), import_stamps.get("easypark_parking_import")),
+        }
         rows = []
         for offset in range(days_in_month):
             day = month_start + timedelta(days=offset)
@@ -325,6 +335,7 @@ def create_service(dependencies: Dependencies):
         today_row = next((row for row in rows if row["day"] == today), None)
         return {
             "rows": rows,
+            "coverage": coverage,
             "summary": {
                 "label": month_label(month_start),
                 "month": month_start.strftime("%Y-%m"),

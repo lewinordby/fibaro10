@@ -192,6 +192,10 @@ def create_router(dependencies: Dependencies) -> RouterBundle:
     async def api_unifi_protect_bollards() -> dict[str, Any]:
         protect_ledger_json = dependencies.protect_ledger_json
         payload = await protect_ledger_json("bollards")
+        from fibaro_core.services.bollard_health import bollard_collection_issues
+        from time_formatting import api_local_iso, local_now_naive
+        issues, last_success = bollard_collection_issues(payload, local_now_naive())
+        payload["collectionHealth"] = {"issues": issues, "lastSuccessAt": api_local_iso(last_success)}
         for monitor in payload.get("camera_monitors", []):
             for key in (
                 "baseline_url", "latest_url", "overlay_url",

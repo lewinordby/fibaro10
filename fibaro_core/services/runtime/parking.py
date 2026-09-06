@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from dateutil import parser as dtparser
 from fastapi import Request
-from fibaro_core.models import ForecastSnapshot, ParkingSession, ParkingVehicle, ParkingVehicleDetails
+from fibaro_core.models import ForecastSnapshot, ImportJobStatus, ParkingSession, ParkingVehicle, ParkingVehicleDetails
+from fibaro_core.services.parking_coverage import observed_payment_coverage
 from fibaro_core.services.comparisons.windows import status_timeline_position
 from fibaro_core.services.forecasts import builders as forecast_builders
 from fibaro_core.services.forecasts.snapshots import (
@@ -291,6 +292,7 @@ def create_service(dependencies: Dependencies):
         )
         parking_by_plate: Dict[str, list[ParkingSession]] = defaultdict(list)
         vehicle_by_plate: Dict[str, Dict[str, Any]] = {}
+        imported_through = None
         if plate_values:
             query_start = datetime.combine(period_start - timedelta(days=7), time.min)
             query_end = datetime.combine(period_end, time.min)
@@ -317,6 +319,9 @@ def create_service(dependencies: Dependencies):
                         .where(compact_plate_sql(ParkingVehicle.plate).in_(plate_values))
                     )
                 ).all()
+                imported_through = (
+                    await session.execute(select(ImportJobStatus.last_success_at).where(ImportJobStatus.job_name == "easypark_parking_import"))
+                ).scalar()
             for parking in parking_rows:
                 plate = compact_plate(parking.car_license_number)
                 if plate:
@@ -350,17 +355,13 @@ def create_service(dependencies: Dependencies):
                 plate = compact_plate(source_vehicle.get("plate"))
                 if not plate:
                     continue
-                paid_same_day = any(
-                    float_or_zero(parking.fee_inc_vat) > 0
-                    and (start_at := normalize_local_naive(parking.start_time)) is not None
-                    and start_at < day_end
-                    and (
-                        ((end_at := normalize_local_naive(parking.end_time)) is None and start_at >= day_start)
-                        or (end_at is not None and end_at >= day_start)
-                    )
-                    for parking in parking_by_plate.get(plate, [])
+                coverage = observed_payment_coverage(
+                    source_vehicle.get("first_observed_at"),
+                    source_vehicle.get("last_observed_at"),
+                    parking_by_plate.get(plate, []),
+                    imported_through,
                 )
-                if paid_same_day:
+                if coverage["status"] == "covered":
                     excluded_paid_vehicle_days += 1
                     continue
                 local_vehicle = vehicle_by_plate.get(plate) or {}
@@ -385,6 +386,7 @@ def create_service(dependencies: Dependencies):
                         "durationMinutes": duration_minutes,
                         "observationCount": observations,
                         "cameraNames": list(source_vehicle.get("camera_names") or []),
+                        "paymentCoverage": coverage,
                     }
                 )
             if vehicles:
@@ -406,12 +408,15 @@ def create_service(dependencies: Dependencies):
             "policy": {
                 "minDurationMinutes": int_or_zero(source_policy.get("min_duration_minutes")) or 10,
                 "countryCodes": list(source_policy.get("country_codes") or ["NO", "SE", "DK"]),
-                "paymentMatch": "same_calendar_day",
-                "label": "Registerfunnet uten betaling",
+                "paymentMatch": "observed_interval",
+                "label": "Betalingskontroll av observasjoner",
+                "importedThrough": api_local_iso(imported_through) if imported_through else None,
                 "detail": (
                     "Kjøretøyet er bekreftet i kjøretøyregister for Norge, Sverige eller Danmark, "
-                    "er observert i mer enn 10 minutter samme dag og har ingen positiv "
-                    "parkeringsbetaling som overlapper kalenderdagen."
+                    "har mer enn 10 minutter mellom første og siste observasjon. Registrerte "
+                    "betalingsintervaller sammenlignes med dette tidsrommet. Fullt dekkede tidsrom "
+                    "utelates; delvis dekning og manglende import/sluttid vises separat. "
+                    "Observasjoner beviser ikke sammenhengende parkering eller betalingsbrudd."
                 ),
             },
             "summary": {

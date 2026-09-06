@@ -406,6 +406,9 @@ class CarsDayApiTests(unittest.IsolatedAsyncioTestCase):
             def all(self):
                 return []
 
+            def scalar(self):
+                return datetime(2026, 8, 26)
+
         class Session:
             def __init__(self):
                 self.calls = 0
