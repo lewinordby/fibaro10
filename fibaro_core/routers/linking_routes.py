@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from fastapi import APIRouter, HTTPException, Request
 from fibaro_core.models import (
+    AccessLog,
     ParkingSunLinkCandidate,
     ParkingSunLinkMatch,
     ParkingSunLinkProcessed,
@@ -154,31 +155,48 @@ def create_router(dependencies: Dependencies) -> RouterBundle:
             return forbidden
         values = data.dict(exclude_unset=True)
         async with async_session() as session:
-            candidate = await session.get(ParkingSunLinkCandidate, candidate_id)
+            candidate = await session.get(ParkingSunLinkCandidate, candidate_id, with_for_update=True)
             if not candidate:
                 raise HTTPException(status_code=404, detail="Koblingskandidat ikke funnet")
             actor = getattr(request.state, "access_key_name", None) or getattr(request.state, "auth_username", None) or "Fibaro10"
             now_value = local_now_naive()
+            message_detail = ""
             if "note" in values:
                 candidate.note = (values.get("note") or "").strip() or None
             if "status" in values:
                 new_status = parking_sun_link_status_value(values.get("status"))
+                previous_status = candidate.status
+                if data.revoke_vehicle_link and new_status != PARKING_SUN_LINK_REJECTED:
+                    raise HTTPException(status_code=400, detail="Tilbakekalling krever at koblingen avvises.")
+                if previous_status == PARKING_SUN_LINK_CONFIRMED and new_status != PARKING_SUN_LINK_CONFIRMED:
+                    vehicle = await session.get(ParkingVehicle, candidate.plate, with_for_update=True)
+                    owned = bool(vehicle and vehicle.sun2_id == candidate.sun2_id and candidate.confirmed_at
+                                 and vehicle.updated_at == candidate.confirmed_at)
+                    if data.revoke_vehicle_link and owned:
+                        vehicle.sun2_id = None
+                        vehicle.updated_at = now_value
+                        message_detail = " Sun2-koblingen på bilen er fjernet."
+                    elif vehicle and vehicle.sun2_id == candidate.sun2_id:
+                        message_detail = " Sun2-ID på bilen er beholdt: nyere eller manuell registrering må kontrolleres på bilen."
+                    session.add(AccessLog(
+                        key_name=actor, path=f"/api/koble/candidates/{candidate_id}", method="PATCH", success=True,
+                        reason=f"{previous_status}->{new_status}; plate={candidate.plate}; sun2={candidate.sun2_id}; revoke={data.revoke_vehicle_link}; removed={data.revoke_vehicle_link and owned}",
+                    ))
                 candidate.status = new_status
                 if new_status == PARKING_SUN_LINK_CONFIRMED:
-                    candidate.confirmed_at = now_value
-                    candidate.confirmed_by = actor
+                    if previous_status != PARKING_SUN_LINK_CONFIRMED:
+                        candidate.confirmed_at = now_value
+                        candidate.confirmed_by = actor
                     candidate.rejected_at = None
                     candidate.rejected_by = None
                     candidate.confidence = 100.0
-                    vehicle = await session.get(ParkingVehicle, candidate.plate)
-                    if vehicle:
+                    vehicle = await session.get(ParkingVehicle, candidate.plate, with_for_update=True)
+                    if vehicle and previous_status != PARKING_SUN_LINK_CONFIRMED:
                         vehicle.sun2_id = candidate.sun2_id
                         vehicle.updated_at = now_value
                 elif new_status == PARKING_SUN_LINK_REJECTED:
                     candidate.rejected_at = now_value
                     candidate.rejected_by = actor
-                    candidate.confirmed_at = None
-                    candidate.confirmed_by = None
                 else:
                     candidate.confirmed_at = None
                     candidate.confirmed_by = None
@@ -208,7 +226,7 @@ def create_router(dependencies: Dependencies) -> RouterBundle:
             candidate.updated_at = now_value
             await session.commit()
         clear_summary_cache("parking")
-        return {"status": "ok", "message": f"Kobling {candidate.plate} / {candidate.sun2_id} er oppdatert."}
+        return {"status": "ok", "message": f"Kobling {candidate.plate} / {candidate.sun2_id} er oppdatert.{message_detail}"}
 
     @router.get("/api/koble/worker/config")
     async def api_v2_koble_worker_config(request: Request):

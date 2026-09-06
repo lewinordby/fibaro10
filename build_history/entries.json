@@ -1,6 +1,30 @@
 [
   {
     "version": "1",
+    "build": "1853",
+    "date": "06.09.2026",
+    "headline": "Bevarer arbeidet ved oppdatering og gjør kontrollgrunnlaget tydelig",
+    "title": "Stabil arbeidsflyt og korrigert datagrunnlag i mikroappene",
+    "description": "Retter bakgrunnsoppdateringer som lukket detaljer, nullstilte grafvalg og overskrev kladder. Korrigerer ufullstendige lister og misvisende kontrollstatus i Energi, Kontroll, Vedlikehold, Parkering og Koble. Første forbedringsetappe i System bevarer søk og filter ved detaljvisning og retur.",
+    "applications": ["Fibaro10 API", "Alle Mantis-mikroapper", "System", "Energi", "Kontroll", "Vedlikehold", "Parkering", "Soling", "Omsetning", "Renhold", "Koble", "Bygg"],
+    "request": "rett feilene som du fant også, så starter du på forbedringen av alle mikro appene slik du foreslo",
+    "work_duration": "Analyse, implementering, syntetiske datatester, nettlesertester og kontrollert utrulling; separat tidsmåling ikke tilgjengelig",
+    "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+    "changes": [
+      "Bevarer innhold ved bakgrunnshenting; viser oppdateringsfeil uten å rive ned den åpne siden.",
+      "Bevarer kladder, valgt besøksdetalj, grafserier, robotfane og valgt soltimebilde gjennom oppdatering.",
+      "Retter områdelenker og filnedlasting; System bevarer datakildesøk og filter ved retur fra detaljer.",
+      "Vedlikehold henter alle åpne punkter og beregner periodetall fra hele datagrunnlaget.",
+      "Koble har korrekt serverpaginering og seks dokumentasjonstreff per kandidat, samt kontrollert tilbakekalling av bekreftet bilkobling.",
+      "Elvia-kontrollen viser manglende data som ukjent og beregner avvik bare i felles timer.",
+      "Pullertkontroll skiller tilstanden til datakilden fra resultatet av siste bildeanalyse.",
+      "Gamle parkeringer uten sluttid dekker ikke automatisk senere observasjonsdager.",
+      "Akkumulerte sammenligningsgrafer stopper ved kildens datakutt, mens hele tidsaksen beholdes.",
+      "Legger til automatiske regresjonstester. Ingen endringer i importplaner, robotstyring eller alarmgrenser."
+    ]
+  },
+  {
+    "version": "1",
     "build": "1852",
     "date": "03.09.2026",
     "headline": "Elvia og HC3 sammenlignes nå i riktig klokktime",

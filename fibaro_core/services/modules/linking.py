@@ -4,7 +4,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from fibaro_core.models import ParkingSunLinkCandidate, ParkingSunLinkMatch, ParkingSunLinkProcessed
-from fibaro_core.services.presentation import api_card, api_table, format_short_number
+from fibaro_core.services.presentation import api_card, api_table, api_table_meta, format_short_number
 from fibaro_core.services.summaries.periods import add_months
 from sqlalchemy import case, func, select, tuple_
 from sun2_helpers import sun2_room_label
@@ -56,6 +56,7 @@ async def render(session, request, module, view, q, day, now_dt, dependencies):
     previous_month_start_dt = datetime.combine(previous_month_start, time.min)
     year_start_dt = datetime.combine(date(today.year, 1, 1), time.min)
     limit_value = api_filter_int(params, "limit", 250, 25, 1000)
+    page = api_filter_int(params, "page", 1, 1, 1000000)
     koble_view = view or "oversikt"
     needs_review_candidates = koble_view == "kandidater"
     needs_match_table = koble_view == "treffgrunnlag"
@@ -65,6 +66,14 @@ async def render(session, request, module, view, q, day, now_dt, dependencies):
     state = await get_parking_sun_link_state(session)
     generation = int_or_zero(state.generation)
     min_required_matches = max(1, int_or_zero(state.min_matches) or 2)
+    qualified_pair_count = int_or_zero((await session.execute(
+        select(func.count(ParkingSunLinkCandidate.id)).where(
+            ParkingSunLinkCandidate.generation == generation,
+            ParkingSunLinkCandidate.parking_match_count >= min_required_matches,
+        )
+    )).scalar_one_or_none())
+    page = min(page, max(1, (qualified_pair_count + limit_value - 1) // limit_value))
+    offset = (page - 1) * limit_value
     await refresh_parking_sun_link_state_counts(session, state)
     candidates: list[ParkingSunLinkCandidate] = []
     if needs_review_candidates:
@@ -82,7 +91,9 @@ async def render(session, request, module, view, q, day, now_dt, dependencies):
                     ParkingSunLinkCandidate.confidence.desc(),
                     ParkingSunLinkCandidate.matches_count.desc(),
                     ParkingSunLinkCandidate.last_match_at.desc(),
+                    ParkingSunLinkCandidate.id.desc(),
                 )
+                .offset(offset)
                 .limit(limit_value)
             )
         ).scalars().all()
@@ -99,13 +110,22 @@ async def render(session, request, module, view, q, day, now_dt, dependencies):
     review_pairs = [(row.plate, row.sun2_id) for row in candidates if row.plate and row.sun2_id]
     review_matches_by_pair: Dict[tuple[str, str], list[ParkingSunLinkMatch]] = defaultdict(list)
     if review_pairs:
+        ranked_matches = select(
+            ParkingSunLinkMatch.id.label("id"),
+            func.row_number().over(
+                partition_by=(ParkingSunLinkMatch.plate, ParkingSunLinkMatch.sun2_id),
+                order_by=(ParkingSunLinkMatch.parking_start_at.desc(), ParkingSunLinkMatch.sun_started_at.desc(), ParkingSunLinkMatch.id.desc()),
+            ).label("position"),
+        ).where(
+            ParkingSunLinkMatch.generation == generation,
+            tuple_(ParkingSunLinkMatch.plate, ParkingSunLinkMatch.sun2_id).in_(review_pairs),
+        ).subquery()
         review_matches = (
             await session.execute(
                 select(ParkingSunLinkMatch)
-                .where(ParkingSunLinkMatch.generation == generation)
-                .where(tuple_(ParkingSunLinkMatch.plate, ParkingSunLinkMatch.sun2_id).in_(review_pairs))
-                .order_by(ParkingSunLinkMatch.parking_start_at.desc(), ParkingSunLinkMatch.sun_started_at.desc())
-                .limit(max(300, min(2000, len(review_pairs) * 10)))
+                .join(ranked_matches, ranked_matches.c.id == ParkingSunLinkMatch.id)
+                .where(ranked_matches.c.position <= 6)
+                .order_by(ParkingSunLinkMatch.parking_start_at.desc(), ParkingSunLinkMatch.sun_started_at.desc(), ParkingSunLinkMatch.id.desc())
             )
         ).scalars().all()
         for match in review_matches:
@@ -152,13 +172,6 @@ async def render(session, request, module, view, q, day, now_dt, dependencies):
             )
         ).scalar_one_or_none()
     )
-    qualified_pair_count = int_or_zero(
-        (
-            await session.execute(
-                select(func.count(ParkingSunLinkCandidate.id)).where(*qualified_filter)
-            )
-        ).scalar_one_or_none()
-    )
     qualified_paid_subquery = (
         select(
             func.upper(func.trim(ParkingSunLinkCandidate.plate)).label("plate"),
@@ -186,7 +199,9 @@ async def render(session, request, module, view, q, day, now_dt, dependencies):
                     ParkingSunLinkCandidate.matches_count.desc(),
                     ParkingSunLinkCandidate.parking_match_count.desc(),
                     ParkingSunLinkCandidate.last_match_at.desc(),
+                    ParkingSunLinkCandidate.id.desc(),
                 )
+                .offset(offset)
                 .limit(limit_value)
             )
         ).scalars().all()
@@ -347,6 +362,7 @@ async def render(session, request, module, view, q, day, now_dt, dependencies):
             "matchedCount": int_or_zero(state.matched_count),
             "qualifiedPlateCount": qualified_plate_count,
             "qualifiedPairCount": qualified_pair_count,
+            "pageInfo": api_table_meta(qualified_pair_count, page, limit_value, len(candidates) if needs_review_candidates else len(qualified_candidate_rows)),
             "qualifiedPaidTotal": round(qualified_paid_total, 2),
             "qualifiedMatchedPaidTotal": round(qualified_matched_paid_total, 2),
             "qualifiedSun2Rows": qualified_sun2_rows if koble_view == "sun2" else [],
@@ -581,4 +597,3 @@ async def render(session, request, module, view, q, day, now_dt, dependencies):
             api_filter("limit", "Antall", "number", limit_value),
         ],
     }
-

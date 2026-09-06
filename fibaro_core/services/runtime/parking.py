@@ -355,8 +355,8 @@ def create_service(dependencies: Dependencies):
                     and (start_at := normalize_local_naive(parking.start_time)) is not None
                     and start_at < day_end
                     and (
-                        (end_at := normalize_local_naive(parking.end_time)) is None
-                        or end_at >= day_start
+                        ((end_at := normalize_local_naive(parking.end_time)) is None and start_at >= day_start)
+                        or (end_at is not None and end_at >= day_start)
                     )
                     for parking in parking_by_plate.get(plate, [])
                 )

@@ -143,7 +143,27 @@ async def render(session, request, module, view, q, day, now_dt, dependencies):
             .limit(300)
         )
     ).scalars().all()
-    linked_visit_ids = sorted({int(row.site_visit_id) for row in logs if row.site_visit_id})
+    follow_up_logs = (
+        await session.execute(
+            select(MaintenanceLogEntry)
+            .where(MaintenanceLogEntry.follow_up_needed.is_(True))
+            .where(func.lower(func.trim(func.coalesce(MaintenanceLogEntry.status, ""))) != "lukket")
+            .order_by(MaintenanceLogEntry.performed_at.desc(), MaintenanceLogEntry.id.desc())
+        )
+    ).scalars().all()
+    today_count, month_count, sunbed_month_count = (
+        await session.execute(
+            select(
+                func.count().filter(MaintenanceLogEntry.performed_at >= today_start),
+                func.count(),
+                func.count().filter(func.lower(func.trim(MaintenanceLogEntry.target_type)) == "seng"),
+            )
+            .select_from(MaintenanceLogEntry)
+            .where(MaintenanceLogEntry.performed_at >= month_start_dt)
+            .where(MaintenanceLogEntry.performed_at < tomorrow_start)
+        )
+    ).one()
+    linked_visit_ids = sorted({int(row.site_visit_id) for row in [*logs, *follow_up_logs] if row.site_visit_id})
     site_visit_by_id: Dict[int, SiteVisit] = {}
     if linked_visit_ids:
         linked_visits = (
@@ -152,28 +172,6 @@ async def render(session, request, module, view, q, day, now_dt, dependencies):
             )
         ).scalars().all()
         site_visit_by_id = {int(row.id): row for row in linked_visits if row.id}
-    today_count = sum(
-        1
-        for row in logs
-        if row.performed_at and today_start <= row.performed_at < tomorrow_start
-    )
-    month_count = sum(
-        1
-        for row in logs
-        if row.performed_at and month_start_dt <= row.performed_at < tomorrow_start
-    )
-    follow_up_logs = [
-        row
-        for row in logs
-        if row.follow_up_needed and (row.status or "").strip().casefold() != "lukket"
-    ]
-    sunbed_month_count = sum(
-        1
-        for row in logs
-        if (row.target_type or "").strip().casefold() == "seng"
-        and row.performed_at
-        and month_start_dt <= row.performed_at < tomorrow_start
-    )
     latest = logs[0] if logs else None
     log_rows = [
         maintenance_log_row(row, site_visit_by_id.get(int(row.site_visit_id or 0)))
@@ -211,4 +209,3 @@ async def render(session, request, module, view, q, day, now_dt, dependencies):
             ),
         ],
     }
-

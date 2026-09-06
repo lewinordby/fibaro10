@@ -2346,28 +2346,40 @@ def create_service(dependencies: Dependencies):
         diff_cumulative = []
         hc3_total = 0.0
         elvia_total = 0.0
+        hc3_present = {hour for hour, count in hc3_valid_samples_by_hour.items() if count > 0}
+        matched_hours = hc3_present & elvia_present
+        matched_hc3_total = 0.0
+        matched_elvia_total = 0.0
+        hc3_contiguous = True
+        elvia_contiguous = True
         for hour in range(24):
             hour_label = f"{hour:02d}:00"
             hc3_kwh = round(hc3_by_hour[hour], 3)
             elvia_kwh = round(elvia_by_hour[hour], 3)
             diff_kwh = round(hc3_kwh - elvia_kwh, 3)
-            diff_percent = round((diff_kwh / elvia_kwh) * 100, 1) if elvia_kwh else None
+            comparable = hour in matched_hours
+            diff_percent = round((diff_kwh / elvia_kwh) * 100, 1) if comparable and elvia_kwh else None
             hc3_total += hc3_kwh
             elvia_total += elvia_kwh
+            if comparable:
+                matched_hc3_total += hc3_kwh
+                matched_elvia_total += elvia_kwh
+            hc3_contiguous = hc3_contiguous and hour in hc3_present
+            elvia_contiguous = elvia_contiguous and hour in elvia_present
             hour_labels.append(hour_label)
-            hc3_values.append(hc3_kwh)
+            hc3_values.append(hc3_kwh if hour in hc3_present else None)
             elvia_values.append(elvia_kwh if hour in elvia_present else None)
-            diff_values.append(diff_kwh if hour in elvia_present or hc3_kwh else None)
-            hc3_cumulative.append(round(hc3_total, 3))
-            elvia_cumulative.append(round(elvia_total, 3) if hour in elvia_present or elvia_total else None)
-            diff_cumulative.append(round(hc3_total - elvia_total, 3) if hour in elvia_present or hc3_total else None)
+            diff_values.append(diff_kwh if comparable else None)
+            hc3_cumulative.append(round(hc3_total, 3) if hc3_contiguous else None)
+            elvia_cumulative.append(round(elvia_total, 3) if elvia_contiguous else None)
+            diff_cumulative.append(round(hc3_total - elvia_total, 3) if hc3_contiguous and elvia_contiguous else None)
             status_text = " / ".join(sorted(elvia_status_by_hour[hour])) if hour in elvia_present else "Mangler"
             hourly_rows.append(
                 {
                     "hour_label": f"{hour:02d}:00-{(hour + 1) % 24:02d}:00",
-                    "hc3_kwh": hc3_kwh,
+                    "hc3_kwh": hc3_kwh if hour in hc3_present else None,
                     "elvia_kwh": elvia_kwh if hour in elvia_present else None,
-                    "diff_kwh": diff_kwh if hour in elvia_present or hc3_kwh else None,
+                    "diff_kwh": diff_kwh if comparable else None,
                     "diff_percent": diff_percent,
                     "hc3_samples": hc3_samples_by_hour[hour],
                     "hc3_delta_samples": hc3_valid_samples_by_hour[hour],
@@ -2377,18 +2389,27 @@ def create_service(dependencies: Dependencies):
 
         hc3_total = round(hc3_total, 3)
         elvia_total = round(elvia_total, 3)
-        diff_total = round(hc3_total - elvia_total, 3)
-        diff_percent_total = round((diff_total / elvia_total) * 100, 1) if elvia_total else None
-        abs_diff = abs(diff_total)
-        ok_limit = max(1.0, elvia_total * 0.02)
+        diff_total = round(matched_hc3_total - matched_elvia_total, 3) if matched_hours else None
+        diff_percent_total = round((diff_total / matched_elvia_total) * 100, 1) if matched_elvia_total else None
+        abs_diff = abs(diff_total) if diff_total is not None else None
+        ok_limit = max(1.0, matched_elvia_total * 0.02)
         has_elvia = bool(elvia_present)
-        control_status = "OK" if has_elvia and abs_diff <= ok_limit else "Avvik" if has_elvia else "Mangler Elvia"
+        complete_hc3_hours = sum(count == 120 for count in hc3_valid_samples_by_hour.values())
+        if not has_elvia:
+            control_status = "Mangler Elvia"
+        elif not hc3_present:
+            control_status = "Mangler HC3"
+        elif len(matched_hours) < 24 or complete_hc3_hours < 24:
+            control_status = "Delvis grunnlag"
+        else:
+            control_status = "OK" if abs_diff <= ok_limit else "Avvik"
+        coverage_detail = f"{len(matched_hours)}/24 felles timer; {complete_hc3_hours}/24 komplette HC3-timeserier"
         diff_detail = (
-            f"{format_signed_short_number(diff_percent_total, 1)} % mot Elvia"
+            f"{format_signed_short_number(diff_percent_total, 1)} % mot Elvia · {coverage_detail}"
             if diff_percent_total is not None
-            else "Mangler Elvia-grunnlag"
+            else coverage_detail
         )
-        sample_detail = f"{sum(hc3_valid_samples_by_hour.values())}/{sum(hc3_samples_by_hour.values())} samples med delta"
+        sample_detail = f"{len(hc3_present)}/24 timer med data · {sum(hc3_valid_samples_by_hour.values())}/{sum(hc3_samples_by_hour.values())} samples med delta"
         latest_elvia_detail = (
             f"Siste Elvia-time {format_source_datetime(latest_elvia.measured_at)}"
             if latest_elvia and latest_elvia.measured_at
@@ -2436,10 +2457,10 @@ def create_service(dependencies: Dependencies):
             "title": v2_module_title("energi", "elvia-kontroll"),
             "subtitle": "Kontroll av Elvia-timesforbruk mot hovedinntakets effektmåler i HC3.",
             "cards": [
-                api_card("HC3 valgt dag", format_short_number(hc3_total, 1), "kWh", sample_detail, "energy", href="/energi/status"),
-                api_card("Elvia valgt dag", format_short_number(elvia_total, 1), "kWh", f"{len(elvia_present)}/24 timer importert", "status", href="/energi/elvia"),
-                api_card("Avvik", format_signed_short_number(diff_total, 1), "kWh", diff_detail, "energy" if control_status == "OK" else "status", href="/energi/elvia-kontroll"),
-                api_card("Status", control_status, "", latest_elvia_detail, "energy" if control_status == "OK" else "status", href="/energi/elvia-kontroll"),
+                api_card("HC3 valgt dag", format_short_number(hc3_total, 1) if hc3_present else "-", "kWh", sample_detail, "energy", href="/energi/status"),
+                api_card("Elvia valgt dag", format_short_number(elvia_total, 1) if has_elvia else "-", "kWh", f"{len(elvia_present)}/24 timer importert", "status", href="/energi/elvia"),
+                api_card("Avvik i felles timer", format_signed_short_number(diff_total, 1) if diff_total is not None else "-", "kWh", diff_detail, "energy" if control_status == "OK" else "status", href="/energi/elvia-kontroll"),
+                api_card("Status", control_status, "", f"{coverage_detail} · {latest_elvia_detail}", "energy" if control_status == "OK" else "status", href="/energi/elvia-kontroll"),
                 api_card("Målegrunnlag", "Inntak - R", "", "HC3 221 · 30 s effektmåling", "status", href="/energi/status"),
             ],
             "charts": [chart],

@@ -15,6 +15,7 @@ class ParkingSunLinkSettingsUpdate(BaseModel):
 class ParkingSunLinkCandidateUpdate(BaseModel):
     status: Optional[str] = Field(None, max_length=40)
     note: Optional[str] = Field(None, max_length=2000)
+    revoke_vehicle_link: bool = False
 
 
 class ParkingSunLinkWorkerStatusIn(BaseModel):

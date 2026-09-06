@@ -31,6 +31,7 @@ from fibaro_core.models import (
     YrForecastSample,
 )
 from fibaro_core.routers.bundle import RouterBundle
+from fibaro_core.services.bollard_health import bollard_collection_issues
 from fibaro_core.services.comparisons.chart import build_status_comparison
 from fibaro_core.services.comparisons.overview import (
     build_overview_cards,
@@ -1573,19 +1574,18 @@ def create_router(dependencies: Dependencies) -> RouterBundle:
             active_incidents = [row for row in (bollard_result.get("incidents") or []) if str(row.get("status") or "").lower() in {"active", "open", "new"}]
             active_count = int(bollard_summary.get("active_incidents") or len(active_incidents))
             bollard_issues = [str(row.get("display_name") or row.get("title") or "Visuelt avvik") for row in active_incidents[:3]]
+            collection_issues, bollard_updated = bollard_collection_issues(bollard_result, now_dt)
             if active_count:
                 bollard_status, bollard_label = "error", f"{active_count} aktivt avvik"
                 if not bollard_issues:
                     bollard_issues.append(f"{active_count} kontrollobjekt krever visuell kontroll.")
-            elif not bollard_result.get("runtime", {}).get("last_success_at"):
-                bollard_status, bollard_label = "warning", "Venter på kontroll"
-                bollard_issues.append("Det finnes ikke et tidspunkt for siste vellykkede bildekontroll.")
+            elif collection_issues:
+                bollard_status, bollard_label = "warning", "Kontroller datakilden"
             else:
                 bollard_status, bollard_label = "ok", "Ingen aktive avvik"
-            runtime_at = bollard_result.get("runtime", {}).get("last_success_at")
-            bollard_updated = normalize_local_naive(datetime.fromisoformat(runtime_at)) if runtime_at else None
+            bollard_issues.extend(collection_issues)
             bollard_items = [
-                {"label": row.get("display_name") or row.get("name"), "value": row.get("status") or "Kontrollert", "state": "warning" if row in active_incidents else "ok"}
+                {"label": row.get("display_name") or row.get("name"), "value": row.get("status") or "Ukjent", "state": "warning" if collection_issues or row.get("status") not in {"normal", "ok"} else "ok"}
                 for row in (bollard_result.get("asset_monitors") or bollard_result.get("camera_monitors") or [])[:4]
             ]
         for issue in bollard_issues:
