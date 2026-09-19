@@ -202,6 +202,8 @@ def online_app():
     preview = FastAPI(title="Online dashboard preview")
     preview.mount("/static", StaticFiles(directory=REPO_ROOT / "static"), name="static")
     preview.mount("/appkit-assets", StaticFiles(directory=REPO_ROOT / "packages" / "mobile-appkit"), name="appkit-assets")
+    preview.mount("/mobile-assets", StaticFiles(directory=REPO_ROOT / "online_dashboard" / "app" / "static"), name="mobile-assets")
+    from scripts.mobile_revenue_preview_data import revenue_preview
 
     values = {
         "open_label": "Åpent",
@@ -223,27 +225,8 @@ def online_app():
         "sun_icon": mobile.metric_icon("sun"),
         "parking_icon": mobile.metric_icon("parking"),
         "energy_icon": mobile.metric_icon("energy"),
-        "dashboard_highlight": (
-            '<section class="dashboard-performance">'
-            '<div class="dashboard-performance-head"><div><span>Dagen så langt</span>'
-            '<strong>11 840 kr</strong></div><small>Soling kl 14:27 · parkering kl 14:00</small></div>'
-            '<div class="dashboard-performance-comparisons">'
-            '<a href="#"><span>I går samme tidspunkt</span><strong class="is-positive">+920 kr <em>+8%</em></strong>'
-            '<small>1 760 kr igjen til hele gårsdagen</small></a>'
-            '<a href="#"><span>Samme ukedag forrige uke</span><strong class="is-negative">-640 kr <em>-5%</em></strong>'
-            '<small>2 310 kr igjen til hele referansedagen</small></a></div>'
-            '<div class="dashboard-performance-split">'
-            '<span>Soling <strong>4 120 kr</strong><small>35%</small></span>'
-            '<span>Parkering <strong>7 720 kr</strong><small>65%</small></span></div></section>'
-        ),
-        "revenue_card": (
-            '<article class="metric-card accent-revenue revenue-card">'
-            '<a class="card-link revenue-main-link" href="#">'
-            f'<div class="metric-head"><span>Omsetning</span>{mobile.metric_icon("revenue")}</div>'
-            '<strong>11 840 kr</strong>'
-            '<small>I går 10 920 kr</small>'
-            '<small class="updated-line">Oppdatert 08.08 14:27</small></a></article>'
-        ),
+        "dashboard_highlight": mobile.mobile_revenue.render_overview(revenue_preview()),
+        "revenue_card": "",
         "mobile_nav": mobile.mobile_nav("status"),
     }
 
@@ -255,6 +238,10 @@ def online_app():
     @preview.get("/", response_class=HTMLResponse)
     async def index() -> HTMLResponse:
         return HTMLResponse(html)
+
+    @preview.get("/omsetning", response_class=HTMLResponse)
+    async def revenue() -> HTMLResponse:
+        return mobile.render_detail_page("Omsetning", "", mobile.mobile_revenue.render_overview(revenue_preview()), icon="revenue")
 
     parking_html = mobile.DETAIL_HTML
     parking_body = mobile.render_count_performance(

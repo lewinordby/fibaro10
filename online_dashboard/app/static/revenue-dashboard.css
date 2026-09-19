@@ -1,0 +1,69 @@
+.revenue-dashboard {
+    color: var(--appkit-text);
+    font-variant-numeric: tabular-nums;
+    min-width: 0;
+    container: revenue / inline-size;
+}
+.rev-tools, .rev-period-heading, .rev-full-reference > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.rev-tools { flex-wrap: wrap; font-size: 12px; }
+.rev-tools > span, .rev-basis, .rev-updated, .rev-full-reference small { color: var(--appkit-muted); }
+.rev-tools a, .rev-unavailable a { color: var(--appkit-parking-ink); min-height: 44px; display: inline-flex; align-items: center; }
+.rev-basis { font-size: 12px; line-height: 1.4; margin: 0 0 12px; }
+.rev-periods { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.rev-period {
+    background: var(--appkit-surface);
+    border: 1px solid var(--appkit-line);
+    border-top: 3px solid var(--appkit-revenue);
+    border-radius: 8px;
+    overflow: hidden;
+    min-width: 0;
+}
+.rev-period-heading { padding: 12px 12px 4px; align-items: flex-start; }
+.rev-period-heading > div { min-width: 0; }
+body.appkit-mobile .rev-period h2 { font-size: 17px; font-weight: 600; margin: 0; line-height: 1.4; letter-spacing: 0; }
+.rev-period-heading > strong { font-size: 25px; font-weight: 650; line-height: 1.2; white-space: nowrap; }
+.rev-rank { display: block; color: var(--appkit-muted); font-size: 11px; line-height: 1.4; margin-top: 2px; }
+.rev-updated { display: flex; flex-wrap: wrap; column-gap: 12px; padding: 0 12px 10px; font-size: 11px; line-height: 1.5; }
+.rev-share { background: var(--appkit-parking); height: 4px; margin: 0 12px 10px; border-radius: 3px; overflow: hidden; }
+.rev-share > span { display: block; height: 100%; background: var(--appkit-sun); }
+.rev-comparisons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0 12px 10px; }
+.rev-comparison { min-width: 0; padding-right: 8px; }
+.rev-comparison + .rev-comparison { padding-right: 0; padding-left: 10px; border-left: 1px solid var(--appkit-line); }
+.rev-comparison > span:first-child { display: block; color: var(--appkit-muted); font-size: 12px; line-height: 1.4; min-height: 34px; }
+.rev-delta { display: block; font-size: 14px; font-weight: 600; line-height: 1.4; }
+.rev-delta small, .rev-comparison > small { display: block; font-size: 11px; font-weight: 400; line-height: 1.5; }
+.rev-comparison > small { color: var(--appkit-muted); margin-top: 2px; }
+.rev-up { color: var(--appkit-energy-ink); }
+.rev-down { color: var(--appkit-revenue-ink); }
+.rev-equal { color: var(--appkit-muted); }
+.rev-sources { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; line-height: 1.4; margin: 0; }
+.rev-label-column { width: 31%; }
+.rev-sources th, .rev-sources td { padding: 7px 10px; border-top: 1px solid var(--appkit-line); text-align: right; vertical-align: middle; overflow-wrap: anywhere; }
+.rev-sources th:first-child { text-align: left; color: var(--appkit-muted); font-weight: 400; }
+.rev-sources thead { background: var(--appkit-surface-soft); }
+.rev-sources th { font-weight: 600; }
+.rev-sources strong { display: block; font-size: 13px; font-weight: 600; }
+.rev-sources small { display: block; font-size: 10px; font-weight: 400; color: var(--appkit-muted); }
+.rev-sources .rev-delta { font-size: 12px; }
+.rev-sources .rev-delta small { color: inherit; font-size: 10px; }
+.rev-sun { color: var(--appkit-sun-ink); }
+.rev-parking { color: var(--appkit-parking-ink); }
+.rev-references { padding: 10px 12px; background: var(--appkit-surface-soft); border-top: 1px solid var(--appkit-line); display: grid; gap: 10px; }
+.rev-full-reference { font-size: 12px; min-width: 0; }
+.rev-full-reference > div { align-items: baseline; }
+.rev-full-reference strong { white-space: nowrap; font-weight: 600; }
+.rev-full-reference small { display: block; font-size: 11px; text-align: right; }
+.rev-full-reference progress { appearance: none; display: block; width: 100%; height: 3px; margin: 5px 0 3px; border: 0; border-radius: 3px; overflow: hidden; background: var(--appkit-line); }
+.rev-full-reference progress::-webkit-progress-bar { background: var(--appkit-line); }
+.rev-full-reference progress::-webkit-progress-value { background: var(--appkit-revenue); }
+.rev-full-reference progress::-moz-progress-bar { background: var(--appkit-revenue); }
+.rev-unavailable { padding: 14px; border-left: 3px solid var(--appkit-warning); background: var(--appkit-surface); color: var(--appkit-text); }
+.rev-unavailable p { margin: 8px 0 0; color: var(--appkit-muted); }
+@container revenue (min-width: 760px) {
+    .rev-periods { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

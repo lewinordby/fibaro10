@@ -9,6 +9,7 @@ import re
 import secrets
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import quote, quote_plus, urlencode, urlparse
 import urllib.request
@@ -27,6 +28,7 @@ from roborock_domain import (
 )
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from online_dashboard.app import revenue as mobile_revenue
 
 load_dotenv()
 
@@ -51,7 +53,7 @@ PUBLIC_PATHS = {
     "/pwa-icon-maskable-512.png",
     "/apple-touch-icon.png",
 }
-PUBLIC_PREFIXES = ("/static/", "/appkit-assets/")
+PUBLIC_PREFIXES = ("/static/", "/appkit-assets/", "/mobile-assets/")
 ACCESS_FAILED_DISABLE_THRESHOLD = max(1, int(os.getenv("ACCESS_FAILED_DISABLE_THRESHOLD", "3")))
 ONLINE_ACCESS_LOG_COOLDOWN_SECONDS = max(0, int(os.getenv("ONLINE_ACCESS_LOG_COOLDOWN_SECONDS", "0")))
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://192.168.20.218:8109").rstrip("/")
@@ -188,6 +190,7 @@ ONLINE_PWA = PwaConfig(
 register_pwa(app, ONLINE_PWA)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/appkit-assets", StaticFiles(directory="packages/mobile-appkit"), name="appkit-assets")
+app.mount("/mobile-assets", StaticFiles(directory=Path(__file__).parent / "static"), name="mobile-assets")
 
 engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
@@ -3057,9 +3060,15 @@ async def logout(request: Request):
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    data = await dashboard_data()
-    user = escape(request.state.access_key["name"])
     show_revenue = can_manage(request.state.access_key)
+    overview = None
+    if show_revenue and SOURCE_MODE:
+        data, overview = await asyncio.gather(
+            dashboard_data(), mobile_revenue.load_overview(request.cookies.get(AUTH_SESSION_COOKIE_NAME)),
+        )
+    else:
+        data = await dashboard_data()
+    user = escape(request.state.access_key["name"])
     money = lambda value: money_if_allowed(request.state.access_key, value)
     soling_hours = float(data["soling"].get("minutes") or 0) / 60
     week_soling_hours = float(data["soling_week"].get("minutes") or 0) / 60
@@ -3075,7 +3084,7 @@ async def dashboard(request: Request):
         latest_parking = f"Siste {fmt_time(data['latest_parking'].get('start_time'))}{plate_suffix}"
     dashboard_highlight = ""
     revenue_card = ""
-    if show_revenue:
+    if show_revenue and SNAPSHOT_MODE:
         revenue_today = float(data["revenue"].get("today") or 0)
         revenue_yesterday_same_time = float(data["revenue"].get("yesterday_same_time") or 0)
         revenue_last_week_same_time = float(data["revenue"].get("last_week_same_time") or 0)
@@ -3122,6 +3131,8 @@ async def dashboard(request: Request):
         <a class="revenue-chart-link" href="/omsetning/uke" aria-label="Apne omsetningsdiagram">{metric_icon("chart")}</a>
       </article>
         """
+    if show_revenue and SOURCE_MODE:
+        dashboard_highlight = mobile_revenue.render_overview(overview)
     html = DASHBOARD_HTML
     replacements = {
         "{{ user }}": user,
@@ -3293,6 +3304,9 @@ async def soling_detail(request: Request):
 async def revenue_detail(request: Request, week: Optional[str] = None):
     if not can_manage(request.state.access_key):
         return RedirectResponse("/", status_code=303)
+    if SOURCE_MODE:
+        overview = await mobile_revenue.load_overview(request.cookies.get(AUTH_SESSION_COOKIE_NAME))
+        return render_detail_page("Omsetning", "", mobile_revenue.render_overview(overview), icon="revenue")
     data = await dashboard_data()
     body = detail_stats(
         [
@@ -4641,6 +4655,7 @@ DASHBOARD_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
   <link rel="stylesheet" href="/static/online-dashboard.css?v=1751">
+  <link rel="stylesheet" href="/mobile-assets/revenue-dashboard.css?v=1">
   <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
@@ -4796,6 +4811,7 @@ DETAIL_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
   <link rel="stylesheet" href="/static/online-dashboard.css?v=1751">
+  <link rel="stylesheet" href="/mobile-assets/revenue-dashboard.css?v=1">
   <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
