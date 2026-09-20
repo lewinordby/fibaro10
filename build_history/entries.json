@@ -1,6 +1,26 @@
 [
   {
     "version": "1",
+    "build": "1856",
+    "date": "20.09.2026",
+    "headline": "Mer oversiktlig dashboard og dørstatus på mobil",
+    "title": "Lesbare tall og kompakte detaljer i mobilappen",
+    "description": "Tilpasser online.lilletorget.net med periodevelger, utfellbare sammenligningsdetaljer og tydeligere tekst. Komprimerer dørstatus uten å skjule batteri eller oppdateringstid. Kun mobilappen publiseres; API, innsamling og styring er uendret.",
+    "applications": ["Mobil: online_dashboard"],
+    "request": "jeg synes den ble litt lite mobil vennlig kan du gjøre alt litt mer ok på mobil",
+    "work_duration": "Implementering, regresjonstester og visuell kontroll på flere mobilbredder; fullstendig tidsmåling ikke tilgjengelig",
+    "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+    "changes": [
+      "Viser dag, uke, måned eller år med et stort periodevalg; alle tall og referanser beholdes.",
+      "Bevarer valgt periode og åpne sammenligningsdetaljer ved automatisk oppdatering.",
+      "Gir tabeller mer lesbar tekst og lar lange døretiketter brytes i stedet for å kuttes.",
+      "Samler dørstatus i en kompakt liste med siste endring, varighet, batteri og kontrolltid.",
+      "Retter kontrast for dørstatus i mørkt tema og beholder nøytral markering av stengte solrom.",
+      "Kontrollerer smale mobilbredder, begge temaer, tastaturbetjening og oppdatering uten tap av valgt periode."
+    ]
+  },
+  {
+    "version": "1",
     "build": "1855",
     "date": "20.09.2026",
     "headline": "Riktig romkobling etter omlegging av SUN2-terminalen",

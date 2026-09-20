@@ -380,6 +380,28 @@ def online_app():
     async def drift() -> HTMLResponse:
         return HTMLResponse(drift_html)
 
+    from datetime import timedelta
+    now = mobile.local_now()
+    statuses = [mobile.door_status_payload(config, {
+        "timestamp": now - timedelta(minutes=7 * config["sort_order"]),
+        "action": "CLOSED" if config["sort_order"] in (3, 12) else "OPEN",
+        "state": config["sort_order"] not in (3, 12), "battery_level": 91,
+    }, now) for config in mobile.SOLROOM_DOOR_CONFIG]
+    mobile.apply_mobile_sunroom_bed_status(statuses[9], {"status": "Av", "status_code": "0", "imported_at": now})
+    events = [{"timestamp": now - timedelta(minutes=n * 20), "action": "CLOSED" if n % 2 else "OPEN",
+               "state": not n % 2, "battery_level": 91, "source": "HC3"} for n in range(6)]
+
+    @preview.get("/solrom", response_class=HTMLResponse)
+    async def rooms() -> HTMLResponse:
+        return mobile.render_detail_page("Solrom", "", mobile.render_door_counts(statuses, now, solrooms=True)
+                                         + mobile.render_door_overview(statuses, "/solrom"), icon="door")
+
+    @preview.get("/solrom/{device_key}", response_class=HTMLResponse)
+    async def room(device_key: str) -> HTMLResponse:
+        status = next(row for row in statuses if row["device_key"] == device_key)
+        return mobile.render_detail_page(status["title"], "", mobile.render_door_status_summary(status)
+                                         + mobile.render_door_event_list(events), icon="door")
+
     return preview
 
 

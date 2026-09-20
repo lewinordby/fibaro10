@@ -1625,8 +1625,8 @@ body.appkit-mobile .logout-button {
 }
 
 body.appkit-mobile .appkit-theme-button {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     border: 1px solid var(--appkit-line);
     background: var(--appkit-surface-soft);
     color: var(--appkit-muted);
@@ -1723,7 +1723,7 @@ body.appkit-mobile .temperature-main span,
 body.appkit-mobile .pulse-card > span,
 body.appkit-mobile .insight-grid span {
     color: var(--appkit-muted);
-    font-size: 0.69rem;
+    font-size: 13px;
     font-weight: 700;
     letter-spacing: 0;
 }
@@ -1732,7 +1732,7 @@ body.appkit-mobile .metric-card small,
 body.appkit-mobile .pulse-card small,
 body.appkit-mobile .card-time {
     color: var(--appkit-muted);
-    font-size: 0.69rem;
+    font-size: 13px;
 }
 
 body.appkit-mobile .pulse-card,
@@ -1983,9 +1983,35 @@ body.appkit-mobile .detail-stats {
 }
 
 body.appkit-mobile .detail-stats article {
-    min-height: 82px;
-    padding: 11px;
+    min-height: 68px;
+    padding: 10px;
 }
+
+body.appkit-mobile .detail-stats strong { font-size: 20px; line-height: 1.3; font-weight: 600; overflow-wrap: anywhere; }
+body.appkit-mobile .detail-stats span,
+body.appkit-mobile .detail-stats small { font-size: 13px; line-height: 1.4; font-weight: 400; }
+body.appkit-mobile .detail-list li { min-width: 0; }
+body.appkit-mobile .detail-list li small { font-size: 13px; line-height: 1.4; font-weight: 400; overflow-wrap: anywhere; }
+body.appkit-mobile .door-mini-card small { white-space: normal; font-weight: 400; font-size: 12px; line-height: 1.4; }
+body.appkit-mobile .other-door-card { border-radius: 8px; box-shadow: none; }
+body.appkit-mobile .other-door-card small { font-size: 13px; font-weight: 400; line-height: 1.4; }
+body.appkit-mobile .other-door-card span { font-size: 12px; font-weight: 500; text-transform: none; }
+body.appkit-mobile .other-door-card strong { font-size: 16px; line-height: 1.4; font-weight: 600; }
+body.appkit-mobile .other-door-card em { font-size: 13px; font-weight: 600; }
+.door-status-summary { padding: 12px; border-bottom: 1px solid var(--appkit-line); font-variant-numeric: tabular-nums; }
+.door-status-summary header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+.door-status-summary header > strong { font-size: 20px; font-weight: 600; }
+.door-status-summary header > span { color: var(--appkit-muted); font-size: 14px; }
+.door-status-summary dl { margin: 0; display: grid; gap: 6px; }
+.door-status-summary dl > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 12px; font-size: 14px; line-height: 1.4; }
+.door-status-summary dt { color: var(--appkit-muted); font-weight: 400; }
+.door-status-summary dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.door-count-summary { padding: 8px 2px; font-variant-numeric: tabular-nums; }
+.door-count-summary dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; margin: 0; }
+.door-count-summary dl > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--appkit-line); padding-bottom: 6px; }
+.door-count-summary dt { font-size: 14px; font-weight: 400; color: var(--appkit-muted); }
+.door-count-summary dd { font-size: 22px; font-weight: 600; margin: 0; }
+.door-count-summary p { font-size: 13px; line-height: 1.4; color: var(--appkit-muted); margin-top: 10px; }
 
 body.appkit-mobile .detail-list li {
     border-color: var(--appkit-line);
@@ -2094,8 +2120,8 @@ body.appkit-mobile .topbar img {
 }
 
 body.appkit-mobile .logout-button {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     border: 1px solid var(--appkit-line);
     background: var(--appkit-surface-soft);
 }
@@ -2612,6 +2638,28 @@ body.appkit-mobile .appkit-footer .nav-status.is-primary.is-active svg {
     background: color-mix(in srgb, var(--appkit-revenue) 10%, #131b23);
 }
 
+:root[data-theme="dark"] body.appkit-mobile .other-door-card em {
+    color: var(--appkit-muted);
+    background: var(--appkit-surface-soft);
+}
+
+:root[data-theme="dark"] body.appkit-mobile .other-door-card.is-open em,
+:root[data-theme="dark"] body.appkit-mobile .other-door-card.is-solrom.is-closed em {
+    color: var(--appkit-revenue-ink);
+    background: color-mix(in srgb, var(--appkit-revenue) 14%, var(--appkit-surface));
+}
+
+:root[data-theme="dark"] body.appkit-mobile .other-door-card.is-closed em,
+:root[data-theme="dark"] body.appkit-mobile .other-door-card.is-solrom.is-open em {
+    color: var(--appkit-energy-ink);
+    background: color-mix(in srgb, var(--appkit-energy) 14%, var(--appkit-surface));
+}
+
+:root[data-theme="dark"] body.appkit-mobile .other-door-card.is-solrom.is-disabled em {
+    color: var(--appkit-muted);
+    background: var(--appkit-surface-soft);
+}
+
 :root[data-theme="dark"] body.appkit-mobile .door-mini-card.is-watch,
 :root[data-theme="dark"] body.appkit-mobile .door-control-row.is-waiting,
 :root[data-theme="dark"] body.appkit-mobile .door-control-row.is-warning {
@@ -2704,7 +2752,7 @@ body.appkit-mobile .detail-page > .detail-hero-note {
 
 @media (max-width: 520px) {
     body.appkit-mobile .metric-card {
-        min-height: 122px;
+        min-height: 102px;
         padding: 12px;
     }
 }

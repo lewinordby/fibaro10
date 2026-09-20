@@ -3756,15 +3756,7 @@ async def solroom_doors_detail(request: Request):
         ),
         default=None,
     )
-    body = detail_stats(
-        [
-            ("Ledige", fmt_int(sum(1 for item in statuses if item.get("display_state", item.get("state")) == "open")), "dør åpen"),
-            ("I bruk", fmt_int(sum(1 for item in statuses if item.get("display_state", item.get("state")) == "closed")), "dør lukket"),
-            ("Stengt", fmt_int(sum(1 for item in statuses if item.get("display_state") == "disabled")), "seng slått av i Sun2"),
-            ("Ukjent", fmt_int(sum(1 for item in statuses if item.get("state") == "unknown")), "mangler siste status"),
-            ("Sist endret", fmt_clock(latest), fmt_date(latest)),
-        ]
-    )
+    body = render_door_counts(statuses, latest, solrooms=True)
     body += render_door_overview(statuses, "/solrom")
     return render_detail_page("Solrom", "Status og siste endring per solrom.", body, icon="door")
 
@@ -3780,23 +3772,7 @@ async def solroom_door_detail(device_key: str, request: Request):
     if not status:
         status = door_status_payload(config, None, local_now())
     events = await solroom_door_events(device_key, 80) if SOURCE_MODE else []
-    body = detail_stats(
-        [
-            (
-                "Romstatus",
-                str(status.get("display_state_label") or status.get("state_label") or "Ukjent"),
-                f"Dør fysisk {str(status.get('state_label') or 'ukjent').lower()}",
-            ),
-            ("Sist endret", str(status.get("last_changed") or "-"), str(status.get("section_title") or "")),
-            ("Sist kontrollert", str(status.get("last_updated") or "-"), str(status.get("last_updated_age_label") or "-")),
-            (
-                "Batteri",
-                f"{float(status['battery_level']):.0f}%" if status.get("battery_level") is not None else "-",
-                "sensor",
-            ),
-            ("Hendelser", fmt_int(len(events)), "nyeste øverst"),
-        ]
-    )
+    body = render_door_status_summary(status)
     if SNAPSHOT_MODE:
         body += '<p class="notice">Detaljert hendelseshistorikk er bare tilgjengelig når mobilappen leser direkte fra Fibaro10-databasen.</p>'
     body += render_door_event_list(events, "Siste dørhendelser")
@@ -3815,14 +3791,7 @@ async def other_doors_detail(request: Request):
         ),
         default=None,
     )
-    body = detail_stats(
-        [
-            ("Åpne", fmt_int(sum(1 for item in statuses if item.get("state") == "open")), "andre dører"),
-            ("Lukket", fmt_int(sum(1 for item in statuses if item.get("state") == "closed")), "andre dører"),
-            ("Ukjent", fmt_int(sum(1 for item in statuses if item.get("state") == "unknown")), "mangler siste status"),
-            ("Sist endret", fmt_clock(latest), fmt_date(latest)),
-        ]
-    )
+    body = render_door_counts(statuses, latest)
     body += render_door_overview(statuses, "/dorer")
     return render_detail_page("Andre dører", "Status og siste endring per dør.", body, icon="door")
 
@@ -3865,19 +3834,7 @@ async def other_door_detail(device_key: str, request: Request):
     if not status:
         status = door_status_payload(config, None, local_now())
     events = await other_door_events(device_key, 80) if SOURCE_MODE else []
-    body = detail_stats(
-        [
-            ("Status", str(status.get("state_label") or "Ukjent"), str(status.get("age_label") or "-")),
-            ("Sist endret", str(status.get("last_changed") or "-"), str(status.get("device_name") or "")),
-            ("Sist kontrollert", str(status.get("last_updated") or "-"), str(status.get("last_updated_age_label") or "-")),
-            (
-                "Batteri",
-                f"{float(status['battery_level']):.0f}%" if status.get("battery_level") is not None else "-",
-                "sensor",
-            ),
-            ("Hendelser", fmt_int(len(events)), "nyeste øverst"),
-        ]
-    )
+    body = render_door_status_summary(status)
     if SNAPSHOT_MODE:
         body += '<p class="notice">Detaljert hendelseshistorikk er bare tilgjengelig når mobilappen leser direkte fra Fibaro10-databasen.</p>'
     body += render_door_event_list(events)
@@ -4212,6 +4169,37 @@ def render_door_day_control(day_control: dict[str, Any]) -> str:
             """
         )
     return f'<section class="section-block door-control-list"><h2>Dagens dørperioder</h2><div>{"".join(cards)}</div></section>'
+
+
+def render_door_counts(statuses: list[dict[str, Any]], latest: Optional[datetime], *, solrooms: bool = False) -> str:
+    labels = [("open", "Ledige" if solrooms else "Åpne"), ("closed", "I bruk" if solrooms else "Lukket")]
+    if solrooms:
+        labels.append(("disabled", "Stengt"))
+    labels.append(("unknown", "Ukjent"))
+    fields = []
+    for state, name in labels:
+        count = sum((item.get("display_state") or item.get("state") or "unknown") == state for item in statuses)
+        fields.append(f'<div><dt>{name}</dt><dd>{count}</dd></div>')
+    return f'''<section class="door-count-summary" aria-label="Oversikt">
+      <dl>{''.join(fields)}</dl><p>Sist endret {escape(display_stamp(latest)) if latest else '-'}</p>
+    </section>'''
+
+
+def render_door_status_summary(status: dict[str, Any]) -> str:
+    label = status.get("display_state_label") or status.get("state_label") or "Ukjent"
+    battery = f"{float(status['battery_level']):.0f}%" if status.get("battery_level") is not None else "Ukjent"
+    physical = {"open": "Åpen", "closed": "Lukket"}.get(status.get("state"), "Ukjent")
+    fields = [
+        ("Sist endret", status.get("last_changed") or "-"),
+        ("I denne tilstanden", status.get("age_label") or "-"),
+        ("Batteri", battery),
+        ("Sist kontrollert", status.get("last_updated") or "-"),
+        ("Dør fysisk", physical),
+    ]
+    return f'''<section class="door-status-summary" aria-label="Dørstatus">
+      <header><span>Status</span><strong>{escape(str(label))}</strong></header>
+      <dl>{''.join(f'<div><dt>{escape(name)}</dt><dd>{escape(str(value))}</dd></div>' for name, value in fields)}</dl>
+    </section>'''
 
 
 def render_door_overview(statuses: list[dict[str, Any]], base_path: str) -> str:
@@ -4614,7 +4602,7 @@ LOGIN_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1751">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1856">
   <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
 </head>
 <body class="appkit-mobile theme-light login-page">
@@ -4655,8 +4643,9 @@ DASHBOARD_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1751">
-  <link rel="stylesheet" href="/mobile-assets/revenue-dashboard.css?v=1">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1856">
+  <link rel="stylesheet" href="/mobile-assets/revenue-dashboard.css?v=2">
+  <script src="/mobile-assets/mobile-layout.js?v=1" defer></script>
   <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
 </head>
 <body class="appkit-mobile theme-light">
@@ -4811,8 +4800,9 @@ DETAIL_HTML = """<!doctype html>
   <link rel="stylesheet" href="/appkit-assets/vendor/appkit-style.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/vendor/highlights/highlight-blue.css?v=1">
   <link rel="stylesheet" href="/appkit-assets/lilletorget-appkit.css?v=4">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=1751">
-  <link rel="stylesheet" href="/mobile-assets/revenue-dashboard.css?v=1">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=1856">
+  <link rel="stylesheet" href="/mobile-assets/revenue-dashboard.css?v=2">
+  <script src="/mobile-assets/mobile-layout.js?v=1" defer></script>
   <script src="/appkit-assets/lilletorget-appkit.js?v=5" defer></script>
 </head>
 <body class="appkit-mobile theme-light">

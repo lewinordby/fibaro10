@@ -150,16 +150,23 @@ def period_card(period):
         f'<span>Soling {escape(str(period.get("solAsOfLabel") or "ukjent tidspunkt"))}</span>'
         f'<span>Parkering {escape(str(period.get("parkingAsOfLabel") or "ukjent tidspunkt"))}</span>'
     )
-    return f'''<article class="rev-period" id="revenue-{key}" data-period="{key}" data-total="{total}">
-      <header class="rev-period-heading"><div><h2>{escape(str(period.get('title') or key))}</h2>{rank_html}</div><strong>{money(total)}</strong></header>
+    return f'''<article class="rev-period" id="revenue-{key}" data-period="{key}" data-total="{total}" aria-labelledby="revenue-title-{key}">
+      <header class="rev-period-heading"><div><h2 id="revenue-title-{key}">{escape(str(period.get('title') or key))}</h2>{rank_html}</div><strong>{money(total)}</strong></header>
       <div class="rev-updated">{update}</div>
       <div class="rev-share" aria-hidden="true"><span style="width:{sun_share:.3f}%"></span></div>
       <div class="rev-comparisons">{comparisons}</div>
       <table class="rev-sources" aria-label="Fordeling og sammenligninger: {escape(str(period.get('title') or key))}">
         <colgroup><col class="rev-label-column"><col><col></colgroup>
         <thead><tr><th scope="col">Inntektskilde</th><th scope="col" class="rev-sun">Soling <small>{shares[0]}</small></th><th scope="col" class="rev-parking">Parkering <small>{shares[1]}</small></th></tr></thead>
-        <tbody><tr><th scope="row">Hittil</th>{''.join(source_cells)}</tr>{comparison_rows}</tbody>
+        <tbody><tr><th scope="row">Hittil</th>{''.join(source_cells)}</tr></tbody>
       </table>
+      <details class="rev-breakdown" data-state-key="revenue-breakdown-{key}"><summary>Forskjell per inntektskilde</summary>
+        <table class="rev-sources" aria-label="Forskjeller for {escape(str(period.get('title') or key))}">
+          <colgroup><col class="rev-label-column"><col><col></colgroup>
+          <thead><tr><th scope="col">Mot</th><th scope="col" class="rev-sun">Soling</th><th scope="col" class="rev-parking">Parkering</th></tr></thead>
+          <tbody>{comparison_rows}</tbody>
+        </table>
+      </details>
       <footer class="rev-references">{''.join(full_reference(total, ref) for ref in refs)}</footer>
     </article>'''
 
@@ -173,6 +180,9 @@ def render_overview(payload):
     parking = next((source for source in payload.get('services', []) if source.get('jobName') == 'easypark_parking_import'), {})
     schedule = f'Neste parkeringsimport: {date_time(parking["nextExpectedAt"])}' if parking.get('nextExpectedAt') else 'Neste parkeringsimport: ukjent'
     return f'''<section class="revenue-dashboard" aria-label="Omsetning dashboard" data-generated-at="{escape(str(payload.get('generatedAt') or ''))}">
+      <div class="rev-period-tabs" role="tablist" aria-label="Omsetningsperiode" hidden>
+        {''.join(f'<button type="button" role="tab" id="revenue-tab-{key}" aria-controls="revenue-{key}" data-period-tab="{key}">{name}</button>' for key, name in zip(PERIOD_KEYS, ('I dag', 'Uke', 'Måned', 'År')))}
+      </div>
       <div class="rev-tools"><span>{schedule}</span><a href="/omsetning/uke">Ukediagram <span aria-hidden="true">↗</span></a></div>
       <p class="rev-basis">Sammenligningene følger siste import for hver inntektskilde.</p>
       <div class="rev-periods">{''.join(period_card(periods[key]) for key in PERIOD_KEYS)}</div>
