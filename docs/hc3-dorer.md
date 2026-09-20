@@ -74,8 +74,11 @@ Disse ligger i Fibaro10 med fast kobling mot HC3 device-id. Solrom 2 er fortsatt
 
 ### Kobling mellom VIP-dorer og Sun2
 
-Visningsnumrene 10-12 er ikke de samme som intern fysisk rom-ID. Solrom 10, 11 og 12 kobles til henholdsvis
-`rom-11`/seng 679, `rom-12`/seng 680 og `rom-13`/seng 681. Doralarmen bruker seng-ID som stabil fasit og
+Fra 11.09.2026 bruker fysiske solrom 10, 11 og 12 terminalutgang 10, 11 og 12 og
+SUN2-seng 649, 679 og 680. Interne post-ID-er `rom-11`, `rom-12` og `rom-13` beholdes
+for historikk og eksisterende koblinger; de er ikke dagens fysiske romnummer.
+Eldre soltimer tolkes med den gamle koblingen for datoen. Døralarmen bruker den
+felles romkoblingen i `sun2_room_mapping.py` og
 bekrefter alarmgrunnlaget i en ny databaseøkt før varsel sendes. Det er bare bakgrunnsmonitoren som kan sende
 ntfy-varsel; visning og oppdatering av websider er lesende.
 

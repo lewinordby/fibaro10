@@ -258,3 +258,31 @@ Do not restore the whole backup over subsequently imported data. If recovery is
 needed, restore into a separate database, compare the affected records and apply
 a reviewed targeted recovery while SUN2 ingestion is paused. Old application
 images alone are not a data rollback and would restore the defective mapping.
+
+### Production Verification, 20 September 2026
+
+The repair was committed and build 1855 deployed to the core web/worker,
+mobile dashboard and both SUN2 collectors. HC3 configuration, schedules, alarm
+thresholds, EasyPark and robot services were not changed. Web/API rollout used
+the existing blue/green mechanism; ingestion and the worker were briefly paused
+during the data transaction. Backup reports `applied.json` and
+`post-deploy-idempotency.json` record the result.
+
+- A second repair run found zero historical/current/statistic/bed updates,
+  zero missing sessions and zero images needing recovery. All 784 replayed rows
+  again preserved session identities, totals and images.
+- A real automatic SUN2 import succeeded at 08:07:16 UTC / 10:07:16 Oslo,
+  inserting one new session and updating the existing session rather than
+  deleting/recreating it. The collector reported no error.
+- API checks verified the three actual bed IDs, all three room-detail histories,
+  retired bed 681, door status, door/session matching and alarm endpoints.
+- Browser checks verified the mobile room list and details for rooms 10, 11, 12.
+- The desktop room-11 filter for 1-2 September displayed room 11, opened session
+  details and rendered a saved Axis image. Images on both simultaneous-session
+  pairs returned successfully, including the restored sessions.
+- The checked pages produced no JavaScript errors. All affected services were
+  healthy; EasyPark and Roborock retained their existing container IDs.
+
+The checks validate the observed transition and preserved history. They do not
+claim an exact electrical switch time or prove that future source-site changes
+cannot require a new mapping version.

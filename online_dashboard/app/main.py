@@ -126,18 +126,18 @@ ROBOT_RAW_STATE_LABELS = {
 }
 
 SOLROOM_DOOR_CONFIG = [
-    {"device_id": 459, "device_key": "door_solrom_01", "title": "Solrom 1", "section_title": "1.etg", "group_key": "solrom", "sort_order": 1, "room_id": "rom-01", "sun2_bed_id": "640"},
-    {"device_id": None, "device_key": "door_solrom_02", "title": "Solrom 2", "section_title": "1.etg", "group_key": "solrom", "sort_order": 2, "room_id": "rom-02", "sun2_bed_id": "641"},
-    {"device_id": 543, "device_key": "door_solrom_03", "title": "Solrom 3", "section_title": "1.etg", "group_key": "solrom", "sort_order": 3, "room_id": "rom-03", "sun2_bed_id": "642"},
-    {"device_id": 465, "device_key": "door_solrom_04", "title": "Solrom 4", "section_title": "2.etg", "group_key": "solrom", "sort_order": 4, "room_id": "rom-04", "sun2_bed_id": "643"},
-    {"device_id": 463, "device_key": "door_solrom_05", "title": "Solrom 5", "section_title": "2.etg", "group_key": "solrom", "sort_order": 5, "room_id": "rom-05", "sun2_bed_id": "644"},
-    {"device_id": 469, "device_key": "door_solrom_06", "title": "Solrom 6", "section_title": "2.etg", "group_key": "solrom", "sort_order": 6, "room_id": "rom-06", "sun2_bed_id": "645"},
-    {"device_id": 471, "device_key": "door_solrom_07", "title": "Solrom 7", "section_title": "2.etg", "group_key": "solrom", "sort_order": 7, "room_id": "rom-07", "sun2_bed_id": "646"},
-    {"device_id": 473, "device_key": "door_solrom_08", "title": "Solrom 8", "section_title": "2.etg", "group_key": "solrom", "sort_order": 8, "room_id": "rom-08", "sun2_bed_id": "647"},
-    {"device_id": 475, "device_key": "door_solrom_09", "title": "Solrom 9", "section_title": "1.etg", "group_key": "solrom", "sort_order": 9, "room_id": "rom-09", "sun2_bed_id": "648"},
-    {"device_id": 477, "device_key": "door_solrom_10", "title": "Solrom 10", "section_title": "VIP", "group_key": "solrom", "sort_order": 10, "room_id": "rom-11", "sun2_bed_id": "679"},
-    {"device_id": 479, "device_key": "door_solrom_11", "title": "Solrom 11", "section_title": "VIP", "group_key": "solrom", "sort_order": 11, "room_id": "rom-12", "sun2_bed_id": "680"},
-    {"device_id": 539, "device_key": "door_solrom_12", "title": "Solrom 12", "section_title": "VIP", "group_key": "solrom", "sort_order": 12, "room_id": "rom-13", "sun2_bed_id": "681"},
+    {"device_id": 459, "device_key": "door_solrom_01", "title": "Solrom 1", "section_title": "1.etg", "group_key": "solrom", "sort_order": 1},
+    {"device_id": None, "device_key": "door_solrom_02", "title": "Solrom 2", "section_title": "1.etg", "group_key": "solrom", "sort_order": 2},
+    {"device_id": 543, "device_key": "door_solrom_03", "title": "Solrom 3", "section_title": "1.etg", "group_key": "solrom", "sort_order": 3},
+    {"device_id": 465, "device_key": "door_solrom_04", "title": "Solrom 4", "section_title": "2.etg", "group_key": "solrom", "sort_order": 4},
+    {"device_id": 463, "device_key": "door_solrom_05", "title": "Solrom 5", "section_title": "2.etg", "group_key": "solrom", "sort_order": 5},
+    {"device_id": 469, "device_key": "door_solrom_06", "title": "Solrom 6", "section_title": "2.etg", "group_key": "solrom", "sort_order": 6},
+    {"device_id": 471, "device_key": "door_solrom_07", "title": "Solrom 7", "section_title": "2.etg", "group_key": "solrom", "sort_order": 7},
+    {"device_id": 473, "device_key": "door_solrom_08", "title": "Solrom 8", "section_title": "2.etg", "group_key": "solrom", "sort_order": 8},
+    {"device_id": 475, "device_key": "door_solrom_09", "title": "Solrom 9", "section_title": "1.etg", "group_key": "solrom", "sort_order": 9},
+    {"device_id": 477, "device_key": "door_solrom_10", "title": "Solrom 10", "section_title": "VIP", "group_key": "solrom", "sort_order": 10},
+    {"device_id": 479, "device_key": "door_solrom_11", "title": "Solrom 11", "section_title": "VIP", "group_key": "solrom", "sort_order": 11},
+    {"device_id": 539, "device_key": "door_solrom_12", "title": "Solrom 12", "section_title": "VIP", "group_key": "solrom", "sort_order": 12},
 ]
 for _room_config in SOLROOM_DOOR_CONFIG:
     _room_config.update(SUN2_ROOM_MAP_BY_DISPLAY[_room_config["sort_order"]])

@@ -16,7 +16,9 @@
       "Skiller tidspunktet for soltimen fra tidspunktet SUN2-romnavnet ble lest, slik at ny nedlasting ikke flytter historikken.",
       "Bevarer timer og bilder ved gjentatte importer, og hindrer at en ukjent rombetegnelse overskriver en annen seng.",
       "Tilfører kontrollert, idempotent reparasjonsverktøy med standard tørrkjøring og avstemming mot originalfiler.",
-      "Oppdaterer romfiltre, mobilvisning, sengekontroll og historisk kobling til dører uten å endre HC3 eller alarmgrenser."
+      "Oppdaterer romfiltre, mobilvisning, sengekontroll og historisk kobling til dører uten å endre HC3 eller alarmgrenser.",
+      "Rettet 50 historiske poster og gjenopprettet to manglende timer på 495 kr. Bevarte alle eksisterende bilder og gjenopprettet fem tidsriktige arkivbilder på hver av de to timene.",
+      "Kontrollert 784 arkivposter ved gjentatt import, idempotent etterkontroll, mobil/PC-visninger og en ny automatisk SUN2-import. Sikkerhetskopi og dokumentert gjenopprettingsprosedyre er lagret på QNAP."
     ]
   },
   {

@@ -1,6 +1,6 @@
 # SUN2 enkelttimer
 
-Oppdatert 29.08.2026.
+Oppdatert 20.09.2026, build 1855.
 
 Dette dokumentet beskriver flyten for å hente enkelt-solinger fra SUN2 Owner og vise dem i Lilletorget drift.
 
@@ -44,22 +44,31 @@ Datakildens beredskap overvåkes slik:
 
 ## Rom-identitet
 
-SUN2-navn har endret seg over tid. Appen bruker derfor egen fysisk rom-id:
+Fysisk rom, terminalutgang, SUN2-seng-ID og intern post-ID er forskjellige begreper.
+Rom 1-9 er uendret. Fra soltimene 11. september 2026 gjelder følgende VIP-kobling:
 
-- Rom 1-9 mappes direkte til fysisk rom 1-9.
-- Gamle rader med `Solarium -` mappes til gammelt fysisk rom 10.
-- Nyere SUN2-rom 10, 11 og 12 mappes til fysisk rom 11, 12 og 13.
-- Fysisk rom 10 er tatt ut av drift og vises derfor ikke som aktivt rom i dagslinjen.
+| Fysisk rom / visning | Intern rom-ID (bevart) | Terminalutgang nå | SUN2-seng nå | SUN2-seng før 11.09.2026 |
+| --- | --- | ---: | --- | --- |
+| Solrom 10 | `rom-11` | 10 | `649` | `679` |
+| Solrom 11 | `rom-12` | 11 | `679` | `680` |
+| Solrom 12 | `rom-13` | 12 | `680` | `681` |
 
-Aktiv romkobling for VIP er derfor:
+De interne ID-ene beholdes for å bevare referanser, bilder og historikk. De er ikke
+dagens fysiske romnummer. Den gamle utgangen 13 / SUN2-seng 681 er ikke et aktivt
+solrom. Hele den aktive koblingen kommer fra `sun2_room_mapping.py`.
 
-| Visning | Intern rom-ID | Sun2-seng |
-| --- | --- | --- |
-| Solrom 10 | `rom-11` | `679` |
-| Solrom 11 | `rom-12` | `680` |
-| Solrom 12 | `rom-13` | `681` |
+Historikk tolkes etter både soltimens dato og tidspunktet kilden ble lest:
+SUN2 kan vise dagens sengnavn på gamle betalinger. Derfor kan seng-ID eller
+romnavn alene ikke brukes som tidløs fasit. Originale dagsarkiver beholder sine
+gamle navn; nye historiske nedlastinger oversettes tilbake til riktig fysisk rom.
 
-Sun2-seng-ID brukes som stabil identitet dersom en importert rad har en eldre eller feil rom-ID.
+Gjeninnlesing oppdaterer eksisterende poster uten å slette timer, kilde-ID-er
+eller bilder. To samtidige betalinger på forskjellige rom forblir to timer,
+selv om medlemsnummer, tidspunkt, varighet og beløp er identiske.
+
+Se [kartlegging, sikkerhetskopi og verifisering](sun2-terminal-remap-audit-20260920.md).
+Datogrensen er dokumentert av betalinger og dørhistorikk, ikke et målt tidspunkt
+for elektrisk omkobling.
 
 ## Døralarm og soltime
 
