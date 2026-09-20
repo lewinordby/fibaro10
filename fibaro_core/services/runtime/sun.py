@@ -51,9 +51,13 @@ from fibaro_core.services.settlements.source_queries import (
 )
 from fibaro_core.services.summaries.periods import add_months
 from pathlib import Path
-from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import load_only
+from sun2_room_mapping import (
+    canonical_room_name, current_bed_identity, display_number, mapping_provenance,
+    session_identity, stable_session_id,
+)
 from sun2_helpers import (
     SUN2_ROOM_MAP_BY_DISPLAY,
     SUN2_ROOM_OPTIONS,
@@ -908,7 +912,8 @@ def create_service(dependencies: Dependencies):
             source_room_name = (repair_mojibake(row.source_room_name or row.room) or "").strip()
             room = (repair_mojibake(row.room) or source_room_name).strip()
             room_key = (repair_mojibake(row.room_key) or room_key_from_name(source_room_name) or room_key_from_name(room) or room).strip()
-            identity = sun2_room_identity(source_room_name or room, row.room_id, row.sun2_bed_id)
+            # Daily CSVs are immutable reports labelled at the report date.
+            identity = session_identity(source_room_name or room, row.stat_date or batch_date)
             if not room:
                 continue
             stat_date = row.stat_date or batch_date
@@ -978,7 +983,7 @@ def create_service(dependencies: Dependencies):
             if not bed_id or not name:
                 skipped += 1
                 continue
-            identity = sun2_room_identity(row.source_room_name or name, row.room_id, bed_id)
+            identity = current_bed_identity(row.source_room_name or name, bed_id)
             existing = (
                 await session.execute(
                     select(Sun2Bed).where(Sun2Bed.sun2_bed_id == bed_id)
@@ -991,9 +996,9 @@ def create_service(dependencies: Dependencies):
             else:
                 updated += 1
 
-            existing.room_id = row.room_id or identity.get("room_id")
-            existing.physical_room_number = row.physical_room_number or identity.get("physical_room_number")
-            existing.display_room_number = row.display_room_number or identity.get("display_room_number")
+            existing.room_id = identity.get("room_id")
+            existing.physical_room_number = identity.get("physical_room_number")
+            existing.display_room_number = identity.get("display_room_number")
             existing.sun2_center_id = (repair_mojibake(row.sun2_center_id) or "").strip() or None
             existing.sun2_bed_id = bed_id
             existing.name = name
@@ -1216,13 +1221,9 @@ def create_service(dependencies: Dependencies):
         source_file = (repair_mojibake(data.source_file) or "").strip()
         replaced = 0
 
-        if source_file and data.rows:
-            result = await session.execute(
-                delete(Sun2TanningSession)
-                .where(Sun2TanningSession.source == source)
-                .where(Sun2TanningSession.source_file == source_file)
-            )
-            replaced = int(result.rowcount or 0)
+        # A repeated export is an upsert, never a replacement: session IDs own images.
+        if session.get_bind().dialect.name == "postgresql":
+            await session.execute(text("SELECT pg_advisory_xact_lock(hashtext('sun2_session_ingest'))"))
 
         for row in data.rows:
             source_session_id = (repair_mojibake(row.source_session_id) or "").strip()
@@ -1232,7 +1233,13 @@ def create_service(dependencies: Dependencies):
             source_room_name = (repair_mojibake(row.source_room_name or row.room) or "").strip()
             room = (repair_mojibake(row.room) or source_room_name).strip()
             room_key = (repair_mojibake(row.room_key) or room_key_from_name(source_room_name) or room_key_from_name(room) or "").strip()
-            identity = sun2_room_identity(source_room_name or room, row.room_id, row.sun2_bed_id)
+            observed_at = (row.raw or {}).get("room_mapping", {}).get("label_observed_at") or data.timestamp or batch_time
+            identity = session_identity(source_room_name or room, row.started_at, observed_at)
+            room = canonical_room_name(room, identity)
+            room_key = f"rom_{identity['display_room_number']:02d}" if identity.get("display_room_number") else room_key
+            input_source_id = source_session_id
+            if source_session_id.startswith("stable:"):
+                source_session_id = stable_session_id(row, identity)
             stat_date = row.stat_date or row.started_at.date()
 
             existing = (
@@ -1243,18 +1250,23 @@ def create_service(dependencies: Dependencies):
                 )
             ).scalars().first()
 
+            if existing and existing.room_id != identity.get("room_id"):
+                raise ValueError("SUN2 source session ID belongs to a different room; import rejected")
+
             if not existing:
-                legacy_source_session_id = str((row.raw or {}).get("legacy_source_session_id") or "").strip()
-                if legacy_source_session_id:
+                legacy_source_ids = [input_source_id, str((row.raw or {}).get("legacy_source_session_id") or "").strip()]
+                if identity.get("room_id"):
                     existing = (
                         await session.execute(
                             select(Sun2TanningSession)
                             .where(Sun2TanningSession.source == source)
-                            .where(Sun2TanningSession.source_session_id == legacy_source_session_id)
+                            .where(Sun2TanningSession.source_session_id.in_(legacy_source_ids))
+                            .where(Sun2TanningSession.room_id == identity["room_id"])
+                            .where(Sun2TanningSession.started_at == row.started_at)
                         )
                     ).scalars().first()
 
-            if not existing:
+            if not existing and identity.get("room_id"):
                 natural_query = (
                     select(Sun2TanningSession)
                     .where(Sun2TanningSession.source == source)
@@ -1263,14 +1275,13 @@ def create_service(dependencies: Dependencies):
                     .where(Sun2TanningSession.duration_minutes == row.duration_minutes)
                     .where(Sun2TanningSession.paid_amount_kr == row.paid_amount_kr)
                 )
-                if identity.get("sun2_bed_id"):
-                    natural_query = natural_query.where(Sun2TanningSession.sun2_bed_id == identity.get("sun2_bed_id"))
-                elif identity.get("room_id"):
-                    natural_query = natural_query.where(Sun2TanningSession.room_id == identity.get("room_id"))
+                natural_query = natural_query.where(Sun2TanningSession.room_id == identity["room_id"])
                 if row.sun2_user_id:
                     natural_query = natural_query.where(Sun2TanningSession.sun2_user_id == row.sun2_user_id)
                 elif row.user_identifier:
                     natural_query = natural_query.where(Sun2TanningSession.user_identifier == row.user_identifier)
+                else:
+                    natural_query = natural_query.where(Sun2TanningSession.user_name == row.user_name)
                 existing = (await session.execute(natural_query)).scalars().first()
 
             if not existing:
@@ -1279,6 +1290,10 @@ def create_service(dependencies: Dependencies):
                 inserted += 1
             else:
                 updated += 1
+                # Keep existing references from images, links and recorded alarms stable.
+                source_session_id = existing.source_session_id
+                if display_number(existing.room) == identity.get("display_room_number") and room == f"Rom {identity.get('display_room_number')}":
+                    room = existing.room
 
             existing.source = source
             existing.source_session_id = source_session_id
@@ -1302,7 +1317,7 @@ def create_service(dependencies: Dependencies):
             existing.status = (repair_mojibake(row.status) or "").strip() or None
             existing.source_file = source_file or data.source_file
             existing.imported_at = batch_time
-            existing.raw = row.raw or {}
+            existing.raw = {**(row.raw or {}), "room_mapping": mapping_provenance(identity, observed_at, input_source_id)}
 
         return {"inserted": inserted, "updated": updated, "skipped": skipped, "replaced": replaced}
 
@@ -1339,25 +1354,19 @@ def create_service(dependencies: Dependencies):
     async def backfill_sun2_room_identity(session) -> Dict[str, int]:
         counts = {"daily": 0, "sessions": 0}
         for model, key in [(Sun2RoomDailyStat, "daily"), (Sun2TanningSession, "sessions")]:
-            source_text = func.lower(func.trim(func.coalesce(model.source_room_name, model.room, model.room_key, "")))
-            missing_identity = or_(model.room_id.is_(None), model.sun2_bed_id.is_(None))
-            old_room = await session.execute(
-                update(model)
-                .where(missing_identity)
-                .where(or_(source_text == ".", source_text == "-"))
-                .values(room_id=SUN2_ROOM_UNKNOWN_OLD_10["room_id"], sun2_bed_id=SUN2_ROOM_UNKNOWN_OLD_10["sun2_bed_id"])
-            )
-            counts[key] += int(old_room.rowcount or 0)
-
-            for display_number, identity in SUN2_ROOM_MAP_BY_DISPLAY.items():
-                room_text = f"rom {display_number}"
-                result = await session.execute(
-                    update(model)
-                    .where(missing_identity)
-                    .where(or_(source_text == room_text, source_text.like(f"{room_text} %")))
-                    .values(room_id=identity["room_id"], sun2_bed_id=identity["sun2_bed_id"])
+            rows = (await session.execute(select(model).where(
+                or_(model.room_id.is_(None), model.sun2_bed_id.is_(None))
+            ))).scalars().all()
+            for row in rows:
+                observed_at = None if key == "daily" else (
+                    (row.raw or {}).get("room_mapping", {}).get("label_observed_at") or row.imported_at
                 )
-                counts[key] += int(result.rowcount or 0)
+                identity = session_identity(row.source_room_name or row.room, row.stat_date, observed_at)
+                if identity.get("room_id"):
+                    row.room_id = identity["room_id"]
+                    row.sun2_bed_id = identity["sun2_bed_id"]
+                    row.room = canonical_room_name(row.room, identity)
+                    counts[key] += 1
         return counts
 
     def api_sun2_summary_row(item: Dict[str, Any]) -> Dict[str, Any]:

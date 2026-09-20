@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY online_dashboard ./online_dashboard
 COPY cleaning_robot_domain.py ./cleaning_robot_domain.py
 COPY roborock_domain.py ./roborock_domain.py
+COPY sun2_room_mapping.py ./sun2_room_mapping.py
 COPY microapp_backend ./microapp_backend
 COPY packages/mobile-appkit ./packages/mobile-appkit
 COPY static ./static

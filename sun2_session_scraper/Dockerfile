@@ -6,10 +6,11 @@ RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY sun2_session_scraper/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app ./app
+COPY sun2_session_scraper/app ./app
+COPY sun2_room_mapping.py ./sun2_room_mapping.py
 
 VOLUME ["/data"]
 EXPOSE 8098

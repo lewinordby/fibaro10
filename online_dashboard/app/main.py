@@ -29,6 +29,7 @@ from roborock_domain import (
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from online_dashboard.app import revenue as mobile_revenue
+from sun2_room_mapping import SUN2_ROOM_MAP_BY_DISPLAY, canonical_session_room_id
 
 load_dotenv()
 
@@ -138,6 +139,8 @@ SOLROOM_DOOR_CONFIG = [
     {"device_id": 479, "device_key": "door_solrom_11", "title": "Solrom 11", "section_title": "VIP", "group_key": "solrom", "sort_order": 11, "room_id": "rom-12", "sun2_bed_id": "680"},
     {"device_id": 539, "device_key": "door_solrom_12", "title": "Solrom 12", "section_title": "VIP", "group_key": "solrom", "sort_order": 12, "room_id": "rom-13", "sun2_bed_id": "681"},
 ]
+for _room_config in SOLROOM_DOOR_CONFIG:
+    _room_config.update(SUN2_ROOM_MAP_BY_DISPLAY[_room_config["sort_order"]])
 SOLROOM_DOOR_DEVICE_IDS = [int(item["device_id"]) for item in SOLROOM_DOOR_CONFIG if item.get("device_id") is not None]
 SOLROOM_DOOR_KEYS = [str(item["device_key"]) for item in SOLROOM_DOOR_CONFIG if item.get("device_key")]
 SOLROOM_DOOR_BY_KEY = {str(item["device_key"]): item for item in SOLROOM_DOOR_CONFIG}
@@ -1550,12 +1553,10 @@ def normalize_solroom_room_id(value: Any) -> str:
 
 
 def solroom_session_room_id(row: dict[str, Any]) -> str:
-    bed_id = str(row.get("sun2_bed_id") or "").strip()
-    if bed_id:
-        config = next((item for item in SOLROOM_DOOR_CONFIG if str(item.get("sun2_bed_id") or "") == bed_id), None)
-        if config:
-            return str(config.get("room_id") or "")
-    return normalize_solroom_room_id(row.get("room_id") or row.get("room") or row.get("source_room_name"))
+    return normalize_solroom_room_id(canonical_session_room_id(
+        row.get("room_id") or row.get("room") or row.get("source_room_name"),
+        row.get("sun2_bed_id"), row.get("started_at"),
+    ))
 
 
 def sun_session_end_at(row: dict[str, Any]) -> Optional[datetime]:

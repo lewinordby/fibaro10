@@ -50,6 +50,11 @@ function Get-DeployPlan([string[]]$ChangedFiles, [bool]$ForceAll = $false) {
                 [void]$services.Add($service)
             }
         }
+        elseif ($path -eq "sun2_room_mapping.py") {
+            foreach ($service in @("fibaro10", "online_dashboard", "sun2_session_scraper", "sun2_importer")) {
+                [void]$services.Add($service)
+            }
+        }
         elseif ($path -in @("cleaning_robot_domain.py", "roborock_domain.py")) {
             foreach ($service in @("fibaro10", "online_dashboard")) {
                 [void]$services.Add($service)

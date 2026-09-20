@@ -17,6 +17,7 @@ from fibaro_core.schemas import DoorEventIn
 from sqlalchemy import and_, or_, select
 from statistics import median
 from sun2_helpers import SUN2_ROOM_MAP_BY_DISPLAY, normalize_room_id, sun2_room_label
+from sun2_room_mapping import canonical_session_room_id
 from time_formatting import (
     api_local_iso,
     format_source_datetime,
@@ -903,12 +904,7 @@ def create_service(dependencies: Dependencies):
         return str(bed_id).strip() if bed_id is not None and str(bed_id).strip() else None
 
     def sunroom_canonical_room_id(row: Sun2TanningSession) -> Optional[str]:
-        bed_id = str(row.sun2_bed_id or "").strip()
-        if bed_id:
-            for identity in SUN2_ROOM_MAP_BY_DISPLAY.values():
-                if str(identity.get("sun2_bed_id") or "").strip() == bed_id:
-                    return normalize_room_id(identity.get("room_id"))
-        return normalize_room_id(row.room_id)
+        return normalize_room_id(canonical_session_room_id(row.room_id, row.sun2_bed_id, row.started_at))
 
     def sunroom_config_for_room_id(room_id: str) -> Optional[Dict[str, Any]]:
         DOOR_SENSOR_CONFIG = dependencies.DOOR_SENSOR_CONFIG
@@ -2888,8 +2884,6 @@ def create_service(dependencies: Dependencies):
             ).scalars().all()
 
         session_identity = Sun2TanningSession.room_id == normalized_room_id
-        if bed_id:
-            session_identity = or_(session_identity, Sun2TanningSession.sun2_bed_id == bed_id)
         session_rows = (
             await session.execute(
                 select(Sun2TanningSession)

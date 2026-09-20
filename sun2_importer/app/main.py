@@ -17,6 +17,7 @@ from typing import Any
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse, Response
+from sun2_room_mapping import session_identity
 
 
 load_dotenv()
@@ -110,28 +111,8 @@ def room_key_from_name(value: Any) -> str:
     return normalized or "ukjent_rom"
 
 
-SUN2_ROOM_MAP_BY_DISPLAY = {
-    1: {"room_id": "rom-01", "sun2_bed_id": "640"},
-    2: {"room_id": "rom-02", "sun2_bed_id": "641"},
-    3: {"room_id": "rom-03", "sun2_bed_id": "642"},
-    4: {"room_id": "rom-04", "sun2_bed_id": "643"},
-    5: {"room_id": "rom-05", "sun2_bed_id": "644"},
-    6: {"room_id": "rom-06", "sun2_bed_id": "645"},
-    7: {"room_id": "rom-07", "sun2_bed_id": "646"},
-    8: {"room_id": "rom-08", "sun2_bed_id": "647"},
-    9: {"room_id": "rom-09", "sun2_bed_id": "648"},
-    10: {"room_id": "rom-11", "sun2_bed_id": "679"},
-    11: {"room_id": "rom-12", "sun2_bed_id": "680"},
-    12: {"room_id": "rom-13", "sun2_bed_id": "681"},
-}
-
-
-def room_identity(value: Any) -> dict[str, Any]:
-    text = normalize_text(value)
-    if text in {".", "-", ""}:
-        return {"room_id": "rom-10", "sun2_bed_id": "649"}
-    match = re.search(r"\brom\s*0*(\d{1,2})\b", text, re.IGNORECASE)
-    return dict(SUN2_ROOM_MAP_BY_DISPLAY.get(int(match.group(1)), {})) if match else {}
+def room_identity(value: Any, stat_date=None) -> dict[str, Any]:
+    return session_identity(normalize_text(value), stat_date or date.today())
 
 
 def move_to(src: Path, dest_dir: Path, prefix: str) -> Path:
@@ -162,7 +143,7 @@ def parse_file(file_path: Path) -> tuple[date, list[dict[str, Any]]]:
             room = normalize_text(raw.get("Rom"))
             if not room or room == "Totalt":
                 continue
-            identity = room_identity(room)
+            identity = room_identity(room, stat_date)
             clean_raw = {key: normalize_text(value) for key, value in raw.items()}
             rows.append(
                 {

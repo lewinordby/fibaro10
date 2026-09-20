@@ -38,6 +38,11 @@ if ($cleaningRobotDomain.All -or ($cleaningRobotDomain.Services -join ",") -ne "
     throw "Cleaning robot domain deploy plan is wrong: $($cleaningRobotDomain | ConvertTo-Json -Compress)"
 }
 
+$sunRoomMapping = Get-DeployPlan -ChangedFiles @("sun2_room_mapping.py")
+if ($sunRoomMapping.All -or ($sunRoomMapping.Services -join ",") -ne "fibaro10,online_dashboard,sun2_importer,sun2_session_scraper") {
+    throw "SUN2 mapping must rebuild only its four consumers"
+}
+
 $sharedBackend = Get-DeployPlan -ChangedFiles @("microapp_backend/runtime.py")
 foreach ($requiredService in @("fibaro10", "revenue_app", "parking_app", "sun_app", "energy_app", "operations_app", "maintenance_app", "system_app", "link_app", "online_dashboard")) {
     if ($sharedBackend.All -or $sharedBackend.Services.Count -ne 10 -or $requiredService -notin $sharedBackend.Services) {

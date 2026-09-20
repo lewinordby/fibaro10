@@ -20,6 +20,7 @@ from fastapi import FastAPI, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from playwright.sync_api import TimeoutError as PwTimeoutError
 from playwright.sync_api import sync_playwright
+from sun2_room_mapping import current_bed_identity, mapping_provenance, session_identity
 
 try:
     from zoneinfo import ZoneInfo
@@ -563,38 +564,11 @@ def room_key_from_name(value: str) -> str:
     return normalize_key(text) or "ukjent_rom"
 
 
-SUN2_ROOM_MAP_BY_DISPLAY = {
-    1: {"room_id": "rom-01", "physical_room_number": 1, "display_room_number": 1, "sun2_bed_id": "640"},
-    2: {"room_id": "rom-02", "physical_room_number": 2, "display_room_number": 2, "sun2_bed_id": "641"},
-    3: {"room_id": "rom-03", "physical_room_number": 3, "display_room_number": 3, "sun2_bed_id": "642"},
-    4: {"room_id": "rom-04", "physical_room_number": 4, "display_room_number": 4, "sun2_bed_id": "643"},
-    5: {"room_id": "rom-05", "physical_room_number": 5, "display_room_number": 5, "sun2_bed_id": "644"},
-    6: {"room_id": "rom-06", "physical_room_number": 6, "display_room_number": 6, "sun2_bed_id": "645"},
-    7: {"room_id": "rom-07", "physical_room_number": 7, "display_room_number": 7, "sun2_bed_id": "646"},
-    8: {"room_id": "rom-08", "physical_room_number": 8, "display_room_number": 8, "sun2_bed_id": "647"},
-    9: {"room_id": "rom-09", "physical_room_number": 9, "display_room_number": 9, "sun2_bed_id": "648"},
-    10: {"room_id": "rom-11", "physical_room_number": 11, "display_room_number": 10, "sun2_bed_id": "679"},
-    11: {"room_id": "rom-12", "physical_room_number": 12, "display_room_number": 11, "sun2_bed_id": "680"},
-    12: {"room_id": "rom-13", "physical_room_number": 13, "display_room_number": 12, "sun2_bed_id": "681"},
-}
-
-SUN2_ROOM_UNKNOWN_OLD_10 = {"room_id": "rom-10", "physical_room_number": 10, "display_room_number": None, "sun2_bed_id": "649"}
-
-
 def room_identity(value: Any, bed_id: str | None = None) -> dict[str, Any]:
-    text = normalize_text(value)
-    bed_id = normalize_text(bed_id)
-    if text in {".", "-", ""}:
-        result = dict(SUN2_ROOM_UNKNOWN_OLD_10)
-    else:
-        match = re.search(r"\brom\s*0*(\d{1,2})\b", text, re.IGNORECASE)
-        result = dict(SUN2_ROOM_MAP_BY_DISPLAY.get(int(match.group(1)), {})) if match else {}
-    if bed_id:
-        result["sun2_bed_id"] = bed_id
-    return result
+    return current_bed_identity(value, bed_id) if bed_id else session_identity(value, local_now())
 
 
-def normalize_session_row(raw: dict[str, str], fallback_day: date) -> dict[str, Any] | None:
+def normalize_session_row(raw: dict[str, str], fallback_day: date, observed_at: datetime | None = None) -> dict[str, Any] | None:
     started_text = pick(raw, "start", "tidspunkt", "dato", "siste soling", "time")
     if not started_text:
         started_text = next((value for value in raw.values() if parse_datetime_guess(value, fallback_day)), "")
@@ -605,7 +579,8 @@ def normalize_session_row(raw: dict[str, str], fallback_day: date) -> dict[str, 
     duration = parse_duration_minutes(pick(raw, "varighet", "soletid", "soltid", "minutter", "min"))
     paid = parse_number(pick(raw, "kostnad", "betalt", "pris", "belop", "inntjent", "kr"))
     room = pick(raw, "rom", "seng", "bed", "solarium")
-    identity = room_identity(room)
+    observed_at = observed_at or local_now()
+    identity = session_identity(room, started_at, observed_at)
     user_name = pick(raw, "bruker", "kunde", "navn", "medlem") or normalize_text(raw.get("__user_title"))
     user_identifier = pick(raw, "kunde id", "bruker id", "medlemsnummer", "telefon", "epost", "email")
     payment_method = pick(raw, "betalingsmiddel", "betaling", "payment")
@@ -644,6 +619,7 @@ def normalize_session_row(raw: dict[str, str], fallback_day: date) -> dict[str, 
     raw_for_storage = {key: value for key, value in raw.items() if key not in {"__sun2_user_token", "__user_href"}}
     raw_for_storage["source_session_id_basis"] = source_id_basis
     raw_for_storage["legacy_source_session_id"] = normalize_text(legacy_source_id)
+    raw_for_storage["room_mapping"] = mapping_provenance(identity, observed_at, source_id)
 
     return {
         "source_session_id": normalize_text(source_id),

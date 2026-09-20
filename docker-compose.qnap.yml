@@ -531,7 +531,8 @@ services:
 
   sun2_importer:
     build:
-      context: ./sun2_importer
+      context: .
+      dockerfile: sun2_importer/Dockerfile
     container_name: sun2_importer
     restart: unless-stopped
     env_file:
@@ -552,7 +553,8 @@ services:
 
   sun2_session_scraper:
     build:
-      context: ./sun2_session_scraper
+      context: .
+      dockerfile: sun2_session_scraper/Dockerfile
     container_name: sun2_session_scraper
     restart: unless-stopped
     env_file:

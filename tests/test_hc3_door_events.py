@@ -856,12 +856,13 @@ class SunroomDoorTimingTests(unittest.TestCase):
         self.assertEqual(item["severity"], "active")
         self.assertIsNone(item["alarmReason"])
 
-    def test_display_room_12_uses_physical_room_13_and_bed_681(self):
+    def test_room_12_keeps_internal_id_and_uses_current_bed_680(self):
         config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_solrom_12")
 
         self.assertEqual(config["device_id"], 539)
         self.assertEqual(self.main.sunroom_room_id_for_config(config), "rom-13")
-        self.assertEqual(self.main.sunroom_bed_id_for_config(config), "681")
+        self.assertEqual(self.main.sunroom_bed_id_for_config(config), "680")
+        self.assertEqual(self.main.sunroom_identity_for_config(config)["physical_room_number"], 12)
 
     def test_new_waste_room_sensor_is_an_other_door(self):
         config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_soppelbod")

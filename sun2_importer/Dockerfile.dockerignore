@@ -1,0 +1,8 @@
+**
+!sun2_importer/
+!sun2_importer/requirements.txt
+!sun2_importer/app/
+!sun2_importer/app/**
+!sun2_room_mapping.py
+**/__pycache__
+**/*.pyc

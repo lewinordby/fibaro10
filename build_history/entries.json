@@ -1,6 +1,26 @@
 [
   {
     "version": "1",
+    "build": "1855",
+    "date": "20.09.2026",
+    "headline": "Riktig romkobling etter omlegging av SUN2-terminalen",
+    "title": "Datostyrt romkobling og trygg gjeninnlesing av soltimer",
+    "description": "Skiller fysisk solrom fra terminalutgang og bevarer historiske koblinger. Samler koblingstabellen for API, mobil og begge SUN2-innsamlerne. Retter import som kunne slå sammen samtidige betalinger i ulike rom, og erstatter sletting ved ny import med oppdatering som bevarer bilder og post-ID-er.",
+    "applications": ["Fibaro10 API og bakgrunnsarbeider", "Mobil", "SUN2 session scraper", "SUN2 importer"],
+    "request": "jeg har for en stund siden endret slik at solsengene/rom nå samsvarer med utgangene på terminalen. tidligre var det en ledig utgang nr 10 men nå er rom 10, 11 og 12 flyttet til utgang 10, 11 og 12 ikke 11, 12 og 13 som det var før\n\nom leggingen ble gjort for tja kan ikke du finne det ut, seng 12 er jo mye i bruk, så da ble det jo slutt på at utgang 13 ga noe signal\n\ngjør dette så nøye som mulig\n\ngjrø en perfekt retting ferdigstilling av dette",
+    "work_duration": "Kartlegging, implementering, regresjonstester, sikkerhetskopi og kontrollert historikkretting. Fullstendig tidsmåling på tvers av begge oppgavene er ikke tilgjengelig.",
+    "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+    "changes": [
+      "Bruker 11. september 2026 som dokumentert datogrense for soltimer, uten å hevde et eksakt elektrisk omkoblingstidspunkt.",
+      "Rom 10, 11 og 12 bruker nå SUN2-ID 649, 679 og 680; gamle interne postreferanser beholdes.",
+      "Skiller tidspunktet for soltimen fra tidspunktet SUN2-romnavnet ble lest, slik at ny nedlasting ikke flytter historikken.",
+      "Bevarer timer og bilder ved gjentatte importer, og hindrer at en ukjent rombetegnelse overskriver en annen seng.",
+      "Tilfører kontrollert, idempotent reparasjonsverktøy med standard tørrkjøring og avstemming mot originalfiler.",
+      "Oppdaterer romfiltre, mobilvisning, sengekontroll og historisk kobling til dører uten å endre HC3 eller alarmgrenser."
+    ]
+  },
+  {
+    "version": "1",
     "build": "1854",
     "date": "06.09.2026",
     "headline": "Tydeligere kontrollgrunnlag og tryggere arbeid i mikroappene",

@@ -1,0 +1,8 @@
+**
+!sun2_session_scraper/
+!sun2_session_scraper/requirements.txt
+!sun2_session_scraper/app/
+!sun2_session_scraper/app/**
+!sun2_room_mapping.py
+**/__pycache__
+**/*.pyc

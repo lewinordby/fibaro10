@@ -1,5 +1,6 @@
 from typing import Any, Dict, Optional
 import re
+from sun2_room_mapping import SUN2_ROOM_MAP_BY_DISPLAY, SUN2_ROOM_UNKNOWN_OLD_10
 
 
 def repair_mojibake(value: Any) -> Any:
@@ -19,29 +20,6 @@ def room_key_from_name(value: Any) -> Optional[str]:
     if not match:
         return None
     return f"rom_{int(match.group(1)):02d}"
-
-
-SUN2_ROOM_MAP_BY_DISPLAY = {
-    1: {"room_id": "rom-01", "physical_room_number": 1, "display_room_number": 1, "sun2_bed_id": "640"},
-    2: {"room_id": "rom-02", "physical_room_number": 2, "display_room_number": 2, "sun2_bed_id": "641"},
-    3: {"room_id": "rom-03", "physical_room_number": 3, "display_room_number": 3, "sun2_bed_id": "642"},
-    4: {"room_id": "rom-04", "physical_room_number": 4, "display_room_number": 4, "sun2_bed_id": "643"},
-    5: {"room_id": "rom-05", "physical_room_number": 5, "display_room_number": 5, "sun2_bed_id": "644"},
-    6: {"room_id": "rom-06", "physical_room_number": 6, "display_room_number": 6, "sun2_bed_id": "645"},
-    7: {"room_id": "rom-07", "physical_room_number": 7, "display_room_number": 7, "sun2_bed_id": "646"},
-    8: {"room_id": "rom-08", "physical_room_number": 8, "display_room_number": 8, "sun2_bed_id": "647"},
-    9: {"room_id": "rom-09", "physical_room_number": 9, "display_room_number": 9, "sun2_bed_id": "648"},
-    10: {"room_id": "rom-11", "physical_room_number": 11, "display_room_number": 10, "sun2_bed_id": "679"},
-    11: {"room_id": "rom-12", "physical_room_number": 12, "display_room_number": 11, "sun2_bed_id": "680"},
-    12: {"room_id": "rom-13", "physical_room_number": 13, "display_room_number": 12, "sun2_bed_id": "681"},
-}
-
-SUN2_ROOM_UNKNOWN_OLD_10 = {
-    "room_id": "rom-10",
-    "physical_room_number": 10,
-    "display_room_number": None,
-    "sun2_bed_id": "649",
-}
 
 
 def normalize_room_id(value: Any) -> Optional[str]:
@@ -104,7 +82,10 @@ def sun2_room_label(room_id: Optional[str], source_name: Optional[str] = None) -
     source = (repair_mojibake(source_name) or "").strip()
     if not normalized:
         return source or "-"
-    number = int(normalized.rsplit("-", 1)[-1])
+    identity = next((item for item in SUN2_ROOM_MAP_BY_DISPLAY.values() if item["room_id"] == normalized), None)
+    number = identity["display_room_number"] if identity else int(normalized.rsplit("-", 1)[-1])
+    if identity and room_key_from_name(source) == f"rom_{number:02d}":
+        return source
     if source and source not in {".", "-"}:
         return f"Rom {number} - {source}"
     if normalized == "rom-10":
@@ -113,6 +94,6 @@ def sun2_room_label(room_id: Optional[str], source_name: Optional[str] = None) -
 
 
 SUN2_ROOM_OPTIONS = [
-    {"value": f"rom-{number:02d}", "label": f"Rom {number}"}
-    for number in range(1, 14)
-]
+    {"value": identity["room_id"], "label": f"Rom {number}"}
+    for number, identity in SUN2_ROOM_MAP_BY_DISPLAY.items()
+] + [{"value": "rom-10", "label": "Tidligere ubrukt utgang 10"}]

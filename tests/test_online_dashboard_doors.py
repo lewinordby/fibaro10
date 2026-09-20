@@ -178,12 +178,13 @@ class OnlineDashboardDoorTests(unittest.TestCase):
 
         self.assertEqual([(row["id"], row["state"]) for row in changes], [(3, False), (2, True), (1, False)])
 
-    def test_mobile_room_12_uses_physical_room_13_and_bed_681(self) -> None:
+    def test_mobile_room_12_preserves_internal_id_and_uses_current_bed(self) -> None:
         config = online_main.SOLROOM_DOOR_BY_KEY["door_solrom_12"]
 
         self.assertEqual(config["device_id"], 539)
         self.assertEqual(online_main.solroom_room_id_from_config(config), "rom-13")
-        self.assertEqual(config["sun2_bed_id"], "681")
+        self.assertEqual(config["sun2_bed_id"], "680")
+        self.assertEqual(config["physical_room_number"], 12)
 
     def test_mobile_room_3_uses_latest_hc3_door_sensor(self) -> None:
         config = online_main.SOLROOM_DOOR_BY_KEY["door_solrom_03"]
