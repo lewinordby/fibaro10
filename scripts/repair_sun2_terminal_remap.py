@@ -38,13 +38,22 @@ def observed(row):
     return (row.raw or {}).get("room_mapping", {}).get("label_observed_at") or row.imported_at
 
 
-async def image_fingerprint(session):
+async def image_fingerprint(session, max_id=None):
     return dict((await session.execute(text("""
-        SELECT count(*) AS count,
+        SELECT count(*) AS count, max(id) AS max_id,
                md5(coalesce(string_agg(concat_ws(':',id,session_id,captured_at,target_at,
                    offset_seconds,is_primary,sha256,byte_size), '|' ORDER BY id),'')) AS fingerprint
         FROM sun2_tanning_session_images
-    """))).mappings().one())
+        WHERE (CAST(:max_id AS bigint) IS NULL OR id <= CAST(:max_id AS bigint))
+    """), {"max_id": max_id})).mappings().one())
+
+
+async def session_fingerprint(session):
+    return (await session.execute(text("""
+        SELECT md5(coalesce(string_agg(concat_ws(':',id,source_session_id,room_id,
+            sun2_bed_id,started_at,duration_minutes,paid_amount_kr), '|' ORDER BY id),''))
+        FROM sun2_tanning_sessions
+    """))).scalar_one()
 
 
 async def repair(archive_dir, apply=False):
@@ -81,6 +90,7 @@ async def repair(archive_dir, apply=False):
             assert not (Counter({k:len(v) for k,v in indexed.items()}) - expected), "Unexpected existing records; do not guess"
             updated = 0
             inserted = []
+            restored_images = 0
             for source, stamp in original:
                 identity = session_identity(source["room"], source["started_at"], stamp)
                 matches = indexed[comparison_key(source, identity)]
@@ -93,6 +103,35 @@ async def repair(archive_dir, apply=False):
                     )
                     result = await main.ingest_sun2_tanning_sessions(session, payload, datetime.utcnow())
                     assert result["inserted"] == 1
+                    restored_row = (await session.execute(select(main.Sun2TanningSession).where(
+                        main.Sun2TanningSession.started_at == datetime.fromisoformat(source["started_at"]),
+                        main.Sun2TanningSession.room_id == identity["room_id"],
+                    ))).scalar_one()
+                    # Both payments share the same recorded minute and member. Reuse
+                    # only camera frames matching the normal target series exactly,
+                    # never another session's manually selected or shifted images.
+                    peers = (await session.execute(select(main.Sun2TanningSession).where(
+                        main.Sun2TanningSession.started_at == restored_row.started_at,
+                        main.Sun2TanningSession.sun2_user_id == restored_row.sun2_user_id,
+                        main.Sun2TanningSession.id != restored_row.id,
+                    ))).scalars().all()
+                    for offset, target, primary in main.sun2_session_axis_target_series(restored_row):
+                        frame = (await session.execute(select(main.Sun2TanningSessionImage).where(
+                            main.Sun2TanningSessionImage.session_id.in_([peer.id for peer in peers]),
+                            main.Sun2TanningSessionImage.target_at == target,
+                            main.Sun2TanningSessionImage.offset_seconds == offset,
+                            main.Sun2TanningSessionImage.source == "axis_snapshot_backfill",
+                        ).order_by(main.Sun2TanningSessionImage.id))).scalars().first()
+                        if frame:
+                            session.add(main.Sun2TanningSessionImage(
+                                session_id=restored_row.id, captured_at=frame.captured_at, target_at=target,
+                                offset_seconds=offset, is_primary=primary, delta_seconds=frame.delta_seconds,
+                                source_path=frame.source_path, source_mtime=frame.source_mtime,
+                                content_type=frame.content_type, image_bytes=frame.image_bytes,
+                                byte_size=frame.byte_size, sha256=frame.sha256,
+                                source="axis_snapshot_recovered_same_timestamp",
+                            ))
+                            restored_images += 1
                     inserted.append({"started_at":source["started_at"], "room":11, "amount":source["paid_amount_kr"]})
                     continue
                 row = matches[0]
@@ -150,13 +189,31 @@ async def repair(archive_dir, apply=False):
                         setattr(bed,key,identity[key])
                     beds_updates += 1
             await session.flush()
-            assert await image_fingerprint(session) == before_images, "Image associations changed"
+            assert await image_fingerprint(session, before_images["max_id"]) == before_images, "Existing image associations changed"
             after_count = (await session.execute(text("SELECT count(*) FROM sun2_tanning_sessions"))).scalar_one()
             assert after_count == before_count + len(inserted)
+            # Replay both label epochs using the real ingest code, but never persist
+            # the verification imports or advance production sync timestamps.
+            before_replay = await session_fingerprint(session)
+            before_replay_images = await image_fingerprint(session)
+            replay_rows = 0
+            savepoint = await session.begin_nested()
+            for path in [archive_dir / "Sun2_sessions_2026-09.json", *[
+                archive_dir / f"Sun2_sessions_2026-09-{day:02d}.json" for day in range(1,11)
+            ]]:
+                payload = main.Sun2TanningSessionsIngestIn.model_validate_json(path.read_text())
+                result = await main.ingest_sun2_tanning_sessions(session, payload, datetime.utcnow())
+                assert result["inserted"] == result["replaced"] == 0, "Reimport changed the set of sessions"
+                replay_rows += len(payload.rows)
+            await session.flush()
+            assert await session_fingerprint(session) == before_replay, "Reimport changed stable session identities or totals"
+            assert await image_fingerprint(session) == before_replay_images, "Reimport changed image associations"
+            await savepoint.rollback()
             report.update(historical_updated=updated, restored=inserted, current_updated=current_updates,
                           daily_stats_updated=stats_updates, beds_updated=beds_updates, historical_sessions=len(corrected),
                           historical_amount="50365.16", images=before_images, session_count_before=before_count,
-                          session_count_after=after_count)
+                          session_count_after=after_count, reimport_verified_rows=replay_rows,
+                          recovered_images=restored_images)
             if not apply:
                 await session.rollback()
     await main.engine.dispose()

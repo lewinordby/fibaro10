@@ -1,6 +1,7 @@
 # SUN2 terminal output remapping: evidence audit
 
-Audit date: 2026-09-20. Status: investigation complete; correction NOT implemented.
+Audit date: 2026-09-20. The evidence sections below describe the state before
+correction. Implementation and production verification are recorded at the end.
 
 ## Conclusion
 
@@ -197,3 +198,63 @@ aadebee37e2c62ea4c5fcd0239061d909b11a89c9a1ae57a7c72b617f9fa4398
 ```
 
 No operational changes, migrations or deployments were made for this audit.
+
+## Correction: Build 1855
+
+The correction uses `sun2_room_mapping.py` in the core, mobile dashboard and
+both SUN2 collectors. Physical rooms retain their existing internal database
+identities; only dated terminal/bed associations change. Original daily exports
+and newly downloaded historical transactions are interpreted separately.
+
+Session ingestion updates existing rows in place. It never deletes a source
+file's sessions, never matches an unknown room against a known room, and keeps
+existing primary keys and source IDs. PostgreSQL serializes concurrent session
+imports with a transaction advisory lock.
+
+The repair script `scripts/repair_sun2_terminal_remap.py` defaults to rollback.
+It requires the original daily archives and refuses unexpected or ambiguous
+records. Before commit it checks exact historical multisets, whole-database
+session counts and every existing image association. It then replays the monthly
+archive plus ten original daily archives inside a savepoint, checks identities,
+amounts and images, and rolls that verification back without advancing sync times.
+
+Verified rollback result on production data:
+
+- 50 existing historical sessions corrected, two missing sessions restored.
+- 262 sessions / NOK 50,365.16 for 1-10 September, matching original archives.
+- 66 newer session bed IDs, 25 daily statistic bed IDs and three bed records corrected.
+- All 10,373 existing image rows and associations preserved.
+- Ten images recovered for the two restored sessions. These reuse archived
+  payment-camera frames only when member, payment timestamp, default target
+  timestamp and offset match. They are not inferred images of a particular room
+  or proof of a person's identity; manually selected/shifted frames are excluded.
+- 784 imported rows replayed with zero inserted/replaced sessions and no changed
+  stable identities, amounts or image associations.
+- Regression suite: 748 passed plus 24 subtests; deployment-plan tests passed.
+
+### Backup and Recovery
+
+Protected backup directory on QNAP:
+`/share/CACHEDEV3_DATA/fibaro10_archive/sun2-remap-20260920`.
+
+`before.dump` contains the session, image, daily-statistic, bed and alarm tables.
+`session-archives.tgz` preserves all source exports. The dump table-of-contents
+was verified with `pg_restore --list`.
+
+```text
+before.dump SHA-256
+038ac6706f34b88288815eae1771a20cad24925fb0ca95555aba47278b750836
+session-archives.tgz SHA-256
+91748dc2c6bf61f3c824dcbd0c00dcc3cc0d00c7656d336e0c1e610fb9b304d8
+```
+
+Run the repair in the core image with production environment, read-only archive
+mount, and `--archive-dir /archives --report /repair-output/report.json`.
+Only `--apply` commits. Any failed assertion rolls back the transaction. Reports
+omit member identifiers. Re-running after a successful repair must produce zero
+repairs and still pass the reimport checks.
+
+Do not restore the whole backup over subsequently imported data. If recovery is
+needed, restore into a separate database, compare the affected records and apply
+a reviewed targeted recovery while SUN2 ingestion is paused. Old application
+images alone are not a data rollback and would restore the defective mapping.
