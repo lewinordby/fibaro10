@@ -8,7 +8,7 @@ import urllib.request
 from collections import defaultdict
 from time import monotonic
 
-from time_formatting import api_local_iso, local_now_naive, normalize_local_naive
+from time_formatting import api_local_iso, local_now_naive
 
 
 def battery_value(raw, *, zwave=False):
@@ -27,6 +27,61 @@ def battery_value(raw, *, zwave=False):
 
 def _properties(device):
     return device.get("properties") or {}
+
+
+def _identity(channels, root, source, config, room_names, doors):
+    primary = next((row for row in channels if row["id"] == config.get("device_id")), channels[0])
+    types = {row.get("type", "").rsplit(".", 1)[-1] for row in channels}
+    places = list(dict.fromkeys(room_names.get(row.get("roomID"), "").strip() for row in channels))
+    places = [place for place in places if place and place.casefold() not in {"default", "unassigned"}]
+    location = ", ".join(places) or "Plassering må avklares"
+    name = re.sub(r"^\d+\.\d+\s+", "", primary.get("name", "")).strip()
+    note = ""
+    retired = False
+    if config:
+        name = f"Dørføler – {config['title']}"
+        if config.get("group_key") == "solrom":
+            location = config.get("section_title") or location
+        else:
+            location = {"door_inngang": "1.etg", "door_loftluke_massasje": "VIP",
+                        "door_soppelbod": "2.etg"}.get(config.get("device_key"), location)
+    elif primary["id"] in {499, 541} and "doorSensor" in types:
+        # Documented entrance replacements; never treat as the active door.
+        name, location, retired = "Tidligere inngangsføler", "Tidligere: Inngang", True
+        current = next((row for row in doors.values() if row.get("device_key") == "door_inngang"), {})
+        note = "Erstattet som inngangsføler, men finnes fortsatt i HC3. Nåværende fysisk plassering er ikke bekreftet."
+        if current.get("device_id"):
+            note += f" Aktiv inngangsføler har HC3-ID {current['device_id']}."
+    elif source == "Netatmo":
+        name = re.sub(r"^(Humidity|Temperature|CO2)\s+", "", name, flags=re.I)
+        name = re.sub(r"^SUN2\s*\([^)]*\)\s*", "", name, flags=re.I)
+        name = re.sub(r"\b([12])\s*\.?\s*etg\b", r"\1.etg", name, flags=re.I)
+        name = re.sub(r"\bvip\b", "VIP", name, flags=re.I)
+        name = name[:1].upper() + name[1:]
+        name = f"Klimaføler – {name}" if name else "Klimaføler"
+    else:
+        kind = "Batterienhet"
+        if "doorSensor" in types:
+            kind = "Dørføler"
+        elif "hvacSystem" in types:
+            kind = "Termostat"
+        elif "motionSensor" in types:
+            kind = "Multisensor" if types & {"temperatureSensor", "humiditySensor", "lightSensor"} else "Bevegelsesføler"
+        elif {"temperatureSensor", "humiditySensor"} <= types:
+            kind = "Temperatur- og fuktføler"
+        elif "temperatureSensor" in types:
+            kind = "Temperaturføler"
+        elif "remoteController" in types:
+            kind = "Bryter"
+        if name == "Arb_rom_bryter":
+            name = "Bryter – Arbeidsrom"
+        elif name in {"Door Sensor", "Motion Sensor", "Temperature Sensor", "Humidity Sensor", "Hvac System", ""}:
+            name = f"{kind} – {location}" if places else kind
+    if not config and not retired and not places:
+        note = "Fysisk plassering er ikke angitt i HC3. Må identifiseres før batteribytte."
+    node = re.fullmatch(r"Z-Wave Node (\d+)", root.get("name", ""))
+    return {"name": name, "location": location, "primaryDeviceId": primary["id"],
+            "hc3Node": int(node[1]) if node else None, "retired": retired, "identificationNote": note}
 
 
 def hc3_batteries(devices, rooms, door_config=()):
@@ -68,17 +123,14 @@ def hc3_batteries(devices, rooms, door_config=()):
         channels.sort(key=lambda row: row["id"])
         root, source = roots[key]
         config = next((doors[row["id"]] for row in channels if row["id"] in doors), {})
-        name = config.get("title") or channels[0].get("name") or f"HC3 {root['id']}"
-        if ":module:" in key:
-            name = re.sub(r"^(Humidity|Temperature|CO2)\s+", "", name)
+        identity = _identity(channels, root, source, config, room_names, doors)
         values = [battery_value(_properties(row).get("batteryLevel"), zwave=":zwave:" in key) for row in channels]
         levels = [level for level, _ in values if level is not None]
         level = min(levels, default=None)
         status = min((status for _, status in values), key=lambda value: {"critical": 0, "low": 1, "ok": 2, "unknown": 3}[value])
         warning = any(_properties(row).get("batteryLevel") in (255, "255") for row in channels) and ":zwave:" in key
-        room = config.get("section_title") if config.get("group_key") == "solrom" else room_names.get(channels[0].get("roomID"), "")
         result.append({
-            "id": key, "name": name, "source": source, "location": room or "Ikke angitt",
+            "id": key, "source": source, **identity,
             "model": root.get("model") or _properties(root).get("model") or "",
             "manufacturer": root.get("manufacturer") or _properties(root).get("manufacturer") or "",
             "level": None if warning else level, "status": status, "lowBatteryWarning": warning,
@@ -91,25 +143,6 @@ def hc3_batteries(devices, rooms, door_config=()):
                           "level": battery_value(_properties(row).get("batteryLevel"), zwave=":zwave:" in key)[0]} for row in channels],
         })
     return result
-
-
-def robot_battery(robot, samples, now):
-    available = [sample for sample in samples if sample is not None and sample.timestamp is not None]
-    sample = max(available, key=lambda row: normalize_local_naive(row.timestamp), default=None)
-    reported = normalize_local_naive(sample.timestamp) if sample else None
-    level, status = battery_value(sample.battery if sample else None)
-    return {
-        "id": f"robot:{robot.duid}", "name": robot.name, "location": "Renhold",
-        "source": "Dreame" if robot.provider == "dreame" else "Roborock",
-        "model": robot.model or robot.product or "", "manufacturer": robot.provider,
-        "level": level, "status": status, "lowBatteryWarning": False,
-        "rechargeable": True, "charging": getattr(sample, "is_charging", None),
-        "state": sample.state_name if sample else None, "unavailable": robot.cloud_online is False,
-        "disabled": robot.integration_status not in (None, "active"),
-        "reportedAt": api_local_iso(reported),
-        "stale": reported is None or (now - reported).total_seconds() > 1800,
-        "inconsistent": False, "channels": [],
-    }
 
 
 class HC3BatterySnapshot:

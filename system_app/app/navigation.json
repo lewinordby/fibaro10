@@ -436,7 +436,7 @@
           "icon": "dashboard",
           "items": [
             { "to": "/", "label": "Systemstatus", "icon": "dashboard", "title": "Systemstatus", "description": "Tjenestestatus og sentrale systemkontroller.", "module": "admin", "view": "drift", "corePath": "/admin/drift" },
-            { "to": "/batterier", "label": "Batterier", "icon": "energy", "title": "Batterier", "description": "Samlet batteristatus for sensorer og robotvaskere.", "module": "admin", "view": "batterier" },
+            { "to": "/batterier", "label": "Batterier", "icon": "energy", "title": "Batterier", "description": "Batteristatus for sensorer og brytere, med plassering og HC3-ID.", "module": "admin", "view": "batterier" },
             { "to": "/datakilder", "label": "Datakilder", "icon": "link", "title": "Datakilder", "description": "Status, kj\u00f8replan, avhengigheter og forklaring per datakilde.", "module": "admin", "view": "datakilder", "corePath": "/admin/datakilder" },
             { "to": "/oppgaver", "label": "Jobber", "icon": "clock", "title": "Systemjobber", "description": "Planlagte og manuelle systemjobber.", "module": "admin", "view": "oppgaver", "corePath": "/admin/oppgaver" },
             { "to": "/varslinger", "label": "Varslinger", "icon": "bell", "title": "Varslinger og abonnement", "description": "ntfy-emner, forklaringer og abonnementslister.", "module": "varslinger", "view": "oversikt", "corePath": "/varslinger/oversikt" },

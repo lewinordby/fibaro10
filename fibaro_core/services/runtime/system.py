@@ -828,7 +828,7 @@ def create_service(dependencies: Dependencies):
                     "title": "System og underapper",
                     "areas": system_areas,
                     "subapps": [
-                        {"title": "Batterier", "text": "Batterinivå for HC3, Netatmo og robotene, samlet per fysisk enhet. Lavt er 20 % eller mindre, kritisk lavt er 10 % eller mindre. Z-Wave-kode 255 er batterivarsel, ikke prosent. HC3 oppgir ikke batterimålingens tidspunkt; kontrolltid er kun når lagrede verdier ble lest. Robotdata eldre enn 30 minutter merkes utdaterte. Siden endrer ikke alarmregler eller styring.", "path": "/system/batterier"},
+                        {"title": "Batterier", "text": "Batterinivå for sensorer og brytere i HC3, inkludert Netatmo, samlet per fysisk enhet. Rom, funksjon og HC3-ID gjør enheten lettere å finne. Erstattede følere merkes; uklar plassering må avklares før batteribytte. Robotbatterier finnes under Renhold. Lavt er 20 % eller mindre, kritisk lavt er 10 % eller mindre. Z-Wave-kode 255 er batterivarsel, ikke prosent. HC3 oppgir ikke batterimålingens tidspunkt; kontrolltid er kun når lagrede verdier ble lest. Siden endrer ikke alarmregler eller styring.", "path": "/system/batterier"},
                         {"title": "Varslinger", "text": "Alle ntfy-abonnementer finnes samlet under System -> Varslinger.", "path": "/system/varslinger"},
                         {"title": "Undersystemer", "text": "Alle klikkbare systemflater og interne tjenester finnes under System -> Undersystemer.", "path": "/system/undersystemer"},
                         {"title": "Mantis", "text": "Gjeldende brukerflate med tretten fagapper på app.lilletorget.net."},

@@ -3045,7 +3045,7 @@ system_http.register_endpoint(app, "api_admin_manual")
 system_http.register_endpoint(app, "api_system_notifications")
 system_http.register_endpoint(app, "api_system_incident_review")
 app.include_router(create_assets_router(async_session, require_settings_access))
-app.include_router(create_batteries_router(async_session, HC3BatterySnapshot(
+app.include_router(create_batteries_router(HC3BatterySnapshot(
     hc3_devices_request, HC3_BASE_URL, hc3_basic_auth_header, DOOR_SENSOR_CONFIG,
 )))
 app.include_router(create_automations_router(async_session, require_settings_access))

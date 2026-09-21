@@ -80,7 +80,8 @@ Alle stier over ligger under `https://app.lilletorget.net`.
   feilsøkes uten å stoppe resten av løsningen.
 - Datakilder er fasit for friskhet. Buildloggen er fasit for endringer.
 - System -> Batterier (`/system/batterier`) viser batterinivå for HC3-enheter,
-  Netatmo-moduler og robotene. Søk og filtrer på kilde, lavt batteri eller ukjent
+  Netatmo-moduler og batteribrytere, med romnavn og HC3-ID. Robotene ligger under Renhold.
+  Erstattede følere merkes tydelig. Søk og filtrer på kilde, lavt batteri eller ukjent
   nivå. Klikk enheten for detaljer og HC3-underenheter. Kontrolltid for HC3 er
   ikke tidspunktet batteriet ble målt; dette tidspunktet oppgis ikke av HC3.
 - Originaldata og kildereferanser skal beholdes når det er mulig.

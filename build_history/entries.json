@@ -1,6 +1,25 @@
 [
   {
     "version": "1",
+    "build": "1858",
+    "date": "21.09.2026",
+    "headline": "Gjenkjennelige sensornavn i batterioversikten",
+    "title": "Batterier viser sensorer og brytere, med sted og HC3-ID",
+    "description": "Fjerner robotene fra batterilisten og gir fysiske sensorer tydelige navn. Skiller tidligere inngangsfølere fra den aktive, og viser eksplisitt når fysisk plassering må avklares.",
+    "applications": ["Fibaro10 API", "Mantis System", "System-adapter (manualmeny)", "Felles menykatalog og manual"],
+    "request": "robotene trenger ikke å være i den lista, men det er viktig med lett forklarlige navn slik at jeg vet hvem sensor jeg skal bytte i\n\n131 eks hvem er det?",
+    "work_duration": "Kartlegging, implementering, tester og produksjonskontroll; separat fullstendig tidsmåling ikke tilgjengelig",
+    "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+    "changes": [
+      "Fjerner Roborock og Dreame fra batterisiden og unngår databaseoppslag for robotbatterier.",
+      "Bruker funksjon og rom i sensornavn, med søkbare HC3-ID-er, node og originalnavn i detaljene.",
+      "Merker tidligere inngangsfølere 499 og 541 som erstattet; aktiv inngangsføler er 545.",
+      "Skiller Netatmo-modulnavn fra basestasjonens navn og merker ukjent fysisk plassering.",
+      "Ingen endringer i HC3, dørkoblinger, innsamling eller robotstyring."
+    ]
+  },
+  {
+    "version": "1",
     "build": "1857",
     "date": "21.09.2026",
     "headline": "Samlet batterioversikt i System",
