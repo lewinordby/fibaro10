@@ -1,6 +1,26 @@
 [
   {
     "version": "1",
+    "build": "1857",
+    "date": "21.09.2026",
+    "headline": "Samlet batterioversikt i System",
+    "title": "Batterinivå og kontaktstatus for sensorer og robotvaskere",
+    "description": "Ny lesebasert side under System samler HC3, Netatmo, Roborock og Dreame. Fysiske enheter vises én gang, med søk, filtre og kanalopplysninger. Kontrolltid holdes adskilt fra måletid.",
+    "applications": ["Fibaro10 API", "Mantis System", "System-adapter (manualmeny)", "Felles menykatalog og manual"],
+    "request": "kan vi lage en egen side der det passer med oversikt over alle enheter som har batteri og status på batteriet",
+    "work_duration": "Kartlegging, implementering, automatiske tester og visuell kontroll; fullstendig tidsmåling ikke tilgjengelig",
+    "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+    "changes": [
+      "Ny side System -> Batterier med prosent, lavt/ukjent nivå, kilde, plassering og enhetsstatus.",
+      "Samler Z-Wave-underenheter og Netatmo-kanaler per fysisk modul uten å blande ulike sensorer.",
+      "Tolker 0 prosent som gyldig og Z-Wave 255 som batterivarsel; batterivarselinnstilling tolkes ikke som aktuell alarm.",
+      "Leser robotbatterier fra eksisterende database, med rapporteringstid, ladeindikasjon og markering av utdaterte data.",
+      "Kort mellomlagring og tydelig feilstatus ved kildefeil. Ingen endring i innsamlerplaner, HC3-enheter, robotstyring eller varslinger.",
+      "Oppdaterer manual og menykatalog, med dokumenterte grenser og begrensninger."
+    ]
+  },
+  {
+    "version": "1",
     "build": "1856",
     "date": "20.09.2026",
     "headline": "Mer oversiktlig dashboard og dørstatus på mobil",

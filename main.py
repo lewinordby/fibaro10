@@ -446,6 +446,8 @@ from fibaro_core.services.assets import (
     apply_asset_registry_input,
 )
 from fibaro_core.routers.assets import create_assets_router
+from fibaro_core.routers.batteries import create_batteries_router
+from fibaro_core.services.batteries import HC3BatterySnapshot
 from fibaro_core.services.automations import (
     workbench_json_text,
     automation_workbench_payload,
@@ -3043,6 +3045,9 @@ system_http.register_endpoint(app, "api_admin_manual")
 system_http.register_endpoint(app, "api_system_notifications")
 system_http.register_endpoint(app, "api_system_incident_review")
 app.include_router(create_assets_router(async_session, require_settings_access))
+app.include_router(create_batteries_router(async_session, HC3BatterySnapshot(
+    hc3_devices_request, HC3_BASE_URL, hc3_basic_auth_header, DOOR_SENSOR_CONFIG,
+)))
 app.include_router(create_automations_router(async_session, require_settings_access))
 system_http.register_endpoint(app, "api_system_search")
 system_http.register_endpoint(app, "api_system_subsystems")
